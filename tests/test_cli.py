@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 
@@ -61,6 +62,34 @@ def test_backup_restore_round_trip(client, note, tmp_path):
         restored.get("/api/search", params={"q": "arrows"}).json()[0]["title"]
         == "Board"
     )
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0, reason="root ignores permissions"
+)
+def test_restore_from_a_read_only_backup(client, note, tmp_path):
+    from scrap.__main__ import main
+
+    data, bak = tmp_path / "data", tmp_path / "bak"
+    note("From read-only media")
+    client.post(
+        "/api/captures",
+        data={"id": new_ulid(), "text": "Photo"},
+        files=[("file", ("b.png", b"png bytes", "image/png"))],
+    )
+    main(["backup", "--data-dir", str(data), str(bak)])
+    assert sorted(p.name for p in bak.iterdir()) == ["files", "scrap.db"]
+    dirs = [bak, *(p for p in bak.rglob("*") if p.is_dir())]
+    for path in dirs:
+        path.chmod(0o555)
+    try:
+        main(["restore", "--data-dir", str(tmp_path / "new"), str(bak)])
+        main(["restore", "--force", "--data-dir", str(data), str(bak)])
+    finally:
+        for path in dirs:
+            path.chmod(0o755)
+    assert _dump(tmp_path / "new") == _dump(data)
+    assert sorted(p.name for p in (tmp_path / "new").iterdir()) == ["files", "scrap.db"]
 
 
 def test_export_markdown(client, note, tmp_path, capsys):

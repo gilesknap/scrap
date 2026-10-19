@@ -207,11 +207,18 @@ def test_search_finds_title_and_body_at_once(client, note):
     assert search(client, "\x00shed")[0]["id"] == ref["page_id"]
 
 
+def test_control_characters_separate_words_in_the_index(client, note):
+    ref = note("Odd spacing\nvt\x0bjoined and cr\rsplit\x00here")
+    for query in ["joined", "split", "here", "vt"]:
+        assert [h["id"] for h in search(client, query)] == [ref["page_id"]], query
+
+
 def test_snippets_escape_html(client, note):
     note("<b>bold</b> & \x02fake\x03 <script>x</script>")
     snippet = search(client, "bold")[0]["snippet"]
     assert snippet == (
-        "&lt;b&gt;<mark>bold</mark>&lt;/b&gt; &amp; fake &lt;script&gt;x&lt;/script&gt;"
+        "&lt;b&gt;<mark>bold</mark>&lt;/b&gt; &amp;  fake  "
+        "&lt;script&gt;x&lt;/script&gt;"
     )
 
 
