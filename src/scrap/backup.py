@@ -57,8 +57,11 @@ def backup(store: Store, dest: Path) -> None:
 def restore(src: Path, store: Store, force: bool = False) -> None:
     """Restore a backup into a data folder that is empty (or any, with force).
 
-    The backup is checked and migrated in a copy beside the live database, which
-    is swapped in only at the end. Files are only ever added.
+    The backup's database is copied beside the live one first, and only the copy
+    is opened: the backup itself may be on read-only media (a WAL database cannot
+    be opened in a read-only directory). The copy is checked and migrated, then
+    swapped in at the end. Files are only ever added. A refused backup leaves the
+    data folder as it was.
     """
     backup_db = src / "scrap.db"
     if not backup_db.is_file():
@@ -66,23 +69,38 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
     used = store.db.exists() or (store.files.is_dir() and any(store.files.iterdir()))
     if used and not force:
         raise SystemExit(f"{store.dir} is not empty; stop scrap and use --force")
+    created = not store.dir.exists()
+    store.dir.mkdir(parents=True, exist_ok=True)
+    part = store.dir / "scrap.db.restore"
     try:
-        schema_version(backup_db)  # refuses a backup newer than this scrap
-        with closing(connect(backup_db)) as conn:
+        _discard(part)
+        shutil.copyfile(backup_db, part)
+        # A backup is a closed snapshot with no -wal; copy one if it is there
+        if Path(f"{backup_db}-wal").is_file():
+            shutil.copyfile(f"{backup_db}-wal", f"{part}-wal")
+        schema_version(part)  # refuses a backup newer than this scrap
+        with closing(connect(part)) as conn:
             check = conn.execute("PRAGMA integrity_check").fetchone()[0]
-    except (RuntimeError, sqlite3.DatabaseError) as error:
-        raise SystemExit(f"bad backup: {error}") from None
-    if check != "ok":
-        raise SystemExit(f"bad backup: integrity_check says {check}")
+        if check != "ok":
+            raise sqlite3.DatabaseError(f"integrity_check says {check}")
+    except (RuntimeError, sqlite3.DatabaseError, OSError) as error:
+        _discard(part)
+        if created:
+            store.dir.rmdir()
+        what = "cannot copy the backup" if isinstance(error, OSError) else "bad backup"
+        raise SystemExit(f"{what}: {error}") from None
     store.files.mkdir(parents=True, exist_ok=True)
     _copy_files(src / "files", store.files)
-    part = store.dir / "scrap.db.restore"
-    _snapshot(backup_db, part)
     migrate(part)
     Path(f"{part}.lock").unlink()
     for suffix in ("-wal", "-shm"):
         Path(f"{store.db}{suffix}").unlink(missing_ok=True)
     part.replace(store.db)
+
+
+def _discard(db: Path) -> None:
+    for suffix in ("", "-wal", "-shm", ".lock"):
+        Path(f"{db}{suffix}").unlink(missing_ok=True)
 
 
 def _sha_name(blob: sqlite3.Row, taken: set[str]) -> str:
