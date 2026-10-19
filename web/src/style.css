@@ -46,7 +46,9 @@ textarea {
   color: inherit;
 }
 button,
+.button,
 .big {
+  min-width: 0; /* shrink rather than push the page wider than the phone */
   min-height: 48px;
   padding: 0 1rem;
   border: 1px solid var(--line);
@@ -161,13 +163,12 @@ nav a[aria-current] {
   color: var(--accent-fg);
   border-color: var(--accent);
 }
-.composer,
-.edit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  flex: 1;
-  justify-content: flex-end;
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  text-decoration: none;
 }
 .chips {
   display: flex;
@@ -238,9 +239,11 @@ nav a[aria-current] {
 }
 .bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
-.bar button {
+.bar button,
+.bar .button {
   flex: 1;
 }
 
@@ -311,6 +314,9 @@ mark {
   color: var(--muted);
   text-align: center;
 }
+.build {
+  font-size: 0.75rem;
+}
 
 .page h1 {
   font-size: 1.4rem;
@@ -323,9 +329,67 @@ mark {
   margin: 0 0 1rem;
 }
 .body {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+  margin-bottom: 0.25rem;
+}
+.body.raw {
+  white-space: pre-wrap;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md h1,
+.md h2,
+.md h3 {
+  font-size: 1.15rem;
+}
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 1rem;
+}
+.md pre {
+  overflow-x: auto;
+  padding: 0.6rem;
+  border-radius: 8px;
+  background: var(--card);
+  font-size: 0.85rem;
+}
+.md code {
+  font-size: 0.9em;
+}
+.md blockquote {
+  margin: 0.5rem 0;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+.md ul,
+.md ol {
+  padding-left: 1.4rem;
+}
+.md img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.md hr {
+  border: none;
+  border-top: 1px solid var(--line);
+}
+.preview {
+  padding: 0.7rem;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+button.link {
+  min-height: 36px;
   margin-bottom: 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
 }
 .originals {
   display: flex;
@@ -336,6 +400,17 @@ mark {
 .originals img {
   width: 100%;
   border-radius: 12px;
+}
+.orig {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.orig .save {
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
 }
 .conflict {
   border: 1px solid var(--warn);
@@ -357,7 +432,7 @@ mark {
   left: 1rem;
   right: 1rem;
   top: calc(env(safe-area-inset-top) + 4.5rem); /* clear of the buttons under the thumb */
-  z-index: 2;
+  z-index: 4; /* over the editor and the viewer */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -371,4 +446,168 @@ mark {
   background: transparent;
   color: inherit;
   border-color: currentColor;
+}
+
+.viewing {
+  overflow: hidden;
+}
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+  color: #fff;
+}
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none; /* the viewer handles every gesture; the page must not move */
+  user-select: none;
+}
+.stage img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.stage img.anim {
+  transition: transform 0.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage img.anim {
+    transition: none;
+  }
+}
+.viewer .tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem max(env(safe-area-inset-right), 0.5rem) calc(env(safe-area-inset-bottom) + 0.5rem)
+    max(env(safe-area-inset-left), 0.5rem);
+  background: rgb(0 0 0 / 55%);
+}
+.viewer .tools > * {
+  flex: 1 1 0; /* equal shares of the width, whatever the labels */
+  padding: 0 0.25rem;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viewer button,
+.viewer .button {
+  background: rgb(255 255 255 / 12%);
+  border-color: rgb(255 255 255 / 25%);
+  color: #fff;
+}
+.viewer .note {
+  position: absolute;
+  top: 40%;
+  left: 1rem;
+  right: 1rem;
+  text-align: center;
+}
+.viewer .count {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 0.75rem);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.9rem;
+  text-shadow: 0 0 4px #000;
+  pointer-events: none;
+}
+.viewer [aria-label$="photo"] {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  flex: none;
+  width: 48px;
+  font-size: 1.6rem;
+  padding: 0;
+}
+.viewer [aria-label="Previous photo"] {
+  left: max(env(safe-area-inset-left), 0.5rem);
+}
+.viewer [aria-label="Next photo"] {
+  right: max(env(safe-area-inset-right), 0.5rem);
+}
+
+[aria-busy="true"] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* The editor (editor.ts): a layer the size of the visual viewport, above the keyboard. */
+.editing {
+  overflow: hidden;
+}
+.editing nav {
+  display: none;
+}
+.editor {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--vv-top, 0);
+  height: var(--vv-h, 100dvh);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.editor > .bar {
+  flex: none;
+  flex-wrap: nowrap;
+  padding: calc(env(safe-area-inset-top) + 0.5rem) max(env(safe-area-inset-right), 1rem) 0.5rem
+    max(env(safe-area-inset-left), 1rem);
+  border-bottom: 1px solid var(--line);
+}
+.fields {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto; /* only if the extras (photos, a conflict) need more than the room */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem max(env(safe-area-inset-right), 1rem) 0.75rem
+    max(env(safe-area-inset-left), 1rem);
+}
+.fields > textarea,
+.fields > .preview {
+  flex: 1 1 auto;
+  min-height: 5rem;
+  resize: none;
+  overflow-y: auto;
+}
+
+/* Debug aid (debug.ts), off by default */
+.debug {
+  position: fixed;
+  left: 0;
+  top: calc(var(--vv-top, 0px) + 35%); /* in sight with the keyboard up */
+  z-index: 5;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.3rem;
+  font-size: 10px;
+  white-space: pre-wrap;
+  background: rgb(0 0 0 / 75%);
+  color: #0f0;
+  pointer-events: none;
+}
+.restored {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.restored .link {
+  min-height: 0;
+  margin: 0;
 }

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { idb } from "../src/db";
+import { drafts, idb } from "../src/db";
 import { backoff, type Item, Queue, split } from "../src/queue";
 import { fromShare } from "../src/share";
 
@@ -305,5 +305,18 @@ describe("share target", () => {
     await q.add(c);
     await q.flush();
     expect(sent.map((i) => [i.source, i.text])).toEqual([["share", "shared note"]]);
+  });
+});
+
+describe("drafts", () => {
+  it("keeps text and photos, and forgets them", async () => {
+    const photo = new Blob(["jpeg bytes"], { type: "image/jpeg" });
+    await drafts.put("new", { text: "half a thought", files: [photo] });
+    const kept = await drafts.get<{ text: string; files: Blob[] }>("new");
+    expect(kept?.text).toBe("half a thought");
+    expect(await kept?.files[0].text()).toBe("jpeg bytes");
+    expect(await idb.all()).toEqual([]); // not in the queue
+    await drafts.del("new");
+    expect(await drafts.get("new")).toBeUndefined();
   });
 });

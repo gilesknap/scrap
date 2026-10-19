@@ -405,3 +405,13 @@ class Store:
         if row is None or not path.is_file():
             raise NotFoundError(sha)
         return path, row[0]
+
+    def blob_name(self, sha: str) -> str | None:
+        """The name a stored file was uploaded under, if any."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT filename FROM capture_blob WHERE sha256 = ?"
+                " AND filename IS NOT NULL LIMIT 1",
+                (sha,),
+            ).fetchone()
+        return row and row[0]

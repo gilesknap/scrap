@@ -67,13 +67,32 @@ the link as the capture's URL.
 ## View, edit, search
 
 - **Recent** lists pages newest first, with a thumbnail of the first photo.
-- A page shows its text and its originals: images inline (tap for the full file), other files as
-  links. HEIC photos, which Chrome cannot show, appear as links.
-- **Edit** changes the title and text. If the page was changed elsewhere since you opened it, the
+- A page shows its text and its files: photos inline (as previews the server makes, so iPhone HEIC
+  photos show too), other files as links. Each has a **Download** of the original.
+- Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
+  drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
+  **Download** and **Close** are along the bottom; the phone's Back button closes it too.
+- **Download** on a page saves it as Markdown, or as a zip of the Markdown and its files when it
+  has any.
+- Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
+  **Raw text** shows it exactly as typed, and the phone remembers the choice. The text is
+  always stored as typed.
+- **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
+  **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
+- Nothing typed is lost: the composer and **Edit** keep a draft on the phone as you type
+  (photos too), so after the phone's Back button, a reload or a closed app, opening them again
+  brings it back (**Discard it** drops it). Back closes the editor, not the app. **Cancel** asks
+  before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.
 - **Delete** moves the page to the trash, with **Undo** for a few seconds.
 - **Search** searches titles and text as you type.
+
+## Troubleshooting the screen layout
+
+Tapping the build id at the bottom of **Recent** five times turns on a small debug panel of
+viewport numbers (and five more taps turn it off). It helps to report how a phone's keyboard
+resizes the page.
 
 ## Updates
 

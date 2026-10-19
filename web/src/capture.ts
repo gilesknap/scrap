@@ -2,9 +2,18 @@
 
 import { uploadLimit } from "./api";
 import { queue, view } from "./app";
+import { drafts } from "./db";
+import { editor } from "./editor";
 import { type Capture, type Hint, split } from "./queue";
 import { pageList, pendingList } from "./recent";
 import { blobImg, clearToasts, h, toast } from "./ui";
+
+const DRAFT = "new"; // the composer's draft
+interface Draft {
+  text: string;
+  hint: Hint | "";
+  files: File[]; // IndexedDB keeps them, so photos survive a killed app too
+}
 
 const HINTS: [string, Hint | ""][] = [
   ["Note", ""],
@@ -42,21 +51,26 @@ export async function capture(): Promise<Node> {
   const actions = h(
     "div",
     { className: "actions" },
-    picker("Photo", true, (f) => compose("", f), "big photo"),
-    picker("Gallery", false, (f) => compose("", f)),
+    picker("Photo", true, (f) => void compose("", f), "big photo"),
+    picker("Gallery", false, (f) => void compose("", f)),
     ...HINTS.map(([label, hint]) =>
-      h("button", { className: "big", onclick: () => compose(hint, []) }, label),
+      h("button", { className: "big", onclick: () => void compose(hint, []) }, label),
     ),
   );
   root.append(pending, actions);
 
-  function compose(hint: Hint | "", files: File[]) {
-    const text = h("textarea", { rows: 5 });
+  async function compose(hint: Hint | "", picked: File[]) {
+    // An unsaved draft comes back, with any photos just picked added to it.
+    const kept = await drafts.get<Draft>(DRAFT).catch(() => undefined);
+    const files = [...(kept?.files ?? []), ...picked];
+    const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
+    if (kept) hint = kept.hint;
     const thumbs = h("div", { className: "thumbs" });
     // One capture, many photos: add from the camera (one at a time) or the gallery.
     const add = (more: File[]) => {
       files.push(...more);
       showThumbs();
+      ed.keep();
     };
     const showThumbs = () => {
       text.placeholder = files.length ? "Caption (optional)" : "Note or link";
@@ -73,6 +87,7 @@ export async function capture(): Promise<Node> {
               onclick: () => {
                 files.splice(i, 1);
                 showThumbs();
+                ed.keep();
               },
             }),
           ),
@@ -98,26 +113,28 @@ export async function capture(): Promise<Node> {
         ),
       ),
     );
-    const close = () => {
-      form.replaceWith(actions);
-      pending.hidden = false;
-      clearToasts(); // e.g. a "Save separately" offer for this composer
-    };
-    const save = h("button", { type: "submit", className: "primary" }, "Save");
-    const form = h(
-      "form",
-      { className: "composer" },
-      chips,
+    const chosen = () =>
+      ((chips.querySelector("input:checked") as HTMLInputElement | null)?.value ?? "") as Hint | "";
+    const ed = editor({
       text,
-      thumbs,
-      adders,
-      h(
-        "div",
-        { className: "bar" },
-        h("button", { type: "button", onclick: close }, "Cancel"),
-        save,
-      ),
-    );
+      before: [chips],
+      after: [thumbs, adders],
+      key: DRAFT,
+      draft: (): Draft => ({ text: text.value, hint: chosen(), files }),
+      dirty: () => !!text.value.trim() || files.length > 0,
+      restored: !!kept,
+      ondiscard: () => {
+        text.value = "";
+        files.length = 0;
+        showThumbs();
+      },
+      onsave: () => void store(false),
+    });
+    const { form, save } = ed;
+    const close = async () => {
+      clearToasts(); // e.g. a "Save separately" offer for this composer
+      await ed.done();
+    };
     const mb = (n: number) => `${(n / 2 ** 20).toFixed(1)} MB`;
     const store = async (separately: boolean) => {
       const body = text.value.trim();
@@ -149,15 +166,9 @@ export async function capture(): Promise<Node> {
           10000,
         );
       }
-      close();
+      await close();
       toast(navigator.onLine ? "Saved" : "Saved on the phone: uploads when online");
     };
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      void store(false);
-    };
-    actions.replaceWith(form);
-    pending.hidden = true; // the composer gets the whole screen
     if (!files.length) text.focus();
   }
   return root;

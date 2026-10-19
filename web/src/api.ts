@@ -104,6 +104,9 @@ export function send(
 }
 
 export const blobUrl = (sha: string) => `/api/blobs/${sha}`;
+/** A JPEG preview of a photo (HEIC too), upright: 480 px for lists, 2048 to view. */
+export const previewUrl = (sha: string, size: 480 | 2048) =>
+  `/api/blobs/${sha}/preview?size=${size}`;
 
 const LIMIT = "scrap.max_upload_bytes";
 

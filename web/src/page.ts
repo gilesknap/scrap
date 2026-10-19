@@ -1,15 +1,66 @@
 // One page: its text and originals, edit (with conflict handling) and delete with undo.
-import { ApiError, api, blobUrl, type Page } from "./api";
+import { ApiError, api, blobUrl, type FileRef, type Page, previewUrl } from "./api";
 import { go } from "./app";
-import { h, linkify, toast, when } from "./ui";
+import { drafts } from "./db";
+import { editor } from "./editor";
+import { bodyView, download, h, toast, when } from "./ui";
+import { type Photo, viewer } from "./viewer";
 
-function original(f: Page["captures"][number]["blobs"][number]) {
-  const href = blobUrl(f.sha256);
-  const link = () => h("a", { href, target: "_blank", className: "file" }, f.filename || f.mime);
-  if (!f.mime.startsWith("image/")) return link();
-  const img = h("img", { src: href, alt: f.filename || "", loading: "lazy" });
-  img.onerror = () => img.replaceWith(link()); // e.g. HEIC, which Chrome cannot show
-  return h("a", { href, target: "_blank" }, img);
+const isImage = (f: FileRef) => f.mime.startsWith("image/");
+
+/** The page's files: photos open the viewer (at photo n), other files a new tab. */
+function originals(files: FileRef[]) {
+  const photos: Photo[] = files.filter(isImage).map((f) => ({
+    src: previewUrl(f.sha256, 2048),
+    save: `${blobUrl(f.sha256)}?download=1`,
+    name: f.filename || "",
+  }));
+  let n = 0;
+  return files.map((f) => {
+    const href = blobUrl(f.sha256);
+    const save = download(`${href}?download=1`, "save");
+    const link = () => h("a", { href, target: "_blank", className: "file" }, f.filename || f.mime);
+    if (!isImage(f)) return h("div", { className: "orig" }, link(), save);
+    const at = n++;
+    const img = h("img", { src: photos[at].src, alt: f.filename || "", loading: "lazy" });
+    const open = (e: Event) => {
+      e.preventDefault();
+      viewer(photos, at);
+    };
+    const shown = h("a", { href, onclick: open }, img);
+    img.onerror = () => shown.replaceWith(link()); // no preview: just the file
+    return h("figure", { className: "orig" }, shown, save);
+  });
+}
+
+interface Draft {
+  title: string;
+  text: string;
+  base: number; // the revision it was made on
+}
+
+const RAW = "scrap.raw"; // show page text as typed, not formatted
+
+/** The page text, formatted, with a switch to the text as typed (remembered). */
+function body(text: string) {
+  const box = h("div");
+  const draw = () => {
+    const raw = localStorage.getItem(RAW) === "1";
+    const flip = () => {
+      localStorage.setItem(RAW, raw ? "0" : "1");
+      draw();
+    };
+    box.replaceChildren(
+      bodyView(text, raw),
+      h(
+        "button",
+        { type: "button", className: "link", onclick: flip },
+        raw ? "Formatted" : "Raw text",
+      ),
+    );
+  };
+  draw();
+  return box;
 }
 
 export async function page(key: string): Promise<Node> {
@@ -24,31 +75,40 @@ export async function page(key: string): Promise<Node> {
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
       ),
-      h("div", { className: "body" }, ...linkify(p.body)),
-      h("div", { className: "originals" }, ...p.captures.flatMap((c) => c.blobs.map(original))),
+      body(p.body),
+      h("div", { className: "originals" }, ...originals(p.captures.flatMap((c) => c.blobs))),
       h(
         "div",
         { className: "bar" },
-        h("button", { onclick: () => edit(p) }, "Edit"),
+        editButton(p),
+        download(`/api/pages/${p.id}/download`),
         h("button", { className: "danger", onclick: () => remove(p) }, "Delete"),
       ),
     );
 
-  function edit(p: Page) {
-    let base = p.rev;
-    const title = h("input", { value: p.title, "aria-label": "Title" });
-    const body = h("textarea", { value: p.body, rows: 8, "aria-label": "Body" });
+  async function edit(p: Page) {
+    // An unsaved edit comes back, on the revision it was made on: if the page has changed
+    // since, saving it shows the conflict rather than overwriting.
+    const key = `page:${p.id}`;
+    const kept = await drafts.get<Draft>(key).catch(() => undefined);
+    let base = kept?.base ?? p.rev;
+    const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title" });
+    const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
     const conflict = h("div");
-    const save = async (e: Event) => {
-      e.preventDefault();
+    const save = async () => {
       try {
-        show(
-          await api<Page>(`pages/${p.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ base_rev: base, title: title.value, body: body.value }),
+        const saved = await api<Page>(`pages/${p.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          // The title only if changed: ingest may rename a provisional title meanwhile
+          body: JSON.stringify({
+            base_rev: base,
+            body: text.value,
+            ...(title.value !== p.title && { title: title.value }),
           }),
-        );
+        });
+        await ed.done();
+        show(saved);
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 409)) return toast(String(err));
         const theirs = await api<Page>(`pages/${p.id}`).catch(() => null);
@@ -67,7 +127,13 @@ export async function page(key: string): Promise<Node> {
             h("pre", {}, theirs.body),
             h(
               "button",
-              { type: "button", onclick: () => show(theirs) },
+              {
+                type: "button",
+                onclick: async () => {
+                  await ed.done();
+                  show(theirs);
+                },
+              },
               "Discard mine, show theirs",
             ),
           ),
@@ -75,21 +141,33 @@ export async function page(key: string): Promise<Node> {
         conflict.scrollIntoView({ behavior: "smooth" });
       }
     };
-    root.replaceChildren(
-      h(
-        "form",
-        { className: "edit", onsubmit: save },
-        title,
-        body,
-        conflict,
-        h(
-          "div",
-          { className: "bar" },
-          h("button", { type: "button", onclick: () => show(p) }, "Cancel"),
-          h("button", { type: "submit", className: "primary" }, "Save"),
-        ),
-      ),
-    );
+    const ed = editor({
+      text,
+      before: [title],
+      after: [conflict],
+      key,
+      draft: (): Draft => ({ title: title.value, text: text.value, base }),
+      dirty: () => title.value !== p.title || text.value !== p.body,
+      restored: !!kept,
+      ondiscard: () => {
+        title.value = p.title;
+        text.value = p.body;
+        base = p.rev;
+      },
+      onsave: () => void save(),
+    });
+    text.focus();
+  }
+
+  function editButton(p: Page) {
+    const b = h("button", { onclick: () => void edit(p) }, "Edit");
+    drafts
+      .get(`page:${p.id}`)
+      .then((d) => {
+        if (d) b.textContent = "Edit (unsaved draft)";
+      })
+      .catch(() => {});
+    return b;
   }
 
   const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
