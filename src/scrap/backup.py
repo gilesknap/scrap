@@ -142,8 +142,11 @@ def export(store: Store, dest: Path) -> int:
 def file_name(name: str | None, sha: str, mime: str) -> str:
     """A safe file name for a stored file: its own name, else one from its hash."""
     name = re.sub(r"[^\w. -]+", "_", (name or "").rsplit("/", 1)[-1].rsplit("\\")[-1])
-    name = name.strip(" .")[:120]
-    return name or sha[:12] + (mimetypes.guess_extension(mime) or "")
+    stem, dot, ext = name.strip(" .").rpartition(".")
+    if not stem or len(ext) > 10:  # no extension, or not one: all stem
+        stem, dot, ext = f"{stem}{dot}{ext}", "", ""
+    name = f"{stem[: 120 - len(dot + ext)].rstrip(' .')}{dot}{ext}"  # keep its type
+    return name if stem else sha[:12] + (mimetypes.guess_extension(mime) or "")
 
 
 def _friendly_name(blob: sqlite3.Row, taken: set[str]) -> str:
@@ -151,8 +154,9 @@ def _friendly_name(blob: sqlite3.Row, taken: set[str]) -> str:
     stem, dot, ext = name.rpartition(".")
     if not stem:
         stem, dot, ext = ext, "", ""
+    seen = {t.casefold() for t in taken}  # photo.jpg and PHOTO.jpg are one file to many
     n = 1
-    while name in taken:
+    while name.casefold() in seen:
         n += 1
         name = f"{stem}-{n}{dot}{ext}"
     return name

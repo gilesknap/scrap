@@ -78,7 +78,11 @@ the link as the capture's URL.
   **Raw text** shows it exactly as typed, and the phone remembers the choice. The text is
   always stored as typed.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
-  **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves. If the page was changed elsewhere since you opened it, the
+  **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
+- Nothing typed is lost: the composer and **Edit** keep a draft on the phone as you type
+  (photos too), so after the phone's Back button, a reload or a closed app, opening them again
+  brings it back (**Discard it** drops it). Back closes the editor, not the app. **Cancel** asks
+  before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.
 - **Delete** moves the page to the trash, with **Undo** for a few seconds.

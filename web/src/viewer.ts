@@ -37,7 +37,8 @@ export function viewer(photos: Photo[], start: number) {
     set(zoomTo(v, Math.min(Math.max(s, min), max()), p.x, p.y), animate);
   const centre = () => ({ x: box().w / 2, y: box().h / 2 });
 
-  const stage = h("div", { className: "stage" }, img);
+  const note = h("p", { className: "note", hidden: true }, "No preview of this one: use Download");
+  const stage = h("div", { className: "stage" }, img, note);
   const count = h("span", { className: "count" });
   let save = download("");
   const tool = (label: string, onclick: () => void, name = label) =>
@@ -71,9 +72,13 @@ export function viewer(photos: Photo[], start: number) {
     save = fresh;
     count.textContent = photos.length > 1 ? `${i + 1} / ${photos.length}` : "";
     img.style.visibility = "hidden";
+    note.hidden = true;
     img.onload = () => {
       toFit(false);
       img.style.visibility = "";
+    };
+    img.onerror = () => {
+      note.hidden = false; // e.g. a format the server can't preview
     };
     img.src = p.src;
   }

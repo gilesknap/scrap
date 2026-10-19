@@ -27,17 +27,22 @@ export function inline(raw: string): string {
       .replace(/(?<![\w*])\*(?=\S)(.+?)(?<=\S)\*(?![\w*])/g, "<em>$1</em>")
       .replace(/(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)/g, "<em>$1</em>");
   s = s.replace(/(`+)(.+?)\1/g, (_, __, code: string) => keep(`<code>${code.trim()}</code>`));
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt: string, src: string) =>
+  // No marker inside an address or alt text: only ever in text, so it is safe to restore
+  s = s.replace(/!\[([^\]\uE000]*)\]\(([^)\s\uE000]+)\)/g, (m, alt: string, src: string) =>
     IMAGE.test(src) ? keep(`<img src="${src}" alt="${alt}" loading="lazy">`) : m,
   );
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text: string, href: string) =>
+  s = s.replace(/\[([^\]]+)\]\(([^)\s\uE000]+)\)/g, (m, text: string, href: string) =>
     LINK.test(href) ? keep(a(href, em(text))) : m,
   );
-  s = s.replace(/https?:\/\/[^\s]+/g, (m) => {
+  s = s.replace(/https?:\/\/[^\s\uE000]+/g, (m) => {
     const url = m.split(/&(?:lt|gt|quot|#39);/)[0].replace(/[.,;:!?)]+$/, "");
     return keep(a(url, url)) + m.slice(url.length);
   });
-  return em(s).replace(/\uE000(\d+)\uE000/g, (_, n) => kept[Number(n)]);
+  let html = em(s);
+  while (html.includes("\uE000"))
+    // kept HTML may hold markers too (code in a link)
+    html = html.replace(/\uE000(\d+)\uE000/g, (_, n) => kept[Number(n)]);
+  return html;
 }
 
 /** Markdown to HTML that is safe to set as innerHTML. */
@@ -60,10 +65,12 @@ export function markdown(text: string): string {
       i--;
       return got;
     };
-    if (/^\s*```/.test(line)) {
-      flush();
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})/)?.[1];
+    if (fence) {
+      flush(); // closed by the same character, at least as many, and nothing after
+      const close = new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`);
       const code: string[] = [];
-      while (++i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i]);
+      while (++i < lines.length && !close.test(lines[i])) code.push(lines[i]);
       out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);
     } else if (heading) {
       flush();

@@ -241,10 +241,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return StreamingResponse(chunks(), media_type=mime, headers=headers)
 
     @app.get("/api/blobs/{sha}/preview")
-    def blob_preview(sha: str, size: int = 2048) -> FileResponse:
+    def blob_preview(sha: str, size: int = 2048) -> Response:
         """A JPEG preview of a stored photo (HEIC too), turned upright, at most size
-        (480 or 2048) pixels a side; made on first request, then cached."""
-        path = preview.preview(store, sha, size)
+        (480 or 2048) pixels a side; made on first request, then cached. 503 while
+        the decoder is busy for long."""
+        try:
+            path = preview.preview(store, sha, size)
+        except preview.BusyError as error:
+            return JSONResponse({"detail": error.__doc__}, 503, {"Retry-After": "5"})
         return FileResponse(path, media_type="image/jpeg", headers=BLOB_HEADERS)
 
     @app.get("/api/blobs/{sha}")

@@ -20,6 +20,25 @@ describe("markdown", () => {
     );
   });
 
+  it("closes a fence only on a matching one", () => {
+    expect(markdown("````\n```\n``` not a close\n````")).toBe(
+      "<pre><code>```\n``` not a close</code></pre>",
+    );
+    expect(markdown("~~~\n```\n~~~\nafter")).toBe("<pre><code>```</code></pre>\n<p>after</p>");
+  });
+
+  it("nests code in links, and links after addresses, without stray markers", () => {
+    expect(inline("[`code`](https://e.com)")).toBe(
+      '<a href="https://e.com" target="_blank" rel="noopener noreferrer"><code>code</code></a>',
+    );
+    const out = inline("https://a.com/[x](https://b.com) and ![`c`](/api/blobs/x)");
+    expect(out).not.toMatch(/\uE000|>0</);
+    expect(out).toContain('href="https://a.com/"');
+    expect(out).toContain(
+      '<a href="https://b.com" target="_blank" rel="noopener noreferrer">x</a>',
+    );
+  });
+
   it("leaves snake_case and lone stars alone", () => {
     expect(inline("snake_case_name and 2 * 3 * 4")).toBe("snake_case_name and 2 * 3 * 4");
   });

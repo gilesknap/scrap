@@ -23,7 +23,7 @@ def test_text_page_downloads_as_markdown(client, note):
 def test_page_with_files_downloads_as_a_zip_with_relative_links(client):
     files = [
         ("file", ("board.png", PNG, "image/png")),
-        ("file", ("board.png", PNG + b"2", "image/png")),  # same name, other bytes
+        ("file", ("BOARD.png", PNG + b"2", "image/png")),  # same name to a phone
         ("file", ("../../etc/notes.txt", b"hello", "text/plain")),
     ]
     data = {"id": new_ulid(), "text": "Whiteboard"}
@@ -36,12 +36,12 @@ def test_page_with_files_downloads_as_a_zip_with_relative_links(client):
     assert zf.namelist() == [
         "whiteboard.md",
         "files/board.png",
-        "files/board-2.png",
+        "files/BOARD-2.png",
         "files/notes.txt",
     ]
-    assert zf.read("files/board-2.png") == PNG + b"2"
+    assert zf.read("files/BOARD-2.png") == PNG + b"2"
     md = zf.read("whiteboard.md").decode()
-    assert "![board.png](files/board.png)\n![board.png](files/board-2.png)\n" in md
+    assert "![board.png](files/board.png)\n![BOARD.png](files/BOARD-2.png)\n" in md
     assert "[../../etc/notes.txt](files/notes.txt)" in md
 
 
@@ -71,6 +71,8 @@ def test_safe_names():
     sha = "ab" * 32
     assert file_name(None, sha, "image/png") == "abababababab.png"
     assert file_name("..", sha, "image/png") == "abababababab.png"
+    long = file_name("x" * 300 + ".jpeg", sha, "image/jpeg")
+    assert len(long) == 120 and long.endswith("x.jpeg")  # its type kept
     assert file_name("C:\\Users\\me\\a b.jpg", sha, "image/jpeg") == "a b.jpg"
     assert file_name('x"y\n<z>.txt', sha, "text/plain") == "x_y_z_.txt"
     assert attachment('a"\\b.md') == (

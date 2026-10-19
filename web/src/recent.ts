@@ -13,12 +13,14 @@ function row(
   extra: Node | string = "",
   href?: string,
 ) {
-  const img =
-    thumb instanceof Blob
-      ? blobImg(thumb)
-      : thumb
-        ? h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" })
-        : h("span", { className: "noimg" }, title.slice(0, 1).toUpperCase());
+  const none = () => h("span", { className: "noimg" }, title.slice(0, 1).toUpperCase());
+  let img: HTMLElement = none();
+  if (thumb instanceof Blob) img = blobImg(thumb);
+  else if (thumb) {
+    const el = h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" });
+    el.onerror = () => el.replaceWith(none()); // a file the server can't preview
+    img = el;
+  }
   const body = h(
     "span",
     {},

@@ -296,6 +296,7 @@ test("Markdown: formatted page text, raw switch, and Preview while editing", asy
   await page.locator(".editor").getByRole("button", { name: "Edit", exact: true }).click();
   await expect(page.getByLabel("Body")).toBeVisible();
   await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
   const saved = await (await page.request.get(`/api/pages/${slug}`)).json();
   expect(saved.body).toBe("# Heading\n\n- one\n- two"); // stored as typed
 
@@ -304,4 +305,77 @@ test("Markdown: formatted page text, raw switch, and Preview while editing", asy
   await page.getByPlaceholder("Note or link").fill("*composer* preview");
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.locator(".preview em")).toHaveText("composer");
+});
+
+test("an unsaved note survives a reload, photos too; Discard and Cancel drop it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Todo" }).click();
+  await page.getByPlaceholder("Note or link").fill("half a thought");
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("+ Gallery").click(),
+  ]);
+  await chooser.setFiles({ name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) });
+  await page.waitForTimeout(600); // the draft is kept 0.4 s after typing stops
+  await page.reload(); // as if the app was killed
+  await page.getByRole("button", { name: "Note" }).click();
+  await expect(page.getByText("Restored your unsaved draft.")).toBeVisible();
+  await expect(page.getByPlaceholder("Caption (optional)")).toHaveValue("half a thought");
+  await expect(page.locator(".thumb img")).toHaveCount(1);
+  await expect(page.getByRole("radio", { name: "Todo" })).toBeChecked();
+
+  // Cancel with changes asks first; saying no keeps the editor
+  page.once("dialog", (d) => d.dismiss());
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator(".editor")).toBeVisible();
+  await page.getByRole("button", { name: "Discard it" }).click();
+  await expect(page.getByPlaceholder("Note or link")).toHaveValue("");
+  await expect(page.locator(".thumb img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Cancel" }).click(); // nothing to lose: no question
+  await expect(page.locator(".editor")).toBeHidden();
+  await page.getByRole("button", { name: "Note" }).click();
+  await expect(page.getByText("Restored your unsaved draft.")).toBeHidden();
+  await expect(page.getByPlaceholder("Note or link")).toHaveValue("");
+});
+
+test("Back closes the editor, not the page, and keeps the edit as a draft", async ({ page }) => {
+  const slug = await note(page, "Back test\nfirst");
+  await page.goto("/recent");
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Body").fill("Back test\nchanged");
+  await page.goBack(); // the phone's Back button
+  await expect(page.locator(".editor")).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`/p/${slug}$`));
+  await expect(page.getByText("Kept as a draft")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Edit (unsaved draft)" }).click();
+  await expect(page.getByLabel("Body")).toHaveValue("Back test\nchanged");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Edit", exact: true })).toBeVisible(); // draft gone
+  const saved = await (await page.request.get(`/api/pages/${slug}`)).json();
+  expect(saved.body).toBe("Back test\nchanged");
+  await page.goBack(); // the editor's history entry is gone: Back leaves the page
+  await expect(page).toHaveURL(/\/recent$/);
+});
+
+test("photos the server can't preview fall back to the file", async ({ page }) => {
+  const r = await page.request.post("/api/captures", {
+    multipart: {
+      id: ulid(),
+      text: "Unpreviewable",
+      file: { name: "x.svg", mimeType: "image/svg+xml", buffer: Buffer.from("<svg/>") },
+    },
+  });
+  const { slug } = await r.json();
+  await page.goto("/recent");
+  await expect(
+    page.locator(".list li", { hasText: "Unpreviewable" }).locator(".noimg"),
+  ).toBeVisible();
+  await page.goto(`/p/${slug}`);
+  await expect(page.locator(".originals a.file", { hasText: "x.svg" })).toBeVisible();
+  await expect(page.locator(".originals img")).toHaveCount(0);
 });
