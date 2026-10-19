@@ -282,11 +282,11 @@ test("Markdown: formatted page text, raw switch, and Preview while editing", asy
   await expect(page.locator(".body strong")).toHaveText("bold");
   await expect(page.locator(".body a")).toHaveCount(0); // no javascript: link
   await expect(page.locator(".body")).toContainText("<b>x</b>"); // shown, not run
-  await page.getByRole("button", { name: "Raw text" }).click();
+  await page.getByRole("button", { name: "Show raw text" }).click();
   await expect(page.locator(".body")).toContainText("**bold**");
   await page.reload(); // remembered
   await expect(page.locator(".body")).toContainText("**bold**");
-  await page.getByRole("button", { name: "Formatted" }).click();
+  await page.getByRole("button", { name: "Show formatted" }).click();
 
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Body").fill("# Heading\n\n- one\n- two");
@@ -352,7 +352,7 @@ test("Back closes the editor, not the page, and keeps the edit as a draft", asyn
   await expect(page).toHaveURL(new RegExp(`/p/${slug}$`));
   await expect(page.getByText("Kept as a draft")).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Edit (unsaved draft)" }).click();
+  await page.getByRole("button", { name: "Edit draft (unsaved)" }).click();
   await expect(page.getByLabel("Body")).toHaveValue("Back test\nchanged");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".editor")).toBeHidden();
@@ -432,4 +432,37 @@ test("Share sends a page's text, or a photo as a file, to the share sheet", asyn
   await page.setViewportSize({ width: 320, height: 640 }); // five tools still fit
   for (const name of ["Fit", "100%", "Share", "Close"])
     await inside(page, page.getByRole("dialog").getByRole("button", { name }));
+});
+
+test("placeholders stop pulsing once photos load, or fail", async ({ page }) => {
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Pulse check");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(300, 600, 80))], { type: "image/png" }),
+    "t.png",
+  );
+  form.append("file", new Blob(["<svg/>"], { type: "image/svg+xml" }), "x.svg"); // no preview
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const running = () =>
+    page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);
+  for (const path of ["/recent", `/p/${slug}`]) {
+    await page.goto(path);
+    await expect
+      .poll(() =>
+        page.evaluate(() => [...document.images].every((i) => i.complete && i.naturalWidth)),
+      )
+      .toBe(true);
+    await expect.poll(running, { message: path }).toBe(0);
+  }
+});
+
+test("high contrast mode still shows which kind is chosen", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Todo", exact: true }).click();
+  const chosen = page.locator(".chips label", { has: page.getByRole("radio", { checked: true }) });
+  await expect(chosen).toHaveText("Todo");
+  await expect(chosen).toHaveCSS("outline-style", "solid");
 });

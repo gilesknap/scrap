@@ -46,6 +46,7 @@ export function editor(o: {
   ondiscard: () => void; // put the fields back as they were
   onsave: () => void;
 }): Editor {
+  o.text.dir = "auto"; // right-to-left text lays out as such
   const preview = previewer(o.text);
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];
@@ -74,11 +75,10 @@ export function editor(o: {
   // draft, and the page under the editor stays as it is.
   const onpop = (e: PopStateEvent) => {
     e.stopImmediatePropagation();
-    if (!closing) {
-      keep();
-      if (o.dirty()) toast("Kept as a draft: open it again to carry on");
-    }
+    const kept = !closing && o.dirty();
+    if (!closing) keep();
     teardown();
+    if (kept) toast("Kept as a draft: open it again to carry on"); // placed for the page under it
   };
   const done = () =>
     new Promise<void>((ok) => {

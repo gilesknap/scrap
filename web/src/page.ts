@@ -4,7 +4,7 @@ import { go } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
 import { icon } from "./icons";
-import { bodyView, download, h, share, toast, when } from "./ui";
+import { bodyView, download, h, settle, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
@@ -26,7 +26,7 @@ function originals(files: FileRef[]) {
       h("a", { href, target: "_blank", className: "file" }, icon("file"), h("span", {}, name));
     if (!isImage(f)) return h("div", { className: "orig" }, link(), save);
     const at = n++;
-    const img = h("img", { src: photos[at].src, alt: f.filename || "", loading: "lazy" });
+    const img = settle(h("img", { src: photos[at].src, alt: f.filename || "", loading: "lazy" }));
     const open = (e: Event) => {
       e.preventDefault();
       viewer(photos, at);
@@ -64,8 +64,8 @@ function body(text: string) {
       bodyView(text, raw),
       h(
         "button",
-        { type: "button", className: "link", "aria-pressed": String(raw), onclick: flip },
-        raw ? "Formatted" : "Raw text",
+        { type: "button", className: "link", onclick: flip },
+        raw ? "Show formatted" : "Show raw text",
       ),
     );
   };
@@ -78,7 +78,7 @@ export async function page(key: string): Promise<Node> {
   const root = h("article", { className: "page" });
   const show = (p: Page) =>
     root.replaceChildren(
-      h("h1", {}, p.title),
+      h("h1", { dir: "auto" }, p.title),
       h(
         "p",
         { className: "meta" },
@@ -103,7 +103,7 @@ export async function page(key: string): Promise<Node> {
     const key = `page:${p.id}`;
     const kept = await drafts.get<Draft>(key).catch(() => undefined);
     let base = kept?.base ?? p.rev;
-    const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title" });
+    const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
     const conflict = h("div");
     const save = async () => {
@@ -134,7 +134,12 @@ export async function page(key: string): Promise<Node> {
               {},
               "This page was changed elsewhere. Merge their text below into yours and save again, or discard yours.",
             ),
-            h("blockquote", {}, h("strong", {}, theirs.title), h("pre", {}, theirs.body)),
+            h(
+              "blockquote",
+              { dir: "auto" },
+              h("strong", {}, theirs.title),
+              h("pre", {}, theirs.body),
+            ),
             h(
               "button",
               {
@@ -175,7 +180,7 @@ export async function page(key: string): Promise<Node> {
       .get(`page:${p.id}`)
       .then((d) => {
         if (!d) return;
-        b.setAttribute("aria-label", "Edit (unsaved draft)");
+        b.setAttribute("aria-label", "Edit draft (unsaved)"); // starts with what it shows
         b.classList.add("dot"); // a mark on the icon says there is a draft
         b.lastChild?.replaceWith("Edit draft");
       })

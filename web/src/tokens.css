@@ -22,7 +22,10 @@
   --toast: #2a2620; /* toasts: a dark slab in both themes */
   --on-toast: #f6f1e7;
   --toast-action: #f3b65c;
-  --scrim: rgb(20 16 10 / 45%);
+  /* Over photos (the viewer, the photo strip), the same in both themes. */
+  --viewer: #000000;
+  --on-overlay: #ffffff;
+  --overlay: rgb(0 0 0 / 65%); /* white text on it stays over 4.5:1 even on a white photo */
   --shadow: 0 1px 2px rgb(40 30 10 / 8%), 0 2px 8px rgb(40 30 10 / 6%);
   --shadow-2: 0 4px 12px rgb(40 30 10 / 14%), 0 12px 32px rgb(40 30 10 / 12%);
 
@@ -83,7 +86,6 @@
     --toast: #3a352d;
     --on-toast: #f2ece1;
     --toast-action: #f3b65c;
-    --scrim: rgb(0 0 0 / 60%);
     --shadow: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-2: 0 6px 24px rgb(0 0 0 / 55%);
   }

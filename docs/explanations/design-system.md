@@ -27,7 +27,9 @@ design into another tool and back.
 ## Tokens
 
 Light / dark values. Every text pair is checked against WCAG AA (4.5:1 for text, 3:1 for
-control edges) by `web/tests/contrast.test.ts`, which reads `tokens.css` itself.
+control edges) by `web/tests/contrast.test.ts`, which reads `tokens.css` itself, and also checks
+every rule in `style.css` that sets both a text colour and a background from tokens, and white
+text on `--overlay` over a white photo.
 
 | Token | Light | Dark | Role |
 | --- | --- | --- | --- |
@@ -47,6 +49,12 @@ control edges) by `web/tests/contrast.test.ts`, which reads `tokens.css` itself.
 | `--danger-soft` | `#fbe4df` | `#3b201c` | failed badge, conflict banner |
 | `--toast` / `--on-toast` | `#2a2620` / `#f6f1e7` | `#3a352d` / `#f2ece1` | toasts |
 | `--toast-action` | `#f3b65c` | `#f3b65c` | a toast's action |
+| `--viewer` | `#000000` | `#000000` | the photo viewer's backdrop |
+| `--on-overlay` | `#ffffff` | `#ffffff` | text and icons over photos |
+| `--overlay` | `rgb(0 0 0 / 65%)` | same | pills, scrims and buttons over photos (white on it is over 4.5:1 even on a white photo) |
+
+Presses, edges and washes that need a translucent tint mix a token with `transparent`
+(`color-mix(in srgb, var(--ink) 14%, transparent)`) rather than writing a new colour.
 
 Type: the system UI face (Roboto on Android); 17 px root. `--t-xs` 0.75rem (labels under icons,
 chips), `--t-sm` 0.875rem (meta, small buttons), `--t-md` 1rem (body, list titles), `--t-lg`
@@ -87,12 +95,53 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
 | Search field | `.field-search` | pill with a search icon |
 | Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
-| Toast | `.toast` | dark slab below the top bar, amber text action |
+| Toast | `.toast` | dark slab above what is under the thumb, amber text action |
 | Banner | `.conflict`, `.restored` | danger-soft with a red edge; accent-soft info line |
 | Empty state | `.empty` (`empty()` in ui.ts) | icon in a `--sunk` circle, a sentence, one action |
-| Photo viewer | `.viewer` | black; close top right, count pill top centre, tools on a bottom scrim |
+| Photo viewer | `.viewer` | `--viewer`; close top right, count pill top centre, tools on an `--overlay` scrim |
 | Icons | `icons.ts` | 24 px strokes (1.8), currentColor, `aria-hidden` |
 
+## States
+
+| State | How it shows |
+| --- | --- |
+| Pressed | scale 0.97 over `--d-1` and a `--sunk` fill (primary and hero: 6 % darker); the browser's tap flash is off |
+| Focus (keyboard) | 2 px `--accent-ink` outline, 2 px offset; fields draw it inside their edge |
+| Selected | segmented: raised `--surface` with `--shadow` and an amber icon; nav: `--accent-soft` pill, ink label, bold |
+| Disabled | 50 % opacity (exempt from contrast, and never the only sign: the label says why) |
+| Busy | the label reads "Preparing…" and taps are ignored; no dimming, so it stays at full contrast |
+| Loading image | the reserved box shimmers between `--sunk` and `--line` until the image loads or fails, then stops |
+| Failed | `--danger` text in words, a `--danger-soft` badge; never colour alone |
+
+## Layout and breakpoints
+
+- Portrait phones (300 px and up): the default. Under 380 px wide the segmented control drops
+  its icons.
+- Short screens (under 500 px high, i.e. landscape or a large text size): top bar and nav 48 px,
+  and the page toolbar scrolls with the page instead of sticking. Landscape (also 560 px and
+  wider): the nav's label sits beside its icon and the capture cluster is one row.
+- Very narrow (under 300 px: a small phone at its largest text size): the capture cluster
+  scrolls with the list instead of covering it, tiles go two by two, labels and list titles
+  wrap, list thumbnails shrink to 32, and toolbars show icons only (the words remain their
+  accessible names).
+- Toasts sit just above whatever is under the thumb (the capture cluster, the page toolbar, the
+  viewer's tools or the nav), clear of the newest row and the title; in the editor, just under
+  its top bar.
+- Text that may be right-to-left (titles, page text, snippets, the editor) has `dir="auto"`,
+  and spacing uses logical properties (`margin-inline-*`, `padding-inline-start`).
+- A page photo reserves a 4:3 box while it loads, then takes the photo's own shape
+  (`aspect-ratio: auto 4 / 3`), at most 75 % of the screen high.
+
+## High contrast
+
+Under `forced-colors: active` the system replaces fills and drops shadows, so the selected
+segment and the current nav item get a 2 px `Highlight` outline, and the borderless hero, tiles
+and badge get a `ButtonText` edge.
+
+## Icons
+
+Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 30 in the hero, 18 in the
+segmented control, 16 on a photo's remove button, 52 (in a circle) in empty states.
 Icons: camera, image, note, todo (check in a square), later (bookmark), link, file, download,
 share, edit, trash, search, close, back, next, fit, retry, offline; the nav's plus and clock are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the
@@ -101,8 +150,12 @@ paper scrap on amber; the header mark is the same scrap in amber.
 ## What we don't do
 
 - No web font, icon font, CSS framework or component library.
-- No colour outside `tokens.css`, and no second accent; no gradients except the viewer's scrim.
+- No colour outside `tokens.css` (the debug panel aside), and no second accent; no gradients
+  except the viewer's scrim. High-contrast mode uses the system's colour keywords.
 - No colour as the only signal: selection also raises, failure also says so in words.
 - No modal dialogs of our own (the browser's `confirm()` stays for destructive questions).
 - No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.
-- No touch target under 48 px, no text under 12.75 px, no text pair under AA.
+- No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
+  extend their hit area with an invisible `::after`), no text under 12.75 px, no text pair
+  under AA.
+- No dimming to mean "busy": opacity would break contrast; the label says it instead.

@@ -39,11 +39,22 @@ const PAIRS: [string, string, number][] = [
   ["accent-ink", "accent-soft", 4.5],
   ["danger", "danger-soft", 4.5],
   ["ink", "danger-soft", 4.5],
+  ["ink-2", "danger-soft", 4.5],
   ["on-toast", "toast", 4.5],
   ["toast-action", "toast", 4.5],
   ["line-strong", "bg", 3],
   ["line-strong", "surface", 3],
 ];
+
+// And every pair the components really draw: a rule in style.css that sets both a text colour
+// and a background from tokens.
+const style = readFileSync(new URL("../src/style.css", import.meta.url), "utf8");
+const DRAWN: [string, string, number][] = [];
+for (const [, body] of style.matchAll(/[^{}]+\{([^{}]*)\}/g)) {
+  const fg = body.match(/(?:^|[\s;])color:\s*var\(--([\w-]+)\)/)?.[1];
+  const bg = body.match(/background(?:-color)?:\s*var\(--([\w-]+)\)/)?.[1];
+  if (fg && bg && light[fg] && light[bg]) DRAWN.push([fg, bg, 4.5]);
+}
 
 describe.each([
   ["light", light],
@@ -54,4 +65,20 @@ describe.each([
     expect(t[bg], bg).toBeDefined();
     expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
   });
+  test.each(DRAWN)("style.css draws %s on %s: at least %d:1", (fg, bg, min) => {
+    expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
+  });
+});
+
+test("style.css draws some token pairs", () => {
+  expect(DRAWN.length).toBeGreaterThan(5);
+});
+
+test("text over a photo (viewer count, tools) stays readable on a white photo", () => {
+  const m = css.match(/--overlay:\s*rgb\((\d+) (\d+) (\d+) \/ (\d+)%\)/);
+  expect(m).toBeTruthy();
+  const [r, g, b, a] = (m as RegExpMatchArray).slice(1).map(Number);
+  const over = (c: number) => Math.round((c * a) / 100 + 255 * (1 - a / 100));
+  const hex = `#${[r, g, b].map((c) => over(c).toString(16).padStart(2, "0")).join("")}`;
+  expect(contrast(light["on-overlay"], hex)).toBeGreaterThanOrEqual(4.5);
 });

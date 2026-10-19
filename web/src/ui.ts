@@ -26,7 +26,7 @@ export function clearToasts() {
 
 export function toast(message: string, action?: string, onAction?: () => void, ms = 4000) {
   clearToasts();
-  const el = h("div", { className: "toast", role: "status" }, h("span", {}, message));
+  const el = h("div", { className: "toast", role: "status" }, h("span", { dir: "auto" }, message));
   if (action) {
     el.append(
       h("button", {
@@ -39,6 +39,19 @@ export function toast(message: string, action?: string, onAction?: () => void, m
       }),
     );
   }
+  // Just above what is under the thumb (the capture buttons, the page's tools, the nav), so it
+  // covers neither the newest row nor a title; in the editor, under its top bar (the CSS).
+  const tops = [
+    ...document.querySelectorAll(
+      ".viewer .tools, body:not(.editing) :is(.actions, .page > .tools, nav)",
+    ),
+  ]
+    .map((e) => e.getBoundingClientRect().top)
+    .filter((t) => t > 0 && t <= innerHeight); // on screen
+  if (tops.length) {
+    el.style.top = "auto";
+    el.style.bottom = `${innerHeight - Math.min(...tops) + 8}px`;
+  }
   document.body.append(el);
   if (ms) setTimeout(() => el.remove(), ms);
   else el.classList.add("keep"); // survives navigation
@@ -46,6 +59,27 @@ export function toast(message: string, action?: string, onAction?: () => void, m
 
 export const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+/** A date for a list row: no year if it is this year's. */
+export function whenShort(iso: string) {
+  const d = new Date(iso);
+  const year = d.getFullYear() !== new Date().getFullYear() && "numeric";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(year && { year }),
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Marks an image loaded (or failed) so its placeholder shimmer stops. */
+export function settle<T extends HTMLImageElement>(img: T): T {
+  const done = () => img.classList.add("loaded");
+  img.addEventListener("load", done);
+  img.addEventListener("error", done);
+  return img;
+}
 
 /** Plain text with http(s) links made clickable; nothing is parsed as HTML. */
 export function linkify(text: string): Node[] {
@@ -80,7 +114,7 @@ export function problem(e: unknown): Node {
 
 /** An image of a Blob on the phone; its object URL is freed once shown. */
 export function blobImg(blob: Blob, alt = ""): HTMLImageElement {
-  const img = h("img", { src: URL.createObjectURL(blob), alt });
+  const img = settle(h("img", { src: URL.createObjectURL(blob), alt }));
   img.onload = img.onerror = () => URL.revokeObjectURL(img.src);
   return img;
 }
@@ -163,8 +197,8 @@ export function share(what: () => { title: string; text?: string; file?: [string
 
 /** Page text as Markdown (safe HTML from md.ts), or as typed with links made clickable. */
 export function bodyView(text: string, raw: boolean): HTMLElement {
-  if (raw) return h("div", { className: "body raw" }, ...linkify(text));
-  const el = h("div", { className: "body md" });
+  if (raw) return h("div", { className: "body raw", dir: "auto" }, ...linkify(text));
+  const el = h("div", { className: "body md", dir: "auto" });
   el.innerHTML = markdown(text);
   return el;
 }

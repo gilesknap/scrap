@@ -76,7 +76,7 @@ the link as the capture's URL.
 - **Download** on a page saves it as Markdown, or as a zip of the Markdown and its files when it
   has any.
 - Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
-  **Raw text** shows it exactly as typed, and the phone remembers the choice. The text is
+  **Show raw text** shows it exactly as typed, and the phone remembers the choice. The text is
   always stored as typed.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.

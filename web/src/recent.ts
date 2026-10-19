@@ -3,7 +3,7 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
-import { blobImg, empty, h, problem, when } from "./ui";
+import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
 
@@ -19,14 +19,14 @@ function row(
   let img: HTMLElement = none();
   if (thumb instanceof Blob) img = blobImg(thumb);
   else if (thumb) {
-    const el = h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" });
+    const el = settle(h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" }));
     el.onerror = () => el.replaceWith(none()); // a file the server can't preview
     img = el;
   }
   const body = h(
     "span",
     {},
-    h("strong", {}, title),
+    h("strong", { dir: "auto" }, title),
     h(
       "span",
       { className: "sub" },
@@ -106,7 +106,7 @@ export async function pageList(limit: number): Promise<Node> {
         row(
           p.thumb && previewUrl(p.thumb, 480),
           p.title,
-          when(p.updated_at),
+          whenShort(p.updated_at),
           KIND[p.kind],
           `/p/${encodeURIComponent(p.slug)}`,
           p.kind,

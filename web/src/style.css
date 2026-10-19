@@ -4,7 +4,6 @@
 /* ---- Base ---- */
 :root {
   font: 17px / var(--lh) var(--font);
-  -webkit-text-size-adjust: 100%;
 }
 * {
   box-sizing: border-box;
@@ -105,13 +104,14 @@ button:disabled {
   opacity: 0.5;
 }
 [aria-busy="true"] {
-  opacity: 0.6;
-  pointer-events: none;
+  pointer-events: none; /* its label says "Preparing…": no dimming, which would fail contrast */
+  cursor: progress;
 }
 button.link {
   min-height: var(--tap);
   padding: 0 var(--s-3);
-  margin: var(--s-2) 0 var(--s-4) calc(-1 * var(--s-3));
+  margin-block: var(--s-2) var(--s-4);
+  margin-inline: calc(-1 * var(--s-3)) 0;
   border: none;
   background: none;
   color: var(--ink-2);
@@ -216,7 +216,7 @@ main {
     calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-4))
     max(env(safe-area-inset-left), var(--s-4));
 }
-#view > * {
+#view > :not(.still) {
   animation: enter var(--d-2) var(--ease);
 }
 @keyframes enter {
@@ -371,10 +371,13 @@ nav a[aria-current] .i {
 }
 .list img {
   object-fit: cover;
-  outline: 1px solid rgb(128 112 90 / 22%); /* an edge for white photos on white */
+  outline: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); /* white photos on white */
   outline-offset: -1px;
   background: var(--sunk); /* the placeholder while it loads */
-  animation: shimmer 1.2s linear infinite alternate;
+}
+.list img:not(.loaded),
+.originals img:not(.loaded) {
+  animation: shimmer 1.2s linear infinite alternate; /* only until it loads or fails */
 }
 @keyframes shimmer {
   to {
@@ -407,6 +410,11 @@ nav a[aria-current] .i {
   gap: var(--s-2);
   min-width: 0;
 }
+.sub small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .list small {
   min-width: 0;
   color: var(--ink-2);
@@ -432,6 +440,9 @@ nav a[aria-current] .i {
 }
 .pending .failed small {
   color: var(--danger);
+}
+.pending .sub small {
+  white-space: normal; /* the reason, in full */
 }
 .rowbar {
   display: flex;
@@ -527,7 +538,7 @@ mark {
 }
 .field-search .i {
   position: absolute;
-  left: 14px;
+  inset-inline-start: 14px;
   top: 50%;
   translate: 0 -50%;
   color: var(--ink-2);
@@ -535,7 +546,7 @@ mark {
 }
 .field-search input {
   min-height: var(--tap);
-  padding-left: 46px;
+  padding-inline-start: 46px;
   border-radius: var(--r-pill);
 }
 
@@ -593,12 +604,12 @@ mark {
 }
 .md blockquote {
   margin: var(--s-3) 0;
-  padding-left: var(--s-3);
-  border-left: 3px solid var(--accent);
+  padding-inline-start: var(--s-3);
+  border-inline-start: 3px solid var(--accent);
   color: var(--ink-2);
 }
 .md :is(ul, ol) {
-  padding-left: 1.4rem;
+  padding-inline-start: 1.4rem;
 }
 .md li + li {
   margin-top: var(--s-1);
@@ -623,11 +634,11 @@ mark {
 .originals img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3; /* held before it loads: nothing below jumps */
+  aspect-ratio: auto 4 / 3; /* 4:3 held while it loads, then the photo's own shape */
+  max-height: 75vh;
   object-fit: contain;
   border-radius: var(--r-lg);
   background: var(--sunk);
-  animation: shimmer 1.2s linear infinite alternate;
 }
 .orig figcaption {
   display: flex;
@@ -650,7 +661,7 @@ mark {
   text-decoration: none;
   font-weight: 500;
   min-height: var(--tap);
-  margin-right: calc(-1 * var(--s-3));
+  margin-inline-end: calc(-1 * var(--s-3));
   padding: 0 var(--s-3);
   border: none;
   background: none;
@@ -727,7 +738,7 @@ div.orig .save {
   padding: var(--s-3) var(--s-4) var(--s-4);
   border-radius: var(--r-lg);
   background: var(--danger-soft);
-  border-left: 4px solid var(--danger);
+  border-inline-start: 4px solid var(--danger);
 }
 .conflict p {
   margin: 0 0 var(--s-3);
@@ -751,7 +762,7 @@ div.orig .save {
   align-items: center;
   flex-wrap: wrap;
   margin: 0;
-  padding: 0 0 0 var(--s-3);
+  padding-inline-start: var(--s-3);
   border-radius: var(--r-md);
   background: var(--accent-soft);
   font-size: var(--t-sm);
@@ -784,7 +795,7 @@ div.orig .save {
 @keyframes drop {
   from {
     opacity: 0;
-    translate: 0 -8px;
+    translate: 0 8px;
   }
 }
 .toast button {
@@ -795,7 +806,7 @@ div.orig .save {
   font-weight: 700;
 }
 .toast button:active {
-  background: rgb(255 255 255 / 10%);
+  background: color-mix(in srgb, var(--on-toast) 12%, transparent);
 }
 
 /* ---- Composer and editor: a full-screen sheet sized to the visual viewport ---- */
@@ -838,7 +849,7 @@ div.orig .save {
   border-bottom: 1px solid var(--line);
 }
 .editor > .bar > :first-child {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 .editor > .bar > :last-child {
   min-width: 88px;
@@ -901,6 +912,11 @@ div.orig .save {
     display: none; /* the words alone fit a small phone */
   }
 }
+.chips label::after {
+  content: ""; /* a 48 px target: the 42 px segment and the track around it */
+  position: absolute;
+  inset: -3px 0;
+}
 .chips input {
   /* hidden, yet still focusable and announced as a radio group */
   position: absolute;
@@ -947,15 +963,15 @@ div.orig .save {
 .thumb button {
   position: absolute;
   top: 4px;
-  right: 4px;
+  inset-inline-end: 4px;
   min-height: 0;
   width: 30px;
   height: 30px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgb(20 16 10 / 65%);
-  color: #fff;
+  background: var(--overlay);
+  color: var(--on-overlay);
 }
 .thumb button::after {
   content: ""; /* a 48 px target */
@@ -979,8 +995,8 @@ div.orig .save {
   position: fixed;
   inset: 0;
   z-index: 3;
-  background: #000;
-  color: #fff;
+  background: var(--viewer);
+  color: var(--on-overlay);
   animation: fade var(--d-3) var(--ease);
 }
 @keyframes fade {
@@ -1013,15 +1029,15 @@ div.orig .save {
   bottom: 0;
   padding: var(--s-6) max(env(safe-area-inset-right), var(--s-2))
     calc(env(safe-area-inset-bottom) + var(--s-2)) max(env(safe-area-inset-left), var(--s-2));
-  background: linear-gradient(transparent, rgb(0 0 0 / 70%) 45%);
+  background: linear-gradient(transparent, var(--overlay) 45%);
 }
 .viewer button,
 .viewer .button {
-  color: #fff;
+  color: var(--on-overlay);
 }
 .viewer button:active,
 .viewer .button:active {
-  background: rgb(255 255 255 / 14%);
+  background: color-mix(in srgb, var(--on-overlay) 14%, transparent);
 }
 .viewer .tools b {
   display: grid;
@@ -1037,7 +1053,7 @@ div.orig .save {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgb(0 0 0 / 45%);
+  background: var(--overlay);
 }
 .viewer .close {
   top: calc(env(safe-area-inset-top) + var(--s-2));
@@ -1067,7 +1083,7 @@ div.orig .save {
   translate: -50% 0;
   padding: 2px var(--s-3);
   border-radius: var(--r-pill);
-  background: rgb(0 0 0 / 45%);
+  background: var(--overlay);
   font-size: var(--t-sm);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -1081,6 +1097,113 @@ div.orig .save {
   .list img,
   .originals img {
     animation: none;
+  }
+}
+
+/* Landscape and other short screens: less fixed chrome. The nav puts its label beside the
+   icon, the page's tools scroll with the page, and the capture cluster is one row. */
+@media (max-height: 500px) {
+  :root {
+    --nav-h: 48px;
+    --bar-h: 48px;
+  }
+  .page > .tools {
+    position: static;
+    margin-top: var(--s-4);
+  }
+}
+@media (max-height: 500px) and (min-width: 560px) {
+  nav a {
+    flex-direction: row;
+    gap: var(--s-1);
+  }
+  nav .i {
+    width: 44px;
+    height: 28px;
+    padding: 2px 10px;
+  }
+  .actions {
+    flex-direction: row;
+  }
+  .hero {
+    flex: 1;
+    min-height: 64px;
+  }
+  .tiles {
+    flex: 2;
+  }
+  .tile {
+    min-height: 64px;
+  }
+}
+
+/* Very narrow (a small phone at its largest text size): the cluster scrolls with the list
+   instead of covering it, tiles go two by two, and labels may wrap rather than clip. */
+@media (max-width: 299px) {
+  .actions {
+    position: static;
+  }
+  .tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tools > * {
+    font-size: 0; /* icons only; the words stay as their accessible names */
+  }
+  .list img,
+  .noimg {
+    width: 32px;
+    height: 32px;
+  }
+  .list li > :is(a, div) {
+    gap: var(--s-2);
+  }
+  .tile,
+  .chips label,
+  .sub small {
+    white-space: normal;
+    text-align: center;
+  }
+  .sub small {
+    text-align: start;
+  }
+  .sub {
+    flex-wrap: wrap;
+    gap: 0 var(--s-2);
+  }
+  .list strong {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+  .bar .add {
+    flex-basis: 100%;
+  }
+  .chips label {
+    font-size: var(--t-xs);
+    line-height: var(--lh-tight);
+  }
+  .editor > .bar {
+    gap: var(--s-1);
+  }
+  .editor > .bar > * {
+    padding: 0 var(--s-2);
+  }
+  .editor > .bar > :last-child {
+    min-width: 0;
+  }
+}
+
+/* Forced colours (high contrast): fills and shadows are dropped, so selection and the
+   borderless controls get system-colour edges. */
+@media (forced-colors: active) {
+  .chips label:has(input:checked),
+  nav a[aria-current] .i {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .hero,
+  .tile,
+  .badge {
+    border: 1px solid ButtonText;
   }
 }
 

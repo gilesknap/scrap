@@ -18,6 +18,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
 
 const view = document.getElementById("view") as HTMLElement;
 let rendering = 0;
+let shown = ""; // the path on screen
 let controller = new AbortController();
 
 async function render() {
@@ -39,7 +40,11 @@ async function render() {
     } catch (e) {
       el = problem(e);
     }
-    if (n === rendering) view.replaceChildren(el);
+    if (n !== rendering) return;
+    // The same page again (back from the editor, a retry): no fade-in, it is already here.
+    if (path === shown && el instanceof Element) el.classList.add("still");
+    shown = path;
+    view.replaceChildren(el);
     return;
   }
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));

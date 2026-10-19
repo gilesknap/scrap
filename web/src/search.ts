@@ -46,10 +46,10 @@ export function search(): Node {
               h(
                 "span",
                 {},
-                h("strong", {}, hit.title),
+                h("strong", { dir: "auto" }, hit.title),
                 h(
                   "small",
-                  {},
+                  { dir: "auto" },
                   ...snippetParts(hit.snippet).map((p) =>
                     p.mark ? h("mark", {}, p.text) : p.text,
                   ),
