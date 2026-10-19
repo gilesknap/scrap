@@ -1,12 +1,13 @@
 // Full-screen photo viewer: opens fitted; pinch, wheel or double-tap to zoom, drag to pan,
 // swipe or arrows between photos. The phone's Back button closes it (a history entry).
-import { download, h } from "./ui";
+import { download, h, share } from "./ui";
 import { clamp, type Fingers, fitView, pinch, type View, zoomTo } from "./zoom";
 
 export interface Photo {
   src: string; // what is shown
   save: string; // the original, as a download
   name: string;
+  share: [string, string]; // the file to share, and its name
 }
 
 type Pt = { x: number; y: number };
@@ -52,6 +53,7 @@ export function viewer(photos: Photo[], start: number) {
     tool("Fit", () => toFit()),
     tool("100%", () => zoom(actual(), centre(), true)),
     save,
+    share(() => ({ title: photos[i].name, file: photos[i].share })),
     close,
   );
   const root = h(
