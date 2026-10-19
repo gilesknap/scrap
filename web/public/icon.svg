@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>scrap</title>
+  <rect width="512" height="512" rx="96" fill="#2f6fde"/>
+  <path d="M150 128h212v214l-26-20-27 20-26-20-27 20-26-20-27 20-26-20-27 20z" fill="#fff"/>
+  <path d="M186 184h140M186 230h140M186 276h92" stroke="#2f6fde" stroke-width="18" stroke-linecap="round"/>
+</svg>

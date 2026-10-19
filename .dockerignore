@@ -1,0 +1,5 @@
+web/node_modules
+web/test-results
+web/playwright-report
+src/scrap/static
+.venv

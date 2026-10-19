@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1c1f" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>scrap</title>
+  </head>
+  <body>
+    <header>
+      <a href="/" class="logo">scrap</a>
+      <button type="button" id="queue" class="badge" hidden></button>
+    </header>
+    <main id="view"></main>
+    <nav>
+      <a href="/">Capture</a>
+      <a href="/recent">Recent</a>
+      <a href="/search">Search</a>
+    </nav>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

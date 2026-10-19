@@ -88,7 +88,12 @@ def _text(data: dict[str, Any], key: str) -> str | None:
     value = data.get(key)
     if value is not None and not isinstance(value, str):
         raise InvalidError(f"{key} must be a string")
-    return value.strip() or None if value else None
+    return lines(value).strip() or None if value else None
+
+
+def lines(text: str) -> str:
+    """Unix line ends: multipart form fields arrive with CRLF."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]]:
@@ -294,10 +299,15 @@ class Store:
 
     def recent(self, limit: int) -> list[dict[str, Any]]:
         with self.connect() as conn:
-            rows = _rows(
+            rows = _rows(  # thumb: the page's first image, if any
                 conn,
-                "SELECT id, slug, title, kind, fields, created_at, updated_at FROM page"
-                " WHERE deleted_at IS NULL ORDER BY updated_at DESC, id DESC LIMIT ?",
+                "SELECT id, slug, title, kind, fields, created_at, updated_at,"
+                " (SELECT b.sha256 FROM capture c JOIN capture_blob cb"
+                " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
+                " WHERE c.page_id = page.id AND b.mime LIKE 'image/%'"
+                " ORDER BY c.received_at, cb.ord LIMIT 1) AS thumb"
+                " FROM page WHERE deleted_at IS NULL"
+                " ORDER BY updated_at DESC, id DESC LIMIT ?",
                 limit,
             )
         return [{**r, "fields": json.loads(r["fields"])} for r in rows]
@@ -331,7 +341,7 @@ class Store:
             if page["rev"] != base_rev:
                 raise ConflictError(page["rev"])
             new_title = page["title"] if title is None else " ".join(title.split())
-            new_body: str = page["body"] if body is None else body
+            new_body: str = page["body"] if body is None else lines(body)
             if not new_title:
                 raise InvalidError("title must not be empty")
             if (new_title, new_body) != (page["title"], page["body"]):

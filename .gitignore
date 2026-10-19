@@ -69,3 +69,6 @@ lockfiles/
 
 # ruff cache
 .ruff_cache/
+
+# PWA build output (npm --prefix web run build)
+src/scrap/static/

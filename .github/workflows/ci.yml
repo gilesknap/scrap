@@ -26,6 +26,9 @@ jobs:
       runs-on: ${{ matrix.runs-on }}
       python-version: ${{ matrix.python-version }}
 
+  web:
+    uses: ./.github/workflows/_web.yml
+
   container:
     needs: test
     if: always()
@@ -45,7 +48,7 @@ jobs:
     uses: ./.github/workflows/_dist.yml
   
   release:
-    needs: [dist, test, docs]
+    needs: [dist, test, docs, web]
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/_release.yml
     permissions:

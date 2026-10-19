@@ -44,6 +44,11 @@ jobs:
       - name: Test cli works in cached runtime image
         run: docker run --rm tag_for_testing --version
 
+      - name: Test the image carries the built PWA
+        run: >
+          docker run --rm --entrypoint python tag_for_testing -c
+          "import scrap.app as a; assert (a.STATIC / 'index.html').is_file()"
+
       - name: Create tags for publishing image
         id: meta
         uses: docker/metadata-action@v6
