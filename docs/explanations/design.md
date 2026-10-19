@@ -386,12 +386,12 @@ Where the code so far differs from the text above; later milestones should build
 Claude ingest is designed in [ingest](ingest.md), which supersedes these parts of the text above:
 M2 calls the Messages API only, with no tools (no `claude -p` backend, no Read tool); one
 combined `ingest` job per photo replaces `extract`, `redraw` and `summarise`, and derived text is
-indexed by triggers rather than an `index` job; job retries follow its error classes (a pause
-for outages, content errors charged, dead after a few charged failures or six claims) instead of
-five attempts with doubling delays; `derived` keeps versions (newest current) instead of
-overwriting, so a human drawing edit is a new version; the provisional title is replaced
-without adding a revision; only photos are ingested in M2 (no URL fetch); and old derived rows
-arrive in M2, not v0.1.
+indexed by triggers rather than an `index` job; job retries follow its error classes (outages
+and spend limits pause the queue without failing jobs; timeouts and content errors are charged)
+instead of five attempts with doubling delays; `derived` keeps versions (newest current) instead
+of overwriting, so a human drawing edit is a new version; the provisional title is replaced
+without a new revision and the slug never changes; only photos are ingested in M2 (no URL
+fetch); and old derived rows arrive in M2, not v0.1.
 
 ## Deferred to v0.1
 
