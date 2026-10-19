@@ -218,7 +218,7 @@ Notes:
 - **Links.** `[[slug]]` or `[[slug|label]]` in Markdown, parsed into `link` on save. Dangling links
   are allowed; backlinks are a query on `link_by_dst`.
 - **Tags.** Flat, lower-case, `/` allowed. The PWA edits them; `summarise` adds them only on its
-  first success and only to a page with none, so it never undoes the user's choice.
+  first success and only to a page with none.
 
 ### Kinds
 
@@ -229,26 +229,30 @@ rewrites the user's words or fits them to templates.
 - **`fields`** is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
   todo has `status` (`open`, `done`) and optional `due`; consume has `subtype` (`read`, `watch`,
   `listen`), `status` and the `source` link.
-- **A kind change** (hint, PWA edit or `summarise`) **resets `fields`** to the new kind's defaults
-  plus any checked model output: todo `{"status":"open"}`; consume
-  `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL. So the page is
-  listed at once, even if `summarise` never succeeds. Same kind: existing keys win, so a late retry
-  cannot reopen a done todo.
+- **A kind change** (hint, PWA edit, `extract` or `summarise`) **resets `fields`** to the new kind's
+  defaults plus any checked model output: todo `{"status":"open"}`; consume
+  `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL (omitted if it has
+  none). Either way the page is listed at once, even if `summarise` never succeeds.
 - **The user wins**, as with titles. A hint or a PWA edit sets `kind_fixed`. `extract` and
-  `summarise` set the kind only while it is still `note` and not fixed. `summarise` calls Claude
-  holding no lock, then in one `BEGIN IMMEDIATE` re-reads the kind, picks the resulting `:kind`,
-  checks the output against its schema (dropping other keys, nulls and `source`) and writes:
+  `summarise` set the kind only while it is still `note` and not fixed. `summarise` writes kind,
+  `fields` and tags only on its first success; a regenerated summary replaces just the summary text,
+  so a cleared `due` stays cleared. It calls Claude holding no lock, then in one `BEGIN IMMEDIATE`
+  re-reads the page, picks the resulting `:kind`, checks the output against its schema (dropping
+  other keys, nulls and `source`) and writes:
 
   ```sql
   UPDATE page SET kind = :kind, fields = CASE WHEN kind = :kind  -- json_patch: the 2nd wins
-      THEN json_patch(:fields, fields)     -- same kind: existing keys win
+      THEN json_patch(:fields, fields)     -- hinted kind: existing keys win
       ELSE json_patch(:defaults, :fields)  -- new kind: its defaults plus the checked output
     END
-  WHERE id = :id;
+  WHERE id = :id AND NOT EXISTS (          -- first success only: no summary yet
+      SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
+      WHERE c.page_id = :id AND d.kind = 'summary');
   ```
 
-- **Consume keeps link and summary only:** `summarise` then deletes the `fetched` text, so
-  regenerating that summary re-runs `extract` first.
+- **Consume keeps link and summary only:** if the re-read kind is `consume`, the same transaction
+  deletes the `fetched` text. Only regenerating the summary re-fetches it, for example after a
+  change to `reference`.
 - **Views.** The PWA lists Todos, the Consume queue and an Inbox: captured pages with no summary
   yet (processing or failed). Pages made by MCP `write` have no capture and skip it.
 
@@ -263,6 +267,7 @@ rewrites the user's words or fits them to templates.
    - *Note*: a text box.
    - *Share*: the manifest's `share_target` takes URLs, text and files from the share sheet. It
      works for installed PWAs on Android, not iOS (where a Shortcut could post to the API).
+     Android often sends a link as `text`, so the server lifts a bare URL in `text` into `url`.
 3. **Save.** The client mints a ULID, stores the capture in IndexedDB and shows it as *queued*.
 4. **Upload.** The app posts it to `POST /api/captures` and deletes the local copy on success. On
    failure it stays queued and retries with backoff while the app is open, and on next open.
