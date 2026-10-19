@@ -2,6 +2,7 @@
 // which expects an empty store).
 import { deflateSync } from "node:zlib";
 import { expect, type Page, test } from "@playwright/test";
+import { lowContrast } from "./contrast";
 
 const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -26,6 +27,7 @@ test("Save and Cancel stay on screen while editing; Ctrl+Enter saves", async ({ 
   const patch = page.waitForRequest((r) => r.method() === "PATCH");
   await body.press("Control+Enter");
   expect((await patch).postDataJSON()).not.toHaveProperty("title"); // untouched: not sent
+  await expect(page.locator(".editor")).toBeHidden(); // saved: the PATCH has been answered
   await expect(page.getByRole("button", { name: "Edit" })).toBeVisible();
   const saved = await (await page.request.get(`/api/pages/${slug}`)).json();
   expect(saved.body.startsWith("edited\nline\n")).toBe(true);
@@ -281,11 +283,11 @@ test("Markdown: formatted page text, raw switch, and Preview while editing", asy
   await expect(page.locator(".body strong")).toHaveText("bold");
   await expect(page.locator(".body a")).toHaveCount(0); // no javascript: link
   await expect(page.locator(".body")).toContainText("<b>x</b>"); // shown, not run
-  await page.getByRole("button", { name: "Raw text" }).click();
+  await page.getByRole("button", { name: "Show raw text" }).click();
   await expect(page.locator(".body")).toContainText("**bold**");
   await page.reload(); // remembered
   await expect(page.locator(".body")).toContainText("**bold**");
-  await page.getByRole("button", { name: "Formatted" }).click();
+  await page.getByRole("button", { name: "Show formatted" }).click();
 
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Body").fill("# Heading\n\n- one\n- two");
@@ -315,7 +317,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await page.getByPlaceholder("Note or link").fill("half a thought");
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByText("+ Gallery").click(),
+    page.locator(".editor").getByRole("button", { name: "Gallery" }).click(),
   ]);
   await chooser.setFiles({ name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) });
   await page.waitForTimeout(600); // the draft is kept 0.4 s after typing stops
@@ -351,7 +353,7 @@ test("Back closes the editor, not the page, and keeps the edit as a draft", asyn
   await expect(page).toHaveURL(new RegExp(`/p/${slug}$`));
   await expect(page.getByText("Kept as a draft")).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Edit (unsaved draft)" }).click();
+  await page.getByRole("button", { name: "Edit draft (unsaved)" }).click();
   await expect(page.getByLabel("Body")).toHaveValue("Back test\nchanged");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".editor")).toBeHidden();
@@ -456,4 +458,103 @@ test("Share sends a page's text, or a photo as a file, to the share sheet", asyn
   await page.setViewportSize({ width: 320, height: 640 }); // five tools still fit
   for (const name of ["Fit", "100%", "Share", "Close"])
     await inside(page, page.getByRole("dialog").getByRole("button", { name }));
+});
+
+test("placeholders stop pulsing once photos load, or fail", async ({ page }) => {
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Pulse check");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(300, 600, 80))], { type: "image/png" }),
+    "t.png",
+  );
+  form.append("file", new Blob(["<svg/>"], { type: "image/svg+xml" }), "x.svg"); // no preview
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const running = () =>
+    page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);
+  for (const path of ["/recent", `/p/${slug}`]) {
+    await page.goto(path);
+    await expect
+      .poll(() =>
+        page.evaluate(() => [...document.images].every((i) => i.complete && i.naturalWidth)),
+      )
+      .toBe(true);
+    await expect.poll(running, { message: path }).toBe(0);
+  }
+});
+
+test("high contrast mode still shows which kind is chosen", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Todo", exact: true }).click();
+  const chosen = page.locator(".chips label", { has: page.getByRole("radio", { checked: true }) });
+  await expect(chosen).toHaveText("Todo");
+  await expect(chosen).toHaveCSS("outline-style", "solid");
+});
+
+test("every visible text meets AA contrast, in both themes", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Contrast sweep\n\n## Plan\n\n- **bold** and `code`\n\n> a quote");
+  form.append("hint", "todo");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(400, 300, 220))], { type: "image/png" }),
+    "c.png",
+  );
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    const check = async (where: string) =>
+      expect(await page.evaluate(lowContrast, ""), where).toEqual([]);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await check(`${colorScheme} capture`);
+    await page.getByRole("button", { name: "Todo", exact: true }).click();
+    await page.locator(".editor textarea").fill("x **y**");
+    await check(`${colorScheme} composer`);
+    await page.locator(".editor").getByRole("button", { name: "Preview" }).click();
+    await check(`${colorScheme} preview`);
+    page.once("dialog", (d) => d.accept());
+    await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+    await page.goto("/recent");
+    await page.waitForLoadState("networkidle");
+    await check(`${colorScheme} recent`);
+    await page.goto(`/p/${slug}`);
+    await page.waitForLoadState("networkidle");
+    await check(`${colorScheme} page`);
+    await page.getByRole("button", { name: "Show raw text" }).click();
+    await check(`${colorScheme} page raw`);
+    await page.getByRole("button", { name: "Show formatted" }).click();
+    await page.locator(".page > .tools").getByRole("link", { name: "Download" }).click();
+    await page.getByText(/^Downloaded/).waitFor();
+    await check(`${colorScheme} toast`);
+    await page.locator(".originals img").click();
+    await check(`${colorScheme} viewer`);
+    await page.goBack();
+    await page.goto("/search?q=contrast");
+    await page.locator(".hits a").first().waitFor();
+    await check(`${colorScheme} search`);
+    await page.goto("/p/no-such-page");
+    await page.getByText("Not found").waitFor();
+    await check(`${colorScheme} not found`);
+  }
+});
+
+test("at the largest text size the Photo button is on the first screen", async ({ page }) => {
+  for (let i = 0; i < 4; i++) await note(page, `Latest row ${i} with a longish title`);
+  for (const size of [
+    { width: 206, height: 457 }, // a 412 px phone at 200 % text
+    { width: 320, height: 640 },
+    { width: 844, height: 390 }, // landscape
+  ]) {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await inside(page, page.getByRole("button", { name: "Photo" }));
+    await expect(page.locator(".capture .list li").first()).toBeAttached(); // the list is there
+  }
 });

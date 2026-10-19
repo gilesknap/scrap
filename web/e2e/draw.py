@@ -3,7 +3,8 @@
 Run as `uv run python web/e2e/draw.py DATA_DIR` while scrap serves DATA_DIR. It
 saves a capture of a drawn (not photographed) whiteboard, runs its ingest job with a
 canned answer instead of calling Claude, and prints {"slug", "capture_id", "sha256"}
-as JSON. Nothing in it is real or private.
+as JSON. With a second argument, `failed`, `pause` or `resume`, it sets up that
+ingest state instead. Nothing in it is real or private.
 """
 
 import io
@@ -72,6 +73,32 @@ def fake(model, system, messages, schema, blob):
     return claude.Completion(BOARD, content, usage, model, "end_turn")
 
 
+def state(data_dir: str, how: str) -> None:
+    """The ingest states the PWA shows: a photo whose job failed ("failed"), or the
+    queue paused for a spend limit ("pause") and running again ("resume")."""
+    store = Store(data_dir)
+    with store.connect() as conn, transaction(conn):
+        if how == "pause":
+            conn.execute(
+                "UPDATE queue_state SET paused_until = ?, reason = 'credit'",
+                (ingest.FAR,),
+            )
+        elif how == "resume":
+            ingest.resume(conn, "2000-01-01T00:00:00.000Z")
+    if how != "failed":
+        return
+    sha, size = store.put_blob(io.BytesIO(photo()))
+    c = store.prepare({"id": new_ulid(), "text": "A board that failed"}, ["image/png"])
+    ref = store.capture(c, [(sha, "image/png", size, "failed.png")], "e2e")[0]
+    with store.connect() as conn, transaction(conn):
+        conn.execute(
+            "UPDATE job SET state = 'dead', failures = 3,"
+            " last_error = 'image: cannot identify image file' WHERE capture_id = ?",
+            (ref["capture_id"],),
+        )
+    print(json.dumps({**ref, "sha256": sha}))
+
+
 def main(data_dir: str) -> None:
     store = Store(data_dir)
     sha, size = store.put_blob(io.BytesIO(photo()))
@@ -88,4 +115,7 @@ def main(data_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    if len(sys.argv) > 2:
+        state(sys.argv[1], sys.argv[2])
+    else:
+        main(sys.argv[1])

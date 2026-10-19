@@ -88,7 +88,9 @@ export function openDrawing(t: Target, onSaved: () => void) {
     layer.classList.toggle("editing-drawing", editing);
     for (const b of [fit, edit, more]) b.toggleAttribute("disabled", !board);
   };
-  const note = (...kids: (Node | string)[]) => notes.replaceChildren(h("div", {}, ...kids));
+  // a banner: "restored" (a draft) or "conflict", as the text editor's, or plain
+  const note = (className: string, ...kids: (Node | string)[]) =>
+    notes.replaceChildren(h("div", { className }, ...kids));
   const clearNote = () => notes.replaceChildren();
   const dirty = () => editing && (fromDraft || !!board?.changed());
 
@@ -153,7 +155,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
         base = current?.version ?? null;
         clearNote();
       });
-      note("Restored your unsaved drawing. ", discard);
+      note("restored", "Restored your unsaved drawing. ", discard);
     }
     editing = true;
     edit.textContent = "Edit";
@@ -162,6 +164,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
   }
 
   async function stopEdit() {
+    clearTimeout(timer); // no draft kept after this
     editing = false;
     fromDraft = false;
     board?.setEditing(false);
@@ -213,6 +216,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
 
   function conflict(theirs: number | null | undefined) {
     note(
+      "conflict",
       `This drawing was changed elsewhere (now version ${theirs ?? "none"}). Nothing is lost:`,
       " saving yours adds it as a new version, theirs stays in History. ",
       tool("Save mine", () => {
@@ -222,7 +226,6 @@ export function openDrawing(t: Target, onSaved: () => void) {
       }),
       " ",
       tool("Discard mine, show theirs", async () => {
-        await dropDraft();
         clearNote();
         try {
           await reload(await api<Drawing>(path(t)));
@@ -230,6 +233,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
           toast("Can't reach the server to show theirs");
         }
         await stopEdit();
+        await dropDraft(); // last: showing theirs may have queued a write of the scene
       }),
     );
   }
@@ -255,7 +259,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
           ),
         ),
       );
-      note(h("strong", {}, "History"), " ", tool("Hide", clearNote), list);
+      note("history", h("strong", {}, "History"), " ", tool("Hide", clearNote), list);
     } catch (err) {
       toast(`Can't load the history: ${err instanceof ApiError ? err.message : "offline?"}`);
     }

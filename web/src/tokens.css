@@ -1,0 +1,100 @@
+/* Design tokens: the one place colours, type, spacing, shape and motion are defined.
+   docs/explanations/design-system.md explains them; tests/contrast.test.ts checks the
+   text/background pairs against WCAG AA in both themes. Components use only these. */
+:root {
+  color-scheme: light dark;
+
+  /* Colour roles, light ("paper"): warm off-white paper, warm black ink, one amber. */
+  --bg: #f6f3ec; /* the page */
+  --surface: #fffdf9; /* cards, fields, list groups */
+  --sunk: #ece7dd; /* wells: segmented track, placeholders, pressed */
+  --ink: #1e1b16; /* text */
+  --ink-2: #5c564c; /* secondary text: dates, hints */
+  --ink-3: #736c61; /* placeholders, captions */
+  --line: #e2dccf; /* hairlines, separators (decorative) */
+  --line-strong: #8f8778; /* field and control edges (3:1) */
+  --accent: #eba13a; /* the one colour: primary fills, selection, the badge */
+  --on-accent: #1e1b16; /* text on --accent */
+  --accent-ink: #8a4f00; /* accent as text or icon on --bg/--surface: links, active nav */
+  --accent-soft: #f8e6c6; /* a wash of it: chips, highlights, the active nav pill */
+  --danger: #b42318; /* destructive and failed, as text */
+  --danger-soft: #fbe4df;
+  --toast: #2a2620; /* toasts: a dark slab in both themes */
+  --on-toast: #f6f1e7;
+  --toast-action: #f3b65c;
+  /* Over photos (the viewer, the photo strip), the same in both themes. */
+  --viewer: #000000;
+  --on-overlay: #ffffff;
+  --overlay: rgb(0 0 0 / 65%); /* white text on it stays over 4.5:1 even on a white photo */
+  --shadow: 0 1px 2px rgb(40 30 10 / 8%), 0 2px 8px rgb(40 30 10 / 6%);
+  --shadow-2: 0 4px 12px rgb(40 30 10 / 14%), 0 12px 32px rgb(40 30 10 / 12%);
+
+  /* Type: the system UI face; sizes off a 17 px root. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --t-xs: 0.75rem; /* 12.75: labels under icons, chips */
+  --t-sm: 0.875rem; /* 14.9: meta, secondary lines, small buttons */
+  --t-md: 1rem; /* 17: body, list titles, buttons */
+  --t-lg: 1.1875rem; /* 20: top bar wordmark */
+  --t-xl: 1.5rem; /* 25.5: page title */
+  --lh: 1.5;
+  --lh-tight: 1.25;
+
+  /* Space: a 4 px grid. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+
+  /* Shape */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --tap: 48px; /* the smallest touch target */
+  --bar-h: 56px; /* top bars */
+  --nav-h: 64px; /* bottom nav */
+
+  /* Motion: short, eased out; none at all when the phone asks for reduced motion. */
+  --d-1: 90ms; /* press feedback */
+  --d-2: 180ms; /* views, toasts */
+  --d-3: 260ms; /* sheets: the editor, the viewer */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Dark ("ink"): a warm near-black, cream ink, the same amber a step lighter. Its own
+   values, not an inversion: surfaces get lighter as they come forward. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161411;
+    --surface: #211e1a;
+    --sunk: #2b2722;
+    --ink: #f2ece1;
+    --ink-2: #b8b0a2;
+    --ink-3: #958d80;
+    --line: #322d27;
+    --line-strong: #706858;
+    --accent: #f0ac4b;
+    --on-accent: #1e1b16;
+    --accent-ink: #f3b65c;
+    --accent-soft: #3a2c17;
+    --danger: #f29086;
+    --danger-soft: #3b201c;
+    --toast: #3a352d;
+    --on-toast: #f2ece1;
+    --toast-action: #f3b65c;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-2: 0 6px 24px rgb(0 0 0 / 55%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-1: 0ms;
+    --d-2: 0ms;
+    --d-3: 0ms;
+  }
+}

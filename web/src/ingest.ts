@@ -62,7 +62,11 @@ export function photoPanel(o: {
       "figure",
       { className: "orig drawing" },
       drawingCard(t, { id: d.id, frame }, open),
-      h("button", { type: "button", className: "link", onclick: open }, "Open drawing"),
+      h(
+        "figcaption",
+        {},
+        h("button", { type: "button", className: "link", onclick: open }, "Open drawing"),
+      ),
     );
     const pair = h("div", { className: "pair show-drawing" }, o.figure, drawing);
     const tabs = h("div", { className: "tabs", role: "tablist", "aria-label": "Show" });
@@ -80,7 +84,7 @@ export function photoPanel(o: {
   } else panel.append(o.figure);
 
   // Its state, and what can be done about it
-  const chip = h("span", { className: `chip ${i.state}`, role: "status" }, stateText(i, o.queue));
+  const chip = h("span", { className: `state ${i.state}`, role: "status" }, stateText(i, o.queue));
   const actions = h("div", { className: "ingest" }, chip);
   const reprocess = async (replace: boolean) => {
     try {
@@ -114,7 +118,7 @@ export function photoPanel(o: {
     actions.after(choice);
   };
   const button = (label: string, onclick: () => void) =>
-    h("button", { type: "button", className: "small", onclick }, label);
+    h("button", { type: "button", onclick }, label);
   if (i.state === "failed") actions.append(button("Retry", () => void reprocess(false)));
   else if (i.state === "done") actions.append(button("Reprocess", ask));
   else if (i.state === "paused") {

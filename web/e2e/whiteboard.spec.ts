@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import { lowContrast } from "./contrast";
 
 interface Board {
   slug: string;
@@ -11,15 +12,17 @@ interface Board {
   sha256: string;
 }
 
-function board(): Board {
-  const out = execFileSync(
-    "uv",
-    ["run", "--locked", "python", "web/e2e/draw.py", process.env.SCRAP_E2E_DATA as string],
-    { cwd: "..", encoding: "utf8" },
-  );
-  return JSON.parse(out.trim().split("\n").pop() as string);
+function board(state?: "failed" | "pause" | "resume"): Board {
+  const data = process.env.SCRAP_E2E_DATA as string;
+  const args = ["run", "--locked", "python", "web/e2e/draw.py", data, ...(state ? [state] : [])];
+  const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
+  return JSON.parse(out.trim().split("\n").pop() || "null");
 }
 
+const ulid = () => {
+  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
+};
 const drawingUrl = (b: Board) => `/api/captures/${b.capture_id}/photos/${b.sha256}/drawing`;
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Drawing" });
 const tool = (page: Page, name: string) => dialog(page).getByRole("button", { name, exact: true });
@@ -248,4 +251,82 @@ test.describe("on a 390 px phone", () => {
     expect(line).toBeGreaterThanOrEqual(14);
     expect(line).toBeLessThanOrEqual(40);
   });
+});
+
+test("every text of the drawing screens meets AA contrast, in both themes", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const b = board();
+  const failed = board("failed");
+  const waiting = await (
+    await page.request.post("/api/captures", {
+      multipart: {
+        id: ulid(),
+        text: "A waiting board",
+        file: { name: "w.png", mimeType: "image/png", buffer: Buffer.alloc(100, 1) },
+      },
+    })
+  ).json();
+  // Excalidraw's own interface is its own; ours around it is checked
+  const check = async (where: string) =>
+    expect(await page.evaluate(lowContrast, ".excalidraw"), where).toEqual([]);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto(`/p/${b.slug}`);
+    await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
+    await page.getByText("Description").click();
+    await page.getByText("Text Claude read").click();
+    await check(`${colorScheme} page: done, preview, tabs`);
+    await page.getByRole("tab", { name: "Photo" }).click();
+    await check(`${colorScheme} page: photo tab`);
+    await page.getByRole("tab", { name: "Drawing" }).click();
+    await page.goto(`/p/${failed.slug}`);
+    await check(`${colorScheme} page: failed`);
+    await page.goto(`/p/${waiting.slug}`);
+    await check(`${colorScheme} page: waiting`);
+    board("pause");
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Resume" }).first()).toBeVisible();
+    await check(`${colorScheme} page: paused`);
+    board("resume");
+
+    await page.goto(`/p/${b.slug}`);
+    await open(page);
+    await check(`${colorScheme} viewer`);
+    await dialog(page).getByText("More").click();
+    await check(`${colorScheme} viewer: menu`);
+    await tool(page, "History").click();
+    await check(`${colorScheme} viewer: history`);
+    await tool(page, "Photo").click();
+    await check(`${colorScheme} viewer: photo`);
+    await tool(page, "Photo").click();
+    await tool(page, "Edit").click();
+    await rectangle(page);
+    await page.waitForTimeout(800);
+    await check(`${colorScheme} editor`);
+    await page.goBack(); // keeps a draft
+    await open(page);
+    await dialog(page).getByRole("button", { name: /^Edit/ }).click();
+    await check(`${colorScheme} editor: restored draft`);
+    const now = (await (await page.request.get(drawingUrl(b))).json()).version;
+    await page.request.put(drawingUrl(b), {
+      data: { base_version: now, scene: { elements: [] } },
+    });
+    await tool(page, "Save").click();
+    await expect(dialog(page).locator(".conflict")).toBeVisible();
+    await check(`${colorScheme} editor: conflict`);
+    await tool(page, "Discard mine, show theirs").click();
+    await expect(tool(page, "Edit")).toBeVisible(); // no draft left behind
+    await page.goBack();
+  }
+});
+
+test("high contrast mode shows the chosen tab and a pressed Photo", async ({ page }) => {
+  const b = board();
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto(`/p/${b.slug}`);
+  await expect(page.getByRole("tab", { selected: true })).toHaveCSS("outline-style", "solid");
+  await open(page);
+  await tool(page, "Photo").click();
+  await expect(tool(page, "Photo")).toHaveCSS("outline-style", "solid");
 });

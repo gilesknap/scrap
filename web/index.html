@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1b1c1f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161411" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
     <!-- Fonts and fetches stay on scrap: Excalidraw would fall back to its CDN -->
     <meta http-equiv="Content-Security-Policy" content="font-src 'self' data:; connect-src 'self'" />
@@ -15,14 +15,26 @@
   </head>
   <body>
     <header>
-      <a href="/" class="logo">scrap</a>
+      <a href="/" class="logo"
+        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h14v15l-2.3-1.5-2.4 1.5-2.3-1.5-2.3 1.5-2.4-1.5L5 18.5z" /></svg
+        >scrap</a
+      >
       <button type="button" id="queue" class="badge" hidden></button>
     </header>
     <main id="view"></main>
     <nav>
-      <a href="/">Capture</a>
-      <a href="/recent">Recent</a>
-      <a href="/search">Search</a>
+      <a href="/"
+        ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg
+        >Capture</a
+      >
+      <a href="/recent"
+        ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg
+        >Recent</a
+      >
+      <a href="/search"
+        ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg
+        >Search</a
+      >
     </nav>
     <script type="module" src="/src/main.ts"></script>
   </body>

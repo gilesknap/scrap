@@ -2,7 +2,8 @@
 import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
-import { blobImg, h, problem, when } from "./ui";
+import { icon, kindIcon } from "./icons";
+import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
 
@@ -12,21 +13,27 @@ function row(
   sub: string,
   extra: Node | string = "",
   href?: string,
+  kind?: string,
 ) {
-  const none = () => h("span", { className: "noimg" }, title.slice(0, 1).toUpperCase());
+  const none = () => h("span", { className: "noimg" }, icon(kindIcon(kind)));
   let img: HTMLElement = none();
   if (thumb instanceof Blob) img = blobImg(thumb);
   else if (thumb) {
-    const el = h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" });
+    const el = settle(h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" }));
     el.onerror = () => el.replaceWith(none()); // a file the server can't preview
     img = el;
   }
   const body = h(
     "span",
     {},
-    h("strong", {}, title),
-    h("small", {}, sub),
-    extra && (typeof extra === "string" ? h("em", {}, extra) : extra),
+    h("strong", { dir: "auto" }, title),
+    h(
+      "span",
+      { className: "sub" },
+      h("small", {}, sub),
+      typeof extra === "string" && extra && h("em", {}, extra),
+    ),
+    typeof extra !== "string" && extra,
   );
   return h("li", {}, href ? h("a", { href }, img, body) : h("div", {}, img, body));
 }
@@ -36,7 +43,7 @@ export async function pendingList(): Promise<Node> {
   const items = await queue.items();
   return h(
     "ul",
-    { className: "list" },
+    { className: "list pending" },
     ...items.map((i) => {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
       const title = i.text?.split("\n")[0] || i.url || i.files[0]?.name || "capture";
@@ -74,7 +81,9 @@ export async function pendingList(): Promise<Node> {
             "Discard this capture? It never reached the server, so it will be gone.",
           ),
         );
-      return row(image?.blob ?? null, title, state, actions || "");
+      const r = row(image?.blob ?? null, title, state, actions || "", undefined, i.hint);
+      if (i.failed) r.className = "failed";
+      return r;
     }),
   );
 }
@@ -84,7 +93,12 @@ export async function pageList(limit: number): Promise<Node> {
   try {
     if (!navigator.onLine) throw new TypeError("offline");
     const list = await api<Summary[]>(`pages?limit=${limit}`);
-    if (!list.length) return h("p", { className: "empty" }, "Nothing captured yet.");
+    if (!list.length)
+      return empty(
+        "note",
+        "Nothing captured yet.",
+        h("small", {}, "Photos, notes and links you save show up here."),
+      );
     return h(
       "ul",
       { className: "list" },
@@ -92,9 +106,10 @@ export async function pageList(limit: number): Promise<Node> {
         row(
           p.thumb && previewUrl(p.thumb, 480),
           p.title,
-          when(p.updated_at),
+          whenShort(p.updated_at),
           KIND[p.kind],
           `/p/${encodeURIComponent(p.slug)}`,
+          p.kind,
         ),
       ),
     );
@@ -115,7 +130,7 @@ export async function recent(): Promise<Node> {
 
 /** Which app build is running: the service worker's cache is named after it. */
 function build(): Node {
-  const el = h("p", { className: "empty build", onclick: tapBuild });
+  const el = h("p", { className: "build", onclick: tapBuild });
   void self.caches
     ?.keys()
     .then((keys) => (el.textContent = keys.find((k) => k.startsWith("scrap-")) ?? ""));

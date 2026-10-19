@@ -1,4 +1,5 @@
 import { ApiError } from "./api";
+import { type Icon, icon } from "./icons";
 import { markdown } from "./md";
 
 // DOM helpers: h() builds an element, toast() shows a message with an optional action.
@@ -18,6 +19,25 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/** Put a toast just above what is under the thumb (the capture buttons, the page's tools, the
+ * nav), so it covers neither the newest row nor a title; in the editor, under its top bar (the
+ * CSS). placeToasts() places them again once a new view has drawn (main.ts), e.g. "Page
+ * deleted" shown on the way to Recent. */
+function place(el: HTMLElement) {
+  const tops = [
+    ...document.querySelectorAll(
+      ".viewer .tools, body:not(.editing) :is(.actions, .page > .tools, nav)",
+    ),
+  ]
+    .map((e) => e.getBoundingClientRect().top)
+    .filter((t) => t > 0 && t <= innerHeight); // on screen
+  el.style.top = tops.length ? "auto" : "";
+  el.style.bottom = tops.length ? `${innerHeight - Math.min(...tops) + 8}px` : "";
+}
+export function placeToasts() {
+  for (const el of document.querySelectorAll<HTMLElement>(".toast")) place(el);
+}
+
 /** Drop passing messages, e.g. on navigation; "keep" ones (an update offer) stay. */
 export function clearToasts() {
   for (const old of document.querySelectorAll(".toast:not(.keep)")) old.remove();
@@ -25,10 +45,11 @@ export function clearToasts() {
 
 export function toast(message: string, action?: string, onAction?: () => void, ms = 4000) {
   clearToasts();
-  const el = h("div", { className: "toast", role: "status" }, message);
+  const el = h("div", { className: "toast", role: "status" }, h("span", { dir: "auto" }, message));
   if (action) {
     el.append(
       h("button", {
+        type: "button",
         textContent: action,
         onclick: () => {
           el.remove();
@@ -37,6 +58,7 @@ export function toast(message: string, action?: string, onAction?: () => void, m
       }),
     );
   }
+  place(el);
   document.body.append(el);
   if (ms) setTimeout(() => el.remove(), ms);
   else el.classList.add("keep"); // survives navigation
@@ -44,6 +66,27 @@ export function toast(message: string, action?: string, onAction?: () => void, m
 
 export const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+/** A date for a list row: no year if it is this year's. */
+export function whenShort(iso: string) {
+  const d = new Date(iso);
+  const year = d.getFullYear() !== new Date().getFullYear() && "numeric";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(year && { year }),
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Marks an image loaded (or failed) so its placeholder shimmer stops. */
+export function settle<T extends HTMLImageElement>(img: T): T {
+  const done = () => img.classList.add("loaded");
+  img.addEventListener("load", done);
+  img.addEventListener("error", done);
+  return img;
+}
 
 /** Plain text with http(s) links made clickable; nothing is parsed as HTML. */
 export function linkify(text: string): Node[] {
@@ -56,16 +99,15 @@ export function linkify(text: string): Node[] {
     );
 }
 
+/** An empty or problem state: an icon, a line saying what is (not) here, and extras. */
+export const empty = (name: Icon, line: string, ...more: Kid[]) =>
+  h("div", { className: "empty" }, icon(name), h("p", {}, line), ...more);
+
 /** Why a view could not load, in words, with a retry that renders the view again. */
 export function problem(e: unknown): Node {
   if (e instanceof ApiError && e.status === 404) {
-    const home = h("a", { href: "/" }, "Back to capture");
-    return h(
-      "div",
-      { className: "empty" },
-      h("p", {}, "Not found: it may have been deleted."),
-      home,
-    );
+    const home = h("a", { href: "/", className: "button" }, "Back to capture");
+    return empty("search", "Not found: it may have been deleted.", home);
   }
   const why =
     e instanceof ApiError
@@ -74,17 +116,12 @@ export function problem(e: unknown): Node {
         ? "Can't reach the server. Check your connection or VPN."
         : "Offline: this needs the server.";
   const again = () => window.dispatchEvent(new PopStateEvent("popstate"));
-  return h(
-    "div",
-    { className: "empty" },
-    h("p", {}, why),
-    h("button", { onclick: again }, "Retry"),
-  );
+  return empty("offline", why, h("button", { onclick: again }, icon("retry"), "Retry"));
 }
 
 /** An image of a Blob on the phone; its object URL is freed once shown. */
 export function blobImg(blob: Blob, alt = ""): HTMLImageElement {
-  const img = h("img", { src: URL.createObjectURL(blob), alt });
+  const img = settle(h("img", { src: URL.createObjectURL(blob), alt }));
   img.onload = img.onerror = () => URL.revokeObjectURL(img.src);
   return img;
 }
@@ -122,9 +159,9 @@ function busy(el: HTMLElement, what: string, job: () => Promise<void>) {
   return async (e: Event) => {
     e.preventDefault();
     if (el.getAttribute("aria-busy") === "true") return;
-    const label = el.textContent;
+    const label = [...el.childNodes];
     el.setAttribute("aria-busy", "true");
-    el.textContent = "Preparing…";
+    el.replaceChildren(...label.filter((n) => n.nodeType !== Node.TEXT_NODE), "Preparing…");
     try {
       await job();
     } catch (err) {
@@ -132,7 +169,7 @@ function busy(el: HTMLElement, what: string, job: () => Promise<void>) {
       toast(`${what} failed: ${(err as Error).message}`, "", undefined, 8000);
     } finally {
       el.removeAttribute("aria-busy");
-      el.textContent = label;
+      el.replaceChildren(...label);
     }
   };
 }
@@ -140,7 +177,7 @@ function busy(el: HTMLElement, what: string, job: () => Promise<void>) {
 /** A Download link that fetches the file itself, so it can show it is busy and say when
  * the file is saved or why not (a plain download link gives no sign on Android). */
 export function download(href: string, className = "button"): HTMLAnchorElement {
-  const a = h("a", { href, className, download: "" }, "Download");
+  const a = h("a", { href, className, download: "" }, icon("download"), "Download");
   a.onclick = busy(a, "Download", async () => {
     const file = await fetchFile(href);
     saveBlob(file, file.name);
@@ -160,7 +197,7 @@ export function saveBlob(blob: Blob, name: string) {
  * the phone can't share. Never shares a link to this server. */
 export function share(what: () => { title: string; text?: string; file?: string[] }) {
   if (!navigator.share) return null;
-  const b = h("button", { type: "button" }, "Share");
+  const b = h("button", { type: "button" }, icon("share"), "Share");
   const send = (data: ShareData) =>
     navigator.share(data).catch((err: Error) => {
       if (err.name !== "AbortError") toast(`Share failed: ${err.message}`, "", undefined, 8000);
@@ -193,8 +230,8 @@ function canShareFile(name: string, type: string) {
 
 /** Page text as Markdown (safe HTML from md.ts), or as typed with links made clickable. */
 export function bodyView(text: string, raw: boolean): HTMLElement {
-  if (raw) return h("div", { className: "body raw" }, ...linkify(text));
-  const el = h("div", { className: "body md" });
+  if (raw) return h("div", { className: "body raw", dir: "auto" }, ...linkify(text));
+  const el = h("div", { className: "body md", dir: "auto" });
   el.innerHTML = markdown(text);
   return el;
 }

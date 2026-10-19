@@ -4,6 +4,7 @@ import { uploadLimit } from "./api";
 import { queue, view } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
+import { type Icon, icon } from "./icons";
 import { type Capture, type Hint, split } from "./queue";
 import { pageList, pendingList } from "./recent";
 import { blobImg, clearToasts, h, toast } from "./ui";
@@ -15,17 +16,17 @@ interface Draft {
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
 }
 
-const HINTS: [string, Hint | ""][] = [
-  ["Note", ""],
-  ["Todo", "todo"],
-  ["Read later", "consume"],
+const HINTS: [string, Hint | "", Icon][] = [
+  ["Note", "", "note"],
+  ["Todo", "todo", "todo"],
+  ["Read later", "consume", "later"],
 ];
 
 function picker(
   label: string,
   camera: boolean,
   onPick: (files: File[]) => void,
-  className = "big",
+  className = "tile",
 ) {
   // A real button (Tab and TalkBack reach it) opening a file input kept out of the page.
   const input = h("input", { type: "file", accept: "image/*", multiple: !camera });
@@ -34,7 +35,8 @@ function picker(
     if (input.files?.length) onPick([...input.files]);
     input.value = ""; // so the same shot again still fires change
   };
-  return h("button", { type: "button", className, onclick: () => input.click() }, label);
+  const glyph = icon(camera ? "camera" : "image");
+  return h("button", { type: "button", className, onclick: () => input.click() }, glyph, label);
 }
 
 export async function capture(): Promise<Node> {
@@ -48,16 +50,26 @@ export async function capture(): Promise<Node> {
   document.addEventListener("queuechange", refresh, { signal: view.signal });
   await refresh();
 
+  // The capture cluster: the camera as the hero, the other four as tiles under it.
   const actions = h(
     "div",
     { className: "actions" },
-    picker("Photo", true, (f) => void compose("", f), "big photo"),
-    picker("Gallery", false, (f) => void compose("", f)),
-    ...HINTS.map(([label, hint]) =>
-      h("button", { className: "big", onclick: () => void compose(hint, []) }, label),
+    picker("Photo", true, (f) => void compose("", f), "hero"),
+    h(
+      "div",
+      { className: "tiles" },
+      picker("Gallery", false, (f) => void compose("", f)),
+      ...HINTS.map(([label, hint, glyph]) =>
+        h(
+          "button",
+          { type: "button", className: "tile", onclick: () => void compose(hint, []) },
+          icon(glyph),
+          label,
+        ),
+      ),
     ),
   );
-  root.append(pending, actions);
+  root.append(h("h2", { className: "label" }, "Latest"), pending, actions);
 
   async function compose(hint: Hint | "", picked: File[]) {
     // An unsaved draft comes back, with any photos just picked added to it.
@@ -80,16 +92,19 @@ export async function capture(): Promise<Node> {
             "span",
             { className: "thumb" },
             blobImg(f, f.name),
-            h("button", {
-              type: "button",
-              textContent: "×",
-              "aria-label": `Remove photo ${i + 1}`,
-              onclick: () => {
-                files.splice(i, 1);
-                showThumbs();
-                ed.keep();
+            h(
+              "button",
+              {
+                type: "button",
+                "aria-label": `Remove photo ${i + 1}`,
+                onclick: () => {
+                  files.splice(i, 1);
+                  showThumbs();
+                  ed.keep();
+                },
               },
-            }),
+              icon("close"),
+            ),
           ),
         ),
       );
@@ -97,18 +112,19 @@ export async function capture(): Promise<Node> {
     const adders = h(
       "div",
       { className: "bar" },
-      picker("+ Camera", true, add, "big add"),
-      picker("+ Gallery", false, add, "big add"),
+      picker("Camera", true, add, "add"),
+      picker("Gallery", false, add, "add"),
     );
     showThumbs();
     const chips = h(
       "div",
-      { className: "chips", role: "radiogroup" },
-      ...HINTS.map(([label, value]) =>
+      { className: "chips", role: "radiogroup", "aria-label": "Kind" },
+      ...HINTS.map(([label, value, glyph]) =>
         h(
           "label",
           {},
           h("input", { type: "radio", name: "hint", value, checked: value === hint }),
+          icon(glyph),
           label,
         ),
       ),

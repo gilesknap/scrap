@@ -212,7 +212,7 @@ test("several photos make one capture", async ({ page }) => {
   await page.getByRole("button", { name: "Remove photo 2" }).click();
   const [camera] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByText("+ Camera").click(),
+    page.locator(".editor").getByRole("button", { name: "Camera" }).click(),
   ]);
   expect(camera.isMultiple()).toBe(false);
   await camera.setFiles(png("d.png", 4));
@@ -223,11 +223,12 @@ test("several photos make one capture", async ({ page }) => {
   expect(await cam.getAttribute("capture")).toBe("environment");
   expect(await gal.getAttribute("capture")).toBeNull();
   expect(await cam.evaluate((i: HTMLInputElement) => i.value)).toBe(""); // reset for a re-shot
-  await expect(page.getByRole("button", { name: "+ Camera" })).toBeVisible(); // Tab/TalkBack
-  await expect(page.getByRole("button", { name: "+ Gallery" })).toBeVisible();
+  const editor = page.locator(".editor");
+  await expect(editor.getByRole("button", { name: "Camera" })).toBeVisible(); // Tab/TalkBack
+  await expect(editor.getByRole("button", { name: "Gallery" })).toBeVisible();
   const [again] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByText("+ Camera").click(),
+    page.locator(".editor").getByRole("button", { name: "Camera" }).click(),
   ]);
   await again.setFiles(png("d.png", 4)); // a second shot appends
   await expect(page.locator(".thumb img")).toHaveCount(4);
