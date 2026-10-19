@@ -38,6 +38,16 @@ export function newItem(c: Capture, now = Date.now()): Item {
   return { ...c, id: ulid(now), created_at: new Date(now).toISOString(), attempts: 0, next: 0 };
 }
 
+/** One capture per file, the text with the first: for photos too big to send together. */
+export const split = ({ text, url, hint, source, files }: Capture): Capture[] =>
+  files.map((f, i) => ({
+    text: i ? undefined : text,
+    url: i ? undefined : url,
+    hint,
+    source,
+    files: [f],
+  }));
+
 const permanent = (status: number) => status >= 400 && status < 500 && ![408, 429].includes(status);
 
 export class Queue {
@@ -84,6 +94,19 @@ export class Queue {
     return this.flush();
   }
 
+  /** Re-queue a capture refused as too large as one capture per photo (new ids). */
+  async splitRetry(id: string): Promise<void> {
+    await this.running;
+    const item = (await this.items()).find((i) => i.id === id);
+    if (!item) return;
+    for (const [n, part] of split(item).entries()) {
+      await this.store.put({ ...newItem(part, this.now() + n), created_at: item.created_at });
+    }
+    await this.store.del(id);
+    this.onchange();
+    return this.flush();
+  }
+
   /** Give up on a capture: it and its files leave the phone. */
   async discard(id: string): Promise<void> {
     await this.running;
@@ -100,14 +123,17 @@ export class Queue {
     if (this.online()) {
       for (const item of await this.items()) {
         if (item.failed || item.next > this.now()) continue;
-        const { status, detail } = await this.send(item).catch(() => ({ status: 0, detail: "" }));
+        const { status, detail } = await this.send(item).catch((e) => ({
+          status: 0,
+          detail: e?.name === "TimeoutError" ? "timed out" : "offline",
+        }));
         if (status === 200 || status === 201) {
           await this.store.del(item.id);
         } else if (permanent(status)) {
           const error = `${status === 413 ? "too large" : "refused"}: ${detail || `HTTP ${status}`}`;
           await this.store.put({ ...item, failed: true, error });
         } else {
-          const error = status ? `server error (${status})` : "offline";
+          const error = status ? `server error (${status})` : detail;
           const next = this.now() + backoff(item.attempts);
           await this.store.put({ ...item, attempts: item.attempts + 1, next, error });
         }

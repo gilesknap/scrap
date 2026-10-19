@@ -1,5 +1,6 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
+import { learnLimit } from "./api";
 import { view as current, go, queue } from "./app";
 import { capture } from "./capture";
 import { page } from "./page";
@@ -68,7 +69,10 @@ badge.onclick = () => void queue.retry();
 queue.onchange = () => void showQueue();
 
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
-const flush = () => void queue.flush();
+const flush = () => {
+  void queue.flush();
+  void learnLimit(); // the server's upload limit, kept for offline checks
+};
 window.addEventListener("online", flush);
 document.addEventListener(
   "visibilitychange",

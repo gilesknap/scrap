@@ -111,6 +111,7 @@ async function pick(page: Page, mb: number, caption: string) {
 }
 
 test("a refused capture says why and can be discarded", async ({ page }) => {
+  await page.route("**/healthz", (r) => r.abort()); // limit unknown: no check before saving
   await page.goto("/");
   await pick(page, 2, "too big");
   await expect(page.locator("#queue")).toHaveText("1 failed");
@@ -139,6 +140,7 @@ test("a capture the phone cannot store stays in the composer", async ({
   context,
   baseURL,
 }) => {
+  await page.route("**/healthz", (r) => r.abort()); // limit unknown: no check before saving
   await page.goto("/");
   const cdp = await context.newCDPSession(page);
   await cdp.send("Storage.overrideQuotaForOrigin", {
@@ -216,13 +218,13 @@ test("several photos make one capture", async ({ page }) => {
   await camera.setFiles(png("d.png", 4));
   await expect(page.locator(".thumb img")).toHaveCount(3);
   // The composer's camera is a real camera input, separate from the gallery picker.
-  const cam = page.locator("label", { hasText: "+ Camera" }).locator("input");
-  const gal = page.locator("label", { hasText: "+ Gallery" }).locator("input");
-  await expect(cam).toHaveAttribute("capture", "environment");
-  await expect(cam).not.toHaveAttribute("multiple");
-  await expect(gal).not.toHaveAttribute("capture");
-  await expect(gal).toHaveAttribute("multiple");
-  await expect(cam).toHaveValue(""); // reset, so the same shot again still fires change
+  const cam = camera.element();
+  const gal = gallery.element();
+  expect(await cam.getAttribute("capture")).toBe("environment");
+  expect(await gal.getAttribute("capture")).toBeNull();
+  expect(await cam.evaluate((i: HTMLInputElement) => i.value)).toBe(""); // reset for a re-shot
+  await expect(page.getByRole("button", { name: "+ Camera" })).toBeVisible(); // Tab/TalkBack
+  await expect(page.getByRole("button", { name: "+ Gallery" })).toBeVisible();
   const [again] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.getByText("+ Camera").click(),
@@ -242,4 +244,63 @@ test("several photos make one capture", async ({ page }) => {
     "d.png",
     "d.png",
   ]);
+});
+
+test("photos over the upload limit are saved separately, or split after a 413", async ({
+  page,
+}) => {
+  const png = (name: string) => ({
+    name,
+    mimeType: "image/png",
+    buffer: Buffer.alloc(700 * 1024, 7),
+  });
+  const pages = async () => (await page.request.get("/api/search?q=limit+test")).json();
+  await page.goto("/");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("scrap.max_upload_bytes")))
+    .toBe(String(2 ** 20));
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("Gallery").click(),
+  ]);
+  await chooser.setFiles([png("one.png"), png("two.png")]);
+  await page.getByPlaceholder("Caption (optional)").fill("limit test");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("1.4 MB of photos is over the server's 1.0 MB limit")).toBeVisible();
+  await expect(page.locator(".thumb img")).toHaveCount(2); // nothing lost
+  await page.getByRole("button", { name: "Save separately" }).click();
+  await expect.poll(async () => (await pages()).length).toBe(1); // the text goes with the first
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get("/api/pages")).json()).filter(
+          (p: { thumb: string | null }) => p.thumb,
+        ).length,
+    )
+    .toBeGreaterThanOrEqual(2);
+
+  // Queued before the limit was known (an old client): the server's 413 can be split.
+  await page.evaluate(() => localStorage.removeItem("scrap.max_upload_bytes"));
+  await page.route("**/healthz", (r) => r.abort());
+  const [again] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("Gallery").click(),
+  ]);
+  await again.setFiles([png("three.png"), png("four.png")]);
+  await page.getByPlaceholder("Caption (optional)").fill("split after refusal");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator("#queue")).toHaveText("1 failed");
+  await page.getByRole("button", { name: "Split and retry" }).click();
+  await expect(page.locator("#queue")).toBeHidden();
+  const [hit] = await (await page.request.get("/api/search?q=split+after")).json();
+  const first = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
+  expect(first.captures[0].blobs.map((b: { filename: string }) => b.filename)).toEqual([
+    "three.png",
+  ]);
+});
+
+test("a missing page says so", async ({ page }) => {
+  await page.goto("/p/no-such-page");
+  await expect(page.getByText("Not found: it may have been deleted.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to capture" })).toBeVisible();
 });

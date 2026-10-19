@@ -58,9 +58,24 @@ export async function send(item: Item): Promise<{ status: number; detail?: strin
     for (const f of files) form.append("file", f.blob, f.name);
     init = { method: "POST", body: form };
   }
+  // A stalled upload must not hold the queue (and its lock) for ever: 60 s plus 1 s a MB.
+  const size = files.reduce((n, f) => n + f.blob.size, 0);
+  init.signal = AbortSignal.timeout(60_000 + (size / 2 ** 20) * 1000);
   const r = await fetch("/api/captures", init);
   const detail = r.ok ? undefined : (await r.json().catch(() => ({}))).detail;
   return { status: r.status, detail };
 }
 
 export const blobUrl = (sha: string) => `/api/blobs/${sha}`;
+
+const LIMIT = "scrap.max_upload_bytes";
+
+/** The server's upload limit as last seen (0 if never), so the check works offline. */
+export const uploadLimit = () => Number(localStorage.getItem(LIMIT)) || 0;
+
+export async function learnLimit() {
+  try {
+    const { max_upload_bytes } = await (await fetch("/healthz")).json();
+    if (max_upload_bytes) localStorage.setItem(LIMIT, String(max_upload_bytes));
+  } catch {} // offline: keep the last one
+}

@@ -1,8 +1,10 @@
 // Home screen: big capture buttons, a composer, and what is still waiting to upload.
+
+import { uploadLimit } from "./api";
 import { queue, view } from "./app";
-import type { Hint } from "./queue";
+import { type Capture, type Hint, split } from "./queue";
 import { pageList, pendingList } from "./recent";
-import { h, toast } from "./ui";
+import { clearToasts, h, toast } from "./ui";
 
 const HINTS: [string, Hint | ""][] = [
   ["Note", ""],
@@ -16,13 +18,14 @@ function picker(
   onPick: (files: File[]) => void,
   className = "big",
 ) {
-  const input = h("input", { type: "file", accept: "image/*", multiple: !camera, hidden: true });
+  // A real button (Tab and TalkBack reach it) opening a file input kept out of the page.
+  const input = h("input", { type: "file", accept: "image/*", multiple: !camera });
   if (camera) input.setAttribute("capture", "environment");
   input.onchange = () => {
     if (input.files?.length) onPick([...input.files]);
-    input.value = "";
+    input.value = ""; // so the same shot again still fires change
   };
-  return h("label", { className }, label, input);
+  return h("button", { type: "button", className, onclick: () => input.click() }, label);
 }
 
 export async function capture(): Promise<Node> {
@@ -98,6 +101,7 @@ export async function capture(): Promise<Node> {
     const close = () => {
       form.replaceWith(actions);
       pending.hidden = false;
+      clearToasts(); // e.g. a "Save separately" offer for this composer
     };
     const save = h("button", { type: "submit", className: "primary" }, "Save");
     const form = h(
@@ -114,19 +118,28 @@ export async function capture(): Promise<Node> {
         save,
       ),
     );
-    form.onsubmit = async (e) => {
-      e.preventDefault();
+    const mb = (n: number) => `${(n / 2 ** 20).toFixed(1)} MB`;
+    const store = async (separately: boolean) => {
       const body = text.value.trim();
       if (!body && !files.length) return text.focus();
-      const chosen = (new FormData(form).get("hint") || undefined) as Hint | undefined;
+      const capture: Capture = {
+        text: body || undefined,
+        hint: (new FormData(form).get("hint") || undefined) as Hint | undefined,
+        source: "pwa",
+        files: files.map((f) => ({ name: f.name, blob: f })),
+      };
+      // Check the server's limit now: a capture it refuses could only be split or discarded.
+      const size = files.reduce((n, f) => n + f.size, 0);
+      const max = uploadLimit();
+      if (max && size > max - 64 * 1024 && !separately) {
+        const over = `${mb(size)} of photos is over the server's ${mb(max)} limit.`;
+        if (files.length < 2)
+          return toast(`${over} Remove it to save the text.`, "", undefined, 10000);
+        return toast(`${over} Remove some, or`, "Save separately", () => void store(true), 15000);
+      }
       save.disabled = true;
       try {
-        await queue.add({
-          text: body || undefined,
-          hint: chosen,
-          source: "pwa",
-          files: files.map((f) => ({ name: f.name, blob: f })),
-        });
+        for (const part of separately ? split(capture) : [capture]) await queue.add(part);
       } catch (err) {
         save.disabled = false; // keep everything in the composer to try again
         return toast(
@@ -138,6 +151,10 @@ export async function capture(): Promise<Node> {
       }
       close();
       toast(navigator.onLine ? "Saved" : "Saved on the phone: uploads when online");
+    };
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      void store(false);
     };
     actions.replaceWith(form);
     pending.hidden = true; // the composer gets the whole screen

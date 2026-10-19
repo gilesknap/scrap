@@ -16,7 +16,11 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
 def test_healthz(client):
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": __version__}
+    assert response.json() == {
+        "status": "ok",
+        "version": __version__,
+        "max_upload_bytes": 50 * 2**20,
+    }
 
 
 def test_unknown_route_is_404(client):

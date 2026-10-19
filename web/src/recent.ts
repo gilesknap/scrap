@@ -36,17 +36,37 @@ export async function pendingList(): Promise<Node> {
       const title = i.text?.split("\n")[0] || i.url || i.files[0]?.name || "capture";
       const why = i.error ?? (navigator.onLine ? "uploading" : "offline");
       const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;
-      const discard = () => {
-        if (confirm("Discard this capture? It never reached the server, so it will be gone."))
-          void queue.discard(i.id);
-      };
+      // Each waits for an upload in progress (maybe in another tab), so say so.
+      const act = (label: string, run: () => Promise<void>, sure = "") =>
+        h(
+          "button",
+          {
+            type: "button",
+            className: label === "Discard" ? "danger" : "",
+            onclick: (e: Event) => {
+              if (sure && !confirm(sure)) return;
+              const b = e.currentTarget as HTMLButtonElement;
+              b.disabled = true;
+              b.textContent = "Waiting for upload…";
+              void run();
+            },
+          },
+          label,
+        );
+      const tooBig = i.files.length > 1 && i.error?.startsWith("too large");
       const actions =
         i.failed &&
         h(
           "span",
           { className: "rowbar" },
-          h("button", { type: "button", onclick: () => void queue.retry(i.id) }, "Retry"),
-          h("button", { type: "button", className: "danger", onclick: discard }, "Discard"),
+          tooBig
+            ? act("Split and retry", () => queue.splitRetry(i.id))
+            : act("Retry", () => queue.retry(i.id)),
+          act(
+            "Discard",
+            () => queue.discard(i.id),
+            "Discard this capture? It never reached the server, so it will be gone.",
+          ),
         );
       return row(image ? URL.createObjectURL(image.blob) : null, title, state, actions || "");
     }),

@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { idb } from "../src/db";
-import { backoff, type Item, Queue } from "../src/queue";
+import { backoff, type Item, Queue, split } from "../src/queue";
 import { fromShare } from "../src/share";
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -136,6 +136,34 @@ describe("queue", () => {
     await q.retry(keep.id);
     expect(sent.map((i) => i.id)).toEqual([keep.id]);
     expect(await q.items()).toEqual([]);
+  });
+
+  it("splits a capture refused as too large into one per photo", async () => {
+    const q = queue();
+    replies = [413];
+    const photos = ["a", "b", "c"].map((n) => ({ name: `${n}.jpg`, blob: new Blob([n]) }));
+    const big = await q.add({ text: "board", hint: "todo", source: "pwa", files: photos });
+    await q.flush();
+    replies = [0];
+    await q.splitRetry(big.id);
+    const parts = await q.items();
+    expect(parts.map((i) => [i.text, i.hint, i.files.map((f) => f.name), i.failed])).toEqual([
+      ["board", "todo", ["a.jpg"], undefined],
+      [undefined, "todo", ["b.jpg"], undefined],
+      [undefined, "todo", ["c.jpg"], undefined],
+    ]);
+    expect(new Set(parts.map((i) => i.id)).size).toBe(3);
+    expect(parts.map((i) => i.id)).not.toContain(big.id);
+    expect(parts.every((i) => i.created_at === big.created_at)).toBe(true);
+    expect(split({ source: "pwa", files: [] })).toEqual([]);
+  });
+
+  it("says when an upload timed out", async () => {
+    const slow = () => Promise.reject(new DOMException("too slow", "TimeoutError"));
+    const q = new Queue(idb, slow, () => clock);
+    await q.add({ text: "x", source: "pwa", files: [] });
+    await q.flush();
+    expect((await q.items())[0].error).toBe("timed out");
   });
 
   it("leaves nothing behind when storage refuses a capture", async () => {

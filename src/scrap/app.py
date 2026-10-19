@@ -117,9 +117,9 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         app.add_exception_handler(exc, handler)
 
     @app.get("/healthz")
-    def healthz() -> dict[str, str]:
-        """Liveness check: the process is up and serving requests."""
-        return {"status": "ok", "version": __version__}
+    def healthz() -> dict[str, str | int]:
+        """Liveness check, plus the upload limit so the PWA can check before sending."""
+        return {"status": "ok", "version": __version__, "max_upload_bytes": limit}
 
     def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
         mimes = []

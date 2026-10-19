@@ -24,6 +24,9 @@ Installing is what puts scrap in the Android **share sheet**.
 
 In the composer, **+ Camera** and **+ Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
+If the photos together are over the server's upload limit (it tells the app, which remembers
+it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
+with the text on the first.
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
@@ -48,7 +51,9 @@ the link as the capture's URL.
   next time scrap is open with a connection.
 - A capture the server refuses (for example over the upload limit, `413`) is marked **failed**
   with the server's reason, and stays on the phone with **Retry** and **Discard** (which asks
-  first, then deletes it and its photos from the phone). Network and server errors just wait
+  first, then deletes it and its photos from the phone). A multi-photo capture refused as too
+  large offers **Split and retry** instead of Retry: one capture per photo, text on the first.
+- An upload that stalls is given up after 60 s plus 1 s per MB and retried later. Network and server errors just wait
   and retry.
 - If the phone refuses to store a capture (storage full), the composer stays open with your text
   and photos and says so. A share that cannot be stored goes straight to the server instead, or,

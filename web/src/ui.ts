@@ -57,6 +57,15 @@ export function linkify(text: string): Node[] {
 
 /** Why a view could not load, in words, with a retry that renders the view again. */
 export function problem(e: unknown): Node {
+  if (e instanceof ApiError && e.status === 404) {
+    const home = h("a", { href: "/" }, "Back to capture");
+    return h(
+      "div",
+      { className: "empty" },
+      h("p", {}, "Not found: it may have been deleted."),
+      home,
+    );
+  }
   const why =
     e instanceof ApiError
       ? e.message
