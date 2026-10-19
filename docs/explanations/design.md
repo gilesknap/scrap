@@ -30,7 +30,7 @@ stack of paid-API integrations).
   chunks; reciprocal rank fusion (`sum(1 / (60 + rank))`) merges them and hits are grouped by page.
 - **Calling Claude.** One small function takes a prompt and optional files and returns JSON. It runs
   `claude -p` (headless Claude Code on a subscription login); the Messages API is a second backend
-  chosen by an environment variable. With one capture per page there is no tool loop.
+  chosen by an environment variable. There is no agent loop beyond reading one image.
 - **Embeddings.** Local, through fastembed (ONNX on CPU, arm64 and amd64). Default
   `BAAI/bge-small-en-v1.5` (384 dimensions); `nomic-embed-text` (768) if recall is poor.
 - **Access.** Tailscale Serve is the only way in; Funnel stays off. The service binds to
@@ -72,7 +72,7 @@ CREATE TABLE page (
     kind        TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note', 'todo', 'consume',
                   'memory', 'reference', 'whiteboard', 'document')),
     kind_fixed  INTEGER NOT NULL DEFAULT 0 CHECK (kind_fixed IN (0, 1)),  -- 1: the user chose it
-    fields      TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields) = 'object'),  -- per kind
+    fields      TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields) = 'object'),  -- flat
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
 );
@@ -206,8 +206,7 @@ Notes:
   briefly be found by its older text.
 - **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
   derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
-  not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
-  what Claude says it shows.
+  not raw Excalidraw JSON (coordinates and IDs).
 
 ### Page identity, links, tags
 
@@ -222,16 +221,21 @@ Notes:
 
 ### Kinds
 
-A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, watch or listen
-to), `memory`, `reference`, `whiteboard` or `document`. The single `summarise` call classifies.
-scrap classifies and summarises; it never rewrites the user's words or fits them to templates.
+A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, watch or listen to),
+`memory`, `reference`, `whiteboard` or `document`. scrap classifies and summarises; it never
+rewrites the user's words or fits them to templates.
 
-- **`fields`** is JSON, not per-kind tables: a todo has `status` (`open`, `done`) and optional
-  `due`; consume has `subtype` (`read`, `watch`, `listen`), `status` and the `source` link.
-- **The user wins**, as with titles. A capture hint or a PWA edit sets `kind_fixed`. `extract`
-  and `summarise` set the kind only while it is still `note` and not fixed, so a hint or
-  `extract`'s whiteboard or document stands. `summarise` is told any kind already set and returns
-  fields for it. Jobs only add missing keys, so a late retry cannot reopen a done todo:
+- **`fields`** is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
+  todo has `status` (`open`, `done`) and optional `due`; consume has `subtype` (`read`, `watch`,
+  `listen`), `status` and the `source` link.
+- **Hints write defaults at save time**, so the page is listed at once even if `summarise` never
+  succeeds: *todo* gives `{"status": "open"}`; *read later* gives kind `consume` with
+  `{"subtype": "read", "status": "open"}`, plus `source` for a URL capture.
+- **The user wins**, as with titles. A hint or a PWA edit sets `kind_fixed`. `extract` and
+  `summarise` set the kind only while it is still `note` and not fixed. `summarise` is told any kind
+  already set; code checks its output against the resulting kind's schema, dropping other keys and
+  nulls (`json_patch` is a merge-patch: a null deletes). Jobs only add missing keys, so a late retry
+  cannot reopen a done todo:
 
   ```sql
   UPDATE page SET kind = CASE WHEN kind = 'note' AND kind_fixed = 0 THEN :kind ELSE kind END,
@@ -260,9 +264,9 @@ scrap classifies and summarises; it never rewrites the user's words or fits them
    failure it stays queued and retries with backoff while the app is open, and on next open.
 5. **Store.** The server writes blobs to `files/`, then in one `BEGIN IMMEDIATE` transaction looks
    up the capture id (found: a retry, return `200`), else inserts blobs (`ON CONFLICT DO NOTHING`),
-   page (before capture, for the foreign key; a hint sets `kind` and `kind_fixed`), `page_rev` 1,
-   capture, `capture_blob`, and the `extract` and `index` jobs, and returns `201`. No LLM call on
-   this path, and the note or title is searchable even if Claude is down.
+   page (before capture, for the foreign key; a hint sets `kind`, `kind_fixed` and default
+   `fields`), `page_rev` 1, capture, `capture_blob`, and the `extract` and `index` jobs, and returns
+   `201`. No LLM call on this path, and the note or title is searchable even if Claude is down.
 6. **Process.** The worker runs the jobs; the PWA polls `GET /api/captures?since=...` while open.
 
 ```text
@@ -312,10 +316,9 @@ else `note`.
 
 ## Excalidraw
 
-The photo is the source of truth; the drawing is derived and regenerable. Both are shown side by
-side. The PWA embeds the Excalidraw React component to view
-and edit the drawing. Saving an edit overwrites the `excalidraw` row with producer `human`, and
-regenerating asks before replacing a human edit.
+The photo and its derived drawing are shown side by side. The PWA embeds the Excalidraw React
+component to view and edit the drawing. Saving an edit overwrites the `excalidraw` row with producer
+`human`, and regenerating asks before replacing a human edit.
 
 ## MCP tools (v0)
 
@@ -346,10 +349,12 @@ todo are PWA actions only in v0.
 - **What it holds.** Its database, files and Claude credential. No cluster or git credentials
   (service-account token automount off), no shell tools.
 - **Prompt injection.** Ingested content is untrusted data. Ingest calls Claude with a fixed prompt
-  and checks the output against a schema. It gets no shell and no cluster credentials; an image
-  call gets only the Read tool, in a throwaway directory holding that one file. The worst outcome
-  is a wrong page, which `page_rev` can undo. URL fetching refuses private and tailnet
-  addresses, re-checked after DNS resolution and after every redirect.
+  and checks the output against a schema. It gets no shell and no cluster credentials; an image call
+  gets only the Read tool, in a throwaway directory holding that one file. The Claude credentials
+  share its container, so the call never bypasses permissions and a deny rule covers their
+  directory; this confinement is verified when the worker is built. The worst outcome is a wrong
+  page, which `page_rev` can undo. URL fetching refuses private and tailnet addresses, re-checked
+  after DNS resolution and after every redirect.
 - **Reading is not acting.** Sessions holding cluster or other powerful credentials should not
   mount the scrap MCP server, since pages may hold injected text.
 
