@@ -1,6 +1,7 @@
 // Recent pages, newest first, with anything still waiting to upload above them.
-import { api, blobUrl, type Summary } from "./api";
+import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
+import { tapBuild } from "./debug";
 import { blobImg, h, problem, when } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
@@ -87,7 +88,7 @@ export async function pageList(limit: number): Promise<Node> {
       { className: "list" },
       ...list.map((p) =>
         row(
-          p.thumb && blobUrl(p.thumb),
+          p.thumb && previewUrl(p.thumb, 480),
           p.title,
           when(p.updated_at),
           KIND[p.kind],
@@ -107,5 +108,14 @@ export async function recent(): Promise<Node> {
     async () => pending.replaceChildren(await pendingList()),
     { signal: view.signal },
   );
-  return h("section", {}, pending, await pageList(100));
+  return h("section", {}, pending, await pageList(100), build());
+}
+
+/** Which app build is running: the service worker's cache is named after it. */
+function build(): Node {
+  const el = h("p", { className: "empty build", onclick: tapBuild });
+  void self.caches
+    ?.keys()
+    .then((keys) => (el.textContent = keys.find((k) => k.startsWith("scrap-")) ?? ""));
+  return el;
 }

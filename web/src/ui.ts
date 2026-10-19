@@ -1,4 +1,5 @@
 import { ApiError } from "./api";
+import { markdown } from "./md";
 
 // DOM helpers: h() builds an element, toast() shows a message with an optional action.
 type Kid = Node | string | null | undefined | false;
@@ -86,4 +87,71 @@ export function blobImg(blob: Blob, alt = ""): HTMLImageElement {
   const img = h("img", { src: URL.createObjectURL(blob), alt });
   img.onload = img.onerror = () => URL.revokeObjectURL(img.src);
   return img;
+}
+
+/** Ctrl/Cmd+Enter in a form submits it. */
+export function saveKey(e: KeyboardEvent) {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    (e.currentTarget as HTMLFormElement).requestSubmit();
+  }
+}
+
+const mb = (n: number) =>
+  n < 2 ** 20 ? `${Math.ceil(n / 1024)} kB` : `${(n / 2 ** 20).toFixed(1)} MB`;
+
+/** A Download link that fetches the file itself, so it can show it is busy and say when
+ * the file is saved or why not (a plain download link gives no sign on Android). */
+export function download(href: string, className = "button"): HTMLAnchorElement {
+  const a = h("a", { href, className, download: "" }, "Download");
+  a.onclick = async (e) => {
+    e.preventDefault();
+    if (a.getAttribute("aria-busy") === "true") return;
+    a.setAttribute("aria-busy", "true");
+    a.textContent = "Preparing…";
+    try {
+      const r = await fetch(href);
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail ?? `HTTP ${r.status}`);
+      const blob = await r.blob();
+      const cd = r.headers.get("Content-Disposition") ?? "";
+      const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      const name = star
+        ? decodeURIComponent(star[1])
+        : (cd.match(/filename="([^"]*)"/)?.[1] ?? "download");
+      const url = URL.createObjectURL(blob);
+      h("a", { href: url, download: name }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000); // the save may still be reading it
+      toast(`Downloaded ${name} (${mb(blob.size)})`);
+    } catch (err) {
+      const why = err instanceof TypeError ? "can't reach the server" : (err as Error).message;
+      toast(`Download failed: ${why}`, "", undefined, 8000);
+    } finally {
+      a.removeAttribute("aria-busy");
+      a.textContent = "Download";
+    }
+  };
+  return a;
+}
+
+/** Page text as Markdown (safe HTML from md.ts), or as typed with links made clickable. */
+export function bodyView(text: string, raw: boolean): HTMLElement {
+  if (raw) return h("div", { className: "body raw" }, ...linkify(text));
+  const el = h("div", { className: "body md" });
+  el.innerHTML = markdown(text);
+  return el;
+}
+
+/** A Preview button that swaps a textarea for its text as formatted Markdown, and back. */
+export function previewer(text: HTMLTextAreaElement) {
+  const pane = h("div", { className: "preview", hidden: true });
+  const button = h("button", { type: "button" }, "Preview");
+  button.onclick = () => {
+    const on = pane.hidden;
+    pane.replaceChildren(bodyView(text.value, false));
+    pane.hidden = !on;
+    text.hidden = on;
+    button.textContent = on ? "Edit" : "Preview";
+    if (!on) text.focus();
+  };
+  return { button, pane };
 }

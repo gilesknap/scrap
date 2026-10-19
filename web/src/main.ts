@@ -3,6 +3,7 @@ import "./style.css";
 import { learnLimit } from "./api";
 import { view as current, go, queue } from "./app";
 import { capture } from "./capture";
+import { debugPanel } from "./debug";
 import { page } from "./page";
 import { recent } from "./recent";
 import { search } from "./search";
@@ -98,6 +99,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
+debugPanel();
 void render();
 void showQueue();
 flush();

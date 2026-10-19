@@ -2,6 +2,7 @@
 
 import { uploadLimit } from "./api";
 import { queue, view } from "./app";
+import { editor } from "./editor";
 import { type Capture, type Hint, split } from "./queue";
 import { pageList, pendingList } from "./recent";
 import { blobImg, clearToasts, h, toast } from "./ui";
@@ -98,26 +99,18 @@ export async function capture(): Promise<Node> {
         ),
       ),
     );
-    const close = () => {
-      form.replaceWith(actions);
-      pending.hidden = false;
-      clearToasts(); // e.g. a "Save separately" offer for this composer
-    };
-    const save = h("button", { type: "submit", className: "primary" }, "Save");
-    const form = h(
-      "form",
-      { className: "composer" },
-      chips,
+    const ed = editor({
       text,
-      thumbs,
-      adders,
-      h(
-        "div",
-        { className: "bar" },
-        h("button", { type: "button", onclick: close }, "Cancel"),
-        save,
-      ),
-    );
+      before: [chips],
+      after: [thumbs, adders],
+      onsave: () => void store(false),
+      oncancel: clearToasts, // e.g. a "Save separately" offer for this composer
+    });
+    const { form, save } = ed;
+    const close = () => {
+      ed.close();
+      clearToasts();
+    };
     const mb = (n: number) => `${(n / 2 ** 20).toFixed(1)} MB`;
     const store = async (separately: boolean) => {
       const body = text.value.trim();
@@ -152,12 +145,6 @@ export async function capture(): Promise<Node> {
       close();
       toast(navigator.onLine ? "Saved" : "Saved on the phone: uploads when online");
     };
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      void store(false);
-    };
-    actions.replaceWith(form);
-    pending.hidden = true; // the composer gets the whole screen
     if (!files.length) text.focus();
   }
   return root;
