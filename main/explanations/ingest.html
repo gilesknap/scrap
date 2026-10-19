@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest (M2) &#8212; scrap 0.1.dev45+gbb3c4ed11 documentation</title>
+    <title>Claude ingest (M2) &#8212; scrap 0.1.dev49+gbf223bf03 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b69933d"></script>
+    <script src="../_static/documentation_options.js?v=c8d38b51"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -545,6 +545,8 @@ the usage and the served model.</p>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">anthropic</span></code> SDK, with <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> from the service user’s mode-600 env file; no
 <code class="docutils literal notranslate"><span class="pre">tools</span></code>; SDK debug logging off (it logs request bodies).</p></li>
+<li><p>Error text is stored and shown only after redaction: anything shaped like an API key, and the
+key itself, is removed, in case a server or proxy ever echoes the request headers.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">max_retries=0</span></code> and a 240 s request timeout: the queue does all retrying, so one claim is one
 call. The SDK’s own retries would triple a timeout and repeat a spend-cap 429 that cannot
 succeed.</p></li>
@@ -553,8 +555,8 @@ thinking cannot be disabled, so <code class="docutils literal notranslate"><span
 <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code> is 16000.</p></li>
 </ul>
 <p><strong>Image.</strong> Claude never gets the original, but a JPEG made from it (EXIF orientation applied,
-HEIC converted, quality 85). Images over 120 megapixels (<code class="docutils literal notranslate"><span class="pre">Image.MAX_IMAGE_PIXELS</span></code>, the preview
-code’s limit) are refused from the header, before decoding. It is scaled to the largest size with a long edge of at most
+HEIC converted, quality 85). It is made by the preview code, one decode at a time and within
+its memory budget, so an image too large to decode is refused from its header. It is scaled to the largest size with a long edge of at most
 2048 px and ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens, the high-resolution cap:</p>
 <ul class="simple">
 <li><p>a 4:3 photo is sent as 2048×1536 (4070 tokens);</p></li>
@@ -693,7 +695,7 @@ the hard cap.</p>
 </tr>
 <tr class="row-even"><td><p>outage</p></td>
 <td><p>any other 429; any 5xx (incl. 504, 529); connection error</p></td>
-<td><p>pause until <code class="docutils literal notranslate"><span class="pre">retry-after</span></code>, else 1, 2, 4 … 60 min</p></td>
+<td><p>pause until <code class="docutils literal notranslate"><span class="pre">retry-after</span></code> (at most 1 h), else 1, 2, 4 … 60 min</p></td>
 </tr>
 <tr class="row-odd"><td><p>budget</p></td>
 <td><p>the day’s spend reached</p></td>
@@ -704,7 +706,7 @@ the hard cap.</p>
 <td><p>charged</p></td>
 </tr>
 <tr class="row-odd"><td><p>invalid</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>, bad output, nothing valid left</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped)</p></td>
 <td><p>charged; retried at once</p></td>
 </tr>
 <tr class="row-even"><td><p>content</p></td>
@@ -712,7 +714,7 @@ the hard cap.</p>
 <td><p>charged</p></td>
 </tr>
 <tr class="row-odd"><td><p>image</p></td>
-<td><p>decode or HEIC failure, over 120 MP</p></td>
+<td><p>decode or HEIC failure, too large to decode within the preview code’s memory budget</p></td>
 <td><p>charged</p></td>
 </tr>
 <tr class="row-even"><td><p>internal</p></td>
@@ -732,7 +734,7 @@ out, makes it claimable again, so an outage fails nothing. Every charged failure
 <code class="docutils literal notranslate"><span class="pre">job.failures</span></code> and retries 10 minutes later (invalid output at once); the third kills the job.
 The SDK’s <code class="docutils literal notranslate"><span class="pre">APITimeoutError</span></code> subclasses <code class="docutils literal notranslate"><span class="pre">APIConnectionError</span></code>, so it is tested first, else every
 timeout would be a free outage retry. A success clears the pause. The first pause of an
-episode POSTs once to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> (off when unset; an ntfy topic works) with fixed text
+episode (or a pause for a new reason, such as a spend limit after a budget pause) POSTs once to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> (off when unset; an ntfy topic works) with fixed text
 naming only the reason, never titles, OCR or API errors.</p>
 </section>
 <section id="migration-0002-sketch">

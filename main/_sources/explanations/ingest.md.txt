@@ -62,6 +62,8 @@ the usage and the served model.
 
 - The `anthropic` SDK, with `ANTHROPIC_API_KEY` from the service user's mode-600 env file; no
   `tools`; SDK debug logging off (it logs request bodies).
+- Error text is stored and shown only after redaction: anything shaped like an API key, and the
+  key itself, is removed, in case a server or proxy ever echoes the request headers.
 - `max_retries=0` and a 240 s request timeout: the queue does all retrying, so one claim is one
   call. The SDK's own retries would triple a timeout and repeat a spend-cap 429 that cannot
   succeed.
@@ -70,8 +72,8 @@ the usage and the served model.
   `max_tokens` is 16000.
 
 **Image.** Claude never gets the original, but a JPEG made from it (EXIF orientation applied,
-HEIC converted, quality 85). Images over 120 megapixels (`Image.MAX_IMAGE_PIXELS`, the preview
-code's limit) are refused from the header, before decoding. It is scaled to the largest size with a long edge of at most
+HEIC converted, quality 85). It is made by the preview code, one decode at a time and within
+its memory budget, so an image too large to decode is refused from its header. It is scaled to the largest size with a long edge of at most
 2048 px and ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens, the high-resolution cap:
 
 - a 4:3 photo is sent as 2048×1536 (4070 tokens);
@@ -206,12 +208,12 @@ the hard cap.
 | --- | --- | --- |
 | credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* |
 | auth | 401, 403, 404 (unknown model) | pause until *Resume* |
-| outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after`, else 1, 2, 4 ... 60 min |
+| outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after` (at most 1 h), else 1, 2, 4 ... 60 min |
 | budget | the day's spend reached | pause until UTC midnight |
 | timeout | `APITimeoutError` (240 s) | charged |
-| invalid | `max_tokens`, bad output, nothing valid left | charged; retried at once |
+| invalid | `max_tokens`, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped) | charged; retried at once |
 | content | refusal, any other 400, 409, 413, 422 | charged |
-| image | decode or HEIC failure, over 120 MP | charged |
+| image | decode or HEIC failure, too large to decode within the preview code's memory budget | charged |
 | internal | any other exception | charged |
 | crashed | `running` at service start | charged |
 
@@ -221,7 +223,7 @@ out, makes it claimable again, so an outage fails nothing. Every charged failure
 `job.failures` and retries 10 minutes later (invalid output at once); the third kills the job.
 The SDK's `APITimeoutError` subclasses `APIConnectionError`, so it is tested first, else every
 timeout would be a free outage retry. A success clears the pause. The first pause of an
-episode POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
+episode (or a pause for a new reason, such as a spend limit after a budget pause) POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
 naming only the reason, never titles, OCR or API errors.
 
 ## Migration 0002 (sketch)
