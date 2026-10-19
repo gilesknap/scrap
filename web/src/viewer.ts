@@ -7,7 +7,7 @@ export interface Photo {
   src: string; // what is shown
   save: string; // the original, as a download
   name: string;
-  share: [string, string]; // the file to share, and its name
+  share: [string, string, string]; // the file to share: address, name, type
 }
 
 type Pt = { x: number; y: number };
