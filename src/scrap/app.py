@@ -63,6 +63,20 @@ class Reprocess(BaseModel):
 VERSION_NUMBER = Annotated[StrictInt, Field(ge=1, le=2**31)]
 
 
+class Drawing(JSONResponse):
+    """A drawing as JSON. A stored row that cannot be encoded (rows made before the
+    sanitiser refused lone surrogates) is served with them replaced, and logged,
+    rather than failing every request for it."""
+
+    def render(self, content: Any) -> bytes:
+        try:
+            return super().render(content)
+        except UnicodeEncodeError:
+            logging.getLogger(__name__).warning("drawing with unencodable text served")
+            text = json.dumps(content, ensure_ascii=False, separators=(",", ":"))
+            return text.encode("utf-8", errors="replace")
+
+
 class Restore(BaseModel):
     version: VERSION_NUMBER  # the version to make current again
     base_version: VERSION_NUMBER  # the current one as the client saw it, else 409
@@ -265,20 +279,20 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     def photo(cid: str, sha: str) -> tuple[str, str]:
         return cid.upper(), sha.lower()
 
-    # The drawing endpoints answer with JSONResponse: a scene is JSON from the editor,
-    # passed through as stored, not a model for FastAPI to check again.
+    # The drawing endpoints answer with Drawing (a JSONResponse): a scene is JSON from
+    # the editor, passed through as stored, not a model for FastAPI to check again.
     @app.get("/api/captures/{cid}/photos/{sha}/drawing")
-    def drawing_current(cid: str, sha: str) -> JSONResponse:
+    def drawing_current(cid: str, sha: str) -> Drawing:
         """A photo's current drawing, with its data; 404 if it has none."""
-        return JSONResponse(drawing.current(store, *photo(cid, sha)))
+        return Drawing(drawing.current(store, *photo(cid, sha)))
 
     @app.get("/api/captures/{cid}/photos/{sha}/drawing/versions")
-    def drawing_versions(cid: str, sha: str) -> JSONResponse:
+    def drawing_versions(cid: str, sha: str) -> Drawing:
         """Every version of a photo's drawing, newest first, without their data."""
-        return JSONResponse(drawing.versions(store, *photo(cid, sha)))
+        return Drawing(drawing.versions(store, *photo(cid, sha)))
 
     @app.put("/api/captures/{cid}/photos/{sha}/drawing")
-    async def drawing_save(cid: str, sha: str, request: Request) -> JSONResponse:
+    async def drawing_save(cid: str, sha: str, request: Request) -> Drawing:
         """Save a scene from the editor as a new human version: {base_version, scene}.
         409 if the current version is no longer base_version, 422 if the scene breaks
         a rule, 413 if the request is over SCENE_REQUEST bytes."""
@@ -300,19 +314,17 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
             drawing.save, store, *photo(cid, sha), ask["base_version"],
             ask.get("scene"), who,
         )  # fmt: skip
-        return JSONResponse(saved)
+        return Drawing(saved)
 
     @app.post("/api/captures/{cid}/photos/{sha}/drawing/restore")
-    def drawing_restore(
-        cid: str, sha: str, ask: Restore, request: Request
-    ) -> JSONResponse:
+    def drawing_restore(cid: str, sha: str, ask: Restore, request: Request) -> Drawing:
         """Make an old version of the drawing current again, as a new copy; 409 if
         base_version is no longer current, 404 if there is no such version."""
         who = author(request)
         restored = drawing.restore(
             store, *photo(cid, sha), ask.version, ask.base_version, who
         )
-        return JSONResponse(restored)
+        return Drawing(restored)
 
     @app.get("/api/ingest")
     def ingest_status() -> dict[str, Any]:

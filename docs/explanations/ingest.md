@@ -197,8 +197,9 @@ base version (409 if stale) as a `human` version whose labels become `text`; **H
 - any colour Excalidraw writes (`transparent`, named, `#rgb`, `#rrggbbaa`, `rgba()`), and its
   own keys (`index`, `groupIds`, `containerId`, `originalText`, bindings);
 - `link` only with http(s), and the scene's `files` map (embedded image data) stripped;
-- 5 MB per scene (as compact JSON), nested at most 32 levels deep (deeper JSON could be
-  stored, then never served).
+- 5 MB per scene (as compact UTF-8 JSON), nested at most 32 levels deep, and no lone
+  surrogates (JSON can escape half a UTF-16 pair, UTF-8 cannot encode it): either could be
+  stored, then never served. The model's text has lone surrogates replaced with U+FFFD.
 
 A scene that breaks these gets a 422, and the editor keeps its state.
 
