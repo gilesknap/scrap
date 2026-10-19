@@ -1,0 +1,3 @@
+# Rendered with a 53-character release name (Helm's maximum) by test-chart.sh:
+# names and labels must stay within Kubernetes' limits.
+nameOverride: a-name-override-that-is-exactly-sixty-three-characters-long-xyz

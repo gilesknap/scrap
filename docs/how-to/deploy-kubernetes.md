@@ -221,11 +221,12 @@ limit to at least `maxUploadMB`.
 ```yaml
 ingress:
   enabled: true
-  className: nginx
+  className: <your-ingress-class>
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 50m
-    nginx.ingress.kubernetes.io/auth-url: https://auth.example.com/oauth2/auth
-    nginx.ingress.kubernetes.io/auth-signin: https://auth.example.com/oauth2/start?rd=$escaped_request_uri
+    # Your controller's annotations for external authentication and for a
+    # request body limit of at least maxUploadMB; see its documentation.
+    <auth-annotation>: <auth-service-url>
+    <body-size-annotation>: 50m
   hosts:
     - scrap.example.com
   tls:
@@ -234,7 +235,8 @@ ingress:
       secretName: scrap-tls
 ```
 
-Make sure the proxy removes any `Tailscale-User-*` headers sent by clients; changes are then
+The annotation names differ for every controller (Traefik uses Middleware objects instead), so
+the chart takes them as plain `ingress.annotations`. Make sure the proxy removes any `Tailscale-User-*` headers sent by clients; changes are then
 recorded under the fixed fallback author. Never expose the Service without authentication.
 
 ### Port-forward
@@ -331,7 +333,7 @@ spec:
           drop: [ALL]
       volumeMounts:
         - {name: data, mountPath: /data}
-        - {name: backups, mountPath: /backups, readOnly: true}
+        - {name: backups, mountPath: /backups}
         - {name: tmp, mountPath: /tmp}
   volumes:
     - name: data
@@ -344,10 +346,12 @@ spec:
       emptyDir: {}
 ```
 
-The claim names are `<release>-scrap-data` and `<release>-scrap-backups`, shortened to
-`scrap-data` and `scrap-backups` when the release itself is called `scrap`. The same pod with
-other arguments runs any `scrap` command against the data, for example
-`["export", "/backups/export"]`. To restore into a fresh volume instead, create a new claim,
+The claim names are `<fullname>-data` and `<fullname>-backups`, where the fullname is the
+release name if it contains `scrap`, else `<release>-scrap`: `kubectl -n scrap get pvc` shows
+them. The backups claim must be mounted writable: a backup's database is in SQLite's WAL mode,
+and `scrap restore` cannot open it in a read-only directory. The same pod with other arguments
+runs any `scrap` command against the data, for example `["export", "/backups/export"]` (pruning
+only ever deletes directories named like a backup run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without `--force`, and point `persistence.existingClaim` at it.
 
 ## Health and monitoring
@@ -412,11 +416,20 @@ spec:
       - CreateNamespace=true
 ```
 
-The claims carry `helm.sh/resource-policy: keep`, which `helm uninstall` honours. Argo CD renders
-the chart and manages the objects itself, and does not document honouring that annotation, so
-protect your data in Argo CD's own terms: add `argocd.argoproj.io/sync-options: Delete=false`
-to `persistence.annotations` (and `backup.persistence.annotations`), and use a StorageClass or
-PV with the `Retain` reclaim policy.
+Both claims carry two annotations by default, and keep them if you set your own
+`persistence.annotations` or `backup.persistence.annotations`:
+
+- `helm.sh/resource-policy: keep`: `helm uninstall` leaves the claim, and Argo CD treats it as
+  `Delete=false`, so deleting the Application leaves it too
+  ([Argo CD and Helm](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/)).
+- `argocd.argoproj.io/sync-options: Prune=false`: with `prune: true`, Argo CD deletes any
+  object that drops out of the rendered chart, which is what a claim does when you switch to
+  `persistence.existingClaim` or set `backup.enabled: false`. This annotation stops that
+  ([sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)); Helm
+  ignores it. Delete a claim you no longer need by hand.
+
+Also use a StorageClass (or set the PV) with the `Retain` reclaim policy: k3s's `local-path`
+defaults to `Delete`, so a deleted claim takes the data with it.
 
 ## What the chart does not do
 

@@ -62,9 +62,10 @@ spec:
             - name: SCRAP_VISION_MODEL
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.ingest.budgetDayUSD }}
+            {{- $budget := toString .Values.ingest.budgetDayUSD }}
+            {{- if ne $budget "" }}
             - name: SCRAP_BUDGET_DAY_USD
-              value: {{ . | quote }}
+              value: {{ $budget | quote }}
             {{- end }}
             {{- end }}
             {{- with .Values.extraEnv }}

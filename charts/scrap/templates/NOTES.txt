@@ -18,6 +18,6 @@ After changing that Secret: kubectl -n {{ .Release.Namespace }} rollout restart 
 {{- end }}
 {{- if .Values.backup.enabled }}
 
-Backups: CronJob {{ include "scrap.fullname" . }}-backup ({{ .Values.backup.schedule }}) keeps {{ .Values.backup.keep }} runs on claim {{ include "scrap.backupClaim" . }}.
-Run one now: kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "scrap.fullname" . }}-backup {{ include "scrap.fullname" . }}-backup-now
+Backups: CronJob {{ include "scrap.backupName" . }} ({{ .Values.backup.schedule }}) keeps {{ .Values.backup.keep }} runs on claim {{ include "scrap.backupClaim" . }}.
+Run one now: kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "scrap.backupName" . }} {{ include "scrap.fullname" . | trunc 45 | trimSuffix "-" }}-backup-now
 {{- end }}

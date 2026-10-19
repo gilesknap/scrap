@@ -18,12 +18,14 @@ bad() {
 
 for values in "$chart"/ci/*-values.yaml; do
     name=$(basename "$values" -values.yaml)
+    release=scrap
+    if [ "$name" = long-names ]; then release=a-release-name-of-fifty-three-characters-the-maximum; fi
     if ! helm lint --strict --quiet "$chart" -f "$values" >"$out/lint" 2>&1; then
         cat "$out/lint"
         bad "$name: helm lint"
         continue
     fi
-    if ! helm template scrap "$chart" -f "$values" >"$out/$name.yaml" 2>"$out/err"; then
+    if ! helm template "$release" "$chart" -f "$values" >"$out/$name.yaml" 2>"$out/err"; then
         cat "$out/err"
         bad "$name: helm template"
         continue
@@ -45,7 +47,12 @@ for values in "$chart"/ci/*-values.yaml; do
     if ! { grep -q '^  replicas: 1$' "$m" && grep -q 'type: Recreate' "$m"; }; then
         bad "$name: not one replica with Recreate"
     fi
-    ok "$name: rendered, no secrets, one replica"
+    # Kubernetes name limits: a CronJob's name 52, other names and label values 63
+    # (PVC names may be longer).
+    long=$(awk '/^kind: /{kind=$2} /^  name: /{n=$2; if ((kind=="CronJob" && length(n)>52) || (kind!="PersistentVolumeClaim" && length(n)>63)) print kind, n}
+        /^ +(app\.kubernetes\.io|helm\.sh)\/[a-z-]+: /{v=$2; gsub(/"/,"",v); if (length(v)>63) print "label", v}' "$m")
+    if [ -n "$long" ]; then bad "$name: too long: $(echo "$long" | tr "\n" " ")"; fi
+    ok "$name: rendered, no secrets, one replica, names fit"
 done
 
 # Values that must be refused.
@@ -60,6 +67,7 @@ expect_refused "an unknown top-level key" --set replicas=2
 expect_refused "backup.keep=0" --set backup.keep=0
 expect_refused "backup.keep=-1" --set backup.keep=-1
 expect_refused "a non-numeric budget" --set ingest.budgetDayUSD=lots
+expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
 
 # The chart may set only variables the app reads (the Settings table in
 # docs/reference/api.md) or that deploy/scrap-backup reads, plus extraEnv.

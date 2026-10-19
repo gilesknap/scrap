@@ -27,7 +27,7 @@
         "apiKeyKey": {"type": "string", "minLength": 1},
         "notifyUrlKey": {"type": "string"},
         "visionModel": {"type": "string"},
-        "budgetDayUSD": {"type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?)?$"}
+        "budgetDayUSD": {"type": ["string", "number"], "minimum": 0, "pattern": "^([0-9]+(\\.[0-9]+)?)?$"}
       }
     },
     "extraEnv": {"type": "array"},

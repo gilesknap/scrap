@@ -39,6 +39,22 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
 {{- end }}
 
+{{/* The CronJob's name: at most 52 characters (the API server's limit, so
+that its Jobs' names fit). A longer fullname is cut and given a short hash. */}}
+{{- define "scrap.backupName" -}}
+{{- $full := include "scrap.fullname" . }}
+{{- if le (len $full) 45 }}
+{{- printf "%s-backup" $full }}
+{{- else }}
+{{- printf "%s-%s-backup" ($full | trunc 38 | trimSuffix "-") ($full | sha256sum | trunc 6) }}
+{{- end }}
+{{- end }}
+
+{{/* The backup pod's name label: at most 63 characters. */}}
+{{- define "scrap.backupLabel" -}}
+{{- printf "%s-backup" (include "scrap.name" . | trunc 56 | trimSuffix "-") }}
+{{- end }}
+
 {{- define "scrap.dataClaim" -}}
 {{- .Values.persistence.existingClaim | default (printf "%s-data" (include "scrap.fullname" .)) }}
 {{- end }}

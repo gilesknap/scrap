@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "scrap.fullname" . }}-backup
+  name: {{ include "scrap.backupName" . }}
   labels:
     {{- include "scrap.labels" . | nindent 4 }}
 spec:
@@ -22,7 +22,7 @@ spec:
       template:
         metadata:
           labels:
-            app.kubernetes.io/name: {{ include "scrap.name" . }}-backup
+            app.kubernetes.io/name: {{ include "scrap.backupLabel" . }}
             app.kubernetes.io/instance: {{ .Release.Name }}
         spec:
           {{- include "scrap.podCommon" . | nindent 10 }}

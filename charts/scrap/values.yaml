@@ -36,7 +36,7 @@ ingest:
   notifyUrlKey: ""
   # SCRAP_VISION_MODEL; empty uses the app's default.
   visionModel: ""
-  # SCRAP_BUDGET_DAY_USD (a string, e.g. "3"); empty uses the app's default.
+  # SCRAP_BUDGET_DAY_USD in dollars, e.g. 3 or "2.5"; empty uses the app's default.
   budgetDayUSD: ""
 
 # Extra environment for the scrap container (list of EnvVar / EnvFromSource).
@@ -55,8 +55,11 @@ persistence:
     - ReadWriteOnce
   size: 5Gi
   annotations:
-    # helm uninstall leaves the claim (and your data) in place.
+    # helm uninstall (and deleting an Argo CD Application) leaves the claim
+    # and your data in place.
     helm.sh/resource-policy: keep
+    # Argo CD never prunes the claim, e.g. after a switch to existingClaim.
+    argocd.argoproj.io/sync-options: Prune=false
 
 # A CronJob running `scrap backup` into a timestamped directory on a second PVC,
 # then keeping only the newest `keep` runs (the same pruning as the single-server
@@ -77,6 +80,7 @@ backup:
     size: 20Gi
     annotations:
       helm.sh/resource-policy: keep
+      argocd.argoproj.io/sync-options: Prune=false
   resources:
     requests:
       cpu: 50m
