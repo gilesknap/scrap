@@ -5,7 +5,8 @@ import mimetypes
 import os
 import re
 import tempfile
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -25,7 +26,7 @@ from pydantic import BaseModel
 from starlette.datastructures import UploadFile
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, preview
+from . import __version__, backup, ingest, preview
 from .store import (
     ConflictError,
     InvalidError,
@@ -50,6 +51,11 @@ NOT_BUILT = (
     "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
     "\n(the API under /api works without it)\n"
 )
+
+
+class Reprocess(BaseModel):
+    photo: str | None = None  # one photo's sha256; default all of the capture's
+    replace_human: bool = False  # the user confirmed replacing their own drawing
 
 
 class PageEdit(BaseModel):
@@ -115,7 +121,18 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
     store.migrate()
     limit = int(float(os.environ.get("SCRAP_MAX_UPLOAD_MB", "50")) * 2**20)
-    app = FastAPI(title="scrap", version=__version__)
+    worker = ingest.Worker(store) if ingest.enabled() else None
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if worker:
+            worker.start()
+        yield
+        if worker:
+            worker.stop()
+
+    app = FastAPI(title="scrap", version=__version__, lifespan=lifespan)
+    app.state.worker = worker
     app.add_middleware(BodyLimit, limit=limit)
 
     for exc, status in ERRORS.items():
@@ -129,9 +146,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         app.add_exception_handler(exc, handler)
 
     @app.get("/healthz")
-    def healthz() -> dict[str, str | int]:
-        """Liveness check, plus the upload limit so the PWA can check before sending."""
-        return {"status": "ok", "version": __version__, "max_upload_bytes": limit}
+    def healthz() -> JSONResponse:
+        """Liveness check, plus the upload limit so the PWA can check before sending.
+        503 if the ingest worker has stopped."""
+        status, code = "ok", 200
+        if app.state.worker and not app.state.worker.alive():
+            status, code = "ingest worker stopped", 503
+        body = {"status": status, "version": __version__, "max_upload_bytes": limit}
+        return JSONResponse(body, code)
 
     def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
         mimes = []
@@ -145,7 +167,10 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         for upload, mime in zip(uploads, mimes, strict=True):
             sha, size = store.put_blob(upload.file)
             blobs.append((sha, mime, size, upload.filename or None))
-        return store.capture(capture, blobs, who)
+        saved = store.capture(capture, blobs, who)
+        if app.state.worker:
+            app.state.worker.wake()
+        return saved
 
     @app.post("/api/captures", status_code=201)
     async def capture(request: Request, response: Response) -> dict[str, str]:
@@ -216,6 +241,27 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """Bring a page back from the trash."""
         store.delete_page(key, undo=True)
         return store.page(key)
+
+    @app.post("/api/captures/{cid}/reprocess")
+    def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:
+        """Send a capture's photos (or one) to Claude again, or retry a failed one."""
+        added = ingest.reprocess(store, cid.upper(), ask.photo, ask.replace_human)
+        if app.state.worker:
+            app.state.worker.wake()
+        return {"queued": added}
+
+    @app.get("/api/ingest")
+    def ingest_status() -> dict[str, Any]:
+        """The ingest queue: paused or not (and why), jobs by state, spend today."""
+        return ingest.status(store)
+
+    @app.post("/api/ingest/resume")
+    def resume() -> dict[str, Any]:
+        """End a pause of the ingest queue."""
+        ingest.resume_queue(store)
+        if app.state.worker:
+            app.state.worker.wake()
+        return ingest.status(store)
 
     @app.get("/api/search")
     def search(q: str, limit: int = Query(20, ge=1, le=100)) -> list[dict[str, Any]]:

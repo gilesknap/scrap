@@ -14,6 +14,7 @@ classifiers = [
 ]
 description = "A tiny personal knowledge store you feed from your phone and query through Claude"
 dependencies = [
+    "anthropic>=1.15.0",
     "fastapi",
     "pillow>=13.0.0",
     "pillow-heif>=1.8.1",
@@ -181,4 +182,4 @@ lint.select = [
 "tests/**/*" = ["SLF001"]
 
 [tool.setuptools.package-data]
-scrap = ["migrations/*.sql", "static/**/*"]
+scrap = ["migrations/*.sql", "prompts/*.md", "static/**/*"]
