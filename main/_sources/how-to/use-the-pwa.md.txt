@@ -22,7 +22,7 @@ Installing is what puts scrap in the Android **share sheet**.
 | **Note** | A text box; a pasted link alone becomes a link capture |
 | **Todo**, **Read later** | A note with a hint that fixes the page kind (`todo`, `consume`) |
 
-In the composer, **+ Camera** and **+ Gallery** add more photos (to a note too), and the cross
+In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
@@ -71,21 +71,21 @@ the link as the capture's URL.
   photos show too), other files as links. Each has a **Download** of the original.
 - Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
   drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
-  **Download**, **Share** and **Close** are along the bottom; the phone's Back button closes it
-  too. **Share** sends the photo to another app: the original, or a JPEG of it if it is a HEIC
-  or over 20 MB. If a big photo takes longer to download than the phone allows, a **Photo
-  ready** message offers **Share** again.
+  **Download** and **Share** are along the bottom and the cross at the top right closes it, as
+  does the phone's Back button. **Share** sends the photo to another app: the original, or a
+  JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
+  phone allows, a **Photo ready** message offers **Share** again.
 - **Download** on a page saves it as Markdown, or as a zip of the Markdown and its files when it
   has any. **Share** sends its title and text, as typed, to another app (never a link to scrap).
   Share appears only where the browser can share.
 - Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
-  **Raw text** shows it exactly as typed, and the phone remembers the choice. The text is
+  **Show raw text** shows it exactly as typed, and the phone remembers the choice. The text is
   always stored as typed.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
 - Nothing typed is lost: the composer and **Edit** keep a draft on the phone as you type
   (photos too), so after the phone's Back button, a reload or a closed app, opening them again
-  brings it back (**Discard it** drops it). Back closes the editor, not the app. **Cancel** asks
+  brings it back (**Discard it** drops it); a page with a kept edit shows **Edit draft**. Back closes the editor, not the app. **Cancel** asks
   before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.

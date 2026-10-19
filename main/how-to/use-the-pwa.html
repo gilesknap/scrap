@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev74+gf19ac4f2b documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev82+gd4a66a0a8 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=091891a5"></script>
+    <script src="../_static/documentation_options.js?v=5ca5048e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -526,7 +526,7 @@ trying it out on the server itself.</p></li>
 </tbody>
 </table>
 </div>
-<p>In the composer, <strong>+ Camera</strong> and <strong>+ Gallery</strong> add more photos (to a note too), and the cross
+<p>In the composer, <strong>Camera</strong> and <strong>Gallery</strong> add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server’s upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or <strong>Save separately</strong>, one capture per photo
@@ -578,21 +578,21 @@ with no connection either, shows a page saying it was not saved.</p></li>
 photos show too), other files as links. Each has a <strong>Download</strong> of the original.</p></li>
 <li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
 drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
-<strong>Download</strong>, <strong>Share</strong> and <strong>Close</strong> are along the bottom; the phone’s Back button closes it
-too. <strong>Share</strong> sends the photo to another app: the original, or a JPEG of it if it is a HEIC
-or over 20 MB. If a big photo takes longer to download than the phone allows, a <strong>Photo
-ready</strong> message offers <strong>Share</strong> again.</p></li>
+<strong>Download</strong> and <strong>Share</strong> are along the bottom and the cross at the top right closes it, as
+does the phone’s Back button. <strong>Share</strong> sends the photo to another app: the original, or a
+JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
+phone allows, a <strong>Photo ready</strong> message offers <strong>Share</strong> again.</p></li>
 <li><p><strong>Download</strong> on a page saves it as Markdown, or as a zip of the Markdown and its files when it
 has any. <strong>Share</strong> sends its title and text, as typed, to another app (never a link to scrap).
 Share appears only where the browser can share.</p></li>
 <li><p>Page text is shown as Markdown (headings, <strong>bold</strong>, <em>italic</em>, lists, quotes, code, links);
-<strong>Raw text</strong> shows it exactly as typed, and the phone remembers the choice. The text is
+<strong>Show raw text</strong> shows it exactly as typed, and the phone remembers the choice. The text is
 always stored as typed.</p></li>
 <li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
 <strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves.</p></li>
 <li><p>Nothing typed is lost: the composer and <strong>Edit</strong> keep a draft on the phone as you type
 (photos too), so after the phone’s Back button, a reload or a closed app, opening them again
-brings it back (<strong>Discard it</strong> drops it). Back closes the editor, not the app. <strong>Cancel</strong> asks
+brings it back (<strong>Discard it</strong> drops it); a page with a kept edit shows <strong>Edit draft</strong>. Back closes the editor, not the app. <strong>Cancel</strong> asks
 before discarding changes. If the page was changed elsewhere since you opened it, the
 other version is shown under yours: merge what you want into your text and save again (this
 overwrites theirs), or discard yours.</p></li>

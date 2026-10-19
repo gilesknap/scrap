@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>The PWA’s design system &#8212; scrap 0.1.dev82+gd4a66a0a8 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=5ca5048e"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'explanations/design-system';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Claude ingest (M2)" href="ingest.html" />
+    <link rel="prev" title="scrap design" href="design.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="main" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">The PWA’s design system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest (M2)</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../explanations.html" class="nav-link">Explanations</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">The PWA’s design system</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="the-pwa-s-design-system">
+<h1>The PWA’s design system<a class="headerlink" href="#the-pwa-s-design-system" title="Link to this heading">#</a></h1>
+<p>The phone app is a tool you reach for one-handed, often in a hurry: open, capture, gone. The
+design follows from that, and from keeping the app tiny (no UI framework, no icon library, no web
+font). Everything visual is defined once, in <code class="docutils literal notranslate"><span class="pre">web/src/tokens.css</span></code>; the components in
+<code class="docutils literal notranslate"><span class="pre">web/src/style.css</span></code> use nothing else. This page is the portable description, for carrying the
+design into another tool and back.</p>
+<section id="principles">
+<h2>Principles<a class="headerlink" href="#principles" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Paper and ink, one colour.</strong> Warm off-white paper and warm black ink in daylight, a warm
+near-black and cream at night, and a single amber (a sticky note: scrap’s mark). Amber means
+“the thing to press” or “this one is selected”; red means only “destructive” or “failed”.
+No blue-greys, no second accent.</p></li>
+<li><p><strong>One hero per screen.</strong> Capture: the Photo button. Composer and editor: Save. Page: its
+toolbar. Everything else steps down: secondary (outlined surface), then ghost (text only).</p></li>
+<li><p><strong>Under the thumb.</strong> Capture actions, the page toolbar and the nav sit at the bottom; Cancel,
+Preview and Save sit in the editor’s top bar because the keyboard owns the bottom.</p></li>
+<li><p><strong>Icons with words.</strong> Icons help find a control; the word says what it does. Icon-only
+buttons (close, previous/next photo, remove a photo) carry an <code class="docutils literal notranslate"><span class="pre">aria-label</span></code>.</p></li>
+<li><p><strong>Calm states.</strong> Empty, offline and error states are an icon, one plain sentence and at most
+one action. On the capture screen a problem is a quiet inline line, never a whole screen.</p></li>
+<li><p><strong>Dark is designed, not inverted.</strong> Surfaces get lighter as they come forward; amber is a step
+lighter; toasts stay dark slabs in both themes.</p></li>
+<li><p><strong>Motion confirms, never decorates.</strong> 90-260 ms, eased out; none under reduced motion.</p></li>
+</ul>
+</section>
+<section id="tokens">
+<h2>Tokens<a class="headerlink" href="#tokens" title="Link to this heading">#</a></h2>
+<p>Light / dark values, held to WCAG AA (4.5:1 for text, 3:1 for control edges) twice:
+<code class="docutils literal notranslate"><span class="pre">web/tests/contrast.test.ts</span></code> reads <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code> and checks the listed text/background pairs,
+every <code class="docutils literal notranslate"><span class="pre">style.css</span></code> rule that sets both a text colour and a background from tokens, and white
+text on <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> over a white photo; and an end-to-end sweep (<code class="docutils literal notranslate"><span class="pre">web/e2e/view.spec.ts</span></code>)
+computes the real colour of every visible piece of text and of what lies behind it, on each
+screen in both themes.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Token</p></th>
+<th class="head"><p>Light</p></th>
+<th class="head"><p>Dark</p></th>
+<th class="head"><p>Role</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--bg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f6f3ec</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#161411</span></code></p></td>
+<td><p>the page; theme-color</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--surface</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#fffdf9</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#211e1a</span></code></p></td>
+<td><p>cards, list groups, fields</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--sunk</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#ece7dd</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#2b2722</span></code></p></td>
+<td><p>wells: tiles, segmented track, placeholders, pressed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ink</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#1e1b16</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f2ece1</span></code></p></td>
+<td><p>text</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--ink-2</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#5c564c</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#b8b0a2</span></code></p></td>
+<td><p>secondary text: dates, hints</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--ink-3</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#736c61</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#958d80</span></code></p></td>
+<td><p>placeholders, captions</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--line</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#e2dccf</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#322d27</span></code></p></td>
+<td><p>hairlines (decorative)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--line-strong</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#8f8778</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#706858</span></code></p></td>
+<td><p>field and control edges</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--accent</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#eba13a</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f0ac4b</span></code></p></td>
+<td><p>primary fills, selection, badge dot</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--on-accent</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#1e1b16</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#1e1b16</span></code></p></td>
+<td><p>text on accent</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#8a4f00</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f3b65c</span></code></p></td>
+<td><p>accent as text: links, focus ring, active icon</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f8e6c6</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#3a2c17</span></code></p></td>
+<td><p>chips, highlights, active nav pill, badge</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--danger</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#b42318</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f29086</span></code></p></td>
+<td><p>destructive, failed (text)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--danger-soft</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#fbe4df</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#3b201c</span></code></p></td>
+<td><p>failed badge, conflict banner</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--toast</span></code> / <code class="docutils literal notranslate"><span class="pre">--on-toast</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#2a2620</span></code> / <code class="docutils literal notranslate"><span class="pre">#f6f1e7</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#3a352d</span></code> / <code class="docutils literal notranslate"><span class="pre">#f2ece1</span></code></p></td>
+<td><p>toasts</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--toast-action</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f3b65c</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#f3b65c</span></code></p></td>
+<td><p>a toast’s action</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--viewer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#000000</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#000000</span></code></p></td>
+<td><p>the photo viewer’s backdrop</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--on-overlay</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#ffffff</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#ffffff</span></code></p></td>
+<td><p>text and icons over photos</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--overlay</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rgb(0</span> <span class="pre">0</span> <span class="pre">0</span> <span class="pre">/</span> <span class="pre">65%)</span></code></p></td>
+<td><p>same</p></td>
+<td><p>pills, scrims and buttons over photos (white on it is over 4.5:1 even on a white photo)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Presses, edges and washes that need a translucent tint mix a token with <code class="docutils literal notranslate"><span class="pre">transparent</span></code>
+(<code class="docutils literal notranslate"><span class="pre">color-mix(in</span> <span class="pre">srgb,</span> <span class="pre">var(--ink)</span> <span class="pre">14%,</span> <span class="pre">transparent)</span></code>) rather than writing a new colour.</p>
+<p>Type: the system UI face (Roboto on Android); 17 px root. <code class="docutils literal notranslate"><span class="pre">--t-xs</span></code> 0.75rem (labels under icons,
+chips), <code class="docutils literal notranslate"><span class="pre">--t-sm</span></code> 0.875rem (meta, small buttons), <code class="docutils literal notranslate"><span class="pre">--t-md</span></code> 1rem (body, list titles), <code class="docutils literal notranslate"><span class="pre">--t-lg</span></code>
+1.1875rem (wordmark, field titles, Markdown headings), <code class="docutils literal notranslate"><span class="pre">--t-xl</span></code> 1.5rem (page title). Line height
+1.5, 1.25 for titles, 1.6 for page text. Weights 500 (controls), 600 (titles, labels), 700
+(hero, page title, active nav).</p>
+<p>Space: a 4 px grid, <code class="docutils literal notranslate"><span class="pre">--s-1</span></code>..<code class="docutils literal notranslate"><span class="pre">--s-7</span></code> = 4, 8, 12, 16, 24, 32, 48. Screen gutter 16.
+Radius: <code class="docutils literal notranslate"><span class="pre">--r-sm</span></code> 8 (thumbnails, code), <code class="docutils literal notranslate"><span class="pre">--r-md</span></code> 12 (buttons, fields, toasts), <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> 16
+(cards, lists, photos), <code class="docutils literal notranslate"><span class="pre">--r-pill</span></code> (badge, search field, nav indicator).
+Size: <code class="docutils literal notranslate"><span class="pre">--tap</span></code> 48 (every touch target, extended with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code> where the drawn control
+is smaller), <code class="docutils literal notranslate"><span class="pre">--bar-h</span></code> 56, <code class="docutils literal notranslate"><span class="pre">--nav-h</span></code> 64. Elevation: <code class="docutils literal notranslate"><span class="pre">--shadow</span></code> (selected segment), <code class="docutils literal notranslate"><span class="pre">--shadow-2</span></code>
+(capture cluster, toasts).
+Motion: <code class="docutils literal notranslate"><span class="pre">--d-1</span></code> 90 ms (press), <code class="docutils literal notranslate"><span class="pre">--d-2</span></code> 180 ms (view enter, toast), <code class="docutils literal notranslate"><span class="pre">--d-3</span></code> 260 ms (editor sheet,
+viewer); <code class="docutils literal notranslate"><span class="pre">--ease</span></code> <code class="docutils literal notranslate"><span class="pre">cubic-bezier(0.2,</span> <span class="pre">0.8,</span> <span class="pre">0.2,</span> <span class="pre">1)</span></code>. Under <code class="docutils literal notranslate"><span class="pre">prefers-reduced-motion</span></code> all three are
+0 and the placeholder shimmer stops.</p>
+</section>
+<section id="components">
+<h2>Components<a class="headerlink" href="#components" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Component</p></th>
+<th class="head"><p>Class / element</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Button, secondary</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">button</span></code>, <code class="docutils literal notranslate"><span class="pre">.button</span></code></p></td>
+<td><p>surface, hairline edge, 48 high, icon 20 + label; presses scale to 0.97 on <code class="docutils literal notranslate"><span class="pre">--sunk</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Button, primary</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.primary</span></code></p></td>
+<td><p>amber fill, ink label; one per screen (Save)</p></td>
+</tr>
+<tr class="row-even"><td><p>Button, ghost</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.ghost</span></code>, <code class="docutils literal notranslate"><span class="pre">button.link</span></code></p></td>
+<td><p>no fill (Cancel, Raw text, Discard it)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Button, danger</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.danger</span></code></p></td>
+<td><p>red label, never filled</p></td>
+</tr>
+<tr class="row-even"><td><p>Hero</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.hero</span></code></p></td>
+<td><p>the capture screen’s Photo: amber, 72 high, camera icon</p></td>
+</tr>
+<tr class="row-odd"><td><p>Tile</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.tile</span></code></p></td>
+<td><p>icon over a short label on <code class="docutils literal notranslate"><span class="pre">--sunk</span></code>; the four other capture kinds</p></td>
+</tr>
+<tr class="row-even"><td><p>Toolbar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.tools</span></code></p></td>
+<td><p>equal icon-over-label tiles: page actions (sticky above the nav), viewer tools</p></td>
+</tr>
+<tr class="row-odd"><td><p>Segmented control</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.chips</span></code> (radio group)</p></td>
+<td><p>Note / Todo / Read later; selected = raised surface, amber icon</p></td>
+</tr>
+<tr class="row-even"><td><p>Top bar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">header</span></code></p></td>
+<td><p>wordmark with the scrap mark; the queue badge on the right</p></td>
+</tr>
+<tr class="row-odd"><td><p>Badge</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.badge</span></code>, <code class="docutils literal notranslate"><span class="pre">.badge.failed</span></code></p></td>
+<td><p>pill with a status dot: amber waiting, red failed</p></td>
+</tr>
+<tr class="row-even"><td><p>Bottom nav</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nav</span></code></p></td>
+<td><p>icon over label; active item gets an amber-soft pill and ink label</p></td>
+</tr>
+<tr class="row-odd"><td><p>List group</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.list</span></code></p></td>
+<td><p>rows in one rounded card; <code class="docutils literal notranslate"><span class="pre">.pending</span></code> is dashed (still on the phone)</p></td>
+</tr>
+<tr class="row-even"><td><p>List row</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">li</span></code></p></td>
+<td><p>48 thumbnail or kind icon, title, date and kind chip; actions under it</p></td>
+</tr>
+<tr class="row-odd"><td><p>Kind chip</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">em</span></code></p></td>
+<td><p>amber-soft pill: “todo”, “read later”</p></td>
+</tr>
+<tr class="row-even"><td><p>Thumbnail</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">img</span></code>, <code class="docutils literal notranslate"><span class="pre">.thumbs</span> <span class="pre">img</span></code>, <code class="docutils literal notranslate"><span class="pre">.originals</span> <span class="pre">img</span></code></p></td>
+<td><p>fixed size or 4:3 frame reserved before load, shimmering <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> placeholder</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photo strip</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.thumbs</span></code></p></td>
+<td><p>84 squares, remove button with a 48 target</p></td>
+</tr>
+<tr class="row-even"><td><p>Field</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">input</span></code>, <code class="docutils literal notranslate"><span class="pre">textarea</span></code></p></td>
+<td><p>surface, strong edge, 2 px accent-ink focus ring</p></td>
+</tr>
+<tr class="row-odd"><td><p>Search field</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.field-search</span></code></p></td>
+<td><p>pill with a search icon</p></td>
+</tr>
+<tr class="row-even"><td><p>Editor sheet</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.editor</span></code></p></td>
+<td><p>full screen over the keyboard; top bar Cancel / Preview / Save</p></td>
+</tr>
+<tr class="row-odd"><td><p>Toast</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.toast</span></code></p></td>
+<td><p>dark slab above what is under the thumb, amber text action</p></td>
+</tr>
+<tr class="row-even"><td><p>Banner</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.conflict</span></code>, <code class="docutils literal notranslate"><span class="pre">.restored</span></code></p></td>
+<td><p>danger-soft with a red edge; accent-soft info line</p></td>
+</tr>
+<tr class="row-odd"><td><p>Empty state</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.empty</span></code> (<code class="docutils literal notranslate"><span class="pre">empty()</span></code> in ui.ts)</p></td>
+<td><p>icon in a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> circle, a sentence, one action</p></td>
+</tr>
+<tr class="row-even"><td><p>Photo viewer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.viewer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--viewer</span></code>; close top right, count pill top centre, tools on an <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> scrim</p></td>
+</tr>
+<tr class="row-odd"><td><p>Icons</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">icons.ts</span></code></p></td>
+<td><p>24 px strokes (1.8), currentColor, <code class="docutils literal notranslate"><span class="pre">aria-hidden</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="states">
+<h2>States<a class="headerlink" href="#states" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>State</p></th>
+<th class="head"><p>How it shows</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pressed</p></td>
+<td><p>scale 0.97 over <code class="docutils literal notranslate"><span class="pre">--d-1</span></code> and a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> fill (primary and hero: 6 % darker); the browser’s tap flash is off</p></td>
+</tr>
+<tr class="row-odd"><td><p>Focus (keyboard)</p></td>
+<td><p>2 px <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> outline, 2 px offset; fields draw it inside their edge</p></td>
+</tr>
+<tr class="row-even"><td><p>Selected</p></td>
+<td><p>segmented: raised <code class="docutils literal notranslate"><span class="pre">--surface</span></code> with <code class="docutils literal notranslate"><span class="pre">--shadow</span></code> and an amber icon; nav: <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code> pill, ink label, bold</p></td>
+</tr>
+<tr class="row-odd"><td><p>Disabled</p></td>
+<td><p>50 % opacity (exempt from contrast, and never the only sign: the label says why)</p></td>
+</tr>
+<tr class="row-even"><td><p>Busy</p></td>
+<td><p>the label reads “Preparing…” and taps are ignored; no dimming, so it stays at full contrast</p></td>
+</tr>
+<tr class="row-odd"><td><p>Loading image</p></td>
+<td><p>the reserved box shimmers between <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> and <code class="docutils literal notranslate"><span class="pre">--line</span></code> until the image loads or fails, then stops</p></td>
+</tr>
+<tr class="row-even"><td><p>Failed</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--danger</span></code> text in words, a <code class="docutils literal notranslate"><span class="pre">--danger-soft</span></code> badge; never colour alone</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="layout-and-breakpoints">
+<h2>Layout and breakpoints<a class="headerlink" href="#layout-and-breakpoints" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Portrait phones (300 px and up): the default. Under 380 px wide the segmented control drops
+its icons.</p></li>
+<li><p>Short screens (under 500 px high, i.e. landscape or a large text size): top bar and nav 48 px,
+and the page toolbar scrolls with the page instead of sticking. Landscape (also 560 px and
+wider): the nav’s label sits beside its icon and the capture cluster is one row.</p></li>
+<li><p>Very narrow (under 300 px: a small phone at its largest text size): the capture cluster
+scrolls with the list instead of covering it, tiles go two by two, labels and list titles
+wrap, list thumbnails shrink to 32, and toolbars show icons only (the words remain their
+accessible names).</p></li>
+<li><p>Toasts sit just above whatever is under the thumb (the capture cluster, the page toolbar, the
+viewer’s tools or the nav), clear of the newest row and the title; in the editor, just under
+its top bar.</p></li>
+<li><p>Text that may be right-to-left (titles, page text, snippets, the editor) has <code class="docutils literal notranslate"><span class="pre">dir=&quot;auto&quot;</span></code>,
+and spacing uses logical properties (<code class="docutils literal notranslate"><span class="pre">margin-inline-*</span></code>, <code class="docutils literal notranslate"><span class="pre">padding-inline-start</span></code>).</p></li>
+<li><p>A page photo reserves a 4:3 box while it loads, then takes the photo’s own shape
+(<code class="docutils literal notranslate"><span class="pre">aspect-ratio:</span> <span class="pre">auto</span> <span class="pre">4</span> <span class="pre">/</span> <span class="pre">3</span></code>), at most 75 % of the screen high.</p></li>
+</ul>
+</section>
+<section id="high-contrast">
+<h2>High contrast<a class="headerlink" href="#high-contrast" title="Link to this heading">#</a></h2>
+<p>Under <code class="docutils literal notranslate"><span class="pre">forced-colors:</span> <span class="pre">active</span></code> the system replaces fills and drops shadows, so the selected
+segment and the current nav item get a 2 px <code class="docutils literal notranslate"><span class="pre">Highlight</span></code> outline, and the borderless hero, tiles
+and badge get a <code class="docutils literal notranslate"><span class="pre">ButtonText</span></code> edge.</p>
+</section>
+<section id="icons">
+<h2>Icons<a class="headerlink" href="#icons" title="Link to this heading">#</a></h2>
+<p>Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 30 in the hero, 18 in the
+segmented control, 16 on a photo’s remove button, 52 (in a circle) in empty states.
+Icons: camera, image, note, todo (check in a square), later (bookmark), link, file, download,
+share, edit, trash, search, close, back, next, fit, retry, offline; the nav’s plus and clock are
+inline in <code class="docutils literal notranslate"><span class="pre">index.html</span></code>. The app icon (<code class="docutils literal notranslate"><span class="pre">web/public/icon.svg</span></code>, PNGs by <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">icons</span></code>) is the
+paper scrap on amber; the header mark is the same scrap in amber.</p>
+</section>
+<section id="what-we-don-t-do">
+<h2>What we don’t do<a class="headerlink" href="#what-we-don-t-do" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>No web font, icon font, CSS framework or component library.</p></li>
+<li><p>No colour outside <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code> (the debug panel aside), and no second accent; no gradients
+except the viewer’s scrim. High-contrast mode uses the system’s colour keywords.</p></li>
+<li><p>No colour as the only signal: selection also raises, failure also says so in words.</p></li>
+<li><p>No modal dialogs of our own (the browser’s <code class="docutils literal notranslate"><span class="pre">confirm()</span></code> stays for destructive questions).</p></li>
+<li><p>No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.</p></li>
+<li><p>No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
+extend their hit area with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code>), no text under 12.75 px, no text pair
+under AA.</p></li>
+<li><p>No dimming to mean “busy”: opacity would break contrast; the label says it instead.</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="design.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">scrap design</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ingest.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Claude ingest (M2)</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#principles">Principles</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tokens">Tokens</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#components">Components</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#states">States</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-and-breakpoints">Layout and breakpoints</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#high-contrast">High contrast</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#icons">Icons</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-we-don-t-do">What we don’t do</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/main/docs/explanations/design-system.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/explanations/design-system.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
