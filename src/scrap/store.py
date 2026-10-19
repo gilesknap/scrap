@@ -261,8 +261,8 @@ class Store:
         taken = {
             row[0]
             for row in conn.execute(
-                "SELECT slug FROM page WHERE slug = ?1 OR slug GLOB ?1 || '-[0-9]*'",
-                (base,),
+                "SELECT slug FROM page WHERE slug = ? OR slug GLOB ? || '-[0-9]*'",
+                (base, base),
             )
         }
         slug, n = base, 1
