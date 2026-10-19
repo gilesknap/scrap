@@ -100,6 +100,54 @@ export function saveKey(e: KeyboardEvent) {
 const mb = (n: number) =>
   n < 2 ** 20 ? `${Math.ceil(n / 1024)} kB` : `${(n / 2 ** 20).toFixed(1)} MB`;
 
+/** The file name in a Content-Disposition header, if any. */
+export function dispositionName(cd: string): string | undefined {
+  const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+  return star ? decodeURIComponent(star[1]) : cd.match(/filename="([^"]*)"/)?.[1];
+}
+
+/** Fetch a file from the server, named as given, else as the server names it. */
+async function fetchFile(href: string, name?: string): Promise<File> {
+  const r = await fetch(href).catch(() => {
+    throw new Error("can't reach the server");
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail ?? `HTTP ${r.status}`);
+  const blob = await r.blob();
+  name ??= dispositionName(r.headers.get("Content-Disposition") ?? "") ?? "download";
+  return new File([blob], name, { type: blob.type });
+}
+
+/** Run a job behind el, which says it is busy meanwhile and ignores taps; a failure says why. */
+function busy(el: HTMLElement, what: string, job: () => Promise<void>) {
+  return async (e: Event) => {
+    e.preventDefault();
+    if (el.getAttribute("aria-busy") === "true") return;
+    const label = el.textContent;
+    el.setAttribute("aria-busy", "true");
+    el.textContent = "Preparing…";
+    try {
+      await job();
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return; // the share sheet was closed
+      toast(`${what} failed: ${(err as Error).message}`, "", undefined, 8000);
+    } finally {
+      el.removeAttribute("aria-busy");
+      el.textContent = label;
+    }
+  };
+}
+
+/** A Download link that fetches the file itself, so it can show it is busy and say when
+ * the file is saved or why not (a plain download link gives no sign on Android). */
+export function download(href: string, className = "button"): HTMLAnchorElement {
+  const a = h("a", { href, className, download: "" }, "Download");
+  a.onclick = busy(a, "Download", async () => {
+    const file = await fetchFile(href);
+    saveBlob(file, file.name);
+  });
+  return a;
+}
+
 /** Save a Blob made on the phone (or fetched) as a file, and say so. */
 export function saveBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -108,34 +156,39 @@ export function saveBlob(blob: Blob, name: string) {
   toast(`Downloaded ${name} (${mb(blob.size)})`);
 }
 
-/** A Download link that fetches the file itself, so it can show it is busy and say when
- * the file is saved or why not (a plain download link gives no sign on Android). */
-export function download(href: string, className = "button"): HTMLAnchorElement {
-  const a = h("a", { href, className, download: "" }, "Download");
-  a.onclick = async (e) => {
-    e.preventDefault();
-    if (a.getAttribute("aria-busy") === "true") return;
-    a.setAttribute("aria-busy", "true");
-    a.textContent = "Preparing…";
+/** A Share button to send text, or a file from the server, to another app; none where
+ * the phone can't share. Never shares a link to this server. */
+export function share(what: () => { title: string; text?: string; file?: string[] }) {
+  if (!navigator.share) return null;
+  const b = h("button", { type: "button" }, "Share");
+  const send = (data: ShareData) =>
+    navigator.share(data).catch((err: Error) => {
+      if (err.name !== "AbortError") toast(`Share failed: ${err.message}`, "", undefined, 8000);
+    });
+  b.onclick = busy(b, "Share", async () => {
+    const { title, text, file } = what();
+    if (!file) return navigator.share({ title, text });
+    const [href, name, type] = file;
+    if (!canShareFile(name, type)) return toast("Sharing files is not supported here");
+    const files = [await fetchFile(href, name)];
     try {
-      const r = await fetch(href);
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail ?? `HTTP ${r.status}`);
-      const blob = await r.blob();
-      const cd = r.headers.get("Content-Disposition") ?? "";
-      const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
-      const name = star
-        ? decodeURIComponent(star[1])
-        : (cd.match(/filename="([^"]*)"/)?.[1] ?? "download");
-      saveBlob(blob, name);
+      await navigator.share({ title, files });
     } catch (err) {
-      const why = err instanceof TypeError ? "can't reach the server" : (err as Error).message;
-      toast(`Download failed: ${why}`, "", undefined, 8000);
-    } finally {
-      a.removeAttribute("aria-busy");
-      a.textContent = "Download";
+      // A slow download outlasts the tap (Chrome allows ~5 s): share it on a fresh one.
+      if ((err as Error).name !== "NotAllowedError") throw err;
+      toast("Photo ready", "Share", () => void send({ title, files }), 30_000);
     }
-  };
-  return a;
+  });
+  return b;
+}
+
+/** Whether this phone can share a file like this, asked before downloading it. */
+function canShareFile(name: string, type: string) {
+  try {
+    return !!navigator.canShare?.({ files: [new File([], name, { type })] });
+  } catch {
+    return false;
+  }
 }
 
 /** Page text as Markdown (safe HTML from md.ts), or as typed with links made clickable. */

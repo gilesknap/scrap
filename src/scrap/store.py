@@ -296,9 +296,10 @@ class Store:
     def _index(self, conn: sqlite3.Connection, page_id: str, title: str, body: str):
         # M1: one chunk per page, the title heading the body (a note's body
         # already starts with it). No control characters: snippets mark hits
-        # with \x02 and \x03.
+        # with \x02 and \x03. Each becomes a space, so a lone \r or \v still
+        # separates two words.
         text = body if body.startswith(title) else f"{title}\n\n{body}"
-        text = CONTROL.sub("", text)
+        text = CONTROL.sub(" ", text)
         conn.execute(  # derived text has chunks of its own
             "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
         )

@@ -1,0 +1,13 @@
+persistence:
+  existingClaim: my-scrap-data
+backup:
+  timeZone: Europe/London
+  keep: 14
+  persistence:
+    existingClaim: my-scrap-backups
+image:
+  repository: registry.example.com/scrap
+  tag: dev
+  pullPolicy: Always
+imagePullSecrets:
+  - name: regcred

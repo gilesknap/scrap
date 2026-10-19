@@ -1,0 +1,29 @@
+{{- define "scrap.pvc" -}}
+{{- $ := index . 0 }}{{- $name := index . 1 }}{{- $p := index . 2 }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "scrap.labels" $ | nindent 4 }}
+  {{- with $p.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $p.accessModes | nindent 4 }}
+  {{- with $p.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $p.size }}
+{{- end }}
+{{- if not .Values.persistence.existingClaim }}
+{{ include "scrap.pvc" (list . (include "scrap.dataClaim" .) .Values.persistence) }}
+{{- end }}
+{{- if and .Values.backup.enabled (not .Values.backup.persistence.existingClaim) }}
+---
+{{ include "scrap.pvc" (list . (include "scrap.backupClaim" .) .Values.backup.persistence) }}
+{{- end }}

@@ -1,0 +1,5 @@
+# Tailscale operator L3 exposure (plain HTTP over the tailnet).
+service:
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: scrap

@@ -1,0 +1,12 @@
+ingest:
+  enabled: true
+  existingSecret: scrap-secrets
+  notifyUrlKey: SCRAP_NOTIFY_URL
+  visionModel: claude-opus-5-5
+  budgetDayUSD: "2.5"
+extraEnv:
+  - name: TZ
+    value: UTC
+extraEnvFrom:
+  - configMapRef:
+      name: my-extra-env

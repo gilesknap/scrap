@@ -8,12 +8,13 @@ import {
   type Page,
   previewUrl,
   type Queue,
+  shareable,
 } from "./api";
 import { go, view } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
 import { photoPanel } from "./ingest";
-import { bodyView, download, h, toast, when } from "./ui";
+import { bodyView, download, h, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
@@ -28,6 +29,7 @@ function originals(p: Page, queue: Queue | null, refresh: () => void) {
     src: previewUrl(f.sha256, 2048),
     save: `${blobUrl(f.sha256)}?download=1`,
     name: f.filename || "",
+    share: shareable(f),
   }));
   let n = 0;
   return files.map((f) => {
@@ -141,6 +143,7 @@ export async function page(key: string): Promise<Node> {
         { className: "bar" },
         editButton(p),
         download(`/api/pages/${p.id}/download`),
+        share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
         h("button", { className: "danger", onclick: () => remove(p) }, "Delete"),
       ),
     );
