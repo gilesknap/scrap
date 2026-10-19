@@ -66,9 +66,14 @@ CREATE TABLE page (
     slug        TEXT NOT NULL UNIQUE,          -- fixed once summarise has run
     title       TEXT NOT NULL,
     body        TEXT NOT NULL DEFAULT '',      -- Markdown, may contain [[slug]] links
+    kind        TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note', 'todo', 'consume',
+                  'memory', 'reference', 'whiteboard', 'document')),
+    kind_fixed  INTEGER NOT NULL DEFAULT 0 CHECK (kind_fixed IN (0, 1)),  -- 1: the user chose it
+    meta        TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(meta)),  -- kind-specific fields
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
 );
+CREATE INDEX page_by_kind ON page(kind);
 
 -- Rev 1 is written at creation; every title or body change adds one. Tags are not revisioned.
 CREATE TABLE page_rev (
@@ -189,14 +194,14 @@ Notes:
   (`ON CONFLICT DO UPDATE`, keeping the row id) and enqueues `index`: newest wins. Never
   `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE deletes without firing `chunk_ad`.
 - **Chunks** are about 300 to 500 tokens. The `index` job chunks and embeds first, holding no
-  lock, then in one short `BEGIN IMMEDIATE` transaction deletes the page's chunks (the trigger
-  clears FTS and vectors), inserts the new ones, and inserts each embedding under the chunk's id.
+  lock, then in one short `BEGIN IMMEDIATE` transaction replaces the page's chunks (the trigger
+  clears FTS and vectors) and inserts each embedding under its chunk's id.
 - **Changing the embedding model** means re-embedding everything. `scrap reindex` embeds every
   chunk first, then in one short write transaction drops and recreates `chunk_vec` with the new
-  dimension (before deleting any chunk, since `chunk_ad` needs the table), updates `meta`, and
-  replaces all chunks. One model at a time; no mixing. A page edited while `reindex` embeds keeps
-  the chunks `reindex` computed from its older text, so search can briefly see stale text until
-  that page's next edit or reindex.
+  dimension (before deleting any chunk, since `chunk_ad` needs the table), updates the `meta`
+  table, and replaces all chunks. One model at a time; no mixing. A page edited while `reindex`
+  embeds keeps the chunks `reindex` computed from its older text, so search can briefly see stale
+  text until that page's next edit or reindex.
 - **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
   derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
   not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
@@ -213,10 +218,25 @@ Notes:
   are allowed; backlinks are a query on `link_by_dst`.
 - **Tags.** Flat, lower-case, `/` allowed. `summarise` suggests them; the PWA edits them.
 
+### Kinds
+
+A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, watch or listen
+to), `memory`, `reference`, `whiteboard` or `document`. The single `summarise` call classifies.
+scrap classifies and summarises; it never rewrites the user's words or fits them to templates.
+
+- **The user wins**, as with titles. A capture hint or a PWA edit sets `kind_fixed`, and jobs
+  then only fill the rest. Otherwise `extract` sets `whiteboard` or `document`, or `summarise`
+  picks the kind.
+- **`meta`** is JSON, not per-kind tables: a todo has `status` (`open`, `done`) and optional
+  `due`; consume has `subtype` (`read`, `watch`, `listen`), `status` and the `source` link.
+- **Consume keeps link and summary only:** `summarise` then deletes the `fetched` text.
+- **Views.** The PWA lists Todos, the Consume queue and an Inbox of pages with no summary yet.
+
 ## Phone quick capture
 
 1. **Tap the icon.** The installed PWA opens from the service worker cache, even offline, on the
-   capture screen: camera, note, and a "recent" strip with each capture's state.
+   capture screen: camera, note, *todo* and *read later* buttons (hints that fix the kind), and a
+   "recent" strip with each capture's state.
 2. **Choose an input.**
    - *Camera*: `<input type="file" accept="image/*" capture="environment">`, or the gallery;
      several shots can go into one capture.
@@ -228,9 +248,9 @@ Notes:
    failure it stays queued and retries with backoff while the app is open, and on next open.
 5. **Store.** The server writes blobs to `files/`, then in one `BEGIN IMMEDIATE` transaction looks
    up the capture id (found: a retry, return `200`), else inserts blobs (`ON CONFLICT DO NOTHING`),
-   page (before capture, for the foreign key), `page_rev` 1, capture, `capture_blob`, and the
-   `extract` and `index` jobs, and returns `201`. No LLM call on this path, and the note or title
-   is searchable even if Claude is down.
+   page (before capture, for the foreign key; a hint sets `kind` and `kind_fixed`), `page_rev` 1,
+   capture, `capture_blob`, and the `extract` and `index` jobs, and returns `201`. No LLM call on
+   this path, and the note or title is searchable even if Claude is down.
 6. **Process.** The worker runs the jobs; the PWA polls `GET /api/captures?since=...` while open.
 
 ```text
@@ -246,7 +266,7 @@ Phone (PWA)                           scrap API              job worker         
    |                                      |                       |-- OCR + describe ---->|
    |                                      |                       |<-- text, kind --------|
    |                                      |                       |-- summarise --------->|
-   |                                      |                       |<-- title, tags -------|
+   |                                      |                       |<-- kind, title, tags -|
    |                                      |                       | chunk + embed (local) |
    |                                      |                       |-- redraw (parallel) ->|
    |                                      |                       |<-- .excalidraw -------|
@@ -260,9 +280,9 @@ Each job does one step and enqueues the next, so a failure retries only that ste
 
 | Job | Does | Writes |
 | --- | --- | --- |
-| `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). The kind only decides whether to enqueue `redraw`. URL: fetch readable text. Note: nothing. Every capture type then enqueues `summarise`. | `ocr`, `description`, `fetched` |
+| `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). Whiteboard and document set the page kind; whiteboard enqueues `redraw`. URL: fetch readable text. Note: nothing. Every capture type then enqueues `summarise`. | `ocr`, `description`, `fetched` |
 | `redraw` | Whiteboard only: Claude produces an Excalidraw scene from the photo, checked to parse as Excalidraw JSON before saving | `excalidraw` |
-| `summarise` | Claude writes a summary, title and tags. It replaces the provisional title if unchanged since rev 1, and the slug only if also nothing links to the page. | `summary`, page rev, tags |
+| `summarise` | One Claude call returns kind, `meta`, summary, title and tags, applied under the title, slug and kind rules above. | `summary`, page fields, rev, tags |
 | `index` | Re-chunk the page and its derived text, embed locally, re-parse links | `chunk`, `chunk_fts`, `chunk_vec`, `link` |
 
 `redraw` runs in parallel; nothing waits for it and its failure leaves the page intact. Page edits
@@ -275,7 +295,7 @@ row, and the worker treats that as finished, not as an error.
 
 **Failure visibility.** The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with `last_error` and a *retry* button. The original and the page already
-exist, so nothing is lost.
+exist, so nothing is lost; a page whose `summarise` fails stays `note` (or its hinted kind).
 
 ## Excalidraw
 
@@ -296,6 +316,7 @@ it has images, so Claude links there instead of trying to show them.
 | `recent` | optional `days`, `limit` | Recently created or updated pages |
 | `write` | new page (`title`, `body`), or `slug` with `body` to replace or `append`; optional `tags` | Page URL and revision |
 | `ingest` | `url` or `text` | A capture id; it runs the same jobs as a phone capture |
+| `todos` | optional `status` (default `open`) | Todo pages: title, URL, status, due date |
 
 `write` records the caller as the revision author. Deletion is a PWA action only.
 
@@ -327,6 +348,8 @@ it has images, so Claude links there instead of trying to show them.
 - Keeping old derived rows on regeneration, with pruning.
 - A status page for dead jobs.
 - `scrap gc` to sweep orphan blobs (left by deleted pages).
+- A per-capture *keep a copy* switch (default off) that keeps a consume item's fetched text, for
+  pages that may vanish or sit behind a paywall.
 
 ## Deferred, larger
 
