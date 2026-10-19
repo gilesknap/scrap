@@ -1,0 +1,17 @@
+# Changes here will be overwritten by Copier
+_commit: 5.4.0
+_src_path: https://github.com/DiamondLightSource/python-copier-template.git
+author_email: gilesknap@gmail.com
+author_name: Giles Knap
+description: A tiny personal knowledge store you feed from your phone and query through
+    Claude
+distribution_name: scrap
+docker: true
+docs_type: sphinx
+git_platform: github.com
+github_org: gilesknap
+package_name: scrap
+pypi: false
+repo_name: scrap
+strict_typing: false
+type_checker: pyright

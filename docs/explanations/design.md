@@ -194,7 +194,9 @@ Notes:
 - **Changing the embedding model** means re-embedding everything. `scrap reindex` embeds every
   chunk first, then in one short write transaction drops and recreates `chunk_vec` with the new
   dimension (before deleting any chunk, since `chunk_ad` needs the table), updates `meta`, and
-  replaces all chunks. One model at a time; no mixing.
+  replaces all chunks. One model at a time; no mixing. A page edited while `reindex` embeds keeps
+  the chunks `reindex` computed from its older text, so search can briefly see stale text until
+  that page's next edit or reindex.
 - **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
   derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
   not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
@@ -258,7 +260,7 @@ Each job does one step and enqueues the next, so a failure retries only that ste
 
 | Job | Does | Writes |
 | --- | --- | --- |
-| `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). The kind only decides whether to enqueue `redraw`. URL: fetch readable text. Note: nothing. | `ocr`, `description`, `fetched` |
+| `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). The kind only decides whether to enqueue `redraw`. URL: fetch readable text. Note: nothing. Every capture type then enqueues `summarise`. | `ocr`, `description`, `fetched` |
 | `redraw` | Whiteboard only: Claude produces an Excalidraw scene from the photo, checked to parse as Excalidraw JSON before saving | `excalidraw` |
 | `summarise` | Claude writes a summary, title and tags. It replaces the provisional title if unchanged since rev 1, and the slug only if also nothing links to the page. | `summary`, page rev, tags |
 | `index` | Re-chunk the page and its derived text, embed locally, re-parse links | `chunk`, `chunk_fts`, `chunk_vec`, `link` |

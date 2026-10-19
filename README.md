@@ -1,3 +1,7 @@
+[![CI](https://github.com/gilesknap/scrap/actions/workflows/ci.yml/badge.svg)](https://github.com/gilesknap/scrap/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/gilesknap/scrap/branch/main/graph/badge.svg)](https://codecov.io/gh/gilesknap/scrap)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
 # scrap
 
 scrap is a tiny personal knowledge store: a "second brain" you feed from your phone and query
@@ -6,7 +10,16 @@ later reads, summarises, redraws and indexes it in the background. Claude reache
 search, read and add pages; a small PWA is where you capture and look at things, because chat is
 poor at showing images.
 
-**Status: design stage.** There is no code yet. See [docs/design.md](docs/design.md).
+**Status: design stage.** The code is only a skeleton: a FastAPI app with a health check. See the
+[design](https://github.com/gilesknap/scrap/blob/main/docs/explanations/design.md): principles,
+data model, capture flow, MCP tools, security, what is deferred and what is still open.
+
+What            | Where
+:---:           | :---:
+Source          | <https://github.com/gilesknap/scrap>
+Container       | `docker run -p 8000:8000 ghcr.io/gilesknap/scrap:latest serve --host 0.0.0.0 --port 8000`
+Documentation   | <https://gilesknap.github.io/scrap>
+Releases        | <https://github.com/gilesknap/scrap/releases>
 
 ## Goals
 
@@ -36,10 +49,16 @@ poor at showing images.
 | Access | Tailscale Serve only; identity from its request headers |
 | Deployment | Multi-arch (arm64, amd64) container image on a home k3s cluster |
 
-## Docs
+## Running the skeleton
 
-- [Design](docs/design.md): principles, data model, capture flow, MCP tools, security, what is
-  deferred and what is still open.
+```
+scrap serve --host 127.0.0.1 --port 8000
+curl http://127.0.0.1:8000/healthz
+```
+
+<!-- README only content. Anything below this line won't be included in index.md -->
+
+See <https://gilesknap.github.io/scrap> for the full documentation.
 
 ## Licence
 
