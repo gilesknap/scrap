@@ -26,6 +26,7 @@ test("Save and Cancel stay on screen while editing; Ctrl+Enter saves", async ({ 
   const patch = page.waitForRequest((r) => r.method() === "PATCH");
   await body.press("Control+Enter");
   expect((await patch).postDataJSON()).not.toHaveProperty("title"); // untouched: not sent
+  await expect(page.locator(".editor")).toBeHidden(); // saved: the PATCH has been answered
   await expect(page.getByRole("button", { name: "Edit" })).toBeVisible();
   const saved = await (await page.request.get(`/api/pages/${slug}`)).json();
   expect(saved.body.startsWith("edited\nline\n")).toBe(true);
