@@ -448,12 +448,15 @@ class Store:
             raise NotFoundError(key)
 
     def search(self, query: str, limit: int) -> list[dict[str, Any]]:
-        """Full-text search; each word must match, the last one as a prefix."""
+        """Full-text search; each word must match somewhere in the page (its title
+        and body, or a photo's text or description), the last one as a prefix."""
         query = CONTROL.sub(" ", query).replace('"', " ")
         words = [f'"{w}"' for w in query.split()]
         if not words:
             return []
         words[-1] += "*"
+        each = " AND p.id IN (SELECT c.page_id FROM chunk_fts JOIN chunk c ON"
+        each += " c.id = chunk_fts.rowid WHERE chunk_fts MATCH ?)"
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             # bm25() and snippet() refuse GROUP BY: group here instead
@@ -463,8 +466,9 @@ class Store:
                 " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                 " JOIN page p ON p.id = c.page_id"
                 " WHERE chunk_fts MATCH ? AND p.deleted_at IS NULL"
-                " ORDER BY bm25(chunk_fts)",
-                (" ".join(words),),
+                + each * len(words)
+                + " ORDER BY bm25(chunk_fts)",
+                (" OR ".join(words), *words),
             ):
                 hits.setdefault(row["id"], dict(row))
                 if len(hits) == limit:

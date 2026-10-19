@@ -134,21 +134,23 @@ def pause(
     retry_after: float | None = None,
 ) -> bool:
     """Pause the queue and refund the job's claim: it stays queued, behind older
-    jobs, with no failure added. Returns whether this starts a pause episode (and
-    should be announced)."""
-    q = conn.execute("SELECT outages, notified_at FROM queue_state").fetchone()
+    jobs, with no failure added. Returns whether to announce it: the first pause
+    since the last success or Resume, or one for a new reason (a budget pause that
+    ran out, then a spend limit that needs Resume)."""
+    q = conn.execute("SELECT outages, reason, notified_at FROM queue_state").fetchone()
+    announce = q["notified_at"] is None or q["reason"] != reason
     if reason in ("credit", "auth"):
         until = FAR
     elif reason == "budget":
         until = midnight_after(stamp)
     elif retry_after is not None:
-        until = later(stamp, retry_after)
+        until = later(stamp, min(retry_after, 3600))  # at most an hour
     else:
         until = later(stamp, 60 * min(2 ** q["outages"], 60))
     conn.execute(
         "UPDATE queue_state SET paused_until = ?, reason = ?, outages = outages + ?,"
-        " notified_at = coalesce(notified_at, ?), updated_at = ?",
-        (until, reason, int(reason == "outage"), stamp, stamp),
+        " notified_at = CASE WHEN ? THEN ? ELSE notified_at END, updated_at = ?",
+        (until, reason, int(reason == "outage"), announce, stamp, stamp),
     )
     if job_id is not None:
         conn.execute(
@@ -156,7 +158,7 @@ def pause(
             " updated_at = ? WHERE id = ? AND state = 'running'",
             (stamp, reason, stamp, job_id),
         )
-    return q["notified_at"] is None
+    return announce
 
 
 def resume(conn: sqlite3.Connection, stamp: str) -> None:
@@ -207,23 +209,6 @@ def put_derived(
             "now": stamp,
         },
     ).fetchone()
-
-
-def restore(conn: sqlite3.Connection, derived_id: int, stamp: str) -> sqlite3.Row:
-    """Make an old version current again, as a copy (versions never change)."""
-    old = conn.execute("SELECT * FROM derived WHERE id = ?", (derived_id,)).fetchone()
-    return put_derived(
-        conn,
-        old["capture_id"],
-        old["source_sha256"],
-        old["kind"],
-        old["producer"],
-        stamp,
-        run_id=old["run_id"],
-        author=old["author"],
-        text=old["text"],
-        data=None if old["data"] is None else json.loads(old["data"]),
-    )
 
 
 def notify(reason: str) -> None:

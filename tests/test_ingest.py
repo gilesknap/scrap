@@ -252,6 +252,11 @@ def test_outage_backoff_and_retry_after(store, conn):
     with transaction(conn):
         pause(conn, j["id"], "outage", at(9000), retry_after=30)
     assert claim(conn, at(9000.4)) is None and claim(conn, at(9000.6)) is not None
+    with transaction(conn):
+        pause(conn, None, "outage", at(9001), retry_after=86400)  # capped at an hour
+    assert conn.execute("SELECT paused_until FROM queue_state").fetchone()[0] == at(
+        9061
+    )
 
 
 def test_one_rule_for_charged_failures(store, conn):
@@ -280,6 +285,12 @@ def test_a_pause_is_announced_once_per_episode(store, conn, monkeypatch):
         assert pause(conn, j["id"], "outage", at(1)) is False
         resume(conn, at(2))
         assert pause(conn, None, "auth", at(3)) is True
+        resume(conn, at(4))
+        # a budget pause runs out by itself; next morning the spend limit needs Resume
+        assert pause(conn, None, "budget", at(20 * 60)) is True
+        assert pause(conn, None, "budget", at(20 * 60 + 1)) is False
+        assert pause(conn, None, "credit", at(28 * 60 + 5)) is True
+        assert pause(conn, None, "credit", at(28 * 60 + 6)) is False
     sent = []
     monkeypatch.setenv("SCRAP_NOTIFY_URL", "http://notify.invalid/topic")
     monkeypatch.setattr(
@@ -420,8 +431,7 @@ def test_a_user_edit_first_blocks_the_model_title(tmp_path):
 def test_failures_through_the_worker(store, conn):
     photo(store, [jpeg()])
     no_text = {**BOARD, "text": "", "description": ""}
-    bad = {**BOARD, "elements": [{"type": "text", "x": -9999, "y": 0, "text": "x"}]}
-    fake = Fake(claude.CallError("timeout", "slow"), no_text, bad)
+    fake = Fake(claude.CallError("timeout", "slow"), no_text, no_text)
     worker = ingest.Worker(store, fake)
     worker.step()
     assert job(conn) == ("queued", 1, "timeout")
@@ -434,6 +444,17 @@ def test_failures_through_the_worker(store, conn):
     assert [tuple(r) for r in runs] == [
         ("error", "timeout"), ("invalid", "invalid"), ("invalid", "invalid")
     ]  # fmt: skip
+
+
+def test_a_bad_element_costs_only_itself(store, conn):
+    ref = photo(store, [jpeg()])
+    off_frame = {"type": "text", "id": "z", "x": -9999, "y": 0, "text": "x"}
+    run_one(store, Fake({**BOARD, "elements": [off_frame]}))
+    assert job(conn) == ("done", 0, "")
+    got = store.page(ref["page_id"])["captures"][0]["blobs"][0]["ingest"]
+    assert got["text"].startswith("kafka") and got["drawing"] is None
+    output = json.loads(conn.execute("SELECT output FROM model_run").fetchone()[0])
+    assert output["warnings"] == ["element 0 dropped: position outside the image"]
 
 
 def test_a_pause_through_the_worker_refunds_and_a_success_clears_it(store, conn):
@@ -592,7 +613,8 @@ def test_versions_search_and_purge(store, conn):
     put("description", text="A sketch of a message broker")
     d1 = put("excalidraw", data={"format": "skeleton", "elements": []})
     assert search("kafka") == search("broker") == search("whiteboard") == [pid]
-    assert len(store.search("queues kafka", 10)) == 0  # words in different chunks
+    assert search("queues kafka") == [pid]  # words from two parts of the page
+    assert search("queues nothere") == []
     assert len(store.search("a", 10)) == 1  # many chunks hit: the page once
     put("ocr", text="kafka consumer lag\nretry stream")
     assert [r["version"] for r in current("ocr")] == [2]
@@ -600,8 +622,7 @@ def test_versions_search_and_purge(store, conn):
     put("excalidraw", producer="human", author="me", text="lag (edited)",
         data={"format": "scene", "elements": []})  # fmt: skip
     assert search("edited") == [pid]
-    with transaction(conn):
-        restored = ingest.restore(conn, d1["id"], at(1))
+    restored = put("excalidraw", data={"format": "skeleton", "elements": []})  # Restore
     assert current("excalidraw")[0]["id"] == restored["id"] and search("edited") == []
     for sql, message in [
         ("UPDATE derived SET text = 'x' WHERE id = ?", "immutable"),
