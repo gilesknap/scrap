@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -724,3 +725,31 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     assert found(words) == 0 and found("salt " + words) == 0  # 16 words used
     assert found(f"common words {words}") == 0
     assert time.monotonic() - started < 2
+
+
+def test_lone_surrogates_from_the_model_never_reach_the_database(tmp_path):
+    """JSON can carry half a UTF-16 pair; UTF-8 cannot. The page, its download and
+    the export all still work, with U+FFFD in its place."""
+    store = Store(tmp_path)
+    store.migrate()
+    ref = photo(store, [jpeg()])
+    bad = "\udc00"
+    label = {"type": "text", "id": "t", "x": 1, "y": 1, "text": f"label {bad}"}
+    answer: dict[str, Any] = dict(BOARD, title=f"Board {bad}", elements=[label],
+                                  description=f"About {bad}", text=f"line {bad}",
+                                  tags=[f"t{bad}"])  # fmt: skip
+    assert run_one(store, Fake(answer))
+    with closing(connect(store.db)) as conn:
+        assert job(conn) == ("done", 0, "")
+        texts = [
+            r[0]
+            for r in conn.execute("SELECT text FROM derived WHERE text IS NOT NULL")
+        ]
+    assert sorted(texts) == ["About �", "line �"]
+    client = TestClient(create_app(tmp_path))
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["title"] == "Board �" and page["tags"] == ["t�"]
+    assert client.get(f"/api/pages/{ref['page_id']}/download").status_code == 200
+    from scrap.backup import export
+
+    assert export(store, tmp_path / "out") == 1

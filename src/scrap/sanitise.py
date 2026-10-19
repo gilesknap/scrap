@@ -32,8 +32,14 @@ def _finite(value: Any) -> TypeGuard[float]:
         return False
 
 
+SURROGATE = re.compile(r"[\ud800-\udfff]")  # half a UTF-16 pair: no UTF-8 for it
+
+
 def _clean(text: Any) -> str:
-    return CONTROL.sub("", text if isinstance(text, str) else "").strip()
+    """Text the model wrote, safe to store and serve: no control characters, and a
+    lone surrogate (valid in JSON, but not encodable) becomes U+FFFD."""
+    text = CONTROL.sub("", text if isinstance(text, str) else "")
+    return SURROGATE.sub("\ufffd", text).strip()
 
 
 def _element(e: Any, width: int, height: int) -> dict[str, Any]:
@@ -183,13 +189,21 @@ def _depth(data: Any) -> int:
 
 
 def _size(data: Any) -> int:
-    """Bytes as compact JSON, as the editor sends it. NaN or Infinity anywhere
-    (Python's JSON parser lets them in) is refused here rather than failing the
-    database's json_valid check, and so are integers no float can hold."""
+    """UTF-8 bytes as compact JSON, as the editor sends it. Refused here, anywhere in
+    the scene (keys too), rather than stored and then failing: NaN or Infinity
+    (Python's JSON parser lets them in; the database's json_valid check would not),
+    and lone surrogates (JSON can escape them, UTF-8 cannot encode them, so the
+    drawing could never be served)."""
     try:
-        return len(json.dumps(data, allow_nan=False, separators=(",", ":")))
-    except (ValueError, OverflowError):
+        text = json.dumps(
+            data, allow_nan=False, ensure_ascii=False, separators=(",", ":")
+        )
+    except ValueError:
         raise InvalidError("numbers must be finite") from None
+    try:
+        return len(text.encode())
+    except UnicodeEncodeError:
+        raise InvalidError("text must be valid Unicode (a lone surrogate)") from None
 
 
 def _frame(value: Any) -> bool:

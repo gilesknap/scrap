@@ -5,15 +5,17 @@ and the drawing in a page download."""
 import io
 import json
 import zipfile
+from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
 
-from scrap import ingest
+from scrap import ingest, sanitise
 from scrap.app import create_app
 from scrap.backup import export
 from scrap.drawing import excalidraw_file
-from scrap.store import Store, new_ulid
+from scrap.sanitise import SCENE_BYTES
+from scrap.store import InvalidError, Store, connect, new_ulid
 from test_ingest import BOARD, Fake, jpeg
 
 
@@ -215,8 +217,21 @@ def nested(depth: int) -> dict:
         + b"9" * 400
         + b', "y": 0}]}}',
         b'{"base_version": 1, "scene": {"elements": [], "n": ' + b"9" * 5000 + b"}}",
+        rb'{"base_version": 1, "scene": {"elements": [{"type": "text", "x": 0, "y": 0,'
+        rb' "text": "t", "customData": {"n": "\udc00"}}]}}',
+        rb'{"base_version": 1, "scene": {"elements": [{"type": "text", "x": 0, "y": 0,'
+        rb' "text": "half \ud800 a pair"}]}}',
+        rb'{"base_version": 1, "scene": {"elements": [], "\udc00": 1}}',
     ],
-    ids=["deep-custom-data", "deep-body", "400-digit-x", "5000-digit-int"],
+    ids=[
+        "deep-custom-data",
+        "deep-body",
+        "400-digit-x",
+        "5000-digit-int",
+        "surrogate-custom-data",
+        "surrogate-text",
+        "surrogate-key",
+    ],  # fmt: skip
 )
 def test_hostile_bodies_are_422_and_the_drawing_still_serves(board, body):
     client, url, _ = board
@@ -269,3 +284,37 @@ def test_made_ids_never_collide_with_the_models():
     ]}  # fmt: skip
     ids = [e["id"] for e in json.loads(excalidraw_file(skeleton))["elements"]]
     assert len(ids) == len(set(ids)) == 5 and "a-label" in ids
+
+
+def test_a_legacy_row_that_cannot_be_encoded_is_still_served(board, tmp_path):
+    """A row stored before lone surrogates were refused: replaced, never a 500."""
+    client, url, ref = board
+    data = '{"format": "scene", "elements": [{"type": "text", "x": 0, "y": 0,'
+    data += ' "text": "bad \\udc00 half"}]}'
+    with closing(connect(tmp_path / "scrap.db")) as conn:
+        cid, sha = url.split("/")[3], url.split("/")[5]
+        conn.execute(
+            "INSERT INTO derived (capture_id, source_sha256, kind, version, producer,"
+            " author, data, created_at) VALUES (?, ?, 'excalidraw', 2, 'human', 'me',"
+            " ?, '2099-01-01T00:00:00.000Z')",
+            (cid, sha, data),
+        )
+    got = client.get(url)
+    assert got.status_code == 200
+    assert got.json()["data"]["elements"][0]["text"] == "bad ? half"
+    assert client.get(f"/api/pages/{ref['page_id']}/download").status_code == 200
+
+
+def test_the_5_mb_cap_counts_compact_json():
+    """Exactly 5 MiB as the editor sends it (compact) is kept; spaced JSON of the
+    same scene is bigger, so measuring that way would refuse it."""
+    element = {"type": "text", "x": 0, "y": 0, "text": ""}
+    shell = {"elements": [element]}
+    pad = SCENE_BYTES - len(json.dumps(shell, separators=(",", ":")))
+    element["text"] = "é" * (pad // 2) + "x" * (pad % 2)  # 2 bytes each in UTF-8
+    compact = json.dumps(shell, separators=(",", ":"), ensure_ascii=False)
+    assert len(compact.encode()) == SCENE_BYTES
+    assert sanitise.scene(shell)["elements"][0]["text"] == element["text"]
+    element["text"] += "x"
+    with pytest.raises(InvalidError, match="5 MB"):
+        sanitise.scene(shell)
