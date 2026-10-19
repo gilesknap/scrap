@@ -38,9 +38,9 @@ stack of paid-API integrations).
 **One capture is one page.** Each capture creates its own page at once. A note's text becomes the
 body and its first line the title; a URL capture's body is the link and its title the URL; a photo
 or file page starts with an empty body (for your own words) and its date as title. Background jobs
-then add derived text, a better title and slug, a summary and tags. Merging and cross-linking pages is later, by hand or through MCP
-`write`. Ingest stays a fixed pipeline with no search-then-decide loop, and every capture is
-searchable once indexed.
+then add derived text, a better title and slug, a summary and tags. Merging and cross-linking pages
+come later, by hand or through MCP `write`. Ingest stays a fixed pipeline with no search-then-decide
+loop.
 
 ## Data model
 
@@ -188,13 +188,13 @@ Notes:
 - **Derived** rows sit beside the untouched original. Regenerating is an upsert
   (`ON CONFLICT DO UPDATE`, keeping the row id) and enqueues `index`: newest wins. Never
   `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE deletes without firing `chunk_ad`.
-- **Chunks** are about 300 to 500 tokens. The `index` job, in one transaction, deletes the page's
-  chunks (the trigger clears FTS and vectors), inserts new ones, and inserts each embedding into
-  `chunk_vec` under the chunk's id.
-- **Changing the embedding model** means re-embedding everything: `scrap reindex`, in one
-  transaction, drops and recreates `chunk_vec` with the new dimension (before deleting any chunk,
-  since `chunk_ad` needs the table), updates `meta`, and rebuilds every page's chunks. One model at
-  a time; no mixing.
+- **Chunks** are about 300 to 500 tokens. The `index` job chunks and embeds first, holding no
+  lock, then in one short `BEGIN IMMEDIATE` transaction deletes the page's chunks (the trigger
+  clears FTS and vectors), inserts the new ones, and inserts each embedding under the chunk's id.
+- **Changing the embedding model** means re-embedding everything. `scrap reindex` embeds every
+  chunk first, then in one short write transaction drops and recreates `chunk_vec` with the new
+  dimension (before deleting any chunk, since `chunk_ad` needs the table), updates `meta`, and
+  replaces all chunks. One model at a time; no mixing.
 - **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
   derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
   not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
@@ -202,15 +202,14 @@ Notes:
 
 ### Page identity, links, tags
 
-- **Identity.** The ULID. The slug is made from the title, suffixed on collision. `summarise` may
-  replace the provisional slug once, while the page is still at rev 1 and nothing links to it;
-  after that it never changes, so `[[slug]]` links survive renames at the cost of a slug that
-  drifts from the title. A deleted page's slug may be reused and old links then point at the new
-  page; accepted for one user.
+- **Identity.** The ULID. The slug is made from the title, suffixed on collision. `summarise`
+  replaces the provisional title if it is unchanged since rev 1, and the slug too if, in addition,
+  nothing links to the page. After that the slug never changes, so `[[slug]]` links survive
+  renames, at the cost of a slug that drifts from the title. A deleted page's slug may be reused
+  and old links then point at the new page; accepted for one user.
 - **Links.** `[[slug]]` or `[[slug|label]]` in Markdown, parsed into `link` on save. Dangling links
   are allowed; backlinks are a query on `link_by_dst`.
-- **Tags.** Flat, lower-case strings, `/` allowed for loose grouping. Claude suggests them in
-  `summarise`; the PWA adds and removes them.
+- **Tags.** Flat, lower-case, `/` allowed. `summarise` suggests them; the PWA edits them.
 
 ## Phone quick capture
 
@@ -226,9 +225,10 @@ Notes:
 4. **Upload.** The app posts it to `POST /api/captures` and deletes the local copy on success. On
    failure it stays queued and retries with backoff while the app is open, and on next open.
 5. **Store.** The server writes blobs to `files/`, then in one `BEGIN IMMEDIATE` transaction looks
-   up the capture id (if it exists, a retry: return `200`), otherwise inserts blobs (`ON CONFLICT
-   DO NOTHING`), page, `page_rev` 1, capture, `capture_blob` and the `extract` job, and returns
-   `201`. Page before capture, because of the foreign key. No LLM call on this path.
+   up the capture id (found: a retry, return `200`), else inserts blobs (`ON CONFLICT DO NOTHING`),
+   page (before capture, for the foreign key), `page_rev` 1, capture, `capture_blob`, and the
+   `extract` and `index` jobs, and returns `201`. No LLM call on this path, and the note or title
+   is searchable even if Claude is down.
 6. **Process.** The worker runs the jobs; the PWA polls `GET /api/captures?since=...` while open.
 
 ```text
@@ -237,7 +237,7 @@ Phone (PWA)                           scrap API              job worker         
    | save -> IndexedDB, show "queued"     |                       |                       |
    |-- POST /api/captures (ULID) -------->|                       |                       |
    |                                      | page, rev 1, capture, |                       |
-   |                                      | enqueue 'extract'     |                       |
+   |                                      | enqueue extract, index|                       |
    |<----------------- 201 ---------------|                       |                       |
    | delete local copy, show "saved"      |                       |                       |
    |                                      |      claim job ------>|                       |
@@ -260,7 +260,7 @@ Each job does one step and enqueues the next, so a failure retries only that ste
 | --- | --- | --- |
 | `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). The kind only decides whether to enqueue `redraw`. URL: fetch readable text. Note: nothing. | `ocr`, `description`, `fetched` |
 | `redraw` | Whiteboard only: Claude produces an Excalidraw scene from the photo, checked to parse as Excalidraw JSON before saving | `excalidraw` |
-| `summarise` | Claude writes a summary, title and tags. Title and slug replace the provisional ones only if the page is still at rev 1. | `summary`, page rev, tags |
+| `summarise` | Claude writes a summary, title and tags. It replaces the provisional title if unchanged since rev 1, and the slug only if also nothing links to the page. | `summary`, page rev, tags |
 | `index` | Re-chunk the page and its derived text, embed locally, re-parse links | `chunk`, `chunk_fts`, `chunk_vec`, `link` |
 
 `redraw` runs in parallel; nothing waits for it and its failure leaves the page intact. Page edits
@@ -268,7 +268,8 @@ also enqueue `index`.
 
 **States.** `queued` -> `running` -> `done`. On error the job goes back to `queued` with
 `run_after = now + 2^attempts minutes`; after five attempts it is `dead`. A job left `running` by a
-crash is requeued at start-up. A job whose page or capture was deleted mid-run ends `done`.
+crash is requeued at start-up. If a job's page is deleted mid-run, the cascade removes the job
+row, and the worker treats that as finished, not as an error.
 
 **Failure visibility.** The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with `last_error` and a *retry* button. The original and the page already
@@ -311,8 +312,8 @@ it has images, so Claude links there instead of trying to show them.
   and no tools and checks the output against a schema; the worst outcome is a wrong page, which
   `page_rev` can undo. URL fetching refuses private and tailnet addresses, re-checked after DNS
   resolution and after every redirect.
-- **Reading is not acting.** Sessions that read scrap may meet injected text. Sessions holding
-  cluster or other powerful credentials should not mount the scrap MCP server.
+- **Reading is not acting.** Sessions holding cluster or other powerful credentials should not
+  mount the scrap MCP server, since pages may hold injected text.
 
 ## Deferred to v0.1
 
