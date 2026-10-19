@@ -1,8 +1,8 @@
 # scrap design
 
 Status: design stage. It keeps the ideas of an earlier, much larger system (classified pages,
-semantic recall with cited sources, MCP tools for Claude) and drops its machinery (a git-synced
-Markdown vault, a chat-bot daemon, a stack of paid-API integrations).
+semantic recall, MCP tools) and drops its machinery (a git-synced vault, a chat-bot daemon, a
+stack of paid-API integrations).
 
 ## Principles
 
@@ -11,7 +11,8 @@ Markdown vault, a chat-bot daemon, a stack of paid-API integrations).
 2. **Off the shelf.** Claude does the reading and writing that needs judgement. SQLite does storage
    and search. Tailscale does networking and identity. Excalidraw does drawings. scrap is the glue.
 3. **Originals are kept, everything else is derived** and can be regenerated. The search index is
-   disposable and rebuilt with one command.
+   disposable and rebuilt with one command. The one exception is deliberate: deleting a page
+   deletes its capture too.
 4. **Capture never waits.** Saving is a file write and a few row inserts; anything slow runs later
    in a background job.
 5. **Claude reasons, the PWA shows.** Claude (over MCP) is for asking and writing; the PWA is for
@@ -22,7 +23,9 @@ Markdown vault, a chat-bot daemon, a stack of paid-API integrations).
 - **One Python process.** FastAPI serves the built PWA, its JSON API and an MCP server (streamable
   HTTP). One worker thread runs the jobs: extract, redraw, summarise, index.
 - **Storage.** SQLite in WAL mode and a `files/` folder keyed by SHA-256, on one persistent volume.
-  Backup is a SQLite online backup plus a copy of `files/`.
+  Backup is a SQLite online backup plus a copy of `files/`. The API and the worker both write, so
+  every connection runs `PRAGMA foreign_keys = ON` and `PRAGMA busy_timeout = 5000` on open,
+  outside any transaction: the index stays correct only because deletes cascade.
 - **Search.** An FTS5 (BM25) query and a sqlite-vec nearest-neighbour query each return ranked
   chunks; reciprocal rank fusion (`sum(1 / (60 + rank))`) merges them and hits are grouped by page.
 - **Embeddings.** Local, through fastembed (ONNX on CPU, arm64 and amd64). Default
@@ -32,9 +35,10 @@ Markdown vault, a chat-bot daemon, a stack of paid-API integrations).
 - **Deployment.** A multi-arch image on a home k3s cluster (ARM and x86 nodes), with a persistent
   volume and a Tailscale sidecar.
 
-**One capture is one page.** Each capture creates its own page at once, with a provisional title
-(first line of a note, the URL, or the photo's date). Background jobs then fill in a better
-title, a summary and tags. Merging and cross-linking pages is later, by hand or through MCP
+**One capture is one page.** Each capture creates its own page at once. A note's text becomes the
+body and its first line the title; a URL capture's body is the link and its title the URL; a photo
+or file page starts with an empty body (for your own words) and its date as title. Background jobs
+then add derived text, a better title and slug, a summary and tags. Merging and cross-linking pages is later, by hand or through MCP
 `write`. Ingest stays a fixed pipeline with no search-then-decide loop, and every capture is
 searchable once indexed.
 
@@ -45,7 +49,7 @@ read and edit). **Derived** rows cost an LLM call to remake, so they are stored.
 search indexes and links** are a cache.
 
 ```sql
-PRAGMA foreign_keys = ON;
+PRAGMA foreign_keys = ON;  -- per connection: the app sets it on every open
 
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);  -- e.g. embed_model, embed_dim
 
@@ -59,7 +63,7 @@ CREATE TABLE blob (
 
 CREATE TABLE page (
     id          TEXT PRIMARY KEY,              -- ULID
-    slug        TEXT NOT NULL UNIQUE,          -- set at creation, never changed
+    slug        TEXT NOT NULL UNIQUE,          -- fixed once summarise has run
     title       TEXT NOT NULL,
     body        TEXT NOT NULL DEFAULT '',      -- Markdown, may contain [[slug]] links
     created_at  TEXT NOT NULL,
@@ -130,7 +134,8 @@ CREATE TABLE job (
     run_after    TEXT NOT NULL,
     last_error   TEXT,
     created_at   TEXT NOT NULL,
-    updated_at   TEXT NOT NULL
+    updated_at   TEXT NOT NULL,
+    CHECK (capture_id IS NOT NULL OR page_id IS NOT NULL)
 );
 CREATE INDEX job_ready ON job(state, run_after);
 
@@ -180,22 +185,28 @@ Notes:
 
 - **IDs** are ULIDs as text, safe to mint on the phone. Times are ISO 8601 UTC. Blobs are
   content-addressed, so a photo shared twice is stored once.
-- **Derived** rows sit beside the untouched original. Regenerating overwrites the row: newest wins.
-- **Chunks** are about 300 to 500 tokens, from the page body and the capture's derived text. The
-  `index` job, in one transaction, deletes the page's chunks (the trigger clears FTS and vectors),
-  inserts new chunks, and inserts each embedding into `chunk_vec` under the chunk's id.
-- **Changing the embedding model** means dropping and recreating `chunk_vec` with the new
-  dimension, updating `meta`, and re-embedding everything. `scrap reindex` does this when the
-  configured model differs from `meta`. One model at a time; no mixing.
-- **Indexed** is text only: titles, bodies, OCR and fetched text, and Claude's description of each
-  image. Not pixels, and not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by
-  what is written on it and what Claude says it shows.
+- **Derived** rows sit beside the untouched original. Regenerating is an upsert
+  (`ON CONFLICT DO UPDATE`, keeping the row id) and enqueues `index`: newest wins. Never
+  `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE deletes without firing `chunk_ad`.
+- **Chunks** are about 300 to 500 tokens. The `index` job, in one transaction, deletes the page's
+  chunks (the trigger clears FTS and vectors), inserts new ones, and inserts each embedding into
+  `chunk_vec` under the chunk's id.
+- **Changing the embedding model** means re-embedding everything: `scrap reindex`, in one
+  transaction, drops and recreates `chunk_vec` with the new dimension (before deleting any chunk,
+  since `chunk_ad` needs the table), updates `meta`, and rebuilds every page's chunks. One model at
+  a time; no mixing.
+- **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
+  derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
+  not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
+  what Claude says it shows.
 
 ### Page identity, links, tags
 
-- **Identity.** The ULID. The slug (from the first title, suffixed on collision) never changes, so
-  `[[slug]]` links survive renames at the cost of a slug that drifts from the title. A deleted
-  page's slug may be reused and old links then point at the new page; accepted for one user.
+- **Identity.** The ULID. The slug is made from the title, suffixed on collision. `summarise` may
+  replace the provisional slug once, while the page is still at rev 1 and nothing links to it;
+  after that it never changes, so `[[slug]]` links survive renames at the cost of a slug that
+  drifts from the title. A deleted page's slug may be reused and old links then point at the new
+  page; accepted for one user.
 - **Links.** `[[slug]]` or `[[slug|label]]` in Markdown, parsed into `link` on save. Dangling links
   are allowed; backlinks are a query on `link_by_dst`.
 - **Tags.** Flat, lower-case strings, `/` allowed for loose grouping. Claude suggests them in
@@ -203,21 +214,21 @@ Notes:
 
 ## Phone quick capture
 
-The installed PWA opens on the capture screen: camera, note, and a "recent" strip with state.
-
-1. **Tap the icon.** The app shell loads from the service worker cache, even offline.
+1. **Tap the icon.** The installed PWA opens from the service worker cache, even offline, on the
+   capture screen: camera, note, and a "recent" strip with each capture's state.
 2. **Choose an input.**
    - *Camera*: `<input type="file" accept="image/*" capture="environment">`, or the gallery;
      several shots can go into one capture.
-   - *Note*: a text box; the first line is the provisional title.
+   - *Note*: a text box.
    - *Share*: the manifest's `share_target` takes URLs, text and files from the share sheet. It
      works for installed PWAs on Android, not iOS (where a Shortcut could post to the API).
 3. **Save.** The client mints a ULID, stores the capture in IndexedDB and shows it as *queued*.
 4. **Upload.** The app posts it to `POST /api/captures` and deletes the local copy on success. On
    failure it stays queued and retries with backoff while the app is open, and on next open.
-5. **Store.** The server writes blobs to `files/`, then in one transaction inserts the blob,
-   capture, page (rev 1) and first job rows, and returns `201`; a repeated ULID returns `200`. No
-   LLM call on this path.
+5. **Store.** The server writes blobs to `files/`, then in one `BEGIN IMMEDIATE` transaction looks
+   up the capture id (if it exists, a retry: return `200`), otherwise inserts blobs (`ON CONFLICT
+   DO NOTHING`), page, `page_rev` 1, capture, `capture_blob` and the `extract` job, and returns
+   `201`. Page before capture, because of the foreign key. No LLM call on this path.
 6. **Process.** The worker runs the jobs; the PWA polls `GET /api/captures?since=...` while open.
 
 ```text
@@ -225,18 +236,18 @@ Phone (PWA)                           scrap API              job worker         
    |                                      |                       |                       |
    | save -> IndexedDB, show "queued"     |                       |                       |
    |-- POST /api/captures (ULID) -------->|                       |                       |
-   |                                      | blobs, capture, page, |                       |
+   |                                      | page, rev 1, capture, |                       |
    |                                      | enqueue 'extract'     |                       |
    |<----------------- 201 ---------------|                       |                       |
    | delete local copy, show "saved"      |                       |                       |
    |                                      |      claim job ------>|                       |
    |                                      |                       |-- OCR + describe ---->|
    |                                      |                       |<-- text, kind --------|
-   |                                      |                       |-- (whiteboard) redraw>|
-   |                                      |                       |<-- .excalidraw -------|
    |                                      |                       |-- summarise --------->|
    |                                      |                       |<-- title, tags -------|
    |                                      |                       | chunk + embed (local) |
+   |                                      |                       |-- redraw (parallel) ->|
+   |                                      |                       |<-- .excalidraw -------|
    |-- GET /api/captures?since ---------->|                       |                       |
    |<-- states, page link ----------------|                       |                       |
 ```
@@ -247,18 +258,17 @@ Each job does one step and enqueues the next, so a failure retries only that ste
 
 | Job | Does | Writes |
 | --- | --- | --- |
-| `extract` | Photo or file: one Claude vision call returns text, a short description and a kind (whiteboard, document, screenshot, photo). URL: fetch and extract readable text. Note: nothing. | `ocr`, `description`, `fetched` |
+| `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). The kind only decides whether to enqueue `redraw`. URL: fetch readable text. Note: nothing. | `ocr`, `description`, `fetched` |
 | `redraw` | Whiteboard only: Claude produces an Excalidraw scene from the photo, checked to parse as Excalidraw JSON before saving | `excalidraw` |
-| `summarise` | Claude writes a summary, a better title and tags. It replaces the provisional title only if the page has not been edited since rev 1. | `summary`, page rev, tags |
+| `summarise` | Claude writes a summary, title and tags. Title and slug replace the provisional ones only if the page is still at rev 1. | `summary`, page rev, tags |
 | `index` | Re-chunk the page and its derived text, embed locally, re-parse links | `chunk`, `chunk_fts`, `chunk_vec`, `link` |
 
-`redraw` runs beside the main chain: `summarise` and `index` do not wait for it, and its failure
-leaves the page intact. Page edits from the PWA or MCP also enqueue `index`.
+`redraw` runs in parallel; nothing waits for it and its failure leaves the page intact. Page edits
+also enqueue `index`.
 
 **States.** `queued` -> `running` -> `done`. On error the job goes back to `queued` with
 `run_after = now + 2^attempts minutes`; after five attempts it is `dead`. A job left `running` by a
-crash is requeued at start-up. The worker claims with
-`UPDATE job SET state = 'running' ... WHERE id = (SELECT ...) RETURNING`.
+crash is requeued at start-up. A job whose page or capture was deleted mid-run ends `done`.
 
 **Failure visibility.** The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with `last_error` and a *retry* button. The original and the page already
@@ -266,8 +276,8 @@ exist, so nothing is lost.
 
 ## Excalidraw
 
-The whiteboard photo is the source of truth; the drawing is derived and can be regenerated at any
-time. Both are shown side by side on the page. The PWA embeds the Excalidraw React component to view
+The photo is the source of truth; the drawing is derived and regenerable. Both are shown side by
+side. The PWA embeds the Excalidraw React component to view
 and edit the drawing. Saving an edit overwrites the `excalidraw` row with producer `human`, and
 regenerating asks before replacing a human edit.
 
@@ -295,8 +305,8 @@ it has images, so Claude links there instead of trying to show them.
 - **Identity is attribution, not the gate.** The ACL is the gate. `author` is the
   `Tailscale-User-Login` header. Tagged devices send none, so their requests are recorded with the
   fallback author `tagged`.
-- **What it holds.** Its database, files and Claude credential. No cluster credentials
-  (service-account token automount off), no git credentials, no shell tools.
+- **What it holds.** Its database, files and Claude credential. No cluster or git credentials
+  (service-account token automount off), no shell tools.
 - **Prompt injection.** Ingested content is untrusted data. Ingest calls Claude with a fixed prompt
   and no tools and checks the output against a schema; the worst outcome is a wrong page, which
   `page_rev` can undo. URL fetching refuses private and tailnet addresses, re-checked after DNS
@@ -313,11 +323,9 @@ it has images, so Claude links there instead of trying to show them.
 - A `namespace` column for read scoping by less trusted surfaces.
 - Keeping old derived rows on regeneration, with pruning.
 - A status page for dead jobs.
-- `scrap gc` to sweep orphan blobs.
+- `scrap gc` to sweep orphan blobs (left by deleted pages).
 
 ## Deferred, larger
-
-Each is independent and none is needed for v0.
 
 - **Work browser route.** A Cloudflare tunnel plus Access (passkey-capable IdP, short sessions) in
   front of the PWA only; the service verifies the Access JWT itself. Cloudflare sees plaintext.
@@ -331,9 +339,9 @@ Each is independent and none is needed for v0.
 - **How ingest calls Claude.** Messages API with structured output (simplest to sandbox) or the
   Claude Code CLI on a subscription login (no API billing, but a login to keep alive). With one
   capture per page there is no tool loop, so the Agent SDK is not needed.
-- **Audio transcription.** Local faster-whisper (CPU cost) or a hosted API (another integration).
+- **Audio transcription** (for voice in v0.1). Local faster-whisper or a hosted API.
 - **Embedding model.** bge-small or nomic-embed-text, decided on a test set of real captures.
-- **Postgres and pgvector**, only if SQLite is outgrown. Not expected for one person.
+- **Postgres and pgvector**, only if SQLite is outgrown.
 - **Cloudflare route auth.** Which identity provider and session length; capture or view only.
 - **Work sandbox scope.** Namespaced reads or full read; whether work material gets a namespace.
 - **Tailscale Kubernetes operator.** Whether its ingress passes the identity headers through, or a
