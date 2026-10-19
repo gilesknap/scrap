@@ -3,25 +3,23 @@
 Status: design for milestone 2. It builds on the M1 code on `main` (`0001_init.sql`, `store.py`,
 `app.py`) and the PWA, and supersedes parts of [the design](design.md) listed there.
 
-M2 sends each photo to Claude once for its text, a description, a kind, a title, tags and an
-Excalidraw drawing. The original is kept; each result is a version that can be regenerated,
-edited or discussed. Every call is stored with its messages, so a later chat in the PWA (M4) or
-a session over MCP (M3) starts from what the model saw and said.
+M2 sends each photo to Claude once for its text, description, kind, title, tags and an
+Excalidraw drawing. Each result is a version that can be regenerated, edited or discussed;
+every call is stored, so a chat in the PWA (M4) or an MCP session (M3) starts from what the
+model saw and said.
 
 **Settled:** the Messages API only, on Opus; photos only; Reprocess always asks before replacing
 a human drawing; the image kind is stored as given (issue #11 does not block); $3 a day.
 
-**Cut:** a `claude -p` backend (a second path that needs a Read tool; `complete()` is the seam
-if ever needed), a cheaper first-pass model (no cost data says it matters), a monthly budget
-(the Console spend limit caps it), a circuit breaker and a separate rate-limit class (the daily
-budget and **Retry** cover them).
+**Cut:** a `claude -p` backend (needs a Read tool; `complete()` is the seam), a cheaper
+first-pass model, a monthly budget (the Console limit caps it), a circuit breaker and a
+rate-limit class (the budget and **Retry** cover them).
 
 ## Worker
 
-One daemon thread started by the FastAPI lifespan: not an asyncio task (`Store` is synchronous
-and the call blocks), not a second process (SQLite has one writer; the service is one replica).
-`SCRAP_INGEST=off`, the default until spend control lands, leaves it unstarted. The capture
-transaction enqueues one job per distinct image of a photo capture:
+One daemon thread from the FastAPI lifespan: `Store` is synchronous and SQLite has one writer,
+so no asyncio task or second process. `SCRAP_INGEST=off` (the default until spend control lands)
+leaves it unstarted. The capture transaction enqueues one job per distinct image of a photo:
 
 ```sql
 INSERT INTO job (kind, capture_id, source_sha256, run_after, created_at, updated_at)
@@ -51,9 +49,10 @@ RETURNING id, capture_id, source_sha256, failures
 
 One job runs at a time (11 to 55 s per board): insert a `model_run` row, call Claude holding
 no lock, then in one `BEGIN IMMEDIATE` re-read the job (a purge counts as done), finish the run,
-write the versions and page fields, and mark the job `done` or apply the error rules. At service
-start every `running` job is requeued (with one worker it is stale); a hung call ends at the
-request timeout. The PWA shows each capture *queued*, *processing*, *done*, *failed* (reason and
+write the versions and page fields, and mark the job `done` or apply the error rules. The loop
+catches every exception, so the thread cannot die silently; `/healthz` fails if it does. A
+`running` job found at service start is charged as `crashed` (it may have killed the process),
+so a crashing job cannot loop the service. The PWA shows each capture *queued*, *processing*, *done*, *failed* (reason and
 **Retry**) or *paused*, a **Reprocess** per photo, and a banner with **Resume** while paused.
 
 ## The Claude call
@@ -71,16 +70,18 @@ the usage and the served model.
   `max_tokens` is 16000.
 
 **Image.** Claude never gets the original, but a JPEG made from it (EXIF orientation applied,
-HEIC converted, quality 85). It is scaled to the largest size with a long edge of at most
+HEIC converted, quality 85). Images over 120 megapixels (`Image.MAX_IMAGE_PIXELS`, the preview
+code's limit) are refused from the header, before decoding. It is scaled to the largest size with a long edge of at most
 2048 px and ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens, the high-resolution cap:
 
 - a 4:3 photo is sent as 2048×1536 (4070 tokens);
 - a square one as 1932×1932.
 
-The API therefore never rescales it, and drawing coordinates are in sent pixels. The JPEG is
+The image block sets `"transformations": {"oversized_image": "error"}` (documented), so the
+API never rescales it silently, and drawing coordinates are in sent pixels. The JPEG is
 stored as a blob (`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA
-scales the drawing to the displayed photo, and M4 replays the exact bytes. The per-image limit
-(10 MB) is far away.
+scales the drawing to the displayed photo, and M4 replays the exact bytes. A later `scrap gc`
+must count `sent_sha256` as in use; after a purge it is an orphan that gc removes.
 
 **Output:** `kind` (whiteboard, diagram, handwriting, screenshot, document, photo or other),
 `title`, `tags`, `description`, `text` (one item per line, `(?)` after uncertain readings) and
@@ -88,29 +89,22 @@ scales the drawing to the displayed photo, and M4 replays the exact bytes. The p
 `skeleton_v3` and lives in `src/scrap/prompts/`; `prompt_version` is `<name>@<12 hex digits of
 sha256(prompt + schema)>`.
 
-**Schema.** It keeps to the subset Anthropic's structured outputs documentation accepts:
-`additionalProperties: false` everywhere, no numeric or string bounds, `minItems` 0 or 1 only,
-at most 24 optional and 16 union-typed properties. The experiment's `[x, y]` tuples and nested
-optional fields broke it, so an element is one flat object:
-
-- `type`, `x` and `y` are required;
-- 12 optional fields, all scalars or number lists and none a union: `id`, `width`, `height`,
-  `text`, `fontSize`, `label`, `labelFontSize`, `points` (flat `[dx0, dy0, dx1, dy1, ...]`),
-  `start` and `end` (shape id strings), `strokeColor` and `startArrowhead`.
-
-Code turns these into Excalidraw skeletons, and the sanitiser enforces the bounds. Whether the
-API accepts this schema with adaptive thinking on is unverified (the experiment's `claude -p`
-runs prove nothing here): PR 1 makes one real call first.
+**Schema.** It keeps to the documented structured-output subset (`additionalProperties: false`,
+no numeric or string bounds, `minItems` 0 or 1, at most 24 optional and 16 union properties),
+which the experiment's `[x, y]` tuples broke. An element is one flat object: `type`, `x`, `y`
+required, plus 12 optional scalars or number lists, none a union: `id`, `width`, `height`,
+`text`, `fontSize`, `label`, `labelFontSize`, `points` (flat `[dx0, dy0, dx1, dy1, ...]`),
+`start` and `end` (shape ids), `strokeColor`, `startArrowhead`. Code makes Excalidraw skeletons
+of these and the sanitiser enforces bounds. Whether the API takes this schema with adaptive
+thinking is unverified (the experiment's `claude -p` runs prove nothing): PR 1 makes one real
+call first.
 
 ## Stored context for later discussion
 
-A `model_run` row is one call: capture, photo, job, `purpose` (`ingest`, `refine`, `discuss`),
-`parent_id` (the turn it continues), model and served model, `prompt_version`, the sent JPEG;
-`request` (system prompt, messages and parameters, images as `{"type": "image", "blob":
-<sha256>}`, never base64); `response` (content blocks exactly as returned, thinking blocks and
-signatures included); and the sanitised `output` with warnings, `usage`, `cost_microusd`,
-`status` and `error_class`. A run is 10 to 50 KB, is backed up with the database, and cannot be
-deleted while a version or a later turn uses it.
+A `model_run` row is one call (columns in the SQL below). `request` holds the system prompt,
+messages and parameters, with images as blob references, never base64; `response` holds the
+content blocks exactly as returned, thinking blocks and signatures included. A run (10 to 50 KB)
+cannot be deleted while a version or later turn uses it.
 
 **Discuss and refine (M4).** Continuing run *R* sends *R*'s system prompt and messages (the
 stored JPEG, byte for byte), *R*'s `response` unchanged as the assistant turn, and one new user
@@ -131,25 +125,29 @@ tool returns that run with its image.
 - **Kinds.** `ocr`, `description` (its `data` keeps the image kind) and `excalidraw` (`data` is
   `{"format": "skeleton" | "scene", "width", "height", "elements"}`). `summary` and `fetched`
   come later.
-- **Producer.** The model id with its `run_id`, or `human` with `author`.
-- **Reprocess.** A reprocess over a human drawing stores the new drawing already superseded,
-  unless the user confirmed the replacement.
+- **Producer:** the model id with its `run_id`, or `human` with `author`. A reprocess over a
+  human drawing stores its drawing already superseded unless the user confirmed.
 
 **Page fields** come from the first photo, and the user wins:
 
-- **Title.** It is a compare-and-set that adds no revision, so a user editing rev 1 never gets a
-  409 because ingest finished:
+- **Title.** The provisional title is M1's (first line of text, else the URL, else the device
+  date) and stays in rev 1 as captured. Only the first photo of a capture without text may
+  replace it, once, on the page row only, adding no revision:
 
   ```sql
   UPDATE page SET title = :title, updated_at = :now
-  WHERE id = :page AND deleted_at IS NULL AND title = :provisional
+  WHERE id = :page AND deleted_at IS NULL
+    AND title = (SELECT title FROM page_rev WHERE page_id = :page AND rev = 1)
     AND NOT EXISTS (SELECT 1 FROM page_rev WHERE page_id = :page AND rev > 1)
+    AND EXISTS (SELECT 1 FROM capture c WHERE c.id = :capture AND c.page_id = :page
+                AND c.text IS NULL AND :photo = (SELECT sha256 FROM capture_blob
+                                                 WHERE capture_id = c.id ORDER BY ord LIMIT 1))
   ```
 
-  On a hit, the same transaction sets rev 1's title and re-indexes the page. The slug stays as
-  created (routes take id or slug, the PWA uses the id), so bookmarks and Undo-delete keep
-  working. The PWA's edit must send `title` only when the user changed it (today it always
-  does).
+  The same transaction re-indexes the page. `PATCH /api/pages/{id}` treats a title equal to the
+  title at its `base_rev` as unchanged, so the PWA, which always sends the title it loaded,
+  never undoes the model's. The PWA should still send `title` only when edited (issue #13), but
+  the server does not depend on it. The slug never changes (the PWA uses the id).
 - **Tags** fill an empty tag list on the first success (0002 adds `tag`).
 - **Kind** changes only while it is `note` and not fixed: whiteboard and diagram become
   `whiteboard`, document becomes `document`. The mapping is one table in code.
@@ -159,26 +157,23 @@ superseding removes it. That covers OCR, the description and a human drawing's l
 drawing's text is NULL, because its words are the OCR. M1 needs two changes:
 
 - `Store._index` deletes only chunks with `derived_id IS NULL`;
-- search groups hits by page.
+- search groups hits by page, in a subquery or in Python, since `bm25()` and `snippet()` refuse
+  `GROUP BY`.
 
 ## Excalidraw in the PWA
 
-- **Loading.** A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React only when a
-  drawing opens. That chunk is about 410 kB gzipped; the base app stays about 8 kB.
-- **Fonts.** The fonts used are self-hosted through `EXCALIDRAW_ASSET_PATH`. The default fetches
-  them from a CDN, and the full set is 14 MB.
-- **Conversion.** `convertToExcalidrawElements` expands stored skeletons in the browser, with
-  two workarounds from the experiment:
-  - an arrow bound to a free text element carries that text's `x`/`y` in `start`/`end`;
-  - the scene is converted again after `document.fonts.ready`.
-- **Editing.** View mode by default, beside the photo. **Edit** saves the scene with its base
-  version (409 if stale) as a `human` version whose labels become `text`; **History** has
-  **Restore**; export to `.excalidraw`, PNG and SVG in the browser; the image tool is hidden.
+A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React (about 410 kB gzipped) only
+when a drawing opens; the base app stays about 8 kB. Only the fonts used are self-hosted
+(`EXCALIDRAW_ASSET_PATH`; the default is a CDN, the full set 14 MB). `convertToExcalidrawElements`
+expands skeletons in the browser with the experiment's two workarounds: an arrow bound to free
+text carries that text's `x`/`y` in `start`/`end`, and the scene is converted again after
+`document.fonts.ready`. View mode by default, beside the photo; **Edit** saves the scene with its
+base version (409 if stale) as a `human` version whose labels become `text`; **History** has
+**Restore**; export to `.excalidraw`, PNG and SVG; the image tool is hidden.
 
 **Sanitising.**
 
-*Model output* is strict. A violation drops just that element and records a warning, and the run
-fails only if no text and no description remain:
+*Model output* is strict; a violation drops just that element, with a warning in the run:
 
 - types `rectangle`, `ellipse`, `diamond`, `text`, `arrow` and `line`;
 - ids of up to 32 characters `[A-Za-z0-9_-]`, colours `#rrggbb`;
@@ -190,38 +185,42 @@ fails only if no text and no description remain:
 
 - types from an allowlist: the six above plus `freedraw` (no images, embeds or frames);
 - any finite position, freedraw strokes of up to 50,000 points;
-- colours as Excalidraw writes them (`transparent`, named, `#rgb`, `#rrggbbaa`, `rgb()`,
-  `rgba()`);
-- Excalidraw's own keys kept (`index`, `groupIds`, `containerId`, `originalText`, bindings);
+- any colour Excalidraw writes (`transparent`, named, `#rgb`, `#rrggbbaa`, `rgba()`), and its
+  own keys (`index`, `groupIds`, `containerId`, `originalText`, bindings);
 - `link` only with http(s), and the scene's `files` map (embedded image data) stripped;
 - 5 MB per scene.
 
-A scene that breaks these gets a 422, nothing silently dropped, and the editor keeps its state.
+A scene that breaks these gets a 422, and the editor keeps its state.
 
 **Prompt injection.** The image is data: no tools, no network, output schema-checked and
-sanitised, nothing fetched or executed. It can change only its page's versions, a provisional
-title, empty tags and an unfixed `note` kind.
+sanitised. It can change only its page's versions, a provisional title, empty tags and an
+unfixed `note` kind.
 
 ## Spend and outage control
 
 A price table turns each run's `usage` into `cost_microusd` (expect $0.05 to $0.15 a board;
-PR 1 measures it). `SCRAP_BUDGET_DAY_USD` (default 3) pauses the queue until UTC midnight; the
-Console spend limit is the hard cap.
+PR 1 measures it). The budget is `SCRAP_BUDGET_DAY_USD` (default 3); the Console spend limit is
+the hard cap.
 
 | Class | Recognised by | Effect |
 | --- | --- | --- |
 | credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* |
 | auth | 401, 403, 404 (unknown model) | pause until *Resume* |
 | outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after`, else 1, 2, 4 ... 60 min |
-| timeout | no answer in 240 s | charged; retry in 10 min; dead after 3 |
-| content | refusal, any other 400, 413 | charged; dead at once |
-| invalid | `max_tokens`, nothing valid left | charged; one immediate retry |
+| budget | the day's spend reached | pause until UTC midnight |
+| timeout | `APITimeoutError` (240 s) | charged |
+| invalid | `max_tokens`, bad output, nothing valid left | charged; retried at once |
+| content | refusal, any other 400, 409, 413, 422 | charged |
+| image | decode or HEIC failure, over 120 MP | charged |
+| internal | any other exception | charged |
+| crashed | `running` at service start | charged |
 
-**The rule.** A pause (credit, auth, outage, budget) refunds the claim: the job stays `queued`
-with `run_after` set to the failure's time, behind older jobs, and the pause gate does the
-waiting. *Resume*, or the pause running out, makes it claimable again, so an outage of any
-length fails nothing. Only charged failures (`job.failures`) kill a job: three timeouts, a
-second invalid output, or one content error. A success clears the pause. The first pause of an
+**The rule.** A pause refunds the claim: the job stays `queued` with `run_after` set to the
+failure's time, behind older jobs, while the pause gate waits. *Resume*, or the pause running
+out, makes it claimable again, so an outage fails nothing. Every charged failure adds 1 to
+`job.failures` and retries 10 minutes later (invalid output at once); the third kills the job.
+The SDK's `APITimeoutError` subclasses `APIConnectionError`, so it is tested first, else every
+timeout would be a free outage retry. A success clears the pause. The first pause of an
 episode POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
 naming only the reason, never titles, OCR or API errors.
 
@@ -246,7 +245,7 @@ CREATE TABLE job (
     source_sha256 TEXT NOT NULL,               -- the photo
     state         TEXT NOT NULL DEFAULT 'queued'
                     CHECK (state IN ('queued', 'running', 'done', 'dead')),
-    failures      INTEGER NOT NULL DEFAULT 0,  -- charged: timeouts and content errors only
+    failures      INTEGER NOT NULL DEFAULT 0,  -- charged failures (all but pauses): dead at 3
     options       TEXT NOT NULL DEFAULT '{}' CHECK (json_type(options) = 'object'),
     run_after     TEXT NOT NULL,
     last_error    TEXT,
@@ -279,20 +278,21 @@ CREATE TABLE model_run (
     parent_id      INTEGER REFERENCES model_run(id),  -- the turn this one continues (M4)
     purpose        TEXT NOT NULL CHECK (purpose IN ('ingest', 'refine', 'discuss')),
     model          TEXT NOT NULL,              -- requested
-    served_model   TEXT,                       -- as reported by the response
-    prompt_version TEXT NOT NULL,              -- e.g. photo@3f9c2a1b0d4e
+    served_model   TEXT,
+    prompt_version TEXT NOT NULL,
     sent_sha256    TEXT REFERENCES blob(sha256),  -- the JPEG actually sent, kept for replay
     image_width    INTEGER,                    -- its pixels: the drawing's frame
     image_height   INTEGER,
     request        TEXT NOT NULL CHECK (json_valid(request)),
-    response       TEXT CHECK (json_valid(response)),  -- content blocks as returned, stop_reason
+    response       TEXT CHECK (json_valid(response)),  -- content blocks as returned
     output         TEXT CHECK (json_valid(output)),    -- the sanitised result, with warnings
     usage          TEXT CHECK (json_valid(usage)),
-    cost_microusd  INTEGER NOT NULL DEFAULT 0,  -- estimated from usage and a price table
+    cost_microusd  INTEGER NOT NULL DEFAULT 0,  -- from usage and a price table
     status         TEXT NOT NULL DEFAULT 'running'
                      CHECK (status IN ('running', 'ok', 'invalid', 'refused', 'error')),
     error_class    TEXT CHECK (error_class IN
-                     ('credit', 'auth', 'outage', 'timeout', 'content', 'invalid', 'internal')),
+                     ('credit', 'auth', 'outage', 'budget', 'timeout', 'invalid', 'content',
+                      'image', 'internal', 'crashed')),
     error          TEXT,
     started_at     TEXT NOT NULL,
     finished_at    TEXT
@@ -310,7 +310,7 @@ CREATE TABLE derived (
     version       INTEGER NOT NULL CHECK (version >= 1),
     producer      TEXT NOT NULL,               -- model id, or 'human'
     run_id        INTEGER REFERENCES model_run(id),  -- the call that made it; NULL if human
-    author        TEXT,                        -- who saved a human version
+    author        TEXT,                        -- of a human version
     text          TEXT,                        -- indexed while current
     data          TEXT CHECK (json_valid(data)),  -- excalidraw: {"format": ..., "elements": ...}
     superseded_at TEXT,                        -- NULL: the current version
@@ -355,8 +355,8 @@ END;
 ## Build order
 
 1. **Worker, backend, runs:** one real call with schema and thinking first; then 0002, the
-   worker (off), `complete()`, prompt, model sanitiser, page rules, the `_index` fix, search
-   grouping, a status badge, and OCR and descriptions in `scrap export`.
+   worker (off), `complete()`, prompt, model sanitiser, page rules with the PATCH title rule,
+   the `_index` fix, search grouping, a status badge, OCR and descriptions in `scrap export`.
 2. **Excalidraw view:** the lazy chunk, edit with the scene sanitiser, history, restore,
    export, `.excalidraw` in the export.
 3. **Spend and outage control:** error classes, pause, budget, notification, banner. Ingest goes
@@ -366,10 +366,7 @@ END;
 Deferred: MCP (M3), chat and refine (M4), notes, links, files, URL fetching, embeddings, run
 pruning.
 
-## Risks and unknowns
+## Risks
 
-- Structured output with adaptive thinking, and the flat schema's effect on drawing quality, are
-  untested: PR 1 tests both first.
-- Excalidraw's converter and its 0.18 binding bug may change: pin the version.
-- Model updates change output: `prompt_version` and the served model trace it; keep the
-  experiment's boards as a check set.
+Structured output with thinking (PR 1 tests it); Excalidraw API drift (pin the version); model
+drift (`prompt_version` traces it; keep the experiment's boards as a check set).
