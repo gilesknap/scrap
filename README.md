@@ -10,7 +10,9 @@ later reads, summarises, redraws and indexes it in the background. Claude reache
 search, read and add pages; a small PWA is where you capture and look at things, because chat is
 poor at showing images.
 
-**Status: design stage.** The code is only a skeleton: a FastAPI app with a health check. See the
+**Status: milestone 1.** Quick capture works end to end with no LLM: notes, links, photos and
+files become pages you can list, edit, search, trash, back up and export (see the
+[API and CLI reference](https://github.com/gilesknap/scrap/blob/main/docs/reference/api.md)). See the
 [design](https://github.com/gilesknap/scrap/blob/main/docs/explanations/design.md): principles,
 data model, capture flow, MCP tools, security, what is deferred and what is still open.
 
@@ -50,11 +52,13 @@ Releases        | <https://github.com/gilesknap/scrap/releases>
 | Access | Tailscale Serve only; identity from its request headers |
 | Deployment | Multi-arch (arm64, amd64) container image on a home k3s cluster |
 
-## Running the skeleton
+## Running it
 
 ```
-scrap serve --host 127.0.0.1 --port 8000
+scrap serve --data-dir ./data --host 127.0.0.1 --port 8000
 curl http://127.0.0.1:8000/healthz
+curl -X POST http://127.0.0.1:8000/api/captures -H 'Content-Type: application/json' \
+  -d '{"id": "01JABCDEFGHJKMNPQRSTVWXYZ0", "text": "First note"}'
 ```
 
 <!-- README only content. Anything below this line won't be included in index.md -->

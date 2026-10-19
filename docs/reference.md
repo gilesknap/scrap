@@ -6,7 +6,8 @@ Technical reference material including APIs and release notes.
 :maxdepth: 1
 :glob:
 
-API <_api/scrap>
+reference/api
+Python API <_api/scrap>
 genindex
 Release Notes <https://github.com/gilesknap/scrap/releases>
 ```
