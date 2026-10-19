@@ -13,7 +13,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 description = "A tiny personal knowledge store you feed from your phone and query through Claude"
-dependencies = [] # Add project dependencies here, e.g. ["click", "numpy"]
+dependencies = ["fastapi", "uvicorn"]
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
@@ -21,6 +21,7 @@ requires-python = ">=3.11"
 
 [dependency-groups]
 dev = [
+    "httpx2",
     "myst-parser",
     "pre-commit",
     "pydata-sphinx-theme>=0.12",
