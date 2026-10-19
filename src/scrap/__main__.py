@@ -50,7 +50,12 @@ def main(args: Sequence[str] | None = None) -> None:
         " outcome in numbers; needs ANTHROPIC_API_KEY",
     )
     once.add_argument("image", type=Path)
-    once.add_argument("--save", type=Path, help="Also write the full result here")
+    once.add_argument(
+        "--save",
+        type=Path,
+        help="Also write the full result, with all the text Claude read from the"
+        " image, to this new file (mode 600; an existing file is refused)",
+    )
     parsed = parser.parse_args(args)
 
     if parsed.command == "ingest-once":

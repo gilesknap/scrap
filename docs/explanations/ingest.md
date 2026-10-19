@@ -62,6 +62,8 @@ the usage and the served model.
 
 - The `anthropic` SDK, with `ANTHROPIC_API_KEY` from the service user's mode-600 env file; no
   `tools`; SDK debug logging off (it logs request bodies).
+- Error text is stored and shown only after redaction: anything shaped like an API key, and the
+  key itself, is removed, in case a server or proxy ever echoes the request headers.
 - `max_retries=0` and a 240 s request timeout: the queue does all retrying, so one claim is one
   call. The SDK's own retries would triple a timeout and repeat a spend-cap 429 that cannot
   succeed.
@@ -214,7 +216,7 @@ the hard cap.
 | timeout | `APITimeoutError` (240 s) | charged |
 | invalid | `max_tokens`, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped) | charged; retried at once |
 | content | refusal, any other 400, 409, 413, 422 | charged |
-| image | decode or HEIC failure, over 120 MP | charged |
+| image | decode or HEIC failure, too large to decode within the preview code's memory budget | charged |
 | internal | any other exception | charged |
 | crashed | `running` at service start | charged |
 

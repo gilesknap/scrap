@@ -296,10 +296,12 @@ class Worker:
                     "UPDATE model_run SET status = 'error', error_class = 'internal',"
                     " error = ?, finished_at = ?"
                     " WHERE job_id = ? AND status = 'running'",
-                    (repr(error)[:500], now(), job["id"]),
+                    (claude.redact(repr(error))[:500], now(), job["id"]),
                 )
                 if self._running(conn, job["id"]):
-                    charge(conn, job["id"], "internal", now(), repr(error))
+                    charge(
+                        conn, job["id"], "internal", now(), claude.redact(repr(error))
+                    )
         finally:
             self.current = None
         return True
@@ -330,13 +332,7 @@ class Worker:
         sent, size = self.store.put_blob(BytesIO(jpeg))
         model = claude.model_name()
         system, version = claude.prompt()
-        image = {
-            "type": "image",
-            "source": {"type": "blob", "sha256": sent},
-            "transformations": {"oversized_image": "error"},
-        }
-        size_text = {"type": "text", "text": f"The image is {width}x{height} pixels."}
-        messages = [{"role": "user", "content": [image, size_text]}]
+        messages = claude.photo_messages(sent, width, height)
         request = {
             "model": model,
             "max_tokens": claude.MAX_TOKENS,
@@ -555,16 +551,15 @@ def resume_queue(store: Store) -> None:
 def once(path: Path, save: Path | None = None) -> dict[str, Any]:
     """Send one image file to Claude as the worker would, outside any database, and
     describe the outcome in numbers only (no text from the image). save, if given,
-    gets the full response and sanitised output."""
+    gets the full response and sanitised output, which hold everything Claude read:
+    it is created (mode 600, never over an existing file) before the paid call, so
+    a bad path cannot lose the result."""
     jpeg, width, height = preview.claude_jpeg(path)
     system, version = claude.prompt()
-    image = {
-        "type": "image",
-        "source": {"type": "blob", "sha256": "sent"},
-        "transformations": {"oversized_image": "error"},
-    }
-    size_text = {"type": "text", "text": f"The image is {width}x{height} pixels."}
-    messages = [{"role": "user", "content": [image, size_text]}]
+    messages = claude.photo_messages("sent", width, height)
+    fd = None
+    if save is not None:
+        fd = os.open(save, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     model = claude.model_name()
     summary: dict[str, Any] = {
         "model": model,
@@ -601,9 +596,10 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
             elements_kept=len(out["elements"]),
             warnings=len(out["warnings"]),
         )
-    if save is not None:
+    if fd is not None:
         record = {"summary": summary, "output": out}
         if done is not None:
             record["content"] = done.content
-        save.write_text(json.dumps(record, indent=1))
+        with os.fdopen(fd, "w") as file:
+            json.dump(record, file, indent=1)
     return summary

@@ -251,6 +251,9 @@ def test_ingest_once_prints_numbers_only(tmp_path, monkeypatch, capsys):
     assert got["outcome"] == "ok" and got["sent"][:2] == [400, 300]
     assert (got["text_lines"], got["uncertain"], got["elements_kept"]) == (2, 1, 1)
     assert json.loads((tmp_path / "out.json").read_text())["output"]["title"]
+    assert (tmp_path / "out.json").stat().st_mode & 0o777 == 0o600
+    with pytest.raises(FileExistsError):  # refused before any call
+        main(["ingest-once", str(path), "--save", str(tmp_path / "out.json")])
 
     def refuse(*args):
         raise claude.CallError("auth", "invalid x-api-key")
@@ -259,3 +262,16 @@ def test_ingest_once_prints_numbers_only(tmp_path, monkeypatch, capsys):
     main(["ingest-once", str(path)])
     got = json.loads(capsys.readouterr().out)
     assert (got["outcome"], got["error"]) == ("auth", "invalid x-api-key")
+
+
+def test_error_text_never_carries_a_key(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "plain-secret-value")
+    echoed = "bad header x-api-key: sk-ant-api03-abc_DEF-123 and plain-secret-value"
+    for error in (
+        status_error(400, echoed),
+        status_error(502, echoed),
+        ValueError(echoed),
+    ):
+        text = str(claude.classify(error))
+        assert "sk-ant" not in text and "plain-secret-value" not in text
+        assert "[key]" in text
