@@ -10,9 +10,9 @@ stack of paid-API integrations).
    service, it waits.
 2. **Off the shelf.** Claude does the reading and writing that needs judgement. SQLite does storage
    and search. Tailscale does networking and identity. Excalidraw does drawings. scrap is the glue.
-3. **Originals are kept, everything else is derived** and can be regenerated. The search index is
-   disposable and rebuilt with one command. The one exception is deliberate: deleting a page
-   deletes its capture too.
+3. **Originals are kept, everything else is derived** and can be regenerated, except a consume
+   page's article once its source is gone. The search index is disposable and rebuilt with one
+   command. Deleting a page deliberately deletes its capture too.
 4. **Capture never waits.** Saving is a file write and a few row inserts; anything slow runs later
    in a background job.
 5. **Claude reasons, the PWA shows.** Claude (over MCP) is for asking and writing; the PWA is for
@@ -217,7 +217,8 @@ Notes:
   and old links then point at the new page; accepted for one user.
 - **Links.** `[[slug]]` or `[[slug|label]]` in Markdown, parsed into `link` on save. Dangling links
   are allowed; backlinks are a query on `link_by_dst`.
-- **Tags.** Flat, lower-case, `/` allowed. `summarise` suggests them; the PWA edits them.
+- **Tags.** Flat, lower-case, `/` allowed. The PWA edits them; `summarise` adds them only on its
+  first success and only to a page with none, so it never undoes the user's choice.
 
 ### Kinds
 
@@ -228,18 +229,21 @@ rewrites the user's words or fits them to templates.
 - **`fields`** is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
   todo has `status` (`open`, `done`) and optional `due`; consume has `subtype` (`read`, `watch`,
   `listen`), `status` and the `source` link.
-- **Hints write defaults at save time**, so the page is listed at once even if `summarise` never
-  succeeds: *todo* gives `{"status": "open"}`; *read later* gives kind `consume` with
-  `{"subtype": "read", "status": "open"}`, plus `source` for a URL capture.
+- **A kind change** (hint, PWA edit or `summarise`) **resets `fields`** to the new kind's defaults
+  plus any checked model output: todo `{"status":"open"}`; consume
+  `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL. So the page is
+  listed at once, even if `summarise` never succeeds. Same kind: existing keys win, so a late retry
+  cannot reopen a done todo.
 - **The user wins**, as with titles. A hint or a PWA edit sets `kind_fixed`. `extract` and
-  `summarise` set the kind only while it is still `note` and not fixed. `summarise` is told any kind
-  already set; code checks its output against the resulting kind's schema, dropping other keys and
-  nulls (`json_patch` is a merge-patch: a null deletes). Jobs only add missing keys, so a late retry
-  cannot reopen a done todo:
+  `summarise` set the kind only while it is still `note` and not fixed. `summarise` calls Claude
+  holding no lock, then in one `BEGIN IMMEDIATE` re-reads the kind, picks the resulting `:kind`,
+  checks the output against its schema (dropping other keys, nulls and `source`) and writes:
 
   ```sql
-  UPDATE page SET kind = CASE WHEN kind = 'note' AND kind_fixed = 0 THEN :kind ELSE kind END,
-                  fields = json_patch(:fields, fields)  -- existing keys win
+  UPDATE page SET kind = :kind, fields = CASE WHEN kind = :kind  -- json_patch: the 2nd wins
+      THEN json_patch(:fields, fields)     -- same kind: existing keys win
+      ELSE json_patch(:defaults, :fields)  -- new kind: its defaults plus the checked output
+    END
   WHERE id = :id;
   ```
 
