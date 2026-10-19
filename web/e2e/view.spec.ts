@@ -379,3 +379,81 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
   await expect(page.locator(".originals a.file", { hasText: "x.svg" })).toBeVisible();
   await expect(page.locator(".originals img")).toHaveCount(0);
 });
+
+test("Share sends a page's text, or a photo as a file, to the share sheet", async ({ page }) => {
+  // A stand-in share sheet: records what it was given; "abort" acts as closing it.
+  await page.addInitScript(() => {
+    const w = window as unknown as { shared: unknown[]; canFiles: boolean; abort: boolean };
+    w.shared = [];
+    w.canFiles = true;
+    w.abort = false;
+    let tapped = 0;
+    addEventListener("click", () => (tapped = performance.now()), true);
+    navigator.share = async (d?: ShareData) => {
+      if (w.abort) throw new DOMException("closed", "AbortError");
+      // As Chrome: only within ~5 s of a tap (not navigator.userActivation, which
+      // Playwright's own evaluate calls renew)
+      if (performance.now() - tapped > 5000)
+        throw new DOMException("Must be handling a user gesture", "NotAllowedError");
+      w.shared.push({ ...d, files: d?.files?.map((f) => [f.name, f.type, f.size]) });
+    };
+    navigator.canShare = () => w.canFiles;
+  });
+  const shared = () => page.evaluate(() => (window as unknown as { shared: unknown[] }).shared);
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Share me\nsome text");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(300, 200, 120))], { type: "image/png" }),
+    "pic.png",
+  );
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  await page.goto(`/p/${slug}`);
+  await page.locator(".page > .bar").getByRole("button", { name: "Share" }).click();
+  await expect.poll(shared).toEqual([{ title: "Share me", text: "Share me\nsome text" }]);
+
+  await page.locator(".originals img").click();
+  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  await expect.poll(async () => (await shared()).length).toBe(2);
+  expect((await shared())[1]).toEqual({
+    title: "pic.png",
+    files: [["pic.png", "image/png", expect.any(Number)]],
+  });
+
+  await page.evaluate(() => {
+    (window as unknown as { abort: boolean }).abort = true;
+  });
+  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  await expect(page.getByRole("dialog").getByRole("button", { name: "Share" })).toBeEnabled();
+  await expect(page.getByText(/failed/)).toHaveCount(0); // closing the sheet is not an error
+  await page.evaluate(() => {
+    const w = window as unknown as { abort: boolean; canFiles: boolean };
+    w.abort = false;
+    w.canFiles = false;
+  });
+  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  await expect(page.getByText("Sharing files is not supported here")).toBeVisible();
+
+  // A download slower than the tap's 5 s: the file is kept and shared on a fresh tap.
+  await page.evaluate(() => {
+    (window as unknown as { canFiles: boolean }).canFiles = true;
+  });
+  let fetched = 0;
+  await page.route("**/api/blobs/*", async (r) => {
+    fetched++;
+    await new Promise((ok) => setTimeout(ok, 6000));
+    await r.continue();
+  });
+  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  const ready = page.locator(".toast", { hasText: "Photo ready" });
+  await expect(ready).toBeVisible({ timeout: 15_000 });
+  await ready.getByRole("button", { name: "Share" }).click();
+  await expect.poll(async () => (await shared()).length).toBe(3);
+  expect(fetched).toBe(1); // not downloaded again
+  await page.unroute("**/api/blobs/*");
+
+  await page.setViewportSize({ width: 320, height: 640 }); // five tools still fit
+  for (const name of ["Fit", "100%", "Share", "Close"])
+    await inside(page, page.getByRole("dialog").getByRole("button", { name }));
+});

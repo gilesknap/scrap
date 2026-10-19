@@ -1,9 +1,9 @@
 // One page: its text and originals, edit (with conflict handling) and delete with undo.
-import { ApiError, api, blobUrl, type FileRef, type Page, previewUrl } from "./api";
+import { ApiError, api, blobUrl, type FileRef, type Page, previewUrl, shareable } from "./api";
 import { go } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
-import { bodyView, download, h, toast, when } from "./ui";
+import { bodyView, download, h, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
@@ -14,6 +14,7 @@ function originals(files: FileRef[]) {
     src: previewUrl(f.sha256, 2048),
     save: `${blobUrl(f.sha256)}?download=1`,
     name: f.filename || "",
+    share: shareable(f),
   }));
   let n = 0;
   return files.map((f) => {
@@ -82,6 +83,7 @@ export async function page(key: string): Promise<Node> {
         { className: "bar" },
         editButton(p),
         download(`/api/pages/${p.id}/download`),
+        share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
         h("button", { className: "danger", onclick: () => remove(p) }, "Delete"),
       ),
     );
