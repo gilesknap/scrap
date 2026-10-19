@@ -1,0 +1,92 @@
+# Capture from your phone (the PWA)
+
+scrap serves a small web app (a PWA) at the root of its address: capture, recent pages, search
+and a page view. It is built for one-handed use on a phone and keeps working offline.
+
+## Install it on Android
+
+1. Open scrap's HTTPS address (for example the `tailscale serve` URL from
+   [](deploy-single-server.md)) in Chrome. A PWA needs HTTPS; `http://127.0.0.1` also works for
+   trying it out on the server itself.
+2. Chrome menu, **Add to home screen** (or **Install app**), then **Install**.
+3. Open scrap from its icon. It opens on the capture screen, in its own window.
+
+Installing is what puts scrap in the Android **share sheet**.
+
+## Capture
+
+| Button | Does |
+| --- | --- |
+| **Photo** | Opens the camera. Add more shots with **+ Photo**; they make one capture |
+| **Gallery** | Picks one or more images from the phone |
+| **Note** | A text box; a pasted link alone becomes a link capture |
+| **Todo**, **Read later** | A note with a hint that fixes the page kind (`todo`, `consume`) |
+
+**Save** returns at once: the capture is stored on the phone first and uploaded in the
+background. The four newest pages are listed above the buttons.
+
+## Share into scrap
+
+From any Android app, **Share**, then **scrap**. Links, text, photos and other files are queued
+like any other capture and the app opens on the capture screen saying *Shared item saved*.
+Android often sends a link as text after the page title; scrap keeps the title as the note and
+the link as the capture's URL.
+
+## The offline queue
+
+- Every capture gets its id (a ULID) on the phone before it is queued, so an upload that is
+  retried after a lost answer saves it once, not twice.
+- The queue lives in the browser's IndexedDB (photos as they are, not re-encoded) and survives
+  closing the app and restarting the phone.
+- The header badge shows what is on the phone: **2 waiting**, **1 failed**. Tap it to retry
+  everything now. Waiting items are also listed at the top of the capture and Recent screens.
+- Uploads start at once, again when the phone comes back online, whenever the app is opened or
+  brought to the front, and on a timer with backoff (2 s doubling to 5 minutes) while it is open.
+  Android gives web apps no reliable background upload, so a capture made offline uploads the
+  next time scrap is open with a connection.
+- A capture the server refuses (for example over the upload limit, `413`) is marked **failed**
+  and stays on the phone until you retry it. Network and server errors just wait and retry.
+- Clearing the site's data in Chrome deletes anything still queued.
+
+## View, edit, search
+
+- **Recent** lists pages newest first, with a thumbnail of the first photo.
+- A page shows its text and its originals: images inline (tap for the full file), other files as
+  links. HEIC photos, which Chrome cannot show, appear as links.
+- **Edit** changes the title and text. If the page was changed elsewhere since you opened it, the
+  other version is shown under yours: merge what you want into your text and save again (this
+  overwrites theirs), or discard yours.
+- **Delete** moves the page to the trash, with **Undo** for a few seconds.
+- **Search** searches titles and text as you type.
+
+## Updates
+
+The app's files are cached on the phone so it opens instantly and offline; API answers and
+files are never cached. After a new scrap is deployed, the app shows **Update available,
+Reload**. Until you tap it the old version keeps running; it is also replaced the next time the
+app is opened after being closed.
+
+## iPhone and iPad
+
+Safari can add scrap to the home screen and capture, view, search and the offline queue work, with
+these limits:
+
+- **No share target**: scrap does not appear in the iOS share sheet. A Shortcut that posts to
+  `POST /api/captures` (see [](../reference/api.md)) can stand in.
+- iOS may evict a home-screen app's storage after weeks of non-use, which would drop anything
+  still queued; open it once a connection is back.
+
+## Build it (developers)
+
+The PWA's source is in `web/` (TypeScript, Vite, no UI framework). The container image builds
+it; for `scrap serve` from a checkout, build it once with Node 22:
+
+```sh
+npm --prefix web ci
+npm --prefix web run build   # writes src/scrap/static/, which scrap serve picks up
+```
+
+Without it `scrap serve` still serves the API, and `/` says how to build the app. For working on
+the app, run `scrap serve` and `npm --prefix web run dev` (Vite proxies `/api` to port 8000).
+Checks: `npm --prefix web run check` (Biome, TypeScript), `npm --prefix web test` (unit tests),
+`npm --prefix web run e2e` (Playwright against a real `scrap serve` on a throwaway data folder).

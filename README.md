@@ -11,7 +11,8 @@ search, read and add pages; a small PWA is where you capture and look at things,
 poor at showing images.
 
 **Status: milestone 1.** Quick capture works end to end with no LLM: notes, links, photos and
-files become pages you can list, edit, search, trash, back up and export (see the
+files become pages you can list, edit, search, trash, back up and export, from a phone-first PWA
+with an offline queue and an Android share target (see the
 [API and CLI reference](https://github.com/gilesknap/scrap/blob/main/docs/reference/api.md)). See the
 [design](https://github.com/gilesknap/scrap/blob/main/docs/explanations/design.md): principles,
 data model, capture flow, MCP tools, security, what is deferred and what is still open.
@@ -60,6 +61,10 @@ curl http://127.0.0.1:8000/healthz
 curl -X POST http://127.0.0.1:8000/api/captures -H 'Content-Type: application/json' \
   -d '{"id": "01JABCDEFGHJKMNPQRSTVWXYZ0", "text": "First note"}'
 ```
+
+Then open <http://127.0.0.1:8000/> for the PWA. From a checkout, build it first with
+`npm --prefix web ci && npm --prefix web run build` (Node 22); the container image has it built in.
+See [capture from your phone](https://github.com/gilesknap/scrap/blob/main/docs/how-to/use-the-pwa.md).
 
 <!-- README only content. Anything below this line won't be included in index.md -->
 

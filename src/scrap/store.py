@@ -294,10 +294,15 @@ class Store:
 
     def recent(self, limit: int) -> list[dict[str, Any]]:
         with self.connect() as conn:
-            rows = _rows(
+            rows = _rows(  # thumb: the page's first image, if any
                 conn,
-                "SELECT id, slug, title, kind, fields, created_at, updated_at FROM page"
-                " WHERE deleted_at IS NULL ORDER BY updated_at DESC, id DESC LIMIT ?",
+                "SELECT id, slug, title, kind, fields, created_at, updated_at,"
+                " (SELECT b.sha256 FROM capture c JOIN capture_blob cb"
+                " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
+                " WHERE c.page_id = page.id AND b.mime LIKE 'image/%'"
+                " ORDER BY c.received_at, cb.ord LIMIT 1) AS thumb"
+                " FROM page WHERE deleted_at IS NULL"
+                " ORDER BY updated_at DESC, id DESC LIMIT ?",
                 limit,
             )
         return [{**r, "fields": json.loads(r["fields"])} for r in rows]

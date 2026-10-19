@@ -179,4 +179,4 @@ lint.select = [
 "tests/**/*" = ["SLF001"]
 
 [tool.setuptools.package-data]
-scrap = ["migrations/*.sql"]
+scrap = ["migrations/*.sql", "static/**/*"]

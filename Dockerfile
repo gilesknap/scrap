@@ -7,6 +7,15 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     graphviz \
     && apt-get dist-clean
 
+# The web stage builds the PWA; its output is plain files, so build it once on the
+# build host's own platform, not under QEMU for every target
+FROM --platform=$BUILDPLATFORM node:22-slim AS web
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
 # The build stage installs the context into the venv
 FROM developer AS build
 
@@ -14,6 +23,7 @@ FROM developer AS build
 # and copy in the project
 WORKDIR /app
 COPY . /app
+COPY --from=web /app/src/scrap/static /app/src/scrap/static
 RUN chmod o+wrX .
 
 # Tell uv sync to install python in a known location so we can copy it out later

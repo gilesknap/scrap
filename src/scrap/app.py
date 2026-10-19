@@ -1,5 +1,6 @@
 """The scrap web application: a JSON API over the store."""
 
+import logging
 import mimetypes
 import os
 from pathlib import Path
@@ -7,13 +8,26 @@ from typing import Any
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.datastructures import UploadFile
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__
-from .store import ConflictError, InvalidError, NotFoundError, Store, TooLargeError
+from .store import (
+    ConflictError,
+    InvalidError,
+    NotFoundError,
+    Store,
+    TooLargeError,
+    new_ulid,
+)
 
 __all__ = ["create_app"]
 
@@ -23,6 +37,12 @@ BLOB_HEADERS = {
     "Content-Security-Policy": "sandbox",  # an uploaded HTML file cannot run scripts
     "Cache-Control": "private, max-age=31536000, immutable",
 }
+STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
+APP_ROUTES = ("/", "/recent", "/search", "/p/{key}")  # served index.html
+NOT_BUILT = (
+    "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
+    "\n(the API under /api works without it)\n"
+)
 
 
 class PageEdit(BaseModel):
@@ -57,6 +77,19 @@ class BodyLimit:
             return message
 
         await self.app(scope, counted, send)
+
+
+class Shell(StaticFiles):
+    """The built PWA. Hashed assets are cached for good; the rest is revalidated, so
+    a new build's service worker and manifest are noticed."""
+
+    def file_response(self, full_path, *args, **kwargs):
+        response = super().file_response(full_path, *args, **kwargs)
+        immutable = "/assets/" in str(full_path)
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if immutable else "no-cache"
+        )
+        return response
 
 
 def create_app(data_dir: Path | str | None = None) -> FastAPI:
@@ -118,6 +151,23 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         response.status_code = 201 if created else 200
         return ref
 
+    @app.post("/share", include_in_schema=False)
+    async def share(request: Request) -> RedirectResponse:
+        """The manifest share target, if the service worker did not catch the POST
+        (it normally queues the share itself): save it as a capture now."""
+        who = author(request)
+        async with request.form() as form:
+            fields = {k: v.strip() for k, v in form.items() if isinstance(v, str)}
+            text = "\n\n".join(fields[k] for k in ("title", "text") if fields.get(k))
+            url = fields.get("url", "")
+            data = {"id": new_ulid(), "text": text, "url": url, "source": "share"}
+            files = [
+                f for f in form.getlist("files") if isinstance(f, UploadFile) and f.size
+            ]
+            if text or url or files:
+                await run_in_threadpool(save, data, files, who)
+        return RedirectResponse("/", 303)
+
     @app.get("/api/pages")
     def recent(limit: int = Query(50, ge=1, le=500)) -> list[dict[str, Any]]:
         """Pages, most recently changed first; the trash is left out."""
@@ -155,5 +205,20 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """A stored original, byte for byte."""
         path, mime = store.blob(sha)
         return FileResponse(path, media_type=mime, headers=BLOB_HEADERS)
+
+    index = STATIC / "index.html"
+    if not index.is_file():
+        logging.getLogger(__name__).warning(NOT_BUILT.splitlines()[0])
+
+    def shell() -> Response:
+        """The PWA: every app route loads index.html and routes in the browser."""
+        if not index.is_file():
+            return PlainTextResponse(NOT_BUILT, 503)
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+    for route in APP_ROUTES:
+        app.get(route, include_in_schema=False)(shell)
+    if STATIC.is_dir():
+        app.mount("/", Shell(directory=STATIC), name="static")
 
     return app

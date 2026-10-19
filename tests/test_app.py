@@ -242,3 +242,73 @@ def test_delete_is_soft(client, note, tmp_path):
     assert (back.status_code, back.json()["title"]) == (200, "Trash me")
     assert len(search(client, "trash")) == 1
     assert client.post(f"/api/pages/{ref['slug']}/undelete").status_code == 404
+
+
+@pytest.fixture
+def shell(tmp_path, monkeypatch):
+    """A client whose app serves a stand-in PWA build."""
+    static = tmp_path / "static"
+    (static / "assets").mkdir(parents=True)
+    (static / "index.html").write_text("<title>scrap</title>")
+    (static / "sw.js").write_text("// sw")
+    (static / "assets" / "main-abc.js").write_text("// app")
+    monkeypatch.setattr("scrap.app.STATIC", static)
+    return TestClient(create_app(tmp_path / "data"))
+
+
+@pytest.mark.parametrize("path", ["/", "/recent", "/search", "/p/some-slug"])
+def test_app_routes_serve_the_pwa(shell, path):
+    response = shell.get(path)
+    assert response.status_code == 200
+    assert response.text == "<title>scrap</title>"
+    assert response.headers["cache-control"] == "no-cache"
+
+
+def test_pwa_files_and_caching(shell):
+    sw = shell.get("/sw.js")
+    assert sw.status_code == 200 and sw.headers["cache-control"] == "no-cache"
+    asset = shell.get("/assets/main-abc.js")
+    assert "immutable" in asset.headers["cache-control"]
+    assert shell.get("/nope").status_code == 404
+    assert shell.get("/api/nope").status_code == 404
+    assert shell.get("/healthz").json()["status"] == "ok"
+
+
+def test_unbuilt_pwa_says_how_to_build(tmp_path, monkeypatch):
+    monkeypatch.setattr("scrap.app.STATIC", tmp_path / "missing")
+    client = TestClient(create_app(tmp_path / "data"))
+    response = client.get("/")
+    assert response.status_code == 503
+    assert "npm --prefix web run build" in response.text
+    assert client.get("/api/pages").status_code == 200
+
+
+def test_share_fallback_saves_a_capture(client):
+    response = client.post(
+        "/share",
+        data={"title": "A story", "text": "worth reading", "url": "https://e.com/a"},
+        files={"files": ("p.png", PNG, "image/png")},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303 and response.headers["location"] == "/"
+    [page] = client.get("/api/pages").json()
+    assert page["title"] == "A story"
+    detail = client.get(f"/api/pages/{page['id']}").json()
+    assert detail["captures"][0]["source"] == "share"
+    assert detail["captures"][0]["url"] == "https://e.com/a"
+    empty = client.post("/share", data={"text": " "}, follow_redirects=False)
+    assert empty.status_code == 303
+    assert len(client.get("/api/pages").json()) == 1
+
+
+def test_recent_pages_carry_a_thumbnail(client, note):
+    note("no picture")
+    files = [
+        ("file", ("a.pdf", b"%PDF", "application/pdf")),
+        ("file", ("p.png", PNG, "image/png")),
+    ]
+    response = client.post("/api/captures", data={"id": new_ulid()}, files=files)
+    assert response.status_code == 201
+    photo, text = client.get("/api/pages").json()
+    assert text["thumb"] is None
+    assert client.get(f"/api/blobs/{photo['thumb']}").content == PNG

@@ -380,6 +380,12 @@ Where the code so far differs from the text above; later milestones should build
 - **Titles.** The first line of the capture's text, else the URL, else the device date.
 - **Lookup.** The API takes a page's id or its slug.
 - **Export.** `scrap export` (from v0.1 below) is in M1, without tags until tags exist.
+- **PWA.** Vanilla TypeScript built by Vite into the Python package (`scrap/static`), no UI
+  framework until the Excalidraw view needs React. The service worker precaches the app shell
+  only and also catches the share target's POST, queueing it in IndexedDB like any capture; the
+  server's `POST /share` is a fallback if it does not. No per-capture processing states yet (there
+  are no jobs): the capture screen shows what is still on the phone and the newest pages. Todos,
+  Consume and Inbox views wait for the worker. `GET /api/pages` gained `thumb`.
 
 ## Deferred to v0.1
 

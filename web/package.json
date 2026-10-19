@@ -1,0 +1,23 @@
+{
+  "name": "scrap-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "biome check . && tsc --noEmit",
+    "fix": "biome check --write .",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "icons": "node scripts/icons.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.20.5",
+    "fake-indexeddb": "6.2.6",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}
