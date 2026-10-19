@@ -126,11 +126,16 @@ export function stallLimit(raw: string | null): number {
   return raw && Number.isFinite(ms) && ms >= 1000 && ms <= 600_000 ? ms : 60_000;
 }
 
-/** The file to share for a photo, and its name: the original if other apps can read it
- * and it is not huge, else (HEIC, say) the 2048 px JPEG preview. */
-export function shareable(f: FileRef): [string, string] {
-  const name = f.filename || `${f.sha256.slice(0, 12)}.${f.mime.split("/")[1]}`;
-  if (/^image\/(jpeg|png|gif|webp)$/.test(f.mime) && f.size <= 20 * 2 ** 20)
-    return [blobUrl(f.sha256), name];
-  return [previewUrl(f.sha256, 2048), `${name.replace(/\.[^.]*$/, "")}.jpg`];
+/** The file to share for a photo: its address, name and type. The original if other apps
+ * can read it and it is not huge, else (HEIC, say) the 2048 px JPEG preview. The name
+ * always ends in its type's extension: Android refuses files it can't tell the type of. */
+export function shareable(f: FileRef): [string, string, string] {
+  const original = /^image\/(jpeg|png|gif|webp)$/.test(f.mime) && f.size <= 20 * 2 ** 20;
+  const type = original ? f.mime : "image/jpeg";
+  const ext = type === "image/jpeg" ? "jpg" : type.split("/")[1];
+  let name = f.filename || f.sha256.slice(0, 12);
+  if (!original) name = name.replace(/\.[^.]*$/, ""); // IMG_1.HEIC is shared as IMG_1.jpg
+  if (!new RegExp(`\\.(${ext}${ext === "jpg" ? "|jpeg" : ""})$`, "i").test(name))
+    name = `${name}.${ext}`;
+  return [original ? blobUrl(f.sha256) : previewUrl(f.sha256, 2048), name, type];
 }
