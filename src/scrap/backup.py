@@ -148,7 +148,12 @@ def page_markdown(
         if "ocr" in got and got["ocr"]["text"]:
             lines += ["", *_fenced(got["ocr"]["text"])]
         if "excalidraw" in got:
-            drawing = _drawing_name(file, taken)
+            # scrap export puts every page's files in one folder, named by content: a
+            # photo is the same file on every page, but its drawing is per capture
+            stem = file.rpartition(".")[0] or file
+            if name is _sha_name:
+                stem = f"{blob['sha256']}-{blob['capture_id']}"
+            drawing = _drawing_name(stem, taken)
             taken.add(drawing)
             data = json.loads(got["excalidraw"]["data"])
             files.append((drawing, excalidraw_file(data)))
@@ -158,9 +163,8 @@ def page_markdown(
     return "\n".join(lines) + "\n", files
 
 
-def _drawing_name(photo: str, taken: set[str]) -> str:
-    """The drawing of photo is <photo's stem>.excalidraw, numbered if that is taken."""
-    stem = photo.rpartition(".")[0] or photo
+def _drawing_name(stem: str, taken: set[str]) -> str:
+    """<stem>.excalidraw, numbered if that is taken."""
     seen = {t.casefold() for t in taken}
     name, n = f"{stem}.excalidraw", 1
     while name.casefold() in seen:

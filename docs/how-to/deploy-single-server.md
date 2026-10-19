@@ -271,6 +271,10 @@ the user. Log in with `ssh` or `sudo machinectl shell scrap@`.
 **scrap stops when you log out, or does not start at boot.** Linger is off:
 `loginctl show-user scrap -p Linger` must say `yes`; fix with `sudo loginctl enable-linger scrap`.
 
+**Ingest pauses for an outage with "certificate verify failed" in the run's error.** The image
+has no CA certificates, so no HTTPS call can succeed (Claude or the pause notification).
+Images built from this repo's Dockerfile carry them; rebuild with a current checkout.
+
 **The service fails with "address already in use".** Another process has the port:
 `ss -ltnp | grep :8790`. Pick a free port in `SCRAP_PORT`, restart, and point
 `tailscale serve` at the new port.
