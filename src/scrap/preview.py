@@ -10,6 +10,8 @@ more than DECODE_BUDGET are refused (the app shows the original instead), and on
 photo is decoded at a time.
 """
 
+import io
+import math
 import os
 import tempfile
 import threading
@@ -20,7 +22,7 @@ from pillow_heif import register_heif_opener
 
 from .store import InvalidError, Store
 
-__all__ = ["SIZES", "BusyError", "cached", "preview"]
+__all__ = ["SIZES", "BusyError", "cached", "claude_size", "for_claude", "preview"]
 
 SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 # Bytes one decode may take, as estimated by _cost: about 50 MP for a HEIC (an iPhone's
@@ -29,6 +31,7 @@ SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 # HEIC 90 MB, 40 MP PNG 200 MB (with transparency 355 MB), 100 MP PNG 470 MB (refused
 # now), 120 MP JPEG 60 MB.
 DECODE_BUDGET = 400 * 2**20
+CLAUDE_EDGE, CLAUDE_TOKENS = 2048, 4784  # the high-resolution image cap
 WAIT = 20  # seconds a request waits for the decoder before a 503
 Image.MAX_IMAGE_PIXELS = 200_000_000  # Pillow's own bomb check: far past the budget
 register_heif_opener()  # iPhone HEIC photos
@@ -54,9 +57,12 @@ def _cost(im: Image.Image) -> int:
     return int(pixels * store * (2.2 if alpha else 1.3))
 
 
-def _make(src: Path, dest: Path, size: int) -> None:
+def _decode(src: Path, size: int) -> tuple[Image.Image, dict]:
+    """A stored image decoded within the budget, upright, flattened to RGB or L and
+    at most size pixels a side; with the save options that keep its colour profile."""
     try:
-        with Image.open(src) as im:
+        with Image.open(src) as opened:
+            im = opened
             im.draft("RGB", (size, size))  # a JPEG decodes at a fraction of its size
             if _cost(im) > DECODE_BUDGET:
                 raise InvalidError("image too large to preview")
@@ -75,16 +81,9 @@ def _make(src: Path, dest: Path, size: int) -> None:
                 im.paste(rgba, mask=rgba.getchannel("A"))
             # Keep the colour profile (an iPhone's Display P3) where it still applies
             same = (colour, im.mode) in (("RGB", "RGB"), ("RGBA", "RGB"), ("L", "L"))
-            extra = {"icc_profile": icc} if icc and same else {}
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False) as tmp:
-                try:  # no EXIF kept (nor GPS)
-                    im.save(tmp, "JPEG", quality=82, progressive=True, **extra)
-                    tmp.close()
-                    os.replace(tmp.name, dest)
-                except BaseException:
-                    os.unlink(tmp.name)
-                    raise
+            if im is opened:  # still the file's: it is closed on leaving this block
+                im = im.copy()
+            return im, {"icc_profile": icc} if icc and same else {}
     except (
         UnidentifiedImageError,
         Image.DecompressionBombError,
@@ -93,6 +92,47 @@ def _make(src: Path, dest: Path, size: int) -> None:
         ValueError,
     ):
         raise InvalidError("cannot preview this file") from None
+
+
+def _make(src: Path, dest: Path, size: int) -> None:
+    im, extra = _decode(src, size)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False) as tmp:
+        try:  # no EXIF kept (nor GPS)
+            im.save(tmp, "JPEG", quality=82, progressive=True, **extra)
+            tmp.close()
+            os.replace(tmp.name, dest)
+        except BaseException:
+            os.unlink(tmp.name)
+            raise
+
+
+def claude_size(width: int, height: int) -> tuple[int, int]:
+    """The largest size, never above width x height, with a long edge of at most
+    CLAUDE_EDGE pixels and at most CLAUDE_TOKENS image tokens (one per 28 x 28 tile)."""
+    long = min(max(width, height), CLAUDE_EDGE)
+    while True:
+        scale = long / max(width, height)
+        w, h = max(1, round(width * scale)), max(1, round(height * scale))
+        if math.ceil(w / 28) * math.ceil(h / 28) <= CLAUDE_TOKENS:
+            return w, h
+        long -= 1
+
+
+def for_claude(store: Store, sha: str) -> tuple[bytes, int, int]:
+    """A stored photo as the JPEG sent to Claude (upright, HEIC converted, sized by
+    claude_size) and its width and height. Waits for the decoder."""
+    src, mime = store.blob(sha)
+    if not mime.startswith("image/"):
+        raise InvalidError("not an image")
+    with _decoder:
+        im, extra = _decode(src, CLAUDE_EDGE)
+        size = claude_size(*im.size)
+        if size != im.size:
+            im = im.resize(size, Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        im.save(out, "JPEG", quality=85, **extra)
+    return out.getvalue(), *size
 
 
 def _paths(store: Store, sha: str, size: int) -> tuple[Path, Path]:

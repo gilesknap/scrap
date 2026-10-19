@@ -30,6 +30,19 @@ HINT_FIELDS = {
     "consume": {"subtype": "read", "status": "open"},
 }
 SOURCES = ("pwa", "share", "mcp")
+KINDS_SHOWN = ("ocr", "description", "excalidraw")
+# One ingest job per distinct image of a photo capture (or the one photo asked for);
+# job_one_active makes a repeat add nothing.
+ENQUEUE = """
+INSERT INTO job (kind, capture_id, source_sha256, options, run_after, created_at,
+                 updated_at)
+SELECT DISTINCT 'ingest', cb.capture_id, cb.sha256, :options, :now, :now, :now
+FROM capture_blob cb
+JOIN capture c ON c.id = cb.capture_id AND c.kind = 'photo'
+JOIN blob b ON b.sha256 = cb.sha256 AND b.mime LIKE 'image/%'
+WHERE cb.capture_id = :capture AND coalesce(:photo, cb.sha256) = cb.sha256
+ON CONFLICT DO NOTHING
+"""
 
 
 class NotFoundError(Exception):
@@ -253,6 +266,8 @@ class Store:
                 [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
             )
             self._index(conn, page_id, title, body)
+            conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
+                                   "now": stamp})  # fmt: skip
             return self._ref(conn, cid, page_id), True
 
     def _ref(self, conn: sqlite3.Connection, cid: str, page_id: str) -> dict[str, str]:
@@ -282,10 +297,19 @@ class Store:
         # with \x02 and \x03.
         text = body if body.startswith(title) else f"{title}\n\n{body}"
         text = CONTROL.sub("", text)
-        conn.execute("DELETE FROM chunk WHERE page_id = ?", (page_id,))
+        conn.execute(  # derived text has chunks of its own
+            "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
+        )
         conn.execute(
             "INSERT INTO chunk (page_id, ord, text) VALUES (?, 0, ?)", (page_id, text)
         )
+
+    def reindex(self, conn: sqlite3.Connection, page_id: str) -> None:
+        """Index a page's current title and body again."""
+        row = conn.execute(
+            "SELECT title, body FROM page WHERE id = ?", (page_id,)
+        ).fetchone()
+        self._index(conn, page_id, row[0], row[1])
 
     def _page_row(self, conn: sqlite3.Connection, key: str) -> sqlite3.Row:
         row = conn.execute(
@@ -329,8 +353,54 @@ class Store:
                     " JOIN blob b USING (sha256) WHERE capture_id = ? ORDER BY ord",
                     c["id"],
                 )
+                for blob in c["blobs"]:
+                    blob["ingest"] = self._ingest(conn, c["id"], blob["sha256"])
+            tags = [r[0] for r in conn.execute(
+                "SELECT tag FROM tag WHERE page_id = ? ORDER BY tag", (page["id"],)
+            )]  # fmt: skip
         del page["deleted_at"]
-        return {**page, "fields": json.loads(page["fields"]), "captures": captures}
+        fields = json.loads(page["fields"])
+        return {**page, "fields": fields, "tags": tags, "captures": captures}
+
+    def _ingest(
+        self, conn: sqlite3.Connection, cid: str, sha: str
+    ) -> dict[str, Any] | None:
+        """A photo's ingest state and current results; None if it was never queued."""
+        job = conn.execute(
+            "SELECT state, failures, last_error,"
+            " (SELECT paused_until > ? FROM queue_state) AS paused"
+            " FROM job WHERE capture_id = ? AND source_sha256 = ?"
+            " ORDER BY id DESC LIMIT 1",
+            (now(), cid, sha),
+        ).fetchone()
+        if job is None:
+            return None
+        state = {"running": "processing", "dead": "failed"}.get(job[0], job[0])
+        if state == "queued" and job["paused"]:
+            state = "paused"
+        current = {
+            row["kind"]: row
+            for row in conn.execute(
+                "SELECT id, kind, version, producer, text, data FROM derived"
+                " WHERE capture_id = ? AND source_sha256 = ? AND superseded_at IS NULL",
+                (cid, sha),
+            )
+        }
+        ocr, about, drawing = (current.get(k) for k in KINDS_SHOWN)
+        return {
+            "state": state,
+            "failures": job["failures"],
+            "error": job["last_error"],
+            "text": ocr and ocr["text"],
+            "description": about and about["text"],
+            "image_kind": about and json.loads(about["data"] or "{}").get("kind"),
+            "drawing": drawing
+            and {
+                "id": drawing["id"],
+                "version": drawing["version"],
+                "producer": drawing["producer"],
+            },
+        }
 
     def update_page(
         self, key: str, base_rev: int, title: str | None, body: str | None, author: str
@@ -340,6 +410,15 @@ class Store:
             page = self._page_row(conn, key)
             if page["rev"] != base_rev:
                 raise ConflictError(page["rev"])
+            if (
+                title is not None
+                and " ".join(title.split())
+                == conn.execute(
+                    "SELECT title FROM page_rev WHERE page_id = ? AND rev = ?",
+                    (page["id"], base_rev),
+                ).fetchone()[0]
+            ):
+                title = None  # unchanged since base_rev: keep a newer (model) title
             new_title = page["title"] if title is None else " ".join(title.split())
             new_body: str = page["body"] if body is None else lines(body)
             if not new_title:
@@ -375,23 +454,27 @@ class Store:
         if not words:
             return []
         words[-1] += "*"
+        hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
-            rows = conn.execute(
+            # bm25() and snippet() refuse GROUP BY: group here instead
+            for row in conn.execute(
                 "SELECT p.id, p.slug, p.title, p.kind,"
                 " snippet(chunk_fts, 0, char(2), char(3), '…', 16) AS snippet"
                 " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                 " JOIN page p ON p.id = c.page_id"
                 " WHERE chunk_fts MATCH ? AND p.deleted_at IS NULL"
-                " ORDER BY bm25(chunk_fts) LIMIT ?",
-                (" ".join(words), limit),
-            ).fetchall()
-        hits = [dict(r) for r in rows]
-        for hit in hits:  # HTML-safe, with matches in <mark>
+                " ORDER BY bm25(chunk_fts)",
+                (" ".join(words),),
+            ):
+                hits.setdefault(row["id"], dict(row))
+                if len(hits) == limit:
+                    break
+        for hit in hits.values():  # HTML-safe, with matches in <mark>
             snippet = html.escape(hit["snippet"])
             hit["snippet"] = snippet.replace("\x02", "<mark>").replace(
                 "\x03", "</mark>"
             )
-        return hits
+        return list(hits.values())
 
     def blob(self, sha: str) -> tuple[Path, str]:
         """The path and MIME type of a stored file."""
