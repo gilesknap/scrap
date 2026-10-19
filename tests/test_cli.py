@@ -1,4 +1,3 @@
-import sqlite3
 import subprocess
 import sys
 
@@ -7,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from scrap import __version__
 from scrap.app import create_app
-from scrap.store import new_ulid
+from scrap.store import Store, new_ulid
 
 
 def test_cli_version():
@@ -30,13 +29,15 @@ def test_cli_serve_runs_uvicorn(monkeypatch):
 
 
 def _dump(data_dir):
-    conn = sqlite3.connect(data_dir / "scrap.db")
     tables = ["page", "page_rev", "capture", "capture_blob", "blob"]
-    rows = {t: conn.execute(f"SELECT * FROM {t} ORDER BY 1").fetchall() for t in tables}
+    with Store(data_dir).connect() as conn:
+        rows = {
+            t: conn.execute(f"SELECT * FROM {t} ORDER BY 1").fetchall() for t in tables
+        }
     files = {
         p.name: p.read_bytes() for p in (data_dir / "files").rglob("*") if p.is_file()
     }
-    return rows, files
+    return {t: [tuple(r) for r in v] for t, v in rows.items()}, files
 
 
 def test_backup_restore_round_trip(client, note, tmp_path):

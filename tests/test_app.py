@@ -23,14 +23,15 @@ def test_unknown_route_is_404(client):
 
 def test_migrations_apply_on_a_fresh_dir(tmp_path):
     Store(tmp_path).migrate()
-    conn = sqlite3.connect(tmp_path / "scrap.db")
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-    assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    with Store(tmp_path).connect() as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
+        assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     Store(tmp_path).migrate()  # idempotent
 
 
 def test_migrate_refuses_a_newer_database(tmp_path):
-    sqlite3.connect(tmp_path / "scrap.db").execute("PRAGMA user_version = 999")
+    with Store(tmp_path).connect() as conn:
+        conn.execute("PRAGMA user_version = 999")
     with pytest.raises(RuntimeError, match="schema 999"):
         create_app(tmp_path)
 
