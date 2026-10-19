@@ -107,6 +107,14 @@ button:disabled {
   pointer-events: none; /* its label says "Preparing…": no dimming, which would fail contrast */
   cursor: progress;
 }
+[aria-busy="true"] .i {
+  animation: busy 0.8s ease-in-out infinite alternate; /* seen even where labels are hidden */
+}
+@keyframes busy {
+  to {
+    opacity: 0.3;
+  }
+}
 button.link {
   min-height: var(--tap);
   padding: 0 var(--s-3);
@@ -235,7 +243,7 @@ nav {
   height: calc(var(--nav-h) + env(safe-area-inset-bottom));
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: var(--bg);
-  border-top: 1px solid var(--line);
+  box-shadow: 0 -1px var(--line); /* a hairline outside, so items keep the full height */
 }
 nav a {
   flex: 1;
@@ -406,11 +414,14 @@ nav a[aria-current] .i {
 }
 .sub {
   display: flex;
+  flex-wrap: wrap; /* a chip that doesn't fit goes under the date, not over it */
   align-items: center;
-  gap: var(--s-2);
+  gap: 0 var(--s-2);
   min-width: 0;
 }
 .sub small {
+  flex-shrink: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1095,7 +1106,8 @@ div.orig .save {
 /* Durations are 0 under reduced motion (tokens.css); the loops stop too. */
 @media (prefers-reduced-motion: reduce) {
   .list img,
-  .originals img {
+  .originals img,
+  [aria-busy="true"] .i {
     animation: none;
   }
 }
@@ -1137,11 +1149,20 @@ div.orig .save {
   }
 }
 
+/* Narrow tiles: "Read later" takes two lines rather than touching the edges. */
+@media (max-width: 339px) {
+  .tile {
+    white-space: normal;
+  }
+}
+
 /* Very narrow (a small phone at its largest text size): the cluster scrolls with the list
    instead of covering it, tiles go two by two, and labels may wrap rather than clip. */
 @media (max-width: 299px) {
   .actions {
     position: static;
+    order: -1; /* first, so Photo is on the first screen; the list follows */
+    margin: 0 calc(-1 * var(--s-2)) var(--s-4);
   }
   .tiles {
     grid-template-columns: 1fr 1fr;
@@ -1183,6 +1204,13 @@ div.orig .save {
   }
   .editor > .bar {
     gap: var(--s-1);
+  }
+  .toast {
+    flex-wrap: wrap;
+    padding-block: var(--s-2);
+  }
+  .toast button {
+    margin-inline-start: auto; /* under the message, at the end */
   }
   .editor > .bar > * {
     padding: 0 var(--s-2);

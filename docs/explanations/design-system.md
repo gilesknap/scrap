@@ -26,10 +26,12 @@ design into another tool and back.
 
 ## Tokens
 
-Light / dark values. Every text pair is checked against WCAG AA (4.5:1 for text, 3:1 for
-control edges) by `web/tests/contrast.test.ts`, which reads `tokens.css` itself, and also checks
-every rule in `style.css` that sets both a text colour and a background from tokens, and white
-text on `--overlay` over a white photo.
+Light / dark values, held to WCAG AA (4.5:1 for text, 3:1 for control edges) twice:
+`web/tests/contrast.test.ts` reads `tokens.css` and checks the listed text/background pairs,
+every `style.css` rule that sets both a text colour and a background from tokens, and white
+text on `--overlay` over a white photo; and an end-to-end sweep (`web/e2e/view.spec.ts`)
+computes the real colour of every visible piece of text and of what lies behind it, on each
+screen in both themes.
 
 | Token | Light | Dark | Role |
 | --- | --- | --- | --- |

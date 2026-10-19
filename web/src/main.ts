@@ -7,7 +7,7 @@ import { debugPanel } from "./debug";
 import { page } from "./page";
 import { recent } from "./recent";
 import { search } from "./search";
-import { clearToasts, h, problem, toast } from "./ui";
+import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
@@ -45,6 +45,7 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
+    placeToasts(); // e.g. one placed for the view before
     return;
   }
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));

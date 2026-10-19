@@ -491,3 +491,138 @@ test("high contrast mode still shows which kind is chosen", async ({ page }) => 
   await expect(chosen).toHaveText("Todo");
   await expect(chosen).toHaveCSS("outline-style", "solid");
 });
+
+/** Text whose computed colour, over what is computed behind it, is under WCAG AA. */
+function lowContrast() {
+  type C = [number, number, number, number];
+  const parse = (c: string): C | null => {
+    const m = c.match(/rgba?\(([^)]+)\)/);
+    if (m) {
+      const p = m[1]
+        .split(/[ ,/]+/)
+        .filter(Boolean)
+        .map(Number);
+      return [p[0], p[1], p[2], p[3] ?? 1];
+    }
+    const s = c.match(/srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?/);
+    return s ? [+s[1] * 255, +s[2] * 255, +s[3] * 255, s[4] === undefined ? 1 : +s[4]] : null;
+  };
+  const lum = (c: C) =>
+    c
+      .slice(0, 3)
+      .map((v) => v / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+      .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const over = (top: C, under: C): C => [
+    ...([0, 1, 2].map((i) => top[i] * top[3] + under[i] * (1 - top[3])) as [
+      number,
+      number,
+      number,
+    ]),
+    1,
+  ];
+  const behind = (el: Element): C | null => {
+    const stack: C[] = [];
+    for (let e: Element | null = el; e; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (e.tagName === "IMG" || (cs.backgroundImage !== "none" && !e.matches("html, body")))
+        return null; // over a picture or a gradient: covered by the overlay token test
+      const c = parse(cs.backgroundColor);
+      if (c && c[3] > 0) {
+        stack.push(c);
+        if (c[3] >= 1) break;
+      }
+    }
+    return stack.reverse().reduce((base, c) => over(c, base), [255, 255, 255, 1] as C);
+  };
+  const bad: string[] = [];
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const el = n.parentElement as Element;
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    if (!n.textContent?.trim() || !r.width || !r.height || cs.visibility === "hidden") continue;
+    if (cs.fontSize === "0px" || el.closest("[hidden], button:disabled, .debug")) continue;
+    const bg = behind(el);
+    const fg0 = parse(cs.color);
+    if (!bg || !fg0) continue;
+    let alpha = fg0[3];
+    for (let e: Element | null = el; e; e = e.parentElement) alpha *= +getComputedStyle(e).opacity;
+    const fg = over([fg0[0], fg0[1], fg0[2], alpha], bg);
+    const [hi, lo] = [lum(fg), lum(bg)].sort((a, b) => b - a);
+    const ratio = (hi + 0.05) / (lo + 0.05);
+    const size = Number.parseFloat(cs.fontSize);
+    const large = size >= 24 || (size >= 18.66 && +cs.fontWeight >= 700);
+    if (ratio < (large ? 3 : 4.5))
+      bad.push(
+        `${el.tagName}.${el.className} "${n.textContent.trim().slice(0, 30)}" ${ratio.toFixed(2)}`,
+      );
+  }
+  return bad;
+}
+
+test("every visible text meets AA contrast, in both themes", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Contrast sweep\n\n## Plan\n\n- **bold** and `code`\n\n> a quote");
+  form.append("hint", "todo");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(400, 300, 220))], { type: "image/png" }),
+    "c.png",
+  );
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    const check = async (where: string) =>
+      expect(await page.evaluate(lowContrast), where).toEqual([]);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await check(`${colorScheme} capture`);
+    await page.getByRole("button", { name: "Todo", exact: true }).click();
+    await page.locator(".editor textarea").fill("x **y**");
+    await check(`${colorScheme} composer`);
+    await page.locator(".editor").getByRole("button", { name: "Preview" }).click();
+    await check(`${colorScheme} preview`);
+    page.once("dialog", (d) => d.accept());
+    await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+    await page.goto("/recent");
+    await page.waitForLoadState("networkidle");
+    await check(`${colorScheme} recent`);
+    await page.goto(`/p/${slug}`);
+    await page.waitForLoadState("networkidle");
+    await check(`${colorScheme} page`);
+    await page.getByRole("button", { name: "Show raw text" }).click();
+    await check(`${colorScheme} page raw`);
+    await page.getByRole("button", { name: "Show formatted" }).click();
+    await page.locator(".page > .tools").getByRole("link", { name: "Download" }).click();
+    await page.getByText(/^Downloaded/).waitFor();
+    await check(`${colorScheme} toast`);
+    await page.locator(".originals img").click();
+    await check(`${colorScheme} viewer`);
+    await page.goBack();
+    await page.goto("/search?q=contrast");
+    await page.locator(".hits a").first().waitFor();
+    await check(`${colorScheme} search`);
+    await page.goto("/p/no-such-page");
+    await page.getByText("Not found").waitFor();
+    await check(`${colorScheme} not found`);
+  }
+});
+
+test("at the largest text size the Photo button is on the first screen", async ({ page }) => {
+  for (let i = 0; i < 4; i++) await note(page, `Latest row ${i} with a longish title`);
+  for (const size of [
+    { width: 206, height: 457 }, // a 412 px phone at 200 % text
+    { width: 320, height: 640 },
+    { width: 844, height: 390 }, // landscape
+  ]) {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await inside(page, page.getByRole("button", { name: "Photo" }));
+    await expect(page.locator(".capture .list li").first()).toBeAttached(); // the list is there
+  }
+});

@@ -19,6 +19,25 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/** Put a toast just above what is under the thumb (the capture buttons, the page's tools, the
+ * nav), so it covers neither the newest row nor a title; in the editor, under its top bar (the
+ * CSS). placeToasts() places them again once a new view has drawn (main.ts), e.g. "Page
+ * deleted" shown on the way to Recent. */
+function place(el: HTMLElement) {
+  const tops = [
+    ...document.querySelectorAll(
+      ".viewer .tools, body:not(.editing) :is(.actions, .page > .tools, nav)",
+    ),
+  ]
+    .map((e) => e.getBoundingClientRect().top)
+    .filter((t) => t > 0 && t <= innerHeight); // on screen
+  el.style.top = tops.length ? "auto" : "";
+  el.style.bottom = tops.length ? `${innerHeight - Math.min(...tops) + 8}px` : "";
+}
+export function placeToasts() {
+  for (const el of document.querySelectorAll<HTMLElement>(".toast")) place(el);
+}
+
 /** Drop passing messages, e.g. on navigation; "keep" ones (an update offer) stay. */
 export function clearToasts() {
   for (const old of document.querySelectorAll(".toast:not(.keep)")) old.remove();
@@ -39,19 +58,7 @@ export function toast(message: string, action?: string, onAction?: () => void, m
       }),
     );
   }
-  // Just above what is under the thumb (the capture buttons, the page's tools, the nav), so it
-  // covers neither the newest row nor a title; in the editor, under its top bar (the CSS).
-  const tops = [
-    ...document.querySelectorAll(
-      ".viewer .tools, body:not(.editing) :is(.actions, .page > .tools, nav)",
-    ),
-  ]
-    .map((e) => e.getBoundingClientRect().top)
-    .filter((t) => t > 0 && t <= innerHeight); // on screen
-  if (tops.length) {
-    el.style.top = "auto";
-    el.style.bottom = `${innerHeight - Math.min(...tops) + 8}px`;
-  }
+  place(el);
   document.body.append(el);
   if (ms) setTimeout(() => el.remove(), ms);
   else el.classList.add("keep"); // survives navigation

@@ -1,5 +1,5 @@
-// Every text/background pair the design system uses meets WCAG AA in both themes
-// (4.5:1 for text, 3:1 for control edges), read straight from src/tokens.css.
+// The design system's text/background pairs meet WCAG AA in both themes (4.5:1 for text, 3:1
+// for control edges), read straight from src/tokens.css.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
@@ -46,8 +46,9 @@ const PAIRS: [string, string, number][] = [
   ["line-strong", "surface", 3],
 ];
 
-// And every pair the components really draw: a rule in style.css that sets both a text colour
-// and a background from tokens.
+// And every rule in style.css that sets both a text colour and a background from tokens. Text
+// that inherits its colour onto another element's background is covered by PAIRS above and,
+// on the real pixels, by the computed-colour sweep in e2e/view.spec.ts.
 const style = readFileSync(new URL("../src/style.css", import.meta.url), "utf8");
 const DRAWN: [string, string, number][] = [];
 for (const [, body] of style.matchAll(/[^{}]+\{([^{}]*)\}/g)) {
@@ -65,12 +66,12 @@ describe.each([
     expect(t[bg], bg).toBeDefined();
     expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
   });
-  test.each(DRAWN)("style.css draws %s on %s: at least %d:1", (fg, bg, min) => {
+  test.each(DRAWN)("a style.css rule sets %s on %s: at least %d:1", (fg, bg, min) => {
     expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
   });
 });
 
-test("style.css draws some token pairs", () => {
+test("style.css rules set some token pairs", () => {
   expect(DRAWN.length).toBeGreaterThan(5);
 });
 
