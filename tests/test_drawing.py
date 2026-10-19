@@ -79,7 +79,8 @@ def test_save_versions_conflict_and_restore(board):
     assert history[1]["producer"] == "human" and history[0]["restored_from"] == 1
     # the page reports the current version for the PWA
     page = client.get(f"/api/pages/{ref['page_id']}").json()
-    assert page["captures"][0]["blobs"][0]["ingest"]["drawing"]["version"] == 3
+    shown = page["captures"][0]["blobs"][0]["ingest"]["drawing"]
+    assert (shown["version"], shown["width"], shown["height"]) == (3, 800, 600)
 
 
 def test_an_unknown_photo_has_no_drawing(board):

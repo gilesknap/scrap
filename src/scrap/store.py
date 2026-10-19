@@ -383,7 +383,9 @@ class Store:
         current = {
             row["kind"]: row
             for row in conn.execute(
-                "SELECT id, kind, version, producer, text, data FROM derived"
+                "SELECT id, kind, version, producer, text, data,"
+                " json_extract(data, '$.width') AS width,"
+                " json_extract(data, '$.height') AS height FROM derived"
                 " WHERE capture_id = ? AND source_sha256 = ? AND superseded_at IS NULL",
                 (cid, sha),
             )
@@ -401,6 +403,8 @@ class Store:
                 "id": drawing["id"],
                 "version": drawing["version"],
                 "producer": drawing["producer"],
+                "width": drawing["width"],  # its frame: the photo as sent to Claude
+                "height": drawing["height"],
             },
         }
 
