@@ -17,7 +17,7 @@ data model, capture flow, MCP tools, security, what is deferred and what is stil
 What            | Where
 :---:           | :---:
 Source          | <https://github.com/gilesknap/scrap>
-Container       | `docker run ghcr.io/gilesknap/scrap:latest`
+Container       | `docker run -p 8000:8000 ghcr.io/gilesknap/scrap:latest serve --host 0.0.0.0 --port 8000`
 Documentation   | <https://gilesknap.github.io/scrap>
 Releases        | <https://github.com/gilesknap/scrap/releases>
 
