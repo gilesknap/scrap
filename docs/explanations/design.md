@@ -250,9 +250,10 @@ rewrites the user's words or fits them to templates.
       WHERE c.page_id = :id AND d.kind = 'summary');
   ```
 
-- **Consume keeps link and summary only:** if the re-read kind is `consume`, the same transaction
-  deletes the `fetched` text. Only regenerating the summary re-fetches it, for example after a
-  change to `reference`.
+- **Consume keeps link and summary only.** The same transaction runs this `UPDATE` and the tag
+  insert first, then writes the summary row, then deletes the `fetched` text if the stored kind is
+  now `consume`. Only regenerating the summary re-fetches it, for example after a change to
+  `reference`.
 - **Views.** The PWA lists Todos, the Consume queue and an Inbox: captured pages with no summary
   yet (processing or failed). Pages made by MCP `write` have no capture and skip it.
 
@@ -307,7 +308,7 @@ Each job does one step and enqueues the next, so a failure retries only that ste
 | --- | --- | --- |
 | `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). Whiteboard and document set the page kind; whiteboard enqueues `redraw`. URL: fetch readable text. Note: nothing. Every capture type then enqueues `summarise`. | `ocr`, `description`, `fetched` |
 | `redraw` | Whiteboard only: Claude produces an Excalidraw scene from the photo, checked to parse as Excalidraw JSON before saving | `excalidraw` |
-| `summarise` | One Claude call returns kind, `fields`, summary, title and tags, applied under the title, slug and kind rules above. | `summary`, page kind and `fields`, rev, tags |
+| `summarise` | One Claude call returns kind, `fields`, summary, title and tags, applied under the title, slug and kind rules above. | page kind, `fields` and tags, then `summary`; rev |
 | `index` | Re-chunk the page and its derived text, embed locally, re-parse links | `chunk`, `chunk_fts`, `chunk_vec`, `link` |
 
 `redraw` runs in parallel; nothing waits for it and its failure leaves the page intact. Page edits
