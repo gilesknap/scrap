@@ -1,0 +1,13 @@
+# Tailscale Kubernetes operator: tailnet-only HTTPS at https://scrap.<tailnet>.ts.net
+ingress:
+  enabled: true
+  className: tailscale
+  tls:
+    - hosts:
+        - scrap
+networkPolicy:
+  enabled: true
+  from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: tailscale

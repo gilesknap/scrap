@@ -1,0 +1,113 @@
+{{- if and .Values.ingest.enabled (not .Values.ingest.existingSecret) }}
+{{- fail "ingest.enabled needs ingest.existingSecret: the name of a Secret holding the API key" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scrap.fullname" . }}
+  labels:
+    {{- include "scrap.labels" . | nindent 4 }}
+spec:
+  # SQLite has a single writer: exactly one pod, and the old one stops first.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "scrap.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "scrap.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "scrap.podCommon" . | nindent 6 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: scrap
+          image: {{ include "scrap.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: SCRAP_DATA_DIR
+              value: /data
+            - name: SCRAP_MAX_UPLOAD_MB
+              value: {{ .Values.maxUploadMB | quote }}
+            - name: SCRAP_INGEST
+              value: {{ ternary "on" "off" .Values.ingest.enabled | quote }}
+            {{- if .Values.ingest.enabled }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ingest.existingSecret }}
+                  key: {{ .Values.ingest.apiKeyKey }}
+            {{- with .Values.ingest.notifyUrlKey }}
+            - name: SCRAP_NOTIFY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.ingest.existingSecret }}
+                  key: {{ . }}
+            {{- end }}
+            {{- with .Values.ingest.visionModel }}
+            - name: SCRAP_VISION_MODEL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.ingest.budgetDayUSD }}
+            - name: SCRAP_BUDGET_DAY_USD
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # Migrations run before the server listens: the startup probe allows
+          # them up to 5 minutes. /healthz answers 503 if the ingest worker
+          # thread has died, and the liveness probe then restarts the pod.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "scrap.dataClaim" . }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

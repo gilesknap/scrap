@@ -6,7 +6,8 @@ cluster would run, under rootless podman, as a systemd user service. scrap liste
 your tailnet and nowhere else.
 
 Podman is the tested path. Docker works with the small changes in
-{ref}`scrap-docker`.
+{ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
+[](deploy-kubernetes.md).
 
 ```{warning}
 v0 of scrap has **no login**. Anyone who can reach its port can read and change everything.

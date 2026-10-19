@@ -1,0 +1,151 @@
+# Values for the scrap chart. See docs/how-to/deploy-kubernetes.md.
+#
+# scrap keeps everything in one SQLite database with a single writer, so the chart
+# always runs exactly ONE replica with the Recreate strategy (the old pod stops
+# before the new one starts). There is no replicas value on purpose.
+#
+# v0 of scrap has NO login: anyone who can reach the Service can read and change
+# everything. Expose it only on a private network (e.g. the Tailscale operator) or
+# behind an authenticating proxy, never directly to the internet.
+
+image:
+  repository: ghcr.io/gilesknap/scrap
+  # Defaults to the chart's appVersion. Multi-arch (amd64 + arm64) from releases.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Largest request body in MB (a capture's files together): SCRAP_MAX_UPLOAD_MB.
+# Raise any ingress controller's body limit to match.
+maxUploadMB: 50
+
+# Ingest sends queued photos to the Claude API. Photos are queued either way.
+ingest:
+  enabled: false
+  # Name of an existing Secret in the release namespace. Required when enabled.
+  # The chart never takes the key itself as a value and never creates a Secret.
+  existingSecret: ""
+  # Key in that Secret holding the Claude API key (becomes ANTHROPIC_API_KEY).
+  apiKeyKey: ANTHROPIC_API_KEY
+  # Optional key in the same Secret holding SCRAP_NOTIFY_URL (e.g. an ntfy topic
+  # URL, which is itself a secret). Empty: no notifications.
+  notifyUrlKey: ""
+  # SCRAP_VISION_MODEL; empty uses the app's default.
+  visionModel: ""
+  # SCRAP_BUDGET_DAY_USD (a string, e.g. "3"); empty uses the app's default.
+  budgetDayUSD: ""
+
+# Extra environment for the scrap container (list of EnvVar / EnvFromSource).
+extraEnv: []
+extraEnvFrom: []
+
+# The data volume at /data: database, files and the preview cache. The preview
+# cache (cache/previews) is regenerable and never backed up; it stays here so a
+# restart does not redo every preview.
+persistence:
+  # Use this PVC instead of creating one.
+  existingClaim: ""
+  # Empty uses the cluster's default StorageClass.
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  annotations:
+    # helm uninstall leaves the claim (and your data) in place.
+    helm.sh/resource-policy: keep
+
+# A CronJob running `scrap backup` into a timestamped directory on a second PVC,
+# then keeping only the newest `keep` runs (the same pruning as the single-server
+# deploy). Each run is a full copy: size the claim for about keep + 1 times the
+# data. It is a local copy only: copy it off the cluster too.
+backup:
+  enabled: true
+  schedule: "30 3 * * *"
+  # IANA time zone for the schedule, e.g. Europe/London; empty uses the
+  # controller's (usually UTC).
+  timeZone: ""
+  keep: 7
+  persistence:
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+    annotations:
+      helm.sh/resource-policy: keep
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+service:
+  type: ClusterIP
+  port: 80
+  # e.g. tailscale.com/expose: "true" (plain HTTP on the tailnet; prefer ingress).
+  annotations: {}
+
+ingress:
+  enabled: false
+  # e.g. tailscale (Tailscale operator) or nginx/traefik behind an auth proxy.
+  className: ""
+  annotations: {}
+  # Host names for the rules; empty gives one rule without a host.
+  hosts: []
+  # Standard Ingress tls list. For the Tailscale operator the first host here is
+  # the MagicDNS name: [{hosts: [scrap]}].
+  tls: []
+
+# Default off. When on, only the peers in `from` may connect to scrap (an empty
+# list admits nobody). Egress is not restricted.
+networkPolicy:
+  enabled: false
+  from: []
+  # - namespaceSelector:
+  #     matchLabels:
+  #       kubernetes.io/metadata.name: tailscale
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+
+# Restricted Pod Security Standard. The image runs as uid/gid 10001.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# The 1Gi memory limit matches the preview decoder's budget, which is sized for a
+# 1 GB container. Lowering it can get scrap OOM-killed on large photos.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+# A clean stop gives the ingest job in flight back to the queue; 30s is plenty.
+terminationGracePeriodSeconds: 30
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

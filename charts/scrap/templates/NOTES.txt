@@ -1,0 +1,23 @@
+scrap {{ include "scrap.image" . }} is installed as {{ include "scrap.fullname" . }} (one replica: SQLite has a single writer).
+
+scrap v0 has NO login: anyone who can reach it can read and change everything.
+Keep it on a private network or behind an authenticating proxy.
+
+Try it without exposing it:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "scrap.fullname" . }} 8000:{{ .Values.service.port }}
+  curl http://127.0.0.1:8000/healthz
+{{- if .Values.ingress.enabled }}
+
+Ingress {{ include "scrap.fullname" . }} (class {{ .Values.ingress.className | default "cluster default" }}):
+  kubectl -n {{ .Release.Namespace }} get ingress {{ include "scrap.fullname" . }}
+{{- end }}
+{{- if .Values.ingest.enabled }}
+
+Ingest is on, reading the API key from Secret {{ .Values.ingest.existingSecret }} (key {{ .Values.ingest.apiKeyKey }}).
+After changing that Secret: kubectl -n {{ .Release.Namespace }} rollout restart deploy/{{ include "scrap.fullname" . }}
+{{- end }}
+{{- if .Values.backup.enabled }}
+
+Backups: CronJob {{ include "scrap.fullname" . }}-backup ({{ .Values.backup.schedule }}) keeps {{ .Values.backup.keep }} runs on claim {{ include "scrap.backupClaim" . }}.
+Run one now: kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "scrap.fullname" . }}-backup {{ include "scrap.fullname" . }}-backup-now
+{{- end }}

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "description": "Unknown keys are rejected, so a mistyped key (or an API key passed as a value) fails instead of being ignored.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {"type": "object"},
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string"},
+        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "imagePullSecrets": {"type": "array"},
+    "nameOverride": {"type": "string"},
+    "fullnameOverride": {"type": "string"},
+    "maxUploadMB": {"type": "number", "exclusiveMinimum": 0},
+    "ingest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "existingSecret": {"type": "string"},
+        "apiKeyKey": {"type": "string", "minLength": 1},
+        "notifyUrlKey": {"type": "string"},
+        "visionModel": {"type": "string"},
+        "budgetDayUSD": {"type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?)?$"}
+      }
+    },
+    "extraEnv": {"type": "array"},
+    "extraEnvFrom": {"type": "array"},
+    "persistence": {"$ref": "#/definitions/claim"},
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "schedule": {"type": "string", "minLength": 1},
+        "timeZone": {"type": "string"},
+        "keep": {"type": "integer", "minimum": 1},
+        "persistence": {"$ref": "#/definitions/claim"},
+        "resources": {"type": "object"}
+      }
+    },
+    "service": {"type": "object"},
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "className": {"type": "string"},
+        "annotations": {"type": "object"},
+        "hosts": {"type": "array", "items": {"type": "string"}},
+        "tls": {"type": "array"}
+      }
+    },
+    "networkPolicy": {"type": "object"},
+    "serviceAccount": {"type": "object"},
+    "podAnnotations": {"type": "object"},
+    "podSecurityContext": {"type": "object"},
+    "securityContext": {"type": "object"},
+    "resources": {"type": "object"},
+    "terminationGracePeriodSeconds": {"type": "integer", "minimum": 0},
+    "nodeSelector": {"type": "object"},
+    "tolerations": {"type": "array"},
+    "affinity": {"type": "object"}
+  },
+  "definitions": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingClaim": {"type": "string"},
+        "storageClass": {"type": "string"},
+        "accessModes": {"type": "array", "minItems": 1},
+        "size": {"type": "string"},
+        "annotations": {"type": "object"}
+      }
+    }
+  }
+}
