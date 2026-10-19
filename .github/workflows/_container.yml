@@ -49,6 +49,13 @@ jobs:
           docker run --rm --entrypoint python tag_for_testing -c
           "import scrap.app as a; assert (a.STATIC / 'index.html').is_file()"
 
+      - name: Test the image can verify HTTPS certificates
+        run: >
+          docker run --rm --entrypoint python tag_for_testing -c
+          "import ssl; assert ssl.get_default_verify_paths().capath, 'no CA dir';
+          ctx = ssl.create_default_context(cafile='/etc/ssl/certs/ca-certificates.crt');
+          assert ctx.cert_store_stats()['x509_ca'] > 100, 'no CA certificates'"
+
       - name: Create tags for publishing image
         id: meta
         uses: docker/metadata-action@v6
