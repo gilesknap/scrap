@@ -37,7 +37,13 @@ def main(args: Sequence[str] | None = None) -> None:
         sub = subparsers.add_parser(name, parents=[common], help=text)
         sub.add_argument("dir", type=Path)
         if name == "restore":
-            sub.add_argument("--force", action="store_true", help="Overwrite data")
+            sub.add_argument(
+                "--force",
+                action="store_true",
+                help="Replace the whole database (pages added since the backup are"
+                " lost; files are kept). Stop scrap first: a running server would"
+                " go on writing to the old, replaced database and lose those writes",
+            )
     parsed = parser.parse_args(args)
 
     if parsed.command == "serve":

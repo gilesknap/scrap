@@ -10,6 +10,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from starlette.datastructures import UploadFile
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__
 from .store import ConflictError, InvalidError, NotFoundError, Store, TooLargeError
@@ -35,19 +36,43 @@ def author(request: Request) -> str:
     return request.headers.get("Tailscale-User-Login") or "tagged"
 
 
+class BodyLimit:
+    """Raise TooLargeError while a request body is read, once it passes limit bytes.
+
+    Covers chunked bodies with no Content-Length; the route turns it into a 413.
+    """
+
+    def __init__(self, app: ASGIApp, limit: int):
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        seen = 0
+
+        async def counted() -> Message:
+            nonlocal seen
+            message = await receive()
+            seen += len(message.get("body", b""))
+            if seen > self.limit:
+                raise TooLargeError
+            return message
+
+        await self.app(scope, counted, send)
+
+
 def create_app(data_dir: Path | str | None = None) -> FastAPI:
     """Build the app on a data folder (default $SCRAP_DATA_DIR, else ./data)."""
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
     store.migrate()
     limit = int(float(os.environ.get("SCRAP_MAX_UPLOAD_MB", "50")) * 2**20)
     app = FastAPI(title="scrap", version=__version__)
+    app.add_middleware(BodyLimit, limit=limit)
 
     for exc, status in ERRORS.items():
 
         def handler(request: Request, error: Exception, status: int = status):
             detail: dict[str, Any] = {"detail": str(error) or type(error).__doc__}
             if isinstance(error, ConflictError):
-                detail["rev"] = error.args[0]  # the current revision
+                detail = {"detail": type(error).__doc__, "rev": error.args[0]}
             return JSONResponse(detail, status)
 
         app.add_exception_handler(exc, handler)
@@ -58,16 +83,18 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return {"status": "ok", "version": __version__}
 
     def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
-        blobs, room = [], limit
+        mimes = []
         for upload in uploads:
-            sha, size = store.put_blob(upload.file, room)
-            room -= size
-            name = upload.filename or ""
             mime = upload.content_type
             if mime in (None, "", "application/octet-stream"):
-                mime = mimetypes.guess_type(name)[0]
-            blobs.append((sha, mime or "application/octet-stream", size, name or None))
-        return store.capture(data, blobs, who)
+                mime = mimetypes.guess_type(upload.filename or "")[0]
+            mimes.append(mime or "application/octet-stream")
+        capture = store.prepare(data, mimes)  # before writing any file
+        blobs = []
+        for upload, mime in zip(uploads, mimes, strict=True):
+            sha, size = store.put_blob(upload.file)
+            blobs.append((sha, mime, size, upload.filename or None))
+        return store.capture(capture, blobs, who)
 
     @app.post("/api/captures", status_code=201)
     async def capture(request: Request, response: Response) -> dict[str, str]:
@@ -111,6 +138,12 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     def delete(key: str) -> None:
         """Move a page to the trash."""
         store.delete_page(key)
+
+    @app.post("/api/pages/{key}/undelete")
+    def undelete(key: str) -> dict[str, Any]:
+        """Bring a page back from the trash."""
+        store.delete_page(key, undo=True)
+        return store.page(key)
 
     @app.get("/api/search")
     def search(q: str, limit: int = Query(20, ge=1, le=100)) -> list[dict[str, Any]]:

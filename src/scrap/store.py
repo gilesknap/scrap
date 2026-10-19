@@ -1,5 +1,6 @@
 """Storage: one SQLite database and a folder of content-addressed files."""
 
+import fcntl
 import hashlib
 import html
 import json
@@ -9,8 +10,9 @@ import secrets
 import sqlite3
 import tempfile
 import time
+import unicodedata
 from collections.abc import Iterator
-from contextlib import contextmanager, suppress
+from contextlib import closing, contextmanager, suppress
 from datetime import UTC, datetime
 from importlib.resources import files as package_files
 from pathlib import Path
@@ -21,6 +23,7 @@ __all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidE
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 BARE_URL = re.compile(r"https?://\S+")
+CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 HINT_FIELDS = {
     "todo": {"status": "open"},
@@ -92,6 +95,38 @@ def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]
     return [dict(row) for row in conn.execute(sql, args)]
 
 
+def schema_version(db: Path) -> int:
+    """A database's schema version, refusing one newer than this code knows."""
+    conn = connect(db)
+    try:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        conn.close()
+    if version > len(migrations()):
+        raise RuntimeError(
+            f"{db} has schema {version}; this scrap knows {len(migrations())}"
+        )
+    return version
+
+
+def migrate(db: Path) -> None:
+    """Apply the missing migrations, one process at a time (flock on db.lock)."""
+    with open(f"{db}.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        version = schema_version(db)
+        with closing(connect(db)) as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
+            for n, sql in enumerate(migrations()[version:], start=version + 1):
+                try:
+                    conn.executescript(
+                        f"BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version = {n};\nCOMMIT;"
+                    )
+                except BaseException:
+                    if conn.in_transaction:
+                        conn.execute("ROLLBACK")
+                    raise
+
+
 class Store:
     def __init__(self, data_dir: Path | str):
         self.dir = Path(data_dir)
@@ -109,35 +144,17 @@ class Store:
     def migrate(self) -> None:
         """Create the data folder and bring the schema up to date."""
         self.files.mkdir(parents=True, exist_ok=True)
-        scripts = migrations()
-        with self.connect() as conn:
-            conn.execute("PRAGMA journal_mode = WAL")
-            version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if version > len(scripts):
-                raise RuntimeError(
-                    f"{self.db} has schema {version}; this scrap knows {len(scripts)}"
-                )
-            for n, sql in enumerate(scripts[version:], start=version + 1):
-                try:
-                    conn.executescript(
-                        f"BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version = {n};\nCOMMIT;"
-                    )
-                except BaseException:
-                    if conn.in_transaction:
-                        conn.execute("ROLLBACK")
-                    raise
+        migrate(self.db)
 
     def blob_path(self, sha: str) -> Path:
         return self.files / sha[:2] / sha
 
-    def put_blob(self, src: IO[bytes], limit: int) -> tuple[str, int]:
-        """Copy an upload into files/ under its SHA-256, refusing over limit bytes."""
+    def put_blob(self, src: IO[bytes]) -> tuple[str, int]:
+        """Copy an upload into files/ under its SHA-256."""
         digest, size = hashlib.sha256(), 0
         with tempfile.NamedTemporaryFile(dir=self.files, prefix=".up-") as tmp:
             while chunk := src.read(1 << 20):
                 size += len(chunk)
-                if size > limit:
-                    raise TooLargeError
                 digest.update(chunk)
                 tmp.write(chunk)
             tmp.flush()
@@ -150,15 +167,10 @@ class Store:
                     os.link(tmp.name, dest)
         return sha, size
 
-    def capture(
-        self,
-        data: dict[str, Any],
-        blobs: list[tuple[str, str, int, str | None]],
-        author: str,
-    ) -> tuple[dict[str, str], bool]:
-        """Save a capture as a new page. Returns its reference and whether it is new.
+    def prepare(self, data: dict[str, Any], mimes: list[str]) -> dict[str, Any]:
+        """Check a capture request (before any file is written) and derive its page.
 
-        blobs are (sha256, mime, size, filename), already written to files/.
+        mimes are the types of its files, if any.
         """
         cid = (_text(data, "id") or "").upper()
         if not ULID.fullmatch(cid):
@@ -167,7 +179,7 @@ class Store:
         source = _text(data, "source") or "pwa"
         created = _text(data, "created_at") or now()
         try:
-            datetime.fromisoformat(created)
+            when = datetime.fromisoformat(created)
         except ValueError:
             raise InvalidError("created_at must be ISO 8601") from None
         if source not in SOURCES:
@@ -176,22 +188,34 @@ class Store:
             raise InvalidError(f"hint must be one of {tuple(HINT_FIELDS)}")
         if not url and text and BARE_URL.fullmatch(text):
             url, text = text, None  # a link shared as text
-        if blobs:
-            images = all(mime.startswith("image/") for _, mime, _, _ in blobs)
+        if mimes:
+            images = all(mime.startswith("image/") for mime in mimes)
             kind = "photo" if images else "file"
         else:
             kind = "url" if url else "note"
         if kind == "note" and not text:
             raise InvalidError("empty capture")
-        title = (
-            text.splitlines()[0][:200]
-            if text
-            else url or created[:16].replace("T", " ")
-        )
-        body = "\n\n".join(x for x in (url, text) if x)
+        title = text.splitlines()[0][:200] if text else url
         fields = dict(HINT_FIELDS.get(hint or "", {}))
         if hint == "consume" and url:
             fields["source"] = url
+        return {
+            "id": cid, "kind": kind, "text": text, "url": url, "source": source,
+            "created_at": created, "hint": hint, "fields": fields,
+            "title": title or when.strftime("%Y-%m-%d %H:%M"),
+            "body": "\n\n".join(x for x in (url, text) if x),
+        }  # fmt: skip
+
+    def capture(
+        self,
+        c: dict[str, Any],
+        blobs: list[tuple[str, str, int, str | None]],
+        author: str,
+    ) -> tuple[dict[str, str], bool]:
+        """Save a prepared capture as a new page. Returns its reference and whether
+        it is new. blobs are (sha256, mime, size, filename), already in files/.
+        """
+        cid, title, body, hint = c["id"], c["title"], c["body"], c["hint"]
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -208,7 +232,7 @@ class Store:
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
                 " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (page_id, self._slug(conn, title), title, body, hint or "note",
-                 int(bool(hint)), json.dumps(fields), stamp, stamp),
+                 int(bool(hint)), json.dumps(c["fields"]), stamp, stamp),
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
@@ -216,8 +240,9 @@ class Store:
             )
             conn.execute(
                 "INSERT INTO capture VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, kind, text, url, source, author, created, stamp, page_id),
-            )
+                (cid, c["kind"], c["text"], c["url"], c["source"], author,
+                 c["created_at"], stamp, page_id),
+            )  # fmt: skip
             conn.executemany(
                 "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
                 [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
@@ -230,17 +255,28 @@ class Store:
         return {"capture_id": cid, "page_id": page_id, "slug": slug[0]}
 
     def _slug(self, conn: sqlite3.Connection, title: str) -> str:
-        base = re.sub(r"[^a-z0-9]+", "-", title.lower())[:60].strip("-") or "page"
+        ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore")
+        base = re.sub(r"[^a-z0-9]+", "-", ascii_title.decode().lower())[:60].strip("-")
+        base = base or "page"
+        taken = {
+            row[0]
+            for row in conn.execute(
+                "SELECT slug FROM page WHERE slug = ?1 OR slug GLOB ?1 || '-[0-9]*'",
+                (base,),
+            )
+        }
         slug, n = base, 1
-        while conn.execute("SELECT 1 FROM page WHERE slug = ?", (slug,)).fetchone():
+        while slug in taken:
             n += 1
             slug = f"{base}-{n}"
         return slug
 
     def _index(self, conn: sqlite3.Connection, page_id: str, title: str, body: str):
         # M1: one chunk per page, the title heading the body (a note's body
-        # already starts with it).
+        # already starts with it). No control characters: snippets mark hits
+        # with \x02 and \x03.
         text = body if body.startswith(title) else f"{title}\n\n{body}"
+        text = CONTROL.sub("", text)
         conn.execute("DELETE FROM chunk WHERE page_id = ?", (page_id,))
         conn.execute(
             "INSERT INTO chunk (page_id, ord, text) VALUES (?, 0, ?)", (page_id, text)
@@ -294,7 +330,7 @@ class Store:
             page = self._page_row(conn, key)
             if page["rev"] != base_rev:
                 raise ConflictError(page["rev"])
-            new_title = page["title"] if title is None else title.strip()
+            new_title = page["title"] if title is None else " ".join(title.split())
             new_body: str = page["body"] if body is None else body
             if not new_title:
                 raise InvalidError("title must not be empty")
@@ -311,20 +347,21 @@ class Store:
                 self._index(conn, page["id"], new_title, new_body)
         return self.page(page["id"])
 
-    def delete_page(self, key: str) -> None:
-        """Move a page to the trash; its captures and files stay until a purge."""
+    def delete_page(self, key: str, undo: bool = False) -> None:
+        """Move a page to the trash (or back); captures and files stay until a purge."""
         with self.connect() as conn:
             cur = conn.execute(
                 "UPDATE page SET deleted_at = ? WHERE (id = ? OR slug = ?)"
-                " AND deleted_at IS NULL",
-                (now(), key, key),
+                f" AND deleted_at IS {'NOT' if undo else ''} NULL",
+                (None if undo else now(), key, key),
             )
         if cur.rowcount == 0:
             raise NotFoundError(key)
 
     def search(self, query: str, limit: int) -> list[dict[str, Any]]:
         """Full-text search; each word must match, the last one as a prefix."""
-        words = [f'"{w}"' for w in query.replace('"', " ").split()]
+        query = CONTROL.sub(" ", query).replace('"', " ")
+        words = [f'"{w}"' for w in query.split()]
         if not words:
             return []
         words[-1] += "*"

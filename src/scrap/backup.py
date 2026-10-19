@@ -4,9 +4,10 @@ import json
 import mimetypes
 import shutil
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
-from .store import Store, connect
+from .store import Store, connect, migrate, schema_version
 
 __all__ = ["backup", "restore", "export"]
 
@@ -47,18 +48,34 @@ def backup(store: Store, dest: Path) -> None:
 
 
 def restore(src: Path, store: Store, force: bool = False) -> None:
-    """Restore a backup into a data folder that is empty (or any, with force)."""
-    if not (src / "scrap.db").is_file():
+    """Restore a backup into a data folder that is empty (or any, with force).
+
+    The backup is checked and migrated in a copy beside the live database, which
+    is swapped in only at the end. Files are only ever added.
+    """
+    backup_db = src / "scrap.db"
+    if not backup_db.is_file():
         raise SystemExit(f"no backup at {src}")
     used = store.db.exists() or (store.files.is_dir() and any(store.files.iterdir()))
     if used and not force:
         raise SystemExit(f"{store.dir} is not empty; stop scrap and use --force")
-    store.dir.mkdir(parents=True, exist_ok=True)
+    try:
+        schema_version(backup_db)  # refuses a backup newer than this scrap
+        with closing(connect(backup_db)) as conn:
+            check = conn.execute("PRAGMA integrity_check").fetchone()[0]
+    except (RuntimeError, sqlite3.DatabaseError) as error:
+        raise SystemExit(f"bad backup: {error}") from None
+    if check != "ok":
+        raise SystemExit(f"bad backup: integrity_check says {check}")
+    store.files.mkdir(parents=True, exist_ok=True)
+    _copy_files(src / "files", store.files)
+    part = store.dir / "scrap.db.restore"
+    _snapshot(backup_db, part)
+    migrate(part)
+    Path(f"{part}.lock").unlink()
     for suffix in ("-wal", "-shm"):
         Path(f"{store.db}{suffix}").unlink(missing_ok=True)
-    _snapshot(src / "scrap.db", store.db)
-    _copy_files(src / "files", store.files)
-    store.migrate()
+    part.replace(store.db)
 
 
 def export(store: Store, dest: Path) -> int:

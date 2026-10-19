@@ -1,12 +1,14 @@
-import io
+import json
 import sqlite3
+from concurrent.futures import ProcessPoolExecutor
+from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
 
 from scrap import __version__
 from scrap.app import create_app
-from scrap.store import Store, TooLargeError, migrations, new_ulid
+from scrap.store import Store, connect, migrate, migrations, new_ulid
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
 
@@ -27,6 +29,16 @@ def test_migrations_apply_on_a_fresh_dir(tmp_path):
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     Store(tmp_path).migrate()  # idempotent
+
+
+def test_concurrent_migrations_apply_once(tmp_path):
+    dbs = [tmp_path / f"{n}.db" for n in range(4)]
+    with ProcessPoolExecutor(4) as pool:
+        list(pool.map(migrate, dbs * 4))  # would raise "table blob already exists"
+    for db in dbs:
+        with closing(connect(db)) as conn:
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            assert version == len(migrations())
 
 
 def test_migrate_refuses_a_newer_database(tmp_path):
@@ -119,18 +131,45 @@ def test_blob_path_traversal(client, path):
     assert client.get(f"/api/blobs/{path}").status_code == 404
 
 
+def _chunks(body: bytes):
+    yield from (body[i : i + 256] for i in range(0, len(body), 256))
+
+
 def test_upload_over_limit_is_413(tmp_path, monkeypatch):
-    monkeypatch.setenv("SCRAP_MAX_UPLOAD_MB", "0.001")
+    monkeypatch.setenv("SCRAP_MAX_UPLOAD_MB", "0.001")  # 1048 bytes
     client = TestClient(create_app(tmp_path))
+    big = [("file", ("big.bin", b"x" * 2048, "application/octet-stream"))]
+    response = client.post("/api/captures", data={"id": new_ulid()}, files=big)
+    assert response.status_code == 413
+    # Chunked, with no Content-Length: multipart and JSON.
+    boundary = "b0undary"
+    multipart = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="id"\r\n\r\n'
+        f"{new_ulid()}\r\n--{boundary}\r\nContent-Disposition: form-data;"
+        f' name="file"; filename="big.bin"\r\n\r\n{"x" * 4096}\r\n--{boundary}--\r\n'
+    ).encode()
+    note = json.dumps({"id": new_ulid(), "text": "x" * 4096}).encode()
+    for body, kind in [
+        (multipart, f"multipart/form-data; boundary={boundary}"),
+        (note, "application/json"),
+    ]:
+        response = client.post(
+            "/api/captures", content=_chunks(body), headers={"Content-Type": kind}
+        )
+        assert "content-length" not in response.request.headers
+        assert response.status_code == 413
+    assert not [p for p in (tmp_path / "files").rglob("*") if p.is_file()]
+    assert client.get("/api/pages").json() == []
+
+
+def test_rejected_capture_writes_no_files(client, tmp_path):
     response = client.post(
         "/api/captures",
-        data={"id": new_ulid()},
-        files=[("file", ("big.bin", b"x" * 2048, "application/octet-stream"))],
+        data={"id": "bad"},
+        files=[("file", ("a.png", PNG, "image/png"))],
     )
-    assert response.status_code == 413
-    with pytest.raises(TooLargeError):  # a stream with no Content-Length
-        Store(tmp_path).put_blob(io.BytesIO(b"x" * 10), 5)
-    assert not [p for p in (tmp_path / "files").rglob("*") if p.is_file()]
+    assert response.status_code == 422
+    assert not [p for p in (tmp_path / "data/files").rglob("*") if p.is_file()]
 
 
 def test_stale_edit_is_409(client, note):
@@ -143,6 +182,8 @@ def test_stale_edit_is_409(client, note):
     assert stale.status_code == 409
     assert stale.json()["rev"] == 2
     assert client.get(url).json()["title"] == "Shopping list"
+    one_line = client.patch(url, json={"base_rev": 2, "title": " a\n b "}).json()
+    assert one_line["title"] == "a b"
 
 
 def search(client, query):
@@ -156,6 +197,25 @@ def test_search_finds_title_and_body_at_once(client, note):
         assert [h["id"] for h in search(client, query)] == [ref["page_id"]]
     assert search(client, 'bad "fts syntax ( OR') == []
     assert "<mark>shed</mark>" in search(client, "shed")[0]["snippet"]
+    assert search(client, "\x00") == search(client, "zzz\x00\x01") == []
+    assert search(client, "\x00shed")[0]["id"] == ref["page_id"]
+
+
+def test_snippets_escape_html(client, note):
+    note("<b>bold</b> & \x02fake\x03 <script>x</script>")
+    snippet = search(client, "bold")[0]["snippet"]
+    assert snippet == (
+        "&lt;b&gt;<mark>bold</mark>&lt;/b&gt; &amp; fake &lt;script&gt;x&lt;/script&gt;"
+    )
+
+
+def test_slugs(client, note):
+    assert note("Café ünïcode")["slug"] == "cafe-unicode"
+    assert note("Café")["slug"] == "cafe"
+    assert note("Café")["slug"] == "cafe-2"
+    assert note("日本語")["slug"] == "page"
+    assert note("Café-2 notes")["slug"] == "cafe-2-notes"
+    assert note("Café")["slug"] == "cafe-3"
 
 
 def test_search_sees_edits(client, note):
@@ -178,3 +238,7 @@ def test_delete_is_soft(client, note, tmp_path):
     assert search(client, "trash") == []
     with Store(tmp_path / "data").connect() as conn:  # still stored
         assert conn.execute("SELECT count(*) FROM capture").fetchone()[0] == 2
+    back = client.post(f"/api/pages/{ref['page_id']}/undelete")
+    assert (back.status_code, back.json()["title"]) == (200, "Trash me")
+    assert len(search(client, "trash")) == 1
+    assert client.post(f"/api/pages/{ref['slug']}/undelete").status_code == 404

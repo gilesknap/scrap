@@ -368,6 +368,19 @@ todo are PWA actions only in v0.
 - **Reading is not acting.** Sessions holding cluster or other powerful credentials should not
   mount the scrap MCP server, since pages may hold injected text.
 
+## Implementation notes (M1)
+
+Where the code so far differs from the text above; later milestones should build on these.
+
+- **Soft delete.** `page.deleted_at` marks the trash and `POST /api/pages/{id}/undelete` undoes it;
+  nothing is purged yet. So the cascades above never fire on delete: jobs, links, `summarise` and
+  `[[slug]]` resolution must check `deleted_at` themselves, and a trashed page keeps its slug.
+- **Index.** One chunk per page (title and body), written in the same transaction as the capture or
+  edit rather than by an `index` job; `chunk` has no `derived_id` until `derived` exists.
+- **Titles.** The first line of the capture's text, else the URL, else the device date.
+- **Lookup.** The API takes a page's id or its slug.
+- **Export.** `scrap export` (from v0.1 below) is in M1, without tags until tags exist.
+
 ## Deferred to v0.1
 
 - Voice memos (needs a transcriber).

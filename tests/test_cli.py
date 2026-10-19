@@ -82,3 +82,27 @@ def test_export_markdown(client, note, tmp_path, capsys):
     [png] = (out / "files").iterdir()
     assert png.read_bytes() == b"png bytes"
     assert f"![b.png](files/{png.name})" in (out / "photo.md").read_text()
+
+
+def test_restore_refuses_a_bad_backup_without_touching_data(note, tmp_path):
+    from scrap.__main__ import main
+
+    data, bak = tmp_path / "data", tmp_path / "bak"
+    note("Keep me")
+    main(["backup", "--data-dir", str(data), str(bak)])
+    before = _dump(data)
+    with Store(bak).connect() as conn:
+        conn.execute("PRAGMA user_version = 7")
+    for target in [data, tmp_path / "new"]:
+        with pytest.raises(SystemExit, match="schema 7"):
+            main(["restore", "--force", "--data-dir", str(target), str(bak)])
+    (bak / "scrap.db").write_bytes(b"not a database" * 100)
+    with pytest.raises(SystemExit, match="bad backup"):
+        main(["restore", "--force", "--data-dir", str(data), str(bak)])
+    assert _dump(data) == before
+    assert not (tmp_path / "new").exists()
+    assert sorted(p.name for p in data.iterdir()) == [
+        "files",
+        "scrap.db",
+        "scrap.db.lock",
+    ]
