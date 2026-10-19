@@ -47,7 +47,9 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
  *
  * XMLHttpRequest, not fetch, because only it reports upload progress: a slow upload that keeps
  * moving may take as long as it needs, but one with no progress for a minute is given up, so it
- * cannot hold the queue (and its lock in every tab) for ever. 15 minutes is the hard ceiling.
+ * cannot hold the queue (and its lock in every tab) for ever. Progress counts bytes handed to
+ * the phone's network stack, which may still hold a few MB when the upload "ends", so the answer
+ * then gets a generous wait: at least 2 minutes, or the body at 5 KB/s. 15 minutes is the ceiling.
  */
 export function send(
   item: Item,
@@ -65,17 +67,21 @@ export function send(
   return new Promise((ok, fail) => {
     const xhr = new Xhr();
     let stall: ReturnType<typeof setTimeout> | undefined;
-    const moving = () => {
+    const wait = (ms: number) => {
       clearTimeout(stall);
-      stall = setTimeout(() => xhr.abort(), stallMs);
+      stall = setTimeout(() => xhr.abort(), ms);
     };
+    const moving = () => wait(stallMs);
+    const size = files.reduce((n, f) => n + f.blob.size, 0);
+    const sent = () => wait(Math.max(120_000, (size / 5120) * 1000));
     const timedOut = () => {
       clearTimeout(stall);
       fail(new DOMException("no upload progress", "TimeoutError"));
     };
     xhr.open("POST", "/api/captures");
     xhr.timeout = 15 * 60_000;
-    xhr.upload.onprogress = xhr.upload.onload = xhr.onprogress = moving;
+    xhr.upload.onprogress = moving;
+    xhr.upload.onload = sent;
     xhr.onabort = xhr.ontimeout = timedOut;
     xhr.onerror = () => {
       clearTimeout(stall);
@@ -109,4 +115,10 @@ export async function learnLimit() {
     const { max_upload_bytes } = await (await fetch("/healthz")).json();
     if (max_upload_bytes) localStorage.setItem(LIMIT, String(max_upload_bytes));
   } catch {} // offline: keep the last one
+}
+
+/** The stall limit, which tests may shorten (localStorage scrap.stall_ms, 1 s to 10 min). */
+export function stallLimit(raw: string | null): number {
+  const ms = Number(raw);
+  return raw && Number.isFinite(ms) && ms >= 1000 && ms <= 600_000 ? ms : 60_000;
 }

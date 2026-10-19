@@ -54,7 +54,9 @@ the link as the capture's URL.
   first, then deletes it and its photos from the phone). A multi-photo capture refused as too
   large offers **Split and retry** instead of Retry: one capture per photo, text and hint on the first.
 - A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
-  no progress for a minute is given up and retried later. Network and server errors just wait
+  no progress for a minute is given up and retried later. Once the phone has handed over the whole
+  upload, it waits at least two minutes for the answer (longer for big uploads, which may still
+  be draining from the phone's network buffer). Network and server errors just wait
   and retry.
 - If the phone refuses to store a capture (storage full), the composer stays open with your text
   and photos and says so. A share that cannot be stored goes straight to the server instead, or,

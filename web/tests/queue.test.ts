@@ -174,6 +174,18 @@ describe("queue", () => {
     expect((await q.items()).map((i) => i.files[0].name)).toEqual(["a", "b"]);
   });
 
+  it("splits once when two tabs split at the same moment", async () => {
+    const q = queue();
+    replies = [413];
+    const files = ["a", "b", "c"].map((n) => ({ name: n, blob: new Blob([n]) }));
+    const big = await q.add({ text: "t", source: "pwa", files });
+    await q.flush();
+    replies = [0, 0];
+    const other = new Queue(idb, send, () => clock + 10); // its own ids, as another tab
+    await Promise.all([q.splitRetry(big.id), other.splitRetry(big.id)]);
+    expect((await q.items()).map((i) => i.files[0].name)).toEqual(["a", "b", "c"]);
+  });
+
   it("says when an upload timed out", async () => {
     const slow = () => Promise.reject(new DOMException("too slow", "TimeoutError"));
     const q = new Queue(idb, slow, () => clock);

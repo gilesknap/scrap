@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { send } from "../src/api";
+import { send, stallLimit } from "../src/api";
 import { newItem } from "../src/queue";
 
 // Just enough XMLHttpRequest to drive send(): the test plays the network.
@@ -73,4 +73,43 @@ it("passes on the server's answer and reason", async () => {
   const lost = send(note, Xhr);
   FakeXhr.last.onerror?.();
   await expect(lost).rejects.toBeInstanceOf(TypeError);
+});
+
+it("waits generously for the answer once the body is handed over", async () => {
+  // The phone's send buffer may still be draining: silence now is not a stall.
+  const big = newItem({
+    source: "pwa",
+    files: [{ name: "p.jpg", blob: new Blob([new Uint8Array(4 * 2 ** 20)]) }],
+  });
+  const sent = send(big, Xhr, 60_000);
+  const xhr = FakeXhr.last;
+  xhr.upload.onprogress?.();
+  xhr.upload.onload?.();
+  vi.advanceTimersByTime(90_000);
+  xhr.answer(201);
+  await expect(sent).resolves.toMatchObject({ status: 201 });
+
+  const lost = send(big, Xhr, 60_000);
+  FakeXhr.last.upload.onload?.();
+  vi.advanceTimersByTime(800_000); // 4 MB at 5 KB/s is about 820 s
+  FakeXhr.last.answer(200);
+  await expect(lost).resolves.toMatchObject({ status: 200 });
+  const never = send(big, Xhr, 60_000);
+  FakeXhr.last.upload.onload?.();
+  vi.advanceTimersByTime(820_000);
+  await expect(never).rejects.toMatchObject({ name: "TimeoutError" });
+
+  const small = send(photo, Xhr, 60_000); // a tiny body still gets two minutes
+  FakeXhr.last.upload.onload?.();
+  vi.advanceTimersByTime(119_000);
+  FakeXhr.last.answer(201);
+  await expect(small).resolves.toMatchObject({ status: 201 });
+});
+
+it("accepts only a sane stall limit from the test hook", () => {
+  expect(stallLimit(null)).toBe(60_000);
+  expect(stallLimit("3000")).toBe(3000);
+  for (const bad of ["", "1", "-1", "abc", "NaN", "Infinity", "999", "600001"]) {
+    expect(stallLimit(bad)).toBe(60_000);
+  }
 });

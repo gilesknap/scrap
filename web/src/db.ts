@@ -58,8 +58,16 @@ export const idb: Store = {
   del: (id) => run("readwrite", (s) => s.delete(id)),
   replace: (add, id) =>
     run("readwrite", (s) => {
-      for (const item of add) s.put(item);
-      if (id) s.delete(id);
-      return undefined;
+      const write = () => {
+        for (const item of add) s.put(item);
+        if (id) s.delete(id);
+      };
+      if (!id) {
+        write();
+        return;
+      }
+      // Only if the original is still there: another tab may have split it already.
+      const req = s.get(id);
+      req.onsuccess = () => req.result && write();
     }),
 };
