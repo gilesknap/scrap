@@ -24,11 +24,12 @@ MAX_TAGS, MAX_TAG = 10, 64
 
 
 def _finite(value: Any) -> TypeGuard[float]:
-    return (
-        isinstance(value, int | float)
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-    )
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:  # an integer too big for a float
+        return False
 
 
 def _clean(text: Any) -> str:
@@ -164,12 +165,30 @@ COLOURS = ("strokeColor", "backgroundColor")
 HTTP = re.compile(r"https?://", re.IGNORECASE)
 
 
+MAX_DEPTH = 32  # nesting of objects and lists; Excalidraw's own go about 4 deep
+
+
+def _depth(data: Any) -> int:
+    """How deeply objects and lists nest (without recursing, so any depth is safe)."""
+    deepest, stack = 0, [(data, 1)]
+    while stack:
+        value, depth = stack.pop()
+        if isinstance(value, dict | list):
+            deepest = max(deepest, depth)
+            if depth > MAX_DEPTH:
+                break
+            items = value.values() if isinstance(value, dict) else value
+            stack.extend((v, depth + 1) for v in items)
+    return deepest
+
+
 def _size(data: Any) -> int:
-    """Bytes as JSON; NaN or Infinity anywhere (Python's JSON parser lets them in)
-    is refused here rather than failing the database's json_valid check."""
+    """Bytes as compact JSON, as the editor sends it. NaN or Infinity anywhere
+    (Python's JSON parser lets them in) is refused here rather than failing the
+    database's json_valid check, and so are integers no float can hold."""
     try:
-        return len(json.dumps(data, allow_nan=False))
-    except ValueError:
+        return len(json.dumps(data, allow_nan=False, separators=(",", ":")))
+    except (ValueError, OverflowError):
         raise InvalidError("numbers must be finite") from None
 
 
@@ -184,6 +203,8 @@ def scene(data: Any) -> dict[str, Any]:
     if not isinstance(data, dict) or not isinstance(data.get("elements"), list):
         raise InvalidError("a scene is an object with an elements list")
     data = {k: v for k, v in data.items() if k != "files"}  # embedded image data
+    if _depth(data) > MAX_DEPTH:  # else it could be stored, then never served
+        raise InvalidError(f"scene nested over {MAX_DEPTH} levels deep")
     if _size(data) > SCENE_BYTES:
         raise InvalidError("scene over 5 MB")
     elements = []

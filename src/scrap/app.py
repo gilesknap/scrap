@@ -9,7 +9,7 @@ import tempfile
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import quote
 
 import anyio
@@ -23,7 +23,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StrictInt
 from starlette.datastructures import UploadFile
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -60,9 +60,12 @@ class Reprocess(BaseModel):
     replace_human: bool = False  # the user confirmed replacing their own drawing
 
 
+VERSION_NUMBER = Annotated[StrictInt, Field(ge=1, le=2**31)]
+
+
 class Restore(BaseModel):
-    version: int  # the version to make current again
-    base_version: int | None = None  # if given, 409 unless it is still current
+    version: VERSION_NUMBER  # the version to make current again
+    base_version: VERSION_NUMBER  # the current one as the client saw it, else 409
 
 
 class PageEdit(BaseModel):
@@ -262,18 +265,20 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     def photo(cid: str, sha: str) -> tuple[str, str]:
         return cid.upper(), sha.lower()
 
+    # The drawing endpoints answer with JSONResponse: a scene is JSON from the editor,
+    # passed through as stored, not a model for FastAPI to check again.
     @app.get("/api/captures/{cid}/photos/{sha}/drawing")
-    def drawing_current(cid: str, sha: str) -> dict[str, Any]:
+    def drawing_current(cid: str, sha: str) -> JSONResponse:
         """A photo's current drawing, with its data; 404 if it has none."""
-        return drawing.current(store, *photo(cid, sha))
+        return JSONResponse(drawing.current(store, *photo(cid, sha)))
 
     @app.get("/api/captures/{cid}/photos/{sha}/drawing/versions")
-    def drawing_versions(cid: str, sha: str) -> list[dict[str, Any]]:
+    def drawing_versions(cid: str, sha: str) -> JSONResponse:
         """Every version of a photo's drawing, newest first, without their data."""
-        return drawing.versions(store, *photo(cid, sha))
+        return JSONResponse(drawing.versions(store, *photo(cid, sha)))
 
     @app.put("/api/captures/{cid}/photos/{sha}/drawing")
-    async def drawing_save(cid: str, sha: str, request: Request) -> dict[str, Any]:
+    async def drawing_save(cid: str, sha: str, request: Request) -> JSONResponse:
         """Save a scene from the editor as a new human version: {base_version, scene}.
         409 if the current version is no longer base_version, 422 if the scene breaks
         a rule, 413 if the request is over SCENE_REQUEST bytes."""
@@ -281,30 +286,33 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         async for chunk in request.stream():
             body += chunk
             if len(body) > SCENE_REQUEST:
-                raise TooLargeError("a drawing is limited to 5 MB")
+                raise TooLargeError(too_large(SCENE_REQUEST))
         try:
             ask = json.loads(body)
-        except ValueError:
+        except (ValueError, RecursionError):  # also nesting or digits past the parser's
             raise InvalidError("expected JSON") from None
         if not isinstance(ask, dict) or not (
             ask.get("base_version") is None or type(ask["base_version"]) is int
         ):
             raise InvalidError("expected {base_version, scene}")
         who = author(request)
-        return await run_in_threadpool(
+        saved = await run_in_threadpool(
             drawing.save, store, *photo(cid, sha), ask["base_version"],
             ask.get("scene"), who,
         )  # fmt: skip
+        return JSONResponse(saved)
 
     @app.post("/api/captures/{cid}/photos/{sha}/drawing/restore")
     def drawing_restore(
         cid: str, sha: str, ask: Restore, request: Request
-    ) -> dict[str, Any]:
-        """Make an old version of the drawing current again, as a new copy."""
+    ) -> JSONResponse:
+        """Make an old version of the drawing current again, as a new copy; 409 if
+        base_version is no longer current, 404 if there is no such version."""
         who = author(request)
-        return drawing.restore(
+        restored = drawing.restore(
             store, *photo(cid, sha), ask.version, ask.base_version, who
         )
+        return JSONResponse(restored)
 
     @app.get("/api/ingest")
     def ingest_status() -> dict[str, Any]:

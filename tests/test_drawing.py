@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from scrap import ingest
 from scrap.app import create_app
+from scrap.backup import export
 from scrap.drawing import excalidraw_file
 from scrap.store import Store, new_ulid
 from test_ingest import BOARD, Fake, jpeg
@@ -70,7 +71,8 @@ def test_save_versions_conflict_and_restore(board):
     assert client.get("/api/search", params={"q": "zebra"}).json() == []
     stale = client.post(f"{url}/restore", json={"version": 2, "base_version": 2})
     assert stale.status_code == 409
-    assert client.post(f"{url}/restore", json={"version": 9}).status_code == 404
+    missing = client.post(f"{url}/restore", json={"version": 9, "base_version": 3})
+    assert missing.status_code == 404
 
     history = client.get(f"{url}/versions").json()
     assert [(v["version"], v["current"]) for v in history] == [
@@ -162,3 +164,108 @@ def test_a_skeleton_file_names_every_element_once():
     assert len(ids) == len(set(ids)) == 4
     assert elements[0]["height"] == 2 * 20 * 1.25
     assert elements[3]["width"] == 3 and elements[3]["endArrowhead"] is None
+
+
+@pytest.mark.parametrize(
+    "ask",
+    [
+        {"version": 1},  # no base_version: a stale history must not restore blindly
+        {"version": True, "base_version": 1},
+        {"version": "1", "base_version": 1},
+        {"version": 10**30, "base_version": 1},
+        {"version": 0, "base_version": 1},
+        {"version": -1, "base_version": 1},
+        {"version": 1, "base_version": 1.0},
+    ],
+)
+def test_restore_takes_only_sensible_version_numbers(board, ask):
+    client, url, _ = board
+    assert client.post(f"{url}/restore", json=ask).status_code == 422
+
+
+def nested(depth: int) -> dict:
+    deep: dict = {}
+    for _ in range(depth):
+        deep = {"d": deep}
+    return deep
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # stored, it could never be served again (serialisers have depth limits)
+        json.dumps(
+            {
+                "base_version": 1,
+                "scene": {
+                    "elements": [
+                        {
+                            "type": "text",
+                            "x": 0,
+                            "y": 0,
+                            "text": "t",
+                            "customData": nested(255),
+                        }
+                    ]
+                },
+            }
+        ).encode(),  # fmt: skip
+        b'{"base_version": 1, "scene": ' + b"[" * 100_000 + b"]" * 100_000 + b"}",
+        b'{"base_version": 1, "scene": {"elements": [{"type": "text", "x": '
+        + b"9" * 400
+        + b', "y": 0}]}}',
+        b'{"base_version": 1, "scene": {"elements": [], "n": ' + b"9" * 5000 + b"}}",
+    ],
+    ids=["deep-custom-data", "deep-body", "400-digit-x", "5000-digit-int"],
+)
+def test_hostile_bodies_are_422_and_the_drawing_still_serves(board, body):
+    client, url, _ = board
+    response = client.put(url, content=body)
+    assert response.status_code == 422, response.text
+    assert client.get(url).status_code == 200
+
+
+def test_a_scene_as_deep_as_allowed_is_saved_and_served(board):
+    client, url, _ = board
+    element = {"type": "text", "x": 0, "y": 0, "text": "t", "customData": nested(27)}
+    put = client.put(url, json={"base_version": 1, "scene": {"elements": [element]}})
+    assert put.status_code == 200, put.text
+    assert client.get(url).json()["version"] == 2
+
+
+def test_export_keeps_each_pages_drawing_of_the_same_photo(tmp_path):
+    """One photo on two pages, with different drawings: each page's Markdown links
+    to its own drawing in the shared files/ folder."""
+    client = TestClient(create_app(tmp_path))
+    image = jpeg(size=(800, 600))
+    refs = []
+    for words in ("first", "second"):
+        files = [("file", ("board.jpg", image, "image/jpeg"))]
+        data = {"id": new_ulid(), "text": f"{words} page"}
+        refs.append(client.post("/api/captures", data=data, files=files).json())
+    page = client.get(f"/api/pages/{refs[0]['page_id']}").json()
+    sha = page["captures"][0]["blobs"][0]["sha256"]
+    for ref, words in zip(refs, ("ONE", "TWO"), strict=True):
+        url = f"/api/captures/{ref['capture_id']}/photos/{sha}/drawing"
+        put = client.put(url, json={"base_version": None, "scene": scene(words)})
+        assert put.status_code == 200
+    out = tmp_path / "export"
+    assert export(Store(tmp_path), out) == 2
+    for ref, words in zip(refs, ("ONE", "TWO"), strict=True):
+        md = (out / f"{ref['slug']}.md").read_text()
+        link = md.split("[Drawing of")[1].split("(files/")[1].split(")")[0]
+        assert ref["capture_id"] in link
+        drawing = json.loads((out / "files" / link).read_text())
+        assert [e["text"] for e in drawing["elements"]] == [words]
+
+
+def test_made_ids_never_collide_with_the_models():
+    skeleton = {"format": "skeleton", "elements": [
+        {"type": "rectangle", "id": "a", "x": 0, "y": 0, "width": 9, "height": 9,
+         "label": {"text": "x", "fontSize": 20}},
+        {"type": "text", "id": "a-label", "x": 0, "y": 0, "text": "t"},
+        {"type": "text", "id": "e3", "x": 0, "y": 0, "text": "u"},
+        {"type": "line", "x": 0, "y": 0, "points": [[0, 0], [1, 1]]},
+    ]}  # fmt: skip
+    ids = [e["id"] for e in json.loads(excalidraw_file(skeleton))["elements"]]
+    assert len(ids) == len(set(ids)) == 5 and "a-label" in ids

@@ -59,15 +59,19 @@ def _current(conn: sqlite3.Connection, cid: str, sha: str) -> sqlite3.Row | None
     return conn.execute(VERSION + " AND d.superseded_at IS NULL", (cid, sha)).fetchone()
 
 
+def _shown(conn: sqlite3.Connection, cid: str, sha: str) -> dict[str, Any]:
+    row = _current(conn, cid, sha)
+    if row is None:
+        raise NotFoundError("no drawing")
+    return {**_meta(row), "data": json.loads(row["data"])}
+
+
 def current(store: Store, cid: str, sha: str) -> dict[str, Any]:
     """The current drawing: its version's details and its data (a model skeleton or a
     human scene, with the frame width and height). 404 if there is none."""
     with store.connect() as conn:
         _photo(conn, cid, sha)
-        row = _current(conn, cid, sha)
-    if row is None:
-        raise NotFoundError("no drawing")
-    return {**_meta(row), "data": json.loads(row["data"])}
+        return _shown(conn, cid, sha)
 
 
 def versions(store: Store, cid: str, sha: str) -> list[dict[str, Any]]:
@@ -104,18 +108,18 @@ def save(
             conn, cid, sha, KIND, "human", now(), author=author,
             text=sanitise.scene_text(checked), data=checked,
         )  # fmt: skip
-    return current(store, cid, sha)
+        return _shown(conn, cid, sha)  # the version written here, whatever comes next
 
 
 def restore(
-    store: Store, cid: str, sha: str, version: int, base: int | None, who: str
+    store: Store, cid: str, sha: str, version: int, base: int, who: str
 ) -> dict[str, Any]:
-    """Make an old version current again, as a copy (versions never change). base,
-    if given, must be the current version (else 409)."""
+    """Make an old version current again, as a copy (versions never change). base
+    must be the current version (else 409), so a stale history view cannot restore
+    over a newer edit; NotFoundError (404) if there is no such version."""
     with store.connect() as conn, transaction(conn):
         _photo(conn, cid, sha)
-        if base is not None:
-            _check_base(conn, cid, sha, base)
+        _check_base(conn, cid, sha, base)
         old = conn.execute(
             "SELECT * FROM derived WHERE capture_id = ? AND source_sha256 = ?"
             " AND kind = 'excalidraw' AND version = ?",
@@ -128,7 +132,7 @@ def restore(
             conn, cid, sha, KIND, old["producer"], now(), run_id=old["run_id"],
             author=old["author"], text=old["text"], data=data,
         )  # fmt: skip
-    return current(store, cid, sha)
+        return _shown(conn, cid, sha)
 
 
 # ---- a drawing as an .excalidraw file, for downloads and `scrap export`
@@ -161,9 +165,21 @@ def _skeleton_elements(skeleton: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     shapes: dict[str, dict[str, Any]] = {}
     pairs = []  # (skeleton, element)
+    taken = {s["id"] for s in skeleton if s.get("id")}
+
+    def fresh(want: str) -> str:
+        """An id no element has: the model's are kept, made ones step around them."""
+        made, n = want, 1
+        while made in taken:
+            n += 1
+            made = f"{want}-{n}"
+        taken.add(made)
+        return made
+
     for n, s in enumerate(skeleton):
         e = BASE | {
-            "type": s["type"], "id": s.get("id") or f"e{n}", "x": s["x"], "y": s["y"],
+            "type": s["type"], "id": s.get("id") or fresh(f"e{n}"), "x": s["x"],
+            "y": s["y"],
             "strokeColor": s.get("strokeColor", BASE["strokeColor"]),
         }  # fmt: skip
         if s["type"] == "text":
@@ -188,7 +204,7 @@ def _skeleton_elements(skeleton: list[dict[str, Any]]) -> list[dict[str, Any]]:
         label = s.get("label")
         if label:
             size = label.get("fontSize", 20)
-            t = _text(f"{e['id']}-label", e["x"], e["y"], label["text"], size)
+            t = _text(fresh(f"{e['id']}-label"), e["x"], e["y"], label["text"], size)
             if s["type"] != "arrow":  # centred in its shape
                 t["x"] = e["x"] + (e["width"] - t["width"]) / 2
                 t["y"] = e["y"] + (e["height"] - t["height"]) / 2

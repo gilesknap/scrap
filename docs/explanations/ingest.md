@@ -197,7 +197,8 @@ base version (409 if stale) as a `human` version whose labels become `text`; **H
 - any colour Excalidraw writes (`transparent`, named, `#rgb`, `#rrggbbaa`, `rgba()`), and its
   own keys (`index`, `groupIds`, `containerId`, `originalText`, bindings);
 - `link` only with http(s), and the scene's `files` map (embedded image data) stripped;
-- 5 MB per scene.
+- 5 MB per scene (as compact JSON), nested at most 32 levels deep (deeper JSON could be
+  stored, then never served).
 
 A scene that breaks these gets a 422, and the editor keeps its state.
 
