@@ -11,10 +11,12 @@ import logging
 import os
 import sqlite3
 import threading
+import time
 import urllib.request
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 from . import claude, preview, sanitise
@@ -563,3 +565,60 @@ def status(store: Store) -> dict[str, Any]:
 def resume_queue(store: Store) -> None:
     with store.connect() as conn, transaction(conn):
         resume(conn, now())
+
+
+def once(path: Path, save: Path | None = None) -> dict[str, Any]:
+    """Send one image file to Claude as the worker would, outside any database, and
+    describe the outcome in numbers only (no text from the image). save, if given,
+    gets the full response and sanitised output."""
+    jpeg, width, height = preview.claude_jpeg(path)
+    system, version = claude.prompt()
+    image = {
+        "type": "image",
+        "source": {"type": "blob", "sha256": "sent"},
+        "transformations": {"oversized_image": "error"},
+    }
+    size_text = {"type": "text", "text": f"The image is {width}x{height} pixels."}
+    messages = [{"role": "user", "content": [image, size_text]}]
+    model = claude.model_name()
+    summary: dict[str, Any] = {
+        "model": model,
+        "prompt_version": version,
+        "sent": [width, height, len(jpeg)],
+    }
+    started = time.monotonic()
+    try:
+        done = claude.complete(
+            model, system, messages, claude.SCHEMA, lambda sha: (jpeg, "image/jpeg")
+        )
+        out = sanitise.model_output(done.output, width, height)
+        summary["outcome"] = "ok"
+    except (claude.CallError, ValueError) as error:
+        cls = getattr(error, "cls", "invalid")
+        summary.update(outcome=cls, error=str(error))
+        done, out = getattr(error, "completion", None), None
+    summary["seconds"] = round(time.monotonic() - started, 1)
+    if done is not None:
+        summary.update(
+            served_model=done.served_model,
+            stop_reason=done.stop_reason,
+            blocks=[b.get("type") for b in done.content],
+            usage=done.usage,
+            cost_usd=claude.cost_microusd(done.served_model, done.usage) / 1e6,
+        )
+    if out is not None:
+        summary.update(
+            kind=out["kind"],
+            text_lines=len(out["text"].splitlines()),
+            uncertain=out["text"].count("(?)"),
+            tags=len(out["tags"]),
+            elements_given=len(done.output.get("elements") or []) if done else 0,
+            elements_kept=len(out["elements"]),
+            warnings=len(out["warnings"]),
+        )
+    if save is not None:
+        record = {"summary": summary, "output": out}
+        if done is not None:
+            record["content"] = done.content
+        save.write_text(json.dumps(record, indent=1))
+    return summary

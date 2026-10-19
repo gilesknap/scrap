@@ -22,7 +22,15 @@ from pillow_heif import register_heif_opener
 
 from .store import InvalidError, Store
 
-__all__ = ["SIZES", "BusyError", "cached", "claude_size", "for_claude", "preview"]
+__all__ = [
+    "SIZES",
+    "BusyError",
+    "cached",
+    "claude_jpeg",
+    "claude_size",
+    "for_claude",
+    "preview",
+]
 
 SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 # Bytes one decode may take, as estimated by _cost: about 50 MP for a HEIC (an iPhone's
@@ -125,6 +133,11 @@ def for_claude(store: Store, sha: str) -> tuple[bytes, int, int]:
     src, mime = store.blob(sha)
     if not mime.startswith("image/"):
         raise InvalidError("not an image")
+    return claude_jpeg(src)
+
+
+def claude_jpeg(src: Path) -> tuple[bytes, int, int]:
+    """An image file as the JPEG sent to Claude, and its width and height."""
     with _decoder:
         im, extra = _decode(src, CLAUDE_EDGE)
         size = claude_size(*im.size)

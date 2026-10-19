@@ -44,7 +44,22 @@ def main(args: Sequence[str] | None = None) -> None:
                 " lost; files are kept). Stop scrap first: a running server would"
                 " go on writing to the old, replaced database and lose those writes",
             )
+    once = subparsers.add_parser(
+        "ingest-once",
+        help="Send one image to Claude as ingest would (no database) and print the"
+        " outcome in numbers; needs ANTHROPIC_API_KEY",
+    )
+    once.add_argument("image", type=Path)
+    once.add_argument("--save", type=Path, help="Also write the full result here")
     parsed = parser.parse_args(args)
+
+    if parsed.command == "ingest-once":
+        import json
+
+        from .ingest import once as ingest_once
+
+        print(json.dumps(ingest_once(parsed.image, parsed.save), indent=1))
+        return
 
     if parsed.command == "serve":
         import uvicorn

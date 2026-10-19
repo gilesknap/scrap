@@ -175,7 +175,7 @@ def test_cost():
 def test_schema_keeps_to_the_structured_output_subset():
     element = claude.SCHEMA["properties"]["elements"]["items"]
     optional = set(element["properties"]) - set(element["required"])
-    assert len(optional) == 12
+    assert len(optional) == 11
     text = json.dumps(claude.SCHEMA)
     for bound in ("minimum", "maximum", "minLength", "maxLength", "anyOf", "oneOf"):
         assert bound not in text
@@ -225,3 +225,37 @@ def test_heic_is_converted(tmp_path):
     store, sha = stored(tmp_path, out.getvalue())
     data, w, h = preview.for_claude(store, sha)
     assert Image.open(io.BytesIO(data)).format == "JPEG" and (w, h) == (300, 200)
+
+
+def test_ingest_once_prints_numbers_only(tmp_path, monkeypatch, capsys):
+    from scrap.__main__ import main
+
+    path = tmp_path / "board.jpg"
+    Image.new("RGB", (400, 300), "white").save(path)
+    element = {"type": "text", "id": "t", "x": 1, "y": 1, "text": "secret"}
+    output = {"kind": "whiteboard", "title": "Secret title", "tags": ["a"],
+              "description": "d", "text": "secret\nwords (?)",
+              "elements": [element]}  # fmt: skip
+    usage = {"input_tokens": 100, "output_tokens": 10}
+
+    def fake(model, system, messages, schema, blob):
+        assert blob("sent") == (blob("sent")[0], "image/jpeg")
+        content = [{"type": "text", "text": json.dumps(output)}]
+        return claude.Completion(output, content, usage, model, "end_turn")
+
+    monkeypatch.setattr(claude, "complete", fake)
+    main(["ingest-once", str(path), "--save", str(tmp_path / "out.json")])
+    printed = capsys.readouterr().out
+    assert "secret" not in printed.lower()
+    got = json.loads(printed)
+    assert got["outcome"] == "ok" and got["sent"][:2] == [400, 300]
+    assert (got["text_lines"], got["uncertain"], got["elements_kept"]) == (2, 1, 1)
+    assert json.loads((tmp_path / "out.json").read_text())["output"]["title"]
+
+    def refuse(*args):
+        raise claude.CallError("auth", "invalid x-api-key")
+
+    monkeypatch.setattr(claude, "complete", refuse)
+    main(["ingest-once", str(path)])
+    got = json.loads(capsys.readouterr().out)
+    assert (got["outcome"], got["error"]) == ("auth", "invalid x-api-key")
