@@ -27,7 +27,8 @@ Releases        | <https://github.com/gilesknap/scrap/releases>
 - Off-the-shelf parts wherever they exist: Claude for chat and reasoning, SQLite for storage and
   search, a local embedding model, Tailscale for access and identity, Excalidraw for drawings.
 - Quick capture from a phone that never waits on an LLM.
-- Originals are always kept; everything derived from them can be regenerated.
+- Originals are always kept; what is derived from them can be regenerated (a saved link's article
+  only while its source is online).
 
 ## Non-goals
 
