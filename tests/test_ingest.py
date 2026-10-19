@@ -671,3 +671,27 @@ def test_prompt_version_names_the_prompt_and_schema():
     name, digest = version.split("@")
     assert name == "photo" and len(digest) == 12
     assert Path(claude.__file__).with_name("prompts").joinpath("photo.md").is_file()
+
+
+def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
+    client = TestClient(create_app(tmp_path))
+    store = Store(tmp_path)
+    for n in range(200):
+        text = f"salt and pepper quokka {n}" if n == 0 else f"common words {n}"
+        store.capture(store.prepare({"id": new_ulid(), "text": text}, []), [], "me")
+
+    def found(q):
+        response = client.get("/api/search", params={"q": q})
+        assert response.status_code == 200
+        return len(response.json())
+
+    for q in ("salt & pepper", "pepper ?", "quokka -", "pepper pepper salt", "_ salt"):
+        assert found(q) == 1, q
+    assert found("& ? -") == 0
+    assert found("quokka pepp") == 1  # the last word is a prefix
+    assert found(" ".join(["common"] * 100)) == 20
+    words = " ".join(f"w{n}" for n in range(999))
+    started = time.monotonic()
+    assert found(words) == 0 and found("salt " + words) == 0  # 16 words used
+    assert found(f"common words {words}") == 0
+    assert time.monotonic() - started < 2

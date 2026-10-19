@@ -23,6 +23,8 @@ __all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidE
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 BARE_URL = re.compile(r"https?://\S+")
+WORD = re.compile(r"[^\W_]")  # a letter or digit
+MAX_WORDS = 16  # search words used
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 HINT_FIELDS = {
@@ -451,7 +453,10 @@ class Store:
         """Full-text search; each word must match somewhere in the page (its title
         and body, or a photo's text or description), the last one as a prefix."""
         query = CONTROL.sub(" ", query).replace('"', " ")
-        words = [f'"{w}"' for w in query.split()]
+        # Words FTS can index (a letter or digit; "_" separates), each once, at
+        # most MAX_WORDS: every word adds a subquery
+        kept = [w for w in query.split() if WORD.search(w)]
+        words = [f'"{w}"' for w in dict.fromkeys(kept)][:MAX_WORDS]
         if not words:
             return []
         words[-1] += "*"

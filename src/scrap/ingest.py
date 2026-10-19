@@ -294,10 +294,12 @@ class Worker:
                     "UPDATE model_run SET status = 'error', error_class = 'internal',"
                     " error = ?, finished_at = ?"
                     " WHERE job_id = ? AND status = 'running'",
-                    (repr(error)[:500], now(), job["id"]),
+                    (claude.redact(repr(error))[:500], now(), job["id"]),
                 )
                 if self._running(conn, job["id"]):
-                    charge(conn, job["id"], "internal", now(), repr(error))
+                    charge(
+                        conn, job["id"], "internal", now(), claude.redact(repr(error))
+                    )
         finally:
             self.current = None
         return True
@@ -328,13 +330,7 @@ class Worker:
         sent, size = self.store.put_blob(BytesIO(jpeg))
         model = claude.model_name()
         system, version = claude.prompt()
-        image = {
-            "type": "image",
-            "source": {"type": "blob", "sha256": sent},
-            "transformations": {"oversized_image": "error"},
-        }
-        size_text = {"type": "text", "text": f"The image is {width}x{height} pixels."}
-        messages = [{"role": "user", "content": [image, size_text]}]
+        messages = claude.photo_messages(sent, width, height)
         request = {
             "model": model,
             "max_tokens": claude.MAX_TOKENS,

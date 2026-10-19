@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import os
+import re
 from dataclasses import dataclass
 from importlib.resources import files as package_files
 from typing import Any
@@ -38,6 +39,7 @@ ELEMENT_TYPES = ["rectangle", "ellipse", "diamond", "text", "arrow", "line"]
 # missing here is costed as the dearest, so the budget errs on the safe side.
 PRICES = {"claude-opus-5-5": (4.0, 20.0, 5.0, 0.2)}
 DEAREST = (10.0, 50.0, 12.5, 0.25)
+KEYLIKE = re.compile(r"sk-ant-[\w-]+")
 
 # Kept to the structured-output subset: no unions, no numeric or string bounds (the
 # sanitiser enforces those), every element one flat object.
@@ -123,9 +125,18 @@ def _retry_after(error: anthropic.APIStatusError) -> float | None:
         return None
 
 
+def redact(text: str) -> str:
+    """Error text with anything like an API key (or the key itself) removed: an
+    error a proxy echoes back could hold the request headers."""
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if key:
+        text = text.replace(key, "[key]")
+    return KEYLIKE.sub("[key]", text)
+
+
 def classify(error: BaseException) -> CallError:
-    """The queue's class of an exception raised by the SDK."""
-    message = str(error)[:500]
+    """The queue's class of an exception raised by the SDK; its text redacted."""
+    message = redact(str(error))[:500]
     # APITimeoutError subclasses APIConnectionError: test it first, or every timeout
     # would be a free outage retry and a poison image would never die.
     if isinstance(error, anthropic.APITimeoutError):
@@ -137,7 +148,7 @@ def classify(error: BaseException) -> CallError:
     status = error.status_code
     body = error.body if isinstance(error.body, dict) else {}
     detail = body["error"] if isinstance(body.get("error"), dict) else body
-    text = str(detail.get("message", message))
+    text = redact(str(detail.get("message", message)))[:500]
     code = (detail.get("details") or {}).get("error_code")
     spend_limit = "reached your specified" in text and "API usage limits" in text
     if (
@@ -163,6 +174,18 @@ def client() -> anthropic.Anthropic:
     if _client is None:
         _client = anthropic.Anthropic(max_retries=0, timeout=TIMEOUT)
     return _client
+
+
+def photo_messages(sha: str, width: int, height: int) -> list[dict[str, Any]]:
+    """The user turn for a photo: the sent JPEG (a blob reference) and its size. The
+    API must refuse it rather than scale it, so drawings stay in sent pixels."""
+    image = {
+        "type": "image",
+        "source": {"type": "blob", "sha256": sha},
+        "transformations": {"oversized_image": "error"},
+    }
+    size = {"type": "text", "text": f"The image is {width}x{height} pixels."}
+    return [{"role": "user", "content": [image, size]}]
 
 
 def api_messages(messages: list[dict], blob: Any) -> list[dict]:

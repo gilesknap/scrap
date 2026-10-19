@@ -225,3 +225,16 @@ def test_heic_is_converted(tmp_path):
     store, sha = stored(tmp_path, out.getvalue())
     data, w, h = preview.for_claude(store, sha)
     assert Image.open(io.BytesIO(data)).format == "JPEG" and (w, h) == (300, 200)
+
+
+def test_error_text_never_carries_a_key(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "plain-secret-value")
+    echoed = "bad header x-api-key: sk-ant-api03-abc_DEF-123 and plain-secret-value"
+    for error in (
+        status_error(400, echoed),
+        status_error(502, echoed),
+        ValueError(echoed),
+    ):
+        text = str(claude.classify(error))
+        assert "sk-ant" not in text and "plain-secret-value" not in text
+        assert "[key]" in text
