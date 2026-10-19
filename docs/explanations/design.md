@@ -381,6 +381,16 @@ Where the code so far differs from the text above; later milestones should build
 - **Lookup.** The API takes a page's id or its slug.
 - **Export.** `scrap export` (from v0.1 below) is in M1, without tags until tags exist.
 
+## Claude ingest (M2)
+
+Claude ingest is designed in [ingest](ingest.md), which supersedes these parts of the text above:
+the Messages API is the default backend and `claude -p` the fallback, with no tools on the call
+(not the Read tool); one combined `ingest` job per photo replaces `extract`, `redraw` and
+`summarise`, and index rows are written by triggers rather than an `index` job; `derived` keeps
+versions (newest current) instead of overwriting, so a human drawing edit is a new version; only
+photos are ingested in M2 (no URL fetch); and old derived rows and a dead-job view arrive in M2,
+not v0.1.
+
 ## Deferred to v0.1
 
 - Voice memos (needs a transcriber).
