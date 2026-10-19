@@ -12,3 +12,5 @@ $ docker run ghcr.io/gilesknap/scrap:latest --version
 ```
 
 To get a released version, use a numbered release instead of `latest`.
+
+To run scrap as a service on one machine, see [](deploy-single-server.md).
