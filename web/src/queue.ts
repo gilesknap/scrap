@@ -43,7 +43,7 @@ export const split = ({ text, url, hint, source, files }: Capture): Capture[] =>
   files.map((f, i) => ({
     text: i ? undefined : text,
     url: i ? undefined : url,
-    hint,
+    hint: i ? undefined : hint, // the hint goes with the text
     source,
     files: [f],
   }));
@@ -65,11 +65,17 @@ export class Queue {
 
   /** Store a capture and start sending it; resolves once it is safely queued. */
   async add(c: Capture): Promise<Item> {
-    const item = newItem(c, this.now());
-    await this.store.put(item);
+    return (await this.addAll([c]))[0];
+  }
+
+  /** Store captures (all or none: one transaction) and start sending them. */
+  async addAll(cs: Capture[], replacing?: Item): Promise<Item[]> {
+    const items = cs.map((c, n) => newItem(c, this.now() + n));
+    if (replacing) for (const i of items) i.created_at = replacing.created_at;
+    await this.store.replace(items, replacing?.id);
     this.onchange();
     void this.flush();
-    return item;
+    return items;
   }
 
   async items(): Promise<Item[]> {
@@ -99,11 +105,7 @@ export class Queue {
     await this.running;
     const item = (await this.items()).find((i) => i.id === id);
     if (!item) return;
-    for (const [n, part] of split(item).entries()) {
-      await this.store.put({ ...newItem(part, this.now() + n), created_at: item.created_at });
-    }
-    await this.store.del(id);
-    this.onchange();
+    await this.addAll(split(item), item); // in one transaction: no double upload
     return this.flush();
   }
 

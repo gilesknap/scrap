@@ -5,6 +5,8 @@ export interface Store {
   all(): Promise<Item[]>;
   put(item: Item): Promise<unknown>;
   del(id: string): Promise<unknown>;
+  /** In one transaction: store add, then delete id (if given). All or nothing. */
+  replace(add: Item[], id?: string): Promise<unknown>;
 }
 
 let db: Promise<IDBDatabase> | undefined;
@@ -28,14 +30,23 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-function run<T>(mode: IDBTransactionMode, op: (s: IDBObjectStore) => IDBRequest): Promise<T> {
+function run<T>(
+  mode: IDBTransactionMode,
+  op: (s: IDBObjectStore) => IDBRequest | undefined,
+): Promise<T> {
   db ??= open();
   return db.then(
     (d) =>
       new Promise<T>((ok, fail) => {
         const tx = d.transaction("queue", mode);
-        const req = op(tx.objectStore("queue"));
-        tx.oncomplete = () => ok(req.result);
+        let req: IDBRequest | undefined;
+        try {
+          req = op(tx.objectStore("queue"));
+        } catch (e) {
+          tx.abort(); // nothing of a failed replace is kept
+          return fail(e);
+        }
+        tx.oncomplete = () => ok(req?.result);
         tx.onerror = tx.onabort = () => fail(tx.error);
       }),
   );
@@ -45,4 +56,10 @@ export const idb: Store = {
   all: () => run("readonly", (s) => s.getAll()),
   put: (item) => run("readwrite", (s) => s.put(item)),
   del: (id) => run("readwrite", (s) => s.delete(id)),
+  replace: (add, id) =>
+    run("readwrite", (s) => {
+      for (const item of add) s.put(item);
+      if (id) s.delete(id);
+      return undefined;
+    }),
 };

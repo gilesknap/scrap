@@ -304,3 +304,43 @@ test("a missing page says so", async ({ page }) => {
   await expect(page.getByText("Not found: it may have been deleted.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to capture" })).toBeVisible();
 });
+
+test("a slow upload finishes; a stalled one is dropped and retried", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(() => localStorage.setItem("scrap.stall_ms", "3000"));
+  await page.goto("/");
+  const cdp = await context.newCDPSession(page);
+  const upload = (bytesPerSecond: number) =>
+    cdp.send("Network.emulateNetworkConditions", {
+      offline: false,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: bytesPerSecond,
+    });
+  const save = async (caption: string) => {
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByText("Gallery").click(),
+    ]);
+    await chooser.setFiles({
+      name: `${caption}.png`,
+      mimeType: "image/png",
+      buffer: Buffer.alloc(600 * 1024, 5),
+    });
+    await page.getByPlaceholder("Caption (optional)").fill(caption);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+  };
+  const found = async (q: string) =>
+    (await (await page.request.get(`/api/search?q=${q}`)).json()).length;
+
+  await upload(64 * 1024); // about 10 s for 600 KB: far past the 3 s stall limit, but moving
+  await save("slowpoke");
+  await expect.poll(() => found("slowpoke"), { timeout: 30_000 }).toBe(1);
+  await expect(page.locator("#queue")).toBeHidden();
+
+  await upload(1); // nothing moves
+  await save("stuck");
+  await expect(page.getByText("waiting to upload (timed out)")).toBeVisible({ timeout: 15_000 });
+  await upload(-1);
+  await expect.poll(() => found("stuck"), { timeout: 30_000 }).toBe(1);
+});

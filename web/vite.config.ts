@@ -7,6 +7,7 @@ import { defineConfig } from "vitest/config";
 const shell: Plugin = {
   name: "scrap-shell",
   apply: "build",
+  enforce: "post", // after Vite has added index.html to the bundle
   generateBundle(_, bundle) {
     const sw = bundle["sw.js"];
     if (sw?.type !== "chunk") throw new Error("no sw.js in the bundle");
@@ -18,7 +19,8 @@ const shell: Plugin = {
     const hash = createHash("sha256").update(list + sw.code);
     for (const f of pub) hash.update(readFileSync(`public/${f}`)); // an icon edit is a new build
     const index = bundle["index.html"];
-    if (index?.type === "asset") hash.update(index.source);
+    if (index?.type !== "asset") throw new Error("no index.html in the bundle");
+    hash.update(index.source); // an index.html edit is a new build too
     const build = hash.digest("hex").slice(0, 12);
     for (const p of ["%SHELL%", "%BUILD%"]) {
       if (!sw.code.includes(p)) throw new Error(`sw.js lost its ${p} placeholder`);

@@ -149,13 +149,29 @@ describe("queue", () => {
     const parts = await q.items();
     expect(parts.map((i) => [i.text, i.hint, i.files.map((f) => f.name), i.failed])).toEqual([
       ["board", "todo", ["a.jpg"], undefined],
-      [undefined, "todo", ["b.jpg"], undefined],
-      [undefined, "todo", ["c.jpg"], undefined],
+      [undefined, undefined, ["b.jpg"], undefined], // the hint goes with the text
+      [undefined, undefined, ["c.jpg"], undefined],
     ]);
     expect(new Set(parts.map((i) => i.id)).size).toBe(3);
     expect(parts.map((i) => i.id)).not.toContain(big.id);
     expect(parts.every((i) => i.created_at === big.created_at)).toBe(true);
     expect(split({ source: "pwa", files: [] })).toEqual([]);
+  });
+
+  it("splits in one transaction: all parts and no original, or nothing", async () => {
+    const q = queue();
+    replies = [413];
+    const files = ["a", "b"].map((n) => ({ name: n, blob: new Blob([n]) }));
+    const big = await q.add({ text: "t", source: "pwa", files });
+    await q.flush();
+    // The second part cannot be stored: the first must not be kept, nor the original lost.
+    const good = { ...big, id: "01J0000000000000000000000B" };
+    const bad = { ...big, id: "01J0000000000000000000000C", oops: () => {} };
+    await expect(idb.replace([good, bad], big.id)).rejects.toThrow();
+    expect((await q.items()).map((i) => i.id)).toEqual([big.id]); // untouched: split again later
+    replies = [0];
+    await q.splitRetry(big.id);
+    expect((await q.items()).map((i) => i.files[0].name)).toEqual(["a", "b"]);
   });
 
   it("says when an upload timed out", async () => {
@@ -169,7 +185,7 @@ describe("queue", () => {
   it("leaves nothing behind when storage refuses a capture", async () => {
     const full = {
       ...idb,
-      put: () => Promise.reject(new DOMException("full", "QuotaExceededError")),
+      replace: () => Promise.reject(new DOMException("full", "QuotaExceededError")),
     };
     const q = new Queue(full, send, () => clock);
     await expect(q.add({ text: "x", source: "pwa", files: [] })).rejects.toThrow("full");

@@ -43,27 +43,58 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return (r.status === 204 ? null : await r.json()) as T;
 }
 
-/** Post a queued capture: JSON, or multipart with its files. Rejects if offline. */
-export async function send(item: Item): Promise<{ status: number; detail?: string }> {
+/** Post a queued capture: JSON, or multipart with its files. Rejects if offline or stalled.
+ *
+ * XMLHttpRequest, not fetch, because only it reports upload progress: a slow upload that keeps
+ * moving may take as long as it needs, but one with no progress for a minute is given up, so it
+ * cannot hold the queue (and its lock in every tab) for ever. 15 minutes is the hard ceiling.
+ */
+export function send(
+  item: Item,
+  Xhr: typeof XMLHttpRequest = XMLHttpRequest,
+  stallMs = 60_000,
+): Promise<{ status: number; detail?: string }> {
   const { id, text, url, hint, source, created_at, files } = item;
   const fields = { id, text, url, hint, source, created_at };
-  let init: RequestInit = {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(fields),
-  };
+  let body: string | FormData = JSON.stringify(fields);
   if (files.length) {
-    const form = new FormData(); // its text fields go as CRLF; the server makes them LF
-    for (const [k, v] of Object.entries(fields)) if (v) form.append(k, v);
-    for (const f of files) form.append("file", f.blob, f.name);
-    init = { method: "POST", body: form };
+    body = new FormData(); // its text fields go as CRLF; the server makes them LF
+    for (const [k, v] of Object.entries(fields)) if (v) body.append(k, v);
+    for (const f of files) body.append("file", f.blob, f.name);
   }
-  // A stalled upload must not hold the queue (and its lock) for ever: 60 s plus 1 s a MB.
-  const size = files.reduce((n, f) => n + f.blob.size, 0);
-  init.signal = AbortSignal.timeout(60_000 + (size / 2 ** 20) * 1000);
-  const r = await fetch("/api/captures", init);
-  const detail = r.ok ? undefined : (await r.json().catch(() => ({}))).detail;
-  return { status: r.status, detail };
+  return new Promise((ok, fail) => {
+    const xhr = new Xhr();
+    let stall: ReturnType<typeof setTimeout> | undefined;
+    const moving = () => {
+      clearTimeout(stall);
+      stall = setTimeout(() => xhr.abort(), stallMs);
+    };
+    const timedOut = () => {
+      clearTimeout(stall);
+      fail(new DOMException("no upload progress", "TimeoutError"));
+    };
+    xhr.open("POST", "/api/captures");
+    xhr.timeout = 15 * 60_000;
+    xhr.upload.onprogress = xhr.upload.onload = xhr.onprogress = moving;
+    xhr.onabort = xhr.ontimeout = timedOut;
+    xhr.onerror = () => {
+      clearTimeout(stall);
+      fail(new TypeError("network error"));
+    };
+    xhr.onload = () => {
+      clearTimeout(stall);
+      let detail: string | undefined;
+      if (xhr.status >= 300) {
+        try {
+          detail = JSON.parse(xhr.responseText).detail;
+        } catch {}
+      }
+      ok({ status: xhr.status, detail });
+    };
+    if (typeof body === "string") xhr.setRequestHeader("Content-Type", "application/json");
+    moving();
+    xhr.send(body);
+  });
 }
 
 export const blobUrl = (sha: string) => `/api/blobs/${sha}`;

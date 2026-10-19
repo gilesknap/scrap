@@ -3,7 +3,14 @@ import { send } from "./api";
 import { idb } from "./db";
 import { Queue } from "./queue";
 
-export const queue = new Queue(idb, send, Date.now, () => navigator.onLine);
+// The stall limit can be shortened for tests (localStorage scrap.stall_ms).
+const stall = () => Number(localStorage.getItem("scrap.stall_ms")) || 60_000;
+export const queue = new Queue(
+  idb,
+  (item) => send(item, XMLHttpRequest, stall()),
+  Date.now,
+  () => navigator.onLine,
+);
 
 /** Navigate inside the app; main.ts renders on popstate. */
 export function go(path: string, replace = false) {

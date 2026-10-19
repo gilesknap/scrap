@@ -139,7 +139,7 @@ export async function capture(): Promise<Node> {
       }
       save.disabled = true;
       try {
-        for (const part of separately ? split(capture) : [capture]) await queue.add(part);
+        await queue.addAll(separately ? split(capture) : [capture]);
       } catch (err) {
         save.disabled = false; // keep everything in the composer to try again
         return toast(
