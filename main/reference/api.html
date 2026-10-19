@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 0.1.dev49+gbf223bf03 documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 0.1.dev55+g170de1558 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c8d38b51"></script>
+    <script src="../_static/documentation_options.js?v=0ca6c715"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -570,7 +570,10 @@ in front. The author of a capture or edit is the <code class="docutils literal n
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">DIR</span> <span class="pre">[--force]</span></code></p></td>
 <td><p>Restore a backup into an empty data folder, after checking its integrity and that its schema is not newer than this scrap. <code class="docutils literal notranslate"><span class="pre">--force</span></code> replaces the whole database (pages added since the backup are lost; files are kept); stop scrap first, or a running server goes on writing to the replaced database and those writes are lost</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span> <span class="pre">DIR</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span> <span class="pre">[--save</span> <span class="pre">FILE]</span></code></p></td>
+<td><p>Send one image file to Claude as ingest would, without a database, and print the outcome in numbers only (tokens, cost, seconds, counts of lines, elements and warnings); <code class="docutils literal notranslate"><span class="pre">--save</span> <span class="pre">FILE</span></code> also writes the full result, including all the text Claude read from the image, to a new file with mode 600 (an existing file is refused), created before the paid call. Needs <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span> <span class="pre">DIR</span></code></p></td>
 <td><p>One Markdown file per page, front matter and links to its originals copied into <code class="docutils literal notranslate"><span class="pre">DIR/files/</span></code>. Export only: never read back</p></td>
 </tr>
 </tbody>

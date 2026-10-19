@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest (M2) &#8212; scrap 0.1.dev49+gbf223bf03 documentation</title>
+    <title>Claude ingest (M2) &#8212; scrap 0.1.dev55+g170de1558 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c8d38b51"></script>
+    <script src="../_static/documentation_options.js?v=0ca6c715"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -562,8 +562,9 @@ its memory budget, so an image too large to decode is refused from its header. I
 <li><p>a 4:3 photo is sent as 2048×1536 (4070 tokens);</p></li>
 <li><p>a square one as 1932×1932.</p></li>
 </ul>
-<p>The image block sets <code class="docutils literal notranslate"><span class="pre">&quot;transformations&quot;:</span> <span class="pre">{&quot;oversized_image&quot;:</span> <span class="pre">&quot;error&quot;}</span></code> (documented), so the
-API never rescales it silently, and drawing coordinates are in sent pixels. The JPEG is
+<p>The image block sets <code class="docutils literal notranslate"><span class="pre">&quot;transformations&quot;:</span> <span class="pre">{&quot;oversized_image&quot;:</span> <span class="pre">&quot;error&quot;}</span></code>, so the API never
+rescales it silently (verified: a 2048×2048 image is refused with a 400 naming 1932×1932 as the
+largest size; 1932×1932 is accepted at 4781 input tokens), and drawing coordinates are in sent pixels. The JPEG is
 stored as a blob (<code class="docutils literal notranslate"><span class="pre">model_run.sent_sha256</span></code>) with its <code class="docutils literal notranslate"><span class="pre">image_width</span></code> and <code class="docutils literal notranslate"><span class="pre">image_height</span></code>. The PWA
 scales the drawing to the displayed photo, and M4 replays the exact bytes. A later <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>
 must count <code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code> as in use; after a purge it is an orphan that gc removes.</p>
@@ -573,13 +574,15 @@ must count <code class="docutils literal notranslate"><span class="pre">sent_sha
 <code class="docutils literal notranslate"><span class="pre">skeleton_v3</span></code> and lives in <code class="docutils literal notranslate"><span class="pre">src/scrap/prompts/</span></code>; <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code> is <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;&#64;&lt;12</span> <span class="pre">hex</span> <span class="pre">digits</span> <span class="pre">of</span> <span class="pre">sha256(prompt</span> <span class="pre">+</span> <span class="pre">schema)&gt;</span></code>.</p>
 <p><strong>Schema.</strong> It keeps to the documented structured-output subset (<code class="docutils literal notranslate"><span class="pre">additionalProperties:</span> <span class="pre">false</span></code>,
 no numeric or string bounds, <code class="docutils literal notranslate"><span class="pre">minItems</span></code> 0 or 1, at most 24 optional and 16 union properties),
-which the experiment’s <code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">y]</span></code> tuples broke. An element is one flat object: <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>
-required, plus 12 optional scalars or number lists, none a union: <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>,
+which the experiment’s <code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">y]</span></code> tuples broke. An element is one flat object: <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code>,
+<code class="docutils literal notranslate"><span class="pre">y</span></code> required, plus 11 optional scalars or number lists, none a union: <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>,
 <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">fontSize</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">labelFontSize</span></code>, <code class="docutils literal notranslate"><span class="pre">points</span></code> (flat <code class="docutils literal notranslate"><span class="pre">[dx0,</span> <span class="pre">dy0,</span> <span class="pre">dx1,</span> <span class="pre">dy1,</span> <span class="pre">...]</span></code>),
 <code class="docutils literal notranslate"><span class="pre">start</span></code> and <code class="docutils literal notranslate"><span class="pre">end</span></code> (shape ids), <code class="docutils literal notranslate"><span class="pre">strokeColor</span></code>, <code class="docutils literal notranslate"><span class="pre">startArrowhead</span></code>. Code makes Excalidraw skeletons
-of these and the sanitiser enforces bounds. Whether the API takes this schema with adaptive
-thinking is unverified (the experiment’s <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> runs prove nothing): PR 1 makes one real
-call first.</p>
+of these and the sanitiser enforces bounds. Verified on <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code> (4 calls on real
+boards, <code class="docutils literal notranslate"><span class="pre">thinking</span></code> omitted so adaptive, effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>): the API takes this schema with
+thinking on, every output was valid JSON first try, and the model chose not to think at all
+(0 thinking tokens, no thinking blocks). With <code class="docutils literal notranslate"><span class="pre">id</span></code> optional the model left out every id and
+every arrow on a box-and-arrow board, so <code class="docutils literal notranslate"><span class="pre">id</span></code> is required and the prompt asks for every arrow.</p>
 </section>
 <section id="stored-context-for-later-discussion">
 <h2>Stored context for later discussion<a class="headerlink" href="#stored-context-for-later-discussion" title="Link to this heading">#</a></h2>
@@ -674,8 +677,8 @@ unfixed <code class="docutils literal notranslate"><span class="pre">note</span>
 </section>
 <section id="spend-and-outage-control">
 <h2>Spend and outage control<a class="headerlink" href="#spend-and-outage-control" title="Link to this heading">#</a></h2>
-<p>A price table turns each run’s <code class="docutils literal notranslate"><span class="pre">usage</span></code> into <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> (expect $0.05 to $0.15 a board;
-PR 1 measures it). The budget is <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (default 3); the Console spend limit is
+<p>A price table turns each run’s <code class="docutils literal notranslate"><span class="pre">usage</span></code> into <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> (measured: $0.03 to $0.06 a board,
+about 6900 input tokens and 150 to 1500 output tokens, 3 to 39 s). The budget is <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (default 3); the Console spend limit is
 the hard cap.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -687,10 +690,10 @@ the hard cap.</p>
 <tbody>
 <tr class="row-even"><td><p>credit</p></td>
 <td><p>402 <code class="docutils literal notranslate"><span class="pre">billing_error</span></code>; 400 whose message contains “reached your specified” and “API usage limits” (Console spend limit) or “credit balance”; 429 with <code class="docutils literal notranslate"><span class="pre">error.details.error_code</span></code> <code class="docutils literal notranslate"><span class="pre">enforced_spend_limit_reached</span></code></p></td>
-<td><p>pause until <em>Resume</em></p></td>
+<td><p>pause until <em>Resume</em> (wording from the docs, not provoked)</p></td>
 </tr>
 <tr class="row-odd"><td><p>auth</p></td>
-<td><p>401, 403, 404 (unknown model)</p></td>
+<td><p>401 (verified: <code class="docutils literal notranslate"><span class="pre">authentication_error</span></code>, “invalid x-api-key”), 403, 404 (unknown model)</p></td>
 <td><p>pause until <em>Resume</em></p></td>
 </tr>
 <tr class="row-even"><td><p>outage</p></td>
@@ -881,7 +884,8 @@ pruning.</p>
 </section>
 <section id="risks">
 <h2>Risks<a class="headerlink" href="#risks" title="Link to this heading">#</a></h2>
-<p>Structured output with thinking (PR 1 tests it); Excalidraw API drift (pin the version); model
+<p>Thinking: at effort <code class="docutils literal notranslate"><span class="pre">medium</span></code> with structured output the model did not think on any board
+(raise the effort if drawings fall short); Excalidraw API drift (pin the version); model
 drift (<code class="docutils literal notranslate"><span class="pre">prompt_version</span></code> traces it; keep the experiment’s boards as a check set).</p>
 </section>
 </section>

@@ -79,8 +79,9 @@ its memory budget, so an image too large to decode is refused from its header. I
 - a 4:3 photo is sent as 2048×1536 (4070 tokens);
 - a square one as 1932×1932.
 
-The image block sets `"transformations": {"oversized_image": "error"}` (documented), so the
-API never rescales it silently, and drawing coordinates are in sent pixels. The JPEG is
+The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
+rescales it silently (verified: a 2048×2048 image is refused with a 400 naming 1932×1932 as the
+largest size; 1932×1932 is accepted at 4781 input tokens), and drawing coordinates are in sent pixels. The JPEG is
 stored as a blob (`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA
 scales the drawing to the displayed photo, and M4 replays the exact bytes. A later `scrap gc`
 must count `sent_sha256` as in use; after a purge it is an orphan that gc removes.
@@ -93,13 +94,15 @@ sha256(prompt + schema)>`.
 
 **Schema.** It keeps to the documented structured-output subset (`additionalProperties: false`,
 no numeric or string bounds, `minItems` 0 or 1, at most 24 optional and 16 union properties),
-which the experiment's `[x, y]` tuples broke. An element is one flat object: `type`, `x`, `y`
-required, plus 12 optional scalars or number lists, none a union: `id`, `width`, `height`,
+which the experiment's `[x, y]` tuples broke. An element is one flat object: `type`, `id`, `x`,
+`y` required, plus 11 optional scalars or number lists, none a union: `width`, `height`,
 `text`, `fontSize`, `label`, `labelFontSize`, `points` (flat `[dx0, dy0, dx1, dy1, ...]`),
 `start` and `end` (shape ids), `strokeColor`, `startArrowhead`. Code makes Excalidraw skeletons
-of these and the sanitiser enforces bounds. Whether the API takes this schema with adaptive
-thinking is unverified (the experiment's `claude -p` runs prove nothing): PR 1 makes one real
-call first.
+of these and the sanitiser enforces bounds. Verified on `claude-opus-5-5` (4 calls on real
+boards, `thinking` omitted so adaptive, effort `medium`): the API takes this schema with
+thinking on, every output was valid JSON first try, and the model chose not to think at all
+(0 thinking tokens, no thinking blocks). With `id` optional the model left out every id and
+every arrow on a box-and-arrow board, so `id` is required and the prompt asks for every arrow.
 
 ## Stored context for later discussion
 
@@ -200,14 +203,14 @@ unfixed `note` kind.
 
 ## Spend and outage control
 
-A price table turns each run's `usage` into `cost_microusd` (expect $0.05 to $0.15 a board;
-PR 1 measures it). The budget is `SCRAP_BUDGET_DAY_USD` (default 3); the Console spend limit is
+A price table turns each run's `usage` into `cost_microusd` (measured: $0.03 to $0.06 a board,
+about 6900 input tokens and 150 to 1500 output tokens, 3 to 39 s). The budget is `SCRAP_BUDGET_DAY_USD` (default 3); the Console spend limit is
 the hard cap.
 
 | Class | Recognised by | Effect |
 | --- | --- | --- |
-| credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* |
-| auth | 401, 403, 404 (unknown model) | pause until *Resume* |
+| credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* (wording from the docs, not provoked) |
+| auth | 401 (verified: `authentication_error`, "invalid x-api-key"), 403, 404 (unknown model) | pause until *Resume* |
 | outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after` (at most 1 h), else 1, 2, 4 ... 60 min |
 | budget | the day's spend reached | pause until UTC midnight |
 | timeout | `APITimeoutError` (240 s) | charged |
@@ -370,5 +373,6 @@ pruning.
 
 ## Risks
 
-Structured output with thinking (PR 1 tests it); Excalidraw API drift (pin the version); model
+Thinking: at effort `medium` with structured output the model did not think on any board
+(raise the effort if drawings fall short); Excalidraw API drift (pin the version); model
 drift (`prompt_version` traces it; keep the experiment's boards as a check set).
