@@ -171,7 +171,7 @@ drawing's text is NULL, because its words are the OCR. M1 needs two changes:
 
 ## Excalidraw in the PWA
 
-A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React (about 400 kB gzipped) only
+A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React (about 435 kB gzipped) only
 when a drawing is shown; the base app stays small. Only the fonts used are self-hosted
 (`EXCALIDRAW_ASSET_PATH`; the default is a CDN, the full set 14 MB). `convertToExcalidrawElements`
 expands skeletons in the browser with the experiment's two workarounds: an arrow bound to free
@@ -202,9 +202,12 @@ base version (409 if stale) as a `human` version whose labels become `text`; **H
 - *The second workaround* (convert again once fonts are loaded) is done before anything is
   shown: convert, export the text to a 1 px canvas (which makes Excalidraw load the fonts it
   uses), wait for `document.fonts.ready`, convert again.
-- *Sizes* (gzipped): the app shell 14.1 kB of JavaScript, 2.0 kB more than without drawings
-  (the photo panel and the preview's loader); the viewer chunk about 400 kB JS and 22 kB CSS. The service worker
-  precaches only the shell, never the viewer or its fonts. `npm run size` checks both in CI.
+- *Sizes:* the app shell is 14.1 kB of JavaScript gzipped (32 kB raw), 2.0 kB more than
+  without drawings (the photo panel and the preview's loader); the viewer chunk is 412 kB JS
+  and 22 kB CSS gzipped (1.32 MB and 142 kB raw). scrap gzips its scripts, styles, pages and
+  JSON for clients that accept it (not files, previews, downloads, fonts or range requests), so
+  the gzipped sizes are what crosses the network. The service worker precaches only the shell,
+  never the viewer or its fonts. `npm run size` checks both in CI.
 - *Reprocess* shows **Replace mine** / **Keep mine** when the current drawing is a human one, and
   `{queued, already}` tells it whether the photo was waiting already.
 - *Downloads:* the page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton

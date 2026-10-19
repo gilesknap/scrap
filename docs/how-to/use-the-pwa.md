@@ -127,8 +127,9 @@ Tap the drawing (or **Open drawing**) to open it full screen:
   the description and text in the Markdown.
 - The drawing follows the phone's light or dark theme. Viewing a drawing needs the server: the
   app shell works offline, but a page and its drawing are not cached.
-- Excalidraw is loaded only when a drawing is first shown (about 400 kB, then cached by the
-  browser), never for capture, Recent or Search. Its fonts are served by scrap itself, never
+- Excalidraw is loaded only when a drawing is first shown (about 435 kB over the network, as
+  scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture, Recent
+  or Search. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
 - **Search** searches titles and text as you type.
 

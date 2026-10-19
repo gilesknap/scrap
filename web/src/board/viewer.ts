@@ -138,6 +138,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
   // ---- edit
   async function startEdit() {
     if (!board || !current) return;
+    clearNote(); // e.g. History: no Restore under an edit
     const kept = await drafts.get<Draft>(draftKey(t)).catch(() => undefined);
     base = current.version;
     fromDraft = false;
@@ -261,6 +262,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
   }
 
   async function restore(version: number) {
+    if (editing) return; // History is closed while editing; never swap the scene under it
     try {
       const drawing = await api<Drawing>(`${path(t)}/restore`, {
         method: "POST",

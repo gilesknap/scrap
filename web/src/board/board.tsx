@@ -183,6 +183,18 @@ export async function board(
       lastFit = view(); // as Excalidraw has applied it
     });
   };
+  // The frame is the photo's pixels, so at the zoom that fits it on a phone Excalidraw's
+  // defaults (20 px text, 2 px lines) come out a few screen pixels big: size what is drawn
+  // next to the zoom the edit starts at. The model's own elements are left as they are.
+  const sizeNewItems = () => {
+    const zoom = a().getAppState().zoom.value;
+    const cap = frame ? frame.width / 8 : 200;
+    const appState = {
+      currentItemFontSize: Math.round(Math.min(Math.max(17 / zoom, 16), cap)),
+      currentItemStrokeWidth: Math.round(Math.min(Math.max(1.5 / zoom, 1), 12)),
+    };
+    a().updateScene({ appState, captureUpdate: CaptureUpdateAction.NEVER });
+  };
   // The box changes size (rotation, the photo beside it, first layout): while viewing, fit
   // the frame again; while editing, keep the zoom and scroll the edit is at
   let size = "";
@@ -202,14 +214,20 @@ export async function board(
       const untouched = !moved();
       editing = on;
       rerender();
-      if (untouched) requestAnimationFrame(fitFrame);
+      requestAnimationFrame(() => {
+        if (untouched) fitFrame();
+        if (on) requestAnimationFrame(sizeNewItems);
+      });
     },
     fit: fitFrame,
     undo() {
-      // Excalidraw's own shortcut, on its container: it listens there, not on the document
+      // Excalidraw has no undo in its API: press its own Undo button (in its footer while
+      // editing), else send its shortcut, as Ctrl+Z and Cmd+Z (iPhones and iPads use Cmd)
+      const own = host.querySelector<HTMLButtonElement>('.excalidraw button[aria-label="Undo"]');
+      if (own) return own.click();
       const target = host.querySelector(".excalidraw") ?? host;
       for (const type of ["keydown", "keyup"]) {
-        const key = { key: "z", code: "KeyZ", ctrlKey: true, bubbles: true, cancelable: true };
+        const key = { key: "z", code: "KeyZ", ctrlKey: true, metaKey: true, bubbles: true };
         target.dispatchEvent(new KeyboardEvent(type, key));
       }
     },

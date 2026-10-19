@@ -162,7 +162,8 @@ test("edits are kept as a draft, saved, and a stale save offers both", async ({ 
   await tool(page, "Edit").click();
   const count = (await (await page.request.get(drawingUrl(b))).json()).data.elements.length;
   await rectangle(page, 0.45);
-  // ours, in the top bar (Excalidraw has its own at the bottom)
+  // ours, in the top bar, presses Excalidraw's own (in its footer): works on iOS too
+  await expect(dialog(page).locator('.excalidraw button[aria-label="Undo"]')).toHaveCount(1);
   await dialog(page).locator(".drawing-bar").getByRole("button", { name: "Undo" }).click();
   put = saved(page);
   await tool(page, "Save").click();
@@ -213,9 +214,38 @@ test("dark mode, and a Reprocess that asks before replacing an edit", async ({ p
   await page.goBack();
 
   await page.getByRole("button", { name: "Reprocess" }).click();
-  await expect(page.getByText("You edited its drawing: replace it?")).toBeVisible();
+  await page.getByRole("button", { name: "Reprocess" }).click(); // asked once, not twice
+  await expect(page.getByText("You edited its drawing: replace it?")).toHaveCount(1);
   const asked = page.waitForRequest((r) => r.url().endsWith("/reprocess"));
   await page.getByRole("button", { name: "Replace mine" }).click();
   expect((await asked).postDataJSON()).toEqual({ photo: b.sha256, replace_human: true });
   await expect(page.getByRole("status").filter({ hasText: "Claude ingest is off" })).toBeVisible();
+});
+
+test.describe("on a 390 px phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("Edit closes History, and new text is readable at the fitted zoom", async ({ page }) => {
+    const b = board();
+    await page.goto(`/p/${b.slug}`);
+    await open(page);
+    await dialog(page).getByText("More").click();
+    await tool(page, "History").click();
+    await expect(dialog(page).getByText(/^v1 · drawn by/)).toBeVisible();
+    await tool(page, "Edit").click();
+    // no Restore under an edit: it would swap the scene being edited
+    await expect(dialog(page).getByText(/^v1 · drawn by/)).toHaveCount(0);
+    await expect(dialog(page).getByRole("button", { name: /^Restore/ })).toHaveCount(0);
+
+    // The frame is 1600 photo pixels in a 390 px screen: new text is sized to stay legible
+    await page.getByTitle(/^Text/).click();
+    const box = (await dialog(page).locator(".board").boundingBox()) as { x: number; y: number };
+    await page.mouse.click(box.x + 60, box.y + 500);
+    const typing = dialog(page).locator("textarea.excalidraw-wysiwyg");
+    await typing.fill("legible");
+    // Excalidraw scales its text box with a transform: its box on screen is one line
+    const line = await typing.evaluate((el) => el.getBoundingClientRect().height);
+    expect(line).toBeGreaterThanOrEqual(14);
+    expect(line).toBeLessThanOrEqual(40);
+  });
 });

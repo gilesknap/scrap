@@ -97,6 +97,7 @@ export function photoPanel(o: {
   };
   const ask = () => {
     if (i.drawing?.producer !== "human") return void reprocess(false);
+    if (panel.querySelector(".choice")) return; // asked already
     // Never replace a drawing the user made without asking
     const choice = h(
       "div",
