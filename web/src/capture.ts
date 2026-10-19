@@ -4,7 +4,7 @@ import { uploadLimit } from "./api";
 import { queue, view } from "./app";
 import { type Capture, type Hint, split } from "./queue";
 import { pageList, pendingList } from "./recent";
-import { clearToasts, h, toast } from "./ui";
+import { blobImg, clearToasts, h, toast } from "./ui";
 
 const HINTS: [string, Hint | ""][] = [
   ["Note", ""],
@@ -65,7 +65,7 @@ export async function capture(): Promise<Node> {
           h(
             "span",
             { className: "thumb" },
-            h("img", { src: URL.createObjectURL(f), alt: f.name }),
+            blobImg(f, f.name),
             h("button", {
               type: "button",
               textContent: "×",

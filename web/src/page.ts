@@ -51,7 +51,8 @@ export async function page(key: string): Promise<Node> {
         );
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 409)) return toast(String(err));
-        const theirs = await api<Page>(`pages/${p.id}`);
+        const theirs = await api<Page>(`pages/${p.id}`).catch(() => null);
+        if (!theirs) return toast("Changed elsewhere, and the server can't be reached to show it");
         base = theirs.rev; // saving again now overwrites their version with yours
         conflict.replaceChildren(
           h(
@@ -91,18 +92,24 @@ export async function page(key: string): Promise<Node> {
     );
   }
 
+  const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
+
   async function remove(p: Page) {
-    await api(`pages/${p.id}`, { method: "DELETE" });
+    try {
+      await api(`pages/${p.id}`, { method: "DELETE" });
+    } catch (err) {
+      return toast(`Not deleted: ${why(err)}`);
+    }
     go("/recent");
-    toast(
-      "Page deleted",
-      "Undo",
-      async () => {
+    const undo = async () => {
+      try {
         await api(`pages/${p.id}/undelete`, { method: "POST" });
         go(`/p/${encodeURIComponent(p.slug)}`);
-      },
-      8000,
-    );
+      } catch (err) {
+        toast(`Undo failed: ${why(err)}`, "Try again", undo, 8000);
+      }
+    };
+    toast("Page deleted", "Undo", undo, 8000);
   }
 
   show(p);

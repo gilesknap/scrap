@@ -80,3 +80,10 @@ export function problem(e: unknown): Node {
     h("button", { onclick: again }, "Retry"),
   );
 }
+
+/** An image of a Blob on the phone; its object URL is freed once shown. */
+export function blobImg(blob: Blob, alt = ""): HTMLImageElement {
+  const img = h("img", { src: URL.createObjectURL(blob), alt });
+  img.onload = img.onerror = () => URL.revokeObjectURL(img.src);
+  return img;
+}

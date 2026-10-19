@@ -1,6 +1,6 @@
 // Full-text search as you type; snippets become text nodes and <mark>s, never HTML.
 import { api, type Hit } from "./api";
-import { go } from "./app";
+import { go, view } from "./app";
 import { snippetParts } from "./snippet";
 import { h } from "./ui";
 
@@ -16,6 +16,11 @@ export function search(): Node {
   const results = h("ul", { className: "list hits" });
   let timer: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
+  // Leaving the view: no late debounce rewrites the address bar, no late results land.
+  view.signal.addEventListener("abort", () => {
+    clearTimeout(timer);
+    abort.abort();
+  });
 
   async function run() {
     const query = input.value.trim();

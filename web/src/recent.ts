@@ -1,20 +1,23 @@
 // Recent pages, newest first, with anything still waiting to upload above them.
 import { api, blobUrl, type Summary } from "./api";
 import { queue, view } from "./app";
-import { h, problem, when } from "./ui";
+import { blobImg, h, problem, when } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
 
 function row(
-  thumb: string | null,
+  thumb: string | Blob | null,
   title: string,
   sub: string,
   extra: Node | string = "",
   href?: string,
 ) {
-  const img = thumb
-    ? h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" })
-    : h("span", { className: "noimg" }, title.slice(0, 1).toUpperCase());
+  const img =
+    thumb instanceof Blob
+      ? blobImg(thumb)
+      : thumb
+        ? h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" })
+        : h("span", { className: "noimg" }, title.slice(0, 1).toUpperCase());
   const body = h(
     "span",
     {},
@@ -68,7 +71,7 @@ export async function pendingList(): Promise<Node> {
             "Discard this capture? It never reached the server, so it will be gone.",
           ),
         );
-      return row(image ? URL.createObjectURL(image.blob) : null, title, state, actions || "");
+      return row(image?.blob ?? null, title, state, actions || "");
     }),
   );
 }

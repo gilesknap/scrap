@@ -120,26 +120,25 @@ export class Queue {
 
   private async sendDue() {
     clearTimeout(this.timer);
-    if (this.online()) {
-      for (const item of await this.items()) {
-        if (item.failed || item.next > this.now()) continue;
-        const { status, detail } = await this.send(item).catch((e) => ({
-          status: 0,
-          detail: e?.name === "TimeoutError" ? "timed out" : "offline",
-        }));
-        if (status === 200 || status === 201) {
-          await this.store.del(item.id);
-        } else if (permanent(status)) {
-          const error = `${status === 413 ? "too large" : "refused"}: ${detail || `HTTP ${status}`}`;
-          await this.store.put({ ...item, failed: true, error });
-        } else {
-          const error = status ? `server error (${status})` : detail;
-          const next = this.now() + backoff(item.attempts);
-          await this.store.put({ ...item, attempts: item.attempts + 1, next, error });
-        }
-        this.onchange();
-        if (!status) break; // no network: the rest would fail too
+    if (!this.online()) return; // no timer: the "online" event flushes again
+    for (const item of await this.items()) {
+      if (item.failed || item.next > this.now()) continue;
+      const { status, detail } = await this.send(item).catch((e) => ({
+        status: 0,
+        detail: e?.name === "TimeoutError" ? "timed out" : "offline",
+      }));
+      if (status === 200 || status === 201) {
+        await this.store.del(item.id);
+      } else if (permanent(status)) {
+        const error = `${status === 413 ? "too large" : "refused"}: ${detail || `HTTP ${status}`}`;
+        await this.store.put({ ...item, failed: true, error });
+      } else {
+        const error = status ? `server error (${status})` : detail;
+        const next = this.now() + backoff(item.attempts);
+        await this.store.put({ ...item, attempts: item.attempts + 1, next, error });
       }
+      this.onchange();
+      if (!status) break; // no network: the rest would fail too
     }
     const due = (await this.items()).filter((i) => !i.failed).map((i) => i.next);
     if (due.length) {

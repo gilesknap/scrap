@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
@@ -10,15 +10,20 @@ const shell: Plugin = {
   generateBundle(_, bundle) {
     const sw = bundle["sw.js"];
     if (sw?.type !== "chunk") throw new Error("no sw.js in the bundle");
-    const files = [...Object.keys(bundle), ...readdirSync("public")]
+    const pub = readdirSync("public");
+    const files = [...Object.keys(bundle), ...pub]
       .filter((f) => f !== "sw.js" && f !== "index.html" && !f.endsWith(".map"))
       .map((f) => `/${f}`);
     const list = ["/", ...files].join(",");
-    const build = createHash("sha256")
-      .update(list + sw.code)
-      .digest("hex")
-      .slice(0, 12);
-    sw.code = sw.code.replace("%SHELL%", list).replace("%BUILD%", build);
+    const hash = createHash("sha256").update(list + sw.code);
+    for (const f of pub) hash.update(readFileSync(`public/${f}`)); // an icon edit is a new build
+    const index = bundle["index.html"];
+    if (index?.type === "asset") hash.update(index.source);
+    const build = hash.digest("hex").slice(0, 12);
+    for (const p of ["%SHELL%", "%BUILD%"]) {
+      if (!sw.code.includes(p)) throw new Error(`sw.js lost its ${p} placeholder`);
+    }
+    sw.code = sw.code.replaceAll("%SHELL%", list).replaceAll("%BUILD%", build);
   },
 };
 

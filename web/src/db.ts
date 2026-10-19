@@ -13,8 +13,18 @@ function open(): Promise<IDBDatabase> {
   return new Promise((ok, fail) => {
     const req = indexedDB.open("scrap", 1);
     req.onupgradeneeded = () => req.result.createObjectStore("queue", { keyPath: "id" });
-    req.onsuccess = () => ok(req.result);
-    req.onerror = () => fail(req.error);
+    req.onsuccess = () => {
+      const d = req.result;
+      d.onclose = d.onversionchange = () => {
+        d.close();
+        db = undefined; // open again on the next call
+      };
+      ok(d);
+    };
+    req.onerror = () => {
+      db = undefined;
+      fail(req.error);
+    };
   });
 }
 
