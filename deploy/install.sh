@@ -8,6 +8,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 units="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 conf="${XDG_CONFIG_HOME:-$HOME/.config}/scrap"
 data="${XDG_DATA_HOME:-$HOME/.local/share}/scrap"
+lib="$HOME/.local/lib/scrap"
 
 if [ "$(id -u)" = 0 ]; then
     echo "Run this as the user that will own scrap, not as root." >&2
@@ -23,7 +24,7 @@ if ! systemctl --user show-environment >/dev/null 2>&1; then
     exit 1
 fi
 
-mkdir -p "$units" "$conf" "$data/data" "$data/backups"
+mkdir -p "$units" "$conf" "$lib" "$data/data" "$data/backups"
 
 if [ ! -e "$conf/env" ]; then
     cat >"$conf/env" <<ENV
@@ -53,11 +54,12 @@ else
     echo "Keeping existing $conf/env"
 fi
 
+cp "$here/scrap-backup" "$lib/"
 cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" "$units/"
 systemctl --user daemon-reload
 
 if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ]; then
-    loginctl enable-linger 2>/dev/null || {
+    loginctl --no-ask-password enable-linger 2>/dev/null || {
         echo "Could not enable linger. As an admin run:" >&2
         echo "  sudo loginctl enable-linger $(id -un)" >&2
         echo "Without it scrap stops when $(id -un) logs out." >&2
@@ -66,9 +68,16 @@ fi
 
 image=$(sed -n 's/^SCRAP_IMAGE=//p' "$conf/env")
 if ! podman image exists "$image"; then
-    echo "Image $image is not here yet: build or pull it, then run" >&2
-    echo "  systemctl --user enable --now scrap.service scrap-backup.timer" >&2
+    echo "Image $image is not here yet: build or pull it, then re-run this script." >&2
     exit 0
 fi
-systemctl --user enable --now scrap.service scrap-backup.timer
+systemctl --user enable --now scrap.service
+# The backup timer needs an image with the `scrap backup` command.
+if podman run --rm "$image" backup --help >/dev/null 2>&1; then
+    systemctl --user enable --now scrap-backup.timer
+else
+    systemctl --user disable --now scrap-backup.timer 2>/dev/null || true
+    echo "Note: $image has no 'scrap backup' command, so the daily backup" >&2
+    echo "timer is NOT enabled. Re-run this script after updating the image." >&2
+fi
 echo "scrap is running: try $here/smoke.sh"

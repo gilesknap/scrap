@@ -5,17 +5,21 @@
 Description=scrap personal knowledge store
 Documentation=https://gilesknap.github.io/scrap/
 RequiresMountsFor=%t/containers
+# Give up after 5 failed starts in 5 minutes (e.g. the image is missing).
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 EnvironmentFile=%h/.config/scrap/env
 Environment=PODMAN_SYSTEMD_UNIT=%n
+# pids-limit leaves room for the claude -p subprocesses that ingest will run.
 # The image runs as uid 10001; keep-id maps it to this user so the files
 # under SCRAP_DATA stay owned by this user on the host.
 ExecStartPre=/usr/bin/mkdir -p ${SCRAP_DATA}
 ExecStart=/usr/bin/podman run --name scrap --replace --rm -d \
     --cgroups=split --sdnotify=conmon \
     --userns=keep-id:uid=10001,gid=10001 \
-    --memory=${SCRAP_MEMORY_MAX} --pids-limit=256 \
+    --memory=${SCRAP_MEMORY_MAX} --pids-limit=512 \
     --publish 127.0.0.1:${SCRAP_PORT}:8000 \
     --volume ${SCRAP_DATA}:/data \
     --env SCRAP_DATA_DIR=/data \

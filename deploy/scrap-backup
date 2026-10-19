@@ -1,0 +1,45 @@
+#!/bin/sh
+# Back up scrap, then keep only the newest SCRAP_BACKUP_KEEP runs.
+#   scrap-backup          one backup run (what scrap-backup.service runs)
+#   scrap-backup prune    retention only
+# Settings come from the environment (~/.config/scrap/env via systemd).
+# Installed by install.sh to ~/.local/lib/scrap/.
+set -eu
+
+: "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
+case "${SCRAP_BACKUP_KEEP:-}" in
+'' | *[!0-9]* | 0 | 0*)
+    echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '${SCRAP_BACKUP_KEEP:-}'" >&2
+    exit 1
+    ;;
+esac
+
+# Delete all but the newest SCRAP_BACKUP_KEEP backup runs. Only real
+# directories directly in SCRAP_BACKUPS named like a run (20261019T033000Z)
+# are candidates: symlinks and anything else are never touched.
+prune() {
+    find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d \
+        -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' \
+        -print0 |
+        sort -z | head -z -n -"$SCRAP_BACKUP_KEEP" | xargs -0r rm -rf --
+}
+
+if [ "${1:-}" = prune ]; then
+    prune
+    exit 0
+fi
+
+: "${SCRAP_DATA:?SCRAP_DATA is not set}"
+: "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
+dest=$(date -u +%Y%m%dT%H%M%SZ)
+mkdir -p "$SCRAP_BACKUPS/$dest"
+if ! podman run --rm --replace --name scrap-backup \
+    --userns=keep-id:uid=10001,gid=10001 \
+    --volume "$SCRAP_DATA:/data" --volume "$SCRAP_BACKUPS:/backups" \
+    --env SCRAP_DATA_DIR=/data \
+    "$SCRAP_IMAGE" backup "/backups/$dest"; then
+    rm -rf -- "${SCRAP_BACKUPS:?}/$dest"
+    echo "Backup failed; kept the existing backups untouched." >&2
+    exit 1
+fi
+prune

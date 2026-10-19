@@ -15,9 +15,12 @@ reverse proxy in front of it. Read {ref}`scrap-access` first.
 ```
 
 ```{warning}
-If the server also runs workloads you do not fully trust (other people's services, agents with
-broad permissions), keep only test data in scrap there. Root on the machine can read everything
-scrap stores.
+scrap listens on `127.0.0.1`, so **every local account and process on the server** can read and
+change all of its data, and can send its own `Tailscale-User-Login` header to be recorded as any
+author (Tailscale Serve strips forged headers, but a direct local connection skips Serve). v0
+assumes a single-purpose server or a dedicated VM with no untrusted local users or workloads. If
+the server also runs things you do not fully trust (other people's services, agents with broad
+permissions), keep only test data in scrap there, or give scrap its own VM.
 ```
 
 ## Prerequisites
@@ -63,8 +66,9 @@ podman run --rm localhost/scrap:dev --version
 ```
 
 The build pulls a large build-stage image. To avoid keeping it under the `scrap` user, build as
-another user and copy only the result across (with linger on, so the user's runtime directory
-exists):
+another user and copy only the image across (with linger on, so the user's runtime directory
+exists). The `scrap` user still needs its own clone of the repo for the install and update
+steps below, so run the `git clone` above as `scrap` either way:
 
 ```
 podman save localhost/scrap:dev |
@@ -88,10 +92,11 @@ The script:
 
 - writes the settings file `~/.config/scrap/env` if it does not exist yet (it never overwrites it);
 - copies `scrap.service`, `scrap-backup.service` and `scrap-backup.timer` to
-  `~/.config/systemd/user/`;
+  `~/.config/systemd/user/`, and the backup script `scrap-backup` to `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
-- enables and starts `scrap.service` and the daily backup timer, if the image named in the
-  settings is present.
+- enables and starts `scrap.service` if the image named in the settings is present, and the daily
+  backup timer only if that image has the `scrap backup` command (images built before it existed
+  do not; re-run the script after updating the image).
 
 It is safe to re-run after pulling a newer version of the repo.
 
@@ -170,6 +175,12 @@ scrap v0 has no login code. Who may use it is decided by the network in front of
   under the fixed fallback author. Do not let a proxy pass through `Tailscale-User-*` headers
   sent by clients.
 
+Either way the network only guards the way in from outside. On the server itself, anything that
+can open a connection to `127.0.0.1` gets full access (see the warning at the top). If you cannot
+keep untrusted users and workloads off the server, run scrap on a dedicated host or VM.
+Listening on a unix socket protected by file permissions, behind the proxy, would also close
+this gap, but scrap v0 does not offer it yet.
+
 ## Update
 
 Build or pull the new image, then restart:
@@ -189,7 +200,10 @@ systemctl --user restart scrap
 `scrap-backup.timer` runs `scrap-backup.service` daily (about 03:30, and at the next start if the
 machine was off). Each run starts a throwaway container from the same image that runs
 `scrap backup` into a new timestamped directory under `SCRAP_BACKUPS`, then deletes all but the
-newest `SCRAP_BACKUP_KEEP` runs. A failed run removes its own directory. To back up now:
+newest `SCRAP_BACKUP_KEEP` runs. Only real directories named like a run
+(`20261019T033000Z`) directly in `SCRAP_BACKUPS` are ever deleted; anything else there, including
+symlinks, is left alone. A failed run removes its own directory and deletes nothing else. A
+`SCRAP_BACKUP_KEEP` that is not a whole number of at least 1 fails the run. To back up now:
 
 ```
 systemctl --user start scrap-backup
@@ -200,13 +214,15 @@ The backup directory is a local copy only: copy it off the machine (restic, rsyn
 bucket) to survive losing the server.
 
 To restore, stop the service, run `scrap restore` from the image against the data directory, and
-start again. See `scrap restore --help` for its arguments:
+start again. See `scrap restore --help` for its arguments. The commands load the settings file
+first so they use your `SCRAP_DATA`, `SCRAP_BACKUPS` and `SCRAP_IMAGE`:
 
 ```
 systemctl --user stop scrap
+set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v ~/.local/share/scrap/data:/data -v ~/.local/share/scrap/backups:/backups \
-    localhost/scrap:dev restore --help
+    -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
+    "$SCRAP_IMAGE" restore --help
 systemctl --user start scrap
 ```
 
@@ -219,6 +235,7 @@ As the `scrap` user:
 ```
 systemctl --user disable --now scrap.service scrap-backup.timer
 rm ~/.config/systemd/user/scrap.service ~/.config/systemd/user/scrap-backup.*
+rm -r ~/.local/lib/scrap
 systemctl --user daemon-reload
 podman rmi localhost/scrap:dev
 ```
@@ -230,13 +247,14 @@ user and everything it owns.
 (scrap-docker)=
 ## Using Docker instead
 
-With Docker, edit the copied units: replace `/usr/bin/podman` with `/usr/bin/docker`; in
-`scrap.service` drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`, change
-`Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`, and drop `-i` from the
-`rm` commands; in both units replace
-`--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of the user that owns
-`SCRAP_DATA` (`id -u`, `id -g`). Membership of the `docker` group is equivalent to root, so on a
-shared machine prefer rootless podman.
+With Docker, edit the installed copies. In `scrap.service`: replace `/usr/bin/podman` with
+`/usr/bin/docker`, drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`, change
+`Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`, and drop `-i` from the `rm`
+commands. In `~/.local/lib/scrap/scrap-backup`: replace `podman` with `docker` and drop
+`--replace`. In both, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of
+the user that owns `SCRAP_DATA` and `SCRAP_BACKUPS` (`id -u`, `id -g`). Re-running `install.sh`
+overwrites these edits. Membership of the `docker` group is equivalent to root, so on a shared
+machine prefer rootless podman.
 
 (scrap-troubleshooting)=
 ## Troubleshooting
@@ -259,5 +277,9 @@ the user. Log in with `ssh` or `sudo machinectl shell scrap@`.
 **Permission denied writing `/data`.** The data directory must be owned by the `scrap` user and
 the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do this). On
 SELinux systems (Fedora, RHEL) also add `:Z` to the `--volume` options.
+
+**The access log shows every client as the server's own address.** Rootless podman's network
+(pasta) forwards connections so that local clients, including Tailscale Serve, appear to come
+from the host. These lines are not outside traffic.
 
 **Anything else.** `journalctl --user -u scrap -e` and `podman logs scrap`.
