@@ -4,8 +4,11 @@ import logging
 import mimetypes
 import os
 import re
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
@@ -14,13 +17,14 @@ from fastapi.responses import (
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
+    StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.datastructures import UploadFile
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__
+from . import __version__, backup, preview
 from .store import (
     ConflictError,
     InvalidError,
@@ -56,6 +60,13 @@ class PageEdit(BaseModel):
 def author(request: Request) -> str:
     # Set by Tailscale Serve; tagged devices (and anything else) send none.
     return request.headers.get("Tailscale-User-Login") or "tagged"
+
+
+def attachment(name: str) -> str:
+    """Content-Disposition saving a file as name: ASCII fallback, then RFC 5987."""
+    plain = name.encode("ascii", "replace").decode().replace("?", "_")
+    plain = re.sub(r'["\\\x00-\x1f\x7f]', "_", plain)
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 def too_large(limit: int) -> str:
@@ -210,13 +221,45 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """Full-text search over titles and bodies; snippets mark hits with <mark>."""
         return store.search(q, limit)
 
-    @app.get("/api/blobs/{sha}")
-    def blob(sha: str) -> FileResponse:
-        """A stored original, byte for byte."""
-        path, mime = store.blob(sha)
-        return FileResponse(path, media_type=mime, headers=BLOB_HEADERS)
+    @app.get("/api/pages/{key}/download")
+    def page_download(key: str) -> StreamingResponse:
+        """A page as <slug>.md, or with its files a <slug>.zip."""
+        out = tempfile.SpooledTemporaryFile(max_size=8 * 2**20)
+        try:
+            name, mime = backup.download(store, key, out)
+        except BaseException:
+            out.close()
+            raise
+        out.seek(0)
 
-    index = STATIC / "index.html"
+        def chunks() -> Iterator[bytes]:
+            with out:
+                while chunk := out.read(1 << 16):
+                    yield chunk
+
+        headers = {"Content-Disposition": attachment(name), "Cache-Control": "no-store"}
+        return StreamingResponse(chunks(), media_type=mime, headers=headers)
+
+    @app.get("/api/blobs/{sha}/preview")
+    def blob_preview(sha: str, size: int = 2048) -> FileResponse:
+        """A JPEG preview of a stored photo (HEIC too), turned upright, at most size
+        (480 or 2048) pixels a side; made on first request, then cached."""
+        path = preview.preview(store, sha, size)
+        return FileResponse(path, media_type="image/jpeg", headers=BLOB_HEADERS)
+
+    @app.get("/api/blobs/{sha}")
+    def blob(sha: str, download: bool = False) -> FileResponse:
+        """A stored original, byte for byte; ?download=1 saves it under its name."""
+        path, mime = store.blob(sha)
+        headers = dict(BLOB_HEADERS)
+        if download:
+            name = backup.file_name(store.blob_name(sha), sha, mime)
+            headers["Content-Disposition"] = attachment(name)
+        return FileResponse(path, media_type=mime, headers=headers)
+
+    # $SCRAP_WEB_DIR serves a PWA build from elsewhere, e.g. one being tried out live
+    static = Path(os.environ.get("SCRAP_WEB_DIR") or STATIC)
+    index = static / "index.html"
     if not index.is_file():
         logging.getLogger(__name__).warning(NOT_BUILT.splitlines()[0])
 
@@ -228,7 +271,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     for route in APP_ROUTES:
         app.get(route, include_in_schema=False)(shell)
-    if STATIC.is_dir():
-        app.mount("/", Shell(directory=STATIC), name="static")
+    if static.is_dir():
+        app.mount("/", Shell(directory=static), name="static")
 
     return app

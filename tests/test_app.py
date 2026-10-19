@@ -280,6 +280,18 @@ def test_pwa_files_and_caching(shell):
     assert shell.get("/healthz").json()["status"] == "ok"
 
 
+def test_web_dir_overrides_the_packaged_pwa(tmp_path, monkeypatch):
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("<title>live</title>")
+    monkeypatch.setenv("SCRAP_WEB_DIR", str(web))
+    client = TestClient(create_app(tmp_path / "data"))
+    assert client.get("/recent").text == "<title>live</title>"
+    (web / "sw.js").write_text("// new build")  # changes on disk show without a restart
+    sw = client.get("/sw.js")
+    assert sw.text == "// new build" and sw.headers["cache-control"] == "no-cache"
+
+
 def test_unbuilt_pwa_says_how_to_build(tmp_path, monkeypatch):
     monkeypatch.setattr("scrap.app.STATIC", tmp_path / "missing")
     client = TestClient(create_app(tmp_path / "data"))
