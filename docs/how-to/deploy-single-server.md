@@ -50,8 +50,9 @@ Linger keeps the user's services running when nobody is logged in, and starts th
 `grep` prints nothing, see {ref}`scrap-troubleshooting`.
 
 Everything below runs **as that user**, in a real login session, so that `systemctl --user`
-works: `ssh scrap@<host>`, or from an admin account `sudo machinectl shell scrap@`. A plain
-`sudo -u scrap` or `su` does not set up the user's systemd session.
+works: `ssh scrap@<host>`, or from an admin account `sudo machinectl shell scrap@` (`machinectl`
+is in the `systemd-container` package). A plain `sudo -u scrap` or `su` does not set up the
+user's systemd session.
 
 ## Get the image
 
@@ -280,6 +281,7 @@ SELinux systems (Fedora, RHEL) also add `:Z` to the `--volume` options.
 
 **The access log shows every client as the server's own address.** Rootless podman's network
 (pasta) forwards connections so that local clients, including Tailscale Serve, appear to come
-from the host. These lines are not outside traffic.
+from one of the host's own addresses, which may be its public one. These lines are not outside
+traffic.
 
 **Anything else.** `journalctl --user -u scrap -e` and `podman logs scrap`.
