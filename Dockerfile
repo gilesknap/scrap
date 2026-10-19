@@ -51,6 +51,9 @@ COPY --from=build /python /python
 COPY --from=build /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH
 
+# Backup retention, used by the Helm chart's backup CronJob (`scrap-backup prune`)
+COPY deploy/scrap-backup /usr/local/bin/scrap-backup
+
 # Run as an unprivileged user with its data on one volume at /data
 RUN useradd --uid 10001 --user-group --create-home scrap \
     && mkdir /data && chown scrap:scrap /data

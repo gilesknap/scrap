@@ -1,0 +1,15 @@
+apiVersion: v2
+name: scrap
+description: A tiny personal knowledge store (one FastAPI + SQLite service and its PWA)
+type: application
+home: https://gilesknap.github.io/scrap
+sources:
+  - https://github.com/gilesknap/scrap
+# Version rule: version and appVersion are both the scrap release this chart
+# ships with (the git tag, e.g. 0.1.0). Bump both in the commit that is tagged;
+# the chart workflow fails a tag whose name differs. image.tag defaults to
+# appVersion. Before the first release no image with this tag exists: set
+# image.tag (see docs/how-to/deploy-kubernetes.md).
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"

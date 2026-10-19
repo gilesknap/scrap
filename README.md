@@ -66,6 +66,10 @@ Then open <http://127.0.0.1:8000/> for the PWA. From a checkout, build it first 
 `npm --prefix web ci && npm --prefix web run build` (Node 22); the container image has it built in.
 See [capture from your phone](https://github.com/gilesknap/scrap/blob/main/docs/how-to/use-the-pwa.md).
 
+To deploy it, see [deploy on a single server](https://github.com/gilesknap/scrap/blob/main/docs/how-to/deploy-single-server.md)
+(rootless podman and systemd) or [deploy on Kubernetes](https://github.com/gilesknap/scrap/blob/main/docs/how-to/deploy-kubernetes.md)
+(the Helm chart in `charts/scrap`).
+
 <!-- README only content. Anything below this line won't be included in index.md -->
 
 See <https://gilesknap.github.io/scrap> for the full documentation.

@@ -1,0 +1,25 @@
+backup:
+  enabled: false
+persistence:
+  storageClass: local-path
+  size: 2Gi
+nodeSelector:
+  kubernetes.io/arch: arm64
+tolerations:
+  - key: example
+    operator: Exists
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/os
+              operator: In
+              values: [linux]
+podAnnotations:
+  example.com/note: hello
+serviceAccount:
+  create: false
+  name: default
+networkPolicy:
+  enabled: true
