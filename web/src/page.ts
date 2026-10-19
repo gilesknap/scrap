@@ -3,6 +3,7 @@ import { ApiError, api, blobUrl, type FileRef, type Page, previewUrl, shareable 
 import { go } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
+import { icon } from "./icons";
 import { bodyView, download, h, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -20,7 +21,9 @@ function originals(files: FileRef[]) {
   return files.map((f) => {
     const href = blobUrl(f.sha256);
     const save = download(`${href}?download=1`, "save");
-    const link = () => h("a", { href, target: "_blank", className: "file" }, f.filename || f.mime);
+    const name = f.filename || f.mime;
+    const link = () =>
+      h("a", { href, target: "_blank", className: "file" }, icon("file"), h("span", {}, name));
     if (!isImage(f)) return h("div", { className: "orig" }, link(), save);
     const at = n++;
     const img = h("img", { src: photos[at].src, alt: f.filename || "", loading: "lazy" });
@@ -29,8 +32,14 @@ function originals(files: FileRef[]) {
       viewer(photos, at);
     };
     const shown = h("a", { href, onclick: open }, img);
-    img.onerror = () => shown.replaceWith(link()); // no preview: just the file
-    return h("figure", { className: "orig" }, shown, save);
+    const fig = h(
+      "figure",
+      { className: "orig" },
+      shown,
+      h("figcaption", {}, h("span", {}, f.filename ?? ""), save),
+    );
+    img.onerror = () => fig.replaceWith(h("div", { className: "orig" }, link(), save)); // no preview
+    return fig;
   });
 }
 
@@ -55,7 +64,7 @@ function body(text: string) {
       bodyView(text, raw),
       h(
         "button",
-        { type: "button", className: "link", onclick: flip },
+        { type: "button", className: "link", "aria-pressed": String(raw), onclick: flip },
         raw ? "Formatted" : "Raw text",
       ),
     );
@@ -80,11 +89,11 @@ export async function page(key: string): Promise<Node> {
       h("div", { className: "originals" }, ...originals(p.captures.flatMap((c) => c.blobs))),
       h(
         "div",
-        { className: "bar" },
+        { className: "bar tools" },
         editButton(p),
         download(`/api/pages/${p.id}/download`),
         share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
-        h("button", { className: "danger", onclick: () => remove(p) }, "Delete"),
+        h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );
 
@@ -125,8 +134,7 @@ export async function page(key: string): Promise<Node> {
               {},
               "This page was changed elsewhere. Merge their text below into yours and save again, or discard yours.",
             ),
-            h("strong", {}, theirs.title),
-            h("pre", {}, theirs.body),
+            h("blockquote", {}, h("strong", {}, theirs.title), h("pre", {}, theirs.body)),
             h(
               "button",
               {
@@ -162,11 +170,14 @@ export async function page(key: string): Promise<Node> {
   }
 
   function editButton(p: Page) {
-    const b = h("button", { onclick: () => void edit(p) }, "Edit");
+    const b = h("button", { onclick: () => void edit(p) }, icon("edit"), "Edit");
     drafts
       .get(`page:${p.id}`)
       .then((d) => {
-        if (d) b.textContent = "Edit (unsaved draft)";
+        if (!d) return;
+        b.setAttribute("aria-label", "Edit (unsaved draft)");
+        b.classList.add("dot"); // a mark on the icon says there is a draft
+        b.lastChild?.replaceWith("Edit draft");
       })
       .catch(() => {});
     return b;

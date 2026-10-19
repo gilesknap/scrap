@@ -1,8 +1,9 @@
 // Full-text search as you type; snippets become text nodes and <mark>s, never HTML.
 import { api, type Hit } from "./api";
 import { go, view } from "./app";
+import { icon, kindIcon } from "./icons";
 import { snippetParts } from "./snippet";
-import { h } from "./ui";
+import { empty, h } from "./ui";
 
 export function search(): Node {
   const q = new URLSearchParams(location.search).get("q") ?? "";
@@ -14,6 +15,7 @@ export function search(): Node {
     "aria-label": "Search",
   });
   const results = h("ul", { className: "list hits" });
+  const hint = () => h("li", {}, empty("search", "Search your notes, links and captions."));
   let timer: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
   // Leaving the view: no late debounce rewrites the address bar, no late results land.
@@ -27,7 +29,7 @@ export function search(): Node {
     history.replaceState(null, "", query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     abort.abort();
     abort = new AbortController();
-    if (!query) return results.replaceChildren();
+    if (!query) return results.replaceChildren(hint());
     try {
       const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}`, {
         signal: abort.signal,
@@ -40,6 +42,7 @@ export function search(): Node {
             h(
               "a",
               { href: `/p/${encodeURIComponent(hit.slug)}` },
+              h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
               h(
                 "span",
                 {},
@@ -55,11 +58,11 @@ export function search(): Node {
             ),
           ),
         ),
-        ...(hits.length ? [] : [h("li", { className: "empty" }, "No matches")]),
+        ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]),
       );
     } catch (e) {
       if ((e as Error).name !== "AbortError")
-        results.replaceChildren(h("li", { className: "empty" }, "Search needs the server."));
+        results.replaceChildren(h("li", {}, empty("offline", "Search needs the server.")));
     }
   }
   input.oninput = () => {
@@ -72,6 +75,12 @@ export function search(): Node {
     if (e.key === "Enter" && first) go(first.pathname);
   };
   if (q) void run();
+  else results.replaceChildren(hint());
   setTimeout(() => input.focus());
-  return h("section", { className: "search" }, input, results);
+  return h(
+    "section",
+    { className: "search" },
+    h("label", { className: "field-search" }, icon("search"), input),
+    results,
+  );
 }

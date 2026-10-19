@@ -22,7 +22,7 @@ Installing is what puts scrap in the Android **share sheet**.
 | **Note** | A text box; a pasted link alone becomes a link capture |
 | **Todo**, **Read later** | A note with a hint that fixes the page kind (`todo`, `consume`) |
 
-In the composer, **+ Camera** and **+ Gallery** add more photos (to a note too), and the cross
+In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
@@ -71,7 +71,8 @@ the link as the capture's URL.
   photos show too), other files as links. Each has a **Download** of the original.
 - Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
   drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
-  **Download** and **Close** are along the bottom; the phone's Back button closes it too.
+  **Download** and **Share** are along the bottom and the cross at the top right closes it, as
+  does the phone's Back button.
 - **Download** on a page saves it as Markdown, or as a zip of the Markdown and its files when it
   has any.
 - Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
@@ -81,7 +82,7 @@ the link as the capture's URL.
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
 - Nothing typed is lost: the composer and **Edit** keep a draft on the phone as you type
   (photos too), so after the phone's Back button, a reload or a closed app, opening them again
-  brings it back (**Discard it** drops it). Back closes the editor, not the app. **Cancel** asks
+  brings it back (**Discard it** drops it); a page with a kept edit shows **Edit draft**. Back closes the editor, not the app. **Cancel** asks
   before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.

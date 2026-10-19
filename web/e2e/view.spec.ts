@@ -315,7 +315,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await page.getByPlaceholder("Note or link").fill("half a thought");
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByText("+ Gallery").click(),
+    page.locator(".editor").getByRole("button", { name: "Gallery" }).click(),
   ]);
   await chooser.setFiles({ name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) });
   await page.waitForTimeout(600); // the draft is kept 0.4 s after typing stops

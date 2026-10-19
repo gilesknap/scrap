@@ -1,5 +1,6 @@
 // Full-screen photo viewer: opens fitted; pinch, wheel or double-tap to zoom, drag to pan,
 // swipe or arrows between photos. The phone's Back button closes it (a history entry).
+import { type Icon, icon } from "./icons";
 import { download, h, share } from "./ui";
 import { clamp, type Fingers, fitView, pinch, type View, zoomTo } from "./zoom";
 
@@ -42,19 +43,29 @@ export function viewer(photos: Photo[], start: number) {
   const stage = h("div", { className: "stage" }, img, note);
   const count = h("span", { className: "count" });
   let save = download("");
-  const tool = (label: string, onclick: () => void, name = label) =>
-    h("button", { type: "button", onclick, "aria-label": name }, label);
-  const prev = tool("‹", () => show(i - 1), "Previous photo");
-  const next = tool("›", () => show(i + 1), "Next photo");
-  const close = tool("Close", () => history.back());
+  const tool = (
+    glyph: Icon | null,
+    label: string,
+    onclick: () => void,
+    name = "",
+    className = "",
+  ) =>
+    h(
+      "button",
+      { type: "button", onclick, className, ...(name && { "aria-label": name }) },
+      glyph ? icon(glyph) : h("b", { "aria-hidden": "true" }, "1:1"),
+      !name && label,
+    );
+  const prev = tool("back", "", () => show(i - 1), "Previous photo", "step");
+  const next = tool("next", "", () => show(i + 1), "Next photo", "step");
+  const close = tool("close", "", () => history.back(), "Close", "close");
   const bar = h(
     "div",
     { className: "tools" },
-    tool("Fit", () => toFit()),
-    tool("100%", () => zoom(actual(), centre(), true)),
+    tool("fit", "Fit", () => toFit()),
+    tool(null, "100%", () => zoom(actual(), centre(), true)),
     save,
     share(() => ({ title: photos[i].name, file: photos[i].share })),
-    close,
   );
   const root = h(
     "div",
@@ -62,6 +73,7 @@ export function viewer(photos: Photo[], start: number) {
     stage,
     bar,
     count,
+    close,
   );
   if (photos.length > 1) root.append(prev, next);
 

@@ -130,7 +130,7 @@ export function editor(o: {
     h(
       "div",
       { className: "bar" },
-      h("button", { type: "button", onclick: cancel }, "Cancel"),
+      h("button", { type: "button", className: "ghost", onclick: cancel }, "Cancel"),
       preview.button,
       save,
     ),
