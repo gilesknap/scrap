@@ -209,10 +209,10 @@ the hard cap.
 | --- | --- | --- |
 | credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* (wording from the docs, not provoked) |
 | auth | 401 (verified: `authentication_error`, "invalid x-api-key"), 403, 404 (unknown model) | pause until *Resume* |
-| outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after`, else 1, 2, 4 ... 60 min |
+| outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after` (at most 1 h), else 1, 2, 4 ... 60 min |
 | budget | the day's spend reached | pause until UTC midnight |
 | timeout | `APITimeoutError` (240 s) | charged |
-| invalid | `max_tokens`, bad output, nothing valid left | charged; retried at once |
+| invalid | `max_tokens`, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped) | charged; retried at once |
 | content | refusal, any other 400, 409, 413, 422 | charged |
 | image | decode or HEIC failure, over 120 MP | charged |
 | internal | any other exception | charged |
@@ -224,7 +224,7 @@ out, makes it claimable again, so an outage fails nothing. Every charged failure
 `job.failures` and retries 10 minutes later (invalid output at once); the third kills the job.
 The SDK's `APITimeoutError` subclasses `APIConnectionError`, so it is tested first, else every
 timeout would be a free outage retry. A success clears the pause. The first pause of an
-episode POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
+episode (or a pause for a new reason, such as a spend limit after a budget pause) POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
 naming only the reason, never titles, OCR or API errors.
 
 ## Migration 0002 (sketch)

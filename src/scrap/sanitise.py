@@ -1,19 +1,18 @@
 """Checking drawings before they are stored or shown.
 
 Model output is checked strictly: an element that breaks a rule is dropped with a
-warning, and the rest are turned into Excalidraw element skeletons. Human scenes (from
-the editor) are checked permissively, and one that breaks a rule is refused whole.
+warning, and the rest are turned into Excalidraw element skeletons. (Human scenes from
+the editor get a permissive check with the Excalidraw view.)
 """
 
-import json
 import math
 import re
 from typing import Any, TypeGuard
 
 from .claude import ELEMENT_TYPES, KINDS
-from .store import CONTROL, InvalidError
+from .store import CONTROL
 
-__all__ = ["model_output", "scene", "scene_text"]
+__all__ = ["model_output"]
 
 ID = re.compile(r"[A-Za-z0-9_-]{1,32}")
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
@@ -106,7 +105,7 @@ def _element(e: Any, width: int, height: int) -> dict[str, Any]:
 def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]:
     """The model's structured output, checked: page fields cleaned, elements turned
     into Excalidraw skeletons (bad ones dropped), and the warnings. Raises ValueError
-    if nothing usable is left (the run counts as invalid)."""
+    if there is no text and no description (the run counts as invalid)."""
     warnings: list[str] = []
     kind = raw.get("kind")
     text, description = _clean(raw.get("text")), _clean(raw.get("description"))
@@ -134,8 +133,6 @@ def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]
         if "id" in element:
             ids.add(element["id"])
         elements.append(element)
-    if given and not elements:
-        raise ValueError("every element was invalid")
     for n, element in enumerate(elements):
         for end in ("start", "end"):
             if end in element and element[end]["id"] not in ids:
@@ -150,71 +147,3 @@ def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]
         "elements": elements,
         "warnings": warnings,
     }
-
-
-# Human scenes, as Excalidraw saves them
-SCENE_TYPES = {*ELEMENT_TYPES, "freedraw"}
-SCENE_BYTES = 5 * 2**20
-MAX_FREEDRAW = 50_000
-COLOUR = re.compile(
-    r"transparent|[a-z]{3,20}|#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})"
-    r"|rgba?\(\s*[0-9.]+%?\s*(?:,\s*[0-9.]+%?\s*){2,3}\)",
-    re.IGNORECASE,
-)
-NUMBERS = ("x", "y", "width", "height", "angle", "fontSize", "strokeWidth", "opacity")
-COLOURS = ("strokeColor", "backgroundColor")
-
-
-def scene(data: Any) -> dict[str, Any]:
-    """A human scene, checked and with embedded files stripped; InvalidError (a 422)
-    if it breaks a rule."""
-    if len(json.dumps(data)) > SCENE_BYTES:
-        raise InvalidError("scene over 5 MB")
-    if not isinstance(data, dict) or not isinstance(data.get("elements"), list):
-        raise InvalidError("a scene is an object with an elements list")
-    elements = []
-    for n, e in enumerate(data["elements"]):
-        if not isinstance(e, dict) or e.get("type") not in SCENE_TYPES:
-            raise InvalidError(f"element {n}: type not allowed")
-        for key in NUMBERS:
-            if key in e and not _finite(e[key]):
-                raise InvalidError(f"element {n}: {key} must be a finite number")
-        for key in COLOURS:
-            if key in e and not (
-                isinstance(e[key], str) and COLOUR.fullmatch(e[key].strip())
-            ):
-                raise InvalidError(f"element {n}: bad {key}")
-        points = e.get("points", [])
-        limit = MAX_FREEDRAW if e["type"] == "freedraw" else MAX_POINTS
-        if not isinstance(points, list) or len(points) > limit:
-            raise InvalidError(f"element {n}: too many points")
-        for point in points:
-            if not (
-                isinstance(point, list)
-                and len(point) == 2
-                and all(_finite(c) for c in point)
-            ):
-                raise InvalidError(f"element {n}: bad point")
-        link = e.get("link")
-        if link is not None and not (
-            isinstance(link, str) and re.match(r"https?://", link, re.IGNORECASE)
-        ):
-            raise InvalidError(f"element {n}: links must be http(s)")
-        for key in ("text", "originalText"):
-            if key in e and not isinstance(e[key], str):
-                raise InvalidError(f"element {n}: {key} must be a string")
-        elements.append(e)
-    out: dict[str, Any] = {"elements": elements}  # files (embedded images) dropped
-    background = (data.get("appState") or {}).get("viewBackgroundColor")
-    if isinstance(background, str) and COLOUR.fullmatch(background):
-        out["appState"] = {"viewBackgroundColor": background}
-    return out
-
-
-def scene_text(checked: dict[str, Any]) -> str:
-    """The writing in a scene, one text element a line: what search indexes."""
-    return "\n".join(
-        _clean(e.get("text"))
-        for e in checked["elements"]
-        if e["type"] == "text" and not e.get("isDeleted") and _clean(e.get("text"))
-    )

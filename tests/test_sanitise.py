@@ -1,10 +1,8 @@
-import json
 import math
 
 import pytest
 
-from scrap.sanitise import model_output, scene, scene_text
-from scrap.store import InvalidError
+from scrap.sanitise import model_output
 
 W, H = 2048, 1536
 
@@ -87,71 +85,11 @@ def test_fields_are_cleaned_and_limits_kept():
     assert got["tags"] == ["kafka", "message-queue"] and got["kind"] == "other"
 
 
-@pytest.mark.parametrize(
-    "fields",
-    [
-        {"text": "", "description": ""},
-        {"elements": [{"type": "image", "x": 0, "y": 0}]},  # nothing valid left
-    ],
-)
-def test_nothing_usable_is_invalid(fields):
+def test_no_text_and_no_description_is_invalid():
     with pytest.raises(ValueError):
-        out(**fields)
+        out(text="", description="")
 
 
-SCENE = {
-    "type": "excalidraw",
-    "elements": [
-        {"type": "rectangle", "id": "r", "x": -5000, "y": 1e6, "width": 10,
-         "height": 10, "strokeColor": "#1e1e1e", "backgroundColor": "transparent",
-         "index": "a0", "groupIds": ["g"],
-         "boundElements": [{"id": "t", "type": "text"}]},
-        {"type": "text", "id": "t", "x": 0, "y": 0, "text": "Hello", "originalText":
-         "Hello", "containerId": "r", "strokeColor": "rgba(0, 0, 0, 0.5)"},
-        {"type": "freedraw", "id": "f", "x": 0, "y": 0, "points": [[0, 0]] * 50_000,
-         "strokeColor": "#abc"},
-        {"type": "arrow", "id": "a", "x": 0, "y": 0, "points": [[0, 0], [5, 5]],
-         "link": "https://example.com", "startBinding": {"elementId": "r"}},
-        {"type": "text", "id": "u", "x": 0, "y": 0, "text": "World",
-         "strokeColor": "#1e1e1e80"},
-    ],
-    "appState": {"viewBackgroundColor": "#ffffff", "zoom": {"value": 3}},
-    "files": {"abc": {"dataURL": "data:image/png;base64,AAAA"}},
-}  # fmt: skip
-
-
-def test_a_human_scene_is_kept_with_files_stripped():
-    got = scene(SCENE)
-    assert got["elements"] == SCENE["elements"] and "files" not in got
-    assert got["appState"] == {"viewBackgroundColor": "#ffffff"}
-    assert scene_text(got) == "Hello\nWorld"
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"type": "image"},
-        {"type": "embeddable"},
-        {"type": "frame"},
-        {"x": "NaN"},
-        {"x": math.nan},
-        {"strokeColor": "url(javascript:alert(1))"},
-        {"link": "javascript:alert(1)"},
-        {"points": [[0, 0]] * 201},
-        {"points": [[0, "x"]]},
-        {"text": 5},
-    ],
-)
-def test_a_bad_human_scene_is_refused(change):
-    bad = json.loads(json.dumps(SCENE))
-    bad["elements"][3].update(change)
-    with pytest.raises(InvalidError):
-        scene(bad)
-
-
-def test_a_scene_over_5_mb_is_refused():
-    big = {"elements": [{"type": "text", "x": 0, "y": 0, "text": "x" * 6_000_000}]}
-    with pytest.raises(InvalidError, match="5 MB"):
-        scene(big)
-    with pytest.raises(InvalidError):
-        scene({"elements": "nope"})
+def test_bad_elements_never_cost_the_text():
+    got = out({"type": "image", "x": 0, "y": 0}, {"type": "text", "x": 0, "y": 0})
+    assert (got["text"], got["elements"], len(got["warnings"])) == ("t", [], 2)
