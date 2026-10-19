@@ -1,8 +1,10 @@
+import json
 import math
 
 import pytest
 
-from scrap.sanitise import model_output
+from scrap.sanitise import model_output, scene, scene_text
+from scrap.store import InvalidError
 
 W, H = 2048, 1536
 
@@ -93,3 +95,92 @@ def test_no_text_and_no_description_is_invalid():
 def test_bad_elements_never_cost_the_text():
     got = out({"type": "image", "x": 0, "y": 0}, {"type": "text", "x": 0, "y": 0})
     assert (got["text"], got["elements"], len(got["warnings"])) == ("t", [], 2)
+
+
+# ---- human scenes, from the editor
+
+SCENE = {
+    "type": "excalidraw",
+    "width": 2048,
+    "height": 1536,
+    "elements": [
+        {"type": "rectangle", "id": "r", "x": -5000, "y": 1e6, "width": 10,
+         "height": 10, "strokeColor": "#1e1e1e", "backgroundColor": "transparent",
+         "index": "a0", "groupIds": ["g"],
+         "boundElements": [{"id": "t", "type": "text"}]},
+        {"type": "text", "id": "t", "x": 0, "y": 0, "text": "Hello", "originalText":
+         "Hello", "containerId": "r", "strokeColor": "rgba(0, 0, 0, 0.5)"},
+        {"type": "freedraw", "id": "f", "x": 0, "y": 0, "points": [[0, 0]] * 50_000,
+         "pressures": [0.5] * 10, "strokeColor": "#abc"},
+        {"type": "arrow", "id": "a", "x": 0, "y": 0, "points": [[0, 0], [5, 5]],
+         "link": "https://example.com", "startBinding": {"elementId": "r"},
+         "customData": {"any": ["thing"]}},
+        {"type": "text", "id": "u", "x": 0, "y": 0, "text": "World",
+         "strokeColor": "#1e1e1e80"},
+        {"type": "text", "id": "gone", "x": 0, "y": 0, "text": "Deleted",
+         "isDeleted": True},
+    ],
+    "appState": {"viewBackgroundColor": "#ffffff", "zoom": {"value": 3}},
+    "files": {"abc": {"dataURL": "data:image/png;base64,AAAA"}},
+}  # fmt: skip
+
+
+def test_a_human_scene_is_kept_with_files_stripped():
+    got = scene(SCENE)
+    assert got["elements"] == SCENE["elements"] and "files" not in got
+    assert got["appState"] == {"viewBackgroundColor": "#ffffff"}
+    assert (got["format"], got["width"], got["height"]) == ("scene", 2048, 1536)
+    assert scene_text(got) == "Hello\nWorld"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"type": "image"},
+        {"type": "embeddable"},
+        {"type": "iframe"},
+        {"type": "frame"},
+        {"type": "magicframe"},
+        {"type": ["arrow"]},
+        {"x": "NaN"},
+        {"x": math.nan},
+        {"y": math.inf},
+        {"angle": -math.inf},
+        {"pressures": [math.nan]},  # issue #19: fields the checks do not list
+        {"roundness": {"value": math.inf}},
+        {"customData": {"n": math.nan}},
+        {"lastCommittedPoint": [math.nan, 0]},
+        {"strokeColor": "url(javascript:alert(1))"},
+        {"backgroundColor": "red; background: url(x)"},
+        {"link": "javascript:alert(1)"},
+        {"link": "data:text/html,hi"},
+        {"link": 5},
+        {"points": [[0, 0]] * 201},
+        {"points": [[0, "x"]]},
+        {"points": [[0, 1e400]]},
+        {"points": "nope"},
+        {"text": 5},
+        {"id": {"$gt": ""}},
+    ],
+)
+def test_a_bad_human_scene_is_refused(change):
+    bad = json.loads(json.dumps(SCENE))
+    bad["elements"][3].update(change)
+    with pytest.raises(InvalidError):
+        scene(bad)
+
+
+def test_huge_but_finite_scenes_are_kept_up_to_5_mb():
+    many = [{"type": "rectangle", "id": f"r{n}", "x": n * 1e12, "y": -1e300,
+             "width": 1, "height": 1} for n in range(5000)]  # fmt: skip
+    assert len(scene({"elements": many})["elements"]) == 5000
+    big = {"elements": [{"type": "text", "x": 0, "y": 0, "text": "x" * 6_000_000}]}
+    with pytest.raises(InvalidError, match="5 MB"):
+        scene(big)
+    files = {"elements": [], "files": {"f": "x" * 6_000_000}}  # stripped first
+    assert scene(files)["elements"] == []
+    for shape in ({"elements": "nope"}, [], None, {"elements": [None]}):
+        with pytest.raises(InvalidError):
+            scene(shape)
+    assert "width" not in scene({"elements": [], "width": -1, "height": 0})
+    assert "appState" not in scene({"elements": [], "appState": ["x"]})

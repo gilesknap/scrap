@@ -423,13 +423,13 @@ class Worker:
         size: tuple[int, int],
     ) -> None:
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
-        options = json.loads(job["options"])
         with self.store.connect() as conn, transaction(conn):
-            if (
-                conn.execute("SELECT 1 FROM job WHERE id = ?", (jid,)).fetchone()
-                is None
-            ):
+            row = conn.execute(
+                "SELECT options FROM job WHERE id = ?", (jid,)
+            ).fetchone()
+            if row is None:
                 return  # purged while the call ran: the run went with it
+            options = json.loads(row[0])  # as now: Reprocess may confirm meanwhile
             self._record(conn, run_id, done, status="ok", output=json.dumps(out))
             if not self._running(conn, jid):
                 return  # given back at shutdown: it runs again
@@ -510,9 +510,10 @@ class Worker:
 
 def reprocess(
     store: Store, capture_id: str, photo: str | None, replace_human: bool
-) -> int:
-    """Queue a capture's photos (or one of them) again; returns how many were added
-    (none if they are queued already)."""
+) -> dict[str, int]:
+    """Queue a capture's photos (or one of them) again. Returns how many were added
+    (queued) and how many were queued or running already (already). Confirming
+    replace_human reaches a job that is already queued or running too."""
     with store.connect() as conn, transaction(conn):
         found = conn.execute(
             "SELECT 1 FROM capture c JOIN page p ON p.id = c.page_id"
@@ -523,7 +524,17 @@ def reprocess(
             raise NotFoundError(capture_id)
         options = json.dumps({"replace_human": True} if replace_human else {})
         args = {"capture": capture_id, "photo": photo, "options": options, "now": now()}
-        return conn.execute(ENQUEUE, args).rowcount
+        added = conn.execute(ENQUEUE, args).rowcount
+        active = "capture_id = :capture AND coalesce(:photo, source_sha256) ="
+        active += " source_sha256 AND state IN ('queued', 'running')"
+        if replace_human:
+            conn.execute(
+                "UPDATE job SET options = json_set(options, '$.replace_human',"
+                " json('true')) WHERE " + active,
+                args,
+            )
+        count = conn.execute(f"SELECT count(*) FROM job WHERE {active}", args)
+        return {"queued": added, "already": count.fetchone()[0] - added}
 
 
 def status(store: Store) -> dict[str, Any]:

@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -137,7 +138,7 @@ def test_reprocess_and_retry_through_the_api(tmp_path):
     files = [("file", ("b.jpg", jpeg(), "image/jpeg"))]
     ref = client.post("/api/captures", data={"id": new_ulid()}, files=files).json()
     url = f"/api/captures/{ref['capture_id']}/reprocess"
-    assert client.post(url, json={}).json() == {"queued": 0}  # queued already
+    assert client.post(url, json={}).json() == {"queued": 0, "already": 1}
     page = client.get(f"/api/pages/{ref['page_id']}").json()
     blob = page["captures"][0]["blobs"][0]
     assert blob["ingest"]["state"] == "queued" and page["tags"] == []
@@ -146,7 +147,7 @@ def test_reprocess_and_retry_through_the_api(tmp_path):
     page = client.get(f"/api/pages/{ref['page_id']}").json()
     assert page["captures"][0]["blobs"][0]["ingest"]["state"] == "failed"
     one = {"photo": blob["sha256"]}
-    assert client.post(url, json=one).json() == {"queued": 1}  # Retry
+    assert client.post(url, json=one).json() == {"queued": 1, "already": 0}  # Retry
     assert (
         client.post(f"/api/captures/{new_ulid()}/reprocess", json={}).status_code == 404
     )
@@ -528,6 +529,35 @@ def test_reprocess_keeps_a_human_drawing_unless_confirmed(store, conn):
     assert current()[0] == 4 and current()[1] != "human"
 
 
+def test_confirming_replace_reaches_a_job_already_queued_or_running(store, conn):
+    """Issue #19: Reprocess confirmed while the photo is queued (or running) must
+    not lose the confirmation."""
+    ref = photo(store, [jpeg()])
+    cid, sha = ref["capture_id"], shas(conn, ref["capture_id"])[0]
+    run_one(store, Fake(BOARD))
+    with transaction(conn):
+        put_derived(conn, cid, sha, "excalidraw", "human", at(0), author="me",
+                    data={"format": "scene", "elements": []})  # fmt: skip
+    assert ingest.reprocess(store, cid, None, False) == {"queued": 1, "already": 0}
+    assert ingest.reprocess(store, cid, sha, True) == {"queued": 0, "already": 1}
+    run_one(store, Fake(BOARD))
+    producer = "SELECT producer FROM derived WHERE kind = 'excalidraw'"
+    producer += " AND superseded_at IS NULL"
+    assert conn.execute(producer).fetchone()[0] != "human"
+    # confirmed while the call runs: the worker reads the options as it finishes
+    with transaction(conn):
+        put_derived(conn, cid, sha, "excalidraw", "human", at(1), author="me",
+                    data={"format": "scene", "elements": []})  # fmt: skip
+    ingest.reprocess(store, cid, sha, False)
+
+    def confirm_then_answer(*args):
+        assert ingest.reprocess(store, cid, sha, True) == {"queued": 0, "already": 1}
+        return Fake(BOARD)(*args)
+
+    run_one(store, confirm_then_answer)
+    assert conn.execute(producer).fetchone()[0] != "human"
+
+
 def test_the_worker_survives_an_exception_and_healthz_reports_its_death(
     tmp_path, monkeypatch
 ):
@@ -695,3 +725,31 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     assert found(words) == 0 and found("salt " + words) == 0  # 16 words used
     assert found(f"common words {words}") == 0
     assert time.monotonic() - started < 2
+
+
+def test_lone_surrogates_from_the_model_never_reach_the_database(tmp_path):
+    """JSON can carry half a UTF-16 pair; UTF-8 cannot. The page, its download and
+    the export all still work, with U+FFFD in its place."""
+    store = Store(tmp_path)
+    store.migrate()
+    ref = photo(store, [jpeg()])
+    bad = "\udc00"
+    label = {"type": "text", "id": "t", "x": 1, "y": 1, "text": f"label {bad}"}
+    answer: dict[str, Any] = dict(BOARD, title=f"Board {bad}", elements=[label],
+                                  description=f"About {bad}", text=f"line {bad}",
+                                  tags=[f"t{bad}"])  # fmt: skip
+    assert run_one(store, Fake(answer))
+    with closing(connect(store.db)) as conn:
+        assert job(conn) == ("done", 0, "")
+        texts = [
+            r[0]
+            for r in conn.execute("SELECT text FROM derived WHERE text IS NOT NULL")
+        ]
+    assert sorted(texts) == ["About �", "line �"]
+    client = TestClient(create_app(tmp_path))
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["title"] == "Board �" and page["tags"] == ["t�"]
+    assert client.get(f"/api/pages/{ref['page_id']}/download").status_code == 200
+    from scrap.backup import export
+
+    assert export(store, tmp_path / "out") == 1

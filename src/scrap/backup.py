@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import IO
 from urllib.parse import quote
 
+from .drawing import excalidraw_file
 from .store import NotFoundError, Store, connect, migrate, schema_version
 
 __all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
@@ -107,13 +108,34 @@ def _sha_name(blob: sqlite3.Row, taken: set[str]) -> str:
     return blob["sha256"] + (mimetypes.guess_extension(blob["mime"]) or "")
 
 
+def _derived(conn: sqlite3.Connection, cid: str, sha: str) -> dict[str, sqlite3.Row]:
+    """A photo's current results (text, description, drawing) by kind."""
+    return {
+        row["kind"]: row
+        for row in conn.execute(
+            "SELECT kind, text, data FROM derived WHERE capture_id = ?"
+            " AND source_sha256 = ? AND superseded_at IS NULL",
+            (cid, sha),
+        )
+    }
+
+
+def _fenced(text: str) -> list[str]:
+    fence = "```"
+    while fence in text:
+        fence += "`"
+    return [f"{fence}text", text, fence]
+
+
 def page_markdown(
     conn: sqlite3.Connection, page: sqlite3.Row, name: Namer = _sha_name
-) -> tuple[str, list[tuple[str, str]]]:
-    """A page as Markdown: front matter, its body, then a link per file under files/.
+) -> tuple[str, list[tuple[str, str | bytes]]]:
+    """A page as Markdown: front matter, its body, then a link per file under files/,
+    each photo followed by what Claude made of it (its description, the text it read
+    and the drawing, as an .excalidraw file beside it).
 
-    name picks each file's name (given the names taken so far). Returns the text and
-    (sha256, name) for each file.
+    name picks each file's name (given the names taken so far). Returns the text and,
+    for each file, its name and either its sha256 (a stored file) or its bytes.
     """
     front = {
         key: page[key] for key in ("title", "id", "kind", "created_at", "updated_at")
@@ -121,10 +143,10 @@ def page_markdown(
     front["fields"] = json.loads(page["fields"])
     lines = ["---", *(f"{k}: {json.dumps(v)}" for k, v in front.items())]
     lines += ["---", "", page["body"], ""]
-    files: list[tuple[str, str]] = []
+    files: list[tuple[str, str | bytes]] = []
     taken: set[str] = set()
     for blob in conn.execute(
-        "SELECT b.sha256, b.mime, cb.filename FROM capture c"
+        "SELECT b.sha256, b.mime, cb.filename, c.id AS capture_id FROM capture c"
         " JOIN capture_blob cb ON cb.capture_id = c.id"
         " JOIN blob b USING (sha256)"
         " WHERE c.page_id = ? ORDER BY c.received_at, cb.ord",
@@ -132,11 +154,41 @@ def page_markdown(
     ):
         file = name(blob, taken)
         taken.add(file)
-        files.append((blob["sha256"], file))
+        files.append((file, blob["sha256"]))
         label = (blob["filename"] or file).replace("[", "(").replace("]", ")")
         image = "!" if blob["mime"].startswith("image/") else ""
         lines.append(f"{image}[{label}](files/{quote(file)})")
+        if not image:
+            continue
+        got = _derived(conn, blob["capture_id"], blob["sha256"])
+        if "description" in got and got["description"]["text"]:
+            lines += ["", f"> {got['description']['text']}".replace("\n", "\n> ")]
+        if "ocr" in got and got["ocr"]["text"]:
+            lines += ["", *_fenced(got["ocr"]["text"])]
+        if "excalidraw" in got:
+            # scrap export puts every page's files in one folder, named by content: a
+            # photo is the same file on every page, but its drawing is per capture
+            stem = file.rpartition(".")[0] or file
+            if name is _sha_name:
+                stem = f"{blob['sha256']}-{blob['capture_id']}"
+            drawing = _drawing_name(stem, taken)
+            taken.add(drawing)
+            data = json.loads(got["excalidraw"]["data"])
+            files.append((drawing, excalidraw_file(data)))
+            lines += ["", f"[Drawing of {label}](files/{quote(drawing)})"]
+        if len(got):
+            lines.append("")
     return "\n".join(lines) + "\n", files
+
+
+def _drawing_name(stem: str, taken: set[str]) -> str:
+    """<stem>.excalidraw, numbered if that is taken."""
+    seen = {t.casefold() for t in taken}
+    name, n = f"{stem}.excalidraw", 1
+    while name.casefold() in seen:
+        n += 1
+        name = f"{stem}-{n}.excalidraw"
+    return name
 
 
 def export(store: Store, dest: Path) -> int:
@@ -150,9 +202,11 @@ def export(store: Store, dest: Path) -> int:
         ).fetchall()
         for page in pages:
             text, files = page_markdown(conn, page)
-            for sha, name in files:
-                if not (dest / "files" / name).exists():
-                    shutil.copy2(store.blob_path(sha), dest / "files" / name)
+            for name, content in files:
+                if isinstance(content, bytes):  # made here, e.g. a drawing
+                    (dest / "files" / name).write_bytes(content)
+                elif not (dest / "files" / name).exists():
+                    shutil.copy2(store.blob_path(content), dest / "files" / name)
             (dest / f"{page['slug']}.md").write_text(text)
     return len(pages)
 
@@ -197,6 +251,9 @@ def download(store: Store, key: str, out: IO[bytes]) -> tuple[str, str]:
         return f"{slug}.md", "text/markdown; charset=utf-8"
     with zipfile.ZipFile(out, "w") as zf:
         zf.writestr(f"{slug}.md", text, zipfile.ZIP_DEFLATED)
-        for sha, name in files:  # photos are compressed already: stored as they are
-            zf.write(store.blob_path(sha), f"files/{name}", zipfile.ZIP_STORED)
+        for name, content in files:  # photos are compressed already: stored as is
+            if isinstance(content, bytes):
+                zf.writestr(f"files/{name}", content, zipfile.ZIP_DEFLATED)
+            else:
+                zf.write(store.blob_path(content), f"files/{name}", zipfile.ZIP_STORED)
     return f"{slug}.zip", "application/zip"
