@@ -275,3 +275,35 @@ def test_error_text_never_carries_a_key(monkeypatch):
         text = str(claude.classify(error))
         assert "sk-ant" not in text and "plain-secret-value" not in text
         assert "[key]" in text
+
+
+def test_ingest_once_reports_a_paid_invalid_answer(tmp_path, monkeypatch, capsys):
+    from scrap.__main__ import main
+
+    path = tmp_path / "board.jpg"
+    Image.new("RGB", (40, 30), "white").save(path)
+    empty = {"kind": "other", "title": "", "tags": [], "description": "", "text": "",
+             "elements": []}  # fmt: skip
+    usage = {"input_tokens": 100, "output_tokens": 10}
+
+    def fake(model, system, messages, schema, blob):
+        content = [{"type": "text", "text": json.dumps(empty)}]
+        return claude.Completion(empty, content, usage, model, "end_turn")
+
+    monkeypatch.setattr(claude, "complete", fake)
+    save = tmp_path / "out.json"
+    main(["ingest-once", str(path), "--save", str(save)])
+    got = json.loads(capsys.readouterr().out)
+    assert got["outcome"] == "invalid" and got["usage"] == usage
+    assert got["cost_usd"] == 0.0006 and got["served_model"] == claude.MODEL
+    assert json.loads(save.read_text())["content"][0]["type"] == "text"
+
+    def full_disk(*args, **kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr("json.dump", full_disk)
+    again = tmp_path / "again.json"
+    main(["ingest-once", str(path), "--save", str(again)])
+    got = json.loads(capsys.readouterr().out)
+    assert got["usage"] == usage and "No space" in got["save_error"]
+    assert not again.exists()

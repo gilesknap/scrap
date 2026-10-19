@@ -567,6 +567,7 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
         "sent": [width, height, len(jpeg)],
     }
     started = time.monotonic()
+    done: claude.Completion | None = None
     try:
         done = claude.complete(
             model, system, messages, claude.SCHEMA, lambda sha: (jpeg, "image/jpeg")
@@ -576,7 +577,8 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
     except (claude.CallError, ValueError) as error:
         cls = getattr(error, "cls", "invalid")
         summary.update(outcome=cls, error=str(error))
-        done, out = getattr(error, "completion", None), None
+        # a paid answer that failed the checks is still reported and saved
+        done, out = getattr(error, "completion", None) or done, None
     summary["seconds"] = round(time.monotonic() - started, 1)
     if done is not None:
         summary.update(
@@ -596,10 +598,14 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
             elements_kept=len(out["elements"]),
             warnings=len(out["warnings"]),
         )
-    if fd is not None:
+    if fd is not None and save is not None:
         record = {"summary": summary, "output": out}
         if done is not None:
             record["content"] = done.content
-        with os.fdopen(fd, "w") as file:
-            json.dump(record, file, indent=1)
+        try:
+            with os.fdopen(fd, "w") as file:
+                json.dump(record, file, indent=1)
+        except OSError as error:  # a full disk: keep the summary, not a stub file
+            save.unlink(missing_ok=True)
+            summary["save_error"] = str(error)
     return summary
