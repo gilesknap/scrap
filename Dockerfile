@@ -38,10 +38,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # The runtime stage copies the built venv into a runtime container
 FROM ubuntu:resolute AS runtime
 
-# Add apt-get system dependecies for runtime here if needed
-# RUN apt-get update -y && apt-get install -y --no-install-recommends \
-#     some-library \
-#     && apt-get dist-clean
+# CA certificates: without them every HTTPS call (Claude, notifications) fails with
+# "certificate verify failed"
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && apt-get dist-clean
 
 # Copy the python installation from the build stage
 COPY --from=build /python /python
