@@ -6,10 +6,14 @@ import time
 import zlib
 from concurrent.futures import ThreadPoolExecutor
 
+import anyio
+import httpx2
 import pytest
+from fastapi.testclient import TestClient
 from PIL import Image, ImageCms
 
 from scrap import backup, preview
+from scrap.app import create_app
 from scrap.store import Store, new_ulid
 
 
@@ -145,7 +149,8 @@ from pathlib import Path
 from scrap import preview
 base = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 preview._make(Path(sys.argv[1]), Path(sys.argv[2]), 2048)
-print((resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - base) // 1024)
+unit = 2**20 if sys.platform == "darwin" else 2**10  # ru_maxrss: bytes, else KiB
+print((resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - base) * unit // 2**20)
 """
 
 
@@ -185,6 +190,49 @@ def test_one_decode_at_a_time(client, upload, monkeypatch, tmp_path):
     with ThreadPoolExecutor(4) as pool:
         list(pool.map(lambda sha: preview.preview(store, sha, 480), shas))
     assert most == 1
+
+
+def test_waiting_for_the_decoder_holds_no_worker_thread(tmp_path, monkeypatch):
+    app = create_app(tmp_path / "data")
+    sync = TestClient(app)
+    shas = []
+    for n in range(10):
+        files = [("file", ("p.jpg", image("JPEG", (10 + n, 10)), "image/jpeg"))]
+        ref = sync.post("/api/captures", data={"id": new_ulid()}, files=files).json()
+        page = sync.get(f"/api/pages/{ref['slug']}").json()
+        shas.append(page["captures"][0]["blobs"][0]["sha256"])
+    go = threading.Event()
+
+    def slow(src, dest, size):
+        go.wait(10)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"jpeg")
+
+    monkeypatch.setattr(preview, "_make", slow)
+    codes: list[int] = []
+
+    async def main():
+        transport = httpx2.ASGITransport(app=app)
+        async with httpx2.AsyncClient(transport=transport, base_url="http://t") as c:
+
+            async def get(sha):
+                codes.append((await c.get(f"/api/blobs/{sha}/preview")).status_code)
+
+            busy = -1
+            async with anyio.create_task_group() as tg:
+                for sha in shas:
+                    tg.start_soon(get, sha)
+                await anyio.sleep(0.5)  # one decoding, nine waiting
+                busy = anyio.to_thread.current_default_thread_limiter().borrowed_tokens
+                assert (await c.get("/healthz")).status_code == 200  # still answered
+                go.set()
+        return busy
+
+    busy = anyio.run(main)
+    assert codes == [200] * 10
+    assert (
+        busy == 1
+    )  # worker threads in use: the one decoding; the nine waiting hold none
 
 
 def test_a_long_wait_for_the_decoder_is_a_503(client, upload, monkeypatch):

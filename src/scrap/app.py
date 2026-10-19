@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+import anyio
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import (
@@ -240,15 +241,29 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         headers = {"Content-Disposition": attachment(name), "Cache-Control": "no-store"}
         return StreamingResponse(chunks(), media_type=mime, headers=headers)
 
+    decoding = anyio.Lock()  # requests wait for the decoder here, not in worker threads
+
     @app.get("/api/blobs/{sha}/preview")
-    def blob_preview(sha: str, size: int = 2048) -> Response:
+    async def blob_preview(sha: str, size: int = 2048) -> Response:
         """A JPEG preview of a stored photo (HEIC too), turned upright, at most size
         (480 or 2048) pixels a side; made on first request, then cached. 503 while
         the decoder is busy for long."""
-        try:
-            path = preview.preview(store, sha, size)
-        except preview.BusyError as error:
-            return JSONResponse({"detail": error.__doc__}, 503, {"Retry-After": "5"})
+        busy = JSONResponse(
+            {"detail": preview.BusyError.__doc__}, 503, {"Retry-After": "5"}
+        )
+        path = await run_in_threadpool(preview.cached, store, sha, size)
+        if path is None:
+            try:
+                with anyio.fail_after(preview.WAIT):
+                    await decoding.acquire()
+            except TimeoutError:
+                return busy
+            try:
+                path = await run_in_threadpool(preview.preview, store, sha, size)
+            except preview.BusyError:  # another caller of preview() has the decoder
+                return busy
+            finally:
+                decoding.release()
         return FileResponse(path, media_type="image/jpeg", headers=BLOB_HEADERS)
 
     @app.get("/api/blobs/{sha}")

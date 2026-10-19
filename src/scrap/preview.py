@@ -20,7 +20,7 @@ from pillow_heif import register_heif_opener
 
 from .store import InvalidError, Store
 
-__all__ = ["SIZES", "BusyError", "preview"]
+__all__ = ["SIZES", "BusyError", "cached", "preview"]
 
 SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 # Bytes one decode may take, as estimated by _cost: about 50 MP for a HEIC (an iPhone's
@@ -95,14 +95,25 @@ def _make(src: Path, dest: Path, size: int) -> None:
         raise InvalidError("cannot preview this file") from None
 
 
-def preview(store: Store, sha: str, size: int) -> Path:
-    """The path of a JPEG preview of a stored image, at most size pixels a side."""
+def _paths(store: Store, sha: str, size: int) -> tuple[Path, Path]:
+    """The original and its preview's place in the cache, after checking both."""
     if size not in SIZES:
         raise InvalidError(f"size must be one of {SIZES}")
     src, mime = store.blob(sha)  # checks sha is a SHA-256 we hold
     if not mime.startswith("image/"):
         raise InvalidError("not an image")
-    dest = store.dir / "cache" / "previews" / str(size) / sha[:2] / f"{sha}.jpg"
+    return src, store.dir / "cache" / "previews" / str(size) / sha[:2] / f"{sha}.jpg"
+
+
+def cached(store: Store, sha: str, size: int) -> Path | None:
+    """The preview if it is already made (quick: no decoding, no waiting)."""
+    dest = _paths(store, sha, size)[1]
+    return dest if dest.is_file() else None
+
+
+def preview(store: Store, sha: str, size: int) -> Path:
+    """The path of a JPEG preview of a stored image, at most size pixels a side."""
+    src, dest = _paths(store, sha, size)
     if not dest.is_file():
         if not _decoder.acquire(timeout=WAIT):
             raise BusyError()
