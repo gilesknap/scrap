@@ -1,0 +1,21 @@
+# One backup run: `scrap backup` in a throwaway container writes to a new
+# timestamped directory under SCRAP_BACKUPS, then only the newest
+# SCRAP_BACKUP_KEEP runs are kept. Started by scrap-backup.timer.
+[Unit]
+Description=scrap backup
+RequiresMountsFor=%t/containers
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/scrap/env
+ExecStart=/bin/sh -c '\
+    dest="$(date -u +%%Y%%m%%dT%%H%%M%%SZ)" && \
+    mkdir -p "$SCRAP_BACKUPS/$dest" && \
+    /usr/bin/podman run --rm --name scrap-backup \
+        --userns=keep-id:uid=10001,gid=10001 \
+        --volume "$SCRAP_DATA:/data" --volume "$SCRAP_BACKUPS:/backups" \
+        --env SCRAP_DATA_DIR=/data \
+        "$SCRAP_IMAGE" backup "/backups/$dest" \
+    || { rm -rf -- "$SCRAP_BACKUPS/$dest"; exit 1; }'
+ExecStartPost=/bin/sh -c '\
+    ls -1d "$SCRAP_BACKUPS"/*/ | sort | head -n -"$SCRAP_BACKUP_KEEP" | xargs -r rm -rf --'

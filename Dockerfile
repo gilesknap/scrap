@@ -38,6 +38,14 @@ COPY --from=build /python /python
 COPY --from=build /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH
 
+# Run as an unprivileged user with its data on one volume at /data
+RUN useradd --uid 10001 --user-group --create-home scrap \
+    && mkdir /data && chown scrap:scrap /data
+ENV SCRAP_DATA_DIR=/data
+VOLUME /data
+USER scrap
+WORKDIR /home/scrap
+
 # change this entrypoint if it is not the same as the repo
 ENTRYPOINT ["scrap"]
 CMD ["--version"]
