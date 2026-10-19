@@ -17,6 +17,7 @@ env:
 
 jobs:
   check:
+    name: check (helm ${{ matrix.helm }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
