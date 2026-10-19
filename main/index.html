@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap &#8212; scrap 0.1.dev27+g240628e7c documentation</title>
+    <title>scrap &#8212; scrap 0.1.dev35+g8e09238cc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="_static/documentation_options.js?v=e39820f2"></script>
+    <script src="_static/documentation_options.js?v=ff89478b"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -444,7 +444,8 @@ later reads, summarises, redraws and indexes it in the background. Claude reache
 search, read and add pages; a small PWA is where you capture and look at things, because chat is
 poor at showing images.</p>
 <p><strong>Status: milestone 1.</strong> Quick capture works end to end with no LLM: notes, links, photos and
-files become pages you can list, edit, search, trash, back up and export (see the
+files become pages you can list, edit, search, trash, back up and export, from a phone-first PWA
+with an offline queue and an Android share target (see the
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/docs/reference/api.md">API and CLI reference</a>). See the
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/docs/explanations/design.md">design</a>: principles,
 data model, capture flow, MCP tools, security, what is deferred and what is still open.</p>
@@ -533,6 +534,9 @@ export may come later, one-way only.</p></li>
   <span class="o">-</span><span class="n">d</span> <span class="s1">'{"id": "01JABCDEFGHJKMNPQRSTVWXYZ0", "text": "First note"}'</span>
 </pre></div>
 </div>
+<p>Then open <a class="reference external" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a> for the PWA. From a checkout, build it first with
+<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">ci</span> <span class="pre">&amp;&amp;</span> <span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">build</span></code> (Node 22); the container image has it built in.
+See <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/docs/how-to/use-the-pwa.md">capture from your phone</a>.</p>
 </section>
 <section id="how-the-documentation-is-structured">
 <h2>How the documentation is structured<a class="headerlink" href="#how-the-documentation-is-structured" title="Link to this heading">#</a></h2>
@@ -570,6 +574,7 @@ export may come later, one-way only.</p></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/contribute.html">Contribute to the project</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/deploy-single-server.html">Deploy on a single server</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/run-container.html">Run in a container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/use-the-pwa.html">Capture from your phone (the PWA)</a></li>
 </ul>
 </li>
 </ul>

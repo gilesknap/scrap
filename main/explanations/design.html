@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev27+g240628e7c documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev35+g8e09238cc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=e39820f2"></script>
+    <script src="../_static/documentation_options.js?v=ff89478b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -921,6 +921,12 @@ edit rather than by an <code class="docutils literal notranslate"><span class="p
 <li><p><strong>Titles.</strong> The first line of the capture’s text, else the URL, else the device date.</p></li>
 <li><p><strong>Lookup.</strong> The API takes a page’s id or its slug.</p></li>
 <li><p><strong>Export.</strong> <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> (from v0.1 below) is in M1, without tags until tags exist.</p></li>
+<li><p><strong>PWA.</strong> Vanilla TypeScript built by Vite into the Python package (<code class="docutils literal notranslate"><span class="pre">scrap/static</span></code>), no UI
+framework until the Excalidraw view needs React. The service worker precaches the app shell
+only and also catches the share target’s POST, queueing it in IndexedDB like any capture; the
+server’s <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/share</span></code> is a fallback if it does not. No per-capture processing states yet (there
+are no jobs): the capture screen shows what is still on the phone and the newest pages. Todos,
+Consume and Inbox views wait for the worker. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages</span></code> gained <code class="docutils literal notranslate"><span class="pre">thumb</span></code>.</p></li>
 </ul>
 </section>
 <section id="deferred-to-v0-1">
