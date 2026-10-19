@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev40+g263725747 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev45+gbb3c4ed11 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=5ae8de1e"></script>
+    <script src="../_static/documentation_options.js?v=3b69933d"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -573,14 +573,33 @@ with no connection either, shows a page saying it was not saved.</p></li>
 <h2>View, edit, search<a class="headerlink" href="#view-edit-search" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><strong>Recent</strong> lists pages newest first, with a thumbnail of the first photo.</p></li>
-<li><p>A page shows its text and its originals: images inline (tap for the full file), other files as
-links. HEIC photos, which Chrome cannot show, appear as links.</p></li>
-<li><p><strong>Edit</strong> changes the title and text. If the page was changed elsewhere since you opened it, the
+<li><p>A page shows its text and its files: photos inline (as previews the server makes, so iPhone HEIC
+photos show too), other files as links. Each has a <strong>Download</strong> of the original.</p></li>
+<li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
+drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
+<strong>Download</strong> and <strong>Close</strong> are along the bottom; the phone’s Back button closes it too.</p></li>
+<li><p><strong>Download</strong> on a page saves it as Markdown, or as a zip of the Markdown and its files when it
+has any.</p></li>
+<li><p>Page text is shown as Markdown (headings, <strong>bold</strong>, <em>italic</em>, lists, quotes, code, links);
+<strong>Raw text</strong> shows it exactly as typed, and the phone remembers the choice. The text is
+always stored as typed.</p></li>
+<li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
+<strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves.</p></li>
+<li><p>Nothing typed is lost: the composer and <strong>Edit</strong> keep a draft on the phone as you type
+(photos too), so after the phone’s Back button, a reload or a closed app, opening them again
+brings it back (<strong>Discard it</strong> drops it). Back closes the editor, not the app. <strong>Cancel</strong> asks
+before discarding changes. If the page was changed elsewhere since you opened it, the
 other version is shown under yours: merge what you want into your text and save again (this
 overwrites theirs), or discard yours.</p></li>
 <li><p><strong>Delete</strong> moves the page to the trash, with <strong>Undo</strong> for a few seconds.</p></li>
 <li><p><strong>Search</strong> searches titles and text as you type.</p></li>
 </ul>
+</section>
+<section id="troubleshooting-the-screen-layout">
+<h2>Troubleshooting the screen layout<a class="headerlink" href="#troubleshooting-the-screen-layout" title="Link to this heading">#</a></h2>
+<p>Tapping the build id at the bottom of <strong>Recent</strong> five times turns on a small debug panel of
+viewport numbers (and five more taps turn it off). It helps to report how a phone’s keyboard
+resizes the page.</p>
 </section>
 <section id="updates">
 <h2>Updates<a class="headerlink" href="#updates" title="Link to this heading">#</a></h2>
@@ -667,6 +686,7 @@ Checks: <code class="docutils literal notranslate"><span class="pre">npm</span> 
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#share-into-scrap">Share into scrap</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#view-edit-search">View, edit, search</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-the-screen-layout">Troubleshooting the screen layout</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#updates">Updates</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#iphone-and-ipad">iPhone and iPad</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-it-developers">Build it (developers)</a></li>

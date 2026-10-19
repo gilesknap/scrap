@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 0.1.dev40+g263725747 documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 0.1.dev45+gbb3c4ed11 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=5ae8de1e"></script>
+    <script src="../_static/documentation_options.js?v=3b69933d"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -504,7 +504,7 @@ in front. The author of a capture or edit is the <code class="docutils literal n
 <td><p>Liveness: <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:</span> <span class="pre">&quot;ok&quot;,</span> <span class="pre">&quot;version&quot;:</span> <span class="pre">...,</span> <span class="pre">&quot;max_upload_bytes&quot;:</span> <span class="pre">...}</span></code>; the PWA checks a capture’s size against the limit before saving it</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/captures</span></code></p></td>
-<td><p>Save a capture as a new page. JSON <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">text?,</span> <span class="pre">url?,</span> <span class="pre">hint?,</span> <span class="pre">source?,</span> <span class="pre">created_at?}</span></code>, or <code class="docutils literal notranslate"><span class="pre">multipart/form-data</span></code> with the same fields plus one or more <code class="docutils literal notranslate"><span class="pre">file</span></code> parts. <code class="docutils literal notranslate"><span class="pre">id</span></code> is a ULID minted by the client: <code class="docutils literal notranslate"><span class="pre">201</span></code> the first time, <code class="docutils literal notranslate"><span class="pre">200</span></code> with the same reply on a retry. <code class="docutils literal notranslate"><span class="pre">hint</span></code> is <code class="docutils literal notranslate"><span class="pre">todo</span></code> or <code class="docutils literal notranslate"><span class="pre">consume</span></code> and fixes the page kind. A bare URL sent as <code class="docutils literal notranslate"><span class="pre">text</span></code> is treated as <code class="docutils literal notranslate"><span class="pre">url</span></code>. Returns <code class="docutils literal notranslate"><span class="pre">{capture_id,</span> <span class="pre">page_id,</span> <span class="pre">slug}</span></code>. <code class="docutils literal notranslate"><span class="pre">413</span></code> over the upload limit. Files are stored as sent (HEIC too); no thumbnails yet</p></td>
+<td><p>Save a capture as a new page. JSON <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">text?,</span> <span class="pre">url?,</span> <span class="pre">hint?,</span> <span class="pre">source?,</span> <span class="pre">created_at?}</span></code>, or <code class="docutils literal notranslate"><span class="pre">multipart/form-data</span></code> with the same fields plus one or more <code class="docutils literal notranslate"><span class="pre">file</span></code> parts. <code class="docutils literal notranslate"><span class="pre">id</span></code> is a ULID minted by the client: <code class="docutils literal notranslate"><span class="pre">201</span></code> the first time, <code class="docutils literal notranslate"><span class="pre">200</span></code> with the same reply on a retry. <code class="docutils literal notranslate"><span class="pre">hint</span></code> is <code class="docutils literal notranslate"><span class="pre">todo</span></code> or <code class="docutils literal notranslate"><span class="pre">consume</span></code> and fixes the page kind. A bare URL sent as <code class="docutils literal notranslate"><span class="pre">text</span></code> is treated as <code class="docutils literal notranslate"><span class="pre">url</span></code>. Returns <code class="docutils literal notranslate"><span class="pre">{capture_id,</span> <span class="pre">page_id,</span> <span class="pre">slug}</span></code>. <code class="docutils literal notranslate"><span class="pre">413</span></code> over the upload limit. Files are stored as sent (HEIC too)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages?limit=50</span></code></p></td>
 <td><p>Pages, most recently changed first; the trash is left out. <code class="docutils literal notranslate"><span class="pre">thumb</span></code> is the SHA-256 of the page’s first image, or <code class="docutils literal notranslate"><span class="pre">null</span></code></p></td>
@@ -524,8 +524,14 @@ in front. The author of a capture or edit is the <code class="docutils literal n
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search?q=...&amp;limit=20</span></code></p></td>
 <td><p>Full-text search of titles and bodies, every word must match (the last as a prefix). Each hit has an HTML-escaped <code class="docutils literal notranslate"><span class="pre">snippet</span></code> with matches in <code class="docutils literal notranslate"><span class="pre">&lt;mark&gt;</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/blobs/{sha256}</span></code></p></td>
-<td><p>An original file, byte for byte, with its stored content type</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/{id</span> <span class="pre">or</span> <span class="pre">slug}/download</span></code></p></td>
+<td><p>The page to keep: <code class="docutils literal notranslate"><span class="pre">&lt;slug&gt;.md</span></code> (front matter, then the body), or if it has files <code class="docutils literal notranslate"><span class="pre">&lt;slug&gt;.zip</span></code> holding the <code class="docutils literal notranslate"><span class="pre">.md</span></code> and <code class="docutils literal notranslate"><span class="pre">files/</span></code> with the originals, linked relatively so it reads offline</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/blobs/{sha256}</span></code></p></td>
+<td><p>An original file, byte for byte, with its stored content type. <code class="docutils literal notranslate"><span class="pre">?download=1</span></code> adds a <code class="docutils literal notranslate"><span class="pre">Content-Disposition</span></code> with the name it was uploaded under</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/blobs/{sha256}/preview?size=2048</span></code></p></td>
+<td><p>A JPEG of a photo (HEIC too), turned upright and without its EXIF, at most <code class="docutils literal notranslate"><span class="pre">size</span></code> (<code class="docutils literal notranslate"><span class="pre">480</span></code> or <code class="docutils literal notranslate"><span class="pre">2048</span></code>) pixels a side. Made on first request and kept in <code class="docutils literal notranslate"><span class="pre">cache/previews/</span></code> under the data folder, which is never backed up and can be deleted at any time. Made one at a time, shrunk as it is decoded, within a memory budget that fits a 1 GB container: <code class="docutils literal notranslate"><span class="pre">422</span></code> if the file is not an image Pillow can read or would need more memory than that to decode (roughly over 50 megapixels for HEIC, 80 for PNG; JPEG is decoded shrunk and fits at any size), <code class="docutils literal notranslate"><span class="pre">503</span></code> with <code class="docutils literal notranslate"><span class="pre">Retry-After</span></code> if the decoder stays busy for 20 s. The colour profile is kept</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/share</span></code></p></td>
 <td><p>The PWA’s share target, for when its service worker did not take the share (which it normally queues itself): saves the multipart <code class="docutils literal notranslate"><span class="pre">title</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code> and <code class="docutils literal notranslate"><span class="pre">files</span></code> as a capture with a server-minted id, then <code class="docutils literal notranslate"><span class="pre">303</span></code> to <code class="docutils literal notranslate"><span class="pre">/</span></code></p></td>
@@ -578,7 +584,11 @@ in front. The author of a capture or edit is the <code class="docutils literal n
 <td><p><code class="docutils literal notranslate"><span class="pre">./data</span></code></p></td>
 <td><p>The data folder</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_WEB_DIR</span></code></p></td>
+<td><p>the packaged PWA</p></td>
+<td><p>Serve the PWA from this folder instead: a new build there shows without a restart</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">50</span></code></p></td>
 <td><p>Largest request body (a capture’s files together), enforced as it arrives: <code class="docutils literal notranslate"><span class="pre">413</span></code></p></td>
 </tr>
