@@ -18,6 +18,8 @@ RUN chmod o+wrX .
 
 # Tell uv sync to install python in a known location so we can copy it out later
 ENV UV_PYTHON_INSTALL_DIR=/python
+# Compile .pyc files now: the non-root runtime user cannot write them later
+ENV UV_COMPILE_BYTECODE=1
 
 # Sync the project without its dev dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -37,6 +39,14 @@ COPY --from=build /python /python
 # Copy the environment, but not the source code
 COPY --from=build /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH
+
+# Run as an unprivileged user with its data on one volume at /data
+RUN useradd --uid 10001 --user-group --create-home scrap \
+    && mkdir /data && chown scrap:scrap /data
+ENV SCRAP_DATA_DIR=/data
+VOLUME /data
+USER 10001:10001
+WORKDIR /home/scrap
 
 # change this entrypoint if it is not the same as the repo
 ENTRYPOINT ["scrap"]

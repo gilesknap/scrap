@@ -1,0 +1,12 @@
+# One backup run: `scrap backup` in a throwaway container writes to a new
+# timestamped directory under SCRAP_BACKUPS, then only the newest
+# SCRAP_BACKUP_KEEP runs are kept (see scrap-backup). Started by
+# scrap-backup.timer.
+[Unit]
+Description=scrap backup
+RequiresMountsFor=%t/containers
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/scrap/env
+ExecStart=%h/.local/lib/scrap/scrap-backup
