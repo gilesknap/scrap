@@ -43,15 +43,24 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return (r.status === 204 ? null : await r.json()) as T;
 }
 
-/** Post a queued capture as multipart; the status, for the queue to act on. */
-export async function send(item: Item): Promise<number> {
-  const form = new FormData();
-  for (const k of ["id", "text", "url", "hint", "source", "created_at"] as const) {
-    const v = item[k];
-    if (v) form.append(k, v);
+/** Post a queued capture: JSON, or multipart with its files. Rejects if offline. */
+export async function send(item: Item): Promise<{ status: number; detail?: string }> {
+  const { id, text, url, hint, source, created_at, files } = item;
+  const fields = { id, text, url, hint, source, created_at };
+  let init: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  };
+  if (files.length) {
+    const form = new FormData(); // its text fields go as CRLF; the server makes them LF
+    for (const [k, v] of Object.entries(fields)) if (v) form.append(k, v);
+    for (const f of files) form.append("file", f.blob, f.name);
+    init = { method: "POST", body: form };
   }
-  for (const f of item.files) form.append("file", f.blob, f.name);
-  return (await fetch("/api/captures", { method: "POST", body: form })).status;
+  const r = await fetch("/api/captures", init);
+  const detail = r.ok ? undefined : (await r.json().catch(() => ({}))).detail;
+  return { status: r.status, detail };
 }
 
 export const blobUrl = (sha: string) => `/api/blobs/${sha}`;

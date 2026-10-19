@@ -3,6 +3,7 @@
 import logging
 import mimetypes
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,7 @@ BLOB_HEADERS = {
     "Content-Security-Policy": "sandbox",  # an uploaded HTML file cannot run scripts
     "Cache-Control": "private, max-age=31536000, immutable",
 }
+SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
 APP_ROUTES = ("/", "/recent", "/search", "/p/{key}")  # served index.html
 NOT_BUILT = (
@@ -56,6 +58,10 @@ def author(request: Request) -> str:
     return request.headers.get("Tailscale-User-Login") or "tagged"
 
 
+def too_large(limit: int) -> str:
+    return f"over the {limit / 2**20:g} MB upload limit"
+
+
 class BodyLimit:
     """Raise TooLargeError while a request body is read, once it passes limit bytes.
 
@@ -73,7 +79,7 @@ class BodyLimit:
             message = await receive()
             seen += len(message.get("body", b""))
             if seen > self.limit:
-                raise TooLargeError
+                raise TooLargeError(too_large(self.limit))
             return message
 
         await self.app(scope, counted, send)
@@ -133,7 +139,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     async def capture(request: Request, response: Response) -> dict[str, str]:
         """Save a note, link, photo or file; a retry with the same id returns 200."""
         if int(request.headers.get("content-length") or 0) > limit:
-            raise TooLargeError
+            raise TooLargeError(too_large(limit))
         who = author(request)
         if request.headers.get("content-type", "").startswith("multipart/form-data"):
             async with request.form() as form:  # closes the spooled uploads
@@ -158,8 +164,12 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         who = author(request)
         async with request.form() as form:
             fields = {k: v.strip() for k, v in form.items() if isinstance(v, str)}
-            text = "\n\n".join(fields[k] for k in ("title", "text") if fields.get(k))
-            url = fields.get("url", "")
+            title, text, url = (fields.get(k, "") for k in ("title", "text", "url"))
+            # As the service worker does: Android sends a link as text after the title
+            if not url and (link := SHARED_LINK.search(text)):
+                url, text = link[1], text[: link.start()].strip()
+            if title and title not in text:
+                text = f"{title}\n\n{text}".strip()
             data = {"id": new_ulid(), "text": text, "url": url, "source": "share"}
             files = [
                 f for f in form.getlist("files") if isinstance(f, UploadFile) and f.size

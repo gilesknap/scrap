@@ -141,6 +141,7 @@ def test_upload_over_limit_is_413(tmp_path, monkeypatch):
     big = [("file", ("big.bin", b"x" * 2048, "application/octet-stream"))]
     response = client.post("/api/captures", data={"id": new_ulid()}, files=big)
     assert response.status_code == 413
+    assert response.json()["detail"].endswith("MB upload limit")
     # Chunked, with no Content-Length: multipart and JSON.
     boundary = "b0undary"
     multipart = (
@@ -158,6 +159,7 @@ def test_upload_over_limit_is_413(tmp_path, monkeypatch):
         )
         assert "content-length" not in response.request.headers
         assert response.status_code == 413
+        assert "upload limit" in response.json()["detail"]
     assert not [p for p in (tmp_path / "files").rglob("*") if p.is_file()]
     assert client.get("/api/pages").json() == []
 
@@ -312,3 +314,38 @@ def test_recent_pages_carry_a_thumbnail(client, note):
     photo, text = client.get("/api/pages").json()
     assert text["thumb"] is None
     assert client.get(f"/api/blobs/{photo['thumb']}").content == PNG
+
+
+MULTIPART = {"unused": ("u", b"", "text/plain")}  # forces multipart/form-data
+
+
+def test_line_ends_are_normalised(client):
+    """Multipart sends CRLF; JSON clients may send CR or CRLF too."""
+    one = client.post(
+        "/api/captures",
+        data={"id": new_ulid(), "text": "first\r\nsecond\rthird"},
+        files=MULTIPART,
+    ).json()
+    two = client.post("/api/captures", json={"id": new_ulid(), "text": "a\r\nb"}).json()
+    page = client.get(f"/api/pages/{one['page_id']}").json()
+    assert page["body"] == "first\nsecond\nthird"
+    assert page["captures"][0]["text"] == "first\nsecond\nthird"
+    page = client.get(f"/api/pages/{two['page_id']}").json()
+    assert page["body"] == "a\nb"
+    edit = {"base_rev": page["rev"], "body": "x\r\ny\rz"}
+    edited = client.patch(f"/api/pages/{two['page_id']}", json=edit).json()
+    assert edited["body"] == "x\ny\nz"
+    client.post("/share", data={"text": "s1\r\ns2"}, follow_redirects=False)
+    slug = client.get("/api/search?q=s1").json()[0]["slug"]
+    assert client.get(f"/api/pages/{slug}").json()["body"] == "s1\ns2"
+
+
+def test_share_fallback_lifts_a_link_from_text(client):
+    client.post(
+        "/share",
+        data={"title": "A story", "text": "A story https://e.com/s"},
+        follow_redirects=False,
+    )
+    [page] = client.get("/api/pages").json()
+    capture = client.get(f"/api/pages/{page['id']}").json()["captures"][0]
+    assert (capture["text"], capture["url"]) == ("A story", "https://e.com/s")

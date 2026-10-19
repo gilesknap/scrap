@@ -10,14 +10,19 @@ const HINTS: [string, Hint | ""][] = [
   ["Read later", "consume"],
 ];
 
-function picker(label: string, camera: boolean, onPick: (files: File[]) => void) {
+function picker(
+  label: string,
+  camera: boolean,
+  onPick: (files: File[]) => void,
+  className = "big",
+) {
   const input = h("input", { type: "file", accept: "image/*", multiple: !camera, hidden: true });
   if (camera) input.setAttribute("capture", "environment");
   input.onchange = () => {
     if (input.files?.length) onPick([...input.files]);
     input.value = "";
   };
-  return h("label", { className: camera ? "big photo" : "big" }, label, input);
+  return h("label", { className }, label, input);
 }
 
 export async function capture(): Promise<Node> {
@@ -34,7 +39,7 @@ export async function capture(): Promise<Node> {
   const actions = h(
     "div",
     { className: "actions" },
-    picker("Photo", true, (f) => compose("", f)),
+    picker("Photo", true, (f) => compose("", f), "big photo"),
     picker("Gallery", false, (f) => compose("", f)),
     ...HINTS.map(([label, hint]) =>
       h("button", { className: "big", onclick: () => compose(hint, []) }, label),
@@ -43,19 +48,40 @@ export async function capture(): Promise<Node> {
   root.append(pending, actions);
 
   function compose(hint: Hint | "", files: File[]) {
-    const text = h("textarea", {
-      placeholder: files.length ? "Caption (optional)" : "Note or link",
-      rows: 6,
-    });
+    const text = h("textarea", { rows: 5 });
     const thumbs = h("div", { className: "thumbs" });
-    const showThumbs = () =>
+    // One capture, many photos: add from the camera (one at a time) or the gallery.
+    const add = (more: File[]) => {
+      files.push(...more);
+      showThumbs();
+    };
+    const showThumbs = () => {
+      text.placeholder = files.length ? "Caption (optional)" : "Note or link";
       thumbs.replaceChildren(
-        ...files.map((f) => h("img", { src: URL.createObjectURL(f), alt: f.name })),
-        picker("+ Photo", false, (more) => {
-          files.push(...more);
-          showThumbs();
-        }),
+        ...files.map((f, i) =>
+          h(
+            "span",
+            { className: "thumb" },
+            h("img", { src: URL.createObjectURL(f), alt: f.name }),
+            h("button", {
+              type: "button",
+              textContent: "×",
+              "aria-label": `Remove photo ${i + 1}`,
+              onclick: () => {
+                files.splice(i, 1);
+                showThumbs();
+              },
+            }),
+          ),
+        ),
       );
+    };
+    const adders = h(
+      "div",
+      { className: "bar" },
+      picker("+ Camera", true, add, "big add"),
+      picker("+ Gallery", false, add, "big add"),
+    );
     showThumbs();
     const chips = h(
       "div",
@@ -73,17 +99,19 @@ export async function capture(): Promise<Node> {
       form.replaceWith(actions);
       pending.hidden = false;
     };
+    const save = h("button", { type: "submit", className: "primary" }, "Save");
     const form = h(
       "form",
       { className: "composer" },
       chips,
       text,
       thumbs,
+      adders,
       h(
         "div",
         { className: "bar" },
         h("button", { type: "button", onclick: close }, "Cancel"),
-        h("button", { type: "submit", className: "primary" }, "Save"),
+        save,
       ),
     );
     form.onsubmit = async (e) => {
@@ -91,13 +119,24 @@ export async function capture(): Promise<Node> {
       const body = text.value.trim();
       if (!body && !files.length) return text.focus();
       const chosen = (new FormData(form).get("hint") || undefined) as Hint | undefined;
+      save.disabled = true;
+      try {
+        await queue.add({
+          text: body || undefined,
+          hint: chosen,
+          source: "pwa",
+          files: files.map((f) => ({ name: f.name, blob: f })),
+        });
+      } catch (err) {
+        save.disabled = false; // keep everything in the composer to try again
+        return toast(
+          `Not saved: the phone refused to store it (${(err as Error).name}). Free some space and try again.`,
+          "",
+          undefined,
+          10000,
+        );
+      }
       close();
-      await queue.add({
-        text: body || undefined,
-        hint: chosen,
-        source: "pwa",
-        files: files.map((f) => ({ name: f.name, blob: f })),
-      });
       toast(navigator.onLine ? "Saved" : "Saved on the phone: uploads when online");
     };
     actions.replaceWith(form);

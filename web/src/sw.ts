@@ -25,10 +25,25 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("message", (e) => e.data === "skipWaiting" && self.skipWaiting());
 
+const FAILED = [
+  '<!doctype html><meta name="viewport" content="width=device-width"><title>scrap</title>',
+  '<p style="font: 1.2rem system-ui; padding: 1rem">Not saved: the phone refused to store the',
+  " share and the server could not be reached. Free some space, then share it again.</p>",
+  '<p style="padding: 0 1rem"><a href="/">Open scrap</a></p>',
+].join("");
+
 async function share(request: Request): Promise<Response> {
+  const copy = request.clone();
   const capture = fromShare(await request.formData());
-  if (capture) await idb.put(newItem(capture));
-  return Response.redirect(capture ? "/?shared=1" : "/", 303);
+  try {
+    if (capture) await idb.put(newItem(capture));
+    return Response.redirect(capture ? "/?shared=1" : "/", 303);
+  } catch {
+    // Storage refused it (full?): let the server's /share take it, else say so.
+    return fetch(copy).catch(
+      () => new Response(FAILED, { headers: { "Content-Type": "text/html" } }),
+    );
+  }
 }
 
 self.addEventListener("fetch", (e) => {

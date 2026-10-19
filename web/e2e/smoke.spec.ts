@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 test("capture a note, find it, and capture offline", async ({ page, context }) => {
   await page.goto("/");
@@ -16,6 +16,8 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await expect(page.locator(".hits mark")).toHaveText(["corner", "shop"]);
   await page.locator(".hits a").first().click();
   await expect(page.getByRole("heading", { name: "Buy oat milk" })).toBeVisible();
+  const note = await (await page.request.get(page.url().replace("/p/", "/api/pages/"))).json();
+  expect(note.body).toBe("Buy oat milk\nfrom the corner shop"); // LF, not CRLF
 
   // Offline: the app still opens from the service worker and queues the capture.
   await page.evaluate(() => navigator.serviceWorker.ready);
@@ -90,4 +92,139 @@ test("a new build offers to reload", async ({ page }) => {
   } finally {
     writeFileSync(sw, code);
   }
+});
+
+const photo = (mb: number) => ({
+  name: "big.png",
+  mimeType: "image/png",
+  buffer: Buffer.alloc(mb * 2 ** 20, 1),
+});
+
+async function pick(page: Page, mb: number, caption: string) {
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("Gallery").click(),
+  ]);
+  await chooser.setFiles(photo(mb));
+  await page.getByPlaceholder("Caption (optional)").fill(caption);
+  await page.getByRole("button", { name: "Save" }).click();
+}
+
+test("a refused capture says why and can be discarded", async ({ page }) => {
+  await page.goto("/");
+  await pick(page, 2, "too big");
+  await expect(page.locator("#queue")).toHaveText("1 failed");
+  await expect(page.getByText("not saved: too large: over the 1 MB upload limit")).toBeVisible();
+  await page.getByRole("button", { name: "Retry" }).click(); // still too large
+  await expect(page.locator("#queue")).toHaveText("1 failed");
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Discard" }).click();
+  await expect(page.locator("#queue")).toBeHidden();
+  expect(
+    await page.evaluate(
+      () =>
+        new Promise((ok) => {
+          indexedDB.open("scrap").onsuccess = (e) => {
+            const db = (e.target as IDBOpenDBRequest).result;
+            db.transaction("queue").objectStore("queue").count().onsuccess = (c) =>
+              ok((c.target as IDBRequest).result);
+          };
+        }),
+    ),
+  ).toBe(0);
+});
+
+test("a capture the phone cannot store stays in the composer", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await page.goto("/");
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Storage.overrideQuotaForOrigin", {
+    origin: baseURL as string,
+    quotaSize: 2 ** 20,
+  });
+  await pick(page, 3, "my caption");
+  await expect(page.getByText(/Not saved: the phone refused to store it/)).toBeVisible();
+  await expect(page.getByPlaceholder("Caption (optional)")).toHaveValue("my caption");
+  await expect(page.locator(".thumbs img")).toHaveCount(1);
+});
+
+test("a share the phone cannot store goes to the server, or says so", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Storage.overrideQuotaForOrigin", { origin: baseURL as string, quotaSize: 1 });
+  const share = (text: string) =>
+    page.evaluate((text) => {
+      const form = Object.assign(document.createElement("form"), {
+        method: "POST",
+        action: "/share",
+        enctype: "multipart/form-data",
+      });
+      form.append(Object.assign(document.createElement("input"), { name: "text", value: text }));
+      document.body.append(form);
+      form.submit();
+    }, text);
+  await share("quota fallback note");
+  await expect(page).toHaveURL(/\/$/);
+  const [hit] = await (await page.request.get("/api/search?q=quota+fallback")).json();
+  expect(hit.title).toBe("quota fallback note");
+  await context.setOffline(true);
+  await share("nowhere to go");
+  await expect(
+    page.getByText("Not saved: the phone refused to store the share", { exact: false }),
+  ).toBeVisible();
+});
+
+test("search text can be edited with Backspace", async ({ page }) => {
+  await page.goto("/search");
+  const box = page.getByRole("searchbox");
+  await box.pressSequentially("milkx");
+  await box.press("Backspace");
+  await expect(box).toHaveValue("milk");
+  await box.press("ArrowLeft");
+  await box.press("Delete");
+  await expect(box).toHaveValue("mil");
+});
+
+test("several photos make one capture", async ({ page }) => {
+  const png = (name: string, byte: number) => ({
+    name,
+    mimeType: "image/png",
+    buffer: Buffer.alloc(1000, byte),
+  });
+  await page.goto("/");
+  const [gallery] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("Gallery").click(),
+  ]);
+  expect(gallery.isMultiple()).toBe(true);
+  await gallery.setFiles([png("a.png", 1), png("b.png", 2), png("c.png", 3)]);
+  await page.getByRole("button", { name: "Remove photo 2" }).click();
+  const [camera] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("+ Camera").click(),
+  ]);
+  expect(camera.isMultiple()).toBe(false);
+  await camera.setFiles(png("d.png", 4));
+  await expect(page.locator(".thumb img")).toHaveCount(3);
+  await page.getByPlaceholder("Caption (optional)").fill("three photos");
+  await page.getByRole("button", { name: "Save" }).click();
+  const search = async () => (await page.request.get("/api/search?q=three+photos")).json();
+  await expect.poll(search).toHaveLength(1); // uploaded
+  const [hit] = await search();
+  const saved = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
+  expect(saved.captures).toHaveLength(1);
+  expect(saved.captures[0].blobs.map((b: { filename: string }) => b.filename)).toEqual([
+    "a.png",
+    "c.png",
+    "d.png",
+  ]);
 });

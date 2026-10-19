@@ -1,3 +1,5 @@
+import { ApiError } from "./api";
+
 // DOM helpers: h() builds an element, toast() shows a message with an optional action.
 type Kid = Node | string | null | undefined | false;
 
@@ -51,4 +53,21 @@ export function linkify(text: string): Node[] {
         ? h("a", { href: part, target: "_blank", rel: "noopener noreferrer" }, part)
         : document.createTextNode(part),
     );
+}
+
+/** Why a view could not load, in words, with a retry that renders the view again. */
+export function problem(e: unknown): Node {
+  const why =
+    e instanceof ApiError
+      ? e.message
+      : navigator.onLine
+        ? "Can't reach the server. Check your connection or VPN."
+        : "Offline: this needs the server.";
+  const again = () => window.dispatchEvent(new PopStateEvent("popstate"));
+  return h(
+    "div",
+    { className: "empty" },
+    h("p", {}, why),
+    h("button", { onclick: again }, "Retry"),
+  );
 }

@@ -1,11 +1,17 @@
 // Recent pages, newest first, with anything still waiting to upload above them.
 import { api, blobUrl, type Summary } from "./api";
 import { queue, view } from "./app";
-import { h, when } from "./ui";
+import { h, problem, when } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
 
-function row(thumb: string | null, title: string, sub: string, badge = "", href?: string) {
+function row(
+  thumb: string | null,
+  title: string,
+  sub: string,
+  extra: Node | string = "",
+  href?: string,
+) {
   const img = thumb
     ? h("img", { src: thumb, alt: "", loading: "lazy", decoding: "async" })
     : h("span", { className: "noimg" }, title.slice(0, 1).toUpperCase());
@@ -14,7 +20,7 @@ function row(thumb: string | null, title: string, sub: string, badge = "", href?
     {},
     h("strong", {}, title),
     h("small", {}, sub),
-    badge && h("em", {}, badge),
+    extra && (typeof extra === "string" ? h("em", {}, extra) : extra),
   );
   return h("li", {}, href ? h("a", { href }, img, body) : h("div", {}, img, body));
 }
@@ -29,15 +35,20 @@ export async function pendingList(): Promise<Node> {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
       const title = i.text?.split("\n")[0] || i.url || i.files[0]?.name || "capture";
       const why = i.error ?? (navigator.onLine ? "uploading" : "offline");
-      const state = i.failed
-        ? `not saved: ${why}, tap the badge to retry`
-        : `waiting to upload (${why})`;
-      return row(
-        image ? URL.createObjectURL(image.blob) : null,
-        title,
-        state,
-        i.failed ? "failed" : "",
-      );
+      const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;
+      const discard = () => {
+        if (confirm("Discard this capture? It never reached the server, so it will be gone."))
+          void queue.discard(i.id);
+      };
+      const actions =
+        i.failed &&
+        h(
+          "span",
+          { className: "rowbar" },
+          h("button", { type: "button", onclick: () => void queue.retry(i.id) }, "Retry"),
+          h("button", { type: "button", className: "danger", onclick: discard }, "Discard"),
+        );
+      return row(image ? URL.createObjectURL(image.blob) : null, title, state, actions || "");
     }),
   );
 }
@@ -45,7 +56,7 @@ export async function pendingList(): Promise<Node> {
 /** The latest pages from the server, or a note saying they need it. */
 export async function pageList(limit: number): Promise<Node> {
   try {
-    if (!navigator.onLine) throw new Error("offline");
+    if (!navigator.onLine) throw new TypeError("offline");
     const list = await api<Summary[]>(`pages?limit=${limit}`);
     if (!list.length) return h("p", { className: "empty" }, "Nothing captured yet.");
     return h(
@@ -61,8 +72,8 @@ export async function pageList(limit: number): Promise<Node> {
         ),
       ),
     );
-  } catch {
-    return h("p", { className: "empty" }, "Offline: recent pages need the server.");
+  } catch (e) {
+    return problem(e);
   }
 }
 

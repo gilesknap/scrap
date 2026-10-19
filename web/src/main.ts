@@ -5,7 +5,7 @@ import { capture } from "./capture";
 import { page } from "./page";
 import { recent } from "./recent";
 import { search } from "./search";
-import { clearToasts, h, toast } from "./ui";
+import { clearToasts, h, problem, toast } from "./ui";
 
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
@@ -35,11 +35,7 @@ async function render() {
     try {
       el = await fn(m);
     } catch (e) {
-      el = h(
-        "p",
-        { className: "empty" },
-        navigator.onLine ? String(e) : "Offline: this needs the server.",
-      );
+      el = problem(e);
     }
     if (n === rendering) view.replaceChildren(el);
     return;

@@ -61,10 +61,11 @@ export function search(): Node {
     clearTimeout(timer);
     timer = setTimeout(run, 250);
   };
-  input.onkeydown = (e) =>
-    e.key === "Enter" &&
-    results.querySelector("a") &&
-    go((results.querySelector("a") as HTMLAnchorElement).pathname);
+  // A statement body: an on* handler that returns false cancels the key (Backspace too).
+  input.onkeydown = (e) => {
+    const first = results.querySelector("a");
+    if (e.key === "Enter" && first) go(first.pathname);
+  };
   if (q) void run();
   setTimeout(() => input.focus());
   return h("section", { className: "search" }, input, results);

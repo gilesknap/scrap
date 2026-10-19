@@ -13,7 +13,7 @@ const send = async (item: Item) => {
   sent.push(item);
   const status = replies.shift() ?? 201;
   if (status === 0) throw new TypeError("Failed to fetch");
-  return status;
+  return { status, detail: status === 413 ? "over the 9 MB upload limit" : undefined };
 };
 const queue = () => new Queue(idb, send, () => clock);
 
@@ -103,8 +103,8 @@ describe("queue", () => {
     await q.flush();
     const items = await q.items();
     expect(items.map((i) => [i.failed, i.error])).toEqual([
-      [true, "too large for the server"],
-      [true, "refused (422)"],
+      [true, "too large: over the 9 MB upload limit"],
+      [true, "refused: HTTP 422"],
     ]);
     sent = [];
     await q.flush();
@@ -112,6 +112,74 @@ describe("queue", () => {
     replies = [201, 201];
     await q.retry();
     expect(await q.items()).toEqual([]);
+  });
+
+  it("retries or discards one failed capture", async () => {
+    const q = queue();
+    replies = [413, 413];
+    const keep = await q.add({ text: "keep", source: "pwa", files: [] });
+    await q.flush();
+    clock += 1;
+    const drop = await q.add({
+      text: "drop",
+      source: "pwa",
+      files: [{ name: "big.jpg", blob: new Blob(["x"]) }],
+    });
+    await q.flush();
+    expect((await q.items()).every((i) => i.failed)).toBe(true);
+    const changes = vi.fn();
+    q.onchange = changes;
+    await q.discard(drop.id);
+    expect(changes).toHaveBeenCalled(); // the badge updates
+    expect((await idb.all()).map((i) => i.id)).toEqual([keep.id]); // Blob gone with it
+    sent = [];
+    await q.retry(keep.id);
+    expect(sent.map((i) => i.id)).toEqual([keep.id]);
+    expect(await q.items()).toEqual([]);
+  });
+
+  it("leaves nothing behind when storage refuses a capture", async () => {
+    const full = {
+      ...idb,
+      put: () => Promise.reject(new DOMException("full", "QuotaExceededError")),
+    };
+    const q = new Queue(full, send, () => clock);
+    await expect(q.add({ text: "x", source: "pwa", files: [] })).rejects.toThrow("full");
+    expect(sent).toEqual([]);
+  });
+
+  it("does not send one item from two tabs at once", async () => {
+    let held = Promise.resolve();
+    const lock = (fn: () => Promise<void>) => {
+      const run = held.then(fn);
+      held = run.catch(() => {});
+      return run;
+    };
+    const a = new Queue(
+      idb,
+      send,
+      () => clock,
+      () => true,
+      lock,
+    );
+    const b = new Queue(
+      idb,
+      send,
+      () => clock,
+      () => true,
+      lock,
+    );
+    await idb.put({
+      id: "01J0000000000000000000000A",
+      text: "x",
+      source: "pwa",
+      files: [],
+      created_at: "",
+      attempts: 0,
+      next: 0,
+    });
+    await Promise.all([a.flush(), b.flush()]);
+    expect(sent).toHaveLength(1);
   });
 
   it("shares one run between concurrent flushes", async () => {

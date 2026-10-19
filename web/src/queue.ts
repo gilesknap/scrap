@@ -24,8 +24,13 @@ export interface Item extends Capture {
   error?: string;
 }
 
-/** POST the item; resolve to the HTTP status, or 0 if the network failed. */
-export type Send = (item: Item) => Promise<number>;
+/** POST the item; resolve to the HTTP status and the server's reason, or reject. */
+export type Send = (item: Item) => Promise<{ status: number; detail?: string }>;
+
+/** Run fn holding the queue lock, so two open tabs never send the same item at once. */
+export type Lock = (fn: () => Promise<void>) => Promise<void>;
+const webLock: Lock = (fn) =>
+  globalThis.navigator?.locks ? navigator.locks.request("scrap-queue", fn) : fn();
 
 export const backoff = (attempts: number) => Math.min(5 * 60_000, 2000 * 2 ** attempts);
 
@@ -45,6 +50,7 @@ export class Queue {
     private send: Send,
     private now = () => Date.now(),
     private online = () => true,
+    private lock = webLock,
   ) {}
 
   /** Store a capture and start sending it; resolves once it is safely queued. */
@@ -68,25 +74,37 @@ export class Queue {
     return this.running;
   }
 
-  /** Tap to retry: failed and waiting items are all due now. */
-  async retry(): Promise<void> {
+  /** Tap to retry: failed and waiting items (or just the one with id) are due now. */
+  async retry(id?: string): Promise<void> {
     await this.running;
     for (const item of await this.items()) {
+      if (id && item.id !== id) continue;
       await this.store.put({ ...item, failed: false, error: undefined, next: 0 });
     }
     return this.flush();
   }
 
-  private async run() {
+  /** Give up on a capture: it and its files leave the phone. */
+  async discard(id: string): Promise<void> {
+    await this.running;
+    await this.store.del(id);
+    this.onchange();
+  }
+
+  private run() {
+    return this.lock(() => this.sendDue());
+  }
+
+  private async sendDue() {
     clearTimeout(this.timer);
     if (this.online()) {
       for (const item of await this.items()) {
         if (item.failed || item.next > this.now()) continue;
-        const status = await this.send(item).catch(() => 0);
+        const { status, detail } = await this.send(item).catch(() => ({ status: 0, detail: "" }));
         if (status === 200 || status === 201) {
           await this.store.del(item.id);
         } else if (permanent(status)) {
-          const error = status === 413 ? "too large for the server" : `refused (${status})`;
+          const error = `${status === 413 ? "too large" : "refused"}: ${detail || `HTTP ${status}`}`;
           await this.store.put({ ...item, failed: true, error });
         } else {
           const error = status ? `server error (${status})` : "offline";

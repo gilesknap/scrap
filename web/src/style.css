@@ -193,18 +193,35 @@ nav a[aria-current] {
   gap: 0.5rem;
   overflow-x: auto;
 }
+.thumb {
+  position: relative;
+  flex: none;
+}
 .thumbs img {
   width: 88px;
   height: 88px;
   object-fit: cover;
   border-radius: 10px;
 }
-.thumbs .big {
-  min-height: 88px;
-  min-width: 88px;
-  font-size: 0.9rem;
+.thumb button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-height: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 18px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  border: none;
 }
-.thumbs:not(:has(img)) .big {
+.bar .add {
+  flex: 1;
+  min-height: 56px;
+  font-size: 1rem;
+}
+.thumbs:empty {
   display: none;
 }
 .bar {
@@ -243,6 +260,11 @@ nav a[aria-current] {
   background: var(--card);
   color: var(--muted);
   font-weight: 700;
+}
+.list .rowbar {
+  flex-direction: row;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
 }
 .list:empty {
   display: none;

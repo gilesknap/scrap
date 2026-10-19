@@ -17,11 +17,13 @@ Installing is what puts scrap in the Android **share sheet**.
 
 | Button | Does |
 | --- | --- |
-| **Photo** | Opens the camera. Add more shots with **+ Photo**; they make one capture |
+| **Photo** | Opens the camera |
 | **Gallery** | Picks one or more images from the phone |
 | **Note** | A text box; a pasted link alone becomes a link capture |
 | **Todo**, **Read later** | A note with a hint that fixes the page kind (`todo`, `consume`) |
 
+In the composer, **+ Camera** and **+ Gallery** add more photos (to a note too), and the cross
+on a thumbnail removes one: all the photos and the text become one capture and one page.
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
@@ -45,7 +47,13 @@ the link as the capture's URL.
   Android gives web apps no reliable background upload, so a capture made offline uploads the
   next time scrap is open with a connection.
 - A capture the server refuses (for example over the upload limit, `413`) is marked **failed**
-  and stays on the phone until you retry it. Network and server errors just wait and retry.
+  with the server's reason, and stays on the phone with **Retry** and **Discard** (which asks
+  first, then deletes it and its photos from the phone). Network and server errors just wait
+  and retry.
+- If the phone refuses to store a capture (storage full), the composer stays open with your text
+  and photos and says so. A share that cannot be stored goes straight to the server instead, or,
+  with no connection either, shows a page saying it was not saved.
+- Two open scrap tabs take turns (Web Locks), so one capture is never uploaded twice at once.
 - Clearing the site's data in Chrome deletes anything still queued.
 
 ## View, edit, search
