@@ -215,6 +215,20 @@ test("several photos make one capture", async ({ page }) => {
   expect(camera.isMultiple()).toBe(false);
   await camera.setFiles(png("d.png", 4));
   await expect(page.locator(".thumb img")).toHaveCount(3);
+  // The composer's camera is a real camera input, separate from the gallery picker.
+  const cam = page.locator("label", { hasText: "+ Camera" }).locator("input");
+  const gal = page.locator("label", { hasText: "+ Gallery" }).locator("input");
+  await expect(cam).toHaveAttribute("capture", "environment");
+  await expect(cam).not.toHaveAttribute("multiple");
+  await expect(gal).not.toHaveAttribute("capture");
+  await expect(gal).toHaveAttribute("multiple");
+  await expect(cam).toHaveValue(""); // reset, so the same shot again still fires change
+  const [again] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("+ Camera").click(),
+  ]);
+  await again.setFiles(png("d.png", 4)); // a second shot appends
+  await expect(page.locator(".thumb img")).toHaveCount(4);
   await page.getByPlaceholder("Caption (optional)").fill("three photos");
   await page.getByRole("button", { name: "Save" }).click();
   const search = async () => (await page.request.get("/api/search?q=three+photos")).json();
@@ -225,6 +239,7 @@ test("several photos make one capture", async ({ page }) => {
   expect(saved.captures[0].blobs.map((b: { filename: string }) => b.filename)).toEqual([
     "a.png",
     "c.png",
+    "d.png",
     "d.png",
   ]);
 });
