@@ -100,6 +100,14 @@ export function saveKey(e: KeyboardEvent) {
 const mb = (n: number) =>
   n < 2 ** 20 ? `${Math.ceil(n / 1024)} kB` : `${(n / 2 ** 20).toFixed(1)} MB`;
 
+/** Save a Blob made on the phone (or fetched) as a file, and say so. */
+export function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  h("a", { href: url, download: name }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000); // the save may still be reading it
+  toast(`Downloaded ${name} (${mb(blob.size)})`);
+}
+
 /** A Download link that fetches the file itself, so it can show it is busy and say when
  * the file is saved or why not (a plain download link gives no sign on Android). */
 export function download(href: string, className = "button"): HTMLAnchorElement {
@@ -118,10 +126,7 @@ export function download(href: string, className = "button"): HTMLAnchorElement 
       const name = star
         ? decodeURIComponent(star[1])
         : (cd.match(/filename="([^"]*)"/)?.[1] ?? "download");
-      const url = URL.createObjectURL(blob);
-      h("a", { href: url, download: name }).click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000); // the save may still be reading it
-      toast(`Downloaded ${name} (${mb(blob.size)})`);
+      saveBlob(blob, name);
     } catch (err) {
       const why = err instanceof TypeError ? "can't reach the server" : (err as Error).message;
       toast(`Download failed: ${why}`, "", undefined, 8000);

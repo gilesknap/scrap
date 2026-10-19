@@ -171,14 +171,45 @@ drawing's text is NULL, because its words are the OCR. M1 needs two changes:
 
 ## Excalidraw in the PWA
 
-A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React (about 410 kB gzipped) only
-when a drawing opens; the base app stays about 8 kB. Only the fonts used are self-hosted
+A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React (about 400 kB gzipped) only
+when a drawing is shown; the base app stays small. Only the fonts used are self-hosted
 (`EXCALIDRAW_ASSET_PATH`; the default is a CDN, the full set 14 MB). `convertToExcalidrawElements`
 expands skeletons in the browser with the experiment's two workarounds: an arrow bound to free
 text carries that text's `x`/`y` in `start`/`end`, and the scene is converted again after
 `document.fonts.ready`. View mode by default, beside the photo; **Edit** saves the scene with its
 base version (409 if stale) as a `human` version whose labels become `text`; **History** has
 **Restore**; export to `.excalidraw`, PNG and SVG; the image tool is hidden.
+
+**As built** (the PWA, `web/src/board/`):
+
+- *On the page* the drawing is a static SVG from Excalidraw's `exportToSvg`, framed like the
+  photo (its `viewBox` is the frame, so it lines up with the photo whatever the photo's size),
+  rendered when it nears the screen and kept in memory. It behaves like an image: no gestures,
+  so a finger drag scrolls the page. Its aspect ratio comes with the page (`ingest.drawing`
+  has the frame), so nothing shifts when it renders. Wide screens show it beside the photo,
+  phones upright a Photo / Drawing switch.
+- *Tapping it* opens the full-screen viewer: a layer sized to the visual viewport with a history
+  entry (Back closes it), Excalidraw in view mode fitted to the frame (clear of its own tool
+  bars), **Edit** switching the same scene to edit mode, so zoom, scroll and edits survive the
+  switch. Edits are kept as a draft in IndexedDB as they change. **Photo** shows the photo beside
+  the drawing (landscape) or over it (portrait).
+- *Fonts:* Excalidraw's drawing fonts but Xiaolai (CJK, 14 MB) are copied from the package into
+  the build (`/excalidraw/fonts/`), about 440 kB, fetched only when used. Excalidraw always
+  lists its CDN as a fallback source; a `font-src 'self' data:; connect-src 'self'` policy keeps
+  the app from ever using it (Chrome logs each blocked fallback). The preview skips Excalidraw's
+  font inlining (the page has the fonts), which would load its 740 kB font subsetter; exported
+  SVGs inline them.
+- *The second workaround* (convert again once fonts are loaded) is done before anything is
+  shown: convert, export the text to a 1 px canvas (which makes Excalidraw load the fonts it
+  uses), wait for `document.fonts.ready`, convert again.
+- *Sizes* (gzipped): the app shell 13.7 kB of JavaScript, up from 11.6 kB (the photo panel and the
+  preview's loader); the viewer chunk about 400 kB JS and 22 kB CSS. The service worker
+  precaches only the shell, never the viewer or its fonts. `npm run size` checks both in CI.
+- *Reprocess* shows **Replace mine** / **Keep mine** when the current drawing is a human one, and
+  `{queued, already}` tells it whether the photo was waiting already.
+- *Downloads:* the page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton
+  is converted on the server, approximately (Excalidraw re-measures text when it opens it). The
+  viewer's own exports (`.excalidraw`, PNG, SVG) are made by Excalidraw in the browser.
 
 **Sanitising.**
 
