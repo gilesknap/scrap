@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev10+g821c90589 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev17+g0da90ae9e documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=22b6073e"></script>
+    <script src="../_static/documentation_options.js?v=475abb13"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -500,9 +500,9 @@ stack of paid-API integrations).</p>
 service, it waits.</p></li>
 <li><p><strong>Off the shelf.</strong> Claude does the reading and writing that needs judgement. SQLite does storage
 and search. Tailscale does networking and identity. Excalidraw does drawings. scrap is the glue.</p></li>
-<li><p><strong>Originals are kept, everything else is derived</strong> and can be regenerated. The search index is
-disposable and rebuilt with one command. The one exception is deliberate: deleting a page
-deletes its capture too.</p></li>
+<li><p><strong>Originals are kept, everything else is derived</strong> and can be regenerated, except a consume
+page’s article once its source is gone. The search index is disposable and rebuilt with one
+command. Deleting a page deliberately deletes its capture too.</p></li>
 <li><p><strong>Capture never waits.</strong> Saving is a file write and a few row inserts; anything slow runs later
 in a background job.</p></li>
 <li><p><strong>Claude reasons, the PWA shows.</strong> Claude (over MCP) is for asking and writing; the PWA is for
@@ -520,6 +520,9 @@ every connection runs <code class="docutils literal notranslate"><span class="pr
 outside any transaction: the index stays correct only because deletes cascade.</p></li>
 <li><p><strong>Search.</strong> An FTS5 (BM25) query and a sqlite-vec nearest-neighbour query each return ranked
 chunks; reciprocal rank fusion (<code class="docutils literal notranslate"><span class="pre">sum(1</span> <span class="pre">/</span> <span class="pre">(60</span> <span class="pre">+</span> <span class="pre">rank))</span></code>) merges them and hits are grouped by page.</p></li>
+<li><p><strong>Calling Claude.</strong> One small function takes a prompt and optional files and returns JSON. It runs
+<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> (headless Claude Code on a subscription login); the Messages API is a second backend
+chosen by an environment variable. There is no agent loop beyond reading one image.</p></li>
 <li><p><strong>Embeddings.</strong> Local, through fastembed (ONNX on CPU, arm64 and amd64). Default
 <code class="docutils literal notranslate"><span class="pre">BAAI/bge-small-en-v1.5</span></code> (384 dimensions); <code class="docutils literal notranslate"><span class="pre">nomic-embed-text</span></code> (768) if recall is poor.</p></li>
 <li><p><strong>Access.</strong> Tailscale Serve is the only way in; Funnel stays off. The service binds to
@@ -556,9 +559,14 @@ search indexes and links</strong> are a cache.</p>
 <span class="w">    </span><span class="n">slug</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">UNIQUE</span><span class="p">,</span><span class="w">          </span><span class="c1">-- fixed once summarise has run</span>
 <span class="w">    </span><span class="n">title</span><span class="w">       </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
 <span class="w">    </span><span class="n">body</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span><span class="w">      </span><span class="c1">-- Markdown, may contain [[slug]] links</span>
+<span class="w">    </span><span class="n">kind</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'note'</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'note'</span><span class="p">,</span><span class="w"> </span><span class="s1">'todo'</span><span class="p">,</span><span class="w"> </span><span class="s1">'consume'</span><span class="p">,</span>
+<span class="w">                  </span><span class="s1">'memory'</span><span class="p">,</span><span class="w"> </span><span class="s1">'reference'</span><span class="p">,</span><span class="w"> </span><span class="s1">'whiteboard'</span><span class="p">,</span><span class="w"> </span><span class="s1">'document'</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">kind_fixed</span><span class="w">  </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">kind_fixed</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)),</span><span class="w">  </span><span class="c1">-- 1: the user chose it</span>
+<span class="w">    </span><span class="n">fields</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'{}'</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">json_type</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'object'</span><span class="p">),</span><span class="w">  </span><span class="c1">-- flat</span>
 <span class="w">    </span><span class="n">created_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
 <span class="w">    </span><span class="n">updated_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
 <span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">page_by_kind</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">page</span><span class="p">(</span><span class="n">kind</span><span class="p">);</span>
 
 <span class="c1">-- Rev 1 is written at creation; every title or body change adds one. Tags are not revisioned.</span>
 <span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">page_rev</span><span class="w"> </span><span class="p">(</span>
@@ -679,18 +687,16 @@ content-addressed, so a photo shared twice is stored once.</p></li>
 (<code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">DO</span> <span class="pre">UPDATE</span></code>, keeping the row id) and enqueues <code class="docutils literal notranslate"><span class="pre">index</span></code>: newest wins. Never
 <code class="docutils literal notranslate"><span class="pre">INSERT</span> <span class="pre">OR</span> <span class="pre">REPLACE</span></code> into <code class="docutils literal notranslate"><span class="pre">derived</span></code> or <code class="docutils literal notranslate"><span class="pre">chunk</span></code>: REPLACE deletes without firing <code class="docutils literal notranslate"><span class="pre">chunk_ad</span></code>.</p></li>
 <li><p><strong>Chunks</strong> are about 300 to 500 tokens. The <code class="docutils literal notranslate"><span class="pre">index</span></code> job chunks and embeds first, holding no
-lock, then in one short <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code> transaction deletes the page’s chunks (the trigger
-clears FTS and vectors), inserts the new ones, and inserts each embedding under the chunk’s id.</p></li>
+lock, then in one short <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code> transaction replaces the page’s chunks (the trigger
+clears FTS and vectors) and inserts each embedding under its chunk’s id.</p></li>
 <li><p><strong>Changing the embedding model</strong> means re-embedding everything. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">reindex</span></code> embeds every
 chunk first, then in one short write transaction drops and recreates <code class="docutils literal notranslate"><span class="pre">chunk_vec</span></code> with the new
 dimension (before deleting any chunk, since <code class="docutils literal notranslate"><span class="pre">chunk_ad</span></code> needs the table), updates <code class="docutils literal notranslate"><span class="pre">meta</span></code>, and
-replaces all chunks. One model at a time; no mixing. A page edited while <code class="docutils literal notranslate"><span class="pre">reindex</span></code> embeds keeps
-the chunks <code class="docutils literal notranslate"><span class="pre">reindex</span></code> computed from its older text, so search can briefly see stale text until
-that page’s next edit or reindex.</p></li>
+replaces all chunks. One model at a time; no mixing. A page edited during <code class="docutils literal notranslate"><span class="pre">reindex</span></code> may
+briefly be found by its older text.</p></li>
 <li><p><strong>Indexed</strong> is text only: the title and body (the title heads the body’s first chunk) and every
 derived text: OCR, fetched article, Claude’s image description and the summary. Not pixels, and
-not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
-what Claude says it shows.</p></li>
+not raw Excalidraw JSON (coordinates and IDs).</p></li>
 </ul>
 <section id="page-identity-links-tags">
 <h3>Page identity, links, tags<a class="headerlink" href="#page-identity-links-tags" title="Link to this heading">#</a></h3>
@@ -702,7 +708,45 @@ renames, at the cost of a slug that drifts from the title. A deleted page’s sl
 and old links then point at the new page; accepted for one user.</p></li>
 <li><p><strong>Links.</strong> <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> in Markdown, parsed into <code class="docutils literal notranslate"><span class="pre">link</span></code> on save. Dangling links
 are allowed; backlinks are a query on <code class="docutils literal notranslate"><span class="pre">link_by_dst</span></code>.</p></li>
-<li><p><strong>Tags.</strong> Flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed. <code class="docutils literal notranslate"><span class="pre">summarise</span></code> suggests them; the PWA edits them.</p></li>
+<li><p><strong>Tags.</strong> Flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed. The PWA edits them; <code class="docutils literal notranslate"><span class="pre">summarise</span></code> adds them only on its
+first success and only to a page with none.</p></li>
+</ul>
+</section>
+<section id="kinds">
+<h3>Kinds<a class="headerlink" href="#kinds" title="Link to this heading">#</a></h3>
+<p>A page’s <code class="docutils literal notranslate"><span class="pre">kind</span></code> is <code class="docutils literal notranslate"><span class="pre">note</span></code> (default and fallback), <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">consume</span></code> (to read, watch or listen to),
+<code class="docutils literal notranslate"><span class="pre">memory</span></code>, <code class="docutils literal notranslate"><span class="pre">reference</span></code>, <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> or <code class="docutils literal notranslate"><span class="pre">document</span></code>. scrap classifies and summarises; it never
+rewrites the user’s words or fits them to templates.</p>
+<ul>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
+todo has <code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>) and optional <code class="docutils literal notranslate"><span class="pre">due</span></code>; consume has <code class="docutils literal notranslate"><span class="pre">subtype</span></code> (<code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">watch</span></code>,
+<code class="docutils literal notranslate"><span class="pre">listen</span></code>), <code class="docutils literal notranslate"><span class="pre">status</span></code> and the <code class="docutils literal notranslate"><span class="pre">source</span></code> link.</p></li>
+<li><p><strong>A kind change</strong> (hint, PWA edit, <code class="docutils literal notranslate"><span class="pre">extract</span></code> or <code class="docutils literal notranslate"><span class="pre">summarise</span></code>) <strong>resets <code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> to the new kind’s
+defaults plus any checked model output: todo <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;open&quot;}</span></code>; consume
+<code class="docutils literal notranslate"><span class="pre">{&quot;subtype&quot;:&quot;read&quot;,&quot;status&quot;:&quot;open&quot;}</span></code> and <code class="docutils literal notranslate"><span class="pre">source</span></code>, always the capture’s own URL (omitted if it has
+none). Either way the page is listed at once, even if <code class="docutils literal notranslate"><span class="pre">summarise</span></code> never succeeds.</p></li>
+<li><p><strong>The user wins</strong>, as with titles. A hint or a PWA edit sets <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>. <code class="docutils literal notranslate"><span class="pre">extract</span></code> and
+<code class="docutils literal notranslate"><span class="pre">summarise</span></code> set the kind only while it is still <code class="docutils literal notranslate"><span class="pre">note</span></code> and not fixed. <code class="docutils literal notranslate"><span class="pre">summarise</span></code> writes kind,
+<code class="docutils literal notranslate"><span class="pre">fields</span></code> and tags only on its first success; a regenerated summary replaces just the summary text,
+so a cleared <code class="docutils literal notranslate"><span class="pre">due</span></code> stays cleared. It calls Claude holding no lock, then in one <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code>
+re-reads the page, picks the resulting <code class="docutils literal notranslate"><span class="pre">:kind</span></code>, checks the output against its schema (dropping
+other keys, nulls and <code class="docutils literal notranslate"><span class="pre">source</span></code>) and writes:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">UPDATE</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">kind</span><span class="w">  </span><span class="c1">-- json_patch: the 2nd wins</span>
+<span class="w">    </span><span class="k">THEN</span><span class="w"> </span><span class="n">json_patch</span><span class="p">(:</span><span class="n">fields</span><span class="p">,</span><span class="w"> </span><span class="n">fields</span><span class="p">)</span><span class="w">     </span><span class="c1">-- hinted kind: existing keys win</span>
+<span class="w">    </span><span class="k">ELSE</span><span class="w"> </span><span class="n">json_patch</span><span class="p">(:</span><span class="k">defaults</span><span class="p">,</span><span class="w"> </span><span class="p">:</span><span class="n">fields</span><span class="p">)</span><span class="w">  </span><span class="c1">-- new kind: its defaults plus the checked output</span>
+<span class="w">  </span><span class="k">END</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">id</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="p">(</span><span class="w">          </span><span class="c1">-- first success only: no summary yet</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">capture</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">derived</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">capture_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">page_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">id</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'summary'</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Consume keeps link and summary only.</strong> The same transaction runs this <code class="docutils literal notranslate"><span class="pre">UPDATE</span></code> and the tag
+insert first, then writes the summary row, then deletes the <code class="docutils literal notranslate"><span class="pre">fetched</span></code> text if the stored kind is
+now <code class="docutils literal notranslate"><span class="pre">consume</span></code>. Only regenerating the summary re-fetches it, for example after a change to
+<code class="docutils literal notranslate"><span class="pre">reference</span></code>.</p></li>
+<li><p><strong>Views.</strong> The PWA lists Todos, the Consume queue and an Inbox: captured pages with no summary
+yet (processing or failed). Pages made by MCP <code class="docutils literal notranslate"><span class="pre">write</span></code> have no capture and skip it.</p></li>
 </ul>
 </section>
 </section>
@@ -710,14 +754,16 @@ are allowed; backlinks are a query on <code class="docutils literal notranslate"
 <h2>Phone quick capture<a class="headerlink" href="#phone-quick-capture" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Tap the icon.</strong> The installed PWA opens from the service worker cache, even offline, on the
-capture screen: camera, note, and a “recent” strip with each capture’s state.</p></li>
+capture screen: camera, note, <em>todo</em> and <em>read later</em> buttons (hints that fix the kind), and a
+“recent” strip with each capture’s state.</p></li>
 <li><p><strong>Choose an input.</strong></p>
 <ul class="simple">
 <li><p><em>Camera</em>: <code class="docutils literal notranslate"><span class="pre">&lt;input</span> <span class="pre">type=&quot;file&quot;</span> <span class="pre">accept=&quot;image/*&quot;</span> <span class="pre">capture=&quot;environment&quot;&gt;</span></code>, or the gallery;
 several shots can go into one capture.</p></li>
 <li><p><em>Note</em>: a text box.</p></li>
 <li><p><em>Share</em>: the manifest’s <code class="docutils literal notranslate"><span class="pre">share_target</span></code> takes URLs, text and files from the share sheet. It
-works for installed PWAs on Android, not iOS (where a Shortcut could post to the API).</p></li>
+works for installed PWAs on Android, not iOS (where a Shortcut could post to the API).
+Android often sends a link as <code class="docutils literal notranslate"><span class="pre">text</span></code>, so the server lifts a bare URL in <code class="docutils literal notranslate"><span class="pre">text</span></code> into <code class="docutils literal notranslate"><span class="pre">url</span></code>.</p></li>
 </ul>
 </li>
 <li><p><strong>Save.</strong> The client mints a ULID, stores the capture in IndexedDB and shows it as <em>queued</em>.</p></li>
@@ -725,9 +771,9 @@ works for installed PWAs on Android, not iOS (where a Shortcut could post to the
 failure it stays queued and retries with backoff while the app is open, and on next open.</p></li>
 <li><p><strong>Store.</strong> The server writes blobs to <code class="docutils literal notranslate"><span class="pre">files/</span></code>, then in one <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code> transaction looks
 up the capture id (found: a retry, return <code class="docutils literal notranslate"><span class="pre">200</span></code>), else inserts blobs (<code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">DO</span> <span class="pre">NOTHING</span></code>),
-page (before capture, for the foreign key), <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> 1, capture, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, and the
-<code class="docutils literal notranslate"><span class="pre">extract</span></code> and <code class="docutils literal notranslate"><span class="pre">index</span></code> jobs, and returns <code class="docutils literal notranslate"><span class="pre">201</span></code>. No LLM call on this path, and the note or title
-is searchable even if Claude is down.</p></li>
+page (before capture, for the foreign key; a hint sets <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> and default
+<code class="docutils literal notranslate"><span class="pre">fields</span></code>), <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> 1, capture, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, and the <code class="docutils literal notranslate"><span class="pre">extract</span></code> and <code class="docutils literal notranslate"><span class="pre">index</span></code> jobs, and returns
+<code class="docutils literal notranslate"><span class="pre">201</span></code>. No LLM call on this path, and the note or title is searchable even if Claude is down.</p></li>
 <li><p><strong>Process.</strong> The worker runs the jobs; the PWA polls <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/captures?since=...</span></code> while open.</p></li>
 </ol>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Phone (PWA)                           scrap API              job worker            Claude / local
@@ -742,7 +788,7 @@ is searchable even if Claude is down.</p></li>
    |                                      |                       |-- OCR + describe ----&gt;|
    |                                      |                       |&lt;-- text, kind --------|
    |                                      |                       |-- summarise ---------&gt;|
-   |                                      |                       |&lt;-- title, tags -------|
+   |                                      |                       |&lt;-- kind, title, tags -|
    |                                      |                       | chunk + embed (local) |
    |                                      |                       |-- redraw (parallel) -&gt;|
    |                                      |                       |&lt;-- .excalidraw -------|
@@ -762,7 +808,7 @@ is searchable even if Claude is down.</p></li>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">extract</span></code></p></td>
-<td><p>Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). The kind only decides whether to enqueue <code class="docutils literal notranslate"><span class="pre">redraw</span></code>. URL: fetch readable text. Note: nothing. Every capture type then enqueues <code class="docutils literal notranslate"><span class="pre">summarise</span></code>.</p></td>
+<td><p>Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). Whiteboard and document set the page kind; whiteboard enqueues <code class="docutils literal notranslate"><span class="pre">redraw</span></code>. URL: fetch readable text. Note: nothing. Every capture type then enqueues <code class="docutils literal notranslate"><span class="pre">summarise</span></code>.</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">fetched</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">redraw</span></code></p></td>
@@ -770,8 +816,8 @@ is searchable even if Claude is down.</p></li>
 <td><p><code class="docutils literal notranslate"><span class="pre">excalidraw</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">summarise</span></code></p></td>
-<td><p>Claude writes a summary, title and tags. It replaces the provisional title if unchanged since rev 1, and the slug only if also nothing links to the page.</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">summary</span></code>, page rev, tags</p></td>
+<td><p>One Claude call returns kind, <code class="docutils literal notranslate"><span class="pre">fields</span></code>, summary, title and tags, applied under the title, slug and kind rules above.</p></td>
+<td><p>page kind, <code class="docutils literal notranslate"><span class="pre">fields</span></code> and tags, then <code class="docutils literal notranslate"><span class="pre">summary</span></code>; rev</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">index</span></code></p></td>
 <td><p>Re-chunk the page and its derived text, embed locally, re-parse links</p></td>
@@ -788,15 +834,15 @@ crash is requeued at start-up. If a job’s page is deleted mid-run, the cascade
 row, and the worker treats that as finished, not as an error.</p>
 <p><strong>Failure visibility.</strong> The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with <code class="docutils literal notranslate"><span class="pre">last_error</span></code> and a <em>retry</em> button. The original and the page already
-exist, so nothing is lost.</p>
+exist, so nothing is lost; if <code class="docutils literal notranslate"><span class="pre">summarise</span></code> fails, the kind stays as the hint or <code class="docutils literal notranslate"><span class="pre">extract</span></code> left it,
+else <code class="docutils literal notranslate"><span class="pre">note</span></code>.</p>
 </section>
 </section>
 <section id="excalidraw">
 <h2>Excalidraw<a class="headerlink" href="#excalidraw" title="Link to this heading">#</a></h2>
-<p>The photo is the source of truth; the drawing is derived and regenerable. Both are shown side by
-side. The PWA embeds the Excalidraw React component to view
-and edit the drawing. Saving an edit overwrites the <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> row with producer <code class="docutils literal notranslate"><span class="pre">human</span></code>, and
-regenerating asks before replacing a human edit.</p>
+<p>The photo and its derived drawing are shown side by side. The PWA embeds the Excalidraw React
+component to view and edit the drawing. Saving an edit overwrites the <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> row with producer
+<code class="docutils literal notranslate"><span class="pre">human</span></code>, and regenerating asks before replacing a human edit.</p>
 </section>
 <section id="mcp-tools-v0">
 <h2>MCP tools (v0)<a class="headerlink" href="#mcp-tools-v0" title="Link to this heading">#</a></h2>
@@ -830,10 +876,15 @@ it has images, so Claude links there instead of trying to show them.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">url</span></code> or <code class="docutils literal notranslate"><span class="pre">text</span></code></p></td>
 <td><p>A capture id; it runs the same jobs as a phone capture</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">todos</span></code></p></td>
+<td><p>optional <code class="docutils literal notranslate"><span class="pre">status</span></code> (default <code class="docutils literal notranslate"><span class="pre">open</span></code>)</p></td>
+<td><p>Todo pages: title, URL, status, due date</p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">write</span></code> records the caller as the revision author. Deletion is a PWA action only.</p>
+<p><code class="docutils literal notranslate"><span class="pre">write</span></code> records the caller as the revision author. Deleting, setting a kind and ticking off a
+todo are PWA actions only in v0.</p>
 </section>
 <section id="security-posture">
 <h2>Security posture<a class="headerlink" href="#security-posture" title="Link to this heading">#</a></h2>
@@ -848,9 +899,12 @@ fallback author <code class="docutils literal notranslate"><span class="pre">tag
 <li><p><strong>What it holds.</strong> Its database, files and Claude credential. No cluster or git credentials
 (service-account token automount off), no shell tools.</p></li>
 <li><p><strong>Prompt injection.</strong> Ingested content is untrusted data. Ingest calls Claude with a fixed prompt
-and no tools and checks the output against a schema; the worst outcome is a wrong page, which
-<code class="docutils literal notranslate"><span class="pre">page_rev</span></code> can undo. URL fetching refuses private and tailnet addresses, re-checked after DNS
-resolution and after every redirect.</p></li>
+and checks the output against a schema. It gets no shell and no cluster credentials; an image call
+gets only the Read tool, in a throwaway directory holding that one file. The Claude credentials
+share its container, so the call never bypasses permissions and a deny rule covers their
+directory; this confinement is verified when the worker is built. The worst outcome is a wrong
+page, which <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> can undo. URL fetching refuses private and tailnet addresses, re-checked
+after DNS resolution and after every redirect.</p></li>
 <li><p><strong>Reading is not acting.</strong> Sessions holding cluster or other powerful credentials should not
 mount the scrap MCP server, since pages may hold injected text.</p></li>
 </ul>
@@ -866,6 +920,8 @@ mount the scrap MCP server, since pages may hold injected text.</p></li>
 <li><p>Keeping old derived rows on regeneration, with pruning.</p></li>
 <li><p>A status page for dead jobs.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> to sweep orphan blobs (left by deleted pages).</p></li>
+<li><p>A per-capture <em>keep a copy</em> switch (default off) that keeps a consume item’s fetched text, for
+pages that may vanish or sit behind a paywall.</p></li>
 </ul>
 </section>
 <section id="deferred-larger">
@@ -882,9 +938,7 @@ MCP port only; scoped <code class="docutils literal notranslate"><span class="pr
 <section id="open-questions">
 <h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>How ingest calls Claude.</strong> Messages API with structured output (simplest to sandbox) or the
-Claude Code CLI on a subscription login (no API billing, but a login to keep alive). With one
-capture per page there is no tool loop, so the Agent SDK is not needed.</p></li>
+<li><p><strong>Headless terms.</strong> Confirm current terms permit unattended <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> before relying on it.</p></li>
 <li><p><strong>Audio transcription</strong> (for voice in v0.1). Local faster-whisper or a hosted API.</p></li>
 <li><p><strong>Embedding model.</strong> bge-small or nomic-embed-text, decided on a test set of real captures.</p></li>
 <li><p><strong>Postgres and pgvector</strong>, only if SQLite is outgrown.</p></li>
@@ -947,6 +1001,7 @@ capture per page there is no tool loop, so the Agent SDK is not needed.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-scope">v0 scope</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-model">Data model</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#page-identity-links-tags">Page identity, links, tags</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kinds">Kinds</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phone-quick-capture">Phone quick capture</a><ul class="nav section-nav flex-column">
