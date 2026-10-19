@@ -28,6 +28,9 @@ stack of paid-API integrations).
   outside any transaction: the index stays correct only because deletes cascade.
 - **Search.** An FTS5 (BM25) query and a sqlite-vec nearest-neighbour query each return ranked
   chunks; reciprocal rank fusion (`sum(1 / (60 + rank))`) merges them and hits are grouped by page.
+- **Calling Claude.** One small function takes a prompt and optional files and returns JSON. It runs
+  `claude -p` (headless Claude Code on a subscription login); the Messages API is a second backend
+  chosen by an environment variable. With one capture per page there is no tool loop.
 - **Embeddings.** Local, through fastembed (ONNX on CPU, arm64 and amd64). Default
   `BAAI/bge-small-en-v1.5` (384 dimensions); `nomic-embed-text` (768) if recall is poor.
 - **Access.** Tailscale Serve is the only way in; Funnel stays off. The service binds to
@@ -69,7 +72,7 @@ CREATE TABLE page (
     kind        TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note', 'todo', 'consume',
                   'memory', 'reference', 'whiteboard', 'document')),
     kind_fixed  INTEGER NOT NULL DEFAULT 0 CHECK (kind_fixed IN (0, 1)),  -- 1: the user chose it
-    meta        TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(meta)),  -- kind-specific fields
+    fields      TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields) = 'object'),  -- per kind
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
 );
@@ -198,10 +201,9 @@ Notes:
   clears FTS and vectors) and inserts each embedding under its chunk's id.
 - **Changing the embedding model** means re-embedding everything. `scrap reindex` embeds every
   chunk first, then in one short write transaction drops and recreates `chunk_vec` with the new
-  dimension (before deleting any chunk, since `chunk_ad` needs the table), updates the `meta`
-  table, and replaces all chunks. One model at a time; no mixing. A page edited while `reindex`
-  embeds keeps the chunks `reindex` computed from its older text, so search can briefly see stale
-  text until that page's next edit or reindex.
+  dimension (before deleting any chunk, since `chunk_ad` needs the table), updates `meta`, and
+  replaces all chunks. One model at a time; no mixing. A page edited during `reindex` may
+  briefly be found by its older text.
 - **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
   derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
   not raw Excalidraw JSON (coordinates and IDs). A whiteboard is found by what is written on it and
@@ -224,13 +226,23 @@ A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, wa
 to), `memory`, `reference`, `whiteboard` or `document`. The single `summarise` call classifies.
 scrap classifies and summarises; it never rewrites the user's words or fits them to templates.
 
-- **The user wins**, as with titles. A capture hint or a PWA edit sets `kind_fixed`, and jobs
-  then only fill the rest. Otherwise `extract` sets `whiteboard` or `document`, or `summarise`
-  picks the kind.
-- **`meta`** is JSON, not per-kind tables: a todo has `status` (`open`, `done`) and optional
+- **`fields`** is JSON, not per-kind tables: a todo has `status` (`open`, `done`) and optional
   `due`; consume has `subtype` (`read`, `watch`, `listen`), `status` and the `source` link.
-- **Consume keeps link and summary only:** `summarise` then deletes the `fetched` text.
-- **Views.** The PWA lists Todos, the Consume queue and an Inbox of pages with no summary yet.
+- **The user wins**, as with titles. A capture hint or a PWA edit sets `kind_fixed`. `extract`
+  and `summarise` set the kind only while it is still `note` and not fixed, so a hint or
+  `extract`'s whiteboard or document stands. `summarise` is told any kind already set and returns
+  fields for it. Jobs only add missing keys, so a late retry cannot reopen a done todo:
+
+  ```sql
+  UPDATE page SET kind = CASE WHEN kind = 'note' AND kind_fixed = 0 THEN :kind ELSE kind END,
+                  fields = json_patch(:fields, fields)  -- existing keys win
+  WHERE id = :id;
+  ```
+
+- **Consume keeps link and summary only:** `summarise` then deletes the `fetched` text, so
+  regenerating that summary re-runs `extract` first.
+- **Views.** The PWA lists Todos, the Consume queue and an Inbox: captured pages with no summary
+  yet (processing or failed). Pages made by MCP `write` have no capture and skip it.
 
 ## Phone quick capture
 
@@ -282,7 +294,7 @@ Each job does one step and enqueues the next, so a failure retries only that ste
 | --- | --- | --- |
 | `extract` | Photo or file: one Claude vision call on a downscaled JPEG copy (the original, often a multi-MB HEIC, is untouched) returns text, a description and a kind (whiteboard, document, screenshot, photo). Whiteboard and document set the page kind; whiteboard enqueues `redraw`. URL: fetch readable text. Note: nothing. Every capture type then enqueues `summarise`. | `ocr`, `description`, `fetched` |
 | `redraw` | Whiteboard only: Claude produces an Excalidraw scene from the photo, checked to parse as Excalidraw JSON before saving | `excalidraw` |
-| `summarise` | One Claude call returns kind, `meta`, summary, title and tags, applied under the title, slug and kind rules above. | `summary`, page fields, rev, tags |
+| `summarise` | One Claude call returns kind, `fields`, summary, title and tags, applied under the title, slug and kind rules above. | `summary`, page kind and `fields`, rev, tags |
 | `index` | Re-chunk the page and its derived text, embed locally, re-parse links | `chunk`, `chunk_fts`, `chunk_vec`, `link` |
 
 `redraw` runs in parallel; nothing waits for it and its failure leaves the page intact. Page edits
@@ -295,7 +307,8 @@ row, and the worker treats that as finished, not as an error.
 
 **Failure visibility.** The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with `last_error` and a *retry* button. The original and the page already
-exist, so nothing is lost; a page whose `summarise` fails stays `note` (or its hinted kind).
+exist, so nothing is lost; if `summarise` fails, the kind stays as the hint or `extract` left it,
+else `note`.
 
 ## Excalidraw
 
@@ -318,7 +331,8 @@ it has images, so Claude links there instead of trying to show them.
 | `ingest` | `url` or `text` | A capture id; it runs the same jobs as a phone capture |
 | `todos` | optional `status` (default `open`) | Todo pages: title, URL, status, due date |
 
-`write` records the caller as the revision author. Deletion is a PWA action only.
+`write` records the caller as the revision author. Deleting, setting a kind and ticking off a
+todo are PWA actions only in v0.
 
 ## Security posture
 
@@ -332,9 +346,10 @@ it has images, so Claude links there instead of trying to show them.
 - **What it holds.** Its database, files and Claude credential. No cluster or git credentials
   (service-account token automount off), no shell tools.
 - **Prompt injection.** Ingested content is untrusted data. Ingest calls Claude with a fixed prompt
-  and no tools and checks the output against a schema; the worst outcome is a wrong page, which
-  `page_rev` can undo. URL fetching refuses private and tailnet addresses, re-checked after DNS
-  resolution and after every redirect.
+  and checks the output against a schema. It gets no shell and no cluster credentials; an image
+  call gets only the Read tool, in a throwaway directory holding that one file. The worst outcome
+  is a wrong page, which `page_rev` can undo. URL fetching refuses private and tailnet
+  addresses, re-checked after DNS resolution and after every redirect.
 - **Reading is not acting.** Sessions holding cluster or other powerful credentials should not
   mount the scrap MCP server, since pages may hold injected text.
 
@@ -362,9 +377,7 @@ it has images, so Claude links there instead of trying to show them.
 
 ## Open questions
 
-- **How ingest calls Claude.** Messages API with structured output (simplest to sandbox) or the
-  Claude Code CLI on a subscription login (no API billing, but a login to keep alive). With one
-  capture per page there is no tool loop, so the Agent SDK is not needed.
+- **Headless terms.** Confirm current terms permit unattended `claude -p` before relying on it.
 - **Audio transcription** (for voice in v0.1). Local faster-whisper or a hosted API.
 - **Embedding model.** bge-small or nomic-embed-text, decided on a test set of real captures.
 - **Postgres and pgvector**, only if SQLite is outgrown.
