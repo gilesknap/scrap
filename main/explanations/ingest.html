@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest (M2) &#8212; scrap 0.1.dev68+g5f99ee971 documentation</title>
+    <title>Claude ingest (M2) &#8212; scrap 0.1.dev74+gf19ac4f2b documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=742c9dea"></script>
+    <script src="../_static/documentation_options.js?v=091891a5"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -608,7 +608,11 @@ tool returns that run with its image.</p>
 <code class="docutils literal notranslate"><span class="pre">{&quot;format&quot;:</span> <span class="pre">&quot;skeleton&quot;</span> <span class="pre">|</span> <span class="pre">&quot;scene&quot;,</span> <span class="pre">&quot;width&quot;,</span> <span class="pre">&quot;height&quot;,</span> <span class="pre">&quot;elements&quot;}</span></code>). <code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code>
 come later.</p></li>
 <li><p><strong>Producer:</strong> the model id with its <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, or <code class="docutils literal notranslate"><span class="pre">human</span></code> with <code class="docutils literal notranslate"><span class="pre">author</span></code>. A reprocess over a
-human drawing stores its drawing already superseded unless the user confirmed.</p></li>
+human drawing stores its drawing already superseded unless the user confirmed. The
+confirmation is kept on a job already queued or running (the worker reads it as it
+finishes), so it is never lost (issue #19).</p></li>
+<li><p><strong>Restore</strong> copies the version’s producer, run, author and text; its <code class="docutils literal notranslate"><span class="pre">data</span></code> adds
+<code class="docutils literal notranslate"><span class="pre">restored_from</span></code> (the version) and <code class="docutils literal notranslate"><span class="pre">restored_by</span></code>, so the history can say so.</p></li>
 </ul>
 <p><strong>Page fields</strong> come from the first photo, and the user wins:</p>
 <ul>
@@ -668,7 +672,9 @@ base version (409 if stale) as a <code class="docutils literal notranslate"><spa
 <li><p>any colour Excalidraw writes (<code class="docutils literal notranslate"><span class="pre">transparent</span></code>, named, <code class="docutils literal notranslate"><span class="pre">#rgb</span></code>, <code class="docutils literal notranslate"><span class="pre">#rrggbbaa</span></code>, <code class="docutils literal notranslate"><span class="pre">rgba()</span></code>), and its
 own keys (<code class="docutils literal notranslate"><span class="pre">index</span></code>, <code class="docutils literal notranslate"><span class="pre">groupIds</span></code>, <code class="docutils literal notranslate"><span class="pre">containerId</span></code>, <code class="docutils literal notranslate"><span class="pre">originalText</span></code>, bindings);</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">link</span></code> only with http(s), and the scene’s <code class="docutils literal notranslate"><span class="pre">files</span></code> map (embedded image data) stripped;</p></li>
-<li><p>5 MB per scene.</p></li>
+<li><p>5 MB per scene (as compact UTF-8 JSON), nested at most 32 levels deep, and no lone
+surrogates (JSON can escape half a UTF-16 pair, UTF-8 cannot encode it): either could be
+stored, then never served. The model’s text has lone surrogates replaced with U+FFFD.</p></li>
 </ul>
 <p>A scene that breaks these gets a 422, and the editor keeps its state.</p>
 <p><strong>Prompt injection.</strong> The image is data: no tools, no network, output schema-checked and
