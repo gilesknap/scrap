@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const OUT = new URL("../../src/scrap/static/", import.meta.url).pathname;
-const BUDGET = 15 * 1024; // the shell's JavaScript, gzipped (11.6 kB before drawings, 13.7 after)
+const BUDGET = 15 * 1024; // the shell's JavaScript, gzipped (12.1 kB without drawings, 14.1 with)
 
 const gz = (file) => gzipSync(readFileSync(join(OUT, file))).length;
 const kb = (n) => `${(n / 1024).toFixed(1)} kB`;

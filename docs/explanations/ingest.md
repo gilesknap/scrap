@@ -202,8 +202,8 @@ base version (409 if stale) as a `human` version whose labels become `text`; **H
 - *The second workaround* (convert again once fonts are loaded) is done before anything is
   shown: convert, export the text to a 1 px canvas (which makes Excalidraw load the fonts it
   uses), wait for `document.fonts.ready`, convert again.
-- *Sizes* (gzipped): the app shell 13.7 kB of JavaScript, up from 11.6 kB (the photo panel and the
-  preview's loader); the viewer chunk about 400 kB JS and 22 kB CSS. The service worker
+- *Sizes* (gzipped): the app shell 14.1 kB of JavaScript, 2.0 kB more than without drawings
+  (the photo panel and the preview's loader); the viewer chunk about 400 kB JS and 22 kB CSS. The service worker
   precaches only the shell, never the viewer or its fonts. `npm run size` checks both in CI.
 - *Reprocess* shows **Replace mine** / **Keep mine** when the current drawing is a human one, and
   `{queued, already}` tells it whether the photo was waiting already.

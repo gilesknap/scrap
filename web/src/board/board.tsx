@@ -164,11 +164,24 @@ export async function board(
   }
   await ready;
   const a = () => api as ExcalidrawImperativeAPI;
+  let lastFit: number[] = []; // the view the last fit left: has the user moved it since?
+  const view = () => {
+    const { zoom, scrollX, scrollY } = a().getAppState();
+    return [zoom.value, scrollX, scrollY];
+  };
+  const moved = () => {
+    const [z, x, y] = view();
+    const [z0, x0, y0] = lastFit;
+    return !(Math.abs(z / z0 - 1) < 0.01 && Math.abs(x - x0) * z < 2 && Math.abs(y - y0) * z < 2);
+  };
   const fitFrame = () => {
     if (frame) {
       const appState = fitted() as { scrollX: number; scrollY: number; zoom: never };
       a().updateScene({ appState, captureUpdate: CaptureUpdateAction.NEVER });
     } else a().scrollToContent(undefined, { fitToViewport: true, animate: false });
+    requestAnimationFrame(() => {
+      lastFit = view(); // as Excalidraw has applied it
+    });
   };
   // The box changes size (rotation, the photo beside it, first layout): while viewing, fit
   // the frame again; while editing, keep the zoom and scroll the edit is at
@@ -184,8 +197,12 @@ export async function board(
   const live = () => a().getSceneElements();
   return {
     setEditing(on) {
+      // Still as fitted: fit again around the tool bars of the new mode; else keep the
+      // zoom and scroll the user chose
+      const untouched = !moved();
       editing = on;
       rerender();
+      if (untouched) requestAnimationFrame(fitFrame);
     },
     fit: fitFrame,
     undo() {
