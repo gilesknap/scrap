@@ -59,7 +59,7 @@ SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["type", "x", "y"],
+                "required": ["type", "id", "x", "y"],
                 "properties": {
                     "type": {"type": "string", "enum": ELEMENT_TYPES},
                     "x": _NUMBER,

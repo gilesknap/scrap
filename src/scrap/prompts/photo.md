@@ -53,7 +53,9 @@ Element types and fields:
 - `line`: a line with no arrowhead (underline, strike-through, table rule, mind-map branch):
   `x`, `y`, `points` as for arrows.
 
-Every shape and text element needs a unique short `id` (letters, digits, `-` or `_`).
+Every element needs a unique short `id` (letters, digits, `-` or `_`). Draw every arrow and
+connecting line as an element of its own, bound to the shapes it joins: a drawing of boxes
+without their arrows loses what the board says.
 `strokeColor` is a `#rrggbb` hex colour matching the marker (e.g. black "#1e1e1e", blue
 "#1971c2", red "#e03131", green "#2f9e44"). Give every `text` a `fontSize` and every `label` a
 `labelFontSize` matching the handwriting. Tables: draw the outline and rules with rectangles or
@@ -65,8 +67,8 @@ Example (a box with an arrow labelled "yes" to an ellipse, and an underlined not
 [
   {"type": "rectangle", "id": "a", "x": 100, "y": 80, "width": 220, "height": 100, "label": "Read config", "labelFontSize": 28},
   {"type": "ellipse", "id": "b", "x": 460, "y": 85, "width": 200, "height": 90, "label": "Done", "labelFontSize": 28, "strokeColor": "#2f9e44"},
-  {"type": "arrow", "x": 320, "y": 130, "points": [0, 0, 140, 0], "start": "a", "end": "b", "label": "yes", "labelFontSize": 24},
+  {"type": "arrow", "id": "e1", "x": 320, "y": 130, "points": [0, 0, 140, 0], "start": "a", "end": "b", "label": "yes", "labelFontSize": 24},
   {"type": "text", "id": "n1", "x": 110, "y": 220, "text": "check twice!", "fontSize": 24, "strokeColor": "#e03131"},
-  {"type": "line", "x": 105, "y": 252, "points": [0, 0, 150, 0], "strokeColor": "#e03131"}
+  {"type": "line", "id": "u1", "x": 105, "y": 252, "points": [0, 0, 150, 0], "strokeColor": "#e03131"}
 ]
 ```

@@ -175,7 +175,7 @@ def test_cost():
 def test_schema_keeps_to_the_structured_output_subset():
     element = claude.SCHEMA["properties"]["elements"]["items"]
     optional = set(element["properties"]) - set(element["required"])
-    assert len(optional) == 12
+    assert len(optional) == 11
     text = json.dumps(claude.SCHEMA)
     for bound in ("minimum", "maximum", "minLength", "maxLength", "anyOf", "oneOf"):
         assert bound not in text
@@ -227,6 +227,43 @@ def test_heic_is_converted(tmp_path):
     assert Image.open(io.BytesIO(data)).format == "JPEG" and (w, h) == (300, 200)
 
 
+def test_ingest_once_prints_numbers_only(tmp_path, monkeypatch, capsys):
+    from scrap.__main__ import main
+
+    path = tmp_path / "board.jpg"
+    Image.new("RGB", (400, 300), "white").save(path)
+    element = {"type": "text", "id": "t", "x": 1, "y": 1, "text": "secret"}
+    output = {"kind": "whiteboard", "title": "Secret title", "tags": ["a"],
+              "description": "d", "text": "secret\nwords (?)",
+              "elements": [element]}  # fmt: skip
+    usage = {"input_tokens": 100, "output_tokens": 10}
+
+    def fake(model, system, messages, schema, blob):
+        assert blob("sent") == (blob("sent")[0], "image/jpeg")
+        content = [{"type": "text", "text": json.dumps(output)}]
+        return claude.Completion(output, content, usage, model, "end_turn")
+
+    monkeypatch.setattr(claude, "complete", fake)
+    main(["ingest-once", str(path), "--save", str(tmp_path / "out.json")])
+    printed = capsys.readouterr().out
+    assert "secret" not in printed.lower()
+    got = json.loads(printed)
+    assert got["outcome"] == "ok" and got["sent"][:2] == [400, 300]
+    assert (got["text_lines"], got["uncertain"], got["elements_kept"]) == (2, 1, 1)
+    assert json.loads((tmp_path / "out.json").read_text())["output"]["title"]
+    assert (tmp_path / "out.json").stat().st_mode & 0o777 == 0o600
+    with pytest.raises(FileExistsError):  # refused before any call
+        main(["ingest-once", str(path), "--save", str(tmp_path / "out.json")])
+
+    def refuse(*args):
+        raise claude.CallError("auth", "invalid x-api-key")
+
+    monkeypatch.setattr(claude, "complete", refuse)
+    main(["ingest-once", str(path)])
+    got = json.loads(capsys.readouterr().out)
+    assert (got["outcome"], got["error"]) == ("auth", "invalid x-api-key")
+
+
 def test_error_text_never_carries_a_key(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "plain-secret-value")
     echoed = "bad header x-api-key: sk-ant-api03-abc_DEF-123 and plain-secret-value"
@@ -238,3 +275,35 @@ def test_error_text_never_carries_a_key(monkeypatch):
         text = str(claude.classify(error))
         assert "sk-ant" not in text and "plain-secret-value" not in text
         assert "[key]" in text
+
+
+def test_ingest_once_reports_a_paid_invalid_answer(tmp_path, monkeypatch, capsys):
+    from scrap.__main__ import main
+
+    path = tmp_path / "board.jpg"
+    Image.new("RGB", (40, 30), "white").save(path)
+    empty = {"kind": "other", "title": "", "tags": [], "description": "", "text": "",
+             "elements": []}  # fmt: skip
+    usage = {"input_tokens": 100, "output_tokens": 10}
+
+    def fake(model, system, messages, schema, blob):
+        content = [{"type": "text", "text": json.dumps(empty)}]
+        return claude.Completion(empty, content, usage, model, "end_turn")
+
+    monkeypatch.setattr(claude, "complete", fake)
+    save = tmp_path / "out.json"
+    main(["ingest-once", str(path), "--save", str(save)])
+    got = json.loads(capsys.readouterr().out)
+    assert got["outcome"] == "invalid" and got["usage"] == usage
+    assert got["cost_usd"] == 0.0006 and got["served_model"] == claude.MODEL
+    assert json.loads(save.read_text())["content"][0]["type"] == "text"
+
+    def full_disk(*args, **kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr("json.dump", full_disk)
+    again = tmp_path / "again.json"
+    main(["ingest-once", str(path), "--save", str(again)])
+    got = json.loads(capsys.readouterr().out)
+    assert got["usage"] == usage and "No space" in got["save_error"]
+    assert not again.exists()
