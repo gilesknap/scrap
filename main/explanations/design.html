@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev22+gea8f35dea documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev27+g240628e7c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3e0f254f"></script>
+    <script src="../_static/documentation_options.js?v=e39820f2"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -909,6 +909,20 @@ after DNS resolution and after every redirect.</p></li>
 mount the scrap MCP server, since pages may hold injected text.</p></li>
 </ul>
 </section>
+<section id="implementation-notes-m1">
+<h2>Implementation notes (M1)<a class="headerlink" href="#implementation-notes-m1" title="Link to this heading">#</a></h2>
+<p>Where the code so far differs from the text above; later milestones should build on these.</p>
+<ul class="simple">
+<li><p><strong>Soft delete.</strong> <code class="docutils literal notranslate"><span class="pre">page.deleted_at</span></code> marks the trash and <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/undelete</span></code> undoes it;
+nothing is purged yet. So the cascades above never fire on delete: jobs, links, <code class="docutils literal notranslate"><span class="pre">summarise</span></code> and
+<code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> resolution must check <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code> themselves, and a trashed page keeps its slug.</p></li>
+<li><p><strong>Index.</strong> One chunk per page (title and body), written in the same transaction as the capture or
+edit rather than by an <code class="docutils literal notranslate"><span class="pre">index</span></code> job; <code class="docutils literal notranslate"><span class="pre">chunk</span></code> has no <code class="docutils literal notranslate"><span class="pre">derived_id</span></code> until <code class="docutils literal notranslate"><span class="pre">derived</span></code> exists.</p></li>
+<li><p><strong>Titles.</strong> The first line of the capture’s text, else the URL, else the device date.</p></li>
+<li><p><strong>Lookup.</strong> The API takes a page’s id or its slug.</p></li>
+<li><p><strong>Export.</strong> <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> (from v0.1 below) is in M1, without tags until tags exist.</p></li>
+</ul>
+</section>
 <section id="deferred-to-v0-1">
 <h2>Deferred to v0.1<a class="headerlink" href="#deferred-to-v0-1" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -1011,6 +1025,7 @@ MCP port only; scoped <code class="docutils literal notranslate"><span class="pr
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw">Excalidraw</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mcp-tools-v0">MCP tools (v0)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#security-posture">Security posture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-notes-m1">Implementation notes (M1)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deferred-to-v0-1">Deferred to v0.1</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deferred-larger">Deferred, larger</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-questions">Open questions</a></li>
