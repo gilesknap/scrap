@@ -131,7 +131,11 @@ tool returns that run with its image.
   `{"format": "skeleton" | "scene", "width", "height", "elements"}`). `summary` and `fetched`
   come later.
 - **Producer:** the model id with its `run_id`, or `human` with `author`. A reprocess over a
-  human drawing stores its drawing already superseded unless the user confirmed.
+  human drawing stores its drawing already superseded unless the user confirmed. The
+  confirmation is kept on a job already queued or running (the worker reads it as it
+  finishes), so it is never lost (issue #19).
+- **Restore** copies the version's producer, run, author and text; its `data` adds
+  `restored_from` (the version) and `restored_by`, so the history can say so.
 
 **Page fields** come from the first photo, and the user wins:
 

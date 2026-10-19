@@ -1,5 +1,6 @@
 """The scrap web application: a JSON API over the store."""
 
+import json
 import logging
 import mimetypes
 import os
@@ -26,7 +27,7 @@ from pydantic import BaseModel
 from starlette.datastructures import UploadFile
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, ingest, preview
+from . import __version__, backup, drawing, ingest, preview
 from .store import (
     ConflictError,
     InvalidError,
@@ -46,6 +47,7 @@ BLOB_HEADERS = {
 }
 SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
+SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
 APP_ROUTES = ("/", "/recent", "/search", "/p/{key}")  # served index.html
 NOT_BUILT = (
     "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
@@ -56,6 +58,11 @@ NOT_BUILT = (
 class Reprocess(BaseModel):
     photo: str | None = None  # one photo's sha256; default all of the capture's
     replace_human: bool = False  # the user confirmed replacing their own drawing
+
+
+class Restore(BaseModel):
+    version: int  # the version to make current again
+    base_version: int | None = None  # if given, 409 unless it is still current
 
 
 class PageEdit(BaseModel):
@@ -139,7 +146,9 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
         def handler(request: Request, error: Exception, status: int = status):
             detail: dict[str, Any] = {"detail": str(error) or type(error).__doc__}
-            if isinstance(error, ConflictError):
+            if isinstance(error, drawing.StaleError):
+                detail = {"detail": type(error).__doc__, "version": error.args[0]}
+            elif isinstance(error, ConflictError):
                 detail = {"detail": type(error).__doc__, "rev": error.args[0]}
             return JSONResponse(detail, status)
 
@@ -248,7 +257,54 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         added = ingest.reprocess(store, cid.upper(), ask.photo, ask.replace_human)
         if app.state.worker:
             app.state.worker.wake()
-        return {"queued": added}
+        return added
+
+    def photo(cid: str, sha: str) -> tuple[str, str]:
+        return cid.upper(), sha.lower()
+
+    @app.get("/api/captures/{cid}/photos/{sha}/drawing")
+    def drawing_current(cid: str, sha: str) -> dict[str, Any]:
+        """A photo's current drawing, with its data; 404 if it has none."""
+        return drawing.current(store, *photo(cid, sha))
+
+    @app.get("/api/captures/{cid}/photos/{sha}/drawing/versions")
+    def drawing_versions(cid: str, sha: str) -> list[dict[str, Any]]:
+        """Every version of a photo's drawing, newest first, without their data."""
+        return drawing.versions(store, *photo(cid, sha))
+
+    @app.put("/api/captures/{cid}/photos/{sha}/drawing")
+    async def drawing_save(cid: str, sha: str, request: Request) -> dict[str, Any]:
+        """Save a scene from the editor as a new human version: {base_version, scene}.
+        409 if the current version is no longer base_version, 422 if the scene breaks
+        a rule, 413 if the request is over SCENE_REQUEST bytes."""
+        body = bytearray()
+        async for chunk in request.stream():
+            body += chunk
+            if len(body) > SCENE_REQUEST:
+                raise TooLargeError("a drawing is limited to 5 MB")
+        try:
+            ask = json.loads(body)
+        except ValueError:
+            raise InvalidError("expected JSON") from None
+        if not isinstance(ask, dict) or not (
+            ask.get("base_version") is None or type(ask["base_version"]) is int
+        ):
+            raise InvalidError("expected {base_version, scene}")
+        who = author(request)
+        return await run_in_threadpool(
+            drawing.save, store, *photo(cid, sha), ask["base_version"],
+            ask.get("scene"), who,
+        )  # fmt: skip
+
+    @app.post("/api/captures/{cid}/photos/{sha}/drawing/restore")
+    def drawing_restore(
+        cid: str, sha: str, ask: Restore, request: Request
+    ) -> dict[str, Any]:
+        """Make an old version of the drawing current again, as a new copy."""
+        who = author(request)
+        return drawing.restore(
+            store, *photo(cid, sha), ask.version, ask.base_version, who
+        )
 
     @app.get("/api/ingest")
     def ingest_status() -> dict[str, Any]:
