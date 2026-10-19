@@ -1,10 +1,10 @@
 # scrap
 
 scrap is a tiny personal knowledge store: a "second brain" you feed from your phone and query
-through Claude. Snap a whiteboard, dictate a voice memo, jot a note or share a link; scrap keeps
-the original at once and later reads, summarises, redraws and indexes it in the background. Claude
-reaches it over MCP to search, read and add pages; a small PWA is where you capture and look at
-things, because chat is poor at showing images.
+through Claude. Snap a whiteboard, jot a note or share a link; scrap keeps the original at once and
+later reads, summarises, redraws and indexes it in the background. Claude reaches it over MCP to
+search, read and add pages; a small PWA is where you capture and look at things, because chat is
+poor at showing images.
 
 **Status: design stage.** There is no code yet. See [docs/design.md](docs/design.md).
 
@@ -18,8 +18,8 @@ things, because chat is poor at showing images.
 
 ## Non-goals
 
-- No Obsidian vault and no git sync: the database and a folder of files are the store. Markdown is
-  an export only.
+- No Obsidian vault and no git sync: the database and a folder of files are the store. A Markdown
+  export may come later, one-way only.
 - No login code, no user management, no public endpoint in v0.
 - No collection of microservices or paid-API integration layers.
 - Not multi-user.
