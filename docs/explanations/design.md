@@ -435,11 +435,28 @@ UTC. A rerun never updates a page already imported.
 
 The search index holds the labels of links and images, not their addresses (for every page, not
 only imported ones), so `/api/blobs/...` and URLs in Markdown links (`<...>` addresses too) are
-not words to find: a hand-written link is found by its text, not its domain, by choice. Not
-handled: reference definitions (`[r]: url`) keep their URL, as does a link whose text holds
-brackets; a URL with parentheses leaves a `)`; and code is unlinked like the rest. A page indexed
-before that keeps its old chunk until it is next edited; there is no `scrap reindex` yet,
-and an import into an empty data folder is indexed this way from the start.
+not words to find: a hand-written link is found by its text, not its domain, by choice.
+
+### Markdown (#71)
+
+Page text is Markdown, parsed by a library on both sides with the same grammar: CommonMark plus
+GitHub's tables, strikethrough and footnotes, `[[slug|label]]` page links, raw HTML as text and
+a line break kept as one. The PWA renders it with markdown-it (task lists, bare `https://` links
+and heading ids too) in `render.ts`, a lazy chunk the service worker keeps for offline use, so
+the app shell stays within its 15 kB budget; the page view loads it while it fetches the page,
+and without it (offline before it was kept) shows the text as typed. A post-parse pass allows
+only http(s), mailto, page and in-page links (opened with `rel=noopener`), and only this server's
+own images, each marked with its `data-sha` for `figure.ts`. A ` ```mermaid ` block is drawn by
+Mermaid, a separate chunk loaded only for a page that has one (not kept offline: it is big), with
+`securityLevel: 'strict'`; it is bundled, not loaded from a CDN, so the CSP needs no change.
+
+The server parses with markdown-it-py (`scrap/markdown.py`, with mdit-py-plugins for footnotes):
+the search index holds plain text from the parse (link and image text, not addresses; a page
+link's label; code as typed; a table's cells; no markup), and the importer rewrites links,
+images and wiki links found by the parse, mapped back to their place in the text, so code is
+never rewritten and a link in a table cell escapes its pipe. Both parsers are linear in the
+text (markdown-it-py does about 300 kB a second on normal text, a tenth of that on a megabyte
+of brackets). Migration 0004 re-indexed every page this way.
 
 ## Claude ingest (M2)
 

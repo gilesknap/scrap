@@ -51,7 +51,9 @@ no model unless you ask it to.
 
 Symbolic links are never followed, and nothing outside `DIR` is read. Search ignores the addresses
 of links and images (it indexes their labels and alt text), for every page: a link's domain is
-not a word to find, even in a note you wrote by hand. That is the intended trade-off.
+not a word to find, even in a note you wrote by hand. That is the intended trade-off. Links are
+found by parsing the page as Markdown, so one in code (fenced, indented or `inline`) is left as
+it is.
 
 Not imported: `raw/` and `inbox/` (except the images and PDFs pages use), every folder starting
 `.` or `_`, the top `index.md`, `log.md` and `SCHEMA.md`, pages of any other `type` (such as
