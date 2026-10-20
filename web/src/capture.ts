@@ -33,7 +33,7 @@ export async function capture(): Promise<Node> {
   const root = h("section", { className: "capture" });
   const pending = h("div", { className: "strip" });
   const refresh = async () =>
-    pending.replaceChildren(await pendingList(), await pageList(4, "Latest"));
+    pending.replaceChildren(await pendingList(), await pageList(4, "", "Latest"));
   document.addEventListener("queuechange", refresh, { signal: view.signal });
   await refresh();
 
