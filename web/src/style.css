@@ -100,8 +100,15 @@ button .i,
 .danger {
   color: var(--danger);
 }
-button:disabled {
+button:disabled,
+.button[aria-disabled="true"] {
   opacity: 0.5;
+}
+.button[aria-disabled="true"] {
+  pointer-events: none;
+}
+a.button {
+  user-select: auto; /* a link: a long press offers the phone's own menu (open in a new tab) */
 }
 [aria-busy="true"] {
   pointer-events: none; /* its label says "Preparing…": no dimming, which would fail contrast */
@@ -775,7 +782,7 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pager button {
+.pager .button {
   width: var(--tap);
   padding: 0;
   color: var(--ink-2);

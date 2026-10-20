@@ -19,6 +19,11 @@ export function go(path: string, replace = false, state: object | null = null) {
   rerender();
 }
 
+/** A plain click (or tap) the app may route itself: not one meant for a new tab or window
+ * (Ctrl, Cmd, Shift, Alt, a middle click) nor one a handler already took. */
+export const plain = (e: MouseEvent) =>
+  !e.defaultPrevented && e.button === 0 && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey);
+
 /** Show the current view again (main.ts renders on popstate). */
 export const rerender = () => window.dispatchEvent(new PopStateEvent("popstate"));
 
