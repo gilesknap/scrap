@@ -131,8 +131,18 @@ the link as the capture's URL.
   scrap; **Text** sends its title and text, as typed but without the lines that only show a
   photo (no link to scrap in it). Tap **Share** again, or anywhere else, to close the choice.
   Share appears only where the browser can share.
-- Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
-  it is always stored as typed, and **Edit** shows it so.
+- Page text is shown as Markdown, as GitHub writes it: headings, **bold**, *italic*,
+  ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
+  `https://` addresses (a `www.` address without `https://` stays plain text), tables
+  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes you tick by
+  editing the text) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
+  page (in a table cell write `[[slug\|label]]`: a bare `|` starts the next cell). A
+  ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram (flowcharts,
+  sequence diagrams and the rest); offline, or if it has a mistake, it shows as code. A link to
+  `#a-heading` scrolls to that heading. HTML is shown as typed, never run; images show only
+  when they are this server's own photos; links open only to the web (`https`, `http`,
+  `mailto`) or to pages here. A line break stays a line break. A wide table scrolls sideways in
+  its own box. The text is always stored as typed, and **Edit** shows it so.
 - A page opened from the list or a search shows where it is in that list (*3 of 23 ·
   Recent*): swipe left for the next one and right for the previous one, or use the ‹ › beside
   it (or the arrow keys). The page follows your finger and slides away to the next one; a short
@@ -205,6 +215,13 @@ Tap the drawing to open it full screen:
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
   tap one to search for it. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
+
+## Licences of the Markdown libraries
+
+Page text is rendered by [markdown-it](https://github.com/markdown-it/markdown-it) and its
+[footnote plugin](https://github.com/markdown-it/markdown-it-footnote) (MIT), and diagrams by
+[Mermaid](https://github.com/mermaid-js/mermaid) (MIT), all bundled with scrap and served by
+it, never from a CDN.
 
 ## Licences of the drawing fonts
 

@@ -437,3 +437,40 @@ def test_a_file_changed_after_the_plan_stops_the_run(tmp_path):
     (root / "raw/assets/b.png").unlink()
     with pytest.raises(SystemExit, match="raw/assets/b.png changed since it was"):
         importer.run(store, plan)
+
+
+def test_links_in_tables_and_indented_code(tmp_path):
+    """A link in a table cell keeps the table whole; code (fenced, indented, inline)
+    is never rewritten."""
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "| Who | Link |\n|---|---|\n| me | [[other]] |\n| you | [b](other.md) |\n\n"
+        "    [[other]] in code\n\n`[x](other.md)`\n",
+    )
+    write(root, "notes/other.md", front(title="Other one"))
+    store, _ = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    assert "| me | [[other\\|Other one]] |\n| you | [[other\\|b]] |" in body
+    assert body.endswith("    [[other]] in code\n\n`[x](other.md)`")
+
+
+def test_a_pipe_in_a_table_links_text_stays_escaped(tmp_path):
+    """A link's text, or a page's title, with a pipe in a table cell: every pipe
+    escaped, so the cell is not cut in two."""
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "| A | B |\n|---|---|\n| [x\\|y](other.md) | [[other]] |\n"
+        "| [[other\\|p\\|q]] | z |\n\n[x|y](other.md)\n",
+    )
+    write(root, "notes/other.md", front(title="One | Two"))
+    store, _ = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    assert "| [[other\\|x\\|y]] | [[other\\|One \\| Two]] |" in body
+    assert "| [[other\\|p\\|q]] | z |" in body
+    assert body.endswith("[[other|x|y]]")  # outside a table, as it was

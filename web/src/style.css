@@ -881,6 +881,67 @@ mark {
   border: none;
   border-top: 1px solid var(--line);
 }
+/* A table scrolls sideways in its own box: the page never does, even at 320 px */
+.md .table {
+  max-width: 100%;
+  margin: var(--s-3) 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.md table {
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+  overflow-wrap: normal;
+}
+.md :is(th, td) {
+  min-width: 4rem;
+  max-width: 20rem;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.md :is(th, td) + :is(th, td) {
+  border-inline-start: 1px solid var(--line);
+}
+.md th {
+  background: var(--sunk);
+  font-weight: 600;
+}
+.md tbody tr:last-child td {
+  border-bottom: none;
+}
+.md li.task {
+  list-style: none;
+}
+.md li.task input {
+  width: 1em;
+  height: 1em;
+  margin: 0 var(--s-1) 0 calc(-1em - var(--s-1));
+  vertical-align: -0.125em;
+  accent-color: var(--accent);
+}
+.md s {
+  color: var(--ink-2);
+}
+.md .diagram {
+  margin: var(--s-3) 0;
+  overflow-x: auto;
+  text-align: center;
+}
+.md .diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+.md .footnotes {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.md .footnote-ref a,
+.md .footnote-backref {
+  text-decoration: none;
+}
 .originals {
   display: flex;
   flex-direction: column;

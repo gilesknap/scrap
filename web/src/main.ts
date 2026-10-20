@@ -85,6 +85,15 @@ document.addEventListener("click", (e) => {
     return;
   if (a.pathname.startsWith("/api/") || a.pathname === "/share") return;
   e.preventDefault();
+  if (a.hash && a.pathname === location.pathname && a.search === location.search) {
+    // A heading or footnote of this page: scrolled to, not routed
+    let id = a.hash.slice(1);
+    try {
+      id = decodeURIComponent(id);
+    } catch {} // a malformed % stays as typed
+    document.getElementById(id)?.scrollIntoView();
+    return;
+  }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
 window.addEventListener("popstate", () => void render());

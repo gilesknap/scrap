@@ -261,7 +261,9 @@ them five minutes.
 Migrations are **forward only**, and an older scrap refuses a database migrated by a newer one.
 So `helm rollback` alone does not go back: roll back to the old image *and* restore the
 pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
-the database; its files stay.
+the database; its files stay. The one exception is migration 0004 (Markdown-aware search
+text), which changes no schema: to go back past it, stop scrap and run
+`sqlite3 scrap.db 'PRAGMA user_version = 3'` on its data folder instead of restoring.
 
 ## Backup and restore
 

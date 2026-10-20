@@ -1,79 +1,174 @@
 import { describe, expect, it } from "vitest";
-import { inline, markdown, unembedded } from "../src/md";
+import { unembedded } from "../src/md";
+import { markdown } from "../src/render";
 
 const SHA = "a".repeat(64);
+const a = (href: string, text = href) =>
+  `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const one = (s: string) => markdown(s).trim();
 
 describe("markdown", () => {
-  it("renders the basics", () => {
+  it("renders the basics, a line break staying one", () => {
     expect(markdown("# Title\n\nSome **bold** and *it* and _it_ and `x<y`")).toBe(
-      "<h1>Title</h1>\n<p>Some <strong>bold</strong> and <em>it</em> and <em>it</em> and <code>x&lt;y</code></p>",
+      '<h1 id="h-title">Title</h1>\n<p>Some <strong>bold</strong> and <em>it</em> and <em>it</em> and <code>x&lt;y</code></p>\n',
     );
-    expect(markdown("line one\nline two\n\nnext")).toBe("<p>line one<br>line two</p>\n<p>next</p>");
-    expect(markdown("- a\n* b\n\n1. one\n2) two")).toBe(
-      "<ul><li>a</li><li>b</li></ul>\n<ol><li>one</li><li>two</li></ol>",
+    expect(one("line one\nline two\n\nnext")).toBe("<p>line one<br>\nline two</p>\n<p>next</p>");
+    expect(one("> quoted\n> **more**\n\n---")).toBe(
+      "<blockquote>\n<p>quoted<br>\n<strong>more</strong></p>\n</blockquote>\n<hr>",
     );
-    expect(markdown("> quoted\n> **more**\n\n---")).toBe(
-      "<blockquote><p>quoted<br><strong>more</strong></p></blockquote>\n<hr>",
-    );
-    expect(markdown("```\n<b>**not bold**</b>\n```")).toBe(
-      "<pre><code>&lt;b&gt;**not bold**&lt;/b&gt;</code></pre>",
+    expect(one("```\n<b>**not bold**</b>\n```")).toBe(
+      "<pre><code>&lt;b&gt;**not bold**&lt;/b&gt;\n</code></pre>",
     );
   });
 
   it("closes a fence only on a matching one", () => {
-    expect(markdown("````\n```\n``` not a close\n````")).toBe(
-      "<pre><code>```\n``` not a close</code></pre>",
+    expect(one("````\n```\n``` not a close\n````")).toBe(
+      "<pre><code>```\n``` not a close\n</code></pre>",
     );
-    expect(markdown("~~~\n```\n~~~\nafter")).toBe("<pre><code>```</code></pre>\n<p>after</p>");
+    expect(one("~~~\n```\n~~~\nafter")).toBe("<pre><code>```\n</code></pre>\n<p>after</p>");
   });
 
-  it("nests code in links, and links after addresses, without stray markers", () => {
-    expect(inline("[`code`](https://e.com)")).toBe(
-      '<a href="https://e.com" target="_blank" rel="noopener noreferrer"><code>code</code></a>',
+  it("renders GitHub's tables, task lists, strikethrough and footnotes", () => {
+    const table = one("| a | b |\n|---|--:|\n| [[c]] | ~~d~~ |");
+    expect(table).toMatch(/^<div class="table"><table>\n<thead>/);
+    expect(table).toContain('<td><a href="/p/c">c</a></td>');
+    expect(table).toContain('<td style="text-align:right"><s>d</s></td>');
+    expect(table).toMatch(/<\/table><\/div>$/);
+    expect(one("- [ ] todo\n- [x] done\n- [y] not a box")).toBe(
+      '<ul>\n<li class="task"><input type="checkbox" disabled> todo</li>\n' +
+        '<li class="task"><input type="checkbox" disabled checked> done</li>\n' +
+        "<li>[y] not a box</li>\n</ul>",
     );
-    const out = inline("https://a.com/[x](https://b.com) and ![`c`](/api/blobs/x)");
-    expect(out).not.toMatch(/\uE000|>0</);
-    expect(out).toContain('href="https://a.com/"');
-    expect(out).toContain(
-      '<a href="https://b.com" target="_blank" rel="noopener noreferrer">x</a>',
+    const notes = one("Said[^1].\n\n[^1]: The source.");
+    expect(notes).toContain('<a href="#fn1" id="fnref1">[1]</a>');
+    expect(notes).toContain('<li id="fn1" class="footnote-item"><p>The source.');
+  });
+
+  it("gives headings ids, and links to them", () => {
+    const html = one("## Next steps!\n\n## Next steps\n\nSee [them](#next-steps)");
+    expect(html).toContain('<h2 id="h-next-steps">');
+    expect(html).toContain('<h2 id="h-next-steps-1">');
+    expect(html).toContain('<a href="#h-next-steps">them</a>');
+  });
+
+  it("links to a heading with spaces, accents or quotes as it is typed", () => {
+    const html = one(
+      "# Café ünïcode\n\n## Two words\n\n[a](#café-ünïcode) [b](<#Two words>) [c](#100%)",
     );
+    expect(html).toContain('<h1 id="h-café-ünïcode">');
+    expect(html).toContain('<a href="#h-café-ünïcode">a</a>');
+    expect(html).toContain('<a href="#h-two-words">b</a>');
+    expect(html).toContain('<a href="#h-100">c</a>'); // a malformed % is no error
+  });
+
+  it("leaves a ```mermaid block as code, for the diagram chunk", () => {
+    expect(one("```mermaid\ngraph TD; A-->B\n```")).toBe(
+      '<pre><code class="language-mermaid">graph TD; A--&gt;B\n</code></pre>',
+    );
+  });
+
+  it("nests code in links, and never a link in a link (#52)", () => {
+    expect(one("[`code`](https://e.com)")).toBe(
+      `<p>${a("https://e.com", "<code>code</code>")}</p>`,
+    );
+    const nested = /<a[^>]*>(?:(?!<\/a>).)*<a/s;
+    for (const text of [
+      "[see [[a|Label]]](http://x)",
+      "[[a|<https://x.y>]]",
+      "[a <https://x.y>](https://y.z)",
+      "[[a|see https://x.y]]",
+      "[a https://x.y b](https://y.z)",
+      "[![x.y](https://e.com/i.png)](https://y.z)", // a README badge
+      "[x ![x.y](https://e.com/i.png)](/p/b)",
+      "[[b|![x.y](https://e.com/i.png)]]",
+    ]) {
+      const html = one(text);
+      expect(html, text).not.toMatch(nested);
+      expect(html, text).toMatch(/x(\.y)?/); // the inner link's text stays
+    }
+  });
+
+  it("never nests a link, whatever links, images and page links are combined", () => {
+    const SHA_SRC = `/api/blobs/${SHA}`;
+    const inner = [
+      "<https://x.y>",
+      "https://x.y",
+      "[[a]]",
+      "[t](https://x.y)",
+      "[t](/p/a)",
+      "[t](#h)",
+      "![i](https://e.com/i.png)",
+      "![i](/x.png)",
+      `![i](${SHA_SRC})`,
+      "[![i](https://e.com/i.png)](https://x.y)",
+      "`code`",
+    ];
+    const outer = [
+      (x: string) => `[${x}](https://y.z)`,
+      (x: string) => `[${x}](/p/b)`,
+      (x: string) => `[${x}](#top)`,
+      (x: string) => `[${x}](javascript:x)`,
+      (x: string) => `[[b|${x}]]`,
+      (x: string) => `[w ${x} w](https://y.z)`,
+    ];
+    const depth = (html: string) => {
+      let open = 0;
+      for (const m of html.matchAll(/<(\/?)a[\s>]/g)) {
+        open += m[1] ? -1 : 1;
+        if (open > 1) return open;
+      }
+      return open;
+    };
+    for (const f of outer)
+      for (const g of [...outer, (x: string) => x])
+        for (const x of inner) {
+          const text = f(g(x));
+          expect(depth(one(text)), text).toBeLessThanOrEqual(1);
+        }
+  });
+
+  it("keeps a hand-written link to a footnote as it is", () => {
+    const html = one("See [the note](#fn1) and [back](#fnref1:1).\n\nSaid[^1].\n\n[^1]: Note.");
+    expect(html).toContain('<a href="#fn1">the note</a>');
+    expect(html).toContain('<a href="#fnref1:1">back</a>');
+    expect(html).toContain('id="fn1"');
   });
 
   it("leaves snake_case and lone stars alone", () => {
-    expect(inline("snake_case_name and 2 * 3 * 4")).toBe("snake_case_name and 2 * 3 * 4");
+    expect(one("snake_case_name and 2 * 3 * 4")).toBe("<p>snake_case_name and 2 * 3 * 4</p>");
   });
 
-  it("links http(s) and mailto only, bare URLs too", () => {
-    const a = (href: string, text = href) =>
-      `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-    expect(inline("[site](https://e.com/a?b=1&c=2)")).toBe(
-      a("https://e.com/a?b=1&amp;c=2", "site"),
+  it("links http(s) and mailto, pages here and bare URLs; nothing else", () => {
+    expect(one("[site](https://e.com/a?b=1&c=2)")).toBe(
+      `<p>${a("https://e.com/a?b=1&amp;c=2", "site")}</p>`,
     );
-    expect(inline("[me](mailto:x@e.com)")).toBe(a("mailto:x@e.com", "me"));
-    expect(inline("see https://e.com/x.")).toBe(`see ${a("https://e.com/x")}.`);
-    expect(inline("(https://e.com/x)")).toBe(`(${a("https://e.com/x")})`);
-    expect(inline("[**b**](http://e.com)")).toBe(a("http://e.com", "<strong>b</strong>"));
+    expect(one("[me](mailto:x@e.com)")).toBe(`<p>${a("mailto:x@e.com", "me")}</p>`);
+    expect(one("see https://e.com/x.")).toBe(`<p>see ${a("https://e.com/x")}.</p>`);
+    expect(one("(https://e.com/x)")).toBe(`<p>(${a("https://e.com/x")})</p>`);
+    expect(one("[**b**](http://e.com)")).toBe(`<p>${a("http://e.com", "<strong>b</strong>")}</p>`);
+    expect(one("[p](/p/other) [r](notes/x.md) [f](file:///etc/passwd)")).toBe(
+      '<p><a href="/p/other">p</a> r [f](file:///etc/passwd)</p>',
+    );
   });
 
   it("links [[slug]] and [[slug|label]] to pages here", () => {
-    expect(inline("see [[a-page]]")).toBe('see <a href="/p/a-page">a-page</a>');
-    expect(inline("[[a-page|The **page**]]")).toBe(
-      '<a href="/p/a-page">The <strong>page</strong></a>',
+    expect(one("see [[a-page]]")).toBe('<p>see <a href="/p/a-page">a-page</a></p>');
+    expect(one("[[a-page|The **page**]]")).toBe(
+      '<p><a href="/p/a-page">The <strong>page</strong></a></p>',
     );
-    expect(inline("[[a-page|`x` & y]]")).toBe('<a href="/p/a-page"><code>x</code> &amp; y</a>');
-    expect(inline('[[Not A Slug]] [[../x]] [[a"b]]')).not.toContain("<a");
-    const start = performance.now();
-    inline("[[a|".repeat(50_000));
-    expect(performance.now() - start).toBeLessThan(1000);
+    expect(one("[[a-page|`x` & y]]")).toBe('<p><a href="/p/a-page"><code>x</code> &amp; y</a></p>');
+    expect(one('[[Not A Slug]] [[../x]] [[a"b]]')).not.toContain("<a");
   });
 
   it("shows images only from this server's files", () => {
-    expect(inline(`![photo](/api/blobs/${SHA})`)).toBe(
-      `<img src="/api/blobs/${SHA}" alt="photo" loading="lazy" data-sha="${SHA}">`,
+    expect(one(`![photo](/api/blobs/${SHA})`)).toBe(
+      `<p><img src="/api/blobs/${SHA}" alt="photo" loading="lazy" data-sha="${SHA}"></p>`,
     );
-    expect(inline(`![](/api/blobs/${SHA}/preview?size=480)`)).toContain(`data-sha="${SHA}"`);
-    expect(inline("![x](https://evil.example/t.png)")).not.toContain("<img");
-    expect(inline(`![x](/api/blobs/${SHA}/../../x)`)).not.toContain("<img");
+    expect(one(`![](/api/blobs/${SHA}/preview?size=480)`)).toContain(`data-sha="${SHA}"`);
+    expect(one("![x](https://evil.example/t.png)")).toBe(
+      `<p>${a("https://evil.example/t.png", "x")}</p>`,
+    );
+    expect(one(`![x](/api/blobs/${SHA}/../../x)`)).toBe("<p>x</p>");
   });
 
   it.each([
@@ -83,32 +178,73 @@ describe("markdown", () => {
     "[x](JaVaScRiPt:alert(1))",
     "[x](data:text/html,<script>alert(1)</script>)",
     "[x](&#x6A;avascript:alert(1))",
+    "[x](java\tscript:alert(1))",
     '[x](https://e.com/"onmouseover="alert(1))',
     "![x](javascript:alert(1))",
+    "![x](data:image/svg+xml,<svg onload=alert(1)>)",
     `![" onerror="alert(1)](/api/blobs/${SHA})`,
     "https://e.com/<script>alert(1)</script>",
     'https://e.com/"onclick="alert(1)',
     "```\n</code><script>alert(1)</script>\n```",
+    '```js" onclick="alert(1)\nx\n```',
     "# <svg onload=alert(1)>",
     "> <iframe src=javascript:alert(1)>",
     "- <a href=javascript:alert(1)>x</a>",
+    "- [ ] <img src=x onerror=alert(1)>",
+    "| <b>x</b> | y |\n|---|---|\n| <script> | [a](javascript:x) |",
+    "[[a|<img src=x onerror=alert(1)>]]",
+    "[^1]\n\n[^1]: <script>alert(1)</script>",
+    "[a]: javascript:alert(1)\n\n[x][a]",
     "`<b>`**<i>**",
-    "0<script>",
+    "0<script>",
+    "<!-- x --><style>*{}</style>",
   ])("never lets HTML through: %s", (payload) => {
     // Text is escaped, so every "<" and '"' left is the renderer's own: check each tag.
     const html = markdown(payload);
-    const ALLOWED = /^(p|br|h[1-6]|strong|em|code|pre|ul|ol|li|blockquote|hr|a|img)$/;
+    const ALLOWED =
+      /^(p|br|h[1-6]|strong|em|s|code|pre|ul|ol|li|blockquote|hr|a|img|div|table|thead|tbody|tr|th|td|input|sup|section)$/;
+    const ATTRS = ["href", "target", "rel", "src", "alt", "loading", "data-sha", "id", "class"];
     for (const [, name, attrs] of html.matchAll(/<\/?([^\s>/]+)([^>]*)>/g)) {
       expect(name).toMatch(ALLOWED);
-      const pairs = [...attrs.matchAll(/ ([a-z-]+)="([^"]*)"/g)];
+      const pairs = [...attrs.matchAll(/ ([a-z-]+)(?:="([^"]*)")?/g)];
       expect(pairs.map((p) => p[0]).join("")).toBe(attrs); // nothing but name="value"
-      for (const [, attr, value] of pairs) {
-        expect(["href", "target", "rel", "src", "alt", "loading", "data-sha"]).toContain(attr);
-        if (attr === "href") expect(value).toMatch(/^(https?:\/\/|mailto:)/);
+      for (const [, attr, value = ""] of pairs) {
+        expect([...ATTRS, "style", "type", "disabled", "checked", "start"]).toContain(attr);
+        if (attr === "href") expect(value).toMatch(/^(https?:\/\/|mailto:|\/p\/[a-z0-9-]+$|#)/);
         if (attr === "src") expect(value).toMatch(/^\/api\/blobs\/[0-9a-f]{64}/);
         if (attr === "data-sha") expect(value).toMatch(/^[0-9a-f]{64}$/);
+        if (attr === "style") expect(value).toMatch(/^text-align:(left|right|center)$/);
+        if (attr === "type") expect(value).toBe("checkbox");
+        if (attr === "class") expect(value).not.toMatch(/[<>"]/); // escaped
       }
     }
+  });
+
+  it.each([
+    "[",
+    "[[",
+    "[[a|",
+    "[a](",
+    "![",
+    "`",
+    "*a",
+    "_a ",
+    "**_",
+    "<",
+    "> ",
+    "- ",
+    "|",
+    "\\",
+    "a\n",
+    "https://e.com/",
+  ])("takes linear time on a run of %j", (piece) => {
+    const took = (n: number) => {
+      const start = performance.now();
+      markdown(piece.repeat(n / piece.length));
+      return performance.now() - start;
+    };
+    took(20_000); // warm up
+    expect(took(200_000)).toBeLessThan(2000);
   });
 });
 

@@ -66,6 +66,31 @@ def test_body_refs_is_linear_and_finds_every_address():
     assert time.perf_counter() - start < 1
 
 
+def test_a_file_mentioned_only_in_code_or_odd_markdown_is_kept(client, store):
+    """body_refs is not the Markdown parser: an address in code, a full URL, an HTML
+    comment or broken Markdown still keeps its file, as gc deletes what it misses."""
+    ref, _ = photo(client)
+    shas = [put(store, f"mention {n}".encode()) for n in range(7)]
+    orphan = put(store, b"orphan")
+    a = [f"/api/blobs/{sha}" for sha in shas]
+    body = (
+        f"```\n![]({a[0]}/preview?size=2048)\n```\n\n"
+        f"    indented {a[1]}\n\n"
+        f"inline `{a[2]}?download=1`\n\n"
+        f"https://scrap.example{a[3]}/preview?size=480\n\n"
+        f"<!-- {a[4]} -->\n\n"
+        f"![broken]({a[5]}\n\n"
+        f"| [[x\\|{a[6]}]] |"
+    )
+    client.patch(
+        f"/api/pages/{ref['page_id']}", json={"base_rev": 1, "body": body}
+    ).raise_for_status()
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == [orphan]
+    for sha in shas:
+        assert store.blob_path(sha).is_file(), sha
+
+
 def test_dry_run_is_the_default_and_counts(client, store):
     page, used = photo(client)
     orphan = put(store, b"nobody uses me")

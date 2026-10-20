@@ -18,6 +18,7 @@ from importlib.resources import files as package_files
 from pathlib import Path
 from typing import IO, Any
 
+from .markdown import plain
 from .query import CONTROL, Query, bound, parse
 
 __all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError"]
@@ -140,7 +141,8 @@ def body_refs(text: str) -> set[str]:
     """The stored files a page's text refers to, by SHA-256: any mention of a file's
     address counts (an image, a link, even in code), so a page never loses a file it
     shows. The one place page text is read for references (scrap gc, the save warning's
-    counts), kept small so a real Markdown parser can replace it."""
+    counts). Deliberately not the Markdown parser (markdown.py): gc deletes what this
+    misses, so it errs on keeping a file (in code, an absolute URL, broken Markdown)."""
     return set(BLOB_ADDRESS.findall(text))
 
 
@@ -265,7 +267,9 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
     )
     summary = json.loads(fields).get("summary")
     summary = summary if isinstance(summary, str) else ""
-    clean = [CONTROL.sub(" ", unlink(x)) for x in (title, tags, summary, body)]
+    # The text as words (markdown.py); the others are short, and not Markdown
+    parts = (unlink(title), tags, unlink(summary), plain(body))
+    clean = [CONTROL.sub(" ", x) for x in parts]
     conn.execute(
         "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
     )
@@ -282,7 +286,7 @@ def index_all(conn: sqlite3.Connection) -> None:
         index_page(conn, page_id)
 
 
-AFTER = {3: index_all}  # migration number -> its Python step
+AFTER = {3: index_all, 4: index_all}  # migration number -> its Python step
 
 
 def tag_counts(rows: list[Any]) -> dict[str, int]:

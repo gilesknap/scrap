@@ -24,7 +24,7 @@ type Placed = FileRef & { cid: string };
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
 const SHA = /^[0-9a-f]{64}$/;
 
-/** Upgrade the images in body (rendered by md.ts) to figures; returns what goes below it. */
+/** Upgrade the images in body (rendered by render.ts) to figures; returns what goes below it. */
 export function figures(
   body: HTMLElement,
   p: Page,
@@ -38,7 +38,7 @@ export function figures(
       const had = files.get(b.sha256);
       if (!had || (!had.ingest && b.ingest)) files.set(b.sha256, { ...b, cid: c.id });
     }
-  // Only md.ts's own images (this server's files, by their sha), in a paragraph of images
+  // Only render.ts's own images (this server's files, by their sha), in a paragraph of images
   // alone, one or more lines of them: each becomes a figure. One in a link, a heading, a list,
   // a quote or beside text stays as it is (a figure there is not valid HTML), and its file is
   // listed below the text too, so every file of the page has its Download and Claude.
@@ -48,7 +48,10 @@ export function figures(
     (el) =>
       el.tagName === "P" &&
       [...el.childNodes].some(own) &&
-      [...el.childNodes].every((n) => own(n) || n.nodeName === "BR" || !n.textContent?.trim()),
+      // and nothing else: one in a link or in emphasis is not one of them (#82)
+      [...el.childNodes].every(
+        (n) => own(n) || n.nodeName === "BR" || (n instanceof Text && !n.data.trim()),
+      ),
   );
   const shown = new Set(
     runs.flatMap((el) => [...el.children].filter(own).map((i) => i.dataset.sha)),

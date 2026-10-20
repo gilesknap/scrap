@@ -5,7 +5,7 @@ import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
-import { unembedded } from "./md";
+import { renderer, unembedded } from "./md";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
@@ -45,7 +45,8 @@ const JSON_TYPE = { "Content-Type": "application/json" };
 export async function page(key: string): Promise<Node> {
   const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
   const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
-  const p = await api<Page>(`pages/${encodeURIComponent(key)}`);
+  // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
+  const [p] = await Promise.all([api<Page>(`pages/${encodeURIComponent(key)}`), renderer()]);
   const root = h("article", { className: "page" });
   // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
   const pager = state?.trail
