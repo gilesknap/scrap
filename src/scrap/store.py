@@ -813,7 +813,8 @@ class Store:
             if f.key in ("after", "before"):  # UTC: see query.bound
                 cut = bound(f.key, f.value)
                 op = ">=" if f.key == "after" else "<"
-                sql.append(f"{no}(p.{dated} {op} ?)" if cut else "0")
+                # not a date or a time ago: nothing (and with -, everything)
+                sql.append(f"{no}(p.{dated} {op} ?)" if cut else f"{no}0")
                 args.extend([cut] if cut else [])
             elif f.key == "kind" and f.neg:
                 sql.append("p.kind <> ?")

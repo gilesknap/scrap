@@ -7,7 +7,7 @@
 import { api } from "./api";
 import { icon } from "./icons";
 import { KINDS } from "./kinds";
-import { adding, removing, token } from "./terms";
+import { adding, day, removing, token } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -81,8 +81,9 @@ export async function refine(
   });
   dates.setAttribute("aria-expanded", "false");
   chips.push(dates);
-  const from = h("input", { type: "date", "aria-label": "From" });
-  const to = h("input", { type: "date", "aria-label": "To" });
+  const range = { type: "date", min: "0001-01-01", max: "9999-12-31" };
+  const from = h("input", { ...range, "aria-label": "From" });
+  const to = h("input", { ...range, "aria-label": "To" });
   for (const a of ranged)
     (a.key === "after" ? from : to).value = a.value.length === 10 ? a.value : "";
   panel.append(
@@ -96,8 +97,8 @@ export async function refine(
         onclick: () => {
           apply((now) => {
             let next = ranged.reduce((s, a) => removing(s, a.token), now);
-            if (from.value) next = adding(next, `after:${from.value}`);
-            if (to.value) next = adding(next, `before:${to.value}`);
+            if (day(from.value)) next = adding(next, `after:${day(from.value)}`);
+            if (day(to.value)) next = adding(next, `before:${day(to.value)}`);
             return next;
           });
         },

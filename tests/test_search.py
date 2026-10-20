@@ -237,7 +237,10 @@ def test_date_bounds():
     assert bound("before", "2m", now) == "2026-08-21T12:00:00.000Z"
     assert bound("after", "1y", now) == "2025-10-20T12:00:00.000Z"
     assert bound("after", "3d", now) == "2026-10-17T12:00:00.000Z"
+    assert bound("before", "9999-12-31") == "~"  # past every timestamp
+    assert bound("after", "0001-01-01") == "0001-01-01"
     for bad in ("2026-13-01", "2026/03/01", "0w", "101y", "-1w", "1x", "", "1.5w",
+                "99999999d", "0d", "9" * 5000 + "d",
                 "２w", "x" * 10_000):  # fmt: skip
         assert bound("after", bad, now) is None, bad
     q = parse("after:1w Before:2026-01-31 date:created -after:x")
@@ -263,6 +266,21 @@ def test_date_filters(store):
     assert slugs(store, "plan after:2026-01-03 before:2026-01-31") == []  # edited later
     assert slugs(store, "plan after:2026-01-03 date:created") == [new]
     assert slugs(store, "plan after:soon") == []  # not a date: nothing
+    assert len(slugs(store, "plan -after:soon")) == 3  # and with -, everything
+    for q, n in [("before:9999-12-31", 3), ("after:9999-12-31", 0),
+                 ("after:0001-01-01", 3), ("before:0001-01-01", 0),
+                 ("after:99999999d", 0), ("before:0d", 0), ("-before:0d", 3),
+                 ("after:" + "9" * 5000 + "d", 0)]:  # fmt: skip
+        assert len(slugs(store, f"plan {q}")) == n, q
+        assert store.facets(f"plan {q}")["total"] == n, q
+
+
+def test_extreme_dates_are_no_server_error(tmp_path):
+    client = TestClient(create_app(tmp_path))
+    for q in ("before:9999-12-31", "after:9999-12-31", "after:0001-01-01",
+              "before:0001-01-01", "after:99999999d", "before:0d"):  # fmt: skip
+        for path in ("/api/search", "/api/search/facets"):
+            assert client.get(path, params={"q": q}).status_code == 200, (path, q)
 
 
 def test_a_pages_tags_come_most_used_first(store):

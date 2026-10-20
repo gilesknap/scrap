@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { adding, has, removing, token, tree } from "../src/terms";
+import { adding, day, has, removing, token, tree } from "../src/terms";
 
 it("writes a filter, quoting a value with spaces", () => {
   expect(token("tag", "tech/epics")).toBe("tag:tech/epics");
@@ -33,4 +33,13 @@ it("makes a tree of tags, parents first", () => {
   expect(t.map((n) => n.path)).toEqual(["home", "home-x", "work"]);
   expect(t[0].kids.map((n) => [n.name, n.n])).toEqual([["garden", 2]]);
   expect(t[0].kids[0].kids[0].path).toBe("home/garden/diy");
+});
+
+it("clamps a picked date to what after: and before: take", () => {
+  expect(day("2026-03-01")).toBe("2026-03-01");
+  expect(day("0001-01-01")).toBe("0001-01-01");
+  expect(day("10000-01-01")).toBe("9999-12-31");
+  expect(day("+275760-09-13")).toBe("9999-12-31");
+  expect(day("")).toBe("");
+  expect(day("junk")).toBe("");
 });

@@ -10,7 +10,8 @@ __all__ = ["Term", "Filter", "Query", "parse", "bound", "KEYS"]
 
 KEYS = ("kind", "tag", "is", "after", "before", "date")
 DAYS = {"d": 1, "w": 7, "m": 30, "y": 365}  # after:2w, before:1y
-MAX_AGO = 100
+MAX_AGO = 100  # 100y at most
+END = "~"  # after every ISO 8601 timestamp, as text
 WORD = re.compile(r"[^\W_]")  # a letter or digit: something FTS indexes (one character)
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 MAX_TERMS = 16  # every term adds a subquery
@@ -113,13 +114,15 @@ def bound(key: str, value: str, now: datetime | None = None) -> str | None:
     if len(value) == 10 and value[4] == "-" and value[7] == "-":
         try:
             day = date.fromisoformat(value)
+            return (day + timedelta(days=key == "before")).isoformat()
         except ValueError:
             return None
-        return (day + timedelta(days=key == "before")).isoformat()
+        except OverflowError:  # before:9999-12-31: to the end of time
+            return END
     count, unit = value[:-1] or "1", value[-1:]
     if (
         unit not in DAYS
-        or not (count.isascii() and count.isdigit())
+        or not (count.isascii() and count.isdigit() and len(count) <= 3)
         or not 0 < int(count) <= MAX_AGO
     ):
         return None
