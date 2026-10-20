@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev146+g47347c722 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev149+g8a32b1b49 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c310445e"></script>
+    <script src="../_static/documentation_options.js?v=a7ab6b6e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -595,6 +595,11 @@ goes back to every page, newest first.</p></li>
 <li><p>The query and its filters are in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>), so a reload keeps them, and
 Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
 <code class="docutils literal notranslate"><span class="pre">/recent</span></code> links open this screen (<code class="docutils literal notranslate"><span class="pre">/recent?kind=todo</span></code> with Todos on).</p></li>
+<li><p>Every row, a page’s tags, its <code class="docutils literal notranslate"><span class="pre">[[links]]</span></code> and the pager’s ‹ › are ordinary links with their own
+address, so you can open one in a new tab: on a phone, long-press it and choose <em>Open in new
+tab</em> (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
+Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
+wasn’t opened from a list. A plain tap opens it in place, as before.</p></li>
 <li><p>Todos and Read pages carry a status (open, in progress, done or cancelled). The page’s
 toolbar has <strong>Done</strong> unless it is done, and <strong>Reopen</strong> if it is done or cancelled (a
 cancelled one has both). In the list, the capture screen’s list and search results, their
