@@ -42,7 +42,7 @@ tool output dumps (summarise them). When in doubt, leave it out and say so.
 
 `kind`: `note` by default; `todo` (with `status: open`) only if the page is a task; `doc` for a
 longer reference write-up. `origin`: the repo or working directory and today's date, e.g.
-`homebase (~/code/homebase) 2026-10-20`. `key`: a stable string such as
+`myproject (~/code/myproject) 2026-10-20`. `key`: a stable string such as
 `<directory>:<title>:<date>` so a retried call does not post twice.
 
 ## 3. Confirm, then post
