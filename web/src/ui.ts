@@ -180,12 +180,17 @@ export function download(href: string, className = "button"): HTMLAnchorElement 
   const a = h("a", { href, className, download: "" }, icon("download"), "Download");
   a.onclick = busy(a, "Download", async () => {
     const file = await fetchFile(href);
-    const url = URL.createObjectURL(file);
-    h("a", { href: url, download: file.name }).click();
-    setTimeout(() => URL.revokeObjectURL(url), 60_000); // the save may still be reading it
-    toast(`Downloaded ${file.name} (${mb(file.size)})`);
+    saveBlob(file, file.name);
   });
   return a;
+}
+
+/** Save a Blob made on the phone (or fetched) as a file, and say so. */
+export function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  h("a", { href: url, download: name }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000); // the save may still be reading it
+  toast(`Downloaded ${name} (${mb(blob.size)})`);
 }
 
 /** A Share button to send text, or a file from the server, to another app; none where

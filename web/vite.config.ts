@@ -1,7 +1,24 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import type { Plugin } from "vite";
+import type { Plugin, Rollup } from "vite";
 import { defineConfig } from "vitest/config";
+
+// The files the app shell needs: what the entry chunks import statically, and their CSS
+// and assets. The drawing viewer (Excalidraw and React, loaded by a dynamic import) and its
+// fonts are left out: they are fetched only when a drawing is shown.
+function staticGraph(bundle: Rollup.OutputBundle): string[] {
+  const seen = new Set<string>();
+  const visit = (name: string) => {
+    const c = bundle[name];
+    if (seen.has(name) || c?.type !== "chunk") return;
+    seen.add(name);
+    for (const f of c.viteMetadata?.importedCss ?? []) seen.add(f);
+    for (const f of c.viteMetadata?.importedAssets ?? []) seen.add(f);
+    for (const i of c.imports) visit(i);
+  };
+  for (const [name, c] of Object.entries(bundle)) if (c.type === "chunk" && c.isEntry) visit(name);
+  return [...seen];
+}
 
 // Fill the service worker's shell list and build id once the bundle is known.
 const shell: Plugin = {
@@ -12,7 +29,7 @@ const shell: Plugin = {
     const sw = bundle["sw.js"];
     if (sw?.type !== "chunk") throw new Error("no sw.js in the bundle");
     const pub = readdirSync("public");
-    const files = [...Object.keys(bundle), ...pub]
+    const files = [...staticGraph(bundle), ...pub]
       .filter((f) => f !== "sw.js" && f !== "index.html" && !f.endsWith(".map"))
       .map((f) => `/${f}`);
     const list = ["/", ...files].join(",");
@@ -29,13 +46,46 @@ const shell: Plugin = {
   },
 };
 
+// Excalidraw's drawing fonts, served by scrap at /excalidraw/fonts/ (EXCALIDRAW_ASSET_PATH)
+// rather than from its CDN. All but Xiaolai (CJK, 14 MB): CJK text falls back to a system
+// font. Excalidraw's UI font (Assistant) comes with its CSS. All are OFL or MIT licensed:
+// see docs/how-to/use-the-pwa.md.
+const FONTS = "node_modules/@excalidraw/excalidraw/dist/prod/fonts";
+const FAMILIES = ["Excalifont", "Virgil", "Nunito", "Lilita", "ComicShanns", "Cascadia"];
+FAMILIES.push("Liberation");
+const fontFiles = () =>
+  FAMILIES.flatMap((f) => readdirSync(`${FONTS}/${f}`).map((file) => `${f}/${file}`));
+const fonts: Plugin = {
+  name: "scrap-excalidraw-fonts",
+  generateBundle() {
+    for (const f of fontFiles()) {
+      const source = readFileSync(`${FONTS}/${f}`);
+      this.emitFile({ type: "asset", fileName: `excalidraw/fonts/${f}`, source });
+    }
+  },
+  configureServer(server) {
+    server.middlewares.use("/excalidraw/fonts/", (req, res, next) => {
+      const f = decodeURIComponent((req.url ?? "").split("?")[0]).replace(/^\/+/, "");
+      if (!fontFiles().includes(f)) return next();
+      res.setHeader("Content-Type", "font/woff2");
+      res.end(readFileSync(`${FONTS}/${f}`));
+    });
+  },
+};
+
 export default defineConfig({
-  plugins: [shell],
+  plugins: [shell, fonts],
+  // Excalidraw's build reads it; React, not Preact
+  define: { "process.env.IS_PREACT": JSON.stringify("false") },
   build: {
     outDir: "../src/scrap/static",
     emptyOutDir: true,
+    chunkSizeWarningLimit: 3000, // the drawing viewer's chunk is big, and lazy
     rollupOptions: {
       input: { main: "index.html", sw: "src/sw.ts" },
+      onwarn(warning, warn) {
+        if (warning.code !== "MODULE_LEVEL_DIRECTIVE") warn(warning); // React's "use client"
+      },
       output: { entryFileNames: (c) => (c.name === "sw" ? "sw.js" : "assets/[name]-[hash].js") },
     },
   },

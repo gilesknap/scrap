@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#161411" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
+    <!-- Fonts and fetches stay on scrap: Excalidraw would fall back to its CDN -->
+    <meta http-equiv="Content-Security-Policy" content="font-src 'self' data:; connect-src 'self'" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />

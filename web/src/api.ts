@@ -1,11 +1,33 @@
 // Calls to the scrap JSON API (docs/reference/api.md).
 import type { Item } from "./queue";
 
+export interface Ingest {
+  state: "queued" | "processing" | "done" | "failed" | "paused";
+  failures: number;
+  error: string | null;
+  text: string | null;
+  description: string | null;
+  image_kind: string | null;
+  drawing: {
+    id: number;
+    version: number;
+    producer: string;
+    width: number | null; // its frame: the photo as sent to Claude
+    height: number | null;
+  } | null;
+}
 export interface FileRef {
   sha256: string;
   mime: string;
   size: number;
   filename: string | null;
+  ingest?: Ingest | null; // photos: what Claude made of it (null: never queued)
+}
+export interface Queue {
+  enabled: boolean;
+  paused: boolean;
+  reason: string | null;
+  paused_until: string | null;
 }
 export interface Summary {
   id: string;
@@ -31,7 +53,7 @@ export interface Hit {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    public body: { detail?: string; rev?: number },
+    public body: { detail?: string; rev?: number; version?: number | null },
   ) {
     super(body.detail ?? `HTTP ${status}`);
   }

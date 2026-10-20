@@ -287,6 +287,43 @@ def test_pwa_files_and_caching(shell):
     assert shell.get("/healthz").json()["status"] == "ok"
 
 
+def test_text_is_gzipped_and_files_are_not(tmp_path, monkeypatch):
+    """Scripts, styles and JSON go gzipped to a client that takes it; stored files,
+    previews, downloads, fonts and range requests go as they are."""
+    static = tmp_path / "static"
+    (static / "assets").mkdir(parents=True)
+    (static / "excalidraw" / "fonts").mkdir(parents=True)
+    (static / "index.html").write_text("<title>scrap</title>")
+    (static / "assets" / "big-abc.js").write_text("let x = 1;\n" * 2000)
+    (static / "excalidraw" / "fonts" / "f.woff2").write_bytes(b"w" * 5000)
+    monkeypatch.setattr("scrap.app.STATIC", static)
+    client = TestClient(create_app(tmp_path / "data"))
+    gz = {"Accept-Encoding": "gzip"}
+
+    js = client.get("/assets/big-abc.js", headers=gz)
+    assert js.headers["content-encoding"] == "gzip" and js.text.startswith("let x")
+    assert "Accept-Encoding" in js.headers["vary"]
+    assert int(js.headers["content-length"]) < 2000
+    plain = client.get("/assets/big-abc.js", headers={"Accept-Encoding": "identity"})
+    assert "content-encoding" not in plain.headers
+    font = client.get("/excalidraw/fonts/f.woff2", headers=gz)
+    assert "content-encoding" not in font.headers
+
+    text = "words " * 1000
+    files = [("file", ("notes.txt", text.encode(), "text/plain"))]
+    ref = client.post("/api/captures", data={"id": new_ulid(), "text": text},
+                      files=files).json()  # fmt: skip
+    page = client.get(f"/api/pages/{ref['page_id']}", headers=gz)
+    assert page.headers["content-encoding"] == "gzip"  # JSON
+    sha = page.json()["captures"][0]["blobs"][0]["sha256"]
+    blob = client.get(f"/api/blobs/{sha}", headers=gz)
+    assert "content-encoding" not in blob.headers and blob.text == text
+    part = client.get(f"/api/blobs/{sha}", headers={**gz, "Range": "bytes=0-4"})
+    assert part.status_code == 206 and part.content == b"words"
+    zipped = client.get(f"/api/pages/{ref['page_id']}/download", headers=gz)
+    assert "content-encoding" not in zipped.headers
+
+
 def test_web_dir_overrides_the_packaged_pwa(tmp_path, monkeypatch):
     web = tmp_path / "web"
     web.mkdir()

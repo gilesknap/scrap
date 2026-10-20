@@ -4,8 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-const data = mkdtempSync(join(tmpdir(), "scrap-e2e-"));
+// Made once: test workers load this file again, and inherit it from the runner
+const data = process.env.SCRAP_E2E_DATA || mkdtempSync(join(tmpdir(), "scrap-e2e-"));
 const port = 8791;
+process.env.SCRAP_E2E_DATA = data; // whiteboard.spec.ts has e2e/draw.py add fixtures to it
 
 export default defineConfig({
   testDir: "e2e",

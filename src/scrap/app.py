@@ -25,6 +25,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt
 from starlette.datastructures import UploadFile
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__, backup, drawing, ingest, preview
@@ -127,6 +128,26 @@ class BodyLimit:
         await self.app(scope, counted, send)
 
 
+class TextGzip:
+    """Gzip what compresses: the PWA's scripts, styles and pages, and the API's JSON
+    (a drawing is up to 5 MB of it). Not files (blobs, previews, downloads: photos and
+    zips are compressed already, and they take range requests), nor fonts or images
+    (excluded by type), nor any range request."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=1024, compresslevel=6)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = scope.get("path", "")
+        files = path.startswith("/api/blobs/") or path.endswith("/download")
+        ranged = any(k == b"range" for k, _ in scope.get("headers", ()))
+        if scope["type"] != "http" or files or ranged:
+            await self.app(scope, receive, send)
+        else:
+            await self.gzip(scope, receive, send)
+
+
 class Shell(StaticFiles):
     """The built PWA. Hashed assets are cached for good; the rest is revalidated, so
     a new build's service worker and manifest are noticed."""
@@ -158,6 +179,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     app = FastAPI(title="scrap", version=__version__, lifespan=lifespan)
     app.state.worker = worker
     app.add_middleware(BodyLimit, limit=limit)
+    app.add_middleware(TextGzip)
 
     for exc, status in ERRORS.items():
 
