@@ -86,7 +86,7 @@ test("the preview is an inert image, the viewer is lazy and Back closes it", asy
   await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
   expect(loads).toHaveLength(1); // fetched for this page's preview, not on the other screens
   await expect(page.getByRole("status").filter({ hasText: "Read by Claude" })).toBeVisible();
-  await page.getByText("Text Claude read").click();
+  // Open from the start: its text shows without a tap
   await expect(page.getByText("retry with backoff", { exact: false }).first()).toBeVisible();
 
   // No live canvas on the page; a finger drag over the preview scrolls the page
@@ -274,8 +274,6 @@ test("every text of the drawing screens meets AA contrast, in both themes", asyn
     await page.emulateMedia({ colorScheme });
     await page.goto(`/p/${b.slug}`);
     await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
-    await page.getByText("Description").click();
-    await page.getByText("Text Claude read").click();
     await check(`${colorScheme} page: done, preview, tabs`);
     await page.getByRole("tab", { name: "Photo" }).click();
     await check(`${colorScheme} page: photo tab`);

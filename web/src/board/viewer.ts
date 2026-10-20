@@ -117,7 +117,12 @@ export function openDrawing(t: Target, onSaved: () => void) {
       board = await mount(host, current.data, changed);
       message.hidden = true;
       const kept = await drafts.get<Draft>(draftKey(t)).catch(() => undefined);
-      if (kept) edit.textContent = "Edit (unsaved draft)";
+      // A short mark on Edit (the bar has no room for words) and the words under the bar
+      edit.classList.toggle("dot", !!kept);
+      if (kept) {
+        edit.setAttribute("aria-label", "Edit (unsaved draft)");
+        note("restored", "You have an unsaved edit of this drawing: Edit to carry on.");
+      }
     } catch (err) {
       console.error("drawing viewer", err);
       message.replaceChildren(
@@ -158,7 +163,8 @@ export function openDrawing(t: Target, onSaved: () => void) {
       note("restored", "Restored your unsaved drawing. ", discard);
     }
     editing = true;
-    edit.textContent = "Edit";
+    edit.classList.remove("dot");
+    edit.removeAttribute("aria-label");
     board.setEditing(true);
     showTools();
   }

@@ -7,6 +7,7 @@ import { debugPanel } from "./debug";
 import { page } from "./page";
 import { recent } from "./recent";
 import { search } from "./search";
+import { trailOf } from "./swipe";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
@@ -55,7 +56,7 @@ document.addEventListener("click", (e) => {
   const a = (e.target as Element).closest("a");
   if (!a || a.origin !== location.origin || a.target || a.pathname.startsWith("/api/")) return;
   e.preventDefault();
-  go(a.pathname + a.search);
+  go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
 window.addEventListener("popstate", () => void render());
 

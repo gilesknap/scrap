@@ -24,14 +24,18 @@ export function stateText(i: Ingest, q: Queue | null): string {
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** A collapsed, selectable block of text Claude wrote. */
+/** A selectable block of text Claude wrote, open unless folded last time (remembered). */
 function block(summary: string, text: string, pre = false) {
-  return h(
+  const key = `scrap.fold.${summary}`;
+  const el = h(
     "details",
-    { className: "claude-text" },
+    { className: "claude-text", open: localStorage.getItem(key) !== "1" },
     h("summary", {}, summary),
     h(pre ? "pre" : "p", {}, text),
   );
+  // (opening it at creation fires a toggle too: removing a missing key changes nothing)
+  el.ontoggle = () => (el.open ? localStorage.removeItem(key) : localStorage.setItem(key, "1"));
+  return el;
 }
 
 export function photoPanel(o: {
@@ -62,11 +66,6 @@ export function photoPanel(o: {
       "figure",
       { className: "orig drawing" },
       drawingCard(t, { id: d.id, frame }, open),
-      h(
-        "figcaption",
-        {},
-        h("button", { type: "button", className: "link", onclick: open }, "Open drawing"),
-      ),
     );
     const pair = h("div", { className: "pair show-drawing" }, o.figure, drawing);
     const tabs = h("div", { className: "tabs", role: "tablist", "aria-label": "Show" });

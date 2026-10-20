@@ -11,12 +11,16 @@ export const queue = new Queue(
   () => navigator.onLine,
 );
 
-/** Navigate inside the app; main.ts renders on popstate. */
-export function go(path: string, replace = false) {
-  history[replace ? "replaceState" : "pushState"](null, "", path);
+/** Navigate inside the app; main.ts renders on popstate. The state rides in the history
+ * entry (e.g. the list a page was opened from). */
+export function go(path: string, replace = false, state: object | null = null) {
+  history[replace ? "replaceState" : "pushState"](state, "", path);
   window.scrollTo(0, 0);
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  rerender();
 }
+
+/** Show the current view again (main.ts renders on popstate). */
+export const rerender = () => window.dispatchEvent(new PopStateEvent("popstate"));
 
 /** Aborted when the view changes: views pass it to their event listeners. */
 export const view = { signal: new AbortController().signal };

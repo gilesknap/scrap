@@ -13,7 +13,9 @@ import {
 import { go, view } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
+import type { Trail } from "./gesture";
 import { icon } from "./icons";
+import { deletePage } from "./swipe";
 import { bodyView, download, h, settle, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -82,34 +84,15 @@ interface Draft {
   base: number; // the revision it was made on
 }
 
-const RAW = "scrap.raw"; // show page text as typed, not formatted
-
-/** The page text, formatted, with a switch to the text as typed (remembered). */
-function body(text: string) {
-  const box = h("div");
-  const draw = () => {
-    const raw = localStorage.getItem(RAW) === "1";
-    const flip = () => {
-      localStorage.setItem(RAW, raw ? "0" : "1");
-      draw();
-    };
-    box.replaceChildren(
-      bodyView(text, raw),
-      h(
-        "button",
-        { type: "button", className: "link", onclick: flip },
-        raw ? "Show formatted" : "Show raw text",
-      ),
-    );
-  };
-  draw();
-  return box;
-}
-
 export async function page(key: string): Promise<Node> {
+  const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
+  const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
   const p = await api<Page>(`pages/${encodeURIComponent(key)}`);
   const root = h("article", { className: "page" });
-  const signal = view.signal;
+  // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
+  const pager = state?.trail
+    ? (await import("./pager").catch(() => null))?.pager(state, p.slug, root, signal)
+    : null;
   let shown = p;
   let queue: Queue | null = null;
   let poll = 0;
@@ -156,6 +139,7 @@ export async function page(key: string): Promise<Node> {
     shown = p;
     schedule(p);
     root.replaceChildren(
+      pager ?? "",
       h("h1", { dir: "auto" }, p.title),
       h(
         "p",
@@ -163,7 +147,7 @@ export async function page(key: string): Promise<Node> {
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
       ),
-      body(p.body),
+      bodyView(p.body, false),
       h("div", { className: "originals" }, ...originals(p, queue, panels, () => void refresh())),
       h(
         "div",
@@ -267,26 +251,18 @@ export async function page(key: string): Promise<Node> {
     return b;
   }
 
-  const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
-
-  async function remove(p: Page) {
-    try {
-      await api(`pages/${p.id}`, { method: "DELETE" });
-    } catch (err) {
-      return toast(`Not deleted: ${why(err)}`);
-    }
-    go("/recent");
-    const undo = async () => {
-      try {
-        await api(`pages/${p.id}/undelete`, { method: "POST" });
-        go(`/p/${encodeURIComponent(p.slug)}`);
-      } catch (err) {
-        toast(`Undo failed: ${why(err)}`, "Try again", undo, 8000);
-      }
-    };
-    toast("Page deleted", "Undo", undo, 8000);
-  }
+  const remove = (p: Page) =>
+    deletePage(
+      p.id,
+      () => go("/recent"),
+      () => go(`/p/${encodeURIComponent(p.slug)}`),
+    );
 
   show(p);
+  if (state?.edit) {
+    // Edit from a list's row: straight into the editor (once: not again on Back or reload)
+    history.replaceState({ ...state, edit: false }, "");
+    void edit(p);
+  }
   return root;
 }

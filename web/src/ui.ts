@@ -1,4 +1,5 @@
 import { ApiError } from "./api";
+import { rerender } from "./app";
 import { type Icon, icon } from "./icons";
 import { markdown } from "./md";
 
@@ -115,8 +116,7 @@ export function problem(e: unknown): Node {
       : navigator.onLine
         ? "Can't reach the server. Check your connection or VPN."
         : "Offline: this needs the server.";
-  const again = () => window.dispatchEvent(new PopStateEvent("popstate"));
-  return empty("offline", why, h("button", { onclick: again }, icon("retry"), "Retry"));
+  return empty("offline", why, h("button", { onclick: rerender }, icon("retry"), "Retry"));
 }
 
 /** An image of a Blob on the phone; its object URL is freed once shown. */
