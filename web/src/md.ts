@@ -27,7 +27,9 @@ export function inline(raw: string): string {
       .replace(/(\*\*|__)(?=\S)(.+?)(?<=\S)\1/g, "<strong>$2</strong>")
       .replace(/(?<![\w*])\*(?=\S)(.+?)(?<=\S)\*(?![\w*])/g, "<em>$1</em>")
       .replace(/(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)/g, "<em>$1</em>");
-  s = s.replace(/(`+)(.+?)\1/g, (_, __, code: string) => keep(`<code>${code.trim()}</code>`));
+  s = s.replace(/(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)/g, (_, __, code: string) =>
+    keep(`<code>${code.trim()}</code>`),
+  );
   // No marker inside an address or alt text: only ever in text, so it is safe to restore
   s = s.replace(/!\[([^\]\uE000]*)\]\(([^)\s\uE000]+)\)/g, (m, alt: string, src: string) =>
     IMAGE.test(src) ? keep(`<img src="${src}" alt="${alt}" loading="lazy">`) : m,

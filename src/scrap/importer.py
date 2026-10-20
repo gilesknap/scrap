@@ -8,6 +8,7 @@ SCHEMA pages, and anything else that is not a page. See docs/how-to/import-a-vau
 
 import hashlib
 import mimetypes
+import os
 import posixpath
 import re
 from collections import Counter
@@ -64,13 +65,26 @@ SUBTYPE = {
     "music": "listen",
 }
 DRAWINGS = (".excalidraw", ".excalidraw.md")
+# Shown inline (the preview endpoint reads these); other images are attached as files
+PREVIEWABLE = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/bmp",
+    "image/tiff",
+    "image/heic",
+    "image/heif",
+}
+MAX_ALIASES = 64  # YAML aliases per page: refuse an alias bomb (Thoth uses a few)
 # One pass over a body: inline code (kept), wiki links and embeds, Markdown links and
-# images. Fenced code blocks are skipped before this.
+# images. Fenced code blocks are skipped before this. A code span's backtick runs are
+# whole runs, so a long run of backticks is not tried every way it could be split.
 TOKEN = re.compile(
-    r"(?P<code>`+)[^\n]*?(?P=code)"
-    r"|(?P<wbang>!?)\[\[(?P<wiki>[^\]\n]+)\]\]"
-    r"|(?P<bang>!?)\[(?P<text>[^\]\n]*)\]"
-    r"\((?P<href><[^>\n]+>|[^)\s]+)(?:\s+\"[^\"\n]*\")?\)"
+    r"(?<!`)(?P<code>`+)(?!`)[^\n]*?(?<!`)(?P=code)(?!`)"
+    r"|(?P<wbang>!?)\[\[(?P<wiki>[^\[\]\n]+)\]\]"
+    r"|(?P<bang>!?)\[(?P<text>[^\[\]\n]*)\]"
+    r"\((?P<href><[^<>\n]+>|[^()\s]+)(?:\s+\"[^\"\n]*\")?\)"
 )
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 
@@ -99,16 +113,33 @@ class Plan:
     pages: list[Page] = field(default_factory=list)
     issues: dict[str, list[str]] = field(default_factory=dict)  # what, ["path: detail"]
     sha: dict[str, str] = field(default_factory=dict)  # asset path -> SHA-256
+    limit: int = 50 << 20  # largest file imported
 
     def note(self, what: str, path: str, detail: str = "") -> None:
         self.issues.setdefault(what, []).append(f"{path}: {detail}" if detail else path)
 
 
+class _Loader(yaml.SafeLoader):
+    """safe_load with a cap on aliases."""
+
+    aliases = 0
+
+    def compose_node(self, parent: Any, index: Any) -> Any:
+        if self.check_event(yaml.AliasEvent):
+            self.aliases += 1
+            if self.aliases > MAX_ALIASES:
+                raise yaml.YAMLError("too many aliases")
+        return super().compose_node(parent, index)
+
+
 def _stamp(value: Any) -> str | None:
-    """An ISO 8601 UTC time from a YAML date or datetime (or a string of one)."""
+    """An ISO 8601 UTC time from a YAML date or datetime (or a string of one); a date
+    alone is noon UTC."""
     if isinstance(value, str):
+        text = value.strip()
         try:
-            value = datetime.fromisoformat(value.strip())
+            value = date.fromisoformat(text) if len(text) == 10 else None
+            value = value or datetime.fromisoformat(text)
         except ValueError:
             return None
     if isinstance(value, datetime):
@@ -128,18 +159,19 @@ def _ulid(key: str) -> str:
     return "".join(CROCKFORD[(n >> shift) & 31] for shift in range(125, -1, -5))
 
 
-def _front(text: str) -> tuple[dict[str, Any] | None, str]:
-    """The front matter (None if there is none) and the body."""
+def _front(text: str) -> tuple[dict[str, Any] | None, str, str]:
+    """The front matter (None if there is none), the body, and why the front matter
+    could not be read ("" if it could, or there is none)."""
     if text.startswith("---\n"):
-        head, sep, body = (text[4:] + "\n").partition("\n---\n")
+        head, sep, body = ("\n" + text[4:] + "\n").partition("\n---\n")
         if sep:
             try:
-                fm = yaml.safe_load(head)
-            except yaml.YAMLError:
-                fm = None
+                fm = yaml.load(head, _Loader) or {}  # _Loader is a SafeLoader
+            except (yaml.YAMLError, ValueError) as e:  # ValueError: a bad date
+                return None, text, str(e).splitlines()[0][:80]
             if isinstance(fm, dict):
-                return fm, body
-    return None, text
+                return fm, body.removesuffix("\n"), ""
+    return None, text, ""
 
 
 def _skipped_dir(part: str) -> bool:
@@ -147,19 +179,27 @@ def _skipped_dir(part: str) -> bool:
 
 
 def _read(plan: Plan, rel: str, path: Path) -> Page | None:
-    text = lines(path.read_text(encoding="utf-8", errors="replace"))
-    fm, body = _front(text)
+    try:
+        text = lines(path.read_text(encoding="utf-8", errors="replace"))
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+    except OSError as e:
+        plan.note("unreadable", rel, e.strerror or type(e).__name__)
+        return None
+    fm, body, why = _front(text)
+    if why:
+        plan.note("bad front matter", rel, why)
     if fm is None:
         plan.note("no front matter", rel)
         fm = {}
     folder = rel.split("/")[0] if "/" in rel else ""
     thoth = fm.get("type")
-    if thoth is not None and thoth not in KINDS:
-        plan.note("skipped", rel, f"type {thoth}")
+    if thoth is not None and (not isinstance(thoth, str) or thoth not in KINDS):
+        plan.note("skipped", rel, f"type {thoth if isinstance(thoth, str) else '?'}")
         return None
     kind = KINDS.get(thoth or "", FOLDERS.get(folder, "note"))
     heading = re.match(r"\s*# (.+)\n?", body)
-    title = " ".join(str(fm.get("title") or "").split())
+    title = fm.get("title")  # a scalar: a list could be an alias bomb
+    title = " ".join(str(title).split()) if isinstance(title, str | int | float) else ""
     title = title or (heading[1].strip() if heading else Path(rel).stem)
     if heading and heading[1].strip() == title:  # the page shows its title already
         body = body[heading.end() :]
@@ -188,20 +228,28 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
     tags: list[str] = []
     raw_tags = fm.get("tags") or []
     for tag in raw_tags if isinstance(raw_tags, list) else [raw_tags]:
+        if not isinstance(tag, str | int) or isinstance(tag, bool):
+            plan.note("tag dropped", rel, type(tag).__name__)
+            continue
         new = " ".join(str(tag).split()).lstrip("#").lower()[:64].strip()
         if new != str(tag):
             plan.note("tag changed", rel, f"{tag!r} -> {new!r}")
         if new and new not in tags:
             tags.append(new)
-    mtime = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+    stamps = {}
+    for key in ("created", "updated", "memory_date"):
+        if fm.get(key) is not None:
+            stamps[key] = _stamp(fm[key])
+            if stamps[key] is None:
+                plan.note("invalid date", rel, key)
     created = (
-        _stamp(fm.get("created"))
-        or _stamp(fm.get("memory_date"))
-        or _stamp(fm.get("updated"))
+        stamps.get("created")
+        or stamps.get("memory_date")
+        or stamps.get("updated")
         or _stamp(mtime)
     )
     assert created
-    updated = max(_stamp(fm.get("updated")) or created, created)
+    updated = max(stamps.get("updated") or created, created)
     return Page(rel, text, title, kind, fields, tags, created, updated, body)
 
 
@@ -212,6 +260,7 @@ class _Linker:
         self.plan, self.files, self.pages = plan, files, pages
         self.by_name: dict[str, list[str]] = {}
         self.by_slug: dict[str, Page] = {}
+        self.bad: set[str] = set()  # images and PDFs too large or unreadable
         for rel in sorted(files, key=lambda r: (r.count("/"), r)):
             self.by_name.setdefault(posixpath.basename(rel).lower(), []).append(rel)
         for page in pages.values():
@@ -222,7 +271,22 @@ class _Linker:
         """The vault path a link names, and whether it was only found by its name."""
         if wiki:  # Obsidian: by name, wherever it is
             name = posixpath.basename(target).lower()
-            got = self.by_name.get(name) or self.by_name.get(name + ".md")
+            got = self.by_name.get(name) or self.by_name.get(name + ".md") or []
+            here = posixpath.dirname(src)
+            # imported pages first, then the linking page's folder, then any but
+            # dropped ones, nearest the top first
+            got = sorted(
+                got,
+                key=lambda r: (
+                    r not in self.pages,
+                    posixpath.dirname(r) != here,
+                    _skipped_dir(r.split("/")[0]) if "/" in r else False,
+                    r.count("/"),
+                    r,
+                ),
+            )
+            if len(got) > 1:
+                self.plan.note("ambiguous link", src, f"{target} -> {got[0]}")
             return (got[0] if got else None), False
         for base in (posixpath.dirname(src), ""):
             rel = posixpath.normpath(posixpath.join(base, target))
@@ -235,14 +299,27 @@ class _Linker:
         return None, False
 
     def asset(self, page: Page, rel: str) -> str | None:
-        """Attach an image or PDF to the page; its SHA-256, or None if neither."""
+        """Attach an image or PDF to the page; its SHA-256, or None if it is neither,
+        or cannot be read (reported)."""
         mime = mimetypes.guess_type(rel)[0] or ""
         if not (mime.startswith("image/") or mime == "application/pdf"):
             return None
+        if rel in self.bad:
+            return None
         if rel not in self.plan.sha:
-            data = self.files[rel].read_bytes()
-            self.plan.sha[rel] = hashlib.sha256(data).hexdigest()
-        attached = page.images if mime.startswith("image/") else page.files
+            self.bad.add(rel)  # until it is read
+            try:
+                if self.files[rel].stat().st_size > self.plan.limit:
+                    self.plan.note("too large", rel, f"over {self.plan.limit >> 20} MB")
+                    return None
+                with open(self.files[rel], "rb") as f:
+                    sha = hashlib.file_digest(f, "sha256").hexdigest()
+            except OSError as e:
+                self.plan.note("unreadable", rel, e.strerror or type(e).__name__)
+                return None
+            self.plan.sha[rel] = sha
+            self.bad.discard(rel)
+        attached = page.images if mime in PREVIEWABLE else page.files
         if rel not in attached:
             attached.append(rel)
         return self.plan.sha[rel]
@@ -263,7 +340,7 @@ class _Linker:
             target = unquote(target.split("#")[0])
         name = posixpath.basename(target) or target
         if not target:  # #anchor: within the page
-            return label
+            return label or (m["wiki"] or "").lstrip("#").strip()
         rel, by_name = self.find(page.path, target, wiki)
         if rel is None:
             what = "missing file" if embed else "broken link"
@@ -273,7 +350,7 @@ class _Linker:
             self.plan.note("link found by name", page.path, target)
         if rel in self.pages:
             linked = self.pages[rel]
-            label = label or linked.title
+            label = label or linked.title.replace("]", ")")  # ends no link early
             if label == linked.slug:
                 return f"[[{label}]]"
             return f"[[{linked.slug}|{label}]]"
@@ -282,7 +359,8 @@ class _Linker:
             return label or name
         sha = self.asset(page, rel)
         if sha is None:
-            self.plan.note("file not imported", page.path, rel)
+            if rel not in self.bad:
+                self.plan.note("file not imported", page.path, rel)
             return f"*{name} (not imported)*"
         if embed and rel in page.images:
             return f"![{label}](/api/blobs/{sha}/preview?size=2048)"
@@ -308,11 +386,17 @@ class _Linker:
 def plan(vault: Path, store: Store) -> Plan:
     """Read the vault and work out every page, its slug and its rewritten body.
     Writes nothing; slugs already in store are avoided."""
-    result = Plan(vault)
+    limit = int(float(os.environ.get("SCRAP_MAX_UPLOAD_MB", "50")) * 2**20)
+    result = Plan(vault, limit=limit)
+    root = vault.resolve()
     files: dict[str, Path] = {}
     for path in sorted(vault.rglob("*")):
         rel = path.relative_to(vault).as_posix()
-        if path.is_file() and not any(p.startswith(".") for p in rel.split("/")):
+        if any(p.startswith(".") for p in rel.split("/")):
+            continue
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            result.note("symlink skipped", rel)  # never read outside the vault
+        elif path.is_file():
             files[rel] = path
     pages: dict[str, Page] = {}
     dropped: Counter[str] = Counter()
@@ -398,13 +482,17 @@ def run(store: Store, plan: Plan, ingest: bool = False, author: str = "import") 
 def report(plan: Plan, details: bool) -> str:
     """Counts of pages by kind and of every kind of issue, and with details each one."""
     kinds = Counter(p.kind for p in plan.pages)
+    folders = Counter(
+        p.path.split("/")[0] if "/" in p.path else "." for p in plan.pages
+    )
     new = sum(p.new for p in plan.pages)
     images = len({r for p in plan.pages for r in p.images})
-    pdfs = len({r for p in plan.pages for r in p.files})
+    files = len({r for p in plan.pages for r in p.files})
+    each = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
     out = [
-        f"{len(plan.pages)} pages ({new} new): "
-        + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())),
-        f"{images} images and {pdfs} PDFs attached;"
+        f"{len(plan.pages)} pages ({new} new)" + (f": {each}" if each else ""),
+        "by folder: " + ", ".join(f"{k}/ {n}" for k, n in sorted(folders.items())),
+        f"{images} images shown inline and {files} other files attached;"
         f" {sum(len(p.tags) for p in plan.pages)} tags",
     ]
     for what, items in sorted(plan.issues.items()):

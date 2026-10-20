@@ -409,3 +409,13 @@ def test_share_fallback_lifts_a_link_from_text(client):
     [page] = client.get("/api/pages").json()
     capture = client.get(f"/api/pages/{page['id']}").json()["captures"][0]
     assert (capture["text"], capture["url"]) == ("A story", "https://e.com/s")
+
+
+def test_search_ignores_addresses_in_links(client, note):
+    note("Links\nsee [the docs](https://docs.example.org/guide) and [[other|a label]]")
+
+    def hit(q):
+        return [h["title"] for h in client.get("/api/search", params={"q": q}).json()]
+
+    assert hit("docs") == ["Links"] and hit("label") == ["Links"]
+    assert hit("example") == [] and hit("guide") == [] and hit("other") == []

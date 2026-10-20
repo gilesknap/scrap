@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 
 import pytest
 
@@ -271,3 +272,128 @@ def test_cli_dry_run_writes_nothing(tmp_path, vault, capsys):
     assert "imported 9 pages" in capsys.readouterr().out
     with pytest.raises(SystemExit, match="no folder"):
         main(["import", "--data-dir", str(data), str(tmp_path / "none")])
+
+
+def edge_plan(tmp_path, root):
+    store = Store(tmp_path / "data")
+    plan = importer.plan(root, store)
+    importer.run(store, plan)
+    return store, plan
+
+
+def test_dates_and_front_matter(tmp_path):
+    root = tmp_path / "v"
+    write(root, "notes/quoted.md", '---\ncreated: "2024-03-01"\n---\nq\n')
+    write(root, "notes/stamp.md", '---\ncreated: "2024-03-01T10:00:00+02:00"\n---\n')
+    write(root, "notes/bad.md", "---\ntype: entity\ncreated: 2024-13-45\n---\nb\n")
+    write(root, "notes/junk.md", '---\ncreated: "garbage"\nupdated: 2024-05-05\n---\n')
+    write(root, "notes/empty.md", "---\n---\nbody only\n")
+    store, plan = edge_plan(tmp_path, root)
+    assert store.page("quoted")["created_at"] == "2024-03-01T12:00:00.000Z"
+    assert store.page("stamp")["created_at"] == "2024-03-01T08:00:00.000Z"
+    assert store.page("junk")["created_at"] == "2024-05-05T12:00:00.000Z"
+    bad = store.page("bad")  # imported as if it had no front matter
+    assert bad["kind"] == "note" and bad["body"].startswith("---\ntype: entity")
+    assert store.page("empty")["body"] == "body only"
+    assert plan.issues["invalid date"] == ["notes/junk.md: created"]
+    assert [i.split(":")[0] for i in plan.issues["bad front matter"]] == [
+        "notes/bad.md"
+    ]
+    assert plan.issues["no front matter"] == ["notes/bad.md"]
+
+
+def test_embeds_anchors_and_ambiguous_names(tmp_path):
+    root = tmp_path / "v"
+    write(root, "raw/assets/my pic.png", PNG)
+    write(root, "raw/assets/logo.svg", b"<svg/>")
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "![[my pic.png]] ![](../raw/assets/my%20pic.png) ![](../raw/assets/logo.svg)"
+        "\n[sec](dup.md#part) [[#A heading]] [[dup]] [[other]] [[odd]]\n",
+    )
+    write(root, "notes/dup.md", front(title="Dup in notes"))
+    write(root, "memories/dup.md", front(title="Dup in memories", type="memory"))
+    write(root, "inbox/other.md", "held\n")
+    write(root, "media/other.md", front(title="Other", type="media"))
+    write(root, "entities/odd.md", front(title="Odd ] title", type="entity"))
+    store, plan = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    inline = f"![](/api/blobs/{SHA}/preview?size=2048)"
+    assert body.startswith(f"![]({inline[4:]} {inline} *logo.svg (attached)*")
+    assert "[[dup-2|sec]] A heading [[dup-2|Dup in notes]] [[other|Other]]" in body
+    assert "[[odd|Odd ) title]]" in body
+    files = [
+        (c["kind"], [b["filename"] for b in c["blobs"]])
+        for c in store.page("page")["captures"]
+    ]
+    assert files == [("photo", ["my pic.png"]), ("file", ["logo.svg"])]
+    assert sorted(plan.issues["ambiguous link"]) == [
+        "notes/page.md: dup -> notes/dup.md",
+        "notes/page.md: other -> media/other.md",
+    ]
+
+
+def test_symlinks_unreadable_and_large_files_are_skipped(tmp_path, monkeypatch):
+    root, outside = tmp_path / "v", tmp_path / "secret.png"
+    outside.write_bytes(b"not in the vault")
+    write(root, "raw/assets/big.png", b"x" * 2048)
+    write(
+        root,
+        "notes/page.md",
+        "![](../raw/assets/link.png) ![](../raw/assets/big.png)\n",
+    )
+    (root / "raw/assets/link.png").symlink_to(outside)
+    (root / "notes/linked.md").symlink_to(outside)
+    monkeypatch.setenv("SCRAP_MAX_UPLOAD_MB", "0.001")
+    store, plan = edge_plan(tmp_path, root)
+    assert sorted(plan.issues["symlink skipped"]) == [
+        "notes/linked.md",
+        "raw/assets/link.png",
+    ]
+    assert plan.issues["missing file"] == ["notes/page.md: ../raw/assets/link.png"]
+    assert plan.issues["too large"] == ["raw/assets/big.png: over 0 MB"]
+    assert "file not imported" not in plan.issues
+    assert [p.path for p in plan.pages] == ["notes/page.md"]
+    with store.connect() as conn:
+        assert conn.execute("SELECT count(*) FROM blob").fetchone()[0] == 0
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads anything")
+def test_an_unreadable_page_is_reported(tmp_path):
+    root = tmp_path / "v"
+    write(root, "notes/ok.md", "fine\n")
+    write(root, "notes/locked.md", "secret\n")
+    (root / "notes/locked.md").chmod(0)
+    try:
+        _, plan = edge_plan(tmp_path, root)
+    finally:
+        (root / "notes/locked.md").chmod(0o644)
+    assert [p.path for p in plan.pages] == ["notes/ok.md"]
+    assert plan.issues["unreadable"] == ["notes/locked.md: Permission denied"]
+
+
+def test_odd_tags_and_alias_bombs(tmp_path):
+    root = tmp_path / "v"
+    write(root, "notes/tags.md", "---\ntags: [null, 7, [x], ok]\n---\n")
+    bomb = "\n".join(
+        ["a0: &a0 [x, x, x, x, x, x, x, x, x, x]"]
+        + [f"a{i}: &a{i} [{', '.join([f'*a{i - 1}'] * 10)}]" for i in range(1, 8)]
+    )
+    write(root, "notes/bomb.md", f"---\n{bomb}\ntags: [*a7]\n---\n")
+    store, plan = edge_plan(tmp_path, root)
+    assert store.page("tags")["tags"] == ["7", "ok"]
+    assert plan.issues["tag dropped"] == [
+        "notes/tags.md: NoneType",
+        "notes/tags.md: list",
+    ]
+    assert plan.issues["bad front matter"] == ["notes/bomb.md: too many aliases"]
+
+
+def test_search_ignores_link_and_image_addresses(tmp_path, vault):
+    store, _ = imported(tmp_path, vault)
+    assert store.search("preview", 5) == [] and store.search("2048", 5) == []
+    assert store.search("api blobs", 5) == [] and store.search("example", 5) == []
+    assert [h["slug"] for h in store.search("chart", 5)] == ["alpha"]  # alt text
+    assert [h["slug"] for h in store.search("wiki beta", 5)] == ["alpha"]  # label

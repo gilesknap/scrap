@@ -26,6 +26,8 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 BARE_URL = re.compile(r"https?://\S+")
 WORD = re.compile(r"[^\W_]")  # a letter or digit
 MAX_WORDS = 16  # search words used
+MD_LINK = re.compile(r"!?\[([^\]\n]*)\]\([^)\s]*(?:\s+\"[^\"\n]*\")?\)")
+WIKI_LINK = re.compile(r"\[\[([^\]|\n]+)(?:\|([^\]\n]+))?\]\]")
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 HINT_FIELDS = {
@@ -71,6 +73,13 @@ def now() -> str:
 def new_ulid() -> str:
     n = (int(time.time() * 1000) << 80) | secrets.randbits(80)
     return "".join(CROCKFORD[(n >> shift) & 31] for shift in range(125, -1, -5))
+
+
+def unlink(text: str) -> str:
+    """Markdown text with each link or image reduced to its label, and a page link to
+    its label (else slug): addresses are not words to search for."""
+    text = WIKI_LINK.sub(lambda m: m[2] or m[1], text)
+    return MD_LINK.sub(r"\1", text)
 
 
 def slug_base(title: str) -> str:
@@ -382,7 +391,7 @@ class Store:
         # with \x02 and \x03. Each becomes a space, so a lone \r or \v still
         # separates two words.
         text = body if body.startswith(title) else f"{title}\n\n{body}"
-        text = CONTROL.sub(" ", text)
+        text = CONTROL.sub(" ", unlink(text))
         conn.execute(  # derived text has chunks of its own
             "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
         )

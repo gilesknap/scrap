@@ -12,15 +12,15 @@ no model unless you ask it to.
    cp -a /path/to/vault ~/vault-copy
    ```
 
-2. Look before you write. `--dry-run` writes nothing and lists every page it would import and
-   every problem it found, one per line, under a count:
+2. Look before you write. `--dry-run` writes nothing. It prints the pages it would import as
+   counts (by kind and by folder), then every problem it found, one per line, under a count:
 
    ```sh
    scrap import --dry-run --data-dir ./data ~/vault-copy
    ```
 
-3. Import. Stopping scrap first is safest, though it is not required: each page is one
-   transaction, as a capture is.
+3. Import. Stop scrap first: slugs are worked out before anything is written, so a page
+   captured meanwhile can take one and stop the import (running it again carries on).
 
    ```sh
    scrap import --data-dir ./data ~/vault-copy
@@ -44,10 +44,13 @@ no model unless you ask it to.
 | `created`, `updated` (no `created`: `memory_date`, else the file's time) | `created_at`, `updated_at` and the time of revision 1; a date alone is taken as noon UTC, so it is the same day in any time zone |
 | `tags` | Tags, lower-cased and cut to 64 characters |
 | `status` (`todo` becomes `open`), `due_date` or `due` (as `due`), `priority` (lower-cased), `media_type`, `url` or `source_url` (as `source`), `memory_date`, `summary`, `personal` | `fields`, over the kind's defaults (a todo's `status` is `open`); a consume page also gets `subtype` (`read`, `watch` or `listen`) from `media_type` |
-| `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA |
-| `![](../raw/assets/x.png)` and `![[x.png]]` | The image, stored with the page (a photo capture) and shown where it was, not again among the page's files |
+| `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA. A path is tried from the linking page's folder, then from the top. A wiki name found in several places prefers an imported page, then the linking page's folder, and never `raw/` or `inbox/` over a content folder |
+| `![](../raw/assets/x.png)` and `![[x.png]]` | The image, stored with the page (a photo capture) and shown where it was, not again among the page's files. An image the PWA cannot preview (SVG) is attached as a file instead |
 | A PDF embedded or linked | Attached to the page as a file |
 | The page file as it is | Kept as its capture's text |
+
+Symbolic links are never followed, and nothing outside `DIR` is read. Search ignores the addresses
+of links and images (it indexes their labels and alt text).
 
 Not imported: `raw/` and `inbox/` (except the images and PDFs pages use), every folder starting
 `.` or `_`, the top `index.md`, `log.md` and `SCHEMA.md`, pages of any other `type` (such as
@@ -69,4 +72,9 @@ are dropped, Thoth's `source` among them (the original stays in the capture's te
 | `unmapped field` | A front matter field scrap has no field for: dropped |
 | `unknown status` | A status other than `open`, `in_progress`, `done` or `cancelled`: kept as it is |
 | `no front matter` | Imported anyway, with its folder's kind and the file's time |
+| `bad front matter` | Front matter that is not valid YAML (an impossible date such as `2024-13-45`, or more than 64 aliases): the page is imported as if it had none |
+| `invalid date` | A `created`, `updated` or `memory_date` that is not a date: the next one is used, else the file's time |
+| `ambiguous link` | A wiki name that matches several files, and the one chosen |
+| `tag dropped` | A tag that is not text or a number (empty, a list) |
+| `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
 | `skipped`, `dropped folder` | Files left out, and why |
