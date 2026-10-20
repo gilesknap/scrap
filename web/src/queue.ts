@@ -29,10 +29,15 @@ export interface Item extends Capture {
 /** POST the item; resolve to the HTTP status and the server's reason, or reject. */
 export type Send = (item: Item) => Promise<{ status: number; detail?: string }>;
 
-/** Run fn holding the queue lock, so two open tabs never send the same item at once. */
-export type Lock = (fn: () => Promise<void>) => Promise<void>;
-const webLock: Lock = (fn) =>
-  globalThis.navigator?.locks ? navigator.locks.request("scrap-queue", fn) : fn();
+/** Run fn holding the queue lock, so two open tabs never send the same item at once;
+ * resolves true once it ran. ifFree: skip fn (resolve false at once) if another tab holds it. */
+export type Lock = (fn: () => Promise<void>, ifFree?: boolean) => Promise<boolean>;
+const webLock: Lock = (fn, ifFree = false) =>
+  globalThis.navigator?.locks
+    ? navigator.locks.request("scrap-queue", { ifAvailable: ifFree }, (l) =>
+        l ? fn().then(() => true) : false,
+      )
+    : fn().then(() => true);
 
 export const backoff = (attempts: number) => Math.min(5 * 60_000, 2000 * 2 ** attempts);
 
@@ -90,6 +95,21 @@ export class Queue {
     return this.running;
   }
 
+  /** The app opened, came back into view or online: send what is waiting now, backoff or
+   * not (failed items stay failed). No second attempt on top of an upload already running:
+   * here, it joins it; in another tab, it waits for that tab's lock and then sends what is
+   * due, as a flush does (if that tab died holding it, the lock comes free). */
+  nudge(): Promise<void> {
+    this.running ??= this.lock(() => this.sendDue(true), true)
+      .then(async (ran) => {
+        if (!ran) await this.run(); // not flush(): that would wait on this very promise
+      })
+      .finally(() => {
+        this.running = undefined;
+      });
+    return this.running;
+  }
+
   /** Tap to retry: failed and waiting items (or just the one with id) are due now. */
   async retry(id?: string): Promise<void> {
     await this.running;
@@ -116,18 +136,20 @@ export class Queue {
     this.onchange();
   }
 
-  private run() {
-    return this.lock(() => this.sendDue());
+  private async run() {
+    await this.lock(() => this.sendDue());
   }
 
-  private async sendDue() {
+  private async sendDue(now = false) {
     clearTimeout(this.timer);
     if (!this.online()) return; // no timer: the "online" event flushes again
     for (const item of await this.items()) {
-      if (item.failed || item.next > this.now()) continue;
+      if (item.failed || (!now && item.next > this.now())) continue;
       const { status, detail } = await this.send(item).catch((e) => ({
         status: 0,
-        detail: e?.name === "TimeoutError" ? "timed out" : "offline",
+        // A dropped upload while the phone says it is online is not "offline"
+        detail:
+          e?.name === "TimeoutError" ? "timed out" : this.online() ? "connection lost" : "offline",
       }));
       if (status === 200 || status === 201) {
         await this.store.del(item.id);

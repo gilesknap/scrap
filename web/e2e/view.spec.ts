@@ -575,16 +575,28 @@ test("placeholders stop pulsing once photos load, or fail", async ({ page }) => 
   );
   form.append("file", new Blob(["<svg/>"], { type: "image/svg+xml" }), "x.svg"); // no preview
   const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
-  const running = () =>
-    page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);
-  for (const path of ["/recent", `/p/${slug}`]) {
+  // Only this capture's row and page: other specs' photos may still be loading on a busy box
+  const settled = (scope: string) =>
+    page.evaluate((scope) => {
+      const root = document.querySelector(scope);
+      if (!root) return "no view yet"; // Loading… is shown while the view waits
+      const images = [...root.querySelectorAll("img")];
+      if (!images.length || !images.every((i) => i.complete && i.naturalWidth)) return "loading";
+      const pulsing = document
+        .getAnimations()
+        .filter((a) => a.playState === "running")
+        .filter((a) => {
+          const el = (a.effect as KeyframeEffect | null)?.target;
+          return el instanceof Element && root.contains(el);
+        });
+      return pulsing.length ? `${pulsing.length} pulsing` : "settled";
+    }, scope);
+  for (const [path, scope] of [
+    ["/recent", `.list li:has(a[href="/p/${slug}"])`],
+    [`/p/${slug}`, ".page"],
+  ]) {
     await page.goto(path);
-    await expect
-      .poll(() =>
-        page.evaluate(() => [...document.images].every((i) => i.complete && i.naturalWidth)),
-      )
-      .toBe(true);
-    await expect.poll(running, { message: path }).toBe(0);
+    await expect.poll(() => settled(scope), { message: path, timeout: 15_000 }).toBe("settled");
   }
 });
 
