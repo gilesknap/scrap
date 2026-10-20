@@ -184,7 +184,7 @@ Tap the drawing to open it full screen:
   search, tap a chip of the query's own filters to take it out. The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
-  too), `is:personal`, `is:work` (a page not marked personal), `is:done` (any status), `after:1w` or
+  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `is:done` (any status), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
   for when it was made). The chip row also has **Tags** (browse them), **1w**, **1m**, **1y**
   and **Dates…** (pick a From and a To).

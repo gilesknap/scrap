@@ -44,7 +44,7 @@ export interface Page extends Summary {
   body: string;
   rev: number;
   tags: string[];
-  captures: { id: string; url: string | null; blobs: FileRef[] }[];
+  captures: { id: string; url: string | null; source: string; blobs: FileRef[] }[];
 }
 export interface Hit
   extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb"> {
