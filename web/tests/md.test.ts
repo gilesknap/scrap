@@ -69,9 +69,9 @@ describe("markdown", () => {
 
   it("shows images only from this server's files", () => {
     expect(inline(`![photo](/api/blobs/${SHA})`)).toBe(
-      `<img src="/api/blobs/${SHA}" alt="photo" loading="lazy">`,
+      `<img src="/api/blobs/${SHA}" alt="photo" loading="lazy" data-sha="${SHA}">`,
     );
-    expect(inline(`![](/api/blobs/${SHA}/preview?size=480)`)).toContain("<img");
+    expect(inline(`![](/api/blobs/${SHA}/preview?size=480)`)).toContain(`data-sha="${SHA}"`);
     expect(inline("![x](https://evil.example/t.png)")).not.toContain("<img");
     expect(inline(`![x](/api/blobs/${SHA}/../../x)`)).not.toContain("<img");
   });
@@ -100,12 +100,13 @@ describe("markdown", () => {
     const ALLOWED = /^(p|br|h[1-6]|strong|em|code|pre|ul|ol|li|blockquote|hr|a|img)$/;
     for (const [, name, attrs] of html.matchAll(/<\/?([^\s>/]+)([^>]*)>/g)) {
       expect(name).toMatch(ALLOWED);
-      const pairs = [...attrs.matchAll(/ ([a-z]+)="([^"]*)"/g)];
+      const pairs = [...attrs.matchAll(/ ([a-z-]+)="([^"]*)"/g)];
       expect(pairs.map((p) => p[0]).join("")).toBe(attrs); // nothing but name="value"
       for (const [, attr, value] of pairs) {
-        expect(["href", "target", "rel", "src", "alt", "loading"]).toContain(attr);
+        expect(["href", "target", "rel", "src", "alt", "loading", "data-sha"]).toContain(attr);
         if (attr === "href") expect(value).toMatch(/^(https?:\/\/|mailto:)/);
         if (attr === "src") expect(value).toMatch(/^\/api\/blobs\/[0-9a-f]{64}/);
+        if (attr === "data-sha") expect(value).toMatch(/^[0-9a-f]{64}$/);
       }
     }
   });

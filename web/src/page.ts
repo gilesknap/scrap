@@ -1,84 +1,35 @@
-// One page: its text and originals, edit (with conflict handling) and delete with undo.
-import {
-  ApiError,
-  api,
-  blobUrl,
-  type FileRef,
-  type Ingest,
-  type Page,
-  previewUrl,
-  type Queue,
-  setStatus,
-  shareable,
-} from "./api";
+// One page: its text (its images as figures) and other files, edit (with conflict handling)
+// and delete with undo.
+import { ApiError, api, blobUrl, type Page, type Queue, setStatus } from "./api";
 import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
-import { bodyView, download, h, settle, share, toast, when } from "./ui";
-import { type Photo, viewer } from "./viewer";
+import { bodyView, download, h, share, toast, when } from "./ui";
 
-const isImage = (f: FileRef) => f.mime.startsWith("image/");
-type Placed = FileRef & { cid: string };
+/** Text to share: without lines that only embed this server's images (not for other apps). */
+const unembedded = (body: string) =>
+  body
+    .replace(/^!\[[^\]\n]*\]\(\/api\/blobs\/[^)\s]+\)[ \t]*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 const POLL = 10_000; // while Claude has a photo of this page
 
-/** The page's files: photos open the viewer (at photo n), other files a new tab. A photo
- * Claude has seen (or will) gets its panel: state, text, description and drawing. */
-type Panels = typeof import("./ingest");
-
-function originals(p: Page, queue: Queue | null, panels: Panels | null, refresh: () => void) {
-  // An image the text embeds is shown there only, unless Claude has (or will have) a panel for it
-  const embedded = (f: FileRef) =>
-    isImage(f) &&
-    !f.ingest &&
-    new RegExp(`!\\[[^\\]\\n]*\\]\\(/api/blobs/${f.sha256}[/)]`).test(p.body);
-  const files: Placed[] = p.captures
-    .flatMap((c) => c.blobs.map((b) => ({ ...b, cid: c.id })))
-    .filter((f) => !embedded(f));
-  const photos: Photo[] = files.filter(isImage).map((f) => ({
-    src: previewUrl(f.sha256, 2048),
-    save: `${blobUrl(f.sha256)}?download=1`,
-    name: f.filename || "",
-    share: shareable(f),
-  }));
-  let n = 0;
-  return files.map((f) => {
-    const href = blobUrl(f.sha256);
-    const save = download(`${href}?download=1`, "save");
-    const name = f.filename || f.mime;
-    const link = () =>
-      h("a", { href, target: "_blank", className: "file" }, icon("file"), h("span", {}, name));
-    if (!isImage(f)) return h("div", { className: "orig" }, link(), save);
-    const at = n++;
-    const img = settle(h("img", { src: photos[at].src, alt: f.filename || "", loading: "lazy" }));
-    const open = (e: Event) => {
-      e.preventDefault();
-      viewer(photos, at);
-    };
-    const shown = h("a", { href, onclick: open }, img);
-    const fig = h(
-      "figure",
-      { className: "orig" },
-      shown,
-      h("figcaption", {}, h("span", {}, f.filename ?? ""), save),
-    );
-    img.onerror = () => fig.replaceWith(h("div", { className: "orig" }, link(), save)); // no preview
-    if (!f.ingest || !panels) return fig;
-    const blob = f as Placed & { ingest: Ingest };
-    const photo = photos[at].src;
-    return panels.photoPanel({
-      cid: f.cid,
-      blob,
-      figure: fig,
-      photo,
-      slug: p.slug,
-      queue,
-      refresh,
-    });
-  });
-}
+/** The page's images as figures, with what Claude made of them: a chunk of its own. */
+type Figures = typeof import("./figure");
+const hasFiles = (p: Page) =>
+  p.captures.some((c) => c.blobs.length) || p.body.includes("](/api/blobs/");
+/** Without that chunk (offline): its files as links, the text's images as they are. */
+const links = (p: Page) =>
+  p.captures.flatMap((c) =>
+    c.blobs.map((f) => {
+      const href = blobUrl(f.sha256);
+      const name = h("span", {}, f.filename || f.mime);
+      return h("a", { href, target: "_blank", className: "file" }, icon("file"), name);
+    }),
+  );
 
 const busy = (p: Page) =>
   p.captures.some((c) =>
@@ -135,13 +86,12 @@ export async function page(key: string): Promise<Node> {
       }, POLL);
     }
   };
-  // What Claude made of photos is a chunk of its own, loaded for pages that have some
-  let panels: Panels | null = null;
-  const hasIngest = (p: Page) => p.captures.some((c) => c.blobs.some((b) => b.ingest));
+  // Figures are a chunk of its own, loaded for pages with files or images
+  let figs: Figures | null = null;
   const load = async (p: Page) => {
-    if (!hasIngest(p) || panels) return;
-    [panels, queue] = await Promise.all([
-      import("./ingest").catch(() => null), // offline: the photos still show
+    if (!hasFiles(p) || figs) return;
+    [figs, queue] = await Promise.all([
+      import("./figure").catch(() => null), // offline: the photos still show
       api<Queue>("ingest").catch(() => queue),
     ]);
   };
@@ -149,6 +99,8 @@ export async function page(key: string): Promise<Node> {
   const show = (p: Page) => {
     shown = p;
     schedule(p);
+    const body = bodyView(p.body, false);
+    const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
@@ -158,8 +110,8 @@ export async function page(key: string): Promise<Node> {
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
       ),
-      bodyView(p.body, false),
-      h("div", { className: "originals" }, ...originals(p, queue, panels, () => void refresh())),
+      body,
+      h("div", { className: "originals" }, ...files),
       h(
         "div",
         { className: "bar tools" },
@@ -174,7 +126,7 @@ export async function page(key: string): Promise<Node> {
           ),
         ),
         download(`/api/pages/${p.id}/download`),
-        share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
+        share(() => ({ title: p.title, text: unembedded(p.body) })), // as typed, no link here
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );

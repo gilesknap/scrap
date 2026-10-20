@@ -1,8 +1,9 @@
 // A tiny Markdown renderer for page text: headings, **bold**, *italic*, `code`, fenced code,
 // lists, quotes, links, rules and paragraphs (a line break stays one). Every piece of text is
 // HTML-escaped before anything else, there is no raw HTML, links are http(s) or mailto only, or
-// [[slug]] and [[slug|label]] to another page, and images only this server's own files. The
-// stored text is never changed.
+// [[slug]] and [[slug|label]] to another page, and images only this server's own files (each
+// marked with its file's data-sha, for the page to make a figure of). The stored text is never
+// changed.
 const ESC: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -13,7 +14,7 @@ const ESC: Record<string, string> = {
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
 
 const LINK = /^(https?:\/\/|mailto:)/i;
-const IMAGE = /^\/api\/blobs\/[0-9a-f]{64}(\/preview\?size=(480|2048))?$/;
+const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const a = (href: string, text: string) =>
   `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 
@@ -32,7 +33,9 @@ export function inline(raw: string): string {
   );
   // No marker inside an address or alt text: only ever in text, so it is safe to restore
   s = s.replace(/!\[([^\]\uE000]*)\]\(([^)\s\uE000]+)\)/g, (m, alt: string, src: string) =>
-    IMAGE.test(src) ? keep(`<img src="${src}" alt="${alt}" loading="lazy">`) : m,
+    IMAGE.test(src)
+      ? keep(`<img src="${src}" alt="${alt}" loading="lazy" data-sha="${IMAGE.exec(src)?.[1]}">`)
+      : m,
   );
   s = s.replace(/\[\[([a-z0-9-]+)(?:\|([^[\]]+))?\]\]/g, (_, slug: string, label?: string) =>
     keep(`<a href="/p/${slug}">${em(label ?? slug)}</a>`),

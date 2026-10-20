@@ -133,6 +133,18 @@ def test_files_notes_and_non_images_are_not_queued(store, conn):
     assert len(shas(conn, odd["capture_id"])) == 1
 
 
+def test_asking_for_one_image_of_a_file_capture_queues_it(store, conn):
+    ref = photo(store, [b"x"])
+    conn.execute("UPDATE capture SET kind = 'file'")  # e.g. a photo beside a PDF
+    conn.execute("DELETE FROM job")
+    args = {"capture": ref["capture_id"], "options": "{}", "now": at(0)}
+    conn.execute(ENQUEUE, {**args, "photo": None})
+    assert shas(conn, ref["capture_id"]) == []  # not sent to Claude unasked
+    sha = store.page(ref["page_id"])["captures"][0]["blobs"][0]["sha256"]
+    conn.execute(ENQUEUE, {**args, "photo": sha})
+    assert shas(conn, ref["capture_id"]) == [sha]
+
+
 def test_reprocess_and_retry_through_the_api(tmp_path):
     client = TestClient(create_app(tmp_path))
     files = [("file", ("b.jpg", jpeg(), "image/jpeg"))]
@@ -375,6 +387,16 @@ def test_a_success_stores_the_run_versions_and_page_fields(store, conn):
     assert got["image_kind"] == "whiteboard" and got["drawing"]["version"] == 1
     assert [h["id"] for h in store.search("kafka", 10)] == [ref["page_id"]]
     assert [h["id"] for h in store.search("queue design", 10)] == [ref["page_id"]]
+    sha = page["captures"][0]["blobs"][0]["sha256"]
+    assert page["body"] == f"![](/api/blobs/{sha}/preview?size=2048)"  # never touched
+
+
+def test_ingest_leaves_a_body_the_user_rewrote(store, conn):
+    ref = photo(store, [jpeg()], text="mine")
+    store.update_page(ref["page_id"], 1, None, "all mine now", "me")
+    run_one(store, Fake(BOARD))
+    page = store.page(ref["page_id"])
+    assert (page["body"], page["rev"]) == ("all mine now", 2)
 
 
 def test_user_fields_win(store, conn):

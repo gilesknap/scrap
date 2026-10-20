@@ -62,7 +62,7 @@ test("a page and its photos download", async ({ page }) => {
   expect(zip.suggestedFilename()).toBe("with-a-photo.zip");
   const [orig] = await Promise.all([
     page.waitForEvent("download"),
-    page.locator(".originals").getByRole("link", { name: "Download" }).click(),
+    page.locator(".md .orig").getByRole("link", { name: "Download" }).click(),
   ]);
   expect(orig.suggestedFilename()).toBe("pic.png");
   await expect(page.getByText(/^Downloaded pic\.png/)).toBeVisible();
@@ -119,7 +119,7 @@ test("the photo viewer fits, zooms, pans, pages and closes on Back", async ({ pa
   );
   const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
   await page.goto(`/p/${ref.slug}`);
-  await page.locator(".originals img").first().click();
+  await page.locator("figure.orig img").first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("1 / 2")).toBeVisible();
@@ -267,7 +267,7 @@ for (const width of WIDTHS) {
     expect(await wide(), "composer").toBeLessThanOrEqual(0);
 
     await page.goto(`/p/${slug}`);
-    await page.locator(".originals img").first().click();
+    await page.locator("figure.orig img").first().click();
     const dialog = page.getByRole("dialog");
     for (const name of ["Fit", "100%", "Close", "Previous photo", "Next photo"]) {
       await inside(page, dialog.getByRole("button", { name }));
@@ -361,6 +361,45 @@ test("Back closes the editor, not the page, and keeps the edit as a draft", asyn
   await expect(page).toHaveURL(/\/recent$/);
 });
 
+test("embedded images are figures: viewer, name, Download and Ask Claude", async ({ page }) => {
+  // A photo beside a PDF: a file capture, so Claude has not been asked about the photo
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Embeds");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(300, 200, 60))], { type: "image/png" }),
+    "a.png",
+  );
+  form.append("file", new Blob(["%PDF-1.4"], { type: "application/pdf" }), "doc.pdf");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(200, 300, 160))], { type: "image/png" }),
+    "b.png",
+  );
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  await page.goto(`/p/${slug}`);
+  const figs = page.locator(".md figure.orig");
+  await expect(figs).toHaveCount(2);
+  await expect(figs.locator("figcaption span")).toHaveText(["a.png", "b.png"]);
+  await expect(page.locator(".originals a.file")).toHaveText("doc.pdf"); // only the PDF below
+  await expect(page.locator(".originals img")).toHaveCount(0);
+
+  await figs.nth(1).locator("img").click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("2 / 2")).toBeVisible();
+  await page.goBack();
+  await expect(dialog).toBeHidden();
+
+  const ask = page.waitForRequest((r) => r.url().endsWith("/reprocess"));
+  await figs.first().getByRole("button", { name: "Ask Claude" }).click();
+  expect((await ask).postDataJSON()).toEqual({ photo: expect.stringMatching(/^[0-9a-f]{64}$/) });
+  const panel = page.locator(".md .photo-panel");
+  await expect(panel.getByRole("status")).toHaveText(/^Waiting/);
+  await expect(panel.locator("figcaption span")).toHaveText("a.png");
+  await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(1); // b.png's
+});
+
 test("photos the server can't preview fall back to the file", async ({ page }) => {
   const r = await page.request.post("/api/captures", {
     multipart: {
@@ -375,8 +414,8 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
     page.locator(".list li", { hasText: "Unpreviewable" }).locator(".noimg"),
   ).toBeVisible();
   await page.goto(`/p/${slug}`);
-  await expect(page.locator(".originals a.file", { hasText: "x.svg" })).toBeVisible();
-  await expect(page.locator(".originals img")).toHaveCount(0);
+  await expect(page.locator(".md a.file", { hasText: "x.svg" })).toBeVisible();
+  await expect(page.locator("figure.orig img")).toHaveCount(0);
 });
 
 test("Share sends a page's text, or a photo as a file, to the share sheet", async ({ page }) => {
@@ -412,7 +451,7 @@ test("Share sends a page's text, or a photo as a file, to the share sheet", asyn
   await page.locator(".page > .bar").getByRole("button", { name: "Share" }).click();
   await expect.poll(shared).toEqual([{ title: "Share me", text: "Share me\nsome text" }]);
 
-  await page.locator(".originals img").click();
+  await page.locator("figure.orig img").click();
   await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
   await expect.poll(async () => (await shared()).length).toBe(2);
   expect((await shared())[1]).toEqual({
@@ -527,7 +566,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
     await page.locator(".page > .tools").getByRole("link", { name: "Download" }).click();
     await page.getByText(/^Downloaded/).waitFor();
     await check(`${colorScheme} toast`);
-    await page.locator(".originals img").click();
+    await page.locator("figure.orig img").click();
     await check(`${colorScheme} viewer`);
     await page.goBack();
     await page.goto("/search?q=contrast");
