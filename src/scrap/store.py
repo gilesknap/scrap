@@ -141,7 +141,8 @@ def body_refs(text: str) -> set[str]:
     """The stored files a page's text refers to, by SHA-256: any mention of a file's
     address counts (an image, a link, even in code), so a page never loses a file it
     shows. The one place page text is read for references (scrap gc, the save warning's
-    counts), kept small so a real Markdown parser can replace it."""
+    counts). Deliberately not the Markdown parser (markdown.py): gc deletes what this
+    misses, so it errs on keeping a file (in code, an absolute URL, broken Markdown)."""
     return set(BLOB_ADDRESS.findall(text))
 
 

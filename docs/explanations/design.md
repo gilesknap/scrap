@@ -438,8 +438,9 @@ Claude results, stay after its embed is deleted; what gc deletes today is files 
 (failed or abandoned uploads), leftover upload temporaries and files only a page's text used. Only
 each page's current text counts: old revisions are not references, so a file only an old revision
 embedded can go (harmless while captures keep their photos; it would matter if Save ever unlinked
-a photo from its capture). Page text is read for references by one function, `store.body_refs`, which a Markdown parser can
-replace. A run reads every reference in one transaction (and refuses if it cannot), skips files
+a photo from its capture). Page text is read for references by one function, `store.body_refs`: any mention of a file's
+address counts, even in code or a full URL. It deliberately does not use the Markdown parser, as
+gc deletes whatever it misses. A run reads every reference in one transaction (and refuses if it cannot), skips files
 younger than the grace period (24 hours), then rereads the references inside a write transaction
 before deleting; each file is renamed aside and its age checked again, because
 `Store.put_blob` touches a file it finds already stored, so an upload of the same bytes in flight
