@@ -289,7 +289,9 @@ and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap
 `scrap-gc.service` is ordered `After=scrap-backup.service`. The gc timer is not `Persistent`: a
 night missed while the machine was off is skipped rather than run at boot, where it could take
 the lock before the catch-up backup and fail for want of a recent backup. Both containers run with
-`--network=none`. To see what it would delete now, without deleting:
+`--network=none`. A `scrap gc` you run by hand takes no lock, so it can race the nightly run; the
+worst case is a file left on disk after its record is deleted, which the next run removes. To see
+what it would delete now, without deleting:
 
 ```
 set -a; . ~/.config/scrap/env; set +a
