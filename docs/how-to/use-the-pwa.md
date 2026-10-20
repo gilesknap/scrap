@@ -169,8 +169,10 @@ resizes the page.
 
 ## Updates
 
-The app's files are cached on the phone so it opens instantly and offline; API answers and
-files are never cached. After a new scrap is deployed, the app shows **Update available,
+The app's files are cached on the phone so it opens instantly and offline, the composer and
+editor included; API answers and files are never cached. Some parts load only when first used
+and are not cached ahead: a page's pager and list swipes, what Claude made of a photo, and the
+drawing viewer. So a page opened offline from a list has no ‹ › pager, and rows don't swipe. After a new scrap is deployed, the app shows **Update available,
 Reload**. Until you tap it the old version keeps running; it is also replaced the next time the
 app is opened after being closed.
 

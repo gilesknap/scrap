@@ -222,12 +222,45 @@ def test_edit_kind_fixes_it_and_fills_its_fields(client, note):
 
 
 @pytest.mark.parametrize(
-    "edit", [{"kind": "memory"}, {"body": "no base_rev"}, {"fields": {"a": 1}}]
+    "edit",
+    [
+        {"kind": "memory"},
+        {"body": "no base_rev"},
+        {"fields": {"a": 1}},
+        {"fields": {"": "empty name"}},
+        {"fields": {"k" * 41: "x"}},
+        {"fields": {"a": "x" * 201}},
+        {"fields": {f"k{n}": "x" for n in range(33)}},
+    ],
 )
 def test_edit_rejects_bad_input(client, note, edit):
     url = f"/api/pages/{note()['page_id']}"
     assert client.patch(url, json=edit).status_code == 422
     assert client.get(url).json()["kind_fixed"] == 0
+
+
+def test_fields_are_at_most_32_in_all(client, note):
+    url = f"/api/pages/{note(kind='todo')['page_id']}"  # status: 1 already
+    many = {f"k{n}": "x" for n in range(31)}
+    assert client.patch(url, json={"fields": many}).status_code == 200
+    more = client.patch(url, json={"fields": {"one": "too many"}})
+    assert more.status_code == 422
+    assert len(client.get(url).json()["fields"]) == 32
+
+
+def test_kind_beats_hint_and_works_in_multipart(client, note):
+    both = note("both", kind="document", hint="todo")
+    assert client.get(f"/api/pages/{both['page_id']}").json()["kind"] == "document"
+    data = {"id": new_ulid(), "text": "a form", "kind": "todo"}
+    ref = client.post("/api/captures", data=data, files=MULTIPART).json()
+    assert client.get(f"/api/pages/{ref['page_id']}").json()["kind"] == "todo"
+
+
+def test_kind_edit_of_a_page_in_the_trash_is_404(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    client.delete(url)
+    assert client.patch(url, json={"fields": {"status": "done"}}).status_code == 404
+    assert client.patch(url, json={"kind": "todo"}).status_code == 404
 
 
 def test_stale_edit_leaves_the_kind(client, note):
@@ -248,7 +281,8 @@ def test_pages_by_kind(client, note):
     assert slugs(kind="todo") == [todo]
     assert slugs(kind="note") == [plain]
     assert slugs(kind="consume") == []
-    assert len(slugs()) == 2
+    assert len(slugs()) == len(slugs(kind="")) == 2
+    assert client.get("/api/pages", params={"kind": "bogus"}).status_code == 422
 
 
 def search(client, query):

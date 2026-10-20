@@ -14,7 +14,7 @@ import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
-import { deletePage } from "./swipe";
+import { deletePage, why } from "./swipe";
 import { bodyView, download, h, settle, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -81,6 +81,7 @@ interface Draft {
   title: string;
   text: string;
   kind?: string;
+  picked?: boolean; // the user chose the kind
   base: number; // the revision it was made on
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
@@ -156,7 +157,12 @@ export async function page(key: string): Promise<Node> {
         { className: "bar tools" },
         editButton(p),
         p.kind === "todo" &&
-          h("button", { onclick: () => tick(p) }, icon("todo"), done(p) ? "Reopen" : "Done"),
+          h(
+            "button",
+            { onclick: (e: Event) => tick(p, e.currentTarget as HTMLButtonElement) },
+            icon("todo"),
+            done(p) ? "Reopen" : "Done",
+          ),
         download(`/api/pages/${p.id}/download`),
         share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
@@ -168,14 +174,15 @@ export async function page(key: string): Promise<Node> {
     // An unsaved edit comes back, on the revision it was made on: if the page has changed
     // since, saving it shows the conflict rather than overwriting.
     const key = `page:${p.id}`;
-    const [kept, { editor, kindPicker, BARE_URL }] = await Promise.all([
+    const [kept, mod] = await Promise.all([
       drafts.get<Draft>(key).catch(() => undefined),
-      import("./editor"), // a chunk of its own, with the composer
+      import("./editor").catch(() => null), // a chunk of its own, with the composer
     ]);
+    if (!mod) return toast("Can't open the editor: reload scrap and try again");
+    const { editor, kindPicker, suggested, toSend } = mod;
     // Its kind; a link nobody filed yet suggests Read
-    const unfiled = !p.kind_fixed && p.kind === "note" && BARE_URL.test(p.body.trim());
-    const was = unfiled ? "consume" : p.kind;
-    const kind = kindPicker(kept?.kind ?? was);
+    const was = p.kind_fixed || p.kind !== "note" ? p.kind : suggested(p.body);
+    const kind = kindPicker(kept?.kind ?? was, !!kept?.picked);
     let base = kept?.base ?? p.rev;
     const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
@@ -190,7 +197,7 @@ export async function page(key: string): Promise<Node> {
             base_rev: base,
             body: text.value,
             ...(title.value !== p.title && { title: title.value }),
-            ...(kind.value() !== p.kind && { kind: kind.value() }),
+            kind: toSend(kind.value(), kind.picked(), p.kind),
           }),
         });
         await ed.done();
@@ -236,7 +243,13 @@ export async function page(key: string): Promise<Node> {
       before: [kind.el, title],
       after: [conflict],
       key,
-      draft: (): Draft => ({ title: title.value, text: text.value, kind: kind.value(), base }),
+      draft: (): Draft => ({
+        title: title.value,
+        text: text.value,
+        kind: kind.value(),
+        picked: kind.picked(),
+        base,
+      }),
       dirty: () => title.value !== p.title || text.value !== p.body || kind.value() !== was,
       restored: !!kept,
       ondiscard: () => {
@@ -251,12 +264,17 @@ export async function page(key: string): Promise<Node> {
   }
 
   // A todo ticked off (or not): its fields only, no new revision
-  const tick = (p: Page) =>
+  const tick = (p: Page, b: HTMLButtonElement) => {
+    b.disabled = true;
     api<Page>(`pages/${p.id}`, {
       method: "PATCH",
       headers: JSON_TYPE,
       body: JSON.stringify({ fields: { status: done(p) ? "open" : "done" } }),
-    }).then(show, (err) => toast(`Not changed: ${err}`));
+    }).then(show, (err) => {
+      b.disabled = false;
+      toast(`Not changed: ${why(err)}`);
+    });
+  };
 
   function editButton(p: Page) {
     const b = h("button", { onclick: () => void edit(p) }, icon("edit"), "Edit");

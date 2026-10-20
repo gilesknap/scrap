@@ -143,24 +143,30 @@ export async function recent(): Promise<Node> {
   );
   // The filter rides in the address (?kind=todo), so Back and a reload keep it
   const shown = FILTERS.find(([, q]) => q === location.search.slice(1)) ?? FILTERS[0];
-  const list = h("div", {}, await pageList(100, shown[1], shown[0]));
+  // A page opened from the list pages through it, "· Todos", or "· Recent" for All
+  const label = (f: string[]) => (f[1] ? f[0] : "Recent");
+  const list = h("div", {}, await pageList(100, shown[1], label(shown)));
+  let current = shown[1]; // a list that arrives for an older choice is dropped
   const filters = h(
     "div",
     { className: "chips filters", role: "radiogroup", "aria-label": "Show" },
-    ...FILTERS.map(([label, q]) =>
+    ...FILTERS.map((f) =>
       h(
         "label",
         {},
         h("input", {
           type: "radio",
           name: "show",
-          checked: q === shown[1],
+          checked: f === shown,
           onchange: async () => {
+            const q = f[1];
+            current = q;
             history.replaceState(null, "", `/recent${q && "?"}${q}`);
-            list.replaceChildren(await pageList(100, q, label));
+            const shownNow = await pageList(100, q, label(f));
+            if (q === current) list.replaceChildren(shownNow);
           },
         }),
-        label,
+        f[0],
       ),
     ),
   );

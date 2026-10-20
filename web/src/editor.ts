@@ -11,23 +11,14 @@
 // It is a chunk of its own, with the composer (composer.ts): the service worker keeps it for
 // offline use, but screens that never edit don't load it.
 import { drafts } from "./db";
-import { type Icon, icon } from "./icons";
-import type { Kind } from "./queue";
+import { icon } from "./icons";
+import { KINDS } from "./kinds";
 import { h, previewer, saveKey, toast } from "./ui";
 
-/** The kinds offered, in the order shown (memory and reference are not offered yet). */
-// [kind, short label (five fit one row on a 360 px phone), full name, icon]
-const KINDS: [Kind, string, string, Icon][] = [
-  ["note", "Note", "Note", "note"],
-  ["todo", "Todo", "Todo", "todo"],
-  ["consume", "Read", "Read", "later"],
-  ["whiteboard", "Board", "Whiteboard", "board"],
-  ["document", "Doc", "Document", "file"],
-];
-export const BARE_URL = /^https?:\/\/\S+$/;
+export { suggested, toSend } from "./kinds";
 
-/** The kind control: a segmented radio group. suggest() picks a kind (a bare URL: Read)
- * until the user picks one (or picked: the kind came from a draft). */
+/** The kind control: a segmented radio group. suggest() picks a kind until the user picks
+ * one (picked: they did, e.g. in a restored draft). */
 export function kindPicker(initial: string, picked = false) {
   const set = (kind: string) => {
     for (const r of el.querySelectorAll("input")) r.checked = r.value === kind;
@@ -59,6 +50,7 @@ export function kindPicker(initial: string, picked = false) {
   return {
     el,
     value: () => el.querySelector<HTMLInputElement>("input:checked")?.value ?? initial,
+    picked: () => picked,
     suggest: (kind: string) => picked || set(kind),
     reset: (kind: string) => {
       picked = false;

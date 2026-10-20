@@ -30,6 +30,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__, backup, drawing, ingest, preview
 from .store import (
+    MAX_FIELDS,
     ConflictError,
     InvalidError,
     NotFoundError,
@@ -83,6 +84,7 @@ class Restore(BaseModel):
     base_version: VERSION_NUMBER  # the current one as the client saw it, else 409
 
 
+FIELD_NAME = Annotated[str, Field(min_length=1, max_length=40)]
 FIELD = Annotated[str, Field(max_length=200)]
 
 
@@ -91,7 +93,9 @@ class PageEdit(BaseModel):
     title: str | None = None
     body: str | None = None
     kind: str | None = None  # one the user chose: fixed, ingest keeps it
-    fields: dict[Annotated[str, Field(max_length=40)], FIELD | None] | None = None
+    fields: (
+        Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
+    ) = None
 
 
 def author(request: Request) -> str:
@@ -274,8 +278,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         kind: str | None = None,
     ) -> list[dict[str, Any]]:
         """Pages, most recently changed first; the trash is left out. Only those of
-        one kind, if given."""
-        return store.recent(limit, kind)
+        one kind, if given (empty: all)."""
+        return store.recent(limit, kind or None)
 
     @app.get("/api/pages/{key}")
     def page(key: str) -> dict[str, Any]:

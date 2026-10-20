@@ -35,7 +35,9 @@ DEFAULT_FIELDS = {
     "consume": {"subtype": "read", "status": "open"},
 }
 HINTS = ("todo", "consume")  # the older capture field, still accepted
+ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
 SOURCES = ("pwa", "share", "mcp")
+MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
 # job_one_active makes a repeat add nothing.
@@ -339,6 +341,8 @@ class Store:
 
     def recent(self, limit: int, kind: str | None = None) -> list[dict[str, Any]]:
         """Pages, newest change first; only those of one kind, if given."""
+        if kind not in (None, *ALL_KINDS):
+            raise InvalidError(f"kind must be one of {ALL_KINDS}")
         with self.connect() as conn:
             rows = _rows(  # thumb: the page's first image, if any
                 conn,
@@ -485,8 +489,9 @@ class Store:
         changes: dict[str, str | None],
     ) -> None:
         """A kind the user chose, fixed so ingest never changes it: a new kind starts
-        from its default fields. Then changes to the fields (None drops one). Neither
-        is a new revision, nor moves the page up the recent list."""
+        from its default fields. Then changes to the fields (None drops one), at most
+        MAX_FIELDS in all. Neither is a new revision, nor moves the page up the recent
+        list."""
         fields = json.loads(page["fields"])
         if kind is not None and kind != page["kind"]:
             url = conn.execute(
@@ -500,6 +505,8 @@ class Store:
                 fields.pop(name, None)
             else:
                 fields[name] = value
+        if len(fields) > MAX_FIELDS:
+            raise InvalidError(f"a page has at most {MAX_FIELDS} fields")
         conn.execute(
             "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
             (kind or page["kind"], int(kind is not None or page["kind_fixed"]),

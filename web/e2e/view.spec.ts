@@ -595,4 +595,46 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, Recent filt
   await page.locator(".filters").getByText("All").click();
   await expect(page).toHaveURL(/\/recent$/);
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
+  await rows.filter({ hasText: "an unfiled note" }).getByRole("link").click();
+  await expect(page.locator(".pager")).toContainText("Recent"); // not "All"
+
+  // A slow answer for a filter left meanwhile is dropped, not shown
+  await page.goto("/recent");
+  await page.route("**/api/pages?limit=100&kind=todo", async (route) => {
+    await new Promise((ok) => setTimeout(ok, 1500));
+    await route.continue();
+  });
+  await page.locator(".filters").getByText("Todos").click();
+  await page.locator(".filters").getByText("All").click();
+  await page.waitForTimeout(2500);
+  await expect(page).toHaveURL(/\/recent$/);
+  await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
+});
+
+test("a Note chosen for a link is kept, not made Read later", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("https://example.com/kept-note");
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // suggested
+  await page.locator(".kinds").getByText("Note").click();
+  await page.getByRole("button", { name: "Save" }).click();
+  const kept = async () => {
+    const pages = await (await page.request.get("/api/pages")).json();
+    return pages.find((p: { title: string }) => p.title.endsWith("/kept-note"));
+  };
+  await expect.poll(kept).toMatchObject({ kind: "note", kind_fixed: 1 });
+  const saved = await kept();
+  await page.goto(`/p/${saved.slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
+
+  // An untouched draft with a link restored later still gets Read suggested
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("not a link yet");
+  await page.waitForTimeout(600); // kept as a draft
+  await page.reload();
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("https://example.com/later");
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
 });

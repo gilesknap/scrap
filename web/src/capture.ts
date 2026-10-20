@@ -6,7 +6,11 @@ import { pageList, pendingList } from "./recent";
 import { h, toast } from "./ui";
 
 // The composer is a chunk of its own (composer.ts), with the editor
-const compose = async (files: File[]) => (await import("./composer")).compose(files);
+const compose = (files: File[]) =>
+  import("./composer").then(
+    (m) => m.compose(files),
+    () => toast("Can't open the composer: reload scrap and try again"),
+  );
 
 export function picker(
   label: string,

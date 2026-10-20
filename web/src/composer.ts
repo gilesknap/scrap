@@ -4,16 +4,17 @@ import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { BARE_URL, editor, kindPicker } from "./editor";
+import { editor, kindPicker, suggested, toSend } from "./editor";
 import { icon } from "./icons";
-import { type Capture, type Kind, split } from "./queue";
+import { type Capture, split } from "./queue";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
 const DRAFT = "new"; // the composer's draft
 interface Draft {
   text: string;
   kind?: string;
-  hint?: string; // the kind, in drafts of older builds
+  picked?: boolean; // the user chose the kind
+  hint?: string; // the kind, in drafts of older builds ("": Note)
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
 }
 
@@ -24,10 +25,8 @@ export async function compose(picked: File[]) {
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
   // The kind: Note unless chosen (a bare URL suggests Read). Photos have none: ingest
   // decides, and the page's editor can change it.
-  const kind = kindPicker(kept?.kind ?? kept?.hint ?? "note", !!kept);
-  text.addEventListener("input", () =>
-    kind.suggest(BARE_URL.test(text.value.trim()) ? "consume" : "note"),
-  );
+  const kind = kindPicker(kept?.kind ?? (kept?.hint || "note"), kept?.picked ?? !!kept?.hint);
+  text.addEventListener("input", () => kind.suggest(suggested(text.value)));
   const thumbs = h("div", { className: "thumbs" });
   // One capture, many photos: add from the camera (one at a time) or the gallery.
   const add = (more: File[]) => {
@@ -73,7 +72,7 @@ export async function compose(picked: File[]) {
     before: [kind.el],
     after: [thumbs, adders],
     key: DRAFT,
-    draft: (): Draft => ({ text: text.value, kind: kind.value(), files }),
+    draft: (): Draft => ({ text: text.value, kind: kind.value(), picked: kind.picked(), files }),
     dirty: () => !!text.value.trim() || files.length > 0,
     restored: !!kept,
     ondiscard: () => {
@@ -95,7 +94,7 @@ export async function compose(picked: File[]) {
     if (!body && !files.length) return text.focus();
     const capture: Capture = {
       text: body || undefined,
-      kind: files.length || kind.value() === "note" ? undefined : (kind.value() as Kind),
+      kind: files.length ? undefined : toSend(kind.value(), kind.picked(), "note"),
       source: "pwa",
       files: files.map((f) => ({ name: f.name, blob: f })),
     };
