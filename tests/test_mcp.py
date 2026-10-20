@@ -10,7 +10,8 @@ from mcp.client.client import Client
 
 from scrap import mcp_server
 from scrap.app import create_app
-from scrap.store import Store, new_ulid
+from scrap.ingest import put_derived
+from scrap.store import Store, new_ulid, now
 
 ACCEPT = {"Accept": "application/json, text/event-stream"}
 
@@ -393,3 +394,91 @@ def test_mcp_refuses_a_huge_request(tmp_path, monkeypatch):
             {"Host": "localhost"},
         )
         assert r.status_code == 413
+
+
+def photo_page(store, sha, description=None, image_kind=None, mime="image/jpeg"):
+    """A photo page, as the PWA makes one, with what Claude made of it (if given)."""
+    c = store.prepare({"id": new_ulid()}, [mime])
+    ref = store.capture(c, [(sha, mime, 3, "p.jpg")], "me")[0]
+    if description is not None:
+        with store.connect() as conn:
+            put_derived(
+                conn, c["id"], sha, "description", "model", now(),
+                text=description, data={"kind": image_kind},
+            )  # fmt: skip
+    return ref
+
+
+def test_rows_say_what_images_a_page_has(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://h.example:8446")
+    sha = "cd" * 32
+    pic = photo_page(store, sha, "A green praying mantis on a tile.", "photo")
+    write(store, title="Plain note")
+    pending = photo_page(store, "ef" * 32)  # not read by Claude yet
+    rows = {r["id"]: r for r in ok(store, "recent")["results"]}
+    got = rows[pic["page_id"]]
+    assert got["image_count"] == 1
+    assert got["image_kind"] == "photo"
+    assert got["image_description"] == "A green praying mantis on a tile."
+    assert got["image_url"] == f"https://h.example:8446/api/blobs/{sha}"
+    assert (
+        got["thumbnail_url"]
+        == f"https://h.example:8446/api/blobs/{sha}/preview?size=480"
+    )
+    assert rows[pending["page_id"]]["image_count"] == 1
+    assert rows[pending["page_id"]]["image_kind"] is None
+    plain = next(r for r in rows.values() if r["title"] == "Plain note")
+    assert plain["image_count"] == 0 and "image_kind" not in plain
+    # search and todos rows carry the same fields
+    [hit] = ok(store, "search", query="mantis")["results"]
+    assert hit["id"] == pic["page_id"] and hit["image_kind"] == "photo"
+    assert "mantis" in hit["snippet"]  # the description is searchable text
+
+
+def test_image_count_counts_every_image_and_the_first_leads(store):
+    first, second = "11" * 32, "22" * 32
+    c = store.prepare({"id": new_ulid()}, ["image/png", "image/png", "text/plain"])
+    ref = store.capture(
+        c,
+        [(first, "image/png", 3, "a.png"), (second, "image/png", 3, "b.png"),
+         ("33" * 32, "text/plain", 3, "c.txt")],
+        "me",
+    )[0]  # fmt: skip
+    with store.connect() as conn:
+        put_derived(conn, c["id"], second, "description", "m", now(), text="second",
+                    data={"kind": "diagram"})  # fmt: skip
+    [row] = ok(store, "recent")["results"]
+    assert row["id"] == ref["page_id"] and row["image_count"] == 2
+    assert row["image_url"].endswith(first) and row["image_description"] is None
+
+
+def test_image_filters(store):
+    mantis = photo_page(store, "aa" * 32, "A mantis.", "photo")
+    board = photo_page(store, "bb" * 32, "A plan on a whiteboard.", "whiteboard")
+    note = write(store, title="No picture")
+
+    def ids(query):
+        return {r["id"] for r in ok(store, "search", query=query)["results"]}
+
+    assert ids("has:image") == {mantis["page_id"], board["page_id"]}
+    assert ids("-has:image kind:note") == {note["id"]}
+    assert ids("image:photo") == {mantis["page_id"]}
+    assert ids("image:Whiteboard") == {board["page_id"]}
+    assert ids("-image:photo has:image") == {board["page_id"]}
+    assert ids("has:nonsense") == set()
+    assert ids("has:drawing") == set()
+    with store.connect() as conn:
+        cid = store.page(board["page_id"])["captures"][0]["id"]
+        put_derived(
+            conn, cid, "bb" * 32, "excalidraw", "m", now(), data={"elements": []}
+        )
+    assert ids("has:drawing") == {board["page_id"]}
+    assert ids("plan has:image") == {board["page_id"]}
+
+
+def test_read_gives_image_thumbnails(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://h.example:8446")
+    ref = photo_page(store, "dd" * 32, "A cat.", "photo")
+    [image] = ok(store, "read", page=ref["page_id"])["images"]
+    assert image["thumbnail_url"].endswith("/preview?size=480")
+    assert image["description"] == "A cat." and image["image_kind"] == "photo"

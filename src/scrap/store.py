@@ -52,6 +52,20 @@ THUMB = (
     " WHERE c.page_id = p.id AND b.mime LIKE 'image/%'"
     " ORDER BY c.received_at, cb.ord LIMIT 1)"
 )
+# Search filters on a page p's images (SQL): has:image, has:drawing, and image:K (the
+# kind Claude gave a photo: photo, whiteboard, screenshot...)
+HAS = {
+    "image": "EXISTS (SELECT 1 FROM capture c JOIN capture_blob cb"
+    " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
+    " WHERE c.page_id = p.id AND b.mime LIKE 'image/%')",
+    "drawing": "EXISTS (SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id"
+    " WHERE c.page_id = p.id AND d.kind = 'excalidraw' AND d.superseded_at IS NULL)",
+}
+IMAGE_KIND = (
+    "EXISTS (SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id"
+    " WHERE c.page_id = p.id AND d.kind = 'description' AND d.superseded_at IS NULL"
+    " AND json_extract(d.data, '$.kind') = ?)"
+)
 KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
@@ -755,6 +769,33 @@ class Store:
                 out[page_id].append(tag)
         return out
 
+    def images_of(self, ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Each page's images, for list rows: how many (image files of its captures)
+        and its first one's SHA-256 and what Claude made of it (its current
+        description and kind; None if not read yet). A page with none is left out."""
+        out: dict[str, dict[str, Any]] = {}
+        with self.connect() as conn:
+            for row in conn.execute(
+                "WITH image AS (SELECT c.page_id, c.id AS capture_id, cb.sha256,"
+                " row_number() OVER (PARTITION BY c.page_id"
+                "  ORDER BY c.received_at, cb.ord) AS n,"
+                " count(*) OVER (PARTITION BY c.page_id) AS total"
+                " FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id"
+                " JOIN blob b USING (sha256) WHERE b.mime LIKE 'image/%'"
+                " AND c.page_id IN (SELECT value FROM json_each(?)))"
+                " SELECT i.page_id, i.total, i.sha256, d.text,"
+                " json_extract(d.data, '$.kind') FROM image i LEFT JOIN derived d"
+                " ON d.capture_id = i.capture_id AND d.source_sha256 = i.sha256"
+                " AND d.kind = 'description' AND d.superseded_at IS NULL"
+                " WHERE i.n = 1",
+                (json.dumps(ids),),
+            ):
+                out[row[0]] = {
+                    "count": row[1], "sha256": row[2], "description": row[3],
+                    "image_kind": row[4],
+                }  # fmt: skip
+        return out
+
     def backlinks(self, slug: str) -> list[dict[str, str]]:
         """The pages (not in the trash) whose text links to slug with [[slug]]."""
         with self.connect() as conn:
@@ -916,6 +957,11 @@ class Store:
                     " AND instr('/' || t.tag || '/', ?) > 0)"
                 )
                 args.append(f"/{f.value.strip('/')}/")
+            elif f.key == "has":  # has:image, has:drawing; any other value: nothing
+                sql.append(f"{no}{HAS[f.value]}" if f.value in HAS else f"{no}0")
+            elif f.key == "image":  # image:photo, image:whiteboard...
+                sql.append(f"{no}{IMAGE_KIND}")
+                args.append(f.value)
             elif f.key == "is" and f.value == "claude":  # written over MCP
                 sql.append(
                     f"{no}EXISTS (SELECT 1 FROM capture c WHERE c.page_id = p.id"

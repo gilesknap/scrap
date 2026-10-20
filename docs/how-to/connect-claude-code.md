@@ -30,6 +30,10 @@ current project only. `claude mcp list` should show `scrap` as connected, and th
 `mcp__scrap__search`, `mcp__scrap__read`, `mcp__scrap__recent`, `mcp__scrap__todos`,
 `mcp__scrap__tags` and `mcp__scrap__write`.
 
+Try it: ask "get my recent photos". Search results say which pages hold images (`image_count`,
+and the first image's kind, description and thumbnail URL), and `has:image` or `image:photo`
+lists them newest first; see [](../reference/mcp.md).
+
 Check it from a shell without Claude:
 
 ```
