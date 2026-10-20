@@ -3,6 +3,7 @@ import { api, type Hit } from "./api";
 import { go, view } from "./app";
 import { icon, kindIcon } from "./icons";
 import { snippetParts } from "./snippet";
+import { swipeRows, trail, trailOf } from "./swipe";
 import { empty, h } from "./ui";
 
 export function search(): Node {
@@ -34,30 +35,35 @@ export function search(): Node {
       const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}`, {
         signal: abort.signal,
       });
-      results.replaceChildren(
-        ...hits.map((hit) =>
+      trail(
+        results,
+        "Search results",
+        hits.map((hit) => hit.slug),
+      );
+      const rows = hits.map((hit) =>
+        h(
+          "li",
+          {},
           h(
-            "li",
-            {},
+            "a",
+            { href: `/p/${encodeURIComponent(hit.slug)}` },
+            h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
             h(
-              "a",
-              { href: `/p/${encodeURIComponent(hit.slug)}` },
-              h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
+              "span",
+              {},
+              h("strong", { dir: "auto" }, hit.title),
               h(
-                "span",
-                {},
-                h("strong", { dir: "auto" }, hit.title),
-                h(
-                  "small",
-                  { dir: "auto" },
-                  ...snippetParts(hit.snippet).map((p) =>
-                    p.mark ? h("mark", {}, p.text) : p.text,
-                  ),
-                ),
+                "small",
+                { dir: "auto" },
+                ...snippetParts(hit.snippet).map((p) => (p.mark ? h("mark", {}, p.text) : p.text)),
               ),
             ),
           ),
         ),
+      );
+      swipeRows(rows.map((li, i) => [li, hits[i].slug]));
+      results.replaceChildren(
+        ...rows,
         ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]),
       );
     } catch (e) {
@@ -72,7 +78,7 @@ export function search(): Node {
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
     const first = results.querySelector("a");
-    if (e.key === "Enter" && first) go(first.pathname);
+    if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
   };
   if (q) void run();
   else results.replaceChildren(hint());

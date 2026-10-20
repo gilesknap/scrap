@@ -6,7 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // Made once: test workers load this file again, and inherit it from the runner
 const data = process.env.SCRAP_E2E_DATA || mkdtempSync(join(tmpdir(), "scrap-e2e-"));
-const port = 8791;
+const port = Number(process.env.SCRAP_E2E_PORT) || 8791; // another, to run beside a run
 process.env.SCRAP_E2E_DATA = data; // whiteboard.spec.ts has e2e/draw.py add fixtures to it
 
 export default defineConfig({

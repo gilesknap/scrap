@@ -85,13 +85,6 @@
   padding: var(--s-4);
   text-align: center;
 }
-.drawing figcaption {
-  display: flex;
-  justify-content: flex-end;
-}
-.drawing .link {
-  margin: 0;
-}
 
 /* Ingest state: a pill, then what can be done about it */
 .ingest {
@@ -134,14 +127,37 @@
   margin: 0;
   font-weight: 500;
 }
+.claude-text {
+  border-top: 1px solid var(--line);
+}
 .claude-text summary {
   display: flex;
   align-items: center;
+  gap: var(--s-2);
   min-height: var(--tap);
   cursor: pointer;
   color: var(--ink-2);
   font-size: var(--t-sm);
   font-weight: 600;
+  list-style: none;
+}
+.claude-text summary::-webkit-details-marker {
+  display: none;
+}
+/* A chevron: points right when folded, down when open */
+.claude-text summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 3px var(--s-1);
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: -45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.claude-text[open] summary::before {
+  rotate: 45deg;
 }
 .claude-text p,
 .claude-text pre {
@@ -188,6 +204,14 @@
   padding: 0 var(--s-2);
   font-size: var(--t-sm);
   white-space: nowrap;
+}
+/* Edit with a kept draft: a dot, not words (no room); the words are in the notes below */
+.drawing-bar .dot::after {
+  top: 5px;
+  left: auto;
+  right: 5px;
+  border-color: var(--accent);
+  background: var(--on-accent);
 }
 .drawing-bar [aria-pressed="true"] {
   background: var(--accent-soft);
