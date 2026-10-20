@@ -53,7 +53,8 @@ THUMB = (
     " ORDER BY c.received_at, cb.ord LIMIT 1)"
 )
 KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
-SOURCES = ("pwa", "share", "mcp")
+SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
+MCP = "mcp"  # the source of a page Claude wrote, over MCP
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
@@ -351,9 +352,11 @@ class Store:
         c: dict[str, Any],
         blobs: list[tuple[str, str, int, str | None]],
         author: str,
+        tags: list[str] | None = None,
     ) -> tuple[dict[str, str], bool]:
-        """Save a prepared capture as a new page. Returns its reference and whether
-        it is new. blobs are (sha256, mime, size, filename), already in files/.
+        """Save a prepared capture as a new page, with these tags. Returns its
+        reference and whether it is new. blobs are (sha256, mime, size, filename),
+        already in files/.
         """
         cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
         body = "\n\n".join(x for x in (body, *embeds(blobs, body)) if x)
@@ -387,6 +390,9 @@ class Store:
             conn.executemany(
                 "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
                 [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
+            )
+            conn.executemany(
+                "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in tags or []]
             )
             self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
@@ -689,6 +695,78 @@ class Store:
         if cur.rowcount == 0:
             raise NotFoundError(key)
 
+    def append(
+        self, key: str, cid: str, text: str, author: str, tags: list[str], most: int
+    ) -> tuple[dict[str, str], bool]:
+        """Add text (a capture with id cid, source mcp) to the end of a page Claude
+        wrote, and these tags; a retry with the same cid changes nothing. The page's
+        body is then at most most bytes. Returns its reference and whether it is new."""
+        stamp = now()
+        with self.connect() as conn, transaction(conn):
+            row = conn.execute(
+                "SELECT page_id FROM capture WHERE id = ?", (cid,)
+            ).fetchone()
+            if row:
+                return self._ref(conn, cid, row[0]), False
+            page = self._page_row(conn, key)
+            if not self.by_claude(conn, page["id"]):
+                raise InvalidError("only a page written over MCP can be appended to")
+            body = "\n\n".join(x for x in (page["body"].rstrip(), text) if x)
+            if len(body.encode()) > most:
+                raise InvalidError(f"the page would be over {most} bytes")
+            conn.execute(
+                "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
+                (body, stamp, page["id"]),
+            )
+            conn.execute(
+                "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
+                (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
+            )
+            conn.execute(
+                "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
+                (cid, text, MCP, author, stamp, stamp, page["id"]),
+            )
+            conn.executemany(
+                "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
+                [(page["id"], t) for t in tags],
+            )
+            self.reindex(conn, page["id"])
+            return self._ref(conn, cid, page["id"]), True
+
+    def by_claude(self, conn: sqlite3.Connection, page_id: str) -> bool:
+        """Whether a page was written over MCP (its first capture's source)."""
+        row = conn.execute(
+            "SELECT source FROM capture WHERE page_id = ?"
+            " ORDER BY received_at, id LIMIT 1",
+            (page_id,),
+        ).fetchone()
+        return bool(row) and row[0] == MCP
+
+    def tags_of(self, ids: list[str]) -> dict[str, list[str]]:
+        """Each page's tags, most used first: for list rows, which lack them."""
+        out: dict[str, list[str]] = {page_id: [] for page_id in ids}
+        with self.connect() as conn:
+            for page_id, tag in conn.execute(
+                "SELECT page_id, tag FROM tag WHERE page_id IN"
+                " (SELECT value FROM json_each(?)) ORDER BY"
+                " (SELECT count(*) FROM tag t WHERE t.tag = tag.tag) DESC, tag",
+                (json.dumps(ids),),
+            ):
+                out[page_id].append(tag)
+        return out
+
+    def backlinks(self, slug: str) -> list[dict[str, str]]:
+        """The pages (not in the trash) whose text links to slug with [[slug]]."""
+        with self.connect() as conn:
+            rows = _rows(
+                conn,
+                "SELECT id, slug, title FROM page WHERE deleted_at IS NULL"
+                " AND slug <> ? AND (instr(body, '[[' || ? || ']]') > 0"
+                " OR instr(body, '[[' || ? || '|') > 0) ORDER BY updated_at DESC",
+                slug, slug, slug,
+            )  # fmt: skip
+        return rows
+
     def search(self, query: str, limit: int, offset: int = 0) -> list[dict[str, Any]]:
         """Pages matching a query (see scrap.query): every word somewhere in the page
         (its title, tags, summary, body, or a photo's text or description; each
@@ -838,6 +916,12 @@ class Store:
                     " AND instr('/' || t.tag || '/', ?) > 0)"
                 )
                 args.append(f"/{f.value.strip('/')}/")
+            elif f.key == "is" and f.value == "claude":  # written over MCP
+                sql.append(
+                    f"{no}EXISTS (SELECT 1 FROM capture c WHERE c.page_id = p.id"
+                    " AND c.source = ?)"
+                )
+                args.append(MCP)
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")
