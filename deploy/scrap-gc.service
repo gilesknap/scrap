@@ -1,7 +1,10 @@
 # Delete the stored files nothing uses any more (see scrap-gc): a dry run
 # instead if there is no recent backup. Started by scrap-gc.timer.
+# After= only orders it: if a backup is starting too, gc waits for it to finish.
+# No Wants=: that would start an extra backup on every gc run.
 [Unit]
 Description=scrap gc (delete unused files)
+After=scrap-backup.service
 RequiresMountsFor=%t/containers
 
 [Service]

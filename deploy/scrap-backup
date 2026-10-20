@@ -40,7 +40,7 @@ dest=$(date -u +%Y%m%dT%H%M%SZ)
 # before the cleanup below could delete the other run's backup.
 mkdir "$SCRAP_BACKUPS/$dest"
 if ! podman run --rm --replace --name scrap-backup \
-    --userns=keep-id:uid=10001,gid=10001 \
+    --userns=keep-id:uid=10001,gid=10001 --network=none \
     --volume "$SCRAP_DATA:/data" --volume "$SCRAP_BACKUPS:/backups" \
     --env SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" backup "/backups/$dest"; then

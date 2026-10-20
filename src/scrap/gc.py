@@ -17,9 +17,12 @@ so re-uploading old bytes makes them young again too.
 Deleting is safe while scrap serves. The references are read again inside a write
 transaction (no capture, edit or ingest can commit meanwhile), and each file is first
 renamed aside and its age checked once more: an upload that touched it before the
-rename puts it back, one after it finds no file and writes its own. If the references
-cannot be read, nothing is deleted. Backups are untouched: each backup run holds its own
-copy of every file its database refers to.
+rename puts it back, one after it finds no file and writes its own. A run that stops
+between the rename and putting a file back leaves it aside: each run first puts back
+any file left aside whose name is free. If the references cannot be read, nothing is
+deleted. Old page revisions are not references: only each page's current text is read.
+Backups are untouched: each backup run holds its own copy of every file its database
+refers to.
 """
 
 import os
@@ -74,6 +77,7 @@ class Report:
     temp_bytes: int = 0
     young: int = 0  # unused, but inside the grace period: kept
     kept: int = 0  # unused when looked at, in use (or touched) when deleting: kept
+    restored: int = 0  # left aside by a run that stopped mid-delete: put back
     deleted: bool = False
     shas: list[str] = field(default_factory=list)  # for tests; not printed
 
@@ -85,6 +89,11 @@ class Report:
             f" uploads, {mb:.1f} MB; {self.rows} unused file records; kept"
             f" {self.young} unused files younger than the grace period"
             + (f" and {self.kept} used again meanwhile" if self.kept else "")
+            + (
+                f"; put back {self.restored} files an earlier run left aside"
+                if self.restored
+                else ""
+            )
         )
 
 
@@ -103,6 +112,33 @@ def _files(store: Store) -> tuple[dict[str, Path], list[Path]]:
                 if ok and sub.is_file(follow_symlinks=False):
                     blobs[sub.name] = Path(sub.path)
     return blobs, temps
+
+
+def _restore(store: Store) -> int:
+    """Put back the files a run left aside (``.gc-<sha>``) when it stopped between the
+    rename and the delete or relink: the next steps decide again whether they are used.
+    One whose name is taken already has its bytes there (same SHA-256): the aside
+    goes."""
+    restored = 0
+    for entry in os.scandir(store.files):
+        if not (len(entry.name) == 2 and entry.is_dir(follow_symlinks=False)):
+            continue
+        for sub in os.scandir(entry.path):
+            sha = sub.name.removeprefix(ASIDE)
+            if sha == sub.name or not SHA256.fullmatch(sha) or sha[:2] != entry.name:
+                continue
+            if not sub.is_file(follow_symlinks=False):
+                continue
+            aside = Path(sub.path)
+            try:
+                os.link(aside, aside.with_name(sha))
+                restored += 1
+            except FileExistsError:
+                pass
+            except FileNotFoundError:
+                continue  # another run finished with it meanwhile
+            aside.unlink(missing_ok=True)
+    return restored
 
 
 def _old(path: Path, cutoff: float) -> bool | None:
@@ -128,7 +164,7 @@ def _delete(store: Store, sha: str, path: Path, cutoff: float) -> bool:
     except FileNotFoundError:
         return True  # already gone
     if _old(aside, cutoff):  # nobody touched it before the rename: later ones relink
-        aside.unlink()
+        aside.unlink(missing_ok=True)
         for size in (480, 2048):  # its previews: made again from nothing else
             cache = store.dir / "cache" / "previews" / str(size) / sha[:2]
             (cache / f"{sha}.jpg").unlink(missing_ok=True)
@@ -137,7 +173,9 @@ def _delete(store: Store, sha: str, path: Path, cutoff: float) -> bool:
         os.link(aside, path)
     except FileExistsError:
         pass  # written again meanwhile: the same bytes
-    aside.unlink()
+    except FileNotFoundError:
+        pass  # another run put it back meanwhile
+    aside.unlink(missing_ok=True)
     return False
 
 
@@ -159,6 +197,9 @@ def collect(
     report = Report()
     try:
         schema_version(store.db)  # refuses a database newer than this scrap
+        if not store.files.is_dir():
+            raise GcError(f"no files folder at {store.files}")
+        report.restored = _restore(store)
         with store.connect() as conn:
             conn.execute("BEGIN")  # one consistent snapshot of every reference
             try:

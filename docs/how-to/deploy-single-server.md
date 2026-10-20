@@ -277,19 +277,24 @@ result or ingest job, or a model run (the photo, or the JPEG it sent) does. File
 `--grace-hours` (default 24) are kept whatever refers to them, since an upload records its files
 only after writing them. **It is a dry run unless you give `--delete`**: it prints how many files
 it would delete and their size (never any page text). It refuses to run, deleting nothing, if it
-cannot read every reference, and it is safe while scrap serves.
+cannot read every reference, and it is safe while scrap serves. Each run first puts back any
+file an earlier run left renamed aside (`files/ab/.gc-<sha>`) because it stopped mid-delete. Only
+each page's current text counts: old revisions of a page do not keep a file.
 
 `scrap-gc.timer` runs `scrap-gc.service` nightly (about 04:30, after the backup) with
 `--delete`, but only if a backup run in `SCRAP_BACKUPS` is less than 26 hours old; otherwise it
 only counts and the service fails, so a missing backup shows. Every file a backup's database names
 is in that backup, so gc never deletes the only copy of a file a backup can restore. The backup
-and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap. To see what it
-would delete now, without deleting:
+and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap, and
+`scrap-gc.service` is ordered `After=scrap-backup.service`. The gc timer is not `Persistent`: a
+night missed while the machine was off is skipped rather than run at boot, where it could take
+the lock before the catch-up backup and fail for want of a recent backup. Both containers run with
+`--network=none`. To see what it would delete now, without deleting:
 
 ```
 set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v "$SCRAP_DATA:/data" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
+    --network=none -v "$SCRAP_DATA:/data" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
 journalctl --user -u scrap-gc   # what the nightly runs deleted
 ```
 

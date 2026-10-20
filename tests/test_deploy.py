@@ -45,6 +45,16 @@ def test_gc_deletes_only_after_a_recent_backup(tmp_path):
     result, args = _gc_run(tmp_path / "a", backups_age_min=60)
     assert result.returncode == 0, result.stderr
     assert args.split()[-4:] == ["gc", "--delete", "--grace-hours", "24"]
+    assert "--network=none" in args.split()
+
+
+def test_gc_waits_for_a_backup_and_skips_missed_nights():
+    service = (DEPLOY / "scrap-gc.service").read_text()
+    timer = (DEPLOY / "scrap-gc.timer").read_text()
+    assert "After=scrap-backup.service" in service.splitlines()
+    assert "Persistent=false" in timer.splitlines()
+    backup = (DEPLOY / "scrap-backup").read_text()
+    assert "--network=none" in backup
 
 
 def test_gc_without_a_recent_backup_only_counts_and_fails(tmp_path):

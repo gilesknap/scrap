@@ -289,3 +289,31 @@ def test_removing_an_embed_hides_the_photo_and_counts_other_pages(client, store)
     # Still the capture's: gc keeps it (and its Claude results) while it has a capture
     age_all(store)
     assert sha not in gc.collect(store, delete=True).shas
+
+
+@pytest.mark.parametrize("delete", [False, True])
+def test_a_file_left_aside_by_a_stopped_run_is_put_back(client, store, delete):
+    """A run that stopped between the rename and the relink strands a live file."""
+    page, sha = photo(client, b"left aside")
+    path = store.blob_path(sha)
+    os.rename(path, path.with_name(f"{gc.ASIDE}{sha}"))
+    report = gc.collect(store, delete=delete)
+    assert report.restored == 1 and "put back 1 files" in report.text()
+    assert sha not in report.shas
+    assert path.read_bytes() == b"left aside"
+    assert [p.name for p in path.parent.iterdir()] == [sha]
+    assert client.get(f"/api/blobs/{sha}").status_code == 200
+
+
+def test_an_aside_whose_name_is_taken_goes_and_an_unused_one_is_deleted(store):
+    taken = put(store, b"written again")
+    path = store.blob_path(taken)
+    os.link(path, path.with_name(f"{gc.ASIDE}{taken}"))
+    unused = put(store, b"nothing uses me")
+    upath = store.blob_path(unused)
+    os.rename(upath, upath.with_name(f"{gc.ASIDE}{unused}"))
+    report = gc.collect(store, delete=True)
+    assert report.restored == 1  # only the one whose name was free
+    assert sorted(report.shas) == sorted([taken, unused])  # then both are unused
+    assert not path.exists() and not upath.exists()
+    assert not list(store.files.rglob(f"{gc.ASIDE}*"))
