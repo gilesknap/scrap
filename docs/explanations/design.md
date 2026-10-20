@@ -227,8 +227,11 @@ A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, wa
 rewrites the user's words or fits them to templates.
 
 - **`fields`** is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
-  todo has `status` (`open`, `done`) and optional `due`; consume has `subtype` (`read`, `watch`,
-  `listen`), `status` and the `source` link.
+  todo has `status` and optional `due`; consume has `subtype` (`read`, `watch`, `listen`),
+  `status` and the `source` link.
+- **Status** is one lifecycle for todo and consume, Thoth's: `open`, `in_progress`, `done`,
+  `cancelled`. New pages start `open`; ticking a todo toggles `open` and `done`, and the other two
+  are stored and shown (set by an import, richer controls later).
 - **A kind change** (hint, PWA edit, `extract` or `summarise`) **resets `fields`** to the new kind's
   defaults plus any checked model output: todo `{"status":"open"}`; consume
   `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL (omitted if it has
@@ -386,6 +389,17 @@ Where the code so far differs from the text above; later milestones should build
   server's `POST /share` is a fallback if it does not. No per-capture processing states yet (there
   are no jobs): the capture screen shows what is still on the phone and the newest pages. Todos,
   Consume and Inbox views wait for the worker. `GET /api/pages` gained `thumb`.
+
+## Import (M2)
+
+`scrap import` brings in a Thoth vault ([how-to](../how-to/import-a-vault.md)) through `Store`,
+so revisions and the search index stay consistent. Each page keeps the vault's dates (its
+`created_at`, `updated_at` and revision 1), kind (fixed), fields and tags; its capture has source
+`import`, the vault file as its text (which also keeps ingest from retitling it) and the page's
+images, PDFs in a second `file` capture. The capture id is made from the page's path, so a second
+run skips pages already imported. Links between pages become `[[slug|label]]`, which the PWA
+renders as links to `/p/<slug>` (the `link` table does not exist yet); images are embedded as
+`![](/api/blobs/<sha>/preview?size=2048)`.
 
 ## Claude ingest (M2)
 

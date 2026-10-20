@@ -1,0 +1,273 @@
+import hashlib
+import json
+
+import pytest
+
+from scrap import importer
+from scrap.store import Store
+
+PNG = b"synthetic png bytes"
+SHA = hashlib.sha256(PNG).hexdigest()
+
+
+def write(root, rel, text):
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(text, bytes):
+        path.write_bytes(text)
+    else:
+        path.write_text(text)
+
+
+def front(**fm):
+    lines = ["---"]
+    for key, value in fm.items():
+        if isinstance(value, list):
+            lines += [f"{key}:", *(f"  - {v}" for v in value)]
+        else:
+            lines.append(f"{key}: {value}")
+    return "\n".join([*lines, "---", ""])
+
+
+@pytest.fixture
+def vault(tmp_path):
+    """A small made-up vault in Thoth's layout."""
+    root = tmp_path / "vault"
+    write(
+        root,
+        "notes/alpha.md",
+        front(
+            title="Alpha",
+            type="note",
+            created="2025-01-02",
+            updated="2025-03-04",
+            source="chat",
+            tags=["Domain/Testing", "kind/how-to"],
+            summary="A made-up note",
+            personal="false",
+        )
+        + "# Alpha\n\nSee [Beta](../entities/beta.md), [root form](entities/beta.md),"
+        " [gone](notes/nowhere.md), [an article](../raw/articles/a.md),"
+        " [web](https://example.com) and [[beta|wiki beta]].\n\n"
+        "![a chart](../raw/assets/chart.png)\n\n![[sketch.excalidraw]]\n\n"
+        "![manual](../raw/assets/manual.pdf)\n\n"
+        "`[code](beta.md)`\n\n```\n[fenced](beta.md)\n```\n",
+    )
+    write(
+        root,
+        "entities/beta.md",
+        front(title="Beta", type="entity", created="2025-02-01", updated="2025-02-01")
+        + "Back to [Alpha](../notes/alpha.md) and [same folder](gamma.md).\n",
+    )
+    write(
+        root,
+        "entities/gamma.md",
+        front(title="Gamma", type="entity", created="2025-02-01", updated="2025-02-01"),
+    )
+    write(
+        root,
+        "actions/do-it.md",
+        front(
+            title="Do it",
+            type="action",
+            created="2025-05-05",
+            updated="2025-05-06",
+            status="todo",
+            due_date="2025-06-01",
+            priority="High",
+            project="made-up",
+        )
+        + "Steps.\n",
+    )
+    write(
+        root,
+        "media/a-show.md",
+        front(
+            title="A show",
+            type="media",
+            created="2025-04-01",
+            updated="2025-04-01",
+            status="in_progress",
+            media_type="tv",
+            url="https://example.com/show",
+        ),
+    )
+    write(
+        root,
+        "memories/day-out.md",
+        front(title="Day out", type="memory", memory_date="2001-07-08", tags=["A" * 70])
+        + "A day.\n",
+    )
+    write(root, "notes/alpha-copy.md", front(type="action") + "No title.\n")
+    write(root, "notes/more/alpha.md", front(title="Another alpha", type="memory"))
+    write(root, "Loose Page.md", "# Loose\n\nNo front matter.\n")
+    write(root, "index.md", front(title="Home", type="summary"))
+    write(root, "log.md", "log\n")
+    write(root, "SCHEMA.md", "schema\n")
+    write(root, "images-index.md", front(title="Images", type="summary"))
+    write(root, "inbox/held.md", front(type="inbox"))
+    write(root, "raw/articles/a.md", "an article\n")
+    write(root, "raw/assets/chart.png", PNG)
+    write(root, "raw/assets/spare.png", b"unused")
+    write(root, "raw/assets/manual.pdf", b"%PDF made up")
+    write(root, "raw/assets/sketch.excalidraw.md", "drawing\n")
+    write(root, "_bases/view.base", "x\n")
+    write(root, "notes/data.json", "{}\n")
+    write(root, ".obsidian/app.json", "{}\n")
+    return root
+
+
+def imported(tmp_path, vault, **kw):
+    store = Store(tmp_path / "data")
+    plan = importer.plan(vault, store)
+    importer.run(store, plan, **kw)
+    return store, plan
+
+
+def test_kinds_fields_tags_and_dates(tmp_path, vault):
+    store, _ = imported(tmp_path, vault)
+    with store.connect() as conn:
+        rows = {r["slug"]: dict(r) for r in conn.execute("SELECT * FROM page")}
+    assert {s: r["kind"] for s, r in rows.items()} == {
+        "alpha": "note",
+        "alpha-2": "memory",
+        "alpha-copy": "todo",
+        "beta": "reference",
+        "gamma": "reference",
+        "do-it": "todo",
+        "a-show": "consume",
+        "day-out": "memory",
+        "loose-page": "note",
+    }
+    assert all(r["kind_fixed"] == 1 for r in rows.values())
+    assert json.loads(rows["do-it"]["fields"]) == {
+        "status": "open",
+        "due": "2025-06-01",
+        "priority": "high",
+    }
+    assert json.loads(rows["a-show"]["fields"]) == {
+        "status": "in_progress",
+        "subtype": "watch",
+        "media_type": "tv",
+        "source": "https://example.com/show",
+    }
+    assert json.loads(rows["alpha"]["fields"]) == {
+        "summary": "A made-up note",
+        "personal": False,
+    }
+    assert json.loads(rows["alpha-copy"]["fields"]) == {"status": "open"}
+    assert rows["alpha"]["created_at"] == "2025-01-02T00:00:00.000Z"
+    assert rows["alpha"]["updated_at"] == "2025-03-04T00:00:00.000Z"
+    assert rows["day-out"]["created_at"] == "2001-07-08T00:00:00.000Z"  # memory_date
+    assert rows["alpha-copy"]["title"] == "alpha-copy"
+    assert rows["loose-page"]["title"] == "Loose"
+    page = store.page("alpha")
+    assert page["tags"] == ["domain/testing", "kind/how-to"]
+    assert page["rev"] == 1 and page["updated_at"] == "2025-03-04T00:00:00.000Z"
+    with store.connect() as conn:
+        rev = conn.execute("SELECT * FROM page_rev WHERE page_id = ?", (page["id"],))
+        assert dict(rev.fetchone())["created_at"] == "2025-03-04T00:00:00.000Z"
+    assert store.page("day-out")["tags"] == ["a" * 64]
+
+
+def test_links_images_and_files(tmp_path, vault):
+    store, _ = imported(tmp_path, vault)
+    body = store.page("alpha")["body"]
+    assert not body.startswith("# Alpha")  # the title is shown already
+    assert "See [[beta|Beta]], [[beta|root form]], gone, an article," in body
+    assert "[web](https://example.com) and [[beta|wiki beta]]." in body
+    assert f"![a chart](/api/blobs/{SHA}/preview?size=2048)" in body
+    assert "*sketch.excalidraw (not imported)*" in body
+    assert "*manual (attached)*" in body
+    assert "`[code](beta.md)`" in body and "[fenced](beta.md)" in body
+    beta = store.page("beta")["body"]
+    assert beta == "Back to [[alpha|Alpha]] and [[gamma|same folder]]."
+    captures = store.page("alpha")["captures"]
+    assert [(c["kind"], [b["filename"] for b in c["blobs"]]) for c in captures] == [
+        ("photo", ["chart.png"]),
+        ("file", ["manual.pdf"]),
+    ]
+    assert store.blob_path(SHA).read_bytes() == PNG
+    assert captures[0]["text"].startswith("---\ntitle: Alpha")  # the original
+    assert store.recent(50)[-1]["slug"] == "day-out"  # by its own dates
+    assert [p["slug"] for p in store.recent(50) if p["thumb"]] == ["alpha"]
+    assert store.search("same folder", 5)[0]["slug"] == "beta"
+    with store.connect() as conn:
+        assert conn.execute("SELECT count(*) FROM job").fetchone()[0] == 0
+
+
+def test_report_lists_problems(tmp_path, vault):
+    plan = importer.plan(vault, Store(tmp_path / "data"))
+    issues = plan.issues
+    assert issues["broken link"] == ["notes/alpha.md: notes/nowhere.md"]
+    assert issues["link to dropped page"] == ["notes/alpha.md: raw/articles/a.md"]
+    assert issues["file not imported"] == [
+        "notes/alpha.md: raw/assets/sketch.excalidraw.md"
+    ]
+    assert issues["unreferenced image"] == ["raw/assets/spare.png"]
+    assert issues["no front matter"] == ["Loose Page.md"]
+    assert issues["slug collision"] == ["notes/more/alpha.md: alpha-2"]
+    assert sorted(issues["tag changed"]) == [
+        f"memories/day-out.md: '{'A' * 70}' -> '{'a' * 64}'",
+        "notes/alpha.md: 'Domain/Testing' -> 'domain/testing'",
+    ]
+    assert sorted(issues["unmapped field"]) == [
+        "actions/do-it.md: project",
+        "notes/alpha.md: source",
+    ]
+    assert sorted(issues["skipped"]) == [
+        "SCHEMA.md: index, log or schema",
+        "images-index.md: type summary",
+        "index.md: index, log or schema",
+        "log.md: index, log or schema",
+        "notes/data.json: not a page",
+    ]
+    assert sorted(issues["dropped folder"]) == [
+        "_bases/: 1 files",
+        "inbox/: 1 files",
+        "raw/: 5 files",
+    ]
+    text = importer.report(plan, details=False)
+    assert text.startswith("9 pages (9 new): 1 consume, 2 memory, 2 note,")
+    assert "broken link: 1" in text and "notes/nowhere.md" not in text
+    assert "notes/nowhere.md" in importer.report(plan, details=True)
+
+
+def test_rerun_skips_imported_pages_and_keeps_their_links(tmp_path, vault):
+    store, _ = imported(tmp_path, vault)
+    write(
+        vault,
+        "notes/late.md",
+        front(title="Late", type="note", created="2025-09-09") + "[B](beta.md)\n",
+    )
+    write(vault, "entities/beta.md", "changed\n")  # already imported: left as it was
+    plan = importer.plan(vault, store)
+    assert [p.slug for p in plan.pages if p.new] == ["late"]
+    assert importer.run(store, plan) == 1
+    assert store.page("late")["body"] == "[[beta|B]]"  # no notes/beta.md: by name
+    write(vault, "notes/later.md", front(title="Later") + "[B](../entities/beta.md)\n")
+    importer.run(store, importer.plan(vault, store))
+    assert store.page("later")["body"] == "[[beta|B]]"
+    assert store.page("beta")["body"].startswith("Back to")
+    assert len(store.recent(50)) == 11
+
+
+def test_ingest_queues_the_images(tmp_path, vault):
+    store, _ = imported(tmp_path, vault, ingest=True)
+    with store.connect() as conn:
+        jobs = conn.execute("SELECT source_sha256 FROM job").fetchall()
+    assert [j[0] for j in jobs] == [SHA]
+
+
+def test_cli_dry_run_writes_nothing(tmp_path, vault, capsys):
+    from scrap.__main__ import main
+
+    data = tmp_path / "data"
+    main(["import", "--dry-run", "--data-dir", str(data), str(vault)])
+    out = capsys.readouterr().out
+    assert "9 pages (9 new)" in out and "  notes/alpha.md: notes/nowhere.md" in out
+    assert not data.exists()
+    main(["import", "--data-dir", str(data), str(vault)])
+    assert "imported 9 pages" in capsys.readouterr().out
+    with pytest.raises(SystemExit, match="no folder"):
+        main(["import", "--data-dir", str(data), str(tmp_path / "none")])

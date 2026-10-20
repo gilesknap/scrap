@@ -20,6 +20,7 @@ from typing import IO, Any
 
 __all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError"]
 
+BlobRef = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 BARE_URL = re.compile(r"https?://\S+")
@@ -70,6 +71,13 @@ def now() -> str:
 def new_ulid() -> str:
     n = (int(time.time() * 1000) << 80) | secrets.randbits(80)
     return "".join(CROCKFORD[(n >> shift) & 31] for shift in range(125, -1, -5))
+
+
+def slug_base(title: str) -> str:
+    """A slug made from a title, before any suffix that makes it unique."""
+    ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore")
+    base = re.sub(r"[^a-z0-9]+", "-", ascii_title.decode().lower())[:60].strip("-")
+    return base or "page"
 
 
 def migrations() -> list[str]:
@@ -272,14 +280,89 @@ class Store:
                                    "now": stamp})  # fmt: skip
             return self._ref(conn, cid, page_id), True
 
+    def import_page(
+        self,
+        p: dict[str, Any],
+        captures: list[tuple[str, str, str | None, list[BlobRef]]],
+        author: str,
+        enqueue: bool = False,
+    ) -> tuple[str, bool]:
+        """Save a page made elsewhere (scrap import) with its own slug, kind, fields,
+        tags and dates. captures are (id, kind, text, blobs), blobs already in files/;
+        the first id is the retry key, as for a capture. Its text, the original, also
+        keeps ingest from retitling the page. Returns the slug and whether it is new.
+        enqueue: send its photos to Claude, as a capture would.
+        """
+        stamp = now()
+        with self.connect() as conn, transaction(conn):
+            row = conn.execute(
+                "SELECT p.slug FROM capture c JOIN page p ON p.id = c.page_id"
+                " WHERE c.id = ?",
+                (captures[0][0],),
+            ).fetchone()
+            if row:
+                return row[0], False
+            blobs = [b for *_, bs in captures for b in bs]
+            conn.executemany(
+                "INSERT INTO blob VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+                [(sha, mime, size, stamp) for sha, mime, size, _ in blobs],
+            )
+            page_id = new_ulid()
+            conn.execute(
+                "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
+                " created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)",
+                (page_id, p["slug"], p["title"], p["body"], p["kind"],
+                 json.dumps(p["fields"]), p["created_at"], p["updated_at"]),
+            )  # fmt: skip
+            conn.execute(
+                "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
+                (page_id, p["title"], p["body"], author, p["updated_at"]),
+            )
+            for cid, kind, text, bs in captures:
+                conn.execute(
+                    "INSERT INTO capture VALUES (?, ?, ?, NULL, 'import', ?, ?, ?, ?)",
+                    (cid, kind, text, author, p["created_at"], stamp, page_id),
+                )
+                conn.executemany(
+                    "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
+                    [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(bs)],
+                )
+                if enqueue:
+                    conn.execute(ENQUEUE, {"capture": cid, "photo": None,
+                                           "options": "{}", "now": stamp})  # fmt: skip
+            conn.executemany(
+                "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in p["tags"]]
+            )
+            self._index(conn, page_id, p["title"], p["body"])
+            return p["slug"], True
+
+    def slugs(self) -> set[str]:
+        """Every slug in use, the trash's too (a trashed page keeps its slug)."""
+        if not self.db.is_file():
+            return set()
+        with self.connect() as conn:
+            return {row[0] for row in conn.execute("SELECT slug FROM page")}
+
+    def imported(self, ids: list[str]) -> dict[str, str]:
+        """The slug of the page each of these capture ids made, for those that exist."""
+        if not self.db.is_file():
+            return {}
+        with self.connect() as conn:
+            return {
+                row[0]: row[1]
+                for row in conn.execute(
+                    "SELECT c.id, p.slug FROM capture c JOIN page p ON p.id = c.page_id"
+                    " WHERE c.id IN (SELECT value FROM json_each(?))",
+                    (json.dumps(ids),),
+                )
+            }
+
     def _ref(self, conn: sqlite3.Connection, cid: str, page_id: str) -> dict[str, str]:
         slug = conn.execute("SELECT slug FROM page WHERE id = ?", (page_id,)).fetchone()
         return {"capture_id": cid, "page_id": page_id, "slug": slug[0]}
 
     def _slug(self, conn: sqlite3.Connection, title: str) -> str:
-        ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore")
-        base = re.sub(r"[^a-z0-9]+", "-", ascii_title.decode().lower())[:60].strip("-")
-        base = base or "page"
+        base = slug_base(title)
         taken = {
             row[0]
             for row in conn.execute(
