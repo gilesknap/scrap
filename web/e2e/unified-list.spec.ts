@@ -106,3 +106,36 @@ test("Back restores where the list was scrolled to", async ({ page }) => {
   await expect(page.locator(".list li").first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(y - 50);
 });
+
+test("search results page on with Show more, as far as the count says", async ({ page }) => {
+  const tag = `more${ulid().slice(-6).toLowerCase()}`;
+  for (let i = 0; i < 105; i++) await make(page, `Paged ${tag} ${i}`);
+  await page.goto(`/search?q=${tag}`);
+  const rows = page.locator(".hits > li");
+  await expect(rows).toHaveCount(100);
+  await expect(page.locator(".refine")).toContainText("105 pages");
+  await page.getByRole("button", { name: "Show more" }).click();
+  await expect(rows).toHaveCount(105);
+  await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  await page.reload(); // as long again (it rides in the history entry)
+  await expect(rows).toHaveCount(105);
+});
+
+test("the kind row keeps focus as arrow keys move through it; any case of kind:", async ({
+  page,
+}) => {
+  await page.goto("/search?q=kind%3ATodo");
+  const row = page.getByRole("radiogroup", { name: "Kind" });
+  await expect(row.getByRole("radio", { name: "Todos" })).toBeChecked(); // kind:Todo
+  await row.getByRole("radio", { name: "Todos" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("searchbox")).toHaveValue("kind:read");
+  await expect(row.getByRole("radio", { name: "Reads" })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("searchbox")).toHaveValue("kind:board");
+  await expect(row.getByRole("radio", { name: "Boards" })).toBeFocused();
+  await page.goto("/recent?kind=bogus"); // an unknown kind: ignored
+  await expect(page).toHaveURL(/\/search$/);
+  await page.goto("/recent?kind=consume");
+  await expect(page).toHaveURL(/\/search\?q=kind%3Aread$/);
+});

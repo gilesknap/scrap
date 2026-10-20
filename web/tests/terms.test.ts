@@ -64,3 +64,11 @@ describe("the kind row", () => {
     expect(listing("tag:x")).toBeNull();
   });
 });
+
+it("knows the kind row's kinds in any case, as the server does", () => {
+  expect(kindsIn("kind:Todo garden").map(([, v]) => v)).toEqual(["todo"]);
+  expect(kindsIn("KIND:CONSUME").map(([, v]) => v)).toEqual(["read"]);
+  expect(withKind("garden kind:Todo", "note")).toBe("garden kind:note");
+  expect(withKind("kind:TODO", "todo")).toBe(""); // tapping the one that is on clears it
+  expect(listing("Kind:Todo")).toBe("kind=todo");
+});

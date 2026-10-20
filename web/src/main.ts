@@ -8,6 +8,7 @@ import { page } from "./page";
 import { search } from "./search";
 import { whenSlow } from "./slow";
 import { trailOf } from "./swipe";
+import { KIND_ROW } from "./terms";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
@@ -18,10 +19,11 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
 ];
 
-/** /recent (?kind=todo, ?kind=consume) as the search screen's address. */
+/** /recent (?kind=todo, ?kind=consume) as the search screen's address; another kind= is
+ * ignored. */
 function recent() {
   const kind = new URLSearchParams(location.search).get("kind");
-  const name = kind === "consume" ? "read" : kind;
+  const name = KIND_ROW.find(([, , , api]) => api === kind)?.[1];
   history.replaceState(
     null,
     "",

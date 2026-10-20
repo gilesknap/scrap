@@ -382,10 +382,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return ingest.status(store)
 
     @app.get("/api/search")
-    def search(q: str, limit: int = Query(20, ge=1, le=100)) -> list[dict[str, Any]]:
+    def search(
+        q: str,
+        limit: int = Query(20, ge=1, le=100),
+        offset: int = Query(0, ge=0, le=10_000),  # the next page of results
+    ) -> list[dict[str, Any]]:
         """Full-text search over titles, tags, summaries and bodies, with -word,
         "phrase", kind:, tag: and is:; snippets mark hits with <mark>."""
-        return store.search(q, limit)
+        return store.search(q, limit, offset)
 
     @app.get("/api/search/facets")
     def facets(q: str) -> dict[str, Any]:

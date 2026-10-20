@@ -288,3 +288,27 @@ def test_a_pages_tags_come_most_used_first(store):
     page(store, "Other", tags=["zz", "mm"])
     page(store, "Third", tags=["zz"])
     assert store.page(slug)["tags"] == ["zz", "mm", "aa"]
+
+
+def test_search_pages_through_hits_with_offset(tmp_path):
+    client = TestClient(create_app(tmp_path))
+    store = Store(tmp_path)
+    made = [page(store, f"Paged {n}", "words") for n in range(7)]
+
+    def get(**params):
+        r = client.get("/api/search", params=params)
+        assert r.status_code == 200
+        return [h["slug"] for h in r.json()]
+
+    for q in ("paged", "kind:note"):  # ranked, and filters alone (newest first)
+        whole = get(q=q, limit=7)
+        assert sorted(whole) == sorted(made)
+        assert (
+            get(q=q, limit=3)
+            + get(q=q, limit=3, offset=3)
+            + get(q=q, limit=3, offset=6)
+            == whole
+        ), q
+        assert get(q=q, limit=3, offset=7) == []
+    assert client.get("/api/search", params={"q": "x", "offset": -1}).status_code == 422
+    assert client.get("/api/search", params={"q": "x", "limit": 101}).status_code == 422

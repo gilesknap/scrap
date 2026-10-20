@@ -70,18 +70,22 @@ export const KIND_ROW: [string, string, string[], string][] = [
   ["Docs", "doc", ["doc", "document"], "document"],
 ];
 
+const ROW_KINDS = new Set(KIND_ROW.flatMap(([, , names]) => names.map((n) => `kind:${n}`)));
+/** A token the kind row stands for, in any case as the server takes it (kind:Todo too). */
+const rowKind = (t: string) => ROW_KINDS.has(t.toLowerCase());
+
 /** The query without the kind row's kinds (kind:todo, kind:consume; not -kind:todo). */
-export function unkinded(q: string): string {
-  let s = q;
-  for (const [, , names] of KIND_ROW)
-    for (const n of names)
-      for (let t = removing(s, `kind:${n}`); t !== s; t = removing(s, `kind:${n}`)) s = t;
-  return s;
-}
+export const unkinded = (q: string) =>
+  q
+    .split(/\s+/)
+    .filter((t) => t && !rowKind(t))
+    .join(" ");
 
 /** The kinds of the row a query asks for (two kinds mean either). */
-export const kindsIn = (q: string) =>
-  KIND_ROW.filter(([, , names]) => names.some((n) => has(q, `kind:${n}`)));
+export function kindsIn(q: string) {
+  const asked = new Set(q.toLowerCase().split(/\s+/).filter(rowKind));
+  return KIND_ROW.filter(([, , names]) => names.some((n) => asked.has(`kind:${n}`)));
+}
 
 /** The query with the row's kind tapped: set, or cleared if it was the only one (value "":
  * All, clearing any). */

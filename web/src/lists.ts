@@ -107,7 +107,7 @@ export async function pendingList(): Promise<Node> {
 export async function pageList(
   limit: number,
   filter = "",
-  label = "Recent",
+  label = "Latest",
   more?: () => void,
 ): Promise<Node> {
   try {

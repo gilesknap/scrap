@@ -270,9 +270,10 @@ rewrites the user's words or fits them to templates.
   insert first, then writes the summary row, then deletes the `fetched` text if the stored kind is
   now `consume`. Only regenerating the summary re-fetches it, for example after a change to
   `reference`.
-- **Views.** Recent has filter chips, not screens of their own: All, Todos (`?kind=todo`; a
-  todo's page has a Done/Reopen tick setting `fields.status`), and Read (`?kind=consume`). No
-  Inbox: `kind_fixed` is only for the user-wins rule.
+- **Views.** One list screen (Search; `/recent` redirects to it): an empty box lists every page
+  newest first, a fixed kind row (All, Notes, Todos, Reads, Boards, Docs) sets or clears `kind:`,
+  and the query rides in the address (`/search?q=...`). A todo's page has a Done/Reopen tick
+  setting `fields.status`. No Inbox: `kind_fixed` is only for the user-wins rule.
 
 ## Phone quick capture
 

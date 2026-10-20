@@ -14,6 +14,7 @@ import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
 import { empty, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
+const MOST = 1000; // search results, fetched PAGE at a time
 
 interface State {
   scroll?: number; // where the list was scrolled to
@@ -35,26 +36,26 @@ export async function search(): Promise<Node> {
   const pending = h("div");
   const results = h("div");
   const chips = h("div");
-  const kinds = h("div", { className: "chips kindrow", role: "radiogroup", "aria-label": "Kind" });
+  // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
+  const radios = [["All", ""] as const, ...KIND_ROW].map(([label, v]) => {
+    const radio = h("input", {
+      type: "radio",
+      name: "kind",
+      value: v,
+      // A click, not a change: tapping the one that is on clears it
+      onclick: () => apply((now) => withKind(now, v)),
+    });
+    return [radio, h("label", {}, radio, label)] as const;
+  });
+  const kinds = h(
+    "div",
+    { className: "chips kindrow", role: "radiogroup", "aria-label": "Kind" },
+    ...radios.map(([, label]) => label),
+  );
   const showKinds = (query: string) => {
     const on = kindsIn(query);
     const value = on.length === 1 ? on[0][1] : on.length ? null : "";
-    kinds.replaceChildren(
-      ...[["All", ""] as const, ...KIND_ROW].map(([label, v]) =>
-        h(
-          "label",
-          {},
-          h("input", {
-            type: "radio",
-            name: "kind",
-            checked: v === value,
-            // A click, not a change: tapping the one that is on clears it
-            onclick: () => apply((now) => withKind(now, v)),
-          }),
-          label,
-        ),
-      ),
-    );
+    for (const [radio] of radios) radio.checked = radio.value === value;
   };
   let timer: ReturnType<typeof setTimeout>;
   let saving: ReturnType<typeof setTimeout>;
@@ -115,13 +116,18 @@ export async function search(): Promise<Node> {
         keep({ limit });
         void run(true);
       };
-      return pageList(limit, filter, kind ? kind[0] : "Recent", limit < 500 ? more : undefined);
+      return pageList(limit, filter, kind ? kind[0] : "Latest", limit < 500 ? more : undefined);
     }
     const ul = h("ul", { className: "list hits" });
     try {
-      const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}&limit=100`, {
-        signal,
-      });
+      // limit hits (Show more adds PAGE), fetched PAGE at a time: the API's most per request
+      const hits: Hit[] = [];
+      for (let offset = 0; offset < limit; offset += PAGE) {
+        const q = `q=${encodeURIComponent(query)}&limit=${PAGE}&offset=${offset}`;
+        const got = await api<Hit[]>(`search?${q}`, { signal });
+        hits.push(...got);
+        if (got.length < PAGE) break;
+      }
       trail(
         ul,
         "Search results",
@@ -139,6 +145,19 @@ export async function search(): Promise<Node> {
       );
       swipeRows(rows.map((li, i) => [li, hits[i]]));
       ul.append(...rows, ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]));
+      if (hits.length === limit && limit < MOST) {
+        const more = () => {
+          limit += PAGE;
+          keep({ limit });
+          void run(true);
+        };
+        return h(
+          "div",
+          {},
+          ul,
+          h("button", { type: "button", className: "more", onclick: more }, "Show more"),
+        );
+      }
     } catch (e) {
       if ((e as Error).name !== "AbortError")
         ul.append(h("li", {}, empty("offline", "Search needs the server.")));

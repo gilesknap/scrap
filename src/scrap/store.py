@@ -689,12 +689,13 @@ class Store:
         if cur.rowcount == 0:
             raise NotFoundError(key)
 
-    def search(self, query: str, limit: int) -> list[dict[str, Any]]:
+    def search(self, query: str, limit: int, offset: int = 0) -> list[dict[str, Any]]:
         """Pages matching a query (see scrap.query): every word somewhere in the page
         (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
         the page's best chunk, title, tag and summary matches weighing most; a query
-        of filters alone lists its pages newest first."""
+        of filters alone lists its pages newest first. offset: skip that many hits
+        (the next page of results)."""
         q = parse(query)
         if not q.terms and not q.filters:
             return []
@@ -721,13 +722,15 @@ class Store:
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.body AS snippet"
                     f" FROM page p WHERE {where}"
-                    " ORDER BY p.updated_at DESC, p.id DESC LIMIT ?",
-                    (*args, limit),
+                    " ORDER BY p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
+                    (*args, limit, offset),
                 )
+                offset = 0  # done by SQL
             for row in rows:
                 hits.setdefault(row["id"], dict(row))
-                if len(hits) == limit:
+                if len(hits) == offset + limit:
                     break
+            hits = dict(list(hits.items())[offset:])
             # Each hit's thumbnail and last edit, as /api/pages has them: one query
             for row in conn.execute(
                 f"SELECT p.id, p.updated_at, {THUMB} AS thumb FROM page p"
