@@ -128,6 +128,31 @@ def test_photo_capture_and_blob(client):
     assert got.headers["x-content-type-options"] == "nosniff"
 
 
+def test_a_capture_embeds_each_image_in_its_text_in_order(client):
+    other = PNG.replace(b"\x00", b"\x01", 1)
+    files = [
+        ("file", ("one.png", PNG, "image/png")),
+        ("file", ("doc.pdf", b"%PDF-1.4", "application/pdf")),
+        ("file", ("two.png", other, "image/png")),
+        ("file", ("again.png", PNG, "image/png")),  # the same photo twice: shown once
+    ]
+    data = {"id": new_ulid(), "text": "notes"}
+    ref = client.post("/api/captures", data=data, files=files).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    one, _, two, _ = (b["sha256"] for b in page["captures"][0]["blobs"])
+    embed = "![](/api/blobs/{}/preview?size=2048)".format
+    assert page["body"] == f"notes\n\n{embed(one)}\n\n{embed(two)}"
+    assert page["title"] == "notes"
+    alone = {"id": new_ulid()}
+    ref = client.post("/api/captures", data=alone, files=files[:1]).json()
+    assert client.get(f"/api/pages/{ref['page_id']}").json()["body"] == embed(one)
+    assert [h["slug"] for h in search(client, "api")] == []  # addresses: not words
+    shown = {"id": new_ulid(), "text": f"see {embed(two)}"}  # the text shows it already
+    ref = client.post("/api/captures", data=shown, files=files[2:3]).json()
+    body = client.get(f"/api/pages/{ref['page_id']}").json()["body"]
+    assert body == f"see {embed(two)}"
+
+
 @pytest.mark.parametrize(
     "path", ["..%2Fscrap.db", "%2e%2e%2f%2e%2e%2fscrap.db", "0" * 64, "A" * 64]
 )

@@ -1,8 +1,9 @@
 // A tiny Markdown renderer for page text: headings, **bold**, *italic*, `code`, fenced code,
 // lists, quotes, links, rules and paragraphs (a line break stays one). Every piece of text is
 // HTML-escaped before anything else, there is no raw HTML, links are http(s) or mailto only, or
-// [[slug]] and [[slug|label]] to another page, and images only this server's own files. The
-// stored text is never changed.
+// [[slug]] and [[slug|label]] to another page, and images only this server's own files (each
+// marked with its file's data-sha, for the page to make a figure of). The stored text is never
+// changed.
 const ESC: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -13,7 +14,7 @@ const ESC: Record<string, string> = {
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
 
 const LINK = /^(https?:\/\/|mailto:)/i;
-const IMAGE = /^\/api\/blobs\/[0-9a-f]{64}(\/preview\?size=(480|2048))?$/;
+const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const a = (href: string, text: string) =>
   `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 
@@ -32,7 +33,9 @@ export function inline(raw: string): string {
   );
   // No marker inside an address or alt text: only ever in text, so it is safe to restore
   s = s.replace(/!\[([^\]\uE000]*)\]\(([^)\s\uE000]+)\)/g, (m, alt: string, src: string) =>
-    IMAGE.test(src) ? keep(`<img src="${src}" alt="${alt}" loading="lazy">`) : m,
+    IMAGE.test(src)
+      ? keep(`<img src="${src}" alt="${alt}" loading="lazy" data-sha="${IMAGE.exec(src)?.[1]}">`)
+      : m,
   );
   s = s.replace(/\[\[([a-z0-9-]+)(?:\|([^[\]]+))?\]\]/g, (_, slug: string, label?: string) =>
     keep(`<a href="/p/${slug}">${em(label ?? slug)}</a>`),
@@ -100,5 +103,30 @@ export function markdown(text: string): string {
     else flush();
   }
   flush();
+  return out.join("\n");
+}
+
+const EMBEDS = /^\s*(!\[[^\]\n]*\]\(\/api\/blobs\/[^)\s]+\)\s*)+$/;
+
+/** Text for other apps (Share): without the lines that only embed this server's images, nor
+ * the blank line each leaves; code and everything else as typed. */
+export function unembedded(text: string): string {
+  const out: string[] = [];
+  let fence: RegExp | null = null; // what closes the open code fence
+  let gap = false; // a line was dropped since the last line kept
+  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+    const open = line.match(/^ {0,3}(`{3,}|~{3,})/)?.[1];
+    if (fence) {
+      if (fence.test(line)) fence = null;
+    } else if (open) fence = new RegExp(`^ {0,3}${open[0]}{${open.length},}\\s*$`);
+    else if (EMBEDS.test(line)) {
+      gap = true;
+      continue;
+    }
+    if (gap && !line.trim() && !out.at(-1)?.trim()) continue; // the blank line it left
+    gap = false;
+    out.push(line);
+  }
+  while (gap && out.length && !out.at(-1)?.trim()) out.pop(); // a gap left at the end
   return out.join("\n");
 }

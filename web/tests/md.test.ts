@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inline, markdown } from "../src/md";
+import { inline, markdown, unembedded } from "../src/md";
 
 const SHA = "a".repeat(64);
 
@@ -69,9 +69,9 @@ describe("markdown", () => {
 
   it("shows images only from this server's files", () => {
     expect(inline(`![photo](/api/blobs/${SHA})`)).toBe(
-      `<img src="/api/blobs/${SHA}" alt="photo" loading="lazy">`,
+      `<img src="/api/blobs/${SHA}" alt="photo" loading="lazy" data-sha="${SHA}">`,
     );
-    expect(inline(`![](/api/blobs/${SHA}/preview?size=480)`)).toContain("<img");
+    expect(inline(`![](/api/blobs/${SHA}/preview?size=480)`)).toContain(`data-sha="${SHA}"`);
     expect(inline("![x](https://evil.example/t.png)")).not.toContain("<img");
     expect(inline(`![x](/api/blobs/${SHA}/../../x)`)).not.toContain("<img");
   });
@@ -100,13 +100,28 @@ describe("markdown", () => {
     const ALLOWED = /^(p|br|h[1-6]|strong|em|code|pre|ul|ol|li|blockquote|hr|a|img)$/;
     for (const [, name, attrs] of html.matchAll(/<\/?([^\s>/]+)([^>]*)>/g)) {
       expect(name).toMatch(ALLOWED);
-      const pairs = [...attrs.matchAll(/ ([a-z]+)="([^"]*)"/g)];
+      const pairs = [...attrs.matchAll(/ ([a-z-]+)="([^"]*)"/g)];
       expect(pairs.map((p) => p[0]).join("")).toBe(attrs); // nothing but name="value"
       for (const [, attr, value] of pairs) {
-        expect(["href", "target", "rel", "src", "alt", "loading"]).toContain(attr);
+        expect(["href", "target", "rel", "src", "alt", "loading", "data-sha"]).toContain(attr);
         if (attr === "href") expect(value).toMatch(/^(https?:\/\/|mailto:)/);
         if (attr === "src") expect(value).toMatch(/^\/api\/blobs\/[0-9a-f]{64}/);
+        if (attr === "data-sha") expect(value).toMatch(/^[0-9a-f]{64}$/);
       }
     }
+  });
+});
+
+describe("unembedded", () => {
+  const e = (n = 2048) => `![](/api/blobs/${SHA}/preview?size=${n})`;
+  it("drops lines that only embed this server's images, and the gap each leaves", () => {
+    expect(unembedded(`Title\n\n${e()}\n\n${e(480)} ${e()}\n\nafter`)).toBe("Title\n\nafter");
+    expect(unembedded(`Notes\n\n${e()}`)).toBe("Notes");
+    expect(unembedded(e())).toBe("");
+  });
+  it("keeps everything else as typed", () => {
+    const code = `  indented\n\n\n\nkept gaps\n\`\`\`\n${e()}\n\n\n\`\`\`\nsee ${e()} inline`;
+    expect(unembedded(code)).toBe(code);
+    expect(unembedded("![x](https://e.com/a.png)")).toBe("![x](https://e.com/a.png)");
   });
 });

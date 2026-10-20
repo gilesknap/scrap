@@ -110,7 +110,19 @@ def test_export_markdown(client, note, tmp_path, capsys):
     assert kept.startswith('---\ntitle: "Kept"\n') and "body text" in kept
     [png] = (out / "files").iterdir()
     assert png.read_bytes() == b"png bytes"
-    assert f"![b.png](files/{png.name})" in (out / "photo.md").read_text()
+    photo = (out / "photo.md").read_text()
+    assert f"![b.png](files/{png.name})" in photo  # the text's embed, pointed here
+    assert photo.count(png.name) == 1 and "/api/blobs" not in photo
+    # Another page's photo: its copy in the one files/ folder
+    sha = png.name.split(".")[0]
+    ref = note("Elsewhere")
+    url = f"/api/pages/{ref['page_id']}"
+    client.patch(url, json={"base_rev": 1, "body": f"![](/api/blobs/{sha})"})
+    client.delete(f"/api/pages/{client.get('/api/pages/photo').json()['id']}")
+    again = tmp_path / "again"  # its own page in the trash: copied for this one
+    main(["export", "--data-dir", str(tmp_path / "data"), str(again)])
+    assert f"![{png.name}](files/{png.name})" in (again / "elsewhere.md").read_text()
+    assert (again / "files" / png.name).read_bytes() == b"png bytes"
 
 
 def test_restore_refuses_a_bad_backup_without_touching_data(note, tmp_path):

@@ -366,7 +366,8 @@ nav a[aria-current] .i {
   background: var(--sunk); /* the placeholder while it loads */
 }
 .list img:not(.loaded),
-.originals img:not(.loaded) {
+.originals img:not(.loaded),
+.md .orig img:not(.loaded) {
   animation: shimmer 1.2s linear infinite alternate; /* only until it loads or fails */
 }
 @keyframes shimmer {
@@ -747,7 +748,16 @@ mark {
 .orig {
   margin: 0;
 }
-.originals img {
+.md > .orig,
+.md > .photo-panel {
+  margin: var(--s-4) 0; /* a figure in the text: a paragraph's spacing */
+}
+.md > .orig:first-child,
+.md > .photo-panel:first-child {
+  margin-top: 0;
+}
+.originals img,
+.md .orig img {
   display: block;
   width: 100%;
   aspect-ratio: auto 4 / 3; /* 4:3 held while it loads, then the photo's own shape */
@@ -1218,6 +1228,7 @@ div.orig .save {
 @media (prefers-reduced-motion: reduce) {
   .list img,
   .originals img,
+  .md .orig img,
   [aria-busy="true"] .i {
     animation: none;
   }

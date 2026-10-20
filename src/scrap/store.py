@@ -53,7 +53,7 @@ INSERT INTO job (kind, capture_id, source_sha256, options, run_after, created_at
                  updated_at)
 SELECT DISTINCT 'ingest', cb.capture_id, cb.sha256, :options, :now, :now, :now
 FROM capture_blob cb
-JOIN capture c ON c.id = cb.capture_id AND c.kind = 'photo'
+JOIN capture c ON c.id = cb.capture_id AND (c.kind = 'photo' OR :photo IS NOT NULL)
 JOIN blob b ON b.sha256 = cb.sha256 AND b.mime LIKE 'image/%'
 WHERE cb.capture_id = :capture AND coalesce(:photo, cb.sha256) = cb.sha256
 ON CONFLICT DO NOTHING
@@ -103,6 +103,18 @@ def unlink(text: str) -> str:
     parentheses (leaves a ")"), and code (unlinked too)."""
     text = WIKI_LINK.sub(lambda m: m[2] or m[1], text)
     return MD_LINK.sub(r"\1", text)
+
+
+def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str]:
+    """Markdown that shows each image of a capture in its page's text, in order (once
+    each, none the text shows already): a page's photos are shown there, the text the
+    user then owns."""
+    images = dict.fromkeys(sha for sha, mime, *_ in blobs if mime.startswith("image/"))
+    return [
+        f"![](/api/blobs/{sha}/preview?size=2048)"
+        for sha in images
+        if f"](/api/blobs/{sha}" not in text
+    ]
 
 
 def slug_base(title: str) -> str:
@@ -288,6 +300,7 @@ class Store:
         it is new. blobs are (sha256, mime, size, filename), already in files/.
         """
         cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
+        body = "\n\n".join(x for x in (body, *embeds(blobs, body)) if x)
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
