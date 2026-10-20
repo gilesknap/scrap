@@ -263,7 +263,7 @@ for (const width of WIDTHS) {
     await page.getByRole("button", { name: "Edit" }).click();
     expect(await wide(), "edit").toBeLessThanOrEqual(0);
     await page.goto("/");
-    await page.getByRole("button", { name: "Todo" }).click();
+    await page.getByRole("button", { name: "Note" }).click();
     expect(await wide(), "composer").toBeLessThanOrEqual(0);
 
     await page.goto(`/p/${slug}`);
@@ -308,7 +308,8 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Todo" }).click();
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.locator(".kinds").getByText("Todo").click();
   await page.getByPlaceholder("Note or link").fill("half a thought");
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
@@ -321,7 +322,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await expect(page.getByText("Restored your unsaved draft.")).toBeVisible();
   await expect(page.getByPlaceholder("Caption (optional)")).toHaveValue("half a thought");
   await expect(page.locator(".thumb img")).toHaveCount(1);
-  await expect(page.getByRole("radio", { name: "Todo" })).toBeChecked();
+  await expect(page.locator(".kinds")).toBeHidden(); // photos: ingest decides the kind
 
   // Cancel with changes asks first; saying no keeps the editor
   page.once("dialog", (d) => d.dismiss());
@@ -330,6 +331,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await page.getByRole("button", { name: "Discard it" }).click();
   await expect(page.getByPlaceholder("Note or link")).toHaveValue("");
   await expect(page.locator(".thumb img")).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
   await page.getByRole("button", { name: "Cancel" }).click(); // nothing to lose: no question
   await expect(page.locator(".editor")).toBeHidden();
   await page.getByRole("button", { name: "Note" }).click();
@@ -482,7 +484,8 @@ test("placeholders stop pulsing once photos load, or fail", async ({ page }) => 
 test("high contrast mode still shows which kind is chosen", async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Todo", exact: true }).click();
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  await page.locator(".kinds").getByText("Todo").click();
   const chosen = page.locator(".chips label", { has: page.getByRole("radio", { checked: true }) });
   await expect(chosen).toHaveText("Todo");
   await expect(chosen).toHaveCSS("outline-style", "solid");
@@ -494,7 +497,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
   const form = new FormData();
   form.append("id", ulid());
   form.append("text", "Contrast sweep\n\n## Plan\n\n- **bold** and `code`\n\n> a quote");
-  form.append("hint", "todo");
+  form.append("hint", "todo"); // the older field, still accepted
   form.append(
     "file",
     new Blob([new Uint8Array(png(400, 300, 220))], { type: "image/png" }),
@@ -508,7 +511,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await check(`${colorScheme} capture`);
-    await page.getByRole("button", { name: "Todo", exact: true }).click();
+    await page.getByRole("button", { name: "Note", exact: true }).click();
     await page.locator(".editor textarea").fill("x **y**");
     await check(`${colorScheme} composer`);
     await page.locator(".editor").getByRole("button", { name: "Preview" }).click();
@@ -536,7 +539,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
   }
 });
 
-test("at the largest text size the Photo button is on the first screen", async ({ page }) => {
+test("at the largest text size the Camera button is on the first screen", async ({ page }) => {
   for (let i = 0; i < 4; i++) await note(page, `Latest row ${i} with a longish title`);
   for (const size of [
     { width: 206, height: 457 }, // a 412 px phone at 200 % text
@@ -546,7 +549,120 @@ test("at the largest text size the Photo button is on the first screen", async (
     await page.setViewportSize(size);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await inside(page, page.getByRole("button", { name: "Photo" }));
+    await inside(page, page.getByRole("button", { name: "Camera" }));
     await expect(page.locator(".capture .list li").first()).toBeAttached(); // the list is there
   }
+});
+
+test("kinds: chosen in the editor, a link suggests Read, todos tick, Recent filters", async ({
+  page,
+}) => {
+  const link = await note(page, "https://example.com/kinds");
+  await note(page, "Kinds: an unfiled note");
+  await page.goto(`/p/${link}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // a bare URL
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  const api = async () => (await page.request.get(`/api/pages/${link}`)).json();
+  expect((await api()).kind).toBe("consume");
+
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Whiteboard" })).toBeAttached(); // full names
+  for (const width of [320, 360, 412]) {
+    await page.setViewportSize({ width, height: 800 });
+    const tops = await page
+      .locator(".kinds label")
+      .evaluateAll((ls) => new Set(ls.map((l) => l.getBoundingClientRect().top)).size);
+    expect(tops, `kinds in one row at ${width} px`).toBe(1);
+    await page.screenshot({ path: test.info().outputPath(`kinds-${width}.png`) });
+  }
+  await page.locator(".kinds").getByText("Todo").click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
+  expect(await api()).toMatchObject({ kind: "todo", kind_fixed: 1, fields: { status: "done" } });
+
+  await page.goto("/recent");
+  await page.locator(".filters").getByText("Todos").click();
+  await expect(page).toHaveURL(/\/recent\?kind=todo$/);
+  const rows = page.locator(".list li");
+  await expect(rows.filter({ hasText: "example.com/kinds" })).toContainText("done");
+  await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
+  await page.reload(); // the filter stays
+  await expect(page.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
+  await page.locator(".filters").getByText("All").click();
+  await expect(page).toHaveURL(/\/recent$/);
+  await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
+  await rows.filter({ hasText: "an unfiled note" }).getByRole("link").click();
+  await expect(page.locator(".pager")).toContainText("Recent"); // not "All"
+
+  // A slow answer for a filter left meanwhile is dropped, not shown
+  await page.goto("/recent");
+  await page.route("**/api/pages?limit=100&kind=todo", async (route) => {
+    await new Promise((ok) => setTimeout(ok, 1500));
+    await route.continue();
+  });
+  await page.locator(".filters").getByText("Todos").click();
+  await page.locator(".filters").getByText("All").click();
+  await page.waitForTimeout(2500);
+  await expect(page).toHaveURL(/\/recent$/);
+  await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
+});
+
+test("a Note chosen for a link is kept, not made Read later", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("https://example.com/kept-note");
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // suggested
+  await page.locator(".kinds").getByText("Note").click();
+  await page.getByRole("button", { name: "Save" }).click();
+  const kept = async () => {
+    const pages = await (await page.request.get("/api/pages")).json();
+    return pages.find((p: { title: string }) => p.title.endsWith("/kept-note"));
+  };
+  await expect.poll(kept).toMatchObject({ kind: "note", kind_fixed: 1 });
+  const saved = await kept();
+  await page.goto(`/p/${saved.slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
+
+  // An untouched draft with a link restored later still gets Read suggested
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("not a link yet");
+  await page.waitForTimeout(600); // kept as a draft
+  await page.reload();
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("https://example.com/later");
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
+});
+
+test("a draft keeps only a kind the user picked, not one suggested", async ({ page }) => {
+  const slug = await note(page, "https://example.com/draft-kind");
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // suggested only
+  await page.getByLabel("Title").fill("A link to read");
+  await page.waitForTimeout(600); // kept as a draft
+  await page.goBack(); // closes the editor, keeping the draft
+  await expect(page.locator(".editor")).toBeHidden();
+  const url = `/api/pages/${slug}`;
+  await page.request.patch(url, { data: { kind: "todo" } }); // chosen elsewhere meanwhile
+  await page.reload();
+  await page.getByRole("button", { name: "Edit draft (unsaved)" }).click();
+  await expect(page.getByLabel("Title")).toHaveValue("A link to read");
+  await expect(page.getByRole("radio", { name: "Todo" })).toBeChecked();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  expect(await (await page.request.get(url)).json()).toMatchObject({ kind: "todo" });
+
+  // On an unfiled note the suggestion follows the text, as in the composer
+  const other = await note(page, "https://example.com/commented");
+  await page.goto(`/p/${other}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
+  await page.getByLabel("Body").fill("https://example.com/commented\n\nmy own thoughts");
+  await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
 });

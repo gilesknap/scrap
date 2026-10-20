@@ -35,7 +35,8 @@ export function swipeRows(rows: [Element, string, string?][]) {
   );
 }
 
-const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
+export const why = (err: unknown) =>
+  err instanceof ApiError ? err.message : "can't reach the server";
 
 /** Delete a page (from its row or its page), with Undo: gone() runs once it is deleted,
  * back() once Undo has brought it back. */

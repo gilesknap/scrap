@@ -7,8 +7,57 @@
 // Nothing typed is lost: it has a history entry, so the phone's Back closes the editor (not
 // the app), and its fields are kept as a draft in IndexedDB as they change, so a Back, a
 // reload or a killed app brings them back the next time it opens.
+//
+// It is a chunk of its own, with the composer (composer.ts): the service worker keeps it for
+// offline use, but screens that never edit don't load it.
 import { drafts } from "./db";
+import { icon } from "./icons";
+import { KINDS } from "./kinds";
 import { h, previewer, saveKey, toast } from "./ui";
+
+export { suggested, toSend } from "./kinds";
+
+/** The kind control: a segmented radio group. suggest() picks a kind until the user picks
+ * one (picked: they did, e.g. in a restored draft). */
+export function kindPicker(initial: string, picked = false) {
+  const set = (kind: string) => {
+    for (const r of el.querySelectorAll("input")) r.checked = r.value === kind;
+  };
+  const el = h(
+    "div",
+    {
+      className: "chips kinds",
+      role: "radiogroup",
+      "aria-label": "Kind",
+      onchange: () => (picked = true),
+    },
+    ...KINDS.map(([value, label, name, glyph]) =>
+      h(
+        "label",
+        { title: name },
+        h("input", {
+          type: "radio",
+          name: "kind",
+          value,
+          checked: value === initial,
+          "aria-label": name,
+        }),
+        icon(glyph),
+        label,
+      ),
+    ),
+  );
+  return {
+    el,
+    value: () => el.querySelector<HTMLInputElement>("input:checked")?.value ?? initial,
+    picked: () => picked,
+    suggest: (kind: string) => picked || set(kind),
+    reset: (kind: string) => {
+      picked = false;
+      set(kind);
+    },
+  };
+}
 
 // --vv-top and --vv-h follow the visual viewport, at most once a frame.
 const vv = window.visualViewport;

@@ -47,6 +47,10 @@ const viewerCss = assets
   .reduce((n, f) => n + gz(`assets/${f}`), 0);
 
 console.log(`app shell:      ${kb(shellJs)} JS + ${kb(shellCss)} CSS (budget ${kb(BUDGET)} JS)`);
+// The composer and editor: lazy, but kept by the service worker for offline use
+const offline = assets.filter((f) => /^(composer|editor)-[\w-]+\.js$/.test(f));
+const offlineJs = offline.reduce((n, f) => n + gz(`assets/${f}`), 0);
+console.log(`editor:         ${kb(offlineJs)} JS, loaded when the composer or editor opens`);
 console.log(
   `drawing viewer: ${kb(viewerJs)} JS + ${kb(viewerCss)} CSS, loaded when a drawing is shown`,
 );

@@ -23,13 +23,14 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt
 from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__, backup, drawing, ingest, preview
 from .store import (
+    MAX_FIELDS,
     ConflictError,
     InvalidError,
     NotFoundError,
@@ -84,10 +85,19 @@ class Restore(BaseModel):
     base_version: VERSION_NUMBER  # the current one as the client saw it, else 409
 
 
+FIELD_NAME = Annotated[str, Field(min_length=1, max_length=40)]
+# A field's value: flat, as the importer stores them too (None in a PATCH drops it)
+FIELD = Annotated[str, Field(max_length=200)] | StrictBool | StrictInt | StrictFloat
+
+
 class PageEdit(BaseModel):
-    base_rev: int
+    base_rev: int | None = None  # needed with a title or body
     title: str | None = None
     body: str | None = None
+    kind: str | None = None  # one the user chose: fixed, ingest keeps it
+    fields: (
+        Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
+    ) = None
 
 
 def author(request: Request) -> str:
@@ -265,9 +275,13 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return RedirectResponse("/", 303)
 
     @app.get("/api/pages")
-    def recent(limit: int = Query(50, ge=1, le=500)) -> list[dict[str, Any]]:
-        """Pages, most recently changed first; the trash is left out."""
-        return store.recent(limit)
+    def recent(
+        limit: int = Query(50, ge=1, le=500),
+        kind: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Pages, most recently changed first; the trash is left out. Only those of
+        one kind, if given (empty: all)."""
+        return store.recent(limit, kind or None)
 
     @app.get("/api/pages/{key}")
     def page(key: str) -> dict[str, Any]:
@@ -276,9 +290,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     @app.patch("/api/pages/{key}")
     def edit(key: str, edit: PageEdit, request: Request) -> dict[str, Any]:
-        """Change title and/or body; 409 if base_rev is not the current revision."""
+        """Change title and/or body (409 if base_rev is not the current revision),
+        and/or the kind and fields."""
+        if edit.base_rev is None and (edit.title, edit.body) != (None, None):
+            raise InvalidError("base_rev is needed to change the title or body")
         who = author(request)
-        return store.update_page(key, edit.base_rev, edit.title, edit.body, who)
+        return store.update_page(
+            key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields
+        )
 
     @app.delete("/api/pages/{key}", status_code=204)
     def delete(key: str) -> None:

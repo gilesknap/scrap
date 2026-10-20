@@ -232,11 +232,22 @@ rewrites the user's words or fits them to templates.
 - **Status** is one lifecycle for todo and consume, Thoth's: `open`, `in_progress`, `done`,
   `cancelled`. New pages start `open`; ticking a todo toggles `open` and `done`, and the other two
   are stored and shown (set by an import, richer controls later).
-- **A kind change** (hint, PWA edit, `extract` or `summarise`) **resets `fields`** to the new kind's
+- **Choosing a kind.** The capture buttons (camera, gallery, note) only choose the input; the
+  kind is chosen in the PWA's editor, for a new capture or an existing page, from Note
+  (default), Todo, Read (`consume`), Whiteboard and Document (`memory` and `reference` are not
+  offered until wanted; a hard-coded list until real use asks for configurable kinds). A bare
+  URL pre-selects Read; photos skip the choice (ingest classifies them; the user can change it).
+  The capture's `kind` field or `PATCH /api/pages/{id}` sets it.
+- **A kind the user changes** (PWA edit, `PATCH`) **keeps every field** the page has (a summary,
+  a due date, an imported status: a stray tap on a chip must lose nothing) and adds the new
+  kind's defaults for the keys it lacks. So todo -> note -> todo comes back as it was, and a
+  status or subtype carried over keeps its value.
+- **A kind set by a capture, `extract` or `summarise`** starts from the new kind's
   defaults plus any checked model output: todo `{"status":"open"}`; consume
   `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL (omitted if it has
   none). Either way the page is listed at once, even if `summarise` never succeeds.
-- **The user wins**, as with titles. A hint or a PWA edit sets `kind_fixed`. `extract` and
+- **The user wins**, as with titles. A kind chosen at capture or in the editor sets
+  `kind_fixed`. `extract` and
   `summarise` set the kind only while it is still `note` and not fixed. `summarise` writes kind,
   `fields` and tags only on its first success; a regenerated summary replaces just the summary text,
   so a cleared `due` stays cleared. It calls Claude holding no lock, then in one `BEGIN IMMEDIATE`
@@ -245,7 +256,7 @@ rewrites the user's words or fits them to templates.
 
   ```sql
   UPDATE page SET kind = :kind, fields = CASE WHEN kind = :kind  -- json_patch: the 2nd wins
-      THEN json_patch(:fields, fields)     -- hinted kind: existing keys win
+      THEN json_patch(:fields, fields)     -- chosen kind: existing keys win
       ELSE json_patch(:defaults, :fields)  -- new kind: its defaults plus the checked output
     END
   WHERE id = :id AND NOT EXISTS (          -- first success only: no summary yet
@@ -257,14 +268,15 @@ rewrites the user's words or fits them to templates.
   insert first, then writes the summary row, then deletes the `fetched` text if the stored kind is
   now `consume`. Only regenerating the summary re-fetches it, for example after a change to
   `reference`.
-- **Views.** The PWA lists Todos, the Consume queue and an Inbox: captured pages with no summary
-  yet (processing or failed). Pages made by MCP `write` have no capture and skip it.
+- **Views.** Recent has filter chips, not screens of their own: All, Todos (`?kind=todo`; a
+  todo's page has a Done/Reopen tick setting `fields.status`), and Read (`?kind=consume`). No
+  Inbox: `kind_fixed` is only for the user-wins rule.
 
 ## Phone quick capture
 
 1. **Tap the icon.** The installed PWA opens from the service worker cache, even offline, on the
-   capture screen: camera, note, *todo* and *read later* buttons (hints that fix the kind), and a
-   "recent" strip with each capture's state.
+   capture screen: camera, gallery and note buttons (how to capture; the kind is chosen in the
+   composer), and a "recent" strip with each capture's state.
 2. **Choose an input.**
    - *Camera*: `<input type="file" accept="image/*" capture="environment">`, or the gallery;
      several shots can go into one capture.
@@ -277,8 +289,8 @@ rewrites the user's words or fits them to templates.
    failure it stays queued and retries with backoff while the app is open, and on next open.
 5. **Store.** The server writes blobs to `files/`, then in one `BEGIN IMMEDIATE` transaction looks
    up the capture id (found: a retry, return `200`), else inserts blobs (`ON CONFLICT DO NOTHING`),
-   page (before capture, for the foreign key; a hint sets `kind`, `kind_fixed` and default
-   `fields`), `page_rev` 1, capture, `capture_blob`, and the `extract` and `index` jobs, and returns
+   page (before capture, for the foreign key; a chosen kind sets `kind`, `kind_fixed` and
+   default `fields`), `page_rev` 1, capture, `capture_blob`, and the `extract` and `index` jobs, and returns
    `201`. No LLM call on this path, and the note or title is searchable even if Claude is down.
 6. **Process.** The worker runs the jobs; the PWA polls `GET /api/captures?since=...` while open.
 
@@ -324,7 +336,7 @@ row, and the worker treats that as finished, not as an error.
 
 **Failure visibility.** The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with `last_error` and a *retry* button. The original and the page already
-exist, so nothing is lost; if `summarise` fails, the kind stays as the hint or `extract` left it,
+exist, so nothing is lost; if `summarise` fails, the kind stays as the user chose or `extract` left it,
 else `note`.
 
 ## Excalidraw
