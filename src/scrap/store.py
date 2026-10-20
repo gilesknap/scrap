@@ -81,7 +81,7 @@ KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
 SORT_SQL = {
     "updated": "p.updated_at",
     "created": "p.created_at",
-    "title": "p.title COLLATE NOCASE",
+    "title": "p.title COLLATE NOCASE",  # ASCII letters only: SQLite has no ICU here
 }
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
