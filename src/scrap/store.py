@@ -45,6 +45,13 @@ HINT_FIELDS = DEFAULT_FIELDS  # its older name, used by the importer (#47): remo
 HINTS = ("todo", "consume")  # the older capture field, still accepted
 ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
 # kind: in a search also takes the PWA's names for kinds
+# A page p's thumbnail: the SHA-256 of its first image, if any (SQL, for a column)
+THUMB = (
+    "(SELECT b.sha256 FROM capture c JOIN capture_blob cb"
+    " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
+    " WHERE c.page_id = p.id AND b.mime LIKE 'image/%'"
+    " ORDER BY c.received_at, cb.ord LIMIT 1)"
+)
 KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
 SOURCES = ("pwa", "share", "mcp")
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
@@ -501,15 +508,11 @@ class Store:
         if kind not in (None, *ALL_KINDS):
             raise InvalidError(f"kind must be one of {ALL_KINDS}")
         with self.connect() as conn:
-            rows = _rows(  # thumb: the page's first image, if any
+            rows = _rows(
                 conn,
                 "SELECT id, slug, title, kind, kind_fixed, fields, created_at,"
-                " updated_at,"
-                " (SELECT b.sha256 FROM capture c JOIN capture_blob cb"
-                " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
-                " WHERE c.page_id = page.id AND b.mime LIKE 'image/%'"
-                " ORDER BY c.received_at, cb.ord LIMIT 1) AS thumb"
-                " FROM page WHERE deleted_at IS NULL"
+                f" updated_at, {THUMB} AS thumb"
+                " FROM page p WHERE deleted_at IS NULL"
                 " AND coalesce(?, kind) = kind"
                 " ORDER BY updated_at DESC, id DESC LIMIT ?",
                 kind, limit,
@@ -725,6 +728,13 @@ class Store:
                 hits.setdefault(row["id"], dict(row))
                 if len(hits) == limit:
                     break
+            # Each hit's thumbnail and last edit, as /api/pages has them: one query
+            for row in conn.execute(
+                f"SELECT p.id, p.updated_at, {THUMB} AS thumb FROM page p"
+                " WHERE p.id IN (SELECT value FROM json_each(?))",
+                (json.dumps(list(hits)),),
+            ):
+                hits[row["id"]] |= {"updated_at": row[1], "thumb": row[2]}
         for hit in hits.values():  # HTML-safe, with matches in <mark>
             hit["fields"] = json.loads(hit["fields"])
             if not q.positive:  # no match to show: its summary, else its start
