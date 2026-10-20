@@ -32,7 +32,7 @@ test("a todo's row ticks off in place: no page opens, no swipe; keys too", async
   await expect(row.locator("em")).toHaveText("done");
   expect(await statusOf(page, id)).toBe("done");
   await page.waitForTimeout(300);
-  await expect(page).toHaveURL("/recent");
+  await expect(page).toHaveURL("/search");
   await expect(row).not.toHaveClass(/to-edit|to-delete|armed/);
   await expect(row.locator("a")).not.toHaveAttribute("style", /translate/);
 
@@ -67,7 +67,7 @@ test("a todo's row ticks off in place: no page opens, no swipe; keys too", async
   expect(await statusOf(page, id)).toBe("open");
   await page.keyboard.press("Enter");
   await expect(tick).toHaveAttribute("aria-pressed", "true");
-  await expect(page).toHaveURL("/recent");
+  await expect(page).toHaveURL("/search");
 
   // The row itself still opens its page
   await row.locator("strong").click();

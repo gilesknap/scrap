@@ -1,5 +1,5 @@
-import { expect, it } from "vitest";
-import { adding, day, has, removing, token, tree } from "../src/terms";
+import { describe, expect, it } from "vitest";
+import { adding, day, has, kindsIn, listing, removing, token, tree, withKind } from "../src/terms";
 
 it("writes a filter, quoting a value with spaces", () => {
   expect(token("tag", "tech/epics")).toBe("tag:tech/epics");
@@ -42,4 +42,33 @@ it("clamps a picked date to what after: and before: take", () => {
   expect(day("+275760-09-13")).toBe("9999-12-31");
   expect(day("")).toBe("");
   expect(day("junk")).toBe("");
+});
+
+describe("the kind row", () => {
+  it("sets a kind with one tap, and clears it with another", () => {
+    expect(withKind("", "todo")).toBe("kind:todo");
+    expect(withKind("kind:todo", "todo")).toBe("");
+    expect(withKind("milk kind:todo", "read")).toBe("milk kind:read");
+    expect(withKind("kind:consume tag:x", "read")).toBe("tag:x"); // what the server takes too
+  });
+  it("All clears every kind but a not one", () => {
+    expect(withKind("kind:todo kind:note -kind:doc x", "")).toBe("-kind:doc x");
+    expect(kindsIn("-kind:todo")).toEqual([]);
+  });
+  it("lists newest first for nothing or a kind alone, else searches", () => {
+    expect(listing("")).toBe("");
+    expect(listing("kind:board")).toBe("kind=whiteboard");
+    expect(listing("kind:read")).toBe("kind=consume");
+    expect(listing("kind:todo kind:read")).toBeNull();
+    expect(listing("kind:todo milk")).toBeNull();
+    expect(listing("tag:x")).toBeNull();
+  });
+});
+
+it("knows the kind row's kinds in any case, as the server does", () => {
+  expect(kindsIn("kind:Todo garden").map(([, v]) => v)).toEqual(["todo"]);
+  expect(kindsIn("KIND:CONSUME").map(([, v]) => v)).toEqual(["read"]);
+  expect(withKind("garden kind:Todo", "note")).toBe("garden kind:note");
+  expect(withKind("kind:TODO", "todo")).toBe(""); // tapping the one that is on clears it
+  expect(listing("Kind:Todo")).toBe("kind=todo");
 });

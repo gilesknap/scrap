@@ -8,10 +8,8 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator("#queue")).toBeHidden();
 
-  await page.getByRole("link", { name: "Recent", exact: true }).click();
-  await expect(page.getByText("Buy oat milk")).toBeVisible();
-
   await page.getByRole("link", { name: "Search", exact: true }).click();
+  await expect(page.getByText("Buy oat milk")).toBeVisible(); // newest first
   await page.getByRole("searchbox").fill("corner sho");
   await expect(page.locator(".hits mark")).toHaveText(["corner", "shop"]);
   await page.locator(".hits a").first().click();
@@ -348,21 +346,30 @@ test("a slow upload finishes; a stalled one is dropped and retried", async ({ pa
 });
 
 test("a slow view says Loading at once, and a newer tap wins", async ({ page }) => {
+  const made = await page.request.post("/api/captures", {
+    data: {
+      id: `01${Array.from({ length: 24 }, () => "ABCDEFGHJKMNPQRS"[Math.floor(Math.random() * 16)]).join("")}`,
+      text: "Slow view",
+    },
+  });
+  const { slug } = await made.json();
   await page.goto("/");
   await expect(page.locator(".capture")).toBeVisible();
   let hold = true;
-  await page.route("**/api/pages?limit=100*", async (r) => {
+  await page.route(`**/api/pages/${slug}`, async (r) => {
     while (hold) await new Promise((ok) => setTimeout(ok, 100));
     await r.continue();
   });
-  await page.getByRole("link", { name: "Recent", exact: true }).click();
-  // At once: 150 ms, held for ever here (3 s for a busy test box)
+  await page
+    .locator(".capture")
+    .getByRole("link", { name: /Slow view/ })
+    .click();
   await expect(page.getByRole("status")).toHaveText("Loading…", { timeout: 3000 });
   await expect(page.locator(".capture")).toHaveCount(0); // not the old view, as if stuck
   await page.getByRole("link", { name: "Search", exact: true }).click();
   await expect(page.getByRole("searchbox")).toBeVisible();
-  hold = false; // Recent's answer comes late: it must not cover Search
-  await page.waitForResponse("**/api/pages?limit=100*");
+  hold = false; // the page's answer comes late: it must not cover Search
+  await page.waitForResponse(`**/api/pages/${slug}`);
   await page.waitForTimeout(300);
   await expect(page.getByRole("searchbox")).toBeVisible();
   await expect(page.getByText("Loading…")).toHaveCount(0);

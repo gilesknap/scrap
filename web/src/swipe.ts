@@ -42,13 +42,13 @@ export const why = (err: unknown) =>
 
 /** Delete a page (from its row or its page), with Undo: gone() runs once it is deleted,
  * back() once Undo has brought it back. */
-export async function deletePage(key: string, gone: () => void, back: () => void) {
+export async function deletePage(key: string, gone: () => void | Promise<void>, back: () => void) {
   try {
     await api(`pages/${key}`, { method: "DELETE" });
   } catch (err) {
     return toast(`Not deleted: ${why(err)}`);
   }
-  gone();
+  await gone(); // e.g. back to the list: the toast is for the view it lands on
   const undo = async () => {
     try {
       await api(`pages/${key}/undelete`, { method: "POST" });

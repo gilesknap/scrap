@@ -24,3 +24,9 @@ export const rerender = () => window.dispatchEvent(new PopStateEvent("popstate")
 
 /** Aborted when the view changes: views pass it to their event listeners. */
 export const view = { signal: new AbortController().signal };
+
+/** Mark the nav's tab for what is on screen (/search, with or without a query, is Search). */
+export function markNav() {
+  for (const a of document.querySelectorAll<HTMLAnchorElement>("nav a"))
+    a.toggleAttribute("aria-current", a.pathname === location.pathname);
+}

@@ -358,7 +358,7 @@ test("Back closes the editor, not the page, and keeps the edit as a draft", asyn
   const saved = await (await page.request.get(`/api/pages/${slug}`)).json();
   expect(saved.body).toBe("Back test\nchanged");
   await page.goBack(); // the editor's history entry is gone: Back leaves the page
-  await expect(page).toHaveURL(/\/recent$/);
+  await expect(page).toHaveURL(/\/search$/); // /recent is the search screen now
 });
 
 test("embedded images are figures: viewer, name, Download and Ask Claude", async ({ page }) => {
@@ -673,7 +673,7 @@ test("at the largest text size the Camera button is on the first screen", async 
   }
 });
 
-test("kinds: chosen in the editor, a link suggests Read, todos tick, Recent filters", async ({
+test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind row filters", async ({
   page,
 }) => {
   const link = await note(page, "https://example.com/kinds");
@@ -702,31 +702,56 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, Recent filt
   await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
   expect(await api()).toMatchObject({ kind: "todo", kind_fixed: 1, fields: { status: "done" } });
 
-  await page.goto("/recent");
-  await page.locator(".filters").getByText("Todos").click();
-  await expect(page).toHaveURL(/\/recent\?kind=todo$/);
+  await page.goto("/recent?kind=todo"); // an old address: the search screen, Todos on
+  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
+  const kinds = page.locator(".kindrow");
+  await expect(kinds.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await kinds.getByText("All").click();
+  await expect(page).toHaveURL(/\/search$/);
+  await kinds.getByText("Todos").click(); // one tap sets it
+  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
   const rows = page.locator(".list li");
   await expect(rows.filter({ hasText: "example.com/kinds" })).toContainText("done");
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
   await page.reload(); // the filter stays
-  await expect(page.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await expect(kinds.getByRole("radio", { name: "Todos" })).toBeChecked();
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
-  await page.locator(".filters").getByText("All").click();
-  await expect(page).toHaveURL(/\/recent$/);
+  await kinds.getByText("Todos").click(); // another clears it
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(kinds.getByRole("radio", { name: "All" })).toBeChecked();
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
   await rows.filter({ hasText: "an unfiled note" }).getByRole("link").click();
-  await expect(page.locator(".pager")).toContainText("Recent"); // not "All"
+  await expect(page.locator(".pager")).toContainText("Latest"); // not "All"
+  for (const width of [320, 360]) {
+    await page.goto("/search");
+    await page.setViewportSize({ width, height: 800 });
+    const tops = await kinds
+      .locator("label")
+      .evaluateAll((ls) =>
+        ls.map((l) => [
+          l.getBoundingClientRect().top,
+          l.clientHeight,
+          l.scrollWidth - l.clientWidth,
+        ]),
+      );
+    expect(new Set(tops.map((t) => t[0])).size, `the kind row in one row at ${width} px`).toBe(1);
+    expect(
+      Math.max(...tops.map((t) => t[2])),
+      `no label clipped at ${width} px`,
+    ).toBeLessThanOrEqual(0);
+    expect(Math.min(...tops.map((t) => t[1])), "44 px targets").toBeGreaterThanOrEqual(42);
+  }
 
-  // A slow answer for a filter left meanwhile is dropped, not shown
-  await page.goto("/recent");
+  // A slow answer for a kind left meanwhile is dropped, not shown
+  await page.goto("/search");
   await page.route("**/api/pages?limit=100&kind=todo", async (route) => {
     await new Promise((ok) => setTimeout(ok, 1500));
     await route.continue();
   });
-  await page.locator(".filters").getByText("Todos").click();
-  await page.locator(".filters").getByText("All").click();
+  await kinds.getByText("Todos").click();
+  await kinds.getByText("All").click();
   await page.waitForTimeout(2500);
-  await expect(page).toHaveURL(/\/recent$/);
+  await expect(page).toHaveURL(/\/search$/);
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
 });
 
@@ -784,4 +809,28 @@ test("a draft keeps only a kind the user picked, not one suggested", async ({ pa
   await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
   await page.getByLabel("Body").fill("https://example.com/commented\n\nmy own thoughts");
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
+});
+
+test("a photo page shows its thumbnail however the list found it", async ({ page }) => {
+  const tag = ulid().slice(-6);
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", `Thumbed ${tag}`);
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(300, 200, 120))], { type: "image/png" }),
+    "t.png",
+  );
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const row = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${slug}"]`) });
+  for (const q of ["", "kind:note", tag, "after:1w", `${tag} after:1w`, "is:work"]) {
+    await page.goto(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+    const img = row.locator("img");
+    await expect(img, q || "empty box").toBeVisible();
+    await expect
+      .poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth), q)
+      .toBeGreaterThan(0);
+    await expect(row.locator(".noimg"), q).toHaveCount(0);
+  }
+  await expect(row.locator(".snip mark")).toHaveCount(0); // a filter alone: no words to mark
 });

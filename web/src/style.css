@@ -531,12 +531,14 @@ nav a[aria-current] .i {
   min-height: var(--tap);
   font-size: var(--t-sm);
 }
-.hits small {
-  display: block;
+.snip {
+  display: -webkit-box; /* a search hit's snippet, under its date: two lines at most */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
   white-space: normal;
-}
-.hits .noimg {
-  margin-top: 0;
 }
 mark {
   padding: 0 1px;
@@ -1157,7 +1159,26 @@ div.orig .save {
   height: 18px;
 }
 .filters {
-  margin-bottom: var(--s-3); /* Recent: All, Todos, Read */
+  margin-bottom: var(--s-3); /* Tags: by name, by count */
+}
+.kindrow {
+  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Reads, Boards, Docs */
+}
+.kindrow label {
+  min-width: 0;
+  padding: 0;
+}
+@media (max-width: 379px) {
+  .kindrow {
+    margin-inline: calc(-1 * var(--s-2)); /* six whole words in one row from 320 px */
+  }
+  .kindrow label {
+    font-size: var(--t-xs);
+  }
+}
+.more {
+  width: 100%;
+  margin-top: var(--s-3);
 }
 .kinds label {
   gap: 4px; /* five kinds in one row */

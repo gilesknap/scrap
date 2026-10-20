@@ -1,92 +1,170 @@
-// Full-text search as you type; snippets become text nodes and <mark>s, never HTML. Under
-// the box, chips (a lazy chunk): browse the tags, a time range, and what refines the results.
+// The one list screen: with an empty box, every page newest first (what is still waiting to
+// upload above them); with a query, full-text search as you type (snippets become text nodes
+// and <mark>s, never HTML). Under the box, a fixed row of kinds (one tap sets or clears
+// kind:), then chips that scroll (a lazy chunk): Clear, the tags, a time range, and what
+// refines the results. All of it is the query's text, kept in the address (/search?q=...),
+// so Back, a reload and a deleted page come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
-import { go, view } from "./app";
-import { icon, kindIcon } from "./icons";
+import { go, markNav, view } from "./app";
+import { icon } from "./icons";
+import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
+import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
 import { empty, h } from "./ui";
 
-export function search(): Node {
+const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
+const MOST = 1000; // search results, fetched PAGE at a time
+
+interface State {
+  scroll?: number; // where the list was scrolled to
+  limit?: number; // how long it was (Show more)
+}
+
+export async function search(): Promise<Node> {
   const q = new URLSearchParams(location.search).get("q") ?? "";
+  const saved = (history.state ?? {}) as State;
+  let limit = saved.limit ?? PAGE;
+  let scroll = saved.scroll ?? 0; // to scroll back to, once the list is here
+  const keep = (s: State) => history.replaceState({ ...history.state, ...s }, "");
   const input = h("input", {
     type: "search",
     value: q,
     placeholder: "Search",
-    autofocus: !q, // arriving with a query (a tag tapped): show the results, no keyboard
     "aria-label": "Search",
   });
-  const results = h("ul", { className: "list hits" });
+  const pending = h("div");
+  const results = h("div");
   const chips = h("div");
-  const hint = () =>
-    h(
-      "li",
-      {},
-      empty(
-        "search",
-        "Search your notes, links and captions.",
-        h("small", {}, 'Try -word, "a phrase", tag:name, kind:todo, is:personal or after:1w.'),
-        h("a", { className: "button", href: "/tags" }, icon("tag"), "Browse tags"),
-      ),
-    );
+  // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
+  const radios = [["All", ""] as const, ...KIND_ROW].map(([label, v]) => {
+    const radio = h("input", {
+      type: "radio",
+      name: "kind",
+      value: v,
+      // A click, not a change: tapping the one that is on clears it
+      onclick: () => apply((now) => withKind(now, v)),
+    });
+    return [radio, h("label", {}, radio, label)] as const;
+  });
+  const kinds = h(
+    "div",
+    { className: "chips kindrow", role: "radiogroup", "aria-label": "Kind" },
+    ...radios.map(([, label]) => label),
+  );
+  const showKinds = (query: string) => {
+    const on = kindsIn(query);
+    const value = on.length === 1 ? on[0][1] : on.length ? null : "";
+    for (const [radio] of radios) radio.checked = radio.value === value;
+  };
   let timer: ReturnType<typeof setTimeout>;
+  let saving: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
   // Leaving the view: no late debounce rewrites the address bar, no late results land.
   view.signal.addEventListener("abort", () => {
     clearTimeout(timer);
+    clearTimeout(saving);
     abort.abort();
   });
+  // Where the list is scrolled to rides in its history entry, for Back
+  addEventListener(
+    "scroll",
+    () => {
+      clearTimeout(saving);
+      saving = setTimeout(() => keep({ scroll: scrollY }), 150);
+    },
+    { passive: true, signal: view.signal },
+  );
+  const pend = async () => pending.replaceChildren(await pendingList());
+  document.addEventListener("queuechange", pend, { signal: view.signal });
+  void pend();
 
-  async function run() {
+  async function run(first = false) {
     const query = input.value.trim();
-    history.replaceState(null, "", query ? `/search?q=${encodeURIComponent(query)}` : "/search");
+    if (!first) {
+      limit = PAGE; // a new query: from the top
+      scroll = 0;
+      history.replaceState(null, "", query ? `/search?q=${encodeURIComponent(query)}` : "/search");
+    }
+    markNav();
+    showKinds(query);
     abort.abort();
     abort = new AbortController();
     const { signal } = abort;
-    // The chips: tags and dates even before a query, then what refines its results
+    // The chips: Clear, tags and dates even before a query, then what refines its results
     import("./refine")
       .then((m) => m.refine(query, signal, apply))
       .then((el) => signal.aborted || chips.replaceChildren(el))
       .catch(() => signal.aborted || chips.replaceChildren());
-    if (!query) return results.replaceChildren(hint());
+    const shown = await list(query, signal);
+    if (signal.aborted) return;
+    results.replaceChildren(shown);
+    if (scroll) {
+      const y = scroll;
+      scroll = 0;
+      requestAnimationFrame(() => scrollTo(0, y));
+    }
+  }
+
+  /** The newest-first list (an empty box, or a kind alone), else the search's hits. */
+  async function list(query: string, signal: AbortSignal): Promise<Node> {
+    const filter = listing(query);
+    if (filter !== null) {
+      const kind = kindsIn(query)[0];
+      const more = () => {
+        limit = Math.min(limit + PAGE, 500);
+        keep({ limit });
+        void run(true);
+      };
+      return pageList(limit, filter, kind ? kind[0] : "Latest", limit < 500 ? more : undefined);
+    }
+    const ul = h("ul", { className: "list hits" });
     try {
-      const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}`, { signal });
+      // limit hits (Show more adds PAGE), fetched PAGE at a time: the API's most per request
+      const hits: Hit[] = [];
+      for (let offset = 0; offset < limit; offset += PAGE) {
+        const q = `q=${encodeURIComponent(query)}&limit=${PAGE}&offset=${offset}`;
+        const got = await api<Hit[]>(`search?${q}`, { signal });
+        hits.push(...got);
+        if (got.length < PAGE) break;
+      }
       trail(
-        results,
+        ul,
         "Search results",
         hits.map((hit) => hit.slug),
       );
       const rows = hits.map((hit) =>
-        h(
-          "li",
-          {},
+        pageRow(
+          hit,
           h(
-            "a",
-            { href: `/p/${encodeURIComponent(hit.slug)}` },
-            h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
-            h(
-              "span",
-              {},
-              h("strong", { dir: "auto" }, hit.title),
-              h(
-                "small",
-                { dir: "auto" },
-                ...snippetParts(hit.snippet).map((p) => (p.mark ? h("mark", {}, p.text) : p.text)),
-              ),
-            ),
+            "small",
+            { className: "snip", dir: "auto" },
+            ...snippetParts(hit.snippet).map((p) => (p.mark ? h("mark", {}, p.text) : p.text)),
           ),
         ),
       );
       swipeRows(rows.map((li, i) => [li, hits[i]]));
-      results.replaceChildren(
-        ...rows,
-        ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]),
-      );
+      ul.append(...rows, ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]));
+      if (hits.length === limit && limit < MOST) {
+        const more = () => {
+          limit += PAGE;
+          keep({ limit });
+          void run(true);
+        };
+        return h(
+          "div",
+          {},
+          ul,
+          h("button", { type: "button", className: "more", onclick: more }, "Show more"),
+        );
+      }
     } catch (e) {
       if ((e as Error).name !== "AbortError")
-        results.replaceChildren(h("li", {}, empty("offline", "Search needs the server.")));
+        ul.append(h("li", {}, empty("offline", "Search needs the server.")));
     }
+    return ul;
   }
+
   // A chip tapped: its query now (no keyboard: the results stay in view)
   const apply = (edit: (q: string) => string) => {
     clearTimeout(timer);
@@ -102,13 +180,21 @@ export function search(): Node {
     const first = results.querySelector("a");
     if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
   };
-  void run();
-  if (!q) setTimeout(() => input.focus());
-  return h(
+  const first = run(true);
+  // The list: shown once here (main.ts says Loading if it is slow), so Back lands on it as it
+  // was. No keyboard until the box is tapped.
+  await first;
+  const root = h(
     "section",
     { className: "search" },
     h("label", { className: "field-search" }, icon("search"), input),
+    kinds,
     chips,
+    pending,
     results,
+    build(),
   );
+  // Leaving by a tap or a swipe: where the list is now, not 150 ms ago
+  root.addEventListener("pointerdown", () => keep({ scroll: scrollY }), { capture: true });
+  return root;
 }

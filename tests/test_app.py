@@ -593,3 +593,16 @@ def test_a_line_like_a_reference_definition_stays_searchable(client, note):
     note("Diary\n[2024-03-02]: met Bob at the cafe")
     hits = client.get("/api/search", params={"q": "Bob cafe"}).json()
     assert [h["title"] for h in hits] == ["Diary"]
+
+
+def test_search_hits_carry_the_same_thumbnail(client, note):
+    note("plain words here")
+    files = [("file", ("p.png", PNG, "image/png"))]
+    data = {"id": new_ulid(), "text": "photo words here"}
+    assert client.post("/api/captures", data=data, files=files).status_code == 201
+    photo, plain = client.get("/api/pages").json()
+    for q in ["words", "after:1w", "is:work", "kind:note"]:
+        hits = {h["id"]: h for h in client.get("/api/search", params={"q": q}).json()}
+        assert hits[photo["id"]]["thumb"] == photo["thumb"] is not None, q
+        assert hits[photo["id"]]["updated_at"] == photo["updated_at"], q
+        assert hits[plain["id"]]["thumb"] is None, q

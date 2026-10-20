@@ -1,12 +1,11 @@
 // Refine a search with a tap (#84): what the pages found have in common (work or personal,
-// their kinds, their top tags), each with how many have it; tapping one adds its filter to
-// the query, and the query's filters show first, tapped to take them out. The chips only
-// edit the query's text (kind:todo, tag:tech, is:personal), so it can be typed too.
-// Also the way to browse tags and a time range (presets, or dates). A chunk of its own,
+// their top tags), each with how many have it; tapping one adds its filter to the query, and
+// the query's filters show first, tapped to take them out (kinds are search.ts's fixed row).
+// The chips only edit the query's text (tag:tech, is:personal), so it can be typed too. Also
+// Clear, and the way to browse tags and a time range (presets, or dates). A chunk of its own,
 // loaded with the search screen.
 import { api } from "./api";
 import { icon } from "./icons";
-import { KINDS } from "./kinds";
 import { adding, day, removing, token } from "./terms";
 import { h } from "./ui";
 
@@ -16,13 +15,6 @@ interface Facets {
   tags: [string, number][];
   personal: { work: number; personal: number };
   active: { token: string; key: string; value: string; neg: boolean }[];
-}
-
-/** A kind as the PWA names it (consume: Read), and as kind: takes it. */
-function kindName(kind: string): [string, string] {
-  const k = KINDS.find(([name]) => name === kind);
-  const label = k ? k[1] : kind.charAt(0).toUpperCase() + kind.slice(1);
-  return [label, label.toLowerCase()];
 }
 
 /** n: a count to show; null: a filter of the query (tap to remove); -1: neither. */
@@ -56,11 +48,14 @@ export async function refine(
 ): Promise<HTMLElement> {
   const f = q ? await api<Facets>(`search/facets?q=${encodeURIComponent(q)}`, { signal }) : NONE;
   const add = (t: string) => () => apply((now) => adding(now, t));
-  const chips: HTMLElement[] = f.active.map((a) => {
-    const b = chip(a.token, null, () => apply((now) => removing(now, a.token)), true);
-    b.setAttribute("aria-label", `Remove ${a.token}`);
-    return b;
-  });
+  // A kind is the fixed row's (search.ts), unless it is a "not" one (-kind:todo)
+  const chips: HTMLElement[] = f.active
+    .filter((a) => a.key !== "kind" || a.neg)
+    .map((a) => {
+      const b = chip(a.token, null, () => apply((now) => removing(now, a.token)), true);
+      b.setAttribute("aria-label", `Remove ${a.token}`);
+      return b;
+    });
   // A time range: after:1w (by when last edited; date:created for when made), or dates
   const ranged = f.active.filter((a) => a.key === "after" || a.key === "before");
   const created = f.active.some((a) => a.key === "date" && a.value === "created" && !a.neg);
@@ -112,12 +107,6 @@ export async function refine(
   if (!side && work && personal) {
     chips.push(chip("Work", work, add("is:work")), chip("Personal", personal, add("is:personal")));
   }
-  if (f.kinds.length > 1) {
-    for (const [kind, n] of f.kinds) {
-      const [label, name] = kindName(kind);
-      chips.push(chip(label, n, add(token("kind", name))));
-    }
-  }
   for (const [tag, n] of f.tags) chips.push(chip(`#${tag}`, n, add(token("tag", tag))));
   return h(
     "div",
@@ -125,6 +114,8 @@ export async function refine(
     h(
       "div",
       { className: "refine", role: "group", "aria-label": "Refine" },
+      // Anything chosen or typed: one tap back to every page, newest first
+      q && chip("Clear", -1, () => apply(() => "")),
       h("a", { className: "button facet", href: "/tags" }, icon("tag"), "Tags"),
       q && h("span", { className: "count" }, `${f.total} ${f.total === 1 ? "page" : "pages"}`),
       ...chips,

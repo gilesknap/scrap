@@ -1,6 +1,6 @@
 // DEBUG AID, off by default: a small panel of viewport numbers for a real phone, where the
-// on-screen keyboard behaves unlike any emulator. Tap the build id at the bottom of Recent five
-// times to turn it on or off (kept in localStorage).
+// on-screen keyboard behaves unlike any emulator. Tap the build id at the bottom of the search
+// screen five times to turn it on or off (kept in localStorage).
 const KEY = "scrap.debug";
 let taps = 0;
 

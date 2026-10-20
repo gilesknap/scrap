@@ -46,7 +46,8 @@ export interface Page extends Summary {
   tags: string[];
   captures: { id: string; url: string | null; blobs: FileRef[] }[];
 }
-export interface Hit extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields"> {
+export interface Hit
+  extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb"> {
   snippet: string;
 }
 

@@ -261,10 +261,18 @@ export async function page(key: string): Promise<Node> {
     return b;
   }
 
+  // Deleted: back to the list it was opened from (its query, filters and scroll: the entry
+  // before this one), else to the newest-first list
   const remove = (p: Page) =>
     deletePage(
       p.id,
-      () => go("/recent"),
+      () =>
+        state?.trail
+          ? new Promise<void>((done) => {
+              addEventListener("popstate", () => done(), { once: true }); // after main.ts's
+              history.back();
+            })
+          : go("/search", true),
       () => go(`/p/${encodeURIComponent(p.slug)}`),
     );
 
