@@ -110,7 +110,9 @@ def test_export_markdown(client, note, tmp_path, capsys):
     assert kept.startswith('---\ntitle: "Kept"\n') and "body text" in kept
     [png] = (out / "files").iterdir()
     assert png.read_bytes() == b"png bytes"
-    assert f"![b.png](files/{png.name})" in (out / "photo.md").read_text()
+    photo = (out / "photo.md").read_text()
+    assert f"![b.png](files/{png.name})" in photo  # the text's embed, pointed here
+    assert photo.count(png.name) == 1 and "/api/blobs" not in photo
 
 
 def test_restore_refuses_a_bad_backup_without_touching_data(note, tmp_path):

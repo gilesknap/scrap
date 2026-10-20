@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inline, markdown } from "../src/md";
+import { inline, markdown, unembedded } from "../src/md";
 
 const SHA = "a".repeat(64);
 
@@ -109,5 +109,19 @@ describe("markdown", () => {
         if (attr === "data-sha") expect(value).toMatch(/^[0-9a-f]{64}$/);
       }
     }
+  });
+});
+
+describe("unembedded", () => {
+  const e = (n = 2048) => `![](/api/blobs/${SHA}/preview?size=${n})`;
+  it("drops lines that only embed this server's images, and the gap each leaves", () => {
+    expect(unembedded(`Title\n\n${e()}\n\n${e(480)} ${e()}\n\nafter`)).toBe("Title\n\nafter");
+    expect(unembedded(`Notes\n\n${e()}`)).toBe("Notes");
+    expect(unembedded(e())).toBe("");
+  });
+  it("keeps everything else as typed", () => {
+    const code = `  indented\n\n\n\nkept gaps\n\`\`\`\n${e()}\n\n\n\`\`\`\nsee ${e()} inline`;
+    expect(unembedded(code)).toBe(code);
+    expect(unembedded("![x](https://e.com/a.png)")).toBe("![x](https://e.com/a.png)");
   });
 });

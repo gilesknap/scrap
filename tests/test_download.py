@@ -41,8 +41,40 @@ def test_page_with_files_downloads_as_a_zip_with_relative_links(client):
     ]
     assert zf.read("files/BOARD-2.png") == PNG + b"2"
     md = zf.read("whiteboard.md").decode()
-    assert "![board.png](files/board.png)\n![BOARD.png](files/BOARD-2.png)\n" in md
-    assert "[../../etc/notes.txt](files/notes.txt)" in md
+    # The text's images, once each, at the files here; then the file it doesn't show
+    assert md.endswith(
+        "---\n\nWhiteboard\n\n![board.png](files/board.png)\n\n"
+        "![BOARD.png](files/BOARD-2.png)\n\n[../../etc/notes.txt](files/notes.txt)\n"
+    )
+    assert "/api/blobs" not in md
+
+
+def test_download_points_edited_and_foreign_embeds_right(client):
+    other = client.post(
+        "/api/captures",
+        data={"id": new_ulid()},
+        files=[("file", ("far.png", PNG + b"far", "image/png"))],
+    ).json()
+    far = client.get(f"/api/pages/{other['page_id']}").json()["captures"][0]
+    far_sha = far["blobs"][0]["sha256"]
+    ref = client.post(
+        "/api/captures",
+        data={"id": new_ulid(), "text": "Mine"},
+        files=[("file", ("near.png", PNG, "image/png"))],
+    ).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    near = page["captures"][0]["blobs"][0]["sha256"]
+    body = (
+        f"Mine\n\nSee ![my alt](/api/blobs/{near}) and [link](/api/blobs/{near})"
+        f"\n\n![](/api/blobs/{far_sha}/preview?size=2048)"
+    )
+    url = f"/api/pages/{ref['page_id']}"
+    client.patch(url, json={"base_rev": 1, "body": body})
+    zf = zipfile.ZipFile(io.BytesIO(client.get(f"{url}/download").content))
+    md = zf.read("mine.md").decode()
+    assert "See ![my alt](files/near.png) and [link](files/near.png)" in md
+    assert f"![](/api/blobs/{far_sha}/preview?size=2048)" in md  # another page's
+    assert md.count("files/near.png") == 2  # shown in the text: not again below
 
 
 def test_download_of_a_missing_or_trashed_page_is_404(client, note):

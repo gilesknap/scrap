@@ -400,6 +400,32 @@ test("embedded images are figures: viewer, name, Download and Ask Claude", async
   await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(1); // b.png's
 });
 
+test("an image added by an edit is a figure at once; one in a list or a line stays", async ({
+  page,
+}) => {
+  const photo = await page.request.post("/api/captures", {
+    multipart: {
+      id: ulid(),
+      file: { name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) },
+    },
+  });
+  const other = await (await page.request.get(`/api/pages/${(await photo.json()).slug}`)).json();
+  const sha = other.captures[0].blobs[0].sha256;
+  const slug = await note(page, "Text only");
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  const embed = `![](/api/blobs/${sha})`;
+  await page.getByLabel("Body").fill(`Text only\n\n${embed}\n\n- ${embed}\n\nsee ${embed} here`);
+  await page.getByRole("button", { name: "Save" }).click();
+  // Another page's file: a figure without Ask Claude, named by its sha
+  const fig = page.locator(".md > figure.orig");
+  await expect(fig).toHaveCount(1);
+  await expect(fig.locator("figcaption span")).toHaveText(`Image ${sha.slice(0, 8)}`);
+  await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(0);
+  await expect(page.locator(".md li img, .md p img")).toHaveCount(2); // left as they are
+  await expect(page.locator(".md figure figure, .md p figure, .md li figure")).toHaveCount(0);
+});
+
 test("photos the server can't preview fall back to the file", async ({ page }) => {
   const r = await page.request.post("/api/captures", {
     multipart: {

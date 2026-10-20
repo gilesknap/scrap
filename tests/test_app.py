@@ -147,6 +147,10 @@ def test_a_capture_embeds_each_image_in_its_text_in_order(client):
     ref = client.post("/api/captures", data=alone, files=files[:1]).json()
     assert client.get(f"/api/pages/{ref['page_id']}").json()["body"] == embed(one)
     assert [h["slug"] for h in search(client, "api")] == []  # addresses: not words
+    shown = {"id": new_ulid(), "text": f"see {embed(two)}"}  # the text shows it already
+    ref = client.post("/api/captures", data=shown, files=files[2:3]).json()
+    body = client.get(f"/api/pages/{ref['page_id']}").json()["body"]
+    assert body == f"see {embed(two)}"
 
 
 @pytest.mark.parametrize(

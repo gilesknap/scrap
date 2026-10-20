@@ -138,6 +138,9 @@ def test_the_download_has_the_description_text_and_drawing(board):
     assert "> A sketch of a job queue" in md
     assert "```text\nkafka consumer lag\nretry topic\n```" in md
     assert "[Drawing of board.jpg](files/board.excalidraw)" in md
+    # the photo is in the text; below, named (not shown again) before Claude's notes
+    assert "![board.jpg](files/board.jpg)" in md
+    assert "\n[board.jpg](files/board.jpg)\n\n> A sketch" in md
     drawing = json.loads(zf.read("files/board.excalidraw"))
     assert drawing["type"] == "excalidraw" and drawing["files"] == {}
     rect, label, arrow = drawing["elements"]

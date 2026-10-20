@@ -349,7 +349,10 @@ the photo viewer (every image of the page, in order), and its caption has the fi
 Download and *Ask Claude*, which queues ingest for that one image (on any capture holding it,
 not only photo captures). Once queued it is the photo's panel instead: its state, then what
 Claude read, described and drew. Below the text are only the files it doesn't embed (PDFs, or
-photos of pages made before this). The figure code is a lazy chunk, outside the app shell.
+photos of pages made before this). Only an image on a line of its own becomes a figure; one in
+a link, heading or list, or beside text, stays a plain image. A page's download (and `scrap
+export`) points the text's images at the files beside it and doesn't list them again. Share
+leaves out lines that only embed images. The figure code is a lazy chunk, outside the app shell.
 
 ## Excalidraw
 

@@ -752,6 +752,10 @@ mark {
 .md > .photo-panel {
   margin: var(--s-4) 0; /* a figure in the text: a paragraph's spacing */
 }
+.md > .orig:first-child,
+.md > .photo-panel:first-child {
+  margin-top: 0;
+}
 .originals img,
 .md .orig img {
   display: block;

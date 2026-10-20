@@ -80,13 +80,14 @@ export function figures(
   };
 
   for (const img of embeds) {
+    // Only an image on a line of its own becomes a figure: one in a link, a heading, a list
+    // or beside text stays as it is (a figure there would not be valid HTML)
+    const para = img.parentElement;
+    if (para?.tagName !== "P" || para.parentElement !== body || para.childNodes.length !== 1)
+      continue;
     const sha = img.dataset.sha as string;
     const f = files.get(sha);
-    const fig = figure(sha, f?.filename || img.alt, f);
-    // An image alone in its paragraph takes the paragraph's place
-    const para = img.parentElement;
-    if (para?.tagName === "P" && para.childNodes.length === 1) para.replaceWith(fig);
-    else img.replaceWith(fig);
+    para.replaceWith(figure(sha, f?.filename || img.alt || `Image ${sha.slice(0, 8)}`, f));
   }
   return rest.map((f) => {
     const name = f.filename || f.mime;

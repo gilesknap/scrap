@@ -104,6 +104,12 @@ def _discard(db: Path) -> None:
         Path(f"{db}{suffix}").unlink(missing_ok=True)
 
 
+# A Markdown link or image to a file of this server, by its address
+OWN_BLOB = re.compile(
+    r"(!?)\[([^\[\]\n]*)\]\(/api/blobs/([0-9a-f]{64})(?:/preview\?size=\d+)?\)"
+)
+
+
 def _sha_name(blob: sqlite3.Row, taken: set[str]) -> str:
     return blob["sha256"] + (mimetypes.guess_extension(blob["mime"]) or "")
 
@@ -142,25 +148,45 @@ def page_markdown(
     }
     front["fields"] = json.loads(page["fields"])
     lines = ["---", *(f"{k}: {json.dumps(v)}" for k, v in front.items())]
-    lines += ["---", "", page["body"], ""]
     files: list[tuple[str, str | bytes]] = []
     taken: set[str] = set()
-    for blob in conn.execute(
+    blobs = conn.execute(
         "SELECT b.sha256, b.mime, cb.filename, c.id AS capture_id FROM capture c"
         " JOIN capture_blob cb ON cb.capture_id = c.id"
         " JOIN blob b USING (sha256)"
         " WHERE c.page_id = ? ORDER BY c.received_at, cb.ord",
         (page["id"],),
-    ):
+    ).fetchall()
+    names: list[str] = []
+    local: dict[str, tuple[str, str]] = {}  # a file's first address and label here
+    for blob in blobs:
         file = name(blob, taken)
         taken.add(file)
+        names.append(file)
         files.append((file, blob["sha256"]))
         label = (blob["filename"] or file).replace("[", "(").replace("]", ")")
-        image = "!" if blob["mime"].startswith("image/") else ""
-        lines.append(f"{image}[{label}](files/{quote(file)})")
+        local.setdefault(blob["sha256"], (f"files/{quote(file)}", label))
+
+    # The text's own images point at the files here, named (another page's stay)
+    def here(m: re.Match[str]) -> str:
+        if m[3] not in local:
+            return m[0]
+        address, label = local[m[3]]
+        return f"{m[1]}[{m[2] or label}]({address})"
+
+    body = OWN_BLOB.sub(here, page["body"])
+    lines += ["---", "", body, ""]
+    for blob, file in zip(blobs, names, strict=True):
+        label = (blob["filename"] or file).replace("[", "(").replace("]", ")")
+        image = blob["mime"].startswith("image/")
+        got = _derived(conn, blob["capture_id"], blob["sha256"]) if image else {}
+        # An image the text shows is not shown again: only named, before Claude's notes
+        if not (image and f"]({local[blob['sha256']][0]})" in body):
+            lines.append(f"{'!' if image else ''}[{label}](files/{quote(file)})")
+        elif got:
+            lines.append(f"[{label}](files/{quote(file)})")
         if not image:
             continue
-        got = _derived(conn, blob["capture_id"], blob["sha256"])
         if "description" in got and got["description"]["text"]:
             lines += ["", f"> {got['description']['text']}".replace("\n", "\n> ")]
         if "ocr" in got and got["ocr"]["text"]:

@@ -5,16 +5,11 @@ import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
+import { unembedded } from "./md";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { bodyView, download, h, share, toast, when } from "./ui";
 
-/** Text to share: without lines that only embed this server's images (not for other apps). */
-const unembedded = (body: string) =>
-  body
-    .replace(/^!\[[^\]\n]*\]\(\/api\/blobs\/[^)\s]+\)[ \t]*$/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 const POLL = 10_000; // while Claude has a photo of this page
 
 /** The page's images as figures, with what Claude made of them: a chunk of its own. */
@@ -167,6 +162,7 @@ export async function page(key: string): Promise<Node> {
           }),
         });
         await ed.done();
+        await load(saved); // its first image: the figures
         show(saved);
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 409)) return toast(String(err));
@@ -194,6 +190,7 @@ export async function page(key: string): Promise<Node> {
                 type: "button",
                 onclick: async () => {
                   await ed.done();
+                  await load(theirs);
                   show(theirs);
                 },
               },

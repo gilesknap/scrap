@@ -105,11 +105,16 @@ def unlink(text: str) -> str:
     return MD_LINK.sub(r"\1", text)
 
 
-def embeds(blobs: list[tuple[str, str, int, str | None]]) -> list[str]:
+def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str]:
     """Markdown that shows each image of a capture in its page's text, in order (once
-    each): a page's photos are shown there, the text the user then owns."""
+    each, none the text shows already): a page's photos are shown there, the text the
+    user then owns."""
     images = dict.fromkeys(sha for sha, mime, *_ in blobs if mime.startswith("image/"))
-    return [f"![](/api/blobs/{sha}/preview?size=2048)" for sha in images]
+    return [
+        f"![](/api/blobs/{sha}/preview?size=2048)"
+        for sha in images
+        if f"](/api/blobs/{sha}" not in text
+    ]
 
 
 def slug_base(title: str) -> str:
@@ -295,7 +300,7 @@ class Store:
         it is new. blobs are (sha256, mime, size, filename), already in files/.
         """
         cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
-        body = "\n\n".join(x for x in (body, *embeds(blobs)) if x)
+        body = "\n\n".join(x for x in (body, *embeds(blobs, body)) if x)
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
