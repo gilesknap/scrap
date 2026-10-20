@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.1.dev143+ga2b9798b4 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.1.dev146+g47347c722 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=fb295804"></script>
+    <script src="../_static/documentation_options.js?v=c310445e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -753,23 +753,27 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 <td><p><code class="docutils literal notranslate"><span class="pre">.editor</span></code></p></td>
 <td><p>full screen over the keyboard; top bar Cancel / Preview / Save</p></td>
 </tr>
-<tr class="row-even"><td><p>Toast</p></td>
+<tr class="row-even"><td><p>Share menu</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.share-menu</span></code></p></td>
+<td><p>Share’s choice, a popover just above it: <strong>Link</strong>, or the content (<strong>Text</strong> on a page, <strong>Photo</strong> in the viewer), ghost rows on <code class="docutils literal notranslate"><span class="pre">--surface</span></code> with <code class="docutils literal notranslate"><span class="pre">--shadow-2</span></code>; a tap elsewhere, Back or Share again closes it</p></td>
+</tr>
+<tr class="row-odd"><td><p>Toast</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.toast</span></code></p></td>
 <td><p>dark slab above what is under the thumb, amber text action</p></td>
 </tr>
-<tr class="row-odd"><td><p>Banner</p></td>
+<tr class="row-even"><td><p>Banner</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.conflict</span></code>, <code class="docutils literal notranslate"><span class="pre">.restored</span></code></p></td>
 <td><p>danger-soft with a red edge; accent-soft info line</p></td>
 </tr>
-<tr class="row-even"><td><p>Empty state</p></td>
+<tr class="row-odd"><td><p>Empty state</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.empty</span></code> (<code class="docutils literal notranslate"><span class="pre">empty()</span></code> in ui.ts)</p></td>
 <td><p>icon in a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> circle, a sentence, one action</p></td>
 </tr>
-<tr class="row-odd"><td><p>Photo viewer</p></td>
+<tr class="row-even"><td><p>Photo viewer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.viewer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--viewer</span></code>; close top right, count pill top centre, tools on an <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> scrim</p></td>
 </tr>
-<tr class="row-even"><td><p>Icons</p></td>
+<tr class="row-odd"><td><p>Icons</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">icons.ts</span></code></p></td>
 <td><p>24 px strokes (1.8), currentColor, <code class="docutils literal notranslate"><span class="pre">aria-hidden</span></code></p></td>
 </tr>
@@ -856,7 +860,8 @@ paper scrap on amber; the header mark is the same scrap in amber.</p>
 <li><p>No colour outside <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code> (the debug panel aside), and no second accent; no gradients
 except the viewer’s scrim. High-contrast mode uses the system’s colour keywords.</p></li>
 <li><p>No colour as the only signal: selection also raises, failure also says so in words.</p></li>
-<li><p>No modal dialogs of our own (the browser’s <code class="docutils literal notranslate"><span class="pre">confirm()</span></code> stays for destructive questions).</p></li>
+<li><p>No modal dialogs of our own (the browser’s <code class="docutils literal notranslate"><span class="pre">confirm()</span></code> stays for destructive questions);
+the share menu is a light-dismiss popover, not a modal.</p></li>
 <li><p>No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.</p></li>
 <li><p>No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
 extend their hit area with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code>), no text under 12.75 px, no text pair

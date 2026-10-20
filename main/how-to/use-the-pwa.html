@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev143+ga2b9798b4 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev146+g47347c722 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=fb295804"></script>
+    <script src="../_static/documentation_options.js?v=c310445e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -616,13 +616,16 @@ are the files it doesn’t show, such as PDFs, as links with a <strong>Download<
 <li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
 drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
 <strong>Download</strong> and <strong>Share</strong> are along the bottom and the cross at the top right closes it, as
-does the phone’s Back button. <strong>Share</strong> sends the photo to another app: the original, or a
+does the phone’s Back button. <strong>Share</strong> asks <strong>Link</strong> or <strong>Photo</strong>: <strong>Link</strong> sends the
+address of the photo’s page; <strong>Photo</strong> sends the photo to another app: the original, or a
 JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
 phone allows, a <strong>Photo ready</strong> message offers <strong>Share</strong> again.</p></li>
 <li><p><strong>Download</strong> on a page saves it as Markdown, or as a zip of the Markdown and its files when it
-has any; its photos are in the zip and its text points at them there. <strong>Share</strong> sends its
-title and text to another app, as typed but without the lines that only show a photo (never a
-link to scrap).
+has any; its photos are in the zip and its text points at them there. <strong>Share</strong> asks
+<strong>Link</strong> or <strong>Text</strong>: <strong>Link</strong> sends the page’s address (such as
+<code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/shopping-list</span></code>), which opens the page for anyone who can reach your
+scrap; <strong>Text</strong> sends its title and text, as typed but without the lines that only show a
+photo (no link to scrap in it). Tap <strong>Share</strong> again, or anywhere else, to close the choice.
 Share appears only where the browser can share.</p></li>
 <li><p>Page text is shown as Markdown (headings, <strong>bold</strong>, <em>italic</em>, lists, quotes, code, links);
 it is always stored as typed, and <strong>Edit</strong> shows it so.</p></li>
