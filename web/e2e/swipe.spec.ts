@@ -64,7 +64,7 @@ test("a row swiped left is deleted, and Undo brings it back", async ({ page }) =
   expect((await page.request.get(`/api/pages/${c}`)).status()).toBe(404);
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(rowOf(page, c)).toBeVisible();
-  expect(new URL(page.url()).pathname).toBe("/recent");
+  expect(new URL(page.url()).pathname).toBe("/search");
 });
 
 test("a row swiped right opens its page in the editor; a short drag does nothing", async ({
@@ -94,7 +94,7 @@ test("a row swiped right opens its page in the editor; a short drag does nothing
   await expect(page.locator(".editor")).toBeHidden();
   await expect(page.locator(".pager")).toContainText("1 of");
   await page.goBack();
-  await expect(page).toHaveURL("/recent");
+  await expect(page).toHaveURL("/search");
 });
 
 test("after a touch swipe settles back, a mouse click still opens the row", async ({ page }) => {
@@ -155,7 +155,7 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   await at(2);
   await expect(page.locator("#view > .page")).not.toHaveClass(/from-/);
   await page.goBack();
-  await expect(page).toHaveURL("/recent");
+  await expect(page).toHaveURL("/search");
 });
 
 test("leaving a page while it loads leaves no swipes or keys behind", async ({ page }) => {
@@ -168,11 +168,11 @@ test("leaving a page while it loads leaves no swipes or keys behind", async ({ p
   await rowOf(page, c).locator("a").click();
   await page.waitForTimeout(200);
   await page.goBack();
-  await expect(page).toHaveURL("/recent");
+  await expect(page).toHaveURL("/search");
   await page.waitForTimeout(2000); // the page has loaded, too late
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(300);
-  await expect(page).toHaveURL("/recent");
+  await expect(page).toHaveURL("/search");
 });
 
 test("a swipe's step never replaces where the nav went meanwhile", async ({ page }) => {

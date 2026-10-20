@@ -35,7 +35,7 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   await page.getByRole("searchbox").fill("zephyr -fence");
   await expect(hits(page)).toHaveText(["Zephyr shed plans"]);
   await page.getByRole("searchbox").fill("zephyr");
-  await refine(page).getByRole("button", { name: "Read 1" }).click();
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Reads").click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:read");
   await expect(hits(page)).toHaveText(["Zephyr fence book"]);
 });
@@ -55,7 +55,7 @@ test("a page's tag searches for it, children too", async ({ page }) => {
 
 test("browse tags as a tree, then search one", async ({ page }) => {
   await page.goto("/search");
-  await page.getByRole("link", { name: "Browse tags" }).first().click();
+  await refine(page).getByRole("link", { name: "Tags" }).click();
   await expect(page).toHaveURL(/\/tags$/);
   const tree = page.locator(".tagtree");
   await expect(tree.getByRole("link", { name: "#zephyr 4" })).toBeVisible();
@@ -96,8 +96,8 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await expect(page.getByText("No matches")).toBeVisible(); // made in January 2026
   await refine(page).getByRole("button", { name: "Remove after:1w" }).click();
   await refine(page).getByRole("button", { name: "Dates…" }).click();
-  await page.getByLabel("From").fill("2026-01-02");
-  await page.getByLabel("To").fill("2026-01-03");
+  await page.getByLabel("From", { exact: true }).fill("2026-01-02");
+  await page.getByLabel("To", { exact: true }).fill("2026-01-03");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue(
     "zephyr after:2026-01-02 before:2026-01-03",
