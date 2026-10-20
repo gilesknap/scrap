@@ -137,8 +137,12 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   const at = (n: number) => expect(page.locator(".pager span")).toHaveText(new RegExp(`^${n} of `));
   await rowOf(page, c).locator("a").click();
   await at(1);
-  await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
-  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("link", { name: "Previous" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(page.getByRole("link", { name: "Next" })).toHaveAttribute("href", `/p/${b}`);
+  await page.getByRole("link", { name: "Next" }).click();
   await expect(page).toHaveURL(`/p/${b}`);
   await at(2);
   await drag(cdp, 500, 330, 100); // swipe left: the next one

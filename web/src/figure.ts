@@ -14,6 +14,7 @@ import {
   type Queue,
   shareable,
 } from "./api";
+import { plain } from "./app";
 import { icon } from "./icons";
 import { photoPanel } from "./ingest";
 import { download, h, pageLink, settle, toast } from "./ui";
@@ -65,7 +66,8 @@ export function figures(
     const href = blobUrl(sha);
     const save = download(`${href}?download=1`, "save");
     const img = settle(h("img", { src: photos[at - 1].src, alt: name, loading: "lazy" }));
-    const open = (e: Event) => {
+    const open = (e: MouseEvent) => {
+      if (!plain(e)) return; // Ctrl-click, middle click: the file in a new tab
       e.preventDefault();
       viewer(photos, at - 1, pageLink(p.slug));
     };
