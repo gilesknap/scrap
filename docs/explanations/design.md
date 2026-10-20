@@ -399,7 +399,9 @@ so revisions and the search index stay consistent. Each page keeps the vault's d
 images, PDFs in a second `file` capture. The capture id is made from the page's path, so a second
 run skips pages already imported. Links between pages become `[[slug|label]]`, which the PWA
 renders as links to `/p/<slug>` (the `link` table does not exist yet); images are embedded as
-`![](/api/blobs/<sha>/preview?size=2048)`.
+`![](/api/blobs/<sha>/preview?size=2048)`, and the PWA shows an image the body embeds there only,
+not again among the page's files (unless it has ingest results to show). Dates alone become noon
+UTC. A rerun never updates a page already imported.
 
 ## Claude ingest (M2)
 

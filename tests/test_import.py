@@ -156,17 +156,17 @@ def test_kinds_fields_tags_and_dates(tmp_path, vault):
         "personal": False,
     }
     assert json.loads(rows["alpha-copy"]["fields"]) == {"status": "open"}
-    assert rows["alpha"]["created_at"] == "2025-01-02T00:00:00.000Z"
-    assert rows["alpha"]["updated_at"] == "2025-03-04T00:00:00.000Z"
-    assert rows["day-out"]["created_at"] == "2001-07-08T00:00:00.000Z"  # memory_date
+    assert rows["alpha"]["created_at"] == "2025-01-02T12:00:00.000Z"
+    assert rows["alpha"]["updated_at"] == "2025-03-04T12:00:00.000Z"
+    assert rows["day-out"]["created_at"] == "2001-07-08T12:00:00.000Z"  # memory_date
     assert rows["alpha-copy"]["title"] == "alpha-copy"
     assert rows["loose-page"]["title"] == "Loose"
     page = store.page("alpha")
     assert page["tags"] == ["domain/testing", "kind/how-to"]
-    assert page["rev"] == 1 and page["updated_at"] == "2025-03-04T00:00:00.000Z"
+    assert page["rev"] == 1 and page["updated_at"] == "2025-03-04T12:00:00.000Z"
     with store.connect() as conn:
         rev = conn.execute("SELECT * FROM page_rev WHERE page_id = ?", (page["id"],))
-        assert dict(rev.fetchone())["created_at"] == "2025-03-04T00:00:00.000Z"
+        assert dict(rev.fetchone())["created_at"] == "2025-03-04T12:00:00.000Z"
     assert store.page("day-out")["tags"] == ["a" * 64]
 
 

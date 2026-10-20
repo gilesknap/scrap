@@ -27,8 +27,8 @@ no model unless you ask it to.
    ```
 
    Running it again imports only pages it has not imported before (a page is known by its path in
-   the vault); a page already there is left as it is, even if the vault's copy has changed. To
-   import everything afresh, import into an empty data folder.
+   the vault); a page already there is left as it is, even if the vault's copy has changed: there
+   is no update. To pick up changes, import afresh into an empty data folder.
 
 4. Optionally, `--ingest` also queues every imported image for Claude, as a photo capture would
    be (they run once `SCRAP_INGEST=on`). Off by default: Thoth pages already describe their images.
@@ -41,18 +41,18 @@ no model unless you ask it to.
 | `type`: `note`, `entity`, `memory`, `action`, `media` (no type: the folder's) | kind `note`, `reference`, `memory`, `todo`, `consume` |
 | `title` (else the first `# heading`, else the file name) | Title; a first heading equal to it is dropped from the body |
 | File name | Slug (made unique with `-2`, `-3`... in path order) |
-| `created`, `updated` (no `created`: `memory_date`, else the file's time) | `created_at`, `updated_at` and the time of revision 1 |
+| `created`, `updated` (no `created`: `memory_date`, else the file's time) | `created_at`, `updated_at` and the time of revision 1; a date alone is taken as noon UTC, so it is the same day in any time zone |
 | `tags` | Tags, lower-cased and cut to 64 characters |
 | `status` (`todo` becomes `open`), `due_date` or `due` (as `due`), `priority` (lower-cased), `media_type`, `url` or `source_url` (as `source`), `memory_date`, `summary`, `personal` | `fields`, over the kind's defaults (a todo's `status` is `open`); a consume page also gets `subtype` (`read`, `watch` or `listen`) from `media_type` |
 | `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA |
-| `![](../raw/assets/x.png)` and `![[x.png]]` | The image, stored with the page (a photo capture) and shown where it was |
+| `![](../raw/assets/x.png)` and `![[x.png]]` | The image, stored with the page (a photo capture) and shown where it was, not again among the page's files |
 | A PDF embedded or linked | Attached to the page as a file |
 | The page file as it is | Kept as its capture's text |
 
 Not imported: `raw/` and `inbox/` (except the images and PDFs pages use), every folder starting
 `.` or `_`, the top `index.md`, `log.md` and `SCHEMA.md`, pages of any other `type` (such as
 `summary`), Excalidraw drawings, and every file that is not Markdown. Other front matter fields
-are dropped (the original stays in the capture's text).
+are dropped, Thoth's `source` among them (the original stays in the capture's text).
 
 ## The report
 

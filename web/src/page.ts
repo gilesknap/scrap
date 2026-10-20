@@ -26,7 +26,12 @@ const POLL = 10_000; // while Claude has a photo of this page
 type Panels = typeof import("./ingest");
 
 function originals(p: Page, queue: Queue | null, panels: Panels | null, refresh: () => void) {
-  const files: Placed[] = p.captures.flatMap((c) => c.blobs.map((b) => ({ ...b, cid: c.id })));
+  // An image the text embeds is shown there only, unless Claude has (or will have) a panel for it
+  const embedded = (f: FileRef) =>
+    isImage(f) && !f.ingest && p.body.includes(`/api/blobs/${f.sha256}`);
+  const files: Placed[] = p.captures
+    .flatMap((c) => c.blobs.map((b) => ({ ...b, cid: c.id })))
+    .filter((f) => !embedded(f));
   const photos: Photo[] = files.filter(isImage).map((f) => ({
     src: previewUrl(f.sha256, 2048),
     save: `${blobUrl(f.sha256)}?download=1`,

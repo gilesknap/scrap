@@ -117,7 +117,7 @@ def _stamp(value: Any) -> str | None:
         value = value.astimezone(UTC).isoformat(timespec="milliseconds")
         return value.replace("+00:00", "Z")
     if isinstance(value, date):
-        return f"{value.isoformat()}T00:00:00.000Z"
+        return f"{value.isoformat()}T12:00:00.000Z"  # noon: the same day everywhere
     return None
 
 
