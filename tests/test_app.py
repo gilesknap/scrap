@@ -524,3 +524,35 @@ def test_share_fallback_lifts_a_link_from_text(client):
     [page] = client.get("/api/pages").json()
     capture = client.get(f"/api/pages/{page['id']}").json()["captures"][0]
     assert (capture["text"], capture["url"]) == ("A story", "https://e.com/s")
+
+
+def test_search_ignores_addresses_in_links(client, note):
+    note("Links\nsee [the docs](https://docs.example.org/guide) and [[other|a label]]")
+
+    def hit(q):
+        return [h["title"] for h in client.get("/api/search", params={"q": q}).json()]
+
+    assert hit("docs") == ["Links"] and hit("label") == ["Links"]
+    assert hit("example") == [] and hit("guide") == [] and hit("other") == []
+
+
+def test_unlink_keeps_labels_in_linear_time():
+    import time
+
+    from scrap.store import unlink
+
+    assert unlink("[a](http://x) ![alt](/api/blobs/f/preview?size=2048)") == "a alt"
+    assert unlink("[t](<http://x y>) [[s|Label]] [[s]]") == "t Label s"
+    assert unlink("[see [[a|Label]]](http://x)") == "see Label"
+    line = "[2024-03-02]: met Bob at the cafe"  # not a reference definition to cut
+    assert unlink(line) == line
+    start = time.monotonic()
+    for line in ["[" * 50_000, "[[" * 25_000, "[a](" * 25_000, "![" * 25_000]:
+        unlink(line)
+    assert time.monotonic() - start < 2
+
+
+def test_a_line_like_a_reference_definition_stays_searchable(client, note):
+    note("Diary\n[2024-03-02]: met Bob at the cafe")
+    hits = client.get("/api/search", params={"q": "Bob cafe"}).json()
+    assert [h["title"] for h in hits] == ["Diary"]

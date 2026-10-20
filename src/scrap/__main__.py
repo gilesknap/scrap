@@ -44,6 +44,23 @@ def main(args: Sequence[str] | None = None) -> None:
                 " lost; files are kept). Stop scrap first: a running server would"
                 " go on writing to the old, replaced database and lose those writes",
             )
+    imp = subparsers.add_parser(
+        "import",
+        parents=[common],
+        help="Import a Thoth vault (Markdown pages with YAML front matter) from DIR",
+    )
+    imp.add_argument("dir", type=Path)
+    imp.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Write nothing; list what would be imported and every problem found",
+    )
+    imp.add_argument(
+        "--ingest",
+        action="store_true",
+        help="Also queue the imported images for Claude (off: their pages describe"
+        " them already)",
+    )
     once = subparsers.add_parser(
         "ingest-once",
         help="Send one image to Claude as ingest would (no database) and print the"
@@ -79,7 +96,17 @@ def main(args: Sequence[str] | None = None) -> None:
         from .store import Store
 
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
-        if parsed.command == "backup":
+        if parsed.command == "import":
+            from . import importer
+
+            if not parsed.dir.is_dir():
+                raise SystemExit(f"no folder {parsed.dir}")
+            plan = importer.plan(parsed.dir, store)
+            print(importer.report(plan, details=parsed.dry_run))
+            if not parsed.dry_run:
+                n = importer.run(store, plan, ingest=parsed.ingest)
+                print(f"imported {n} pages into {store.dir} (--dry-run lists problems)")
+        elif parsed.command == "backup":
             backup.backup(store, parsed.dir)
         elif parsed.command == "restore":
             backup.restore(parsed.dir, store, parsed.force)

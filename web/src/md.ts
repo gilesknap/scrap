@@ -1,7 +1,8 @@
 // A tiny Markdown renderer for page text: headings, **bold**, *italic*, `code`, fenced code,
 // lists, quotes, links, rules and paragraphs (a line break stays one). Every piece of text is
-// HTML-escaped before anything else, there is no raw HTML, links are http(s) or mailto only and
-// images only this server's own files. The stored text is never changed.
+// HTML-escaped before anything else, there is no raw HTML, links are http(s) or mailto only, or
+// [[slug]] and [[slug|label]] to another page, and images only this server's own files. The
+// stored text is never changed.
 const ESC: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -26,12 +27,17 @@ export function inline(raw: string): string {
       .replace(/(\*\*|__)(?=\S)(.+?)(?<=\S)\1/g, "<strong>$2</strong>")
       .replace(/(?<![\w*])\*(?=\S)(.+?)(?<=\S)\*(?![\w*])/g, "<em>$1</em>")
       .replace(/(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)/g, "<em>$1</em>");
-  s = s.replace(/(`+)(.+?)\1/g, (_, __, code: string) => keep(`<code>${code.trim()}</code>`));
+  s = s.replace(/(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)/g, (_, __, code: string) =>
+    keep(`<code>${code.trim()}</code>`),
+  );
   // No marker inside an address or alt text: only ever in text, so it is safe to restore
   s = s.replace(/!\[([^\]\uE000]*)\]\(([^)\s\uE000]+)\)/g, (m, alt: string, src: string) =>
     IMAGE.test(src) ? keep(`<img src="${src}" alt="${alt}" loading="lazy">`) : m,
   );
-  s = s.replace(/\[([^\]]+)\]\(([^)\s\uE000]+)\)/g, (m, text: string, href: string) =>
+  s = s.replace(/\[\[([a-z0-9-]+)(?:\|([^[\]]+))?\]\]/g, (_, slug: string, label?: string) =>
+    keep(`<a href="/p/${slug}">${em(label ?? slug)}</a>`),
+  );
+  s = s.replace(/\[([^[\]]+)\]\(([^)\s\uE000]+)\)/g, (m, text: string, href: string) =>
     LINK.test(href) ? keep(a(href, em(text))) : m,
   );
   s = s.replace(/https?:\/\/[^\s\uE000]+/g, (m) => {

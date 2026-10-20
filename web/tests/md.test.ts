@@ -55,6 +55,18 @@ describe("markdown", () => {
     expect(inline("[**b**](http://e.com)")).toBe(a("http://e.com", "<strong>b</strong>"));
   });
 
+  it("links [[slug]] and [[slug|label]] to pages here", () => {
+    expect(inline("see [[a-page]]")).toBe('see <a href="/p/a-page">a-page</a>');
+    expect(inline("[[a-page|The **page**]]")).toBe(
+      '<a href="/p/a-page">The <strong>page</strong></a>',
+    );
+    expect(inline("[[a-page|`x` & y]]")).toBe('<a href="/p/a-page"><code>x</code> &amp; y</a>');
+    expect(inline('[[Not A Slug]] [[../x]] [[a"b]]')).not.toContain("<a");
+    const start = performance.now();
+    inline("[[a|".repeat(50_000));
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
   it("shows images only from this server's files", () => {
     expect(inline(`![photo](/api/blobs/${SHA})`)).toBe(
       `<img src="/api/blobs/${SHA}" alt="photo" loading="lazy">`,
