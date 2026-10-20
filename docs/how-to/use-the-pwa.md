@@ -120,7 +120,8 @@ the link as the capture's URL.
   Share appears only where the browser can share.
 - Page text is shown as Markdown, as GitHub writes it: headings, **bold**, *italic*,
   ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
-  `https://` addresses, tables, task lists (`- [ ]` and `- [x]`, shown as boxes you tick by
+  `https://` addresses (a `www.` address without `https://` stays plain text), tables
+  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes you tick by
   editing the text) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
   page (in a table cell write `[[slug\|label]]`: a bare `|` starts the next cell). A
   ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram (flowcharts,
