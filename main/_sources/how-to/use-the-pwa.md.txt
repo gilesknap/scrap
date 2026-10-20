@@ -53,6 +53,9 @@ the link as the capture's URL.
   closing the app and restarting the phone.
 - The header badge shows what is on the phone: **2 waiting**, **1 failed**. Tap it to retry
   everything now. Waiting items are also listed at the top of the capture and Recent screens.
+  Opening scrap, coming back to it or coming back online sends what waits at once (another
+  tab's upload first, if one is running). A screen still waiting for the server after a moment
+  says *Loading…*, and an upload that drops while the phone is online says *connection lost*.
 - Uploads start at once, again when the phone comes back online, whenever the app is opened or
   brought to the front, and on a timer with backoff (2 s doubling to 5 minutes) while it is open.
   Android gives web apps no reliable background upload, so a capture made offline uploads the
