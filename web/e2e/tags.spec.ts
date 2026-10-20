@@ -109,3 +109,40 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await refine(page).getByRole("link", { name: "Tags" }).click();
   await expect(page).toHaveURL(/\/tags$/);
 });
+
+test("tags are edited on the page, and in the editor (a row's swipe opens it)", async ({
+  page,
+}) => {
+  const id = "01E2ETAGED17".padEnd(26, "0");
+  const made = await page.request.post("/api/captures", { data: { id, text: "Tag me please" } });
+  const { slug } = await made.json();
+  await page.goto(`/p/${slug}`);
+  const line = page.locator(".page h1 + .tags");
+  await line.getByRole("button", { name: "Add tags" }).click();
+  const box = page.getByRole("combobox", { name: "Add a tag" });
+  await expect(box).toBeFocused();
+  await box.fill("#Quokka Pen");
+  await box.press("Enter");
+  await box.fill("quokka/feed,");
+  await expect(page.getByRole("button", { name: "Remove #quokka pen" })).toBeVisible();
+  await page.getByRole("button", { name: "Remove #quokka pen" }).click();
+  await box.fill("zebu"); // still in the box when saved: it counts
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#zebu"]);
+  await expect(line.getByRole("button", { name: "Change tags" })).toBeVisible();
+  // In the editor: Cancel puts them back, Save sends them with the text
+  await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
+  const editor = page.locator(".editor");
+  await editor.getByRole("button", { name: "Remove #zebu" }).click();
+  await editor.getByRole("combobox", { name: "Add a tag" }).fill("quokka/water");
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#quokka/water"]);
+  await page.goto("/search?q=tag%3Aquokka");
+  await expect(hits(page)).toHaveText(["Tag me please"]);
+  // Suggestions: the tags in use
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Change tags" }).click();
+  await expect(page.locator(".tagedit datalist option[value='quokka/water']")).toHaveCount(1);
+  expect(await page.evaluate(lowContrast, ""), "tag editor").toEqual([]);
+});

@@ -38,6 +38,7 @@ interface Draft {
   text: string;
   kind?: string;
   picked?: boolean; // the user chose the kind
+  tags?: string[];
   base: number; // the revision it was made on
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
@@ -102,16 +103,25 @@ export async function page(key: string): Promise<Node> {
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
       // Its tags, most used first, in one line that scrolls; each one tapped searches for it
-      // (with its children: tag:a finds a/b)
-      p.tags?.length
-        ? h(
-            "p",
-            { className: "tags" },
-            ...p.tags.map((t) =>
-              h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
-            ),
-          )
-        : "",
+      // (with its children: tag:a finds a/b). First, Tags: tapped, edits them in place
+      h(
+        "p",
+        { className: "tags" },
+        h(
+          "button",
+          // Not "Edit tags": the toolbar's Edit stays the only button named Edit
+          {
+            type: "button",
+            "aria-label": p.tags.length ? "Change tags" : "Add tags",
+            onclick: (e: Event) => tagEdit(p, e),
+          },
+          icon("tag"),
+          p.tags.length ? "Tags" : "Add tags",
+        ),
+        ...p.tags.map((t) =>
+          h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
+        ),
+      ),
       h(
         "p",
         { className: "meta" },
@@ -161,7 +171,7 @@ export async function page(key: string): Promise<Node> {
       import("./editor").catch(() => null), // a chunk of its own, with the composer
     ]);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    const { editor, kindPicker, suggested, toSend, confirmRemoval } = mod;
+    const { editor, kindPicker, suggested, toSend, confirmRemoval, tagField, same } = mod;
     // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
     // as in the composer, until the user picks one; a draft's kind only if the user picked it
     const unfiled = !p.kind_fixed && p.kind === "note";
@@ -173,6 +183,8 @@ export async function page(key: string): Promise<Node> {
     const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
     if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(text.value)));
+    const tags = tagField(kept?.tags ?? p.tags, () => ed.keep());
+    const retagged = () => !same(tags.value(), p.tags);
     const conflict = h("div");
     const save = async () => {
       if (!(await confirmRemoval(p, over, text.value))) return; // still editing, as it was
@@ -186,6 +198,7 @@ export async function page(key: string): Promise<Node> {
             body: text.value,
             ...(title.value !== p.title && { title: title.value }),
             kind: toSend(kind.value(), kind.picked(), p.kind),
+            ...(retagged() && { tags: tags.value() }),
           }),
         });
         await ed.done();
@@ -231,7 +244,7 @@ export async function page(key: string): Promise<Node> {
     };
     const ed = editor({
       text,
-      before: [kind.el, title],
+      before: [kind.el, title, tags.el],
       after: [conflict],
       key,
       draft: (): Draft => ({
@@ -239,20 +252,59 @@ export async function page(key: string): Promise<Node> {
         text: text.value,
         kind: kind.value(),
         picked: kind.picked(),
+        tags: tags.value(),
         base,
       }),
-      dirty: () => title.value !== p.title || text.value !== p.body || kind.value() !== was,
+      dirty: () =>
+        title.value !== p.title || text.value !== p.body || kind.value() !== was || retagged(),
       restored: !!kept,
       ondiscard: () => {
         title.value = p.title;
         text.value = p.body;
         kind.reset(was);
+        tags.reset(p.tags);
         base = p.rev;
         over = p.body;
       },
       onsave: () => void save(),
     });
     text.focus();
+  }
+
+  // Its tags edited in place of their line: no new revision (a chunk of its own)
+  async function tagEdit(p: Page, e: Event) {
+    const line = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const mod = await import("./tagedit").catch(() => null);
+    if (!mod) return toast("Can't edit tags offline");
+    const field = mod.tagField(p.tags);
+    const save = h("button", { type: "submit", className: "primary" }, "Save");
+    const form = h(
+      "form",
+      {
+        className: "tagform",
+        onsubmit: (e: Event) => {
+          e.preventDefault();
+          save.disabled = true;
+          api<Page>(`pages/${p.id}`, {
+            method: "PATCH",
+            headers: JSON_TYPE,
+            body: JSON.stringify({ tags: field.value() }),
+          }).then(show, (err) => {
+            save.disabled = false;
+            toast(`Not saved: ${why(err)}`);
+          });
+        },
+      },
+      field.el,
+      h(
+        "div",
+        { className: "row" },
+        h("button", { type: "button", className: "ghost", onclick: () => show(p) }, "Cancel"),
+        save,
+      ),
+    );
+    line.replaceWith(form);
+    field.input.focus();
   }
 
   // Ticked off (or not): its status only, no new revision

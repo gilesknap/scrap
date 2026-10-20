@@ -9,7 +9,6 @@ import hashlib
 import html
 import os
 import re
-import unicodedata
 from typing import Annotated, Any
 from urllib.parse import urlsplit
 
@@ -28,6 +27,7 @@ from .store import (
     InvalidError,
     NotFoundError,
     Store,
+    clean_tags,
     fields_for,
     new_ulid,
     now,
@@ -40,7 +40,6 @@ MAX_TITLE = 200  # characters
 MAX_BODY = 200_000  # bytes of UTF-8, per write
 MAX_PAGE = 1_000_000  # bytes, a page appended to
 MAX_TAGS = 20
-MAX_TAG = 64
 MAX_ORIGIN = 200
 MAX_KEY = 128
 MAX_REQUEST = 2 * 2**20  # a 200 kB body as JSON, with every character escaped
@@ -103,22 +102,6 @@ def text(value: str, name: str) -> str:
     if "\x00" in value:
         raise ToolError(f"{name} must not hold NUL characters")
     return value
-
-
-def clean_tags(tags: list[str]) -> list[str]:
-    """Tags as imported ones are: one space between words, no leading #, lower case;
-    each 1 to 64 characters, at most 20, each once."""
-    if len(tags) > MAX_TAGS:
-        raise ToolError(f"at most {MAX_TAGS} tags")
-    out: list[str] = []
-    for tag in tags:
-        new = " ".join(text(tag, "a tag").split()).lstrip("#").lower().strip()
-        new = unicodedata.normalize("NFC", new)
-        if not new or len(new) > MAX_TAG:
-            raise ToolError(f"a tag must be 1 to {MAX_TAG} characters: {tag[:80]!r}")
-        if new not in out:
-            out.append(new)
-    return out
 
 
 def server(store: Store) -> MCPServer:
@@ -302,7 +285,7 @@ def server(store: Store) -> MCPServer:
             raise ToolError(f"body is over {MAX_BODY} bytes")
         origin = " ".join(text(origin, "origin").split())
         title = " ".join(text(title, "title").split())
-        cleaned = clean_tags(tags)
+        cleaned = checked(clean_tags, [text(t, "a tag") for t in tags], MAX_TAGS)
         key = text(key, "key") if key else None
         cid = key_id(key) if key else new_ulid()
         if append_to:

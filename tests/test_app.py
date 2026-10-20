@@ -318,6 +318,47 @@ def test_stale_edit_leaves_the_kind(client, note):
     assert client.get(url).json()["kind"] == "note"
 
 
+def test_edit_tags_replaces_them_all(client, note):
+    url = f"/api/pages/{note('tag me')['page_id']}"
+    before = client.get(url).json()
+    tagged = client.patch(url, json={"tags": ["#Garden  Tools", "diy", "garden tools"]})
+    assert tagged.status_code == 200
+    page = tagged.json()
+    assert sorted(page["tags"]) == ["diy", "garden tools"]  # cleaned, each once
+    assert (page["rev"], page["updated_at"]) == (1, before["updated_at"])
+    hits = client.get("/api/search", params={"q": "tag:diy"}).json()
+    assert [h["id"] for h in hits] == [page["id"]]
+    assert client.get("/api/search", params={"q": "tools"}).json()  # indexed
+    assert client.get("/api/tags").json() == [["diy", 1], ["garden tools", 1]]
+    cleared = client.patch(url, json={"tags": []}).json()
+    assert cleared["tags"] == []
+    assert client.get("/api/search", params={"q": "tag:diy"}).json() == []
+    kept = client.patch(url, json={"fields": {"status": "x"}}).json()
+    assert kept["tags"] == []  # no tags in the edit: left as they are
+
+
+def test_tags_go_with_a_text_edit_and_not_with_a_stale_one(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    both = client.patch(url, json={"base_rev": 1, "body": "new", "tags": ["a"]})
+    assert (both.json()["rev"], both.json()["tags"]) == (2, ["a"])
+    stale = client.patch(url, json={"base_rev": 1, "body": "old", "tags": ["b"]})
+    assert stale.status_code == 409
+    assert client.get(url).json()["tags"] == ["a"]
+
+
+@pytest.mark.parametrize(
+    "tags",
+    [["#"], ["  "], ["x" * 65], [f"t{n}" for n in range(65)], ["\ud800"], [1]],
+)
+def test_edit_rejects_bad_tags(client, note, tags):
+    url = f"/api/pages/{note()['page_id']}"
+    client.patch(url, json={"tags": ["keep"]})
+    body = json.dumps({"tags": tags})  # a lone surrogate as the escape \ud800
+    sent = client.patch(url, content=body, headers={"content-type": "application/json"})
+    assert sent.status_code == 422
+    assert client.get(url).json()["tags"] == ["keep"]
+
+
 def test_pages_by_kind(client, note):
     todo = note("a todo", kind="todo")["slug"]
     plain = note("a note")["slug"]

@@ -213,7 +213,13 @@ Tap the drawing to open it full screen:
   and **Dates…** (pick a From and a To).
   Filters alone list their pages, newest first.
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
-  tap one to search for it. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+  tap one to search for it. **Tags** (or **Add tags**), first in that line, edits them in
+  place: tap a tag's ✕ to take it off, type one in the box (it suggests the tags already in
+  use) and press Enter or type a comma to add it, then **Save**; what is still in the box when
+  you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
+  `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
+  saves them with the text. Changing tags is not a new revision and does not move the page up
+  the list. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
 
 ## Licences of the Markdown libraries
