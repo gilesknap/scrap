@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev149+g8a32b1b49 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev156+g343a089f0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a7ab6b6e"></script>
+    <script src="../_static/documentation_options.js?v=e0d0b73b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -943,6 +943,29 @@ are no jobs): the capture screen shows what is still on the phone and the newest
 Consume and Inbox views wait for the worker. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages</span></code> gained <code class="docutils literal notranslate"><span class="pre">thumb</span></code>.</p></li>
 </ul>
 </section>
+<section id="unused-files-scrap-gc">
+<h2>Unused files (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>)<a class="headerlink" href="#unused-files-scrap-gc" title="Link to this heading">#</a></h2>
+<p>A page shows its images by embedding them in its text (<code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code>;
+a photo capture writes one per photo), and only there: a photo whose embed is deleted from the
+text is no longer shown or used as the page’s thumbnail. A photo of a page made before photos were
+embedded, which no revision ever embedded, is still listed below the text. The editor warns on
+Save when an embed of a stored file goes, naming the file and how many other pages still show it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> deletes the files nothing uses: a file is in use while any page’s text (the trash’s
+too) mentions its address, or a capture, a <code class="docutils literal notranslate"><span class="pre">derived</span></code> row, an ingest <code class="docutils literal notranslate"><span class="pre">job</span></code> or a <code class="docutils literal notranslate"><span class="pre">model_run</span></code> (its
+photo or <code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code>) refers to it. Captures are never purged yet, so a photo’s own file, and its
+Claude results, stay after its embed is deleted; what gc deletes today is files nobody recorded
+(failed or abandoned uploads), leftover upload temporaries and files only a page’s text used. Only
+each page’s current text counts: old revisions are not references, so a file only an old revision
+embedded can go (harmless while captures keep their photos; it would matter if Save ever unlinked
+a photo from its capture). Page text is read for references by one function, <code class="docutils literal notranslate"><span class="pre">store.body_refs</span></code>, which a Markdown parser can
+replace. A run reads every reference in one transaction (and refuses if it cannot), skips files
+younger than the grace period (24 hours), then rereads the references inside a write transaction
+before deleting; each file is renamed aside and its age checked again, because
+<code class="docutils literal notranslate"><span class="pre">Store.put_blob</span></code> touches a file it finds already stored, so an upload of the same bytes in flight
+keeps it. Its previews go with it. A run that stops between the rename and the delete or
+relink leaves the file aside; the next run puts back every such file whose name is free before it
+looks at anything. See <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-gc"><span class="std std-ref">the deploy guide</span></a>.</p>
+</section>
 <section id="import-m2">
 <h2>Import (M2)<a class="headerlink" href="#import-m2" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> brings in a Thoth vault (<a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">how-to</span></a>) through <code class="docutils literal notranslate"><span class="pre">Store</span></code>,
@@ -984,7 +1007,6 @@ fetch); and old derived rows arrive in M2, not v0.1.</p>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">namespace</span></code> column for read scoping by less trusted surfaces.</p></li>
 <li><p>Keeping old derived rows on regeneration, with pruning.</p></li>
 <li><p>A status page for dead jobs.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> to sweep orphan blobs (left by deleted pages).</p></li>
 <li><p>A per-capture <em>keep a copy</em> switch (default off) that keeps a consume item’s fetched text, for
 pages that may vanish or sit behind a paywall.</p></li>
 </ul>
@@ -1078,6 +1100,7 @@ MCP port only; scoped <code class="docutils literal notranslate"><span class="pr
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mcp-tools">MCP tools</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#security-posture">Security posture</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-notes-m1">Implementation notes (M1)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unused-files-scrap-gc">Unused files (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#import-m2">Import (M2)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-ingest-m2">Claude ingest (M2)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deferred-to-v0-1">Deferred to v0.1</a></li>

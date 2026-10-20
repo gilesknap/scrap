@@ -94,12 +94,13 @@ The script:
 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
-- copies `scrap.service`, `scrap-backup.service` and `scrap-backup.timer` to
-  `~/.config/systemd/user/`, and the backup script `scrap-backup` to `~/.local/lib/scrap/`;
+- copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`, `scrap-gc.service` and
+  `scrap-gc.timer` to `~/.config/systemd/user/`, and the scripts `scrap-backup` and `scrap-gc` to
+  `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
 - enables and starts `scrap.service` if the image named in the settings is present, and the daily
-  backup timer only if that image has the `scrap backup` command (images built before it existed
-  do not; re-run the script after updating the image);
+  backup timer only if that image has the `scrap backup` command, and the nightly gc timer only if
+  it has `scrap gc` (images built before them do not; re-run the script after updating the image);
 - restarts a running `scrap.service` if the image it runs or its unit has changed (see
   {ref}`scrap-update`).
 
@@ -266,13 +267,47 @@ systemctl --user start scrap
 
 The same pattern runs any other `scrap` command (for example `scrap export`) against the data.
 
+(scrap-gc)=
+## Deleting unused files (scrap gc)
+
+Deleting a page only moves it to the trash, and deleting an image's line from a page's text keeps
+its file, so files nothing uses build up. `scrap gc` finds them: a file is in use while a page's
+text refers to it (pages in the trash too, so they can be brought back), or a capture, a Claude
+result or ingest job, or a model run (the photo, or the JPEG it sent) does. Files younger than
+`--grace-hours` (default 24) are kept whatever refers to them, since an upload records its files
+only after writing them. **It is a dry run unless you give `--delete`**: it prints how many files
+it would delete and their size (never any page text). It refuses to run, deleting nothing, if it
+cannot read every reference, and it is safe while scrap serves. Each run first puts back any
+file an earlier run left renamed aside (`files/ab/.gc-<sha>`) because it stopped mid-delete. Only
+each page's current text counts: old revisions of a page do not keep a file.
+
+`scrap-gc.timer` runs `scrap-gc.service` nightly (about 04:30, after the backup) with
+`--delete`, but only if a backup run in `SCRAP_BACKUPS` is less than 26 hours old; otherwise it
+only counts and the service fails, so a missing backup shows. Every file a backup's database names
+is in that backup, so gc never deletes the only copy of a file a backup can restore. The backup
+and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap, and
+`scrap-gc.service` is ordered `After=scrap-backup.service`. The gc timer is not `Persistent`: a
+night missed while the machine was off is skipped rather than run at boot, where it could take
+the lock before the catch-up backup and fail for want of a recent backup. Both containers run with
+`--network=none`. A `scrap gc` you run by hand takes no lock, so it can race the nightly run; the
+worst case is a file left on disk after its record is deleted, which the next run removes. To see
+what it would delete now, without deleting:
+
+```
+set -a; . ~/.config/scrap/env; set +a
+podman run --rm --userns=keep-id:uid=10001,gid=10001 \
+    --network=none -v "$SCRAP_DATA:/data" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
+journalctl --user -u scrap-gc   # what the nightly runs deleted
+```
+
 ## Uninstall
 
 As the `scrap` user:
 
 ```
-systemctl --user disable --now scrap.service scrap-backup.timer
-rm ~/.config/systemd/user/scrap.service ~/.config/systemd/user/scrap-backup.*
+systemctl --user disable --now scrap.service scrap-backup.timer scrap-gc.timer
+rm ~/.config/systemd/user/scrap.service ~/.config/systemd/user/scrap-backup.* \
+    ~/.config/systemd/user/scrap-gc.*
 rm -r ~/.local/lib/scrap
 systemctl --user daemon-reload
 podman rmi localhost/scrap:dev
@@ -288,7 +323,7 @@ backups and the settings in `~/.config/scrap/` stay until you delete them;
 With Docker, edit the installed copies. In `scrap.service`: replace `/usr/bin/podman` with
 `/usr/bin/docker`, drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`, change
 `Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`, and drop `-i` from the `rm`
-commands. In `~/.local/lib/scrap/scrap-backup`: replace `podman` with `docker` and drop
+commands. In `~/.local/lib/scrap/scrap-backup` and `scrap-gc`: replace `podman` with `docker` and drop
 `--replace`. In both, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of
 the user that owns `SCRAP_DATA` and `SCRAP_BACKUPS` (`id -u`, `id -g`). Re-running `install.sh`
 overwrites these edits. Membership of the `docker` group is equivalent to root, so on a shared

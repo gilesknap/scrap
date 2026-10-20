@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev149+g8a32b1b49 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev156+g343a089f0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a7ab6b6e"></script>
+    <script src="../_static/documentation_options.js?v=e0d0b73b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -618,6 +618,11 @@ changes the text. The page shows each photo where its line is, as a preview the 
 <strong>Ask Claude</strong>, which sends that photo to Claude; once sent, the photo shows Claude’s
 progress (waiting, reading, paused) and then what it read, described and drew. Below the text
 are the files it doesn’t show, such as PDFs, as links with a <strong>Download</strong>.</p></li>
+<li><p>Deleting a photo’s line removes the photo from the page. <strong>Save</strong> warns first, naming each
+photo whose line went: <em>no longer shown on any page</em>, or <em>still shown on N other pages</em>. This
+doesn’t delete the stored file. <strong>Cancel</strong> goes back to the editor with your text as it was (undo brings the
+line back); <strong>OK</strong> saves. The file and what Claude made of it are kept while anything still
+uses it; the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> deletes files nothing uses.</p></li>
 <li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
 drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
 <strong>Download</strong> and <strong>Share</strong> are along the bottom and the cross at the top right closes it, as
