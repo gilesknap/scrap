@@ -532,6 +532,18 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
   await inside(page, page.locator(".share-menu"));
   await bar.getByRole("button", { name: "Share" }).click();
   await expect(page.locator(".share-menu")).toHaveCount(0);
+  // A tap elsewhere closes it, and so does Escape; Share says whether it is open
+  const shareBtn = bar.getByRole("button", { name: "Share" });
+  await shareBtn.click();
+  await expect(shareBtn).toHaveAttribute("aria-expanded", "true");
+  await page.locator(".page h1").click();
+  await expect(page.locator(".share-menu")).toHaveCount(0);
+  await expect(shareBtn).toHaveAttribute("aria-expanded", "false");
+  await shareBtn.click();
+  await expect(page.locator(".share-menu")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".share-menu")).toHaveCount(0);
+  expect(await shared()).toHaveLength(1);
   let asked = 0;
   page.on("request", () => asked++);
   await shareAs(".page > .bar", "Link");
@@ -541,6 +553,12 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
   page.removeAllListeners("request");
 
   await page.locator("figure.orig img").click();
+  // In the viewer the menu is inside its dialog, and Escape closes the menu, not the viewer
+  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  await expect(page.getByRole("dialog").locator(".share-menu")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".share-menu")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toBeVisible();
   await shareAs('[role="dialog"]', "Link");
   await expect.poll(async () => (await shared()).length).toBe(3);
   expect((await shared())[2]).toEqual({ title: "pic.png", url: link });
@@ -586,6 +604,27 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
   await page.setViewportSize({ width: 320, height: 640 }); // five tools still fit
   for (const name of ["Fit", "100%", "Share", "Close"])
     await inside(page, page.getByRole("dialog").getByRole("button", { name }));
+});
+
+test("without the Popover API, Share sends the content at once", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { shared: unknown[] };
+    w.shared = [];
+    // A browser from before popovers
+    delete (HTMLElement.prototype as Partial<HTMLElement>).showPopover;
+    navigator.share = async (d?: ShareData) => void w.shared.push(d);
+  });
+  const shared = () => page.evaluate(() => (window as unknown as { shared: unknown[] }).shared);
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Old phone\nplain share");
+  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  await page.goto(`/p/${slug}`);
+  const share = page.locator(".page > .bar").getByRole("button", { name: "Share" });
+  await expect(share).not.toHaveAttribute("aria-expanded");
+  await share.click();
+  await expect.poll(shared).toEqual([{ title: "Old phone", text: "Old phone\nplain share" }]);
+  await expect(page.locator(".share-menu")).toHaveCount(0);
 });
 
 test("placeholders stop pulsing once photos load, or fail", async ({ page }) => {

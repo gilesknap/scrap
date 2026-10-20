@@ -255,8 +255,7 @@ export function share(
     pick("link", "Link", () => void send({ title: what().title, url: link })),
     pick(...content, shareContent),
   );
-  b.setAttribute("aria-haspopup", "true");
-  b.setAttribute("aria-expanded", "false");
+  b.setAttribute("aria-expanded", "false"); // a disclosure of two buttons, not a menu role
   const isOpen = () => menu.matches(":popover-open");
   menu.addEventListener("beforetoggle", (e) => {
     b.setAttribute("aria-expanded", String((e as ToggleEvent).newState === "open"));
@@ -270,15 +269,18 @@ export function share(
   b.onpointerdown = () => {
     wasOpen = isOpen();
   };
-  b.onclick = () => {
-    const open = wasOpen || isOpen();
+  b.onclick = (e) => {
+    // Only a tap carries what its own touch saw (a key's click has detail 0), so a touch
+    // dragged off the button can't leave a stale answer for the next key
+    const open = (e.detail > 0 && wasOpen) || isOpen();
     wasOpen = false;
     if (b.getAttribute("aria-busy") === "true") return;
     if (open) {
       if (isOpen()) menu.hidePopover();
       return;
     }
-    document.body.append(menu);
+    // Inside a modal dialog (the photo viewer), or assistive tech treats it as hidden
+    (b.closest('[aria-modal="true"]') ?? document.body).append(menu);
     // The button as its source, so a tap on it toggles the menu rather than dismissing it
     (menu.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b });
     const spot = menuSpot(b.getBoundingClientRect(), menu.offsetWidth, innerWidth, innerHeight);

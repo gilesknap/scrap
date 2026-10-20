@@ -1337,6 +1337,12 @@ div.orig .save {
 .viewer .button:active {
   background: color-mix(in srgb, var(--on-overlay) 14%, transparent);
 }
+.viewer .share-menu button {
+  color: var(--ink); /* the menu is a light surface, not the dark viewer */
+}
+.viewer .share-menu button:active {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
 .viewer .tools b {
   display: grid;
   place-items: center;

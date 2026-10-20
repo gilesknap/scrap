@@ -166,8 +166,12 @@ export function viewer(photos: Photo[], start: number, link?: string) {
   };
 
   const keys = (e: KeyboardEvent) => {
-    if (e.key === "Escape") history.back();
-    else if (e.key === "ArrowLeft") show(i - 1);
+    if (e.key === "Escape") {
+      // Escape closes Share's menu first, not the viewer behind it
+      const menu = root.querySelector<HTMLElement>(".share-menu");
+      if (menu?.matches(":popover-open")) menu.hidePopover();
+      else history.back();
+    } else if (e.key === "ArrowLeft") show(i - 1);
     else if (e.key === "ArrowRight") show(i + 1);
   };
   const resize = () => (v.s <= min * 1.01 ? toFit(false) : set(v));
