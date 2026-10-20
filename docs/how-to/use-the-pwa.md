@@ -164,8 +164,8 @@ Tap the drawing to open it full screen:
   scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture, Recent
   or Search. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
-- **Search** searches titles, tags, summaries and text as you type; a title or tag match ranks
-  first. Under the results, chips say how many pages were found and what they have in common
+- **Search** searches titles, tags, summaries and text as you type (each word as the start of a
+  word: `vsc` finds `vscode`); a title or tag match ranks first. Under the results, chips say how many pages were found and what they have in common
   (Work or Personal, their kinds, their top tags, each with a count): tap one to narrow the
   search, tap a chip of the query's own filters to take it out. The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or

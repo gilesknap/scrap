@@ -686,7 +686,7 @@ class Store:
 
     def search(self, query: str, limit: int) -> list[dict[str, Any]]:
         """Pages matching a query (see scrap.query): every word somewhere in the page
-        (its title, tags, summary, body, or a photo's text or description; the last
+        (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
         the page's best chunk, title, tag and summary matches weighing most; a query
         of filters alone lists its pages newest first."""

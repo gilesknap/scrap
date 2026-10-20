@@ -22,8 +22,10 @@ def test_words_phrases_and_not():
         Term("quiet corner", phrase=True),
         Term("plan"),
     ]
-    assert q.prefix and q.fts(q.terms[-1]) == '"plan"*'
-    assert q.fts(q.terms[0]) == '"garden"'
+    # every word a prefix, wherever it stands; NOT words and phrases exact
+    assert [q.fts(t) for t in q.terms] == [
+        '"garden"*', '"shed"', '"bird box"', '"quiet corner"', '"plan"*'
+    ]  # fmt: skip
 
 
 def test_filters_keep_their_token_as_typed():
@@ -42,11 +44,6 @@ def test_what_is_not_a_term():
     assert parse("- ! kind: tag:").filters == []
     assert parse("foo:bar").terms == [Term("foo:bar")]  # not a key: a word
     assert parse("salt salt").terms == [Term("salt")]
-    q = parse("garden -sh")
-    assert not q.prefix  # a NOT word is not a prefix while typed
-    assert not parse('garden "shed"').prefix
-    assert not parse("garden tag:x").prefix
-    assert parse("quokka -").prefix
     assert parse('"unclosed phrase').terms == [Term("unclosed phrase", phrase=True)]
     assert parse("a\x00b").terms == [Term("a"), Term("b")]
 
@@ -208,3 +205,23 @@ def test_migration_3_reindexes_existing_pages(tmp_path):
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         row = conn.execute("SELECT title, tags, summary FROM chunk").fetchone()
         assert tuple(row) == ("Heading", "tech/epics", "gist")
+
+
+def test_every_word_is_a_prefix_wherever_filters_stand(store):
+    a = page(store, "Vscode setup", "devcontainers and podman")
+    page(store, "Vscode todo", "devcontainers", kind="todo")
+    for q in ("vsc kind:note", "kind:note vsc", "vsc kind:note dev",
+              "kind:note dev vsc", "dev kind:note vsc pod"):  # fmt: skip
+        assert slugs(store, q) == [a], q
+    assert len(slugs(store, "vsc dev")) == 2  # two prefixes
+    assert slugs(store, '"vsc"') == []  # a phrase is exact
+    assert slugs(store, "vscode -devcontainers") == []
+    assert len(slugs(store, "vscode -dev")) == 2  # a NOT word is exact
+
+
+def test_prefix_words_keep_the_title_tier(store):
+    body = page(store, "Notes", "vscode vscode vscode")
+    for n in range(5):
+        page(store, f"Other {n}", "a long body " * 20)
+    title = page(store, "Vscode tips", "a long body " * 20)
+    assert slugs(store, "vsc") == [title, body]

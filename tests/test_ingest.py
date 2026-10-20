@@ -740,7 +740,7 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     for q in ("salt & pepper", "pepper ?", "quokka -", "pepper pepper salt", "_ salt"):
         assert found(q) == 1, q
     assert found("& ? -") == 0
-    assert found("quokka pepp") == 1  # the last word is a prefix
+    assert found("quokka pepp") == 1  # every word is a prefix
     assert found(" ".join(["common"] * 100)) == 20
     words = " ".join(f"w{n}" for n in range(999))
     started = time.monotonic()

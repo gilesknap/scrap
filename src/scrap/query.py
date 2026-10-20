@@ -34,7 +34,6 @@ class Filter:
 class Query:
     terms: list[Term] = field(default_factory=list)
     filters: list[Filter] = field(default_factory=list)
-    prefix: bool = False  # the last term is the word being typed: match it as a prefix
 
     @property
     def positive(self) -> list[Term]:
@@ -45,8 +44,10 @@ class Query:
         return [t for t in self.terms if t.neg]
 
     def fts(self, term: Term) -> str:
-        """A term as an FTS5 string (the last word typed as a prefix)."""
-        star = "*" if self.prefix and term is self.terms[-1] else ""
+        """A term as an FTS5 string: a word as a prefix (what is typed so far, or the
+        start of a longer word: vsc finds vscode), wherever it stands in the query; a
+        NOT word and a phrase exactly."""
+        star = "" if term.neg or term.phrase else "*"
         return f'"{term.text}"{star}'
 
 
@@ -56,7 +57,6 @@ def parse(text: str) -> Query:
     n = len(s)
     q = Query()
     seen: set[Term] = set()
-    last_word = False  # the last thing read was a plain positive word
     i = 0
     while i < n:
         if s[i].isspace():
@@ -70,7 +70,6 @@ def parse(text: str) -> Query:
             end = s.find('"', i + 1)
             end = n if end < 0 else end
             body, i = s[i + 1 : end], end + 1
-            last_word = False
             add(q, seen, Term(" ".join(body.split()), True, neg))
             continue
         j = i
@@ -88,14 +87,9 @@ def parse(text: str) -> Query:
             value = " ".join(value.split()).lower()
             if value and len(q.filters) < MAX_FILTERS:
                 q.filters.append(Filter(key, value, neg, s[start:i]))
-            last_word = False
             continue
         i = j
-        if add(q, seen, Term(word, False, neg)):
-            last_word = not neg
-        elif WORD.search(word):
-            last_word = False  # a repeat: not the word being typed
-    q.prefix = last_word and bool(q.terms) and not q.terms[-1].neg
+        add(q, seen, Term(word, False, neg))
     return q
 
 
