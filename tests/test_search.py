@@ -2,12 +2,13 @@
 
 import time
 from contextlib import closing
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 from scrap.app import create_app
-from scrap.query import Filter, Term, parse
+from scrap.query import Filter, Term, bound, parse
 from scrap.store import Store, connect, migrations, new_ulid, slug_base
 
 # ---- the parser
@@ -225,3 +226,47 @@ def test_prefix_words_keep_the_title_tier(store):
         page(store, f"Other {n}", "a long body " * 20)
     title = page(store, "Vscode tips", "a long body " * 20)
     assert slugs(store, "vsc") == [title, body]
+
+
+def test_date_bounds():
+    now = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
+    assert bound("after", "2026-03-01") == "2026-03-01"  # from the day's start
+    assert bound("before", "2026-03-01") == "2026-03-02"  # to its end
+    assert bound("after", "1w", now) == "2026-10-13T12:00:00.000Z"
+    assert bound("after", "w", now) == bound("after", "1w", now)
+    assert bound("before", "2m", now) == "2026-08-21T12:00:00.000Z"
+    assert bound("after", "1y", now) == "2025-10-20T12:00:00.000Z"
+    assert bound("after", "3d", now) == "2026-10-17T12:00:00.000Z"
+    for bad in ("2026-13-01", "2026/03/01", "0w", "101y", "-1w", "1x", "", "1.5w",
+                "２w", "x" * 10_000):  # fmt: skip
+        assert bound("after", bad, now) is None, bad
+    q = parse("after:1w Before:2026-01-31 date:created -after:x")
+    assert [(f.key, f.value, f.neg) for f in q.filters] == [
+        ("after", "1w", False), ("before", "2026-01-31", False),
+        ("date", "created", False), ("after", "x", True),
+    ]  # fmt: skip
+
+
+def test_date_filters(store):
+    old = page(store, "Plan old")  # created and edited 2026-01-01
+    mid = page(store, "Plan mid")  # 2026-01-02
+    new = page(store, "Plan new")  # 2026-01-03, edited just now
+    recent = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    with store.connect() as conn:
+        conn.execute("UPDATE page SET updated_at = ? WHERE slug = ?", (recent, new))
+    assert slugs(store, "after:1w") == [new]  # filters alone: newest first
+    assert slugs(store, "plan after:1w") == [new]
+    assert set(slugs(store, "plan before:1w")) == {old, mid}
+    assert slugs(store, "plan -after:1w before:2026-01-01") == [old]  # days included
+    assert set(slugs(store, "after:2026-01-02 before:2026-01-02 date:created")) == {mid}
+    assert set(slugs(store, "plan after:2026-01-02 date:created")) == {mid, new}
+    assert slugs(store, "plan after:2026-01-03 before:2026-01-31") == []  # edited later
+    assert slugs(store, "plan after:2026-01-03 date:created") == [new]
+    assert slugs(store, "plan after:soon") == []  # not a date: nothing
+
+
+def test_a_pages_tags_come_most_used_first(store):
+    slug = page(store, "Tagged", tags=["zz", "aa", "mm"])
+    page(store, "Other", tags=["zz", "mm"])
+    page(store, "Third", tags=["zz"])
+    assert store.page(slug)["tags"] == ["zz", "mm", "aa"]

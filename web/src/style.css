@@ -627,21 +627,6 @@ mark {
   border-radius: var(--r-pill);
 }
 
-.searchbar {
-  display: flex;
-  gap: var(--s-2);
-  margin-bottom: var(--s-3);
-}
-.searchbar .field-search {
-  flex: 1;
-  margin: 0;
-}
-.searchbar > .button {
-  flex: none;
-  width: var(--tap);
-  padding: 0;
-  border-radius: 50%;
-}
 /* Refine chips: one row that scrolls sideways, the query's own filters first */
 .refine {
   display: flex;
@@ -679,23 +664,59 @@ mark {
   width: 16px;
   height: 16px;
 }
-/* A page's tags, each a search */
-.tags {
+.range {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-1) var(--s-2);
-  margin: 0 0 var(--s-3);
+  align-items: end;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.range label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.range input {
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+}
+.range small {
+  flex-basis: 100%;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+}
+/* A page's tags, each a search: one line under the title that scrolls, like the chips */
+.tags {
+  display: flex;
+  gap: var(--s-1);
+  margin: calc(-1 * var(--s-2)) calc(-1 * var(--s-4)) 0;
+  padding: 0 var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .tags a {
+  flex: none;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--tap); /* the touch target; the pill drawn inside it is 32 px */
   padding: 0 var(--s-3);
+  border-block: 8px solid transparent;
   border-radius: var(--r-pill);
-  background: var(--sunk);
+  background: var(--sunk) padding-box;
   color: var(--ink);
   font-size: var(--t-sm);
   text-decoration: none;
+  white-space: nowrap;
+}
+/* More to the right: the row fades out at its end */
+:is(.tags, .refine) {
+  mask-image: linear-gradient(to left, transparent, #000 var(--s-6));
 }
 /* Browse tags: a tree, a parent's chevron opens it */
 .tagtree li {

@@ -170,10 +170,13 @@ Tap the drawing to open it full screen:
   search, tap a chip of the query's own filters to take it out. The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
-  too), `is:personal`, `is:work` (a page not marked personal) and `is:done` (any status).
+  too), `is:personal`, `is:work` (a page not marked personal), `is:done` (any status), `after:1w` or
+  `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
+  for when it was made). The chip row also has **Tags** (browse them), **1w**, **1m**, **1y**
+  and **Dates…** (pick a From and a To).
   Filters alone list their pages, newest first.
-- A page shows its **tags**: tap one to search for it. **Browse tags** (the tag button beside
-  the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+- A page shows its **tags** in one line under its title, most used first (swipe it for more):
+  tap one to search for it. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
 
 ## Licences of the drawing fonts

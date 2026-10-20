@@ -4,10 +4,13 @@ one character), so no input can make parsing take more than linear time."""
 
 import re
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
 
-__all__ = ["Term", "Filter", "Query", "parse", "KEYS"]
+__all__ = ["Term", "Filter", "Query", "parse", "bound", "KEYS"]
 
-KEYS = ("kind", "tag", "is")
+KEYS = ("kind", "tag", "is", "after", "before", "date")
+DAYS = {"d": 1, "w": 7, "m": 30, "y": 365}  # after:2w, before:1y
+MAX_AGO = 100
 WORD = re.compile(r"[^\W_]")  # a letter or digit: something FTS indexes (one character)
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 MAX_TERMS = 16  # every term adds a subquery
@@ -100,3 +103,25 @@ def add(q: Query, seen: set[Term], term: Term) -> bool:
     seen.add(term)
     q.terms.append(term)
     return True
+
+
+def bound(key: str, value: str, now: datetime | None = None) -> str | None:
+    """Where after:value or before:value cuts, as a timestamp string to compare with a
+    page's (UTC, ISO 8601): a date (a UTC day, both ends included: after:D from its
+    start, before:D to its end) or a time ago (1d, 2w, 1m = 30 days, 1y = 365 days; 1
+    if no number). None if the value is neither."""
+    if len(value) == 10 and value[4] == "-" and value[7] == "-":
+        try:
+            day = date.fromisoformat(value)
+        except ValueError:
+            return None
+        return (day + timedelta(days=key == "before")).isoformat()
+    count, unit = value[:-1] or "1", value[-1:]
+    if (
+        unit not in DAYS
+        or not (count.isascii() and count.isdigit())
+        or not 0 < int(count) <= MAX_AGO
+    ):
+        return None
+    ago = (now or datetime.now(UTC)) - timedelta(days=int(count) * DAYS[unit])
+    return ago.isoformat(timespec="milliseconds").replace("+00:00", "Z")

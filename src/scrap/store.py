@@ -18,7 +18,7 @@ from importlib.resources import files as package_files
 from pathlib import Path
 from typing import IO, Any
 
-from .query import CONTROL, Query, parse
+from .query import CONTROL, Query, bound, parse
 
 __all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError"]
 
@@ -540,7 +540,9 @@ class Store:
             for blob in c["blobs"]:
                 blob["ingest"] = self._ingest(conn, c["id"], blob["sha256"])
         tags = [r[0] for r in conn.execute(
-            "SELECT tag FROM tag WHERE page_id = ? ORDER BY tag", (page["id"],)
+            "SELECT tag FROM tag WHERE page_id = ? ORDER BY"  # most used first
+            " (SELECT count(*) FROM tag t WHERE t.tag = tag.tag) DESC, tag",
+            (page["id"],),
         )]  # fmt: skip
         del page["deleted_at"]
         fields = json.loads(page["fields"])
@@ -803,9 +805,17 @@ class Store:
         if kinds:  # a page has one kind: two kinds mean either
             sql.append("p.kind IN (SELECT value FROM json_each(?))")
             args.append(json.dumps(kinds))
+        dated = "created_at" if ("date", "created") in [
+            (f.key, f.value) for f in q.filters if not f.neg
+        ] else "updated_at"  # fmt: skip
         for f in q.filters:
             no = "NOT " if f.neg else ""
-            if f.key == "kind" and f.neg:
+            if f.key in ("after", "before"):  # UTC: see query.bound
+                cut = bound(f.key, f.value)
+                op = ">=" if f.key == "after" else "<"
+                sql.append(f"{no}(p.{dated} {op} ?)" if cut else "0")
+                args.extend([cut] if cut else [])
+            elif f.key == "kind" and f.neg:
                 sql.append("p.kind <> ?")
                 args.append(KIND_NAMES.get(f.value, f.value))
             elif f.key == "tag":  # whole segments: tag:b finds a/b, tag:a finds a/b

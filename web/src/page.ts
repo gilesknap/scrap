@@ -100,13 +100,8 @@ export async function page(key: string): Promise<Node> {
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
-      h(
-        "p",
-        { className: "meta" },
-        `Created ${when(p.created_at)}`,
-        p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
-      ),
-      // Its tags: each one tapped searches for it (with its children: tag:a finds a/b)
+      // Its tags, most used first, in one line that scrolls; each one tapped searches for it
+      // (with its children: tag:a finds a/b)
       p.tags?.length
         ? h(
             "p",
@@ -116,6 +111,12 @@ export async function page(key: string): Promise<Node> {
             ),
           )
         : "",
+      h(
+        "p",
+        { className: "meta" },
+        `Created ${when(p.created_at)}`,
+        p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
+      ),
       body,
       h("div", { className: "originals" }, ...files),
       h(

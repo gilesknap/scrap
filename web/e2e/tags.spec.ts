@@ -42,6 +42,12 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
 
 test("a page's tag searches for it, children too", async ({ page }) => {
   await page.goto(`/p/${slugs[0]}`);
+  // One line under the title, most used tag first; each a 44 px target
+  const row = page.locator(".page h1 + .tags");
+  await expect(row.getByRole("link")).toHaveText(["#zephyr/garden", "#diy"]);
+  const [line, chip] = [await row.boundingBox(), await row.getByRole("link").first().boundingBox()];
+  expect(chip?.height).toBeGreaterThanOrEqual(44);
+  expect(line?.height).toBeLessThan(50);
   await page.locator(".page .tags").getByRole("link", { name: "#zephyr/garden" }).click();
   await expect(page).toHaveURL(/\/search\?q=tag%3Azephyr%2Fgarden$/);
   await expect(hits(page)).toHaveCount(3); // and zephyr/garden/shed
@@ -77,4 +83,29 @@ test("the new views meet AA contrast, in both themes", async ({ page }) => {
     await page.locator(".tagtree a").first().waitFor();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} tags`).toEqual([]);
   }
+});
+
+test("a time range, from a preset or dates, by edit or creation date", async ({ page }) => {
+  await page.goto("/search");
+  await expect(refine(page).getByRole("link", { name: "Tags" })).toBeVisible(); // no query yet
+  const box = await page.getByRole("searchbox").boundingBox();
+  expect(box?.width).toBeGreaterThan(300); // the whole width: nothing beside it
+  await page.getByRole("searchbox").fill("zephyr");
+  await refine(page).getByRole("button", { name: "Edited in the past week" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr after:1w");
+  await expect(page.getByText("No matches")).toBeVisible(); // made in January 2026
+  await refine(page).getByRole("button", { name: "Remove after:1w" }).click();
+  await refine(page).getByRole("button", { name: "Dates…" }).click();
+  await page.getByLabel("From").fill("2026-01-02");
+  await page.getByLabel("To").fill("2026-01-03");
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue(
+    "zephyr after:2026-01-02 before:2026-01-03",
+  );
+  await expect(hits(page)).toHaveCount(2);
+  await refine(page).getByRole("button", { name: "By created date" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue(/ date:created$/);
+  await expect(hits(page)).toHaveCount(2);
+  await refine(page).getByRole("link", { name: "Tags" }).click();
+  await expect(page).toHaveURL(/\/tags$/);
 });
