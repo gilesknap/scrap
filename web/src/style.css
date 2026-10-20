@@ -431,6 +431,47 @@ nav a[aria-current] .i {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
+/* A row swiped left shows its Edit and Delete behind it (swipe.ts) */
+.list li.swipe {
+  position: relative;
+  isolation: isolate; /* the row's layers stay under the capture cluster */
+  touch-action: pan-y pinch-zoom; /* the page scrolls and zooms; sideways is the row's */
+}
+.list li.swipe > a {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  transition:
+    transform var(--d-2) var(--ease),
+    background-color var(--d-1) linear;
+}
+.list li.dragging > a {
+  transition: none; /* it follows the finger */
+}
+.list li > .row-actions {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.row-actions button {
+  flex-direction: column;
+  gap: 2px;
+  width: 76px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+.row-actions .danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
 .list em {
   flex: none;
   padding: 0 var(--s-2);
@@ -566,6 +607,46 @@ mark {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+/* Opened from a list: where it is in it, and the previous and next (swipe.ts) */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.pager span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pager button {
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
+#view > .from-next:not(.still) {
+  animation-name: from-next;
+}
+#view > .from-prev:not(.still) {
+  animation-name: from-prev;
+}
+@keyframes from-next {
+  from {
+    opacity: 0;
+    translate: 32px 0;
+  }
+}
+@keyframes from-prev {
+  from {
+    opacity: 0;
+    translate: -32px 0;
+  }
 }
 .page h1 {
   margin: var(--s-2) 0 var(--s-1);

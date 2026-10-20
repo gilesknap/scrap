@@ -3,6 +3,7 @@ import { api, type Hit } from "./api";
 import { go, view } from "./app";
 import { icon, kindIcon } from "./icons";
 import { snippetParts } from "./snippet";
+import { swipeRow, trail, trailOf } from "./swipe";
 import { empty, h } from "./ui";
 
 export function search(): Node {
@@ -34,28 +35,36 @@ export function search(): Node {
       const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}`, {
         signal: abort.signal,
       });
+      trail(
+        results,
+        "Search results",
+        hits.map((hit) => hit.slug),
+      );
       results.replaceChildren(
         ...hits.map((hit) =>
-          h(
-            "li",
-            {},
+          swipeRow(
             h(
-              "a",
-              { href: `/p/${encodeURIComponent(hit.slug)}` },
-              h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
+              "li",
+              {},
               h(
-                "span",
-                {},
-                h("strong", { dir: "auto" }, hit.title),
+                "a",
+                { href: `/p/${encodeURIComponent(hit.slug)}` },
+                h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
                 h(
-                  "small",
-                  { dir: "auto" },
-                  ...snippetParts(hit.snippet).map((p) =>
-                    p.mark ? h("mark", {}, p.text) : p.text,
+                  "span",
+                  {},
+                  h("strong", { dir: "auto" }, hit.title),
+                  h(
+                    "small",
+                    { dir: "auto" },
+                    ...snippetParts(hit.snippet).map((p) =>
+                      p.mark ? h("mark", {}, p.text) : p.text,
+                    ),
                   ),
                 ),
               ),
             ),
+            hit.slug,
           ),
         ),
         ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]),
@@ -72,7 +81,7 @@ export function search(): Node {
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
     const first = results.querySelector("a");
-    if (e.key === "Enter" && first) go(first.pathname);
+    if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
   };
   if (q) void run();
   else results.replaceChildren(hint());

@@ -277,17 +277,12 @@ for (const width of WIDTHS) {
   });
 }
 
-test("Markdown: formatted page text, raw switch, and Preview while editing", async ({ page }) => {
+test("Markdown: formatted page text, and Preview while editing", async ({ page }) => {
   const slug = await note(page, "Md page\n\n**bold** and [link](javascript:alert(1)) <b>x</b>");
   await page.goto(`/p/${slug}`);
   await expect(page.locator(".body strong")).toHaveText("bold");
   await expect(page.locator(".body a")).toHaveCount(0); // no javascript: link
   await expect(page.locator(".body")).toContainText("<b>x</b>"); // shown, not run
-  await page.getByRole("button", { name: "Show raw text" }).click();
-  await expect(page.locator(".body")).toContainText("**bold**");
-  await page.reload(); // remembered
-  await expect(page.locator(".body")).toContainText("**bold**");
-  await page.getByRole("button", { name: "Show formatted" }).click();
 
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Body").fill("# Heading\n\n- one\n- two");
@@ -526,9 +521,6 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
     await page.goto(`/p/${slug}`);
     await page.waitForLoadState("networkidle");
     await check(`${colorScheme} page`);
-    await page.getByRole("button", { name: "Show raw text" }).click();
-    await check(`${colorScheme} page raw`);
-    await page.getByRole("button", { name: "Show formatted" }).click();
     await page.locator(".page > .tools").getByRole("link", { name: "Download" }).click();
     await page.getByText(/^Downloaded/).waitFor();
     await check(`${colorScheme} toast`);

@@ -22,6 +22,9 @@ design into another tool and back.
   one action. On the capture screen a problem is a quiet inline line, never a whole screen.
 - **Dark is designed, not inverted.** Surfaces get lighter as they come forward; amber is a step
   lighter; toasts stay dark slabs in both themes.
+- **Every gesture has a button.** Swipes are shortcuts, never the only way: a row's Edit and
+  Delete are also on its page, the page's swipe is also its ‹ › pager and the arrow keys.
+  Gestures start away from the screen's edges, which belong to the phone's Back gesture.
 - **Motion confirms, never decorates.** 90-260 ms, eased out; none under reduced motion.
 
 ## Tokens
@@ -80,7 +83,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | --- | --- | --- |
 | Button, secondary | `button`, `.button` | surface, hairline edge, 48 high, icon 20 + label; presses scale to 0.97 on `--sunk` |
 | Button, primary | `.primary` | amber fill, ink label; one per screen (Save) |
-| Button, ghost | `.ghost`, `button.link` | no fill (Cancel, Raw text, Discard it) |
+| Button, ghost | `.ghost`, `button.link` | no fill (Cancel, Discard it, the pager's ‹ ›) |
 | Button, danger | `.danger` | red label, never filled |
 | Hero | `.hero` | the capture screen's Photo: amber, 72 high, camera icon |
 | Tile | `.tile` | icon over a short label on `--sunk`; the four other capture kinds |
@@ -91,6 +94,8 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Bottom nav | `nav` | icon over label; active item gets an amber-soft pill and ink label |
 | List group | `.list` | rows in one rounded card; `.pending` is dashed (still on the phone) |
 | List row | `.list li` | 48 thumbnail or kind icon, title, date and kind chip; actions under it |
+| Swipe row | `.list li.swipe`, `.row-actions` | swiped left, the row slides to show Edit (`--sunk`) and Delete (`--danger-soft`) tiles behind it; a tap anywhere closes it |
+| Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; swipe left/right does the same |
 | Kind chip | `.list em` | amber-soft pill: "todo", "read later" |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |

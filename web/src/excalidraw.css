@@ -189,6 +189,14 @@
   font-size: var(--t-sm);
   white-space: nowrap;
 }
+/* Edit with a kept draft: a dot, not words (no room); the words are in the notes below */
+.drawing-bar .dot::after {
+  top: 5px;
+  left: auto;
+  right: 5px;
+  border-color: var(--accent);
+  background: var(--on-accent);
+}
 .drawing-bar [aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--ink);

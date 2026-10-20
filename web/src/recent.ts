@@ -3,6 +3,7 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
+import { swipeRow, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
@@ -99,19 +100,27 @@ export async function pageList(limit: number): Promise<Node> {
         "Nothing captured yet.",
         h("small", {}, "Photos, notes and links you save show up here."),
       );
-    return h(
+    const ul = h(
       "ul",
       { className: "list" },
       ...list.map((p) =>
-        row(
-          p.thumb && previewUrl(p.thumb, 480),
-          p.title,
-          whenShort(p.updated_at),
-          KIND[p.kind],
-          `/p/${encodeURIComponent(p.slug)}`,
-          p.kind,
+        swipeRow(
+          row(
+            p.thumb && previewUrl(p.thumb, 480),
+            p.title,
+            whenShort(p.updated_at),
+            KIND[p.kind],
+            `/p/${encodeURIComponent(p.slug)}`,
+            p.kind,
+          ),
+          p.slug,
         ),
       ),
+    );
+    return trail(
+      ul,
+      "Recent",
+      list.map((p) => p.slug),
     );
   } catch (e) {
     return problem(e);

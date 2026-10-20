@@ -13,7 +13,9 @@ import {
 import { go, view } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
+import { placeIn, type Trail } from "./gesture";
 import { icon } from "./icons";
+import { swipePages } from "./swipe";
 import { bodyView, download, h, settle, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -82,33 +84,14 @@ interface Draft {
   base: number; // the revision it was made on
 }
 
-const RAW = "scrap.raw"; // show page text as typed, not formatted
-
-/** The page text, formatted, with a switch to the text as typed (remembered). */
-function body(text: string) {
-  const box = h("div");
-  const draw = () => {
-    const raw = localStorage.getItem(RAW) === "1";
-    const flip = () => {
-      localStorage.setItem(RAW, raw ? "0" : "1");
-      draw();
-    };
-    box.replaceChildren(
-      bodyView(text, raw),
-      h(
-        "button",
-        { type: "button", className: "link", onclick: flip },
-        raw ? "Show formatted" : "Show raw text",
-      ),
-    );
-  };
-  draw();
-  return box;
-}
+let arriving = 0; // the way the last swipe went: the next page slides in from that side
 
 export async function page(key: string): Promise<Node> {
+  const state = history.state as { trail?: Trail; edit?: boolean } | null;
   const p = await api<Page>(`pages/${encodeURIComponent(key)}`);
   const root = h("article", { className: "page" });
+  if (arriving) root.classList.add(arriving > 0 ? "from-next" : "from-prev");
+  arriving = 0;
   const signal = view.signal;
   let shown = p;
   let queue: Queue | null = null;
@@ -156,6 +139,7 @@ export async function page(key: string): Promise<Node> {
     shown = p;
     schedule(p);
     root.replaceChildren(
+      pager ?? "",
       h("h1", { dir: "auto" }, p.title),
       h(
         "p",
@@ -163,7 +147,7 @@ export async function page(key: string): Promise<Node> {
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
       ),
-      body(p.body),
+      bodyView(p.body, false),
       h("div", { className: "originals" }, ...originals(p, queue, panels, () => void refresh())),
       h(
         "div",
@@ -287,6 +271,54 @@ export async function page(key: string): Promise<Node> {
     toast("Page deleted", "Undo", undo, 8000);
   }
 
+  // Opened from a list: swipe (or ‹ ›, or the arrow keys) to its previous or next page.
+  // Each replaces this page's history entry, so Back still goes back to the list.
+  const trail = state?.trail;
+  const at = placeIn(trail, p.slug);
+  const step = (d: 1 | -1) => {
+    const to = d > 0 ? at?.next : at?.prev;
+    if (!trail || !to)
+      return toast(d > 0 ? "That's the last in the list" : "That's the first in the list");
+    arriving = d;
+    go(`/p/${encodeURIComponent(to)}`, true, { trail });
+  };
+  const pager =
+    at &&
+    trail &&
+    h(
+      "div",
+      { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
+      h(
+        "button",
+        {
+          type: "button",
+          className: "ghost",
+          "aria-label": "Previous",
+          disabled: !at.prev,
+          onclick: () => step(-1),
+        },
+        icon("back"),
+      ),
+      h("span", {}, `${at.i + 1} of ${at.n} · ${trail.label}`),
+      h(
+        "button",
+        {
+          type: "button",
+          className: "ghost",
+          "aria-label": "Next",
+          disabled: !at.next,
+          onclick: () => step(1),
+        },
+        icon("next"),
+      ),
+    );
+  if (at) swipePages(step);
+
   show(p);
+  if (state?.edit) {
+    // Edit from a list's row: straight into the editor (once: not again on Back or reload)
+    history.replaceState({ ...state, edit: false }, "");
+    void edit(p);
+  }
   return root;
 }

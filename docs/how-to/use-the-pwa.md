@@ -67,6 +67,9 @@ the link as the capture's URL.
 ## View, edit, search
 
 - **Recent** lists pages newest first, with a thumbnail of the first photo.
+- Swipe a row of **Recent** or of search results to the left to show its **Edit** (opens the
+  page in its editor) and **Delete** (with **Undo** for a few seconds); swipe it back, or tap
+  anywhere, to close it. The page itself has the same Edit and Delete.
 - A page shows its text and its files: photos inline (as previews the server makes, so iPhone HEIC
   photos show too), other files as links. Each has a **Download** of the original.
 - Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
@@ -79,8 +82,12 @@ the link as the capture's URL.
   has any. **Share** sends its title and text, as typed, to another app (never a link to scrap).
   Share appears only where the browser can share.
 - Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
-  **Show raw text** shows it exactly as typed, and the phone remembers the choice. The text is
-  always stored as typed.
+  it is always stored as typed, and **Edit** shows it so.
+- A page opened from **Recent** or a search shows where it is in that list (*3 of 23 ·
+  Recent*): swipe left for the next one and right for the previous one, or use the ‹ › beside
+  it (or the arrow keys). The first and last say so. Back returns to the list. Swipes start
+  away from the screen's edges (the phone's own Back gesture lives there) and are ignored on
+  text that scrolls sideways, while zoomed in or while selecting text.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
 - Nothing typed is lost: the composer and **Edit** keep a draft on the phone as you type
@@ -116,7 +123,8 @@ Tap the drawing (or **Open drawing**) to open it full screen:
   **Undo** is in the top bar, **Cancel** puts the drawing back, **Save** stores it as a new
   version. Zoom, scroll and the edit are kept when switching between viewing and editing.
 - Nothing drawn is lost: the edit is kept as a draft on the phone as you draw, so after Back, a
-  failed save, a reload or a closed app, **Edit (unsaved draft)** brings it back
+  failed save, a reload or a closed app, **Edit** (with a dot, and a line under the bar
+  saying so) brings it back
   (**Discard it** drops it). If the drawing was changed elsewhere meanwhile, saving says so:
   **Save mine** adds yours as a newer version (theirs stays in History), or **Discard mine,
   show theirs**.
