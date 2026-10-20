@@ -57,3 +57,46 @@ export function tree(list: [string, number][]): TagNode[] {
   }
   return top;
 }
+
+// ---- the search screen's kind row: All, Notes, Todos, Reads, Boards, Docs
+
+/** [label, the kind: it sets, every kind: value meaning it (what the server takes), the API's
+ * kind] */
+export const KIND_ROW: [string, string, string[], string][] = [
+  ["Notes", "note", ["note"], "note"],
+  ["Todos", "todo", ["todo"], "todo"],
+  ["Reads", "read", ["read", "consume"], "consume"],
+  ["Boards", "board", ["board", "whiteboard"], "whiteboard"],
+  ["Docs", "doc", ["doc", "document"], "document"],
+];
+
+/** The query without the kind row's kinds (kind:todo, kind:consume; not -kind:todo). */
+export function unkinded(q: string): string {
+  let s = q;
+  for (const [, , names] of KIND_ROW)
+    for (const n of names)
+      for (let t = removing(s, `kind:${n}`); t !== s; t = removing(s, `kind:${n}`)) s = t;
+  return s;
+}
+
+/** The kinds of the row a query asks for (two kinds mean either). */
+export const kindsIn = (q: string) =>
+  KIND_ROW.filter(([, , names]) => names.some((n) => has(q, `kind:${n}`)));
+
+/** The query with the row's kind tapped: set, or cleared if it was the only one (value "":
+ * All, clearing any). */
+export function withKind(q: string, value: string): string {
+  const on = kindsIn(q);
+  const rest = unkinded(q);
+  if (!value || (on.length === 1 && on[0][1] === value)) return rest;
+  return adding(rest, `kind:${value}`);
+}
+
+/** A query the newest-first list answers (with its thumbnails): nothing, or one kind alone.
+ * Its API filter (kind=todo, or ""), else null: a search. */
+export function listing(q: string): string | null {
+  if (unkinded(q).trim()) return null;
+  const on = kindsIn(q);
+  if (on.length > 1) return null;
+  return on.length ? `kind=${on[0][3]}` : "";
+}

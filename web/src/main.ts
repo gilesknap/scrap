@@ -1,11 +1,10 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
 import { learnLimit } from "./api";
-import { view as current, go, queue } from "./app";
+import { view as current, go, markNav, queue } from "./app";
 import { capture } from "./capture";
 import { debugPanel } from "./debug";
 import { page } from "./page";
-import { recent } from "./recent";
 import { search } from "./search";
 import { whenSlow } from "./slow";
 import { trailOf } from "./swipe";
@@ -13,11 +12,23 @@ import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
-  [/^\/recent$/, () => recent()],
+  [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
   [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
   [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
 ];
+
+/** /recent (?kind=todo, ?kind=consume) as the search screen's address. */
+function recent() {
+  const kind = new URLSearchParams(location.search).get("kind");
+  const name = kind === "consume" ? "read" : kind;
+  history.replaceState(
+    null,
+    "",
+    name ? `/search?q=${encodeURIComponent(`kind:${name}`)}` : "/search",
+  );
+  return search();
+}
 
 const view = document.getElementById("view") as HTMLElement;
 let rendering = 0;
@@ -31,9 +42,7 @@ async function render() {
   current.signal = controller.signal;
   clearToasts();
   const path = location.pathname;
-  for (const a of document.querySelectorAll("nav a")) {
-    a.toggleAttribute("aria-current", (a as HTMLAnchorElement).pathname === path);
-  }
+  markNav();
   for (const [re, fn] of routes) {
     const m = path.match(re);
     if (!m) continue;

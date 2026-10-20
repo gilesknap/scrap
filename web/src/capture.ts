@@ -2,7 +2,7 @@
 // chosen in the composer), and what is still waiting to upload.
 import { view } from "./app";
 import { icon } from "./icons";
-import { pageList, pendingList } from "./recent";
+import { pageList, pendingList } from "./lists";
 import { h, toast } from "./ui";
 
 // The composer is a chunk of its own (composer.ts), with the editor

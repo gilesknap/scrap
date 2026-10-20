@@ -1,18 +1,12 @@
-// Recent pages, newest first, with anything still waiting to upload above them.
+// The lists of pages (newest first, with anything still waiting to upload above them) that
+// the search screen (an empty box) and the capture screen show.
 import { api, previewUrl, type Summary } from "./api";
-import { queue, view } from "./app";
+import { queue } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
 import { chipOf } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
-
-// Recent's filters: [label, API query]
-const FILTERS = [
-  ["All", ""],
-  ["Todos", "kind=todo"],
-  ["Read", "kind=consume"],
-];
 
 function row(
   thumb: string | Blob | null,
@@ -21,6 +15,7 @@ function row(
   extra: Node | string = "",
   href?: string,
   kind?: string,
+  chip = typeof extra === "string" ? extra : "", // beside sub, when extra is a node
 ) {
   const none = () => h("span", { className: "noimg" }, icon(kindIcon(kind)));
   let img: HTMLElement = none();
@@ -34,16 +29,27 @@ function row(
     "span",
     {},
     h("strong", { dir: "auto" }, title),
-    h(
-      "span",
-      { className: "sub" },
-      h("small", {}, sub),
-      typeof extra === "string" && extra && h("em", {}, extra),
-    ),
+    h("span", { className: "sub" }, h("small", {}, sub), chip && h("em", {}, chip)),
     typeof extra !== "string" && extra,
   );
   return h("li", {}, href ? h("a", { href }, img, body) : h("div", {}, img, body));
 }
+
+/** A page's row, however it was found: its thumbnail (else its kind's icon), title, when last
+ * edited and its chip; a search's hit also has its snippet. */
+export const pageRow = (
+  p: Pick<Summary, "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb">,
+  snippet?: Node,
+) =>
+  row(
+    p.thumb && previewUrl(p.thumb, 480),
+    p.title,
+    whenShort(p.updated_at),
+    snippet ?? chipOf(p.kind, p.fields),
+    `/p/${encodeURIComponent(p.slug)}`,
+    p.kind,
+    snippet && chipOf(p.kind, p.fields),
+  );
 
 /** Captures still on the phone, oldest first. */
 export async function pendingList(): Promise<Node> {
@@ -96,8 +102,14 @@ export async function pendingList(): Promise<Node> {
 }
 
 /** The latest pages from the server, or a note saying they need it. filter: an API query
- * (kind=todo); label: what a page opened from it says it is in */
-export async function pageList(limit: number, filter = "", label = "Recent"): Promise<Node> {
+ * (kind=todo); label: what a page opened from it says it is in; more: if given, a full list
+ * ends in a Show more button that calls it. */
+export async function pageList(
+  limit: number,
+  filter = "",
+  label = "Recent",
+  more?: () => void,
+): Promise<Node> {
   try {
     if (!navigator.onLine) throw new TypeError("offline");
     const list = await api<Summary[]>(`pages?limit=${limit}&${filter}`);
@@ -109,72 +121,23 @@ export async function pageList(limit: number, filter = "", label = "Recent"): Pr
             "Nothing captured yet.",
             h("small", {}, "Photos, notes and links you save show up here."),
           );
-    const ul = h(
-      "ul",
-      { className: "list" },
-      ...list.map((p) =>
-        row(
-          p.thumb && previewUrl(p.thumb, 480),
-          p.title,
-          whenShort(p.updated_at),
-          chipOf(p.kind, p.fields),
-          `/p/${encodeURIComponent(p.slug)}`,
-          p.kind,
-        ),
-      ),
-    );
+    const ul = h("ul", { className: "list" }, ...list.map((p) => pageRow(p)));
     swipeRows(list.map((p, i) => [ul.children[i], p]));
-    return trail(
+    trail(
       ul,
       label,
       list.map((p) => p.slug),
     );
+    if (!more || list.length < limit) return ul;
+    const button = h("button", { type: "button", className: "more", onclick: more }, "Show more");
+    return h("div", {}, ul, button);
   } catch (e) {
     return problem(e);
   }
 }
 
-export async function recent(): Promise<Node> {
-  const pending = h("div", {}, await pendingList());
-  document.addEventListener(
-    "queuechange",
-    async () => pending.replaceChildren(await pendingList()),
-    { signal: view.signal },
-  );
-  // The filter rides in the address (?kind=todo), so Back and a reload keep it
-  const shown = FILTERS.find(([, q]) => q === location.search.slice(1)) ?? FILTERS[0];
-  // A page opened from the list pages through it, "· Todos", or "· Recent" for All
-  const label = (f: string[]) => (f[1] ? f[0] : "Recent");
-  const list = h("div", {}, await pageList(100, shown[1], label(shown)));
-  let current = shown[1]; // a list that arrives for an older choice is dropped
-  const filters = h(
-    "div",
-    { className: "chips filters", role: "radiogroup", "aria-label": "Show" },
-    ...FILTERS.map((f) =>
-      h(
-        "label",
-        {},
-        h("input", {
-          type: "radio",
-          name: "show",
-          checked: f === shown,
-          onchange: async () => {
-            const q = f[1];
-            current = q;
-            history.replaceState(null, "", `/recent${q && "?"}${q}`);
-            const shownNow = await pageList(100, q, label(f));
-            if (q === current) list.replaceChildren(shownNow);
-          },
-        }),
-        f[0],
-      ),
-    ),
-  );
-  return h("section", {}, pending, filters, list, build());
-}
-
 /** Which app build is running: the service worker's cache is named after it. */
-function build(): Node {
+export function build(): Node {
   const el = h("p", { className: "build", onclick: tapBuild });
   void self.caches
     ?.keys()

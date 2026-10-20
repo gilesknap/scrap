@@ -23,7 +23,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
 /** Put a toast just above what is under the thumb (the capture buttons, the page's tools, the
  * nav), so it covers neither the newest row nor a title; in the editor, under its top bar (the
  * CSS). placeToasts() places them again once a new view has drawn (main.ts), e.g. "Page
- * deleted" shown on the way to Recent. */
+ * deleted" shown on the way back to a list. */
 function place(el: HTMLElement) {
   const tops = [
     ...document.querySelectorAll(
