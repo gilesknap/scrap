@@ -89,8 +89,9 @@ fi
 # stops before that.
 pending="$lib/restart-pending"
 cmp -s "$here/scrap.service" "$units/scrap.service" || : >"$pending"
-cp "$here/scrap-backup" "$lib/"
-cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" "$units/"
+cp "$here/scrap-backup" "$here/scrap-gc" "$lib/"
+cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" \
+    "$here/scrap-gc.service" "$here/scrap-gc.timer" "$units/"
 systemctl --user daemon-reload
 if dropins=$(grep -ls '^ExecStart=' "$units"/scrap.service.d/*.conf); then
     echo "Note: a drop-in sets ExecStart, so scrap.service's own command is not used:" >&2
@@ -137,6 +138,14 @@ if podman run --rm "$image" backup --help >/dev/null 2>&1; then
 else
     systemctl --user disable --now scrap-backup.timer 2>/dev/null || true
     echo "Note: $image has no 'scrap backup' command, so the daily backup" >&2
+    echo "timer is NOT enabled. Re-run this script after updating the image." >&2
+fi
+# The gc timer needs an image with the `scrap gc` command.
+if podman run --rm "$image" gc --help >/dev/null 2>&1; then
+    systemctl --user enable --now scrap-gc.timer
+else
+    systemctl --user disable --now scrap-gc.timer 2>/dev/null || true
+    echo "Note: $image has no 'scrap gc' command, so the nightly gc" >&2
     echo "timer is NOT enabled. Re-run this script after updating the image." >&2
 fi
 [ -n "$started" ] || exit 1

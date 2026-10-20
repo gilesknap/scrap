@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly scrap gc, after the backup
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

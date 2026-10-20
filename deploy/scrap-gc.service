@@ -1,0 +1,10 @@
+# Delete the stored files nothing uses any more (see scrap-gc): a dry run
+# instead if there is no recent backup. Started by scrap-gc.timer.
+[Unit]
+Description=scrap gc (delete unused files)
+RequiresMountsFor=%t/containers
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/scrap/env
+ExecStart=%h/.local/lib/scrap/scrap-gc

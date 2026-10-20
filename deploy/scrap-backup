@@ -31,6 +31,10 @@ fi
 
 : "${SCRAP_DATA:?SCRAP_DATA is not set}"
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
+# Never at the same time as scrap-gc: a file it deletes mid-backup could be one
+# the backup's database still names.
+exec 9>"$SCRAP_BACKUPS/.lock"
+flock 9
 dest=$(date -u +%Y%m%dT%H%M%SZ)
 # No -p: a run that already exists (two runs in one second) must fail here,
 # before the cleanup below could delete the other run's backup.

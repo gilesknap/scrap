@@ -423,6 +423,20 @@ Where the code so far differs from the text above; later milestones should build
   are no jobs): the capture screen shows what is still on the phone and the newest pages. Todos,
   Consume and Inbox views wait for the worker. `GET /api/pages` gained `thumb`.
 
+## Unused files (`scrap gc`)
+
+`scrap gc` deletes the files nothing uses: a file is in use while any page's text (the trash's
+too) mentions its address, or a capture, a `derived` row, an ingest `job` or a `model_run` (its
+photo or `sent_sha256`) refers to it. Captures are never purged yet, so a photo's own file, and its
+Claude results, stay; what gc deletes today is files nobody recorded
+(failed or abandoned uploads), leftover upload temporaries and files only a page's text used. Page
+text is read for references by one function, `store.body_refs`, which a Markdown parser can
+replace. A run reads every reference in one transaction (and refuses if it cannot), skips files
+younger than the grace period (24 hours), then rereads the references inside a write transaction
+before deleting; each file is renamed aside and its age checked again, because
+`Store.put_blob` touches a file it finds already stored, so an upload of the same bytes in flight
+keeps it. Its previews go with it. See {ref}`the deploy guide <scrap-gc>`.
+
 ## Import (M2)
 
 `scrap import` brings in a Thoth vault ([how-to](../how-to/import-a-vault.md)) through `Store`,
@@ -464,7 +478,6 @@ fetch); and old derived rows arrive in M2, not v0.1.
 - A `namespace` column for read scoping by less trusted surfaces.
 - Keeping old derived rows on regeneration, with pruning.
 - A status page for dead jobs.
-- `scrap gc` to sweep orphan blobs (left by deleted pages).
 - A per-capture *keep a copy* switch (default off) that keeps a consume item's fetched text, for
   pages that may vanish or sit behind a paywall.
 

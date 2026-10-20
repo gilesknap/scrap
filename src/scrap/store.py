@@ -12,7 +12,7 @@ import tempfile
 import time
 import unicodedata
 from collections.abc import Iterator
-from contextlib import closing, contextmanager, suppress
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from importlib.resources import files as package_files
 from pathlib import Path
@@ -33,6 +33,8 @@ MD_LINK = re.compile(
     r"!?\[([^\[\]\n]*)\]\((?:<[^<>\n]*>|[^()\s]*)(?:\s+\"[^\"\n]*\")?\)"
 )
 WIKI_LINK = re.compile(r"\[\[([^\[\]|\n]+)(?:\|([^\[\]\n]+))?\]\]")
+# A file's address in a page's text (see body_refs). Linear: no backtracking.
+BLOB_ADDRESS = re.compile(r"/api/blobs/([0-9a-f]{64})")
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 # The kinds a user can choose (memory and reference are in the schema, not offered yet),
 # and the fields a page gets when it becomes that kind
@@ -128,6 +130,14 @@ def unlink(text: str) -> str:
     parentheses (leaves a ")"), and code (unlinked too)."""
     text = WIKI_LINK.sub(lambda m: m[2] or m[1], text)
     return MD_LINK.sub(r"\1", text)
+
+
+def body_refs(text: str) -> set[str]:
+    """The stored files a page's text refers to, by SHA-256: any mention of a file's
+    address counts (an image, a link, even in code), so a page never loses a file it
+    shows. The one place page text is read for references (scrap gc, the save warning's
+    counts), kept small so a real Markdown parser can replace it."""
+    return set(BLOB_ADDRESS.findall(text))
 
 
 def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str]:
@@ -316,9 +326,16 @@ class Store:
             sha = digest.hexdigest()
             dest = self.blob_path(sha)
             dest.parent.mkdir(exist_ok=True)
-            if not dest.exists():
-                with suppress(FileExistsError):  # the same bytes, saved concurrently
+            while True:
+                try:
                     os.link(tmp.name, dest)
+                    break
+                except FileExistsError:  # the same bytes, saved before
+                    try:  # young again: scrap gc spares it until this is recorded
+                        os.utime(dest)
+                        break
+                    except FileNotFoundError:  # scrap gc deleted it just now
+                        continue
         return sha, size
 
     def prepare(self, data: dict[str, Any], mimes: list[str]) -> dict[str, Any]:
