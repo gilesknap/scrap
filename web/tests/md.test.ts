@@ -52,7 +52,9 @@ describe("markdown", () => {
   });
 
   it("links to a heading with spaces, accents or quotes as it is typed", () => {
-    const html = one('# Café ünïcode\n\n## Two words\n\n[a](#café-ünïcode) [b](<#Two words>) [c](#100%)');
+    const html = one(
+      "# Café ünïcode\n\n## Two words\n\n[a](#café-ünïcode) [b](<#Two words>) [c](#100%)",
+    );
     expect(html).toContain('<h1 id="h-café-ünïcode">');
     expect(html).toContain('<a href="#h-café-ünïcode">a</a>');
     expect(html).toContain('<a href="#h-two-words">b</a>');

@@ -104,7 +104,8 @@ function inline(children: Token[], state: StateCore): Token[] {
   for (const t of children) {
     if (t.type === "link_open") {
       const href = String(t.attrGet("href") ?? "");
-      if (opened.some((o) => !o.hidden)) t.hidden = true; // a link in a link: text only
+      // A link in a link (a bare URL in a link's text): its text only
+      if (opened.some((o) => !o.hidden)) t.hidden = true;
       else if (EXTERNAL.test(href)) {
         t.attrSet("target", "_blank");
         t.attrSet("rel", "noopener noreferrer");
