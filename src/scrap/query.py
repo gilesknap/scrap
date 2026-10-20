@@ -1,6 +1,7 @@
 """The search box's syntax (#84): words, "phrases", -word or !word (NOT), and the
-filters kind:, tag: and is:. One pass over the text (the only regular expressions match
-one character), so no input can make parsing take more than linear time."""
+filters kind:, tag:, is:, after:, before:, date:, has: and image:. One pass over the
+text (the only regular expressions match one character), so no input can make parsing
+take more than linear time."""
 
 import re
 from dataclasses import dataclass, field
@@ -8,7 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 
 __all__ = ["Term", "Filter", "Query", "parse", "bound", "KEYS"]
 
-KEYS = ("kind", "tag", "is", "after", "before", "date")
+KEYS = ("kind", "tag", "is", "after", "before", "date", "has", "image")
 DAYS = {"d": 1, "w": 7, "m": 30, "y": 365}  # after:2w, before:1y
 MAX_AGO = 100  # 100y at most
 END = "~"  # after every ISO 8601 timestamp, as text
