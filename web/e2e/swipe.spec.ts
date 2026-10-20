@@ -81,6 +81,7 @@ test("a row swiped right opens its page in the editor; a short drag does nothing
   await row.locator("a").focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(`/p/${c}`);
+  await expect(page.locator(".page h1")).toBeVisible(); // the page, not Loading: then Back
   // Back to the list: wait for it to be fetched and drawn, not for the old rows (a slow
   // answer shows Loading meanwhile, which would take the drag)
   await Promise.all([page.waitForResponse("**/api/pages?*"), page.goBack()]);

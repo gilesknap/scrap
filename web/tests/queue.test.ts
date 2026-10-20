@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { drafts, idb } from "../src/db";
-import { backoff, type Item, Queue, split } from "../src/queue";
+import { backoff, type Item, type Lock, newItem, Queue, split } from "../src/queue";
 import { fromShare } from "../src/share";
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -231,22 +231,33 @@ describe("queue", () => {
     expect(await q.items()).toEqual([]);
   });
 
-  it("nudge skips the run if another tab holds the lock", async () => {
-    const q = queue();
-    replies = [0];
-    await q.add({ text: "x", source: "pwa", files: [] });
-    await q.flush();
-    const busy = new Queue(
+  it("nudge waits for another tab's lock, then sends: a tab that died holding it", async () => {
+    let release: () => void = () => {};
+    let held: Promise<void> | null = new Promise<void>((ok) => (release = ok));
+    const lock: Lock = async (fn, ifFree) => {
+      if (held) {
+        if (ifFree) return false; // another tab is uploading (or died mid-upload)
+        await held;
+      }
+      await fn();
+      return true;
+    };
+    const q = new Queue(
       idb,
       send,
       () => clock,
       () => true,
-      async (fn, ifFree) => {
-        if (!ifFree) await fn(); // held elsewhere: only a waiting request gets it
-      },
+      lock,
     );
-    await busy.nudge();
-    expect(sent).toHaveLength(1);
+    await idb.put(newItem({ text: "waiting", source: "pwa", files: [] }, clock)); // queued earlier
+    const nudged = q.nudge();
+    await new Promise((ok) => queueMicrotask(() => ok(null)));
+    expect(sent).toHaveLength(0); // no second upload on top of the other tab's
+    held = null;
+    release(); // that tab is gone: its lock comes free
+    await nudged;
+    expect(sent.map((i) => i.text)).toEqual(["waiting"]);
+    expect(await q.items()).toEqual([]);
   });
 
   it("says the connection was lost, not offline, when an upload drops while online", async () => {
@@ -283,7 +294,7 @@ describe("queue", () => {
     const lock = (fn: () => Promise<void>) => {
       const run = held.then(fn);
       held = run.catch(() => {});
-      return run;
+      return run.then(() => true);
     };
     const a = new Queue(
       idb,
