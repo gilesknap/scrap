@@ -1,13 +1,22 @@
 """Interface for ``python -m scrap``."""
 
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 from collections.abc import Sequence
 from pathlib import Path
 
 from . import __version__
 
 __all__ = ["main"]
+
+
+def month_arg(value: str) -> str:
+    """A month as YYYY-MM."""
+    import re
+
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", value):
+        raise ArgumentTypeError(f"not a month (YYYY-MM): {value!r}")
+    return value
 
 
 def main(args: Sequence[str] | None = None) -> None:
@@ -73,6 +82,14 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Also write the full result, with all the text Claude read from the"
         " image, to this new file (mode 600; an existing file is refused)",
     )
+    spending = subparsers.add_parser(
+        "spend",
+        parents=[common],
+        help="Print Claude spend for a month (UTC) by day and model, and the cap",
+    )
+    spending.add_argument(
+        "--month", help="YYYY-MM (default: this month)", type=month_arg
+    )
     parsed = parser.parse_args(args)
 
     if parsed.command == "ingest-once":
@@ -96,7 +113,20 @@ def main(args: Sequence[str] | None = None) -> None:
         from .store import Store
 
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
-        if parsed.command == "import":
+        if parsed.command == "spend":
+            from . import spend
+            from .store import connect, now
+
+            if not store.db.exists():
+                raise SystemExit(f"no database at {store.db}")
+            conn = connect(store.db)
+            try:
+                if conn.execute("PRAGMA user_version").fetchone()[0] < 4:
+                    raise SystemExit("this database has no spend ledger yet: run serve")
+                print(spend.report(conn, parsed.month or now()[:7]))
+            finally:
+                conn.close()
+        elif parsed.command == "import":
             from . import importer
 
             if not parsed.dir.is_dir():

@@ -135,11 +135,21 @@ which shows the key and the notify URL in plain text. Plain `KEY=value` lines, w
 SCRAP_INGEST=on
 ANTHROPIC_API_KEY=<your key>
 SCRAP_BUDGET_DAY_USD=3
+SCRAP_MONTHLY_CAP_USD=20
 SCRAP_NOTIFY_URL=https://ntfy.sh/<your private topic>
 ```
 
+`SCRAP_MONTHLY_CAP_USD` (default 20, `0` for none) is a hard cap on what scrap spends on Claude
+in a UTC month: past it, photos stay queued until the next month. `SCRAP_BUDGET_DAY_USD`
+(default 3) pauses for the rest of the UTC day. `scrap spend` shows the month so far:
+
+```
+podman exec scrap scrap spend
+```
+
 Set `SCRAP_NOTIFY_URL`: without it, a pause (daily budget reached, credit or login problem, an
-outage) is only visible when you next open scrap. An ntfy topic URL is itself a secret. Every
+outage), 80% of the monthly cap and the cap itself are only visible when you next open scrap
+(the service logs a warning at start). An ntfy topic URL is itself a secret. Every
 setting, with its default, is in the [API reference](../reference/api.md). After editing:
 `systemctl --user restart scrap`.
 

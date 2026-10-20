@@ -114,6 +114,11 @@
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
+.photo-panel .spend {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
 .choice {
   display: flex;
   flex-wrap: wrap;

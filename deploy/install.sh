@@ -71,9 +71,12 @@ elif [ ! -e "$conf/ingest.env" ]; then
 #ANTHROPIC_API_KEY=
 #SCRAP_VISION_MODEL=claude-opus-5-5
 #SCRAP_BUDGET_DAY_USD=3
+# A hard cap per UTC month (0: none); past it photos wait for next month.
+#SCRAP_MONTHLY_CAP_USD=20
 
-# Where a pause (budget, credit, auth, outage) is announced, e.g. an ntfy
-# topic URL. Without it a pause goes unnoticed until you open scrap.
+# Where a pause (budget, cap, credit, auth, outage) and 80% of the monthly
+# cap are announced, e.g. an ntfy topic URL. Without it they go unnoticed
+# until you open scrap.
 #SCRAP_NOTIFY_URL=
 ENV
     )

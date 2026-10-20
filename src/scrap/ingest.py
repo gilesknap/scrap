@@ -1,26 +1,28 @@
 """The ingest queue and its worker: each photo goes to Claude once, in the background.
 
 One daemon thread in the service claims one job at a time, calls Claude holding no lock,
-then records the run and its results in one transaction. Outages and spending problems
-pause the whole queue and refund the claim; every other failure is charged to the job,
-and its third kills it. See docs/explanations/ingest.md.
+then records the run, its results and its cost in one transaction. The spend ledger
+(spend.py) admits every call first, and refuses it when the month's cap or the day's
+budget is reached. Outages and spending problems pause the whole queue and refund the
+claim; every other failure is charged to the job, and its third kills it. See
+docs/explanations/ingest.md.
 """
 
 import json
 import logging
+import math
 import os
 import sqlite3
 import threading
 import time
-import urllib.request
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from . import claude, preview, sanitise
-from .store import ENQUEUE, NotFoundError, Store, now, transaction
+from . import claude, preview, sanitise, spend
+from .store import ENQUEUE, NotFoundError, Store, new_ulid, now, transaction
 
 __all__ = ["Worker", "claim", "enabled", "pause", "recover", "resume", "charge"]
 
@@ -30,7 +32,9 @@ FAR = "9999-12-31T00:00:00.000Z"  # paused until Resume
 MAX_FAILURES = 3
 RETRY = 600  # seconds after a charged failure (invalid output: at once)
 POLL = 30  # seconds the idle worker sleeps unless woken
-PAUSES = ("credit", "auth", "outage", "budget")
+PAUSES = ("credit", "auth", "outage", "budget")  # CallError classes that pause
+# no answer, but the call may have been billed
+UNKNOWN_BILLING = ("timeout", "internal")
 PAGE_KINDS = {
     "whiteboard": "whiteboard",
     "diagram": "whiteboard",
@@ -95,8 +99,11 @@ def claim(conn: sqlite3.Connection, stamp: str) -> sqlite3.Row | None:
 
 def recover(conn: sqlite3.Connection, stamp: str) -> int:
     """At start: a job still running may have crashed the process, so it is charged
-    (three crashes kill it rather than looping the service). Returns how many."""
+    (three crashes kill it rather than looping the service), and any call still
+    reserved in the spend ledger is counted at its worst case. Returns how many jobs."""
     with transaction(conn):
+        reserved = conn.execute("SELECT attempt FROM spend WHERE state = 'reserved'")
+        levels = spend.recover(conn, stamp, [r[0] for r in reserved.fetchall()])
         conn.execute(
             "UPDATE model_run SET status = 'error', error_class = 'crashed',"
             " error = 'running when the service started', finished_at = ?"
@@ -106,6 +113,7 @@ def recover(conn: sqlite3.Connection, stamp: str) -> int:
         jobs = conn.execute("SELECT id FROM job WHERE state = 'running'").fetchall()
         for job in jobs:
             charge(conn, job[0], "crashed", stamp, "running when the service started")
+    spend.notify(levels)
     return len(jobs)
 
 
@@ -145,6 +153,8 @@ def pause(
         until = FAR
     elif reason == "budget":
         until = midnight_after(stamp)
+    elif reason == "cap":
+        until = spend.next_month(stamp)
     elif retry_after is not None:
         until = later(stamp, min(retry_after, 3600))  # at most an hour
     else:
@@ -172,12 +182,12 @@ def resume(conn: sqlite3.Connection, stamp: str) -> None:
     )
 
 
-def spent_today(conn: sqlite3.Connection, stamp: str) -> int:
-    """Micro-dollars recorded for runs started since UTC midnight."""
-    return conn.execute(
-        "SELECT coalesce(sum(cost_microusd), 0) FROM model_run WHERE started_at >= ?",
-        (stamp[:10] + "T00:00:00.000Z",),
-    ).fetchone()[0]
+def input_bound(system: str, width: int, height: int) -> int:
+    """More input tokens than a photo call can take: its image tokens, a token for every
+    character of the prompt and schema (tokens are longer than that), and room for the
+    message framing."""
+    image = math.ceil(width / 28) * math.ceil(height / 28)
+    return image + len(system) + len(json.dumps(claude.SCHEMA)) + 1024
 
 
 def put_derived(
@@ -216,13 +226,10 @@ def put_derived(
 def notify(reason: str) -> None:
     """Announce a pause once, with fixed text naming only its reason."""
     url = os.environ.get("SCRAP_NOTIFY_URL")
-    if not url:
-        return
-    message = f"scrap: Claude ingest paused ({reason}). Open scrap to resume."
-    try:
-        urllib.request.urlopen(url, message.encode(), timeout=10).close()
-    except Exception:  # noqa: BLE001  a lost notice must not stop the worker
-        log.warning("pause notification failed")
+    if url:
+        spend.post(
+            url, f"scrap: Claude ingest paused ({reason}). Open scrap to resume."
+        )
 
 
 Call = Callable[..., claude.Completion]
@@ -234,12 +241,18 @@ class Worker:
     def __init__(self, store: Store, call: Call | None = None):
         self.store = store
         self.call = call or claude.complete
-        self.budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
+        spend.check_settings()
         self.current: int | None = None  # the job in flight
+        # its call's attempt id, and the answer once it is back (the ledger settles
+        # from it if recording the result fails)
+        self.pending: tuple[str, claude.Completion | None] | None = None
         self._wake, self._stop = threading.Event(), threading.Event()
         self._thread = threading.Thread(target=self.run, name="ingest", daemon=True)
 
     def start(self) -> None:
+        if not os.environ.get("SCRAP_NOTIFY_URL"):
+            log.warning("SCRAP_NOTIFY_URL is not set: pauses and spend notices are"
+                        " only seen in scrap")  # fmt: skip
         with self.store.connect() as conn:
             recover(conn, now())
         self._thread.start()
@@ -255,9 +268,11 @@ class Worker:
         free (its call is abandoned)."""
         self._stop.set()
         self._wake.set()
-        job = self.current
+        job, pending = self.current, self.pending
         if job is not None:
             with self.store.connect() as conn, transaction(conn):
+                if pending is not None:  # the answer is abandoned: count the worst
+                    spend.settle(conn, pending[0], now())
                 conn.execute(
                     "UPDATE job SET state = 'queued', updated_at = ?"
                     " WHERE id = ? AND state = 'running'",
@@ -291,7 +306,15 @@ class Worker:
             self.process(job)
         except Exception as error:  # any failure of the job is charged
             log.exception("ingest job %s", job["id"])
+            levels: list[str] = []
             with self.store.connect() as conn, transaction(conn):
+                if self.pending is not None:  # what the call cost stays counted
+                    attempt, done = self.pending
+                    usage = done.usage if done else None
+                    model = done.served_model if done else None
+                    levels = spend.settle(
+                        conn, attempt, now(), model=model, usage=usage
+                    )
                 conn.execute(
                     "UPDATE model_run SET status = 'error', error_class = 'internal',"
                     " error = ?, finished_at = ?"
@@ -302,8 +325,9 @@ class Worker:
                     charge(
                         conn, job["id"], "internal", now(), claude.redact(repr(error))
                     )
+            spend.notify(levels)
         finally:
-            self.current = None
+            self.current = self.pending = None
         return True
 
     def _running(self, conn: sqlite3.Connection, job_id: int) -> bool:
@@ -316,13 +340,6 @@ class Worker:
 
     def process(self, job: sqlite3.Row) -> None:
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
-        with self.store.connect() as conn, transaction(conn):
-            over = spent_today(conn, now()) >= self.budget
-            announce = over and pause(conn, jid, "budget", now())
-        if announce:
-            notify("budget")
-        if over:
-            return
         try:
             jpeg, width, height = preview.for_claude(self.store, photo)
         except Exception as error:  # decode or HEIC failure, too large
@@ -341,30 +358,68 @@ class Worker:
             "messages": messages,
             "schema": claude.SCHEMA,
         }
-        with self.store.connect() as conn, transaction(conn):
-            conn.execute(
-                "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?)"
-                " ON CONFLICT DO NOTHING",
-                (sent, size, now()),
-            )
-            run_id = conn.execute(
-                "INSERT INTO model_run (capture_id, source_sha256, job_id, purpose,"
-                " model, prompt_version, sent_sha256, image_width, image_height,"
-                " request, started_at) VALUES (?, ?, ?, 'ingest', ?, ?, ?, ?, ?, ?, ?)"
-                " RETURNING id",
-                (cid, photo, jid, model, version, sent, width, height,
-                 json.dumps(request), now()),
-            ).fetchone()[0]  # fmt: skip
         try:
-            done = self.call(model, system, messages, claude.SCHEMA, self._blob)
+            with self.store.connect() as conn, transaction(conn):
+                conn.execute(
+                    "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?)"
+                    " ON CONFLICT DO NOTHING",
+                    (sent, size, now()),
+                )
+                run_id = conn.execute(
+                    "INSERT INTO model_run (capture_id, source_sha256, job_id, purpose,"
+                    " model, prompt_version, sent_sha256, image_width, image_height,"
+                    " request, started_at)"
+                    " VALUES (?, ?, ?, 'ingest', ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                    (cid, photo, jid, model, version, sent, width, height,
+                     json.dumps(request), now()),
+                ).fetchone()[0]  # fmt: skip
+                ticket = spend.admit(
+                    conn,
+                    attempt=new_ulid(),
+                    purpose="ingest",
+                    model=model,
+                    input_tokens=input_bound(system, width, height),
+                    max_tokens=claude.MAX_TOKENS,
+                    stamp=now(),
+                    run_id=run_id,
+                )
+                if ticket.max_tokens != claude.MAX_TOKENS:  # a per-call ceiling
+                    conn.execute(
+                        "UPDATE model_run SET request = json_set(request,"
+                        " '$.max_tokens', ?) WHERE id = ?",
+                        (ticket.max_tokens, run_id),
+                    )
+        except spend.RefusedError as refusal:  # nothing was recorded: no call
+            self.refused(jid, refusal)
+            return
+        self.pending = (ticket.attempt, None)
+        try:
+            done = self.call(
+                model, system, messages, claude.SCHEMA, self._blob, ticket=ticket
+            )
+            self.pending = (ticket.attempt, done)
             try:
                 output = sanitise.model_output(done.output, width, height)
             except ValueError as error:
                 raise claude.CallError("invalid", str(error), completion=done) from None
         except claude.CallError as error:
-            self.failed(job, run_id, error)
+            self.failed(job, run_id, ticket.attempt, error)
             return
-        self.succeeded(job, run_id, done, output, (width, height))
+        self.succeeded(job, run_id, ticket.attempt, done, output, (width, height))
+
+    def refused(self, jid: int, refusal: spend.RefusedError) -> None:
+        """The ledger refused the call: the cap or budget pauses the queue (the job
+        stays queued, free); a per-call ceiling it can never fit is charged."""
+        announce, levels = False, []
+        with self.store.connect() as conn, transaction(conn):
+            if refusal.reason == "ceiling":
+                charge(conn, jid, "ceiling", now(), str(refusal))
+            else:
+                announce = pause(conn, jid, refusal.reason, now())
+                levels = spend.due(conn, now(), capped=refusal.reason == "cap")
+        if announce and refusal.reason == "budget":  # the cap has its own notice
+            notify("budget")
+        spend.notify(levels)
 
     def _record(
         self,
@@ -380,7 +435,7 @@ class Worker:
                     {"content": done.content, "stop_reason": done.stop_reason}
                 ),
                 usage=json.dumps(done.usage),
-                cost_microusd=claude.cost_microusd(done.served_model, done.usage),
+                cost_microusd=spend.cost_microusd(done.served_model, done.usage),
             )
         fields["finished_at"] = now()
         names = ", ".join(f"{k} = ?" for k in fields)
@@ -388,7 +443,9 @@ class Worker:
             f"UPDATE model_run SET {names} WHERE id = ?", (*fields.values(), run_id)
         )
 
-    def failed(self, job: sqlite3.Row, run_id: int, error: claude.CallError) -> None:
+    def failed(
+        self, job: sqlite3.Row, run_id: int, attempt: str, error: claude.CallError
+    ) -> None:
         refused = error.completion is not None and (
             error.completion.stop_reason == "refusal"
         )
@@ -396,7 +453,16 @@ class Worker:
             "refused" if refused else "invalid" if error.cls == "invalid" else "error"
         )
         announce = False
+        done = error.completion
         with self.store.connect() as conn, transaction(conn):
+            levels = spend.settle(
+                conn,
+                attempt,
+                now(),
+                model=done.served_model if done else None,
+                usage=done.usage if done else None,
+                billed=error.cls in UNKNOWN_BILLING,
+            )
             self._record(
                 conn,
                 run_id,
@@ -406,67 +472,83 @@ class Worker:
                 error=str(error)[:500],
             )
             if not self._running(conn, job["id"]):
-                return  # purged, or given back at shutdown
-            if error.cls in PAUSES:
+                pass  # purged, or given back at shutdown
+            elif error.cls in PAUSES:
                 announce = pause(conn, job["id"], error.cls, now(), error.retry_after)
             else:
                 charge(conn, job["id"], error.cls, now(), str(error))
         if announce:
             notify(error.cls)
+        spend.notify(levels)
 
     def succeeded(
         self,
+        job: sqlite3.Row,
+        run_id: int,
+        attempt: str,
+        done: claude.Completion,
+        out: dict[str, Any],
+        size: tuple[int, int],
+    ) -> None:
+        with self.store.connect() as conn, transaction(conn):
+            levels = spend.settle(
+                conn, attempt, now(), model=done.served_model, usage=done.usage
+            )
+            self._apply(conn, job, run_id, done, out, size)
+        spend.notify(levels)
+
+    def _apply(
+        self,
+        conn: sqlite3.Connection,
         job: sqlite3.Row,
         run_id: int,
         done: claude.Completion,
         out: dict[str, Any],
         size: tuple[int, int],
     ) -> None:
+        """A success's run, versions, page fields and job, in its transaction."""
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
-        with self.store.connect() as conn, transaction(conn):
-            row = conn.execute(
-                "SELECT options FROM job WHERE id = ?", (jid,)
+        row = conn.execute("SELECT options FROM job WHERE id = ?", (jid,)).fetchone()
+        if row is None:
+            return  # purged while the call ran: the run went with it (not its cost)
+        options = json.loads(row[0])  # as now: Reprocess may confirm meanwhile
+        self._record(conn, run_id, done, status="ok", output=json.dumps(out))
+        if not self._running(conn, jid):
+            return  # given back at shutdown: it runs again
+        stamp, producer = now(), done.served_model
+        put_derived(
+            conn, cid, photo, "ocr", producer, stamp, run_id=run_id,
+            text=out["text"],
+        )  # fmt: skip
+        put_derived(
+            conn, cid, photo, "description", producer, stamp, run_id=run_id,
+            text=out["description"], data={"kind": out["kind"]},
+        )  # fmt: skip
+        if out["elements"]:
+            drawing = conn.execute(
+                "SELECT producer FROM derived WHERE capture_id = ?"
+                " AND source_sha256 = ? AND kind = 'excalidraw'"
+                " AND superseded_at IS NULL",
+                (cid, photo),
             ).fetchone()
-            if row is None:
-                return  # purged while the call ran: the run went with it
-            options = json.loads(row[0])  # as now: Reprocess may confirm meanwhile
-            self._record(conn, run_id, done, status="ok", output=json.dumps(out))
-            if not self._running(conn, jid):
-                return  # given back at shutdown: it runs again
-            stamp, producer = now(), done.served_model
+            human = drawing is not None and drawing[0] == "human"
+            data = {
+                "format": "skeleton",
+                "width": size[0],
+                "height": size[1],
+                "elements": out["elements"],
+            }
             put_derived(
-                conn, cid, photo, "ocr", producer, stamp, run_id=run_id,
-                text=out["text"],
+                conn, cid, photo, "excalidraw", producer, stamp, run_id=run_id,
+                data=data, current=not human or bool(options.get("replace_human")),
             )  # fmt: skip
-            put_derived(
-                conn, cid, photo, "description", producer, stamp, run_id=run_id,
-                text=out["description"], data={"kind": out["kind"]},
-            )  # fmt: skip
-            if out["elements"]:
-                drawing = conn.execute(
-                    "SELECT producer FROM derived WHERE capture_id = ?"
-                    " AND source_sha256 = ? AND kind = 'excalidraw'"
-                    " AND superseded_at IS NULL",
-                    (cid, photo),
-                ).fetchone()
-                human = drawing is not None and drawing[0] == "human"
-                data = {
-                    "format": "skeleton",
-                    "width": size[0],
-                    "height": size[1],
-                    "elements": out["elements"],
-                }
-                put_derived(
-                    conn, cid, photo, "excalidraw", producer, stamp, run_id=run_id,
-                    data=data, current=not human or bool(options.get("replace_human")),
-                )  # fmt: skip
-            self._page_fields(conn, cid, photo, out, stamp)
-            conn.execute(
-                "UPDATE job SET state = 'done', last_error = NULL, updated_at = ?"
-                " WHERE id = ?",
-                (stamp, jid),
-            )
-            resume(conn, stamp)  # a success ends any pause
+        self._page_fields(conn, cid, photo, out, stamp)
+        conn.execute(
+            "UPDATE job SET state = 'done', last_error = NULL, updated_at = ?"
+            " WHERE id = ?",
+            (stamp, jid),
+        )
+        resume(conn, stamp)  # a success ends any pause
 
     def _page_fields(
         self,
@@ -540,11 +622,12 @@ def reprocess(
 
 
 def status(store: Store) -> dict[str, Any]:
-    """The queue: whether it is paused (and why, until when) and its jobs by state."""
+    """The queue: whether it is paused (and why, until when), its jobs by state, and
+    the spend today and this month (UTC) with its limits."""
     with store.connect() as conn:
         q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
         jobs = dict(conn.execute("SELECT state, count(*) FROM job GROUP BY state"))
-        spent = spent_today(conn, now())
+        money = spend.summary(conn, now())
     paused = q["paused_until"] is not None and q["paused_until"] > now()
     return {
         "enabled": enabled(),
@@ -552,7 +635,7 @@ def status(store: Store) -> dict[str, Any]:
         "reason": q["reason"] if paused else None,
         "paused_until": None if not paused or q[0] == FAR else q[0],
         "jobs": jobs,
-        "spent_today_usd": spent / 1e6,
+        **money,
     }
 
 
@@ -582,8 +665,13 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
     started = time.monotonic()
     done: claude.Completion | None = None
     try:
-        done = claude.complete(
-            model, system, messages, claude.SCHEMA, lambda sha: (jpeg, "image/jpeg")
+        done = claude.complete(  # a manual test call: outside the ledger
+            model,
+            system,
+            messages,
+            claude.SCHEMA,
+            lambda sha: (jpeg, "image/jpeg"),
+            ticket=spend.unmetered(claude.MAX_TOKENS),
         )
         out = sanitise.model_output(done.output, width, height)
         summary["outcome"] = "ok"
@@ -599,7 +687,7 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
             stop_reason=done.stop_reason,
             blocks=[b.get("type") for b in done.content],
             usage=done.usage,
-            cost_usd=claude.cost_microusd(done.served_model, done.usage) / 1e6,
+            cost_usd=spend.cost_microusd(done.served_model, done.usage) / 1e6,
         )
     if out is not None:
         summary.update(

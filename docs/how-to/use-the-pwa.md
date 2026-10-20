@@ -144,6 +144,9 @@ With Claude ingest on (see [](../explanations/ingest.md)), each photo on a page 
 - Its state: *Waiting for Claude* (or *Claude ingest is off*), *Claude is reading it*, *Read by
   Claude*, *Failed* with the reason and **Retry**, or *Paused* with the reason and **Resume**
   (nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
+  Once the month's Claude spend passes 80% of its cap, a line says how much; at the cap, photos
+  wait for the next month, and **Ask Claude**, **Retry** and **Reprocess** say so instead of
+  sending.
   **Reprocess** sends it to Claude again; if you have edited its drawing, it asks first:
   **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
 - **Description** and **Text Claude read**, open; tap a heading (its arrow) to fold it away,

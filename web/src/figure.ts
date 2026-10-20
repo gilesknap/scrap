@@ -16,6 +16,7 @@ import {
 } from "./api";
 import { icon } from "./icons";
 import { photoPanel } from "./ingest";
+import { capped, cappedText } from "./spend";
 import { download, h, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -85,7 +86,7 @@ export function figures(
         refresh,
       });
     }
-    caption.append(askClaude(f.cid, sha, refresh));
+    caption.append(askClaude(f.cid, sha, queue, refresh));
     return fig;
   };
 
@@ -114,9 +115,10 @@ const fileRow = (href: string, name: string, save: HTMLElement) =>
   );
 
 /** Send one image to Claude; the page, shown again, then has its panel with the queue state. */
-function askClaude(cid: string, sha: string, refresh: () => void) {
+function askClaude(cid: string, sha: string, queue: Queue | null, refresh: () => void) {
   const b = h("button", { type: "button", className: "save" }, "Ask Claude");
   b.onclick = async () => {
+    if (capped(queue)) return void toast(cappedText(queue)); // explain, send nothing
     b.disabled = true;
     try {
       const r = await api<{ queued: number; already: number }>(`captures/${cid}/reprocess`, {

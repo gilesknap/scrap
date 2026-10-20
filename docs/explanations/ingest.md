@@ -9,11 +9,12 @@ every call is stored, so a chat in the PWA (M4) or an MCP session (M3) starts fr
 model saw and said.
 
 **Settled:** the Messages API only, on Opus; photos only; Reprocess always asks before replacing
-a human drawing; the image kind is stored as given (issue #11 does not block); $3 a day.
+a human drawing; the image kind is stored as given (issue #11 does not block); $3 a day and a
+hard $20 a month (issue #19).
 
 **Cut:** a `claude -p` backend (needs a Read tool; `complete()` is the seam), a cheaper
-first-pass model, a monthly budget (the Console limit caps it), a circuit breaker and a
-rate-limit class (the budget and **Retry** cover them).
+first-pass model, a circuit breaker and a rate-limit class (the budget and **Retry** cover
+them).
 
 ## Worker
 
@@ -47,9 +48,10 @@ WHERE id = (
 RETURNING id, capture_id, source_sha256, failures
 ```
 
-One job runs at a time (11 to 55 s per board): insert a `model_run` row, call Claude holding
-no lock, then in one `BEGIN IMMEDIATE` re-read the job (a purge counts as done), finish the run,
-write the versions and page fields, and mark the job `done` or apply the error rules. The loop
+One job runs at a time (11 to 55 s per board): insert a `model_run` row and have the spend
+ledger admit the call (see *Spend and outage control* below), call Claude holding no lock,
+then in one `BEGIN IMMEDIATE` settle its cost, re-read the job (a purge counts as done), finish
+the run, write the versions and page fields, and mark the job `done` or apply the error rules. The loop
 catches every exception, so the thread cannot die silently; `/healthz` fails if it does. A
 `running` job found at service start is charged as `crashed` (it may have killed the process),
 so a crashing job cannot loop the service. The PWA shows each capture *queued*, *processing*, *done*, *failed* (reason and
@@ -243,9 +245,64 @@ unfixed `note` kind.
 
 ## Spend and outage control
 
-A price table turns each run's `usage` into `cost_microusd` (measured: $0.03 to $0.06 a board,
-about 6900 input tokens and 150 to 1500 output tokens, 3 to 39 s). The budget is `SCRAP_BUDGET_DAY_USD` (default 3); the Console spend limit is
-the hard cap.
+A price table turns each call's `usage` into a cost (measured: $0.03 to $0.06 a board, about
+6900 input tokens and 150 to 1500 output tokens, 3 to 39 s). The Console spend limit stays the
+last line; scrap's own limits come first.
+
+**One choke point.** Every paid call goes through `spend.py`. `claude.complete()` needs a
+`spend.Ticket`, which only `spend.admit()` hands out (`scrap ingest-once`, a manual test call
+with no database, takes `spend.unmetered()`), so a new caller (the MCP server, chat) cannot
+spend without the ledger seeing it:
+
+1. **Admit**, in the transaction that records the call, before calling: the call's worst case
+   (every input token at the dearer of the input and cache-write prices, a generous count of
+   them, and every allowed output token: about $0.36 for a photo, ten times a real one) is
+   checked against the month and reserved in `spend`. Writers take turns (`BEGIN IMMEDIATE`),
+   so two callers cannot both take the last of the cap.
+2. **Settle**, in the transaction that records the result: the reservation becomes the cost
+   from the usage block (input, output, cache write and cache read tokens, and the served
+   model). A row settles once: a second settle of the same attempt does nothing, and each try
+   of a job is its own attempt, so a retry is never counted twice.
+
+An answer that never comes back is counted at its worst case, flagged `estimated`: a timeout or
+an unclassified error (it may have been billed), a call abandoned at shutdown, and a
+reservation still open at the next start (a crash). An outage, a credit or login error, or any
+other error status costs nothing (the API refused the request). If recording a result fails,
+the cost is still settled from its usage. A model missing from the price table is costed at the
+dearest prices and flagged `unpriced`.
+
+**The ledger** is the `spend` table (0004): append-only (a trigger refuses a delete, another
+any change to a settled row) and without a foreign key, so a purge, which cascades a page's
+runs, never lowers what was spent; 0004 copied the runs recorded before it. `model_run` keeps
+its `cost_microusd` for each run. Months and days are UTC.
+
+**Limits.**
+
+- `SCRAP_MONTHLY_CAP_USD` (default 20; 0: none) is hard: a call is refused when the month's
+  spend (settled, plus calls in flight at their worst case) plus its own worst case would pass
+  it. The queue pauses with reason `cap` until the first of next month; photos stay queued, and
+  *Ask Claude*, *Retry* and *Reprocess* say why instead of asking. To go on sooner, raise the cap,
+  restart and **Resume**. With a $20 cap the last call admitted is the one that leaves about $0.36
+  of room.
+- `SCRAP_BUDGET_DAY_USD` (default 3; 0: none) is soft: once the day's spend reaches it, the
+  queue pauses until UTC midnight (`budget`).
+- `SCRAP_CALL_CAP_USD` (default 0: none) bounds one call: `max_tokens` is lowered until the worst
+  case fits, and a call that would not fit 1024 output tokens is not made (the job is charged
+  `ceiling`). A lower `max_tokens` risks output cut off (`invalid`).
+- `SCRAP_PRICES` adds or replaces prices, JSON in dollars per million tokens:
+  `{"claude-opus-5-5": [4, 20, 5, 0.2]}` (input, output, cache write, cache read).
+
+A malformed setting stops the service at start.
+
+**Notices.** `SCRAP_NOTIFY_URL` gets one line when the month's spend passes 80% of the cap and
+one when the cap is reached (a call refused for it), each once a month: `spend_notice` records
+them, so a restart or a **Resume** does not repeat them. The text has the cap and nothing else.
+With the setting unset, the service logs a warning at start.
+
+**Reading it.** `GET /api/ingest` has `spent_today_usd`, `spent_month_usd`, `monthly_cap_usd`,
+`budget_day_usd` and `capped`; the photo panel shows *Claude this month: $16.20 of $20.00* once
+the month passes 80%. `scrap spend [--month YYYY-MM]` prints the month by day and model, with
+flagged and in-flight rows marked.
 
 | Class | Recognised by | Effect |
 | --- | --- | --- |
@@ -253,6 +310,8 @@ the hard cap.
 | auth | 401 (verified: `authentication_error`, "invalid x-api-key"), 403, 404 (unknown model) | pause until *Resume* |
 | outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after` (at most 1 h), else 1, 2, 4 ... 60 min |
 | budget | the day's spend reached | pause until UTC midnight |
+| cap | the month's spend plus this call's worst case would pass the cap (checked before the call) | pause until the first of next month (or **Resume** after raising the cap) |
+| ceiling | not even 1024 output tokens fit `SCRAP_CALL_CAP_USD` (no call is made) | charged |
 | timeout | `APITimeoutError` (240 s) | charged |
 | invalid | `max_tokens`, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped) | charged; retried at once |
 | content | refusal, any other 400, 409, 413, 422 | charged |
@@ -267,7 +326,8 @@ out, makes it claimable again, so an outage fails nothing. Every charged failure
 The SDK's `APITimeoutError` subclasses `APIConnectionError`, so it is tested first, else every
 timeout would be a free outage retry. A success clears the pause. The first pause of an
 episode (or a pause for a new reason, such as a spend limit after a budget pause) POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
-naming only the reason, never titles, OCR or API errors.
+naming only the reason, never titles, OCR or API errors. A `cap` pause has the cap's own
+notice instead (once a month).
 
 ## Migration 0002 (sketch)
 

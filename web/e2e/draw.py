@@ -67,7 +67,7 @@ def photo() -> bytes:
     return out.getvalue()
 
 
-def fake(model, system, messages, schema, blob):
+def fake(model, system, messages, schema, blob, *, ticket):
     content = [{"type": "text", "text": json.dumps(BOARD)}]
     usage = {"input_tokens": 1, "output_tokens": 1}
     return claude.Completion(BOARD, content, usage, model, "end_turn")

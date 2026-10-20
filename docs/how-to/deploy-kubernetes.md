@@ -94,7 +94,7 @@ keys are refused, so a typo fails the install instead of being ignored. The main
 | `image.repository`, `image.tag` | `ghcr.io/gilesknap/scrap`, the chart's `appVersion` | Image to run. |
 | `maxUploadMB` | `50` | `SCRAP_MAX_UPLOAD_MB`: largest capture. Raise a proxy's body limit to match. |
 | `ingest.enabled` | `false` | `SCRAP_INGEST`: send photos to Claude (see {ref}`k8s-ingest`). |
-| `ingest.visionModel`, `ingest.budgetDayUSD` | app defaults | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD`. |
+| `ingest.visionModel`, `ingest.budgetDayUSD`, `ingest.monthlyCapUSD` | app defaults | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD`, `SCRAP_MONTHLY_CAP_USD` (20 by default; `0` for none). |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, UTC, `7` | The backup CronJob. |
 | `backup.persistence.size` | `20Gi` | Each run is a full copy: allow about `keep + 1` times the data. |
@@ -360,7 +360,9 @@ restore into it without `--force`, and point `persistence.existingClaim` at it.
 worker thread has died; the liveness probe then restarts the pod, which is intended (the
 readiness probe takes it out of the Service first). Logs: `kubectl -n scrap logs deploy/scrap`.
 Ingest pauses (budget spent, credit, auth) are reported once per episode to `SCRAP_NOTIFY_URL`
-if set, and are visible at `GET /api/ingest`. The backup CronJob's failed jobs stay listed
+if set, as are 80% of the monthly cap and the cap itself (once a month each), and are visible at
+`GET /api/ingest` with the spend so far; `kubectl -n scrap exec deploy/scrap -- scrap spend`
+prints the month by day and model. The backup CronJob's failed jobs stay listed
 (`kubectl -n scrap get jobs`); alert on them with whatever watches your cluster.
 
 (k8s-storage)=

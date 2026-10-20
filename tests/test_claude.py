@@ -9,7 +9,7 @@ import httpx2
 import pytest
 from PIL import Image
 
-from scrap import claude, preview
+from scrap import claude, preview, spend
 from scrap.store import Store
 
 REQUEST = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
@@ -116,6 +116,7 @@ def call():
         MESSAGES,
         claude.SCHEMA,
         lambda sha: (b"jpg", "image/jpeg"),
+        ticket=spend.Ticket("t", claude.MAX_TOKENS, 0),
     )
 
 
@@ -165,11 +166,27 @@ def test_the_client_never_retries_and_times_out_at_240_s(monkeypatch):
     assert claude.client() is client
 
 
-def test_cost():
-    usage = {"input_tokens": 1_000_000, "output_tokens": 100_000,
-             "cache_read_input_tokens": 1_000_000}  # fmt: skip
-    assert claude.cost_microusd("claude-opus-5-5", usage) == 6_200_000
-    assert claude.cost_microusd("claude-unknown", usage) > 6_200_000
+def test_no_call_without_a_ticket(fake):
+    messages = fake(response('{"kind": "photo"}'))
+    with pytest.raises(TypeError):
+        claude.complete("m", "s", MESSAGES, claude.SCHEMA, lambda sha: (b"", ""))  # pyright: ignore[reportCallIssue]
+    with pytest.raises(TypeError):
+        claude.complete(
+            "m",
+            "s",
+            MESSAGES,
+            claude.SCHEMA,
+            lambda sha: (b"", ""),
+            ticket="yes",  # pyright: ignore[reportArgumentType]
+        )
+    assert messages.sent == {}
+
+
+def test_the_ticket_sets_max_tokens(fake):
+    messages = fake(response('{"kind": "photo"}'))
+    claude.complete("m", "s", MESSAGES, claude.SCHEMA, lambda sha: (b"", "image/jpeg"),
+                    ticket=spend.Ticket("t", 5000, 0))  # fmt: skip
+    assert messages.sent["max_tokens"] == 5000
 
 
 def test_schema_keeps_to_the_structured_output_subset():
@@ -238,7 +255,8 @@ def test_ingest_once_prints_numbers_only(tmp_path, monkeypatch, capsys):
               "elements": [element]}  # fmt: skip
     usage = {"input_tokens": 100, "output_tokens": 10}
 
-    def fake(model, system, messages, schema, blob):
+    def fake(model, system, messages, schema, blob, ticket):
+        assert ticket.attempt == "unmetered"
         assert blob("sent") == (blob("sent")[0], "image/jpeg")
         content = [{"type": "text", "text": json.dumps(output)}]
         return claude.Completion(output, content, usage, model, "end_turn")
@@ -255,7 +273,7 @@ def test_ingest_once_prints_numbers_only(tmp_path, monkeypatch, capsys):
     with pytest.raises(FileExistsError):  # refused before any call
         main(["ingest-once", str(path), "--save", str(tmp_path / "out.json")])
 
-    def refuse(*args):
+    def refuse(*args, **kwargs):
         raise claude.CallError("auth", "invalid x-api-key")
 
     monkeypatch.setattr(claude, "complete", refuse)
@@ -286,7 +304,7 @@ def test_ingest_once_reports_a_paid_invalid_answer(tmp_path, monkeypatch, capsys
              "elements": []}  # fmt: skip
     usage = {"input_tokens": 100, "output_tokens": 10}
 
-    def fake(model, system, messages, schema, blob):
+    def fake(model, system, messages, schema, blob, ticket):
         content = [{"type": "text", "text": json.dumps(empty)}]
         return claude.Completion(empty, content, usage, model, "end_turn")
 

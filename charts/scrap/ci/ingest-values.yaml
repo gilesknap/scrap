@@ -4,6 +4,7 @@ ingest:
   notifyUrlKey: SCRAP_NOTIFY_URL
   visionModel: claude-opus-5-5
   budgetDayUSD: "2.5"
+  monthlyCapUSD: 20
 extraEnv:
   - name: TZ
     value: UTC

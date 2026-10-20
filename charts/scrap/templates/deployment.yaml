@@ -67,6 +67,11 @@ spec:
             - name: SCRAP_BUDGET_DAY_USD
               value: {{ $budget | quote }}
             {{- end }}
+            {{- $cap := toString .Values.ingest.monthlyCapUSD }}
+            {{- if ne $cap "" }}
+            - name: SCRAP_MONTHLY_CAP_USD
+              value: {{ $cap | quote }}
+            {{- end }}
             {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}

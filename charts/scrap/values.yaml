@@ -38,6 +38,9 @@ ingest:
   visionModel: ""
   # SCRAP_BUDGET_DAY_USD in dollars, e.g. 3 or "2.5"; empty uses the app's default.
   budgetDayUSD: ""
+  # SCRAP_MONTHLY_CAP_USD, a hard cap per UTC month, e.g. 20; 0 for none; empty
+  # uses the app's default (20).
+  monthlyCapUSD: ""
 
 # Extra environment for the scrap container (list of EnvVar / EnvFromSource).
 extraEnv: []

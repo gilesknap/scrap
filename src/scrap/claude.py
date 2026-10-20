@@ -9,7 +9,6 @@ import base64
 import hashlib
 import json
 import logging
-import math
 import os
 import re
 from dataclasses import dataclass
@@ -18,6 +17,8 @@ from typing import Any
 
 import anthropic
 
+from .spend import Ticket
+
 __all__ = [
     "MODEL",
     "SCHEMA",
@@ -25,7 +26,6 @@ __all__ = [
     "Completion",
     "classify",
     "complete",
-    "cost_microusd",
     "prompt",
 ]
 
@@ -35,10 +35,6 @@ MAX_TOKENS = 16000
 TIMEOUT = 240.0  # seconds, one request
 KINDS = ["whiteboard", "handwriting", "diagram", "screenshot", "document", "photo"]
 ELEMENT_TYPES = ["rectangle", "ellipse", "diamond", "text", "arrow", "line"]
-# Dollars per million tokens: input, output, cache write (5 min), cache read. A model
-# missing here is costed as the dearest, so the budget errs on the safe side.
-PRICES = {"claude-opus-5-5": (4.0, 20.0, 5.0, 0.2)}
-DEAREST = (10.0, 50.0, 12.5, 0.25)
 KEYLIKE = re.compile(r"sk-ant-[\w-]+")
 
 # Kept to the structured-output subset: no unions, no numeric or string bounds (the
@@ -209,13 +205,22 @@ def api_messages(messages: list[dict], blob: Any) -> list[dict]:
 
 
 def complete(
-    model: str, system: str, messages: list[dict], schema: dict, blob: Any
+    model: str,
+    system: str,
+    messages: list[dict],
+    schema: dict,
+    blob: Any,
+    *,
+    ticket: Ticket,
 ) -> Completion:
-    """Call Claude once and return its JSON output; raise CallError on any failure."""
+    """Call Claude once and return its JSON output; raise CallError on any failure.
+    ticket, from spend.admit(), is the leave to spend: no call without one."""
+    if not isinstance(ticket, Ticket):
+        raise TypeError("complete() needs a spend.Ticket")
     try:
         response = client().messages.create(
             model=model,
-            max_tokens=MAX_TOKENS,
+            max_tokens=ticket.max_tokens,
             system=system,
             messages=api_messages(messages, blob),  # type: ignore[arg-type]
             output_config={
@@ -245,18 +250,6 @@ def complete(
     if not isinstance(done.output, dict):
         raise CallError("invalid", "output is not an object", completion=done)
     return done
-
-
-def cost_microusd(model: str, usage: dict[str, Any]) -> int:
-    """What a call cost, in millionths of a dollar, from its usage and PRICES."""
-    price_in, price_out, write, read = PRICES.get(model, DEAREST)
-    total = (
-        (usage.get("input_tokens") or 0) * price_in
-        + (usage.get("output_tokens") or 0) * price_out
-        + (usage.get("cache_creation_input_tokens") or 0) * write
-        + (usage.get("cache_read_input_tokens") or 0) * read
-    )
-    return math.ceil(total)  # tokens x $/Mtok = micro-dollars
 
 
 def model_name() -> str:

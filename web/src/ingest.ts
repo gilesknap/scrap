@@ -4,6 +4,7 @@
 import { ApiError, api, type FileRef, type Ingest, type Queue } from "./api";
 import "./excalidraw.css";
 import { drawingCard, openDrawing, type Target } from "./drawing";
+import { capped, cappedText, spendLine } from "./spend";
 import { h, toast } from "./ui";
 
 /** The chip's words for a state. */
@@ -18,6 +19,7 @@ export function stateText(i: Ingest, q: Queue | null): string {
     case "failed":
       return `Failed${i.error ? `: ${i.error}` : ""}`;
     case "paused":
+      if (capped(q)) return "Paused: this month's Claude spend reached its cap";
       return `Paused${q?.reason ? ` (${q.reason})` : ""}: nothing is lost`;
   }
 }
@@ -86,6 +88,7 @@ export function photoPanel(o: {
   const chip = h("span", { className: `state ${i.state}`, role: "status" }, stateText(i, o.queue));
   const actions = h("div", { className: "ingest" }, chip);
   const reprocess = async (replace: boolean) => {
+    if (capped(o.queue)) return void toast(cappedText(o.queue)); // it would only wait
     try {
       const r = await api<{ queued: number; already: number }>(`captures/${o.cid}/reprocess`, {
         method: "POST",
@@ -132,6 +135,8 @@ export function photoPanel(o: {
     actions.append(button("Resume", () => void resume()));
   }
   panel.append(actions);
+  const line = spendLine(o.queue);
+  if (line) panel.append(h("p", { className: "spend" }, line));
   if (i.description) panel.append(block("Description", i.description));
   if (i.text) panel.append(block("Text Claude read", i.text, true));
   return panel;

@@ -68,6 +68,7 @@ expect_refused "backup.keep=0" --set backup.keep=0
 expect_refused "backup.keep=-1" --set backup.keep=-1
 expect_refused "a non-numeric budget" --set ingest.budgetDayUSD=lots
 expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
+expect_refused "a non-numeric monthly cap" --set ingest.monthlyCapUSD=lots
 
 # The chart may set only variables the app reads (the Settings table in
 # docs/reference/api.md) or that deploy/scrap-backup reads, plus extraEnv.

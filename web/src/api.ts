@@ -26,8 +26,10 @@ export interface FileRef {
 export interface Queue {
   enabled: boolean;
   paused: boolean;
-  reason: string | null;
+  reason: string | null; // credit, auth, outage, budget or cap
   paused_until: string | null;
+  spent_month_usd: number; // this UTC month, calls in flight at their worst case
+  monthly_cap_usd: number | null; // null: no cap
 }
 export interface Summary {
   id: string;

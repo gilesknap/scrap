@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from scrap import claude, ingest
+from scrap import claude, ingest, spend
 from scrap.app import create_app
 from scrap.ingest import FAR, charge, claim, pause, put_derived, recover, resume
 from scrap.store import ENQUEUE, Store, connect, migrations, new_ulid, transaction
@@ -307,7 +307,7 @@ def test_a_pause_is_announced_once_per_episode(store, conn, monkeypatch):
     sent = []
     monkeypatch.setenv("SCRAP_NOTIFY_URL", "http://notify.invalid/topic")
     monkeypatch.setattr(
-        ingest.urllib.request,
+        spend.urllib.request,
         "urlopen",
         lambda *a, **k: sent.append(a[1]) or io.BytesIO(),
     )
@@ -339,10 +339,12 @@ class Fake:
     return as output, or an exception to raise)."""
 
     def __init__(self, *results):
-        self.results, self.calls = list(results), []
+        self.results, self.calls, self.tickets = list(results), [], []
 
-    def __call__(self, model, system, messages, schema, blob):
+    def __call__(self, model, system, messages, schema, blob, *, ticket):
+        assert isinstance(ticket, spend.Ticket)
         self.calls.append(messages)
+        self.tickets.append(ticket)
         result = self.results.pop(0)
         if isinstance(result, BaseException):
             raise result
@@ -516,10 +518,10 @@ def test_an_image_that_cannot_be_decoded_is_charged(store, conn):
 def test_a_purge_during_the_call_is_harmless(store, conn):
     ref = photo(store, [jpeg()])
 
-    def purge_then_answer(*args):
+    def purge_then_answer(*args, **kwargs):
         with closing(connect(store.db)) as other, transaction(other):
             other.execute("DELETE FROM page WHERE id = ?", (ref["page_id"],))
-        return Fake(BOARD)(*args)
+        return Fake(BOARD)(*args, **kwargs)
 
     run_one(store, purge_then_answer)
     tables = ("job", "model_run", "derived", "chunk")
@@ -572,9 +574,9 @@ def test_confirming_replace_reaches_a_job_already_queued_or_running(store, conn)
                     data={"format": "scene", "elements": []})  # fmt: skip
     ingest.reprocess(store, cid, sha, False)
 
-    def confirm_then_answer(*args):
+    def confirm_then_answer(*args, **kwargs):
         assert ingest.reprocess(store, cid, sha, True) == {"queued": 0, "already": 1}
-        return Fake(BOARD)(*args)
+        return Fake(BOARD)(*args, **kwargs)
 
     run_one(store, confirm_then_answer)
     assert conn.execute(producer).fetchone()[0] != "human"
@@ -621,10 +623,10 @@ def test_a_clean_shutdown_gives_the_job_in_flight_back_for_free(tmp_path):
     photo(store, [jpeg()])
     calling, release = threading.Event(), threading.Event()
 
-    def slow(*args):
+    def slow(*args, **kwargs):
         calling.set()
         release.wait(10)
-        return Fake(BOARD)(*args)
+        return Fake(BOARD)(*args, **kwargs)
 
     worker = ingest.Worker(store, slow)
     worker.start()
