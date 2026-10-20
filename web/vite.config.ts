@@ -3,9 +3,10 @@ import { readdirSync, readFileSync } from "node:fs";
 import type { Plugin, Rollup } from "vite";
 import { defineConfig } from "vitest/config";
 
-// Lazy chunks the service worker keeps too, so they work offline: the composer and editor.
-// They are not loaded until used, so they are not part of the shell's size budget.
-export const OFFLINE = ["composer", "editor"];
+// Lazy chunks the service worker keeps too, so they work offline: the composer and editor,
+// and the Markdown renderer. They are not loaded until used, so they are not part of the
+// shell's size budget. (Mermaid, for diagrams, is not kept: it is big.)
+export const OFFLINE = ["composer", "editor", "render"];
 
 // The files the app shell needs: what the entry chunks import statically, and their CSS
 // and assets, plus the OFFLINE chunks. The drawing viewer (Excalidraw and React, loaded by a

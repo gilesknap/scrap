@@ -81,6 +81,11 @@ document.addEventListener("click", (e) => {
   const a = (e.target as Element).closest("a");
   if (!a || a.origin !== location.origin || a.target || a.pathname.startsWith("/api/")) return;
   e.preventDefault();
+  if (a.hash && a.pathname === location.pathname && a.search === location.search) {
+    // A heading or footnote of this page: scrolled to, not routed
+    document.getElementById(decodeURIComponent(a.hash.slice(1)))?.scrollIntoView();
+    return;
+  }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
 window.addEventListener("popstate", () => void render());

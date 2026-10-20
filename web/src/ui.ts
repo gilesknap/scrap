@@ -1,7 +1,7 @@
 import { ApiError } from "./api";
 import { rerender } from "./app";
 import { type Icon, icon } from "./icons";
-import { markdown } from "./md";
+import { rendered, renderer } from "./md";
 
 // DOM helpers: h() builds an element, toast() shows a message with an optional action.
 type Kid = Node | string | null | undefined | false;
@@ -228,11 +228,14 @@ function canShareFile(name: string, type: string) {
   }
 }
 
-/** Page text as Markdown (safe HTML from md.ts), or as typed with links made clickable. */
+/** Page text as Markdown (safe HTML from render.ts), or as typed with links made clickable:
+ * also while the renderer is not loaded (load it first: renderer()). */
 export function bodyView(text: string, raw: boolean): HTMLElement {
-  if (raw) return h("div", { className: "body raw", dir: "auto" }, ...linkify(text));
+  const md = rendered();
+  if (raw || !md) return h("div", { className: "body raw", dir: "auto" }, ...linkify(text));
   const el = h("div", { className: "body md", dir: "auto" });
-  el.innerHTML = markdown(text);
+  el.innerHTML = md.markdown(text);
+  void md.diagrams(el);
   return el;
 }
 
@@ -240,8 +243,9 @@ export function bodyView(text: string, raw: boolean): HTMLElement {
 export function previewer(text: HTMLTextAreaElement) {
   const pane = h("div", { className: "preview", hidden: true });
   const button = h("button", { type: "button" }, "Preview");
-  button.onclick = () => {
+  button.onclick = async () => {
     const on = pane.hidden;
+    if (on) await renderer();
     pane.replaceChildren(bodyView(text.value, false));
     pane.hidden = !on;
     text.hidden = on;
