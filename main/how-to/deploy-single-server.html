@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.1.dev110+g77d19249d documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.1.dev113+gfa3cd143c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=be74710e"></script>
+    <script src="../_static/documentation_options.js?v=37eec66f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -572,19 +572,22 @@ name in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE
 </div>
 <p>The script:</p>
 <ul class="simple">
-<li><p>writes the settings file <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> if it does not exist yet (it never overwrites it);</p></li>
+<li><p>writes the settings files <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> if they do not
+exist yet (it never overwrites them);</p></li>
 <li><p>copies <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup.service</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code> to
 <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code>, and the backup script <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/</span></code>;</p></li>
 <li><p>enables linger if it can (otherwise it prints the <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">loginctl</span> <span class="pre">enable-linger</span></code> command);</p></li>
 <li><p>enables and starts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> if the image named in the settings is present, and the daily
 backup timer only if that image has the <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> command (images built before it existed
-do not; re-run the script after updating the image).</p></li>
+do not; re-run the script after updating the image);</p></li>
+<li><p>restarts a running <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> if the image it runs or its unit has changed (see
+<a class="reference internal" href="#scrap-update"><span class="std std-ref">Update</span></a>).</p></li>
 </ul>
 <p>It is safe to re-run after pulling a newer version of the repo.</p>
 <section id="settings">
 <h3>Settings<a class="headerlink" href="#settings" title="Link to this heading">#</a></h3>
-<p>All settings live in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is read by systemd, not a shell, so use plain
-<code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines with absolute paths.</p>
+<p>The service’s settings live in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is read by systemd, not a shell, so use
+plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines with absolute paths.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Variable</p></th>
@@ -621,6 +624,25 @@ do not; re-run the script after updating the image).</p></li>
 </table>
 </div>
 <p>After changing a setting: <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
+</section>
+<section id="ingest-settings">
+<span id="scrap-ingest-settings"></span><h3>Ingest settings<a class="headerlink" href="#ingest-settings" title="Link to this heading">#</a></h3>
+<p>scrap’s own settings go in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code>, which podman passes into the container
+(<code class="docutils literal notranslate"><span class="pre">--env-file</span></code>). <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> creates it with mode 600 and every line commented out, so ingest is
+off until you edit it. It holds the API key: keep it mode 600, never copy it into the repo, and do
+not paste it anywhere it would be logged. The same goes for the output of <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span> <span class="pre">scrap</span></code>,
+which shows the key and the notify URL in plain text. Plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines, with no quotes
+(podman takes the rest of the line literally). For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
+<span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
+<span class="n">SCRAP_BUDGET_DAY_USD</span><span class="o">=</span><span class="mi">3</span>
+<span class="n">SCRAP_NOTIFY_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">ntfy</span><span class="o">.</span><span class="n">sh</span><span class="o">/&lt;</span><span class="n">your</span> <span class="n">private</span> <span class="n">topic</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Set <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>: without it, a pause (daily budget reached, credit or login problem, an
+outage) is only visible when you next open scrap. An ntfy topic URL is itself a secret. Every
+setting, with its default, is in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>. After editing:
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 </section>
 </section>
 <section id="first-run">
@@ -681,15 +703,23 @@ Listening on a unix socket protected by file permissions, behind the proxy, woul
 this gap, but scrap v0 does not offer it yet.</p>
 </section>
 <section id="update">
-<h2>Update<a class="headerlink" href="#update" title="Link to this heading">#</a></h2>
-<p>Build or pull the new image, then restart:</p>
+<span id="scrap-update"></span><h2>Update<a class="headerlink" href="#update" title="Link to this heading">#</a></h2>
+<p>Build or pull the new image, then re-run the install script:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="o">-</span><span class="n">C</span> <span class="o">~/</span><span class="n">scrap</span> <span class="n">pull</span>
 <span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">~/</span><span class="n">scrap</span>      <span class="c1"># or: podman pull &lt;image&gt;</span>
-<span class="o">~/</span><span class="n">scrap</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>                        <span class="c1"># picks up any unit changes</span>
-<span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">restart</span> <span class="n">scrap</span>
+<span class="o">~/</span><span class="n">scrap</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 <span class="o">~/</span><span class="n">scrap</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">install.sh</span></code> restarts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> when the image named in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> is not the one the
+running container was started from, or when the unit itself changed; otherwise it leaves it
+running. A restart drops requests in flight (a capture being uploaded fails and the PWA retries
+it), and a photo Claude is describing at that moment counts one failed try and is retried later.
+After editing only a settings file, restart by hand: <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
+<p>If a drop-in under <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/scrap.service.d/</span></code> replaces <code class="docutils literal notranslate"><span class="pre">ExecStart</span></code>, its command
+runs instead of the unit’s, now and after every update (<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> prints a note when it finds
+one). A drop-in that only added <code class="docutils literal notranslate"><span class="pre">--env-file</span> <span class="pre">~/.config/scrap/ingest.env</span></code> is no longer needed:
+delete it, then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code> and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> pinned to a release version changes only when you edit it.</p>
 </section>
 <section id="backup-and-restore">
@@ -730,9 +760,9 @@ first so they use your <code class="docutils literal notranslate"><span class="p
 <span class="n">podman</span> <span class="n">rmi</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span>
 </pre></div>
 </div>
-<p>As an admin, remove the Serve entry (<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">tailscale</span> <span class="pre">serve</span> <span class="pre">--https=8446</span> <span class="pre">off</span></code>). The data, backups
-and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> stay until you delete them; <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">userdel</span> <span class="pre">--remove</span> <span class="pre">scrap</span></code> removes the
-user and everything it owns.</p>
+<p>As an admin, remove the Serve entry (<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">tailscale</span> <span class="pre">serve</span> <span class="pre">--https=8446</span> <span class="pre">off</span></code>). The data,
+backups and the settings in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/</span></code> stay until you delete them;
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">userdel</span> <span class="pre">--remove</span> <span class="pre">scrap</span></code> removes the user and everything it owns.</p>
 </section>
 <section id="using-docker-instead">
 <span id="scrap-docker"></span><h2>Using Docker instead<a class="headerlink" href="#using-docker-instead" title="Link to this heading">#</a></h2>
@@ -824,6 +854,7 @@ traffic.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#get-the-image">Get the image</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install">Install</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#settings">Settings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ingest-settings">Ingest settings</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#first-run">First run</a></li>

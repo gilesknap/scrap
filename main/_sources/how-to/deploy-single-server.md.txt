@@ -92,20 +92,23 @@ From the clone:
 
 The script:
 
-- writes the settings file `~/.config/scrap/env` if it does not exist yet (it never overwrites it);
+- writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
+  exist yet (it never overwrites them);
 - copies `scrap.service`, `scrap-backup.service` and `scrap-backup.timer` to
   `~/.config/systemd/user/`, and the backup script `scrap-backup` to `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
 - enables and starts `scrap.service` if the image named in the settings is present, and the daily
   backup timer only if that image has the `scrap backup` command (images built before it existed
-  do not; re-run the script after updating the image).
+  do not; re-run the script after updating the image);
+- restarts a running `scrap.service` if the image it runs or its unit has changed (see
+  {ref}`scrap-update`).
 
 It is safe to re-run after pulling a newer version of the repo.
 
 ### Settings
 
-All settings live in `~/.config/scrap/env`. It is read by systemd, not a shell, so use plain
-`KEY=value` lines with absolute paths.
+The service's settings live in `~/.config/scrap/env`. It is read by systemd, not a shell, so use
+plain `KEY=value` lines with absolute paths.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -117,6 +120,28 @@ All settings live in `~/.config/scrap/env`. It is read by systemd, not a shell, 
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
 
 After changing a setting: `systemctl --user restart scrap`.
+
+(scrap-ingest-settings)=
+### Ingest settings
+
+scrap's own settings go in `~/.config/scrap/ingest.env`, which podman passes into the container
+(`--env-file`). `install.sh` creates it with mode 600 and every line commented out, so ingest is
+off until you edit it. It holds the API key: keep it mode 600, never copy it into the repo, and do
+not paste it anywhere it would be logged. The same goes for the output of `podman inspect scrap`,
+which shows the key and the notify URL in plain text. Plain `KEY=value` lines, with no quotes
+(podman takes the rest of the line literally). For example:
+
+```
+SCRAP_INGEST=on
+ANTHROPIC_API_KEY=<your key>
+SCRAP_BUDGET_DAY_USD=3
+SCRAP_NOTIFY_URL=https://ntfy.sh/<your private topic>
+```
+
+Set `SCRAP_NOTIFY_URL`: without it, a pause (daily budget reached, credit or login problem, an
+outage) is only visible when you next open scrap. An ntfy topic URL is itself a secret. Every
+setting, with its default, is in the [API reference](../reference/api.md). After editing:
+`systemctl --user restart scrap`.
 
 ## First run
 
@@ -183,17 +208,28 @@ keep untrusted users and workloads off the server, run scrap on a dedicated host
 Listening on a unix socket protected by file permissions, behind the proxy, would also close
 this gap, but scrap v0 does not offer it yet.
 
+(scrap-update)=
 ## Update
 
-Build or pull the new image, then restart:
+Build or pull the new image, then re-run the install script:
 
 ```
 git -C ~/scrap pull
 podman build -t localhost/scrap:dev ~/scrap      # or: podman pull <image>
-~/scrap/deploy/install.sh                        # picks up any unit changes
-systemctl --user restart scrap
+~/scrap/deploy/install.sh
 ~/scrap/deploy/smoke.sh
 ```
+
+`install.sh` restarts `scrap.service` when the image named in `SCRAP_IMAGE` is not the one the
+running container was started from, or when the unit itself changed; otherwise it leaves it
+running. A restart drops requests in flight (a capture being uploaded fails and the PWA retries
+it), and a photo Claude is describing at that moment counts one failed try and is retried later.
+After editing only a settings file, restart by hand: `systemctl --user restart scrap`.
+
+If a drop-in under `~/.config/systemd/user/scrap.service.d/` replaces `ExecStart`, its command
+runs instead of the unit's, now and after every update (`install.sh` prints a note when it finds
+one). A drop-in that only added `--env-file ~/.config/scrap/ingest.env` is no longer needed:
+delete it, then `systemctl --user daemon-reload` and `systemctl --user restart scrap`.
 
 `SCRAP_IMAGE` pinned to a release version changes only when you edit it.
 
@@ -242,9 +278,9 @@ systemctl --user daemon-reload
 podman rmi localhost/scrap:dev
 ```
 
-As an admin, remove the Serve entry (`sudo tailscale serve --https=8446 off`). The data, backups
-and `~/.config/scrap/env` stay until you delete them; `sudo userdel --remove scrap` removes the
-user and everything it owns.
+As an admin, remove the Serve entry (`sudo tailscale serve --https=8446 off`). The data,
+backups and the settings in `~/.config/scrap/` stay until you delete them;
+`sudo userdel --remove scrap` removes the user and everything it owns.
 
 (scrap-docker)=
 ## Using Docker instead
