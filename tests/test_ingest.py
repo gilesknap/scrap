@@ -102,7 +102,7 @@ def test_0002_applies_on_a_version_1_database(tmp_path):
         conn.execute("INSERT INTO chunk (page_id, ord, text) VALUES ('P', 0, 'old')")
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         assert conn.execute("SELECT derived_id FROM chunk").fetchone()[0] is None
         assert conn.execute("SELECT count(*) FROM queue_state").fetchone()[0] == 1
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
@@ -740,7 +740,7 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     for q in ("salt & pepper", "pepper ?", "quokka -", "pepper pepper salt", "_ salt"):
         assert found(q) == 1, q
     assert found("& ? -") == 0
-    assert found("quokka pepp") == 1  # the last word is a prefix
+    assert found("quokka pepp") == 1  # every word is a prefix
     assert found(" ".join(["common"] * 100)) == 20
     words = " ".join(f"w{n}" for n in range(999))
     started = time.monotonic()

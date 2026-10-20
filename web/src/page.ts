@@ -8,6 +8,7 @@ import { icon } from "./icons";
 import { unembedded } from "./md";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
+import { token } from "./terms";
 import { bodyView, download, h, share, toast, when } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
@@ -99,6 +100,17 @@ export async function page(key: string): Promise<Node> {
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
+      // Its tags, most used first, in one line that scrolls; each one tapped searches for it
+      // (with its children: tag:a finds a/b)
+      p.tags?.length
+        ? h(
+            "p",
+            { className: "tags" },
+            ...p.tags.map((t) =>
+              h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
+            ),
+          )
+        : "",
       h(
         "p",
         { className: "meta" },

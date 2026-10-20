@@ -164,7 +164,20 @@ Tap the drawing to open it full screen:
   scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture, Recent
   or Search. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
-- **Search** searches titles and text as you type.
+- **Search** searches titles, tags, summaries and text as you type (each word as the start of a
+  word: `vsc` finds `vscode`); a title or tag match ranks first. Under the results, chips say how many pages were found and what they have in common
+  (Work or Personal, their kinds, their top tags, each with a count): tap one to narrow the
+  search, tap a chip of the query's own filters to take it out. The chips only write the query,
+  which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
+  `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
+  too), `is:personal`, `is:work` (a page not marked personal), `is:done` (any status), `after:1w` or
+  `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
+  for when it was made). The chip row also has **Tags** (browse them), **1w**, **1m**, **1y**
+  and **Dates…** (pick a From and a To).
+  Filters alone list their pages, newest first.
+- A page shows its **tags** in one line under its title, most used first (swipe it for more):
+  tap one to search for it. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+  arrow), A to Z or most used first, with a box to filter it.
 
 ## Licences of the drawing fonts
 

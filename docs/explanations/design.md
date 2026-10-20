@@ -204,9 +204,11 @@ Notes:
   dimension (before deleting any chunk, since `chunk_ad` needs the table), updates `meta`, and
   replaces all chunks. One model at a time; no mixing. A page edited during `reindex` may
   briefly be found by its older text.
-- **Indexed** is text only: the title and body (the title heads the body's first chunk) and every
-  derived text: OCR, fetched article, Claude's image description and the summary. Not pixels, and
-  not raw Excalidraw JSON (coordinates and IDs).
+- **Indexed** is text only: the title, tags, summary field and body (a page's own chunk has a
+  column for each, so ranking can weigh them: #84) and every derived text: OCR, fetched article,
+  Claude's image description and the summary. Not pixels, and not raw Excalidraw JSON
+  (coordinates and IDs). Pages with every word in the title rank first, then those with every
+  word in the title, tags or summary, then by bm25 (column weights 10, 5, 3, 1).
 
 ### Page identity, links, tags
 

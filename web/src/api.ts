@@ -43,6 +43,7 @@ export interface Page extends Summary {
   kind_fixed: number; // 1: the user chose the kind
   body: string;
   rev: number;
+  tags: string[];
   captures: { id: string; url: string | null; blobs: FileRef[] }[];
 }
 export interface Hit extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields"> {

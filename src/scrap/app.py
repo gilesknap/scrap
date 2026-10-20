@@ -51,7 +51,7 @@ BLOB_HEADERS = {
 SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
 SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
-APP_ROUTES = ("/", "/recent", "/search", "/p/{key}")  # served index.html
+APP_ROUTES = ("/", "/recent", "/search", "/tags", "/p/{key}")  # served index.html
 NOT_BUILT = (
     "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
     "\n(the API under /api works without it)\n"
@@ -383,8 +383,19 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     @app.get("/api/search")
     def search(q: str, limit: int = Query(20, ge=1, le=100)) -> list[dict[str, Any]]:
-        """Full-text search over titles and bodies; snippets mark hits with <mark>."""
+        """Full-text search over titles, tags, summaries and bodies, with -word,
+        "phrase", kind:, tag: and is:; snippets mark hits with <mark>."""
         return store.search(q, limit)
+
+    @app.get("/api/search/facets")
+    def facets(q: str) -> dict[str, Any]:
+        """The kinds and top tags of a search's pages, with counts, to narrow it."""
+        return store.facets(q)
+
+    @app.get("/api/tags")
+    def tags() -> list[list[Any]]:
+        """Every tag in use, with how many pages have it."""
+        return store.tags()
 
     @app.get("/api/pages/{key}/download")
     def page_download(key: str) -> StreamingResponse:
