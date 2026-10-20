@@ -18,20 +18,21 @@ from importlib.resources import files as package_files
 from pathlib import Path
 from typing import IO, Any
 
+from .query import CONTROL, Query, parse
+
 __all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError"]
 
 BlobRef = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 BARE_URL = re.compile(r"https?://\S+")
-WORD = re.compile(r"[^\W_]")  # a letter or digit
-MAX_WORDS = 16  # search words used
+# Ranking: bm25 weights of a page's title, tags, summary and text (chunk_fts's columns)
+WEIGHTS = "10.0, 5.0, 3.0, 1.0"
 # Each part stops at the next bracket, so no line takes more than linear time
 MD_LINK = re.compile(
     r"!?\[([^\[\]\n]*)\]\((?:<[^<>\n]*>|[^()\s]*)(?:\s+\"[^\"\n]*\")?\)"
 )
 WIKI_LINK = re.compile(r"\[\[([^\[\]|\n]+)(?:\|([^\[\]\n]+))?\]\]")
-CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 # The kinds a user can choose (memory and reference are in the schema, not offered yet),
 # and the fields a page gets when it becomes that kind
@@ -43,6 +44,8 @@ DEFAULT_FIELDS = {
 HINT_FIELDS = DEFAULT_FIELDS  # its older name, used by the importer (#47): remove later
 HINTS = ("todo", "consume")  # the older capture field, still accepted
 ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
+# kind: in a search also takes the PWA's names for kinds
+KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
 SOURCES = ("pwa", "share", "mcp")
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
@@ -193,7 +196,8 @@ def schema_version(db: Path) -> int:
 
 
 def migrate(db: Path) -> None:
-    """Apply the missing migrations, one process at a time (flock on db.lock)."""
+    """Apply the missing migrations, one process at a time (flock on db.lock). A
+    migration's Python step (AFTER) runs in its transaction, after its script."""
     with open(f"{db}.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         version = schema_version(db)
@@ -201,13 +205,48 @@ def migrate(db: Path) -> None:
             conn.execute("PRAGMA journal_mode = WAL")
             for n, sql in enumerate(migrations()[version:], start=version + 1):
                 try:
-                    conn.executescript(
-                        f"BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version = {n};\nCOMMIT;"
-                    )
+                    conn.executescript(f"BEGIN IMMEDIATE;\n{sql}")
+                    if n in AFTER:
+                        AFTER[n](conn)
+                    conn.execute(f"PRAGMA user_version = {n}")
+                    conn.execute("COMMIT")
                 except BaseException:
                     if conn.in_transaction:
                         conn.execute("ROLLBACK")
                     raise
+
+
+def index_page(conn: sqlite3.Connection, page_id: str) -> None:
+    """(Re)make a page's own search chunk from its title, tags, summary and body (its
+    derived text has chunks of its own). No control characters: snippets mark hits
+    with \x02 and \x03. Each becomes a space, so a lone \r or \v still separates two
+    words."""
+    title, body, fields = conn.execute(
+        "SELECT title, body, fields FROM page WHERE id = ?", (page_id,)
+    ).fetchone()
+    tags = " ".join(
+        r[0] for r in conn.execute("SELECT tag FROM tag WHERE page_id = ?", (page_id,))
+    )
+    summary = json.loads(fields).get("summary")
+    summary = summary if isinstance(summary, str) else ""
+    clean = [CONTROL.sub(" ", unlink(x)) for x in (title, tags, summary, body)]
+    conn.execute(
+        "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
+    )
+    conn.execute(
+        "INSERT INTO chunk (page_id, ord, title, tags, summary, text)"
+        " VALUES (?, 0, ?, ?, ?, ?)",
+        (page_id, *clean),
+    )
+
+
+def index_all(conn: sqlite3.Connection) -> None:
+    """Every page's own chunk again (the trash's too: undo brings a page back)."""
+    for (page_id,) in conn.execute("SELECT id FROM page").fetchall():
+        index_page(conn, page_id)
+
+
+AFTER = {3: index_all}  # migration number -> its Python step
 
 
 class Store:
@@ -332,7 +371,7 @@ class Store:
                 "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
                 [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
             )
-            self._index(conn, page_id, title, body)
+            self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
             return self._ref(conn, cid, page_id), True
@@ -390,7 +429,7 @@ class Store:
             conn.executemany(
                 "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in p["tags"]]
             )
-            self._index(conn, page_id, p["title"], p["body"])
+            self.reindex(conn, page_id)
             return p["slug"], True
 
     def slugs(self) -> set[str]:
@@ -433,26 +472,9 @@ class Store:
             slug = f"{base}-{n}"
         return slug
 
-    def _index(self, conn: sqlite3.Connection, page_id: str, title: str, body: str):
-        # M1: one chunk per page, the title heading the body (a note's body
-        # already starts with it). No control characters: snippets mark hits
-        # with \x02 and \x03. Each becomes a space, so a lone \r or \v still
-        # separates two words.
-        text = body if body.startswith(title) else f"{title}\n\n{body}"
-        text = CONTROL.sub(" ", unlink(text))
-        conn.execute(  # derived text has chunks of its own
-            "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
-        )
-        conn.execute(
-            "INSERT INTO chunk (page_id, ord, text) VALUES (?, 0, ?)", (page_id, text)
-        )
-
     def reindex(self, conn: sqlite3.Connection, page_id: str) -> None:
-        """Index a page's current title and body again."""
-        row = conn.execute(
-            "SELECT title, body FROM page WHERE id = ?", (page_id,)
-        ).fetchone()
-        self._index(conn, page_id, row[0], row[1])
+        """Index a page's current title, tags, summary and body again."""
+        index_page(conn, page_id)
 
     def _page_row(self, conn: sqlite3.Connection, key: str) -> sqlite3.Row:
         row = conn.execute(
@@ -576,6 +598,8 @@ class Store:
             page = self._page_row(conn, key)
             if kind is not None or fields:
                 self._set_kind(conn, page, kind, fields or {})
+                if fields and "summary" in fields:  # indexed
+                    self.reindex(conn, page["id"])
             if title is None and body is None:
                 return self.page_in(conn, page["id"])
             if page["rev"] != base_rev:
@@ -603,7 +627,7 @@ class Store:
                     "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
                     (page["id"], page["rev"] + 1, new_title, new_body, author, stamp),
                 )
-                self._index(conn, page["id"], new_title, new_body)
+                self.reindex(conn, page["id"])
             return self.page_in(conn, page["id"])
 
     def _set_kind(
@@ -651,41 +675,145 @@ class Store:
             raise NotFoundError(key)
 
     def search(self, query: str, limit: int) -> list[dict[str, Any]]:
-        """Full-text search; each word must match somewhere in the page (its title
-        and body, or a photo's text or description), the last one as a prefix."""
-        query = CONTROL.sub(" ", query).replace('"', " ")
-        # Words FTS can index (a letter or digit; "_" separates), each once, at
-        # most MAX_WORDS: every word adds a subquery
-        kept = [w for w in query.split() if WORD.search(w)]
-        words = [f'"{w}"' for w in dict.fromkeys(kept)][:MAX_WORDS]
-        if not words:
+        """Pages matching a query (see scrap.query): every word somewhere in the page
+        (its title, tags, summary, body, or a photo's text or description; the last
+        word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
+        the page's best chunk, title, tag and summary matches weighing most; a query
+        of filters alone lists its pages newest first."""
+        q = parse(query)
+        if not q.terms and not q.filters:
             return []
-        words[-1] += "*"
-        each = " AND p.id IN (SELECT c.page_id FROM chunk_fts JOIN chunk c ON"
-        each += " c.id = chunk_fts.rowid WHERE chunk_fts MATCH ?)"
+        where, args = self._where(q)
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
-            # bm25() and snippet() refuse GROUP BY: group here instead
-            for row in conn.execute(
-                "SELECT p.id, p.slug, p.title, p.kind, p.fields,"
-                " snippet(chunk_fts, 0, char(2), char(3), '…', 16) AS snippet"
-                " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
-                " JOIN page p ON p.id = c.page_id"
-                " WHERE chunk_fts MATCH ? AND p.deleted_at IS NULL"
-                + each * len(words)
-                + " ORDER BY bm25(chunk_fts)",
-                (" OR ".join(words), *words),
-            ):
+            if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
+                # First the pages with every word in the title, then those with every
+                # word in the title, tags or summary: bm25 alone lets a short body
+                # that says a word twice beat a long page tagged with it
+                every = " AND ".join(q.fts(t) for t in q.positive)
+                tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
+                rows = conn.execute(
+                    "SELECT p.id, p.slug, p.title, p.kind, p.fields,"
+                    " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet"
+                    " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
+                    " JOIN page p ON p.id = c.page_id"
+                    f" WHERE chunk_fts MATCH ? AND {where}"
+                    f" ORDER BY {tier} DESC, {tier} DESC, bm25(chunk_fts, {WEIGHTS})",
+                    (" OR ".join(q.fts(t) for t in q.positive), *args,
+                     f"title : ({every})", f"{{title tags summary}} : ({every})"),
+                )  # fmt: skip
+            else:
+                rows = conn.execute(
+                    "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.body AS snippet"
+                    f" FROM page p WHERE {where}"
+                    " ORDER BY p.updated_at DESC, p.id DESC LIMIT ?",
+                    (*args, limit),
+                )
+            for row in rows:
                 hits.setdefault(row["id"], dict(row))
                 if len(hits) == limit:
                     break
         for hit in hits.values():  # HTML-safe, with matches in <mark>
             hit["fields"] = json.loads(hit["fields"])
+            if not q.positive:  # no match to show: its summary, else its start
+                summary = hit["fields"].get("summary")
+                text = summary if isinstance(summary, str) else unlink(hit["snippet"])
+                hit["snippet"] = " ".join(CONTROL.sub(" ", text).split()[:24])
             snippet = html.escape(hit["snippet"])
             hit["snippet"] = snippet.replace("\x02", "<mark>").replace(
                 "\x03", "</mark>"
             )
         return list(hits.values())
+
+    def facets(self, query: str, top: int = 12) -> dict[str, Any]:
+        """What the pages a query matches have in common, to narrow it with a tap: how
+        many there are, their kinds, their most used tags (a/b counts for a too) and
+        how many are personal or work; and the query's filters, as typed."""
+        q = parse(query)
+        out: dict[str, Any] = {
+            "total": 0, "kinds": [], "tags": [], "personal": {"work": 0, "personal": 0},
+            "active": [{"token": f.token, "key": f.key, "value": f.value, "neg": f.neg}
+                       for f in q.filters],
+        }  # fmt: skip
+        if not q.terms and not q.filters:
+            return out
+        where, args = self._where(q)
+        with self.connect() as conn:
+            ids = json.dumps([r[0] for r in conn.execute(
+                f"SELECT p.id FROM page p WHERE {where}", args
+            )])  # fmt: skip
+            pages = "(SELECT value FROM json_each(?))"
+            out["kinds"] = [list(r) for r in conn.execute(
+                f"SELECT kind, count(*) AS n FROM page WHERE id IN {pages}"
+                " GROUP BY kind ORDER BY n DESC, kind", (ids,),
+            )]  # fmt: skip
+            personal = conn.execute(
+                "SELECT count(*), coalesce(sum(json_extract(fields, '$.personal') = 1),"
+                f" 0) FROM page WHERE id IN {pages}",
+                (ids,),
+            ).fetchone()
+            tags = conn.execute(
+                f"SELECT page_id, tag FROM tag WHERE page_id IN {pages}", (ids,)
+            ).fetchall()
+        total = personal[0]
+        out["total"] = total
+        out["personal"] = {"work": total - personal[1], "personal": personal[1]}
+        counts: dict[str, set[str]] = {}  # a tag and its parents -> pages
+        for page_id, tag in tags:
+            parts = tag.split("/")
+            for n in range(1, len(parts) + 1):
+                counts.setdefault("/".join(parts[:n]), set()).add(page_id)
+        chosen = [f.value for f in q.filters if f.key == "tag" and not f.neg]
+        ranked = sorted(
+            ((tag, len(ps)) for tag, ps in counts.items()
+             if tag not in chosen and (len(ps) < total or total == 1)),
+            key=lambda t: (-t[1], t[0]),
+        )  # fmt: skip
+        out["tags"] = [list(t) for t in ranked[:top]]
+        return out
+
+    def tags(self) -> list[list[Any]]:
+        """Every tag on a page (not in the trash) and how many pages have it."""
+        with self.connect() as conn:
+            return [list(r) for r in conn.execute(
+                "SELECT tag, count(*) FROM tag JOIN page p ON p.id = tag.page_id"
+                " WHERE p.deleted_at IS NULL GROUP BY tag ORDER BY tag"
+            )]  # fmt: skip
+
+    def _where(self, q: Query) -> tuple[str, list[Any]]:
+        """SQL conditions on page p for a query's words and filters, and their args."""
+        sql, args = ["p.deleted_at IS NULL"], []
+        in_page = (
+            "p.id {} IN (SELECT c.page_id FROM chunk_fts JOIN chunk c"
+            " ON c.id = chunk_fts.rowid WHERE chunk_fts MATCH ?)"
+        )
+        for term in q.terms:
+            sql.append(in_page.format("NOT" if term.neg else ""))
+            args.append(q.fts(term))
+        kinds = [KIND_NAMES.get(f.value, f.value) for f in q.filters
+                 if f.key == "kind" and not f.neg]  # fmt: skip
+        if kinds:  # a page has one kind: two kinds mean either
+            sql.append("p.kind IN (SELECT value FROM json_each(?))")
+            args.append(json.dumps(kinds))
+        for f in q.filters:
+            no = "NOT " if f.neg else ""
+            if f.key == "kind" and f.neg:
+                sql.append("p.kind <> ?")
+                args.append(KIND_NAMES.get(f.value, f.value))
+            elif f.key == "tag":  # whole segments: tag:b finds a/b, tag:a finds a/b
+                sql.append(
+                    f"{no}EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id"
+                    " AND instr('/' || t.tag || '/', ?) > 0)"
+                )
+                args.append(f"/{f.value.strip('/')}/")
+            elif f.key == "is" and f.value in ("personal", "work"):
+                want = "IS 1" if f.value == "personal" else "IS NOT 1"
+                sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")
+            elif f.key == "is":  # a status: is:done, is:open...
+                status = "coalesce(json_extract(p.fields, '$.status'), '')"
+                sql.append(f"{no}({status} = ?)")
+                args.append(f.value.replace(" ", "_"))
+        return " AND ".join(sql), args
 
     def blob(self, sha: str) -> tuple[Path, str]:
         """The path and MIME type of a stored file."""

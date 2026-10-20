@@ -491,15 +491,17 @@ class Worker:
             changed = conn.execute(
                 TITLE_CAS, {**args, "capture": cid, "photo": photo}
             ).rowcount
-            if changed:
-                self.store.reindex(conn, page_id)
+        else:
+            changed = 0
         if not conn.execute(
             "SELECT 1 FROM tag WHERE page_id = ?", (page_id,)
         ).fetchone():
-            conn.executemany(
+            changed += conn.executemany(
                 "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
                 [(page_id, tag) for tag in out["tags"]],
-            )
+            ).rowcount
+        if changed:  # a new title or tags: search sees them
+            self.store.reindex(conn, page_id)
         if out["kind"] in PAGE_KINDS:
             conn.execute(
                 "UPDATE page SET kind = ? WHERE id = ? AND kind = 'note'"

@@ -102,7 +102,7 @@ def test_0002_applies_on_a_version_1_database(tmp_path):
         conn.execute("INSERT INTO chunk (page_id, ord, text) VALUES ('P', 0, 'old')")
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         assert conn.execute("SELECT derived_id FROM chunk").fetchone()[0] is None
         assert conn.execute("SELECT count(*) FROM queue_state").fetchone()[0] == 1
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []

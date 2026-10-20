@@ -1,0 +1,207 @@
+"""Search (#84): the query syntax, ranking, filters, facets, tags and the reindex."""
+
+import time
+from contextlib import closing
+
+import pytest
+from fastapi.testclient import TestClient
+
+from scrap.app import create_app
+from scrap.query import Filter, Term, parse
+from scrap.store import Store, connect, migrations, new_ulid, slug_base
+
+# ---- the parser
+
+
+def test_words_phrases_and_not():
+    q = parse('garden -shed !"bird box" "quiet  corner" plan')
+    assert q.terms == [
+        Term("garden"),
+        Term("shed", neg=True),
+        Term("bird box", phrase=True, neg=True),
+        Term("quiet corner", phrase=True),
+        Term("plan"),
+    ]
+    assert q.prefix and q.fts(q.terms[-1]) == '"plan"*'
+    assert q.fts(q.terms[0]) == '"garden"'
+
+
+def test_filters_keep_their_token_as_typed():
+    q = parse('Kind:Todo tag:tech/epics -tag:"home  life" is:personal')
+    assert q.terms == []
+    assert q.filters == [
+        Filter("kind", "todo", False, "Kind:Todo"),
+        Filter("tag", "tech/epics", False, "tag:tech/epics"),
+        Filter("tag", "home life", True, '-tag:"home  life"'),
+        Filter("is", "personal", False, "is:personal"),
+    ]
+
+
+def test_what_is_not_a_term():
+    assert parse('- ! & ? "" -"" kind: tag:""').terms == []
+    assert parse("- ! kind: tag:").filters == []
+    assert parse("foo:bar").terms == [Term("foo:bar")]  # not a key: a word
+    assert parse("salt salt").terms == [Term("salt")]
+    q = parse("garden -sh")
+    assert not q.prefix  # a NOT word is not a prefix while typed
+    assert not parse('garden "shed"').prefix
+    assert not parse("garden tag:x").prefix
+    assert parse("quokka -").prefix
+    assert parse('"unclosed phrase').terms == [Term("unclosed phrase", phrase=True)]
+    assert parse("a\x00b").terms == [Term("a"), Term("b")]
+
+
+def test_parsing_is_linear():
+    started = time.monotonic()
+    for bad in ('"' * 200_000, "-" * 200_000, "!-" * 100_000, 'tag:"' * 50_000,
+                "a:" * 100_000, " x" * 100_000, '-"a' * 70_000):  # fmt: skip
+        parse(bad)
+    assert time.monotonic() - started < 2
+    assert len(parse(" ".join(f"w{n}" for n in range(999))).terms) == 16
+
+
+# ---- the store
+
+
+@pytest.fixture
+def store(tmp_path):
+    s = Store(tmp_path)
+    s.migrate()
+    return s
+
+
+def page(store, title, body="", tags=(), kind="note", **fields):
+    stamp = f"2026-01-{len(store.slugs()) + 1:02d}T00:00:00.000Z"
+    p = {
+        "slug": f"{slug_base(title)}-{len(store.slugs())}", "title": title,
+        "body": body, "kind": kind, "fields": fields, "tags": list(tags),
+        "created_at": stamp, "updated_at": stamp,
+    }  # fmt: skip
+    return store.import_page(p, [(new_ulid(), "note", body, [])], "me")[0]
+
+
+def slugs(store, query):
+    return [h["slug"] for h in store.search(query, 20)]
+
+
+def test_title_tags_and_summary_are_indexed_and_weigh_more(store):
+    for n in range(10):  # most pages don't say kafka
+        page(store, f"Other {n}", "a long body " * 20, tags=["misc"], summary="gist")
+    body = page(store, "Notes", "we chose kafka over the rest kafka again")
+    summary = page(store, "Event bus", "a long body " * 20, summary="kafka at work")
+    tag = page(store, "Streams", "a long body " * 20, tags=["tech/kafka"])
+    title = page(store, "Kafka", "a long body " * 20)
+    assert slugs(store, "kafka") == [title, tag, summary, body]
+    assert slugs(store, "streams kafka") == [tag]  # each word anywhere in the page
+    assert slugs(store, "tech") == [tag]  # a tag's parts are words
+
+
+def test_snippets_come_from_the_text(store):
+    page(store, "Kafka", "about queues")
+    assert store.search("kafka", 5)[0]["snippet"] == "about queues"
+    assert store.search("queue", 5)[0]["snippet"] == "about <mark>queues</mark>"
+
+
+def test_not_and_phrase(store):
+    a = page(store, "Garden shed", "a bird box by the door")
+    b = page(store, "Garden plan", "box hedge, bird bath")
+    assert slugs(store, "garden") == [a, b] or slugs(store, "garden") == [b, a]
+    assert slugs(store, "garden -shed") == [b]
+    assert slugs(store, "garden !shed") == [b]
+    assert slugs(store, '"bird box"') == [a]
+    assert slugs(store, 'garden -"bird box"') == [b]
+    assert slugs(store, "-shed") == [b]  # NOT alone: everything else, newest first
+    assert slugs(store, "-garden") == []
+
+
+def test_filters(store):
+    todo = page(store, "Fix fence", kind="todo", status="open", personal=True,
+                tags=["home/garden"])  # fmt: skip
+    done = page(store, "Paint fence", kind="todo", status="done", personal=False,
+                tags=["home"])  # fmt: skip
+    read = page(store, "Fence book", kind="consume", tags=["books", "home/garden/diy"])
+    assert set(slugs(store, "fence")) == {todo, done, read}
+    assert slugs(store, "kind:todo") == [done, todo]  # filters alone: newest first
+    assert set(slugs(store, "fence kind:read")) == {read}  # the PWA's name for it
+    assert set(slugs(store, "fence kind:read kind:todo")) == {todo, done, read}
+    assert set(slugs(store, "fence -kind:todo")) == {read}
+    assert set(slugs(store, "tag:home")) == {todo, done, read}  # and its children
+    assert set(slugs(store, "tag:garden")) == {todo, read}  # whole segments
+    assert set(slugs(store, "tag:home/garden")) == {todo, read}
+    assert slugs(store, "tag:gard") == []
+    assert set(slugs(store, "tag:home -tag:books")) == {todo, done}
+    assert slugs(store, "is:personal") == [todo]
+    assert set(slugs(store, "is:work")) == {done, read}  # no personal field: work
+    assert slugs(store, "is:done") == [done]
+    assert set(slugs(store, "-is:personal")) == {done, read}
+    assert slugs(store, "-is:done kind:todo") == [todo]
+    assert slugs(store, "kind:nope") == slugs(store, "is:nope") == []
+
+
+def test_snippet_of_a_filter_only_hit(store):
+    page(store, "Plain", "[a link](https://x.example) then\x01 words", tags=["t"])
+    page(store, "Summed", "body", tags=["t"], summary="the <gist>")
+    hits = {h["title"]: h["snippet"] for h in store.search("tag:t", 5)}
+    assert hits == {"Plain": "a link then words", "Summed": "the &lt;gist&gt;"}
+
+
+def test_facets(store):
+    page(store, "Fence one", kind="todo", personal=True, tags=["home/garden", "diy"])
+    page(store, "Fence two", kind="todo", tags=["home/garden"])
+    page(store, "Fence three", tags=["home", "books"])
+    page(store, "Other", tags=["home"])
+    f = store.facets("fence")
+    assert f["total"] == 3
+    assert f["kinds"] == [["todo", 2], ["note", 1]]
+    assert f["personal"] == {"work": 2, "personal": 1}
+    # home is on every hit: no narrowing; home/garden counts for home too
+    assert f["tags"] == [["home/garden", 2], ["books", 1], ["diy", 1]]
+    f = store.facets("fence -tag:books tag:home/garden")
+    assert f["total"] == 2 and f["tags"] == [["diy", 1]]
+    assert [a["token"] for a in f["active"]] == ["-tag:books", "tag:home/garden"]
+    assert store.facets("")["total"] == 0
+    one = store.facets("fence one")
+    assert one["total"] == 1 and ["diy", 1] in one["tags"]  # a single hit: its tags
+
+
+def test_tags_lists_live_pages_only(tmp_path):
+    client = TestClient(create_app(tmp_path))
+    store = Store(tmp_path)
+    page(store, "A", tags=["x", "y/z"])
+    gone = page(store, "B", tags=["x", "trashed"])
+    store.delete_page(gone)
+    assert client.get("/api/tags").json() == [["x", 1], ["y/z", 1]]
+    assert client.get("/api/search/facets", params={"q": "tag:x"}).json()["total"] == 1
+    assert client.get("/tags").status_code in (200, 503)  # the PWA's route
+
+
+def test_tag_and_summary_changes_reach_the_index(store):
+    slug = page(store, "Plain page", "body")
+    store.update_page(slug, None, None, None, "me", fields={"summary": "zebra cross"})
+    assert slugs(store, "zebra") == [slug]
+    store.update_page(slug, None, None, None, "me", fields={"summary": None})
+    assert slugs(store, "zebra") == []
+
+
+def test_migration_3_reindexes_existing_pages(tmp_path):
+    """A database from before 0003: its pages' title, tags and summary are indexed."""
+    db = tmp_path / "scrap.db"
+    with closing(connect(db)) as conn:
+        script = "".join(migrations()[:2])
+        conn.executescript(f"BEGIN; {script} PRAGMA user_version = 2; COMMIT;")
+        conn.execute(
+            "INSERT INTO page (id, slug, title, body, fields, created_at, updated_at)"
+            " VALUES ('P', 'p', 'Heading', 'Heading\n\nbody',"
+            " '{\"summary\": \"gist\"}', 'x', 'x')"
+        )
+        conn.execute("INSERT INTO tag VALUES ('P', 'tech/epics')")
+        conn.execute("INSERT INTO chunk (page_id, ord, text) VALUES ('P', 0, 'old')")
+    store = Store(tmp_path)
+    store.migrate()
+    for word in ("epics", "gist", "body", "heading"):
+        assert slugs(store, word) == ["p"]
+    assert slugs(store, "old") == []
+    with closing(connect(db)) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
+        row = conn.execute("SELECT title, tags, summary FROM chunk").fetchone()
+        assert tuple(row) == ("Heading", "tech/epics", "gist")
