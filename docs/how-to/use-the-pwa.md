@@ -76,8 +76,12 @@ the link as the capture's URL.
 
 - **Recent** lists pages newest first, with a thumbnail of the first photo. Its chips filter
   it: **All**, **Todos** and **Read**. The filter stays in the address, so Back and a reload keep it.
-- A todo's page has **Done** (and **Reopen**) in its toolbar; a done todo is marked *done* in
-  the lists. Ticking it or changing a kind doesn't move the page up Recent.
+- Todos and Read pages carry a status (open, in progress, done or cancelled). The page's
+  toolbar has **Done** unless it is done, and **Reopen** if it is done or cancelled (a
+  cancelled one has both). In **Recent**, the capture screen's list and search results, their
+  rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
+  open it again; the row stays where it is and its chip says *done* (or *cancelled*). Ticking
+  it or changing a kind doesn't move the page up Recent.
 - Swipe a row of **Recent**, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
   seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third

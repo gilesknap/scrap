@@ -3,10 +3,10 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
+import { chipOf } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
-const KIND: Record<string, string> = { todo: "todo", consume: "read" };
 // Recent's filters: [label, API query]
 const FILTERS = [
   ["All", ""],
@@ -117,13 +117,13 @@ export async function pageList(limit: number, filter = "", label = "Recent"): Pr
           p.thumb && previewUrl(p.thumb, 480),
           p.title,
           whenShort(p.updated_at),
-          p.fields.status === "done" ? "done" : KIND[p.kind],
+          chipOf(p.kind, p.fields),
           `/p/${encodeURIComponent(p.slug)}`,
           p.kind,
         ),
       ),
     );
-    swipeRows(list.map((p, i) => [ul.children[i], p.slug, p.id]));
+    swipeRows(list.map((p, i) => [ul.children[i], p]));
     return trail(
       ul,
       label,

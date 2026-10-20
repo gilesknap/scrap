@@ -34,7 +34,7 @@ export interface Summary {
   slug: string;
   title: string;
   kind: string;
-  fields: Record<string, string | number | boolean>; // e.g. a todo's status: open or done
+  fields: Record<string, string | number | boolean>; // e.g. a todo's status: open, done...
   created_at: string;
   updated_at: string;
   thumb: string | null;
@@ -45,10 +45,7 @@ export interface Page extends Summary {
   rev: number;
   captures: { id: string; url: string | null; blobs: FileRef[] }[];
 }
-export interface Hit {
-  slug: string;
-  title: string;
-  kind: string;
+export interface Hit extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields"> {
   snippet: string;
 }
 
@@ -66,6 +63,14 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({})));
   return (r.status === 204 ? null : await r.json()) as T;
 }
+
+/** Tick a page off (or not): its status field only, no new revision. */
+export const setStatus = (id: string, status: string) =>
+  api<Page>(`pages/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fields: { status } }),
+  });
 
 /** Post a queued capture: JSON, or multipart with its files. Rejects if offline or stalled.
  *

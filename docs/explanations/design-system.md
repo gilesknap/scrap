@@ -25,7 +25,8 @@ design into another tool and back.
 - **Dark is designed, not inverted.** Surfaces get lighter as they come forward; amber is a step
   lighter; toasts stay dark slabs in both themes.
 - **Every gesture has a button.** Swipes are shortcuts, never the only way: a row's Edit and
-  Delete are also on its page, the page's swipe is also its ‹ › pager and the arrow keys.
+  Delete are also on its page (and a row's tick is a button of its own, with Done and Reopen
+  on the page too), the page's swipe is also its ‹ › pager and the arrow keys.
   Gestures start away from the screen's edges, which belong to the phone's Back gesture.
 - **Motion confirms, never decorates.** 90-260 ms, eased out; none under reduced motion.
 
@@ -98,7 +99,8 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Swipe row | `.list li.swipe`, `.row-under` | follows the finger; behind it Edit on `--accent-soft` (right) or Delete on `--danger-soft` (left); past the threshold the icon grows (Edit turns `--accent`) and letting go does it |
 | Fold | `.claude-text` (`details`) | hairline above, a chevron before the heading: right folded, down open |
 | Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; the page follows a sideways swipe and slides off to the next |
-| Kind chip | `.list em` | amber-soft pill: "todo", "read", or "done" for a ticked todo |
+| Kind chip | `.list em` | amber-soft pill: "todo", "read", or the status that ends one: "done", "cancelled" |
+| Row tick | `.list .tick` | a todo's or a Read's row: a 48 px toggle (`aria-pressed`, `aria-label` "Done: title") at its end, beside the row's link rather than in it, so tapping it opens nothing; an empty box in `--ink-2`, ticked in `--accent-ink` when done; it slides with the row, and a drag that starts on it swipes the row |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
@@ -151,9 +153,10 @@ badge get a `ButtonText` edge.
 
 Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 18 in the
 segmented control, 16 on a photo's remove button, 52 (in a circle) in empty states.
-Icons: camera, image, note, todo (check in a square), later (bookmark), board (a whiteboard on
+Icons: camera, image, note, todo (check in a square; Done, and a row's tick, which hides the
+check until done), later (bookmark), board (a whiteboard on
 its stand), link, file, download,
-share, edit, trash, search, close, back, next, fit, retry, offline; the nav's plus and clock are
+share, edit, trash, search, close, back, next, fit, retry (also Reopen), offline; the nav's plus and clock are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the
 paper scrap on amber; the header mark is the same scrap in amber.
 

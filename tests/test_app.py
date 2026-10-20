@@ -322,6 +322,18 @@ def test_search_finds_title_and_body_at_once(client, note):
     assert search(client, "\x00shed")[0]["id"] == ref["page_id"]
 
 
+def test_search_hits_carry_kind_and_fields(client, note):
+    """A hit's row in the PWA has a tick for a todo, so it needs its status."""
+    ref = note("Buy a ladder", kind="todo")
+    note("Ladder notes")
+    hits = {h["id"]: h for h in search(client, "ladder")}
+    assert hits[ref["page_id"]]["kind"] == "todo"
+    assert hits[ref["page_id"]]["fields"] == {"status": "open"}
+    client.patch(f"/api/pages/{ref['page_id']}", json={"fields": {"status": "done"}})
+    assert search(client, "buy ladder")[0]["fields"] == {"status": "done"}
+    assert all(h["fields"] == {} for h in hits.values() if h["id"] != ref["page_id"])
+
+
 def test_control_characters_separate_words_in_the_index(client, note):
     ref = note("Odd spacing\nvt\x0bjoined and cr\rsplit\x00here")
     for query in ["joined", "split", "here", "vt"]:

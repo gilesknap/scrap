@@ -8,12 +8,14 @@ import {
   type Page,
   previewUrl,
   type Queue,
+  setStatus,
   shareable,
 } from "./api";
 import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
+import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { bodyView, download, h, settle, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
@@ -92,7 +94,6 @@ interface Draft {
   base: number; // the revision it was made on
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
-const done = (p: Page) => p.fields.status === "done";
 
 export async function page(key: string): Promise<Node> {
   const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
@@ -163,13 +164,15 @@ export async function page(key: string): Promise<Node> {
         "div",
         { className: "bar tools" },
         editButton(p),
-        p.kind === "todo" &&
+        // A todo or a Read: Done, Reopen (done or cancelled), or both (cancelled)
+        ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(
             "button",
-            { onclick: (e: Event) => tick(p, e.currentTarget as HTMLButtonElement) },
-            icon("todo"),
-            done(p) ? "Reopen" : "Done",
+            { onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement) },
+            icon(to === "done" ? "todo" : "retry"),
+            label,
           ),
+        ),
         download(`/api/pages/${p.id}/download`),
         share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
@@ -274,14 +277,10 @@ export async function page(key: string): Promise<Node> {
     text.focus();
   }
 
-  // A todo ticked off (or not): its fields only, no new revision
-  const tick = (p: Page, b: HTMLButtonElement) => {
+  // Ticked off (or not): its status only, no new revision
+  const tick = (p: Page, to: string, b: HTMLButtonElement) => {
     b.disabled = true;
-    api<Page>(`pages/${p.id}`, {
-      method: "PATCH",
-      headers: JSON_TYPE,
-      body: JSON.stringify({ fields: { status: done(p) ? "open" : "done" } }),
-    }).then(show, (err) => {
+    setStatus(p.id, to).then(show, (err) => {
       b.disabled = false;
       toast(`Not changed: ${why(err)}`);
     });
