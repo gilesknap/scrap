@@ -1,7 +1,7 @@
 // What lists and pages share for swipes: the trail (a list marks its links with it, so a page
 // opened from it can step through it: pager.ts), the screen edges left to the phone, and
 // delete with Undo. The row gestures themselves are rows.ts, loaded with a list.
-import { ApiError, api } from "./api";
+import { ApiError, api, type Summary } from "./api";
 import type { Trail } from "./gesture";
 import { toast } from "./ui";
 
@@ -23,13 +23,15 @@ export function trailOf(a: Element): { trail: Trail } | null {
   return t ? { trail: t } : null;
 }
 
-/** Give list rows their gestures (rows.ts) once that chunk is here: the list shows at once,
- * and its rows only open their page if the chunk can't load. Per row: the row, its page's
- * slug and the key to delete it by. */
-export function swipeRows(rows: [Element, string, string?][]) {
+export type RowPage = Pick<Summary, "id" | "slug" | "title" | "kind" | "fields">;
+
+/** Give list rows their gestures and ticks (rows.ts) once that chunk is here: the list shows
+ * at once, and its rows only open their page if the chunk can't load. Per row: the row and
+ * its page. */
+export function swipeRows(rows: [Element, RowPage][]) {
   import("./rows").then(
     (m) => {
-      for (const [li, slug, key] of rows) m.swipeRow(li as HTMLLIElement, slug, key);
+      for (const [li, p] of rows) m.swipeRow(li as HTMLLIElement, p);
     },
     () => {},
   );

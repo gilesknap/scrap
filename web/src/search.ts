@@ -61,7 +61,7 @@ export function search(): Node {
           ),
         ),
       );
-      swipeRows(rows.map((li, i) => [li, hits[i].slug]));
+      swipeRows(rows.map((li, i) => [li, hits[i]]));
       results.replaceChildren(
         ...rows,
         ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]),

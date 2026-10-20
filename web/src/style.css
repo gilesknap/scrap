@@ -465,6 +465,37 @@ nav a[aria-current] .i {
 .armed .row-under .i {
   scale: 1.3; /* far enough: letting go does it */
 }
+/* A todo's or a Read's tick (rows.ts): beside the row's link, not in it; moves with it */
+.list li.ticks > a {
+  padding-inline-end: calc(var(--s-1) + var(--tap));
+}
+.list .tick {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  inset-inline-end: var(--s-1);
+  width: var(--tap);
+  min-height: var(--tap);
+  margin-block: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  transition: transform var(--d-2) var(--ease);
+}
+.list .tick:focus-visible {
+  outline-offset: -2px; /* inside the row: the list clips what is outside it */
+}
+.list .tick .i {
+  width: 24px;
+  height: 24px;
+}
+.tick[aria-pressed="false"] path {
+  visibility: hidden; /* an empty box; done: ticked, in amber */
+}
+.tick[aria-pressed="true"] {
+  color: var(--accent-ink);
+}
 .list em {
   flex: none;
   padding: 0 var(--s-2);

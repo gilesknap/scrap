@@ -654,7 +654,7 @@ class Store:
         with self.connect() as conn:
             # bm25() and snippet() refuse GROUP BY: group here instead
             for row in conn.execute(
-                "SELECT p.id, p.slug, p.title, p.kind,"
+                "SELECT p.id, p.slug, p.title, p.kind, p.fields,"
                 " snippet(chunk_fts, 0, char(2), char(3), '…', 16) AS snippet"
                 " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                 " JOIN page p ON p.id = c.page_id"
@@ -667,6 +667,7 @@ class Store:
                 if len(hits) == limit:
                     break
         for hit in hits.values():  # HTML-safe, with matches in <mark>
+            hit["fields"] = json.loads(hit["fields"])
             snippet = html.escape(hit["snippet"])
             hit["snippet"] = snippet.replace("\x02", "<mark>").replace(
                 "\x03", "</mark>"

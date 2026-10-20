@@ -1,16 +1,21 @@
 // List rows that follow the finger: swiped right, a row opens its page in the editor; swiped
 // left, deletes it (with Undo). What letting go would do shows behind it. The page has the
-// same Edit and Delete, for those who never swipe. A chunk of its own, loaded with a list
-// (which needs the server anyway).
+// same Edit and Delete, for those who never swipe. A todo's or a Read's row also has a tick.
+// A chunk of its own, loaded with a list (which needs the server anyway).
+import { setStatus } from "./api";
 import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
-import { deletePage, EDGE, trailOf, trails } from "./swipe";
-import { h } from "./ui";
+import { chipOf, statusOf } from "./status";
+import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
+import { h, toast } from "./ui";
 
 /** A row swiped right opens its page in the editor; swiped left, deletes it (with Undo). It
  * follows the finger, with what letting go would do shown behind it. */
-export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
+export function swipeRow(li: HTMLLIElement, p: RowPage) {
+  const { slug, id: key } = p;
+  const row = li.querySelector(":scope > a") as HTMLAnchorElement;
+  const tick = tickBox(li, p);
   const under = h(
     "div",
     { className: "row-under", "aria-hidden": "true" },
@@ -19,10 +24,12 @@ export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
   );
   li.classList.add("swipe");
   li.prepend(under);
-  const row = li.lastElementChild as HTMLAnchorElement;
+  if (tick) li.append(tick);
   const move = (x: number, glide: boolean) => {
-    row.style.transition = glide ? "" : "none"; // 1:1 with the finger; glides when let go
-    row.style.transform = x ? `translateX(${x}px)` : "";
+    for (const el of tick ? [row, tick] : [row]) {
+      el.style.transition = glide ? "" : "none"; // 1:1 with the finger; glides when let go
+      el.style.transform = x ? `translateX(${x}px)` : "";
+    }
   };
 
   let start: { x: number; y: number; t: number; id: number } | null = null;
@@ -46,7 +53,9 @@ export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
       if (!sideways) return;
     }
     const d = swipeStep(dx, dy, ms, li.offsetWidth); // let go now: done?
-    li.className = `swipe ${dx < 0 ? "to-delete" : "to-edit"}${d ? " armed" : ""}`;
+    li.classList.toggle("to-delete", dx < 0);
+    li.classList.toggle("to-edit", dx >= 0);
+    li.classList.toggle("armed", !!d);
     move(dx, false);
   });
   const end = (e: PointerEvent) => {
@@ -62,11 +71,11 @@ export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
       void remove(li, slug, key).then(() => {
         if (!li.isConnected) return; // not deleted: back it comes
         move(0, true);
-        li.className = "swipe";
+        li.classList.remove("to-edit", "to-delete", "armed");
       });
     } else {
       move(0, true);
-      li.className = "swipe";
+      li.classList.remove("to-edit", "to-delete", "armed");
       if (d === -1) go(row.pathname, false, { ...trailOf(li), edit: true });
     }
   };
@@ -83,6 +92,40 @@ export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
     true,
   );
   return li;
+}
+
+/** A todo's or a Read's tick, beside its row (not in its link: tapping it opens nothing):
+ * pressed when done; pressing it sets done, or open again. The chip follows. */
+function tickBox(li: HTMLLIElement, p: RowPage) {
+  let status = statusOf(p.kind, p.fields);
+  if (status === null) return null;
+  const b = h(
+    "button",
+    { type: "button", className: "tick", "aria-label": `Done: ${p.title}` },
+    icon("todo"),
+  );
+  const show = () => {
+    b.setAttribute("aria-pressed", String(status === "done"));
+    const chip = li.querySelector("em");
+    if (chip) chip.textContent = chipOf(p.kind, { status });
+  };
+  let busy = false; // taps meanwhile are ignored (not disabled: that would drop its focus)
+  b.onclick = () => {
+    if (busy) return;
+    busy = true;
+    setStatus(p.id, status === "done" ? "open" : "done")
+      .then(
+        (page) => {
+          status = statusOf(page.kind, page.fields);
+          show();
+        },
+        (err) => toast(`Not changed: ${why(err)}`),
+      )
+      .finally(() => (busy = false));
+  };
+  li.classList.add("ticks");
+  show();
+  return b;
 }
 
 async function remove(li: HTMLLIElement, slug: string, key: string) {
