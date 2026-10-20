@@ -6,7 +6,14 @@ import { icon, kindIcon } from "./icons";
 import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
-const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
+const KIND: Record<string, string> = { todo: "todo", consume: "read" };
+// Recent's filters: [label, API query]. Inbox: notes nobody chose a kind for yet.
+const FILTERS = [
+  ["All", ""],
+  ["Todos", "kind=todo"],
+  ["Read", "kind=consume"],
+  ["Inbox", "inbox=1"],
+];
 
 function row(
   thumb: string | Blob | null,
@@ -82,25 +89,27 @@ export async function pendingList(): Promise<Node> {
             "Discard this capture? It never reached the server, so it will be gone.",
           ),
         );
-      const r = row(image?.blob ?? null, title, state, actions || "", undefined, i.hint);
+      const r = row(image?.blob ?? null, title, state, actions || "", undefined, i.kind ?? i.hint);
       if (i.failed) r.className = "failed";
       return r;
     }),
   );
 }
 
-/** The latest pages from the server, or a note saying they need it. */
-/** label: what a page opened from it says it is in */
-export async function pageList(limit: number, label = "Recent"): Promise<Node> {
+/** The latest pages from the server, or a note saying they need it. filter: an API query
+ * (kind=todo); label: what a page opened from it says it is in */
+export async function pageList(limit: number, filter = "", label = "Recent"): Promise<Node> {
   try {
     if (!navigator.onLine) throw new TypeError("offline");
-    const list = await api<Summary[]>(`pages?limit=${limit}`);
+    const list = await api<Summary[]>(`pages?limit=${limit}&${filter}`);
     if (!list.length)
-      return empty(
-        "note",
-        "Nothing captured yet.",
-        h("small", {}, "Photos, notes and links you save show up here."),
-      );
+      return filter
+        ? empty("note", "Nothing here.")
+        : empty(
+            "note",
+            "Nothing captured yet.",
+            h("small", {}, "Photos, notes and links you save show up here."),
+          );
     const ul = h(
       "ul",
       { className: "list" },
@@ -109,7 +118,7 @@ export async function pageList(limit: number, label = "Recent"): Promise<Node> {
           p.thumb && previewUrl(p.thumb, 480),
           p.title,
           whenShort(p.updated_at),
-          KIND[p.kind],
+          p.fields.status === "done" ? "done" : KIND[p.kind],
           `/p/${encodeURIComponent(p.slug)}`,
           p.kind,
         ),
@@ -133,7 +142,30 @@ export async function recent(): Promise<Node> {
     async () => pending.replaceChildren(await pendingList()),
     { signal: view.signal },
   );
-  return h("section", {}, pending, await pageList(100), build());
+  // The filter rides in the address (?kind=todo), so Back and a reload keep it
+  const shown = FILTERS.find(([, q]) => q === location.search.slice(1)) ?? FILTERS[0];
+  const list = h("div", {}, await pageList(100, shown[1], shown[0]));
+  const filters = h(
+    "div",
+    { className: "chips filters", role: "radiogroup", "aria-label": "Show" },
+    ...FILTERS.map(([label, q]) =>
+      h(
+        "label",
+        {},
+        h("input", {
+          type: "radio",
+          name: "show",
+          checked: q === shown[1],
+          onchange: async () => {
+            history.replaceState(null, "", `/recent${q && "?"}${q}`);
+            list.replaceChildren(await pageList(100, q, label));
+          },
+        }),
+        label,
+      ),
+    ),
+  );
+  return h("section", {}, pending, filters, list, build());
 }
 
 /** Which app build is running: the service worker's cache is named after it. */

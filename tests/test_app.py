@@ -192,6 +192,67 @@ def test_stale_edit_is_409(client, note):
     assert one_line["title"] == "a b"
 
 
+def test_capture_kind(client, note):
+    board = client.get(f"/api/pages/{note('a board', kind='whiteboard')['page_id']}")
+    assert (board.json()["kind"], board.json()["kind_fixed"]) == ("whiteboard", 1)
+    plain = client.get(f"/api/pages/{note('plain')['page_id']}").json()
+    assert (plain["kind"], plain["kind_fixed"], plain["fields"]) == ("note", 0, {})
+    bad = {"id": new_ulid(), "text": "x", "kind": "memory"}  # not offered yet
+    assert client.post("/api/captures", json=bad).status_code == 422
+
+
+def test_edit_kind_fixes_it_and_fills_its_fields(client, note):
+    ref = note("https://example.com/a")
+    url = f"/api/pages/{ref['page_id']}"
+    before = client.get(url).json()
+    read = client.patch(url, json={"kind": "consume"}).json()
+    assert (read["kind"], read["kind_fixed"], read["rev"]) == ("consume", 1, 1)
+    assert read["fields"] == {
+        "subtype": "read", "status": "open", "source": "https://example.com/a"
+    }  # fmt: skip
+    assert read["updated_at"] == before["updated_at"]  # stays put in Recent
+    todo = client.patch(url, json={"kind": "todo"}).json()
+    assert todo["fields"] == {"status": "open"}
+    done = client.patch(url, json={"fields": {"status": "done"}}).json()
+    assert (done["kind"], done["fields"]) == ("todo", {"status": "done"})
+    same = client.patch(url, json={"kind": "todo", "base_rev": 1, "body": "x"}).json()
+    assert (same["fields"], same["rev"], same["body"]) == ({"status": "done"}, 2, "x")
+    gone = client.patch(url, json={"fields": {"status": None}}).json()
+    assert gone["fields"] == {}
+
+
+@pytest.mark.parametrize(
+    "edit", [{"kind": "memory"}, {"body": "no base_rev"}, {"fields": {"a": 1}}]
+)
+def test_edit_rejects_bad_input(client, note, edit):
+    url = f"/api/pages/{note()['page_id']}"
+    assert client.patch(url, json=edit).status_code == 422
+    assert client.get(url).json()["kind_fixed"] == 0
+
+
+def test_stale_edit_leaves_the_kind(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    client.patch(url, json={"base_rev": 1, "body": "new"})
+    stale = client.patch(url, json={"base_rev": 1, "body": "old", "kind": "todo"})
+    assert stale.status_code == 409
+    assert client.get(url).json()["kind"] == "note"
+
+
+def test_pages_by_kind_and_inbox(client, note):
+    todo = note("a todo", kind="todo")["slug"]
+    filed = note("a filed note")
+    client.patch(f"/api/pages/{filed['page_id']}", json={"kind": "note"})
+    inbox = note("an unfiled note")["slug"]
+
+    def slugs(**params):
+        return [p["slug"] for p in client.get("/api/pages", params=params).json()]
+
+    assert slugs(kind="todo") == [todo]
+    assert slugs(inbox=1) == [inbox]
+    assert slugs(kind="note") == [inbox, filed["slug"]]
+    assert len(slugs()) == 3
+
+
 def search(client, query):
     return client.get("/api/search", params={"q": query}).json()
 

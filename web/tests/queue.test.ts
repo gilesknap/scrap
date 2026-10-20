@@ -142,14 +142,14 @@ describe("queue", () => {
     const q = queue();
     replies = [413];
     const photos = ["a", "b", "c"].map((n) => ({ name: `${n}.jpg`, blob: new Blob([n]) }));
-    const big = await q.add({ text: "board", hint: "todo", source: "pwa", files: photos });
+    const big = await q.add({ text: "board", kind: "todo", source: "pwa", files: photos });
     await q.flush();
     replies = [0];
     await q.splitRetry(big.id);
     const parts = await q.items();
-    expect(parts.map((i) => [i.text, i.hint, i.files.map((f) => f.name), i.failed])).toEqual([
+    expect(parts.map((i) => [i.text, i.kind, i.files.map((f) => f.name), i.failed])).toEqual([
       ["board", "todo", ["a.jpg"], undefined],
-      [undefined, undefined, ["b.jpg"], undefined], // the hint goes with the text
+      [undefined, undefined, ["b.jpg"], undefined], // the kind goes with the text
       [undefined, undefined, ["c.jpg"], undefined],
     ]);
     expect(new Set(parts.map((i) => i.id)).size).toBe(3);

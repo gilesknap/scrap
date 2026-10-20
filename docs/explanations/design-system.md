@@ -12,8 +12,10 @@ design into another tool and back.
   near-black and cream at night, and a single amber (a sticky note: scrap's mark). Amber means
   "the thing to press" or "this one is selected"; red means only "destructive" or "failed".
   No blue-greys, no second accent.
-- **One hero per screen.** Capture: the Photo button. Composer and editor: Save. Page: its
-  toolbar. Everything else steps down: secondary (outlined surface), then ghost (text only).
+- **One hero per screen.** Composer and editor: Save, the one amber fill. Capture: no hero; its
+  three actions (Camera, Gallery, Note) are equal tiles, since none is more likely than the
+  others. Page: its toolbar. Everything else steps down: secondary (outlined surface), then
+  ghost (text only).
 - **Under the thumb.** Capture actions, the page toolbar and the nav sit at the bottom; Cancel,
   Preview and Save sit in the editor's top bar because the keyboard owns the bottom.
 - **Icons with words.** Icons help find a control; the word says what it does. Icon-only
@@ -65,7 +67,7 @@ Type: the system UI face (Roboto on Android); 17 px root. `--t-xs` 0.75rem (labe
 chips), `--t-sm` 0.875rem (meta, small buttons), `--t-md` 1rem (body, list titles), `--t-lg`
 1.1875rem (wordmark, field titles, Markdown headings), `--t-xl` 1.5rem (page title). Line height
 1.5, 1.25 for titles, 1.6 for page text. Weights 500 (controls), 600 (titles, labels), 700
-(hero, page title, active nav).
+(page title, active nav).
 
 Space: a 4 px grid, `--s-1`..`--s-7` = 4, 8, 12, 16, 24, 32, 48. Screen gutter 16.
 Radius: `--r-sm` 8 (thumbnails, code), `--r-md` 12 (buttons, fields, toasts), `--r-lg` 16
@@ -85,10 +87,9 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Button, primary | `.primary` | amber fill, ink label; one per screen (Save) |
 | Button, ghost | `.ghost`, `button.link` | no fill (Cancel, Discard it, the pager's ‹ ›) |
 | Button, danger | `.danger` | red label, never filled |
-| Hero | `.hero` | the capture screen's Photo: amber, 72 high, camera icon |
-| Tile | `.tile` | icon over a short label on `--sunk`; the four other capture kinds |
+| Tile | `.tile` | icon over a short label on `--sunk`, 72 high; the capture actions Camera, Gallery and Note, three equal columns |
 | Toolbar | `.tools` | equal icon-over-label tiles: page actions (sticky above the nav), viewer tools |
-| Segmented control | `.chips` (radio group) | Note / Todo / Read later; selected = raised surface, amber icon |
+| Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Whiteboard, Document; wraps to two rows on a narrow phone) and Recent's filters (`.filters`: All, Todos, Read, Inbox); selected = raised surface, amber icon |
 | Top bar | `header` | wordmark with the scrap mark; the queue badge on the right |
 | Badge | `.badge`, `.badge.failed` | pill with a status dot: amber waiting, red failed |
 | Bottom nav | `nav` | icon over label; active item gets an amber-soft pill and ink label |
@@ -97,7 +98,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Swipe row | `.list li.swipe`, `.row-under` | follows the finger; behind it Edit on `--accent-soft` (right) or Delete on `--danger-soft` (left); past the threshold the icon grows (Edit turns `--accent`) and letting go does it |
 | Fold | `.claude-text` (`details`) | hairline above, a chevron before the heading: right folded, down open |
 | Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; the page follows a sideways swipe and slides off to the next |
-| Kind chip | `.list em` | amber-soft pill: "todo", "read later" |
+| Kind chip | `.list em` | amber-soft pill: "todo", "read", or "done" for a ticked todo |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
@@ -113,7 +114,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 
 | State | How it shows |
 | --- | --- |
-| Pressed | scale 0.97 over `--d-1` and a `--sunk` fill (primary and hero: 6 % darker); the browser's tap flash is off |
+| Pressed | scale 0.97 over `--d-1` and a `--sunk` fill (primary: 6 % darker; tiles: `--accent-soft`); the browser's tap flash is off |
 | Focus (keyboard) | 2 px `--accent-ink` outline, 2 px offset; fields draw it inside their edge |
 | Selected | segmented: raised `--surface` with `--shadow` and an amber icon; nav: `--accent-soft` pill, ink label, bold |
 | Disabled | 50 % opacity (exempt from contrast, and never the only sign: the label says why) |
@@ -127,7 +128,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
   its icons.
 - Short screens (under 500 px high, i.e. landscape or a large text size): top bar and nav 48 px,
   and the page toolbar scrolls with the page instead of sticking. Landscape (also 560 px and
-  wider): the nav's label sits beside its icon and the capture cluster is one row.
+  wider): the nav's label sits beside its icon and the capture tiles are 64 high.
 - Very narrow (under 300 px: a small phone at its largest text size): the capture cluster
   scrolls with the list instead of covering it, tiles go two by two, labels and list titles
   wrap, list thumbnails shrink to 32, and toolbars show icons only (the words remain their
@@ -143,14 +144,15 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 ## High contrast
 
 Under `forced-colors: active` the system replaces fills and drops shadows, so the selected
-segment and the current nav item get a 2 px `Highlight` outline, and the borderless hero, tiles
-and badge get a `ButtonText` edge.
+segment and the current nav item get a 2 px `Highlight` outline, and the borderless tiles and
+badge get a `ButtonText` edge.
 
 ## Icons
 
-Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 30 in the hero, 18 in the
+Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 18 in the
 segmented control, 16 on a photo's remove button, 52 (in a circle) in empty states.
-Icons: camera, image, note, todo (check in a square), later (bookmark), link, file, download,
+Icons: camera, image, note, todo (check in a square), later (bookmark), board (a whiteboard on
+its stand), link, file, download,
 share, edit, trash, search, close, back, next, fit, retry, offline; the nav's plus and clock are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the
 paper scrap on amber; the header mark is the same scrap in amber.

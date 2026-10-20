@@ -7,8 +7,58 @@
 // Nothing typed is lost: it has a history entry, so the phone's Back closes the editor (not
 // the app), and its fields are kept as a draft in IndexedDB as they change, so a Back, a
 // reload or a killed app brings them back the next time it opens.
+//
+// It is a chunk of its own, with the composer (composer.ts): the service worker keeps it for
+// offline use, but screens that never edit don't load it.
 import { drafts } from "./db";
+import { type Icon, icon } from "./icons";
+import type { Kind } from "./queue";
 import { h, previewer, saveKey, toast } from "./ui";
+
+/** The kinds offered, in the order shown (memory and reference are not offered yet). */
+const KINDS: [Kind, string, Icon][] = [
+  ["note", "Note", "note"],
+  ["todo", "Todo", "todo"],
+  ["consume", "Read", "later"],
+  ["whiteboard", "Whiteboard", "board"],
+  ["document", "Document", "file"],
+];
+export const BARE_URL = /^https?:\/\/\S+$/;
+
+/** The kind control: a segmented radio group. suggest() picks a kind (a bare URL: Read)
+ * until the user picks one (or picked: the kind came from a draft). */
+export function kindPicker(initial: string, picked = false) {
+  const set = (kind: string) => {
+    for (const r of el.querySelectorAll("input")) r.checked = r.value === kind;
+  };
+  const el = h(
+    "div",
+    {
+      className: "chips kinds",
+      role: "radiogroup",
+      "aria-label": "Kind",
+      onchange: () => (picked = true),
+    },
+    ...KINDS.map(([value, label, glyph]) =>
+      h(
+        "label",
+        {},
+        h("input", { type: "radio", name: "kind", value, checked: value === initial }),
+        icon(glyph),
+        label,
+      ),
+    ),
+  );
+  return {
+    el,
+    value: () => el.querySelector<HTMLInputElement>("input:checked")?.value ?? initial,
+    suggest: (kind: string) => picked || set(kind),
+    reset: (kind: string) => {
+      picked = false;
+      set(kind);
+    },
+  };
+}
 
 // --vv-top and --vv-h follow the visual viewport, at most once a frame.
 const vv = window.visualViewport;

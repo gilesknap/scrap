@@ -5,12 +5,14 @@
 import type { Store } from "./db";
 import { ulid } from "./ulid";
 
-export type Hint = "todo" | "consume";
+/** A page kind the user can choose (the API names them). */
+export type Kind = "note" | "todo" | "consume" | "whiteboard" | "document";
 
 export interface Capture {
   text?: string;
   url?: string;
-  hint?: Hint;
+  kind?: Kind; // chosen in the composer; none: the server decides (a note, or ingest)
+  hint?: string; // the kind, as queued by older builds
   source: "pwa" | "share";
   files: { name: string; blob: Blob }[];
 }
@@ -39,11 +41,9 @@ export function newItem(c: Capture, now = Date.now()): Item {
 }
 
 /** One capture per file, the text with the first: for photos too big to send together. */
-export const split = ({ text, url, hint, source, files }: Capture): Capture[] =>
+export const split = ({ text, url, kind, hint, source, files }: Capture): Capture[] =>
   files.map((f, i) => ({
-    text: i ? undefined : text,
-    url: i ? undefined : url,
-    hint: i ? undefined : hint, // the hint goes with the text
+    ...(!i && { text, url, kind, hint }), // the kind goes with the text
     source,
     files: [f],
   }));

@@ -3,9 +3,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import type { Plugin, Rollup } from "vite";
 import { defineConfig } from "vitest/config";
 
+// Lazy chunks the service worker keeps too, so they work offline: the composer and editor.
+// They are not loaded until used, so they are not part of the shell's size budget.
+export const OFFLINE = ["composer", "editor"];
+
 // The files the app shell needs: what the entry chunks import statically, and their CSS
-// and assets. The drawing viewer (Excalidraw and React, loaded by a dynamic import) and its
-// fonts are left out: they are fetched only when a drawing is shown.
+// and assets, plus the OFFLINE chunks. The drawing viewer (Excalidraw and React, loaded by a
+// dynamic import) and its fonts are left out: they are fetched only when a drawing is shown.
 function staticGraph(bundle: Rollup.OutputBundle): string[] {
   const seen = new Set<string>();
   const visit = (name: string) => {
@@ -15,6 +19,10 @@ function staticGraph(bundle: Rollup.OutputBundle): string[] {
     for (const f of c.viteMetadata?.importedCss ?? []) seen.add(f);
     for (const f of c.viteMetadata?.importedAssets ?? []) seen.add(f);
     for (const i of c.imports) visit(i);
+    for (const i of c.dynamicImports) {
+      const d = bundle[i];
+      if (d?.type === "chunk" && OFFLINE.includes(d.name)) visit(i);
+    }
   };
   for (const [name, c] of Object.entries(bundle)) if (c.type === "chunk" && c.isEntry) visit(name);
   return [...seen];

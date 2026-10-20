@@ -27,10 +27,14 @@ WORD = re.compile(r"[^\W_]")  # a letter or digit
 MAX_WORDS = 16  # search words used
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
-HINT_FIELDS = {
+# The kinds a user can choose (memory and reference are in the schema, not offered yet),
+# and the fields a page gets when it becomes that kind
+KINDS = ("note", "todo", "consume", "whiteboard", "document")
+DEFAULT_FIELDS = {
     "todo": {"status": "open"},
     "consume": {"subtype": "read", "status": "open"},
 }
+HINTS = ("todo", "consume")  # the older capture field, still accepted
 SOURCES = ("pwa", "share", "mcp")
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
@@ -109,6 +113,14 @@ def _text(data: dict[str, Any], key: str) -> str | None:
 def lines(text: str) -> str:
     """Unix line ends: multipart form fields arrive with CRLF."""
     return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def fields_for(kind: str | None, url: str | None) -> dict[str, str]:
+    """A kind's default fields; consume also links its source, if it has one."""
+    fields = dict(DEFAULT_FIELDS.get(kind or "", {}))
+    if kind == "consume" and url:
+        fields["source"] = url
+    return fields
 
 
 def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]]:
@@ -196,6 +208,7 @@ class Store:
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")
         text, url, hint = _text(data, "text"), _text(data, "url"), _text(data, "hint")
+        kind = _text(data, "kind")
         source = _text(data, "source") or "pwa"
         created = _text(data, "created_at") or now()
         try:
@@ -204,24 +217,24 @@ class Store:
             raise InvalidError("created_at must be ISO 8601") from None
         if source not in SOURCES:
             raise InvalidError(f"source must be one of {SOURCES}")
-        if hint not in (None, *HINT_FIELDS):
-            raise InvalidError(f"hint must be one of {tuple(HINT_FIELDS)}")
+        if hint not in (None, *HINTS):
+            raise InvalidError(f"hint must be one of {HINTS}")
+        if kind not in (None, *KINDS):
+            raise InvalidError(f"kind must be one of {KINDS}")
+        kind = kind or hint
         if not url and text and BARE_URL.fullmatch(text):
             url, text = text, None  # a link shared as text
         if mimes:
             images = all(mime.startswith("image/") for mime in mimes)
-            kind = "photo" if images else "file"
+            what = "photo" if images else "file"
         else:
-            kind = "url" if url else "note"
-        if kind == "note" and not text:
+            what = "url" if url else "note"
+        if what == "note" and not text:
             raise InvalidError("empty capture")
         title = text.splitlines()[0][:200] if text else url
-        fields = dict(HINT_FIELDS.get(hint or "", {}))
-        if hint == "consume" and url:
-            fields["source"] = url
         return {
-            "id": cid, "kind": kind, "text": text, "url": url, "source": source,
-            "created_at": created, "hint": hint, "fields": fields,
+            "id": cid, "kind": what, "text": text, "url": url, "source": source,
+            "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),
             "title": title or when.strftime("%Y-%m-%d %H:%M"),
             "body": "\n\n".join(x for x in (url, text) if x),
         }  # fmt: skip
@@ -235,7 +248,7 @@ class Store:
         """Save a prepared capture as a new page. Returns its reference and whether
         it is new. blobs are (sha256, mime, size, filename), already in files/.
         """
-        cid, title, body, hint = c["id"], c["title"], c["body"], c["hint"]
+        cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -251,8 +264,8 @@ class Store:
             conn.execute(
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
                 " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (page_id, self._slug(conn, title), title, body, hint or "note",
-                 int(bool(hint)), json.dumps(c["fields"]), stamp, stamp),
+                (page_id, self._slug(conn, title), title, body, kind or "note",
+                 int(bool(kind)), json.dumps(c["fields"]), stamp, stamp),
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
@@ -324,43 +337,55 @@ class Store:
             raise NotFoundError(key)
         return row
 
-    def recent(self, limit: int) -> list[dict[str, Any]]:
+    def recent(
+        self, limit: int, kind: str | None = None, inbox: bool = False
+    ) -> list[dict[str, Any]]:
+        """Pages, newest change first; only those of one kind, or the Inbox (notes
+        whose kind nobody chose yet)."""
+        if inbox:
+            kind = "note"
         with self.connect() as conn:
             rows = _rows(  # thumb: the page's first image, if any
                 conn,
-                "SELECT id, slug, title, kind, fields, created_at, updated_at,"
+                "SELECT id, slug, title, kind, kind_fixed, fields, created_at,"
+                " updated_at,"
                 " (SELECT b.sha256 FROM capture c JOIN capture_blob cb"
                 " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
                 " WHERE c.page_id = page.id AND b.mime LIKE 'image/%'"
                 " ORDER BY c.received_at, cb.ord LIMIT 1) AS thumb"
                 " FROM page WHERE deleted_at IS NULL"
+                " AND coalesce(?, kind) = kind AND (NOT ? OR kind_fixed = 0)"
                 " ORDER BY updated_at DESC, id DESC LIMIT ?",
-                limit,
-            )
+                kind, inbox, limit,
+            )  # fmt: skip
         return [{**r, "fields": json.loads(r["fields"])} for r in rows]
 
     def page(self, key: str) -> dict[str, Any]:
         """A page with its current revision and its captures and their blobs."""
         with self.connect() as conn:
-            page = dict(self._page_row(conn, key))
-            captures = _rows(
+            return self.page_in(conn, key)
+
+    def page_in(self, conn: sqlite3.Connection, key: str) -> dict[str, Any]:
+        """page(), on an open connection (e.g. in the transaction that changed it)."""
+        page = dict(self._page_row(conn, key))
+        captures = _rows(
+            conn,
+            "SELECT id, kind, text, url, source, author, created_at,"
+            " received_at FROM capture WHERE page_id = ? ORDER BY received_at",
+            page["id"],
+        )
+        for c in captures:
+            c["blobs"] = _rows(
                 conn,
-                "SELECT id, kind, text, url, source, author, created_at,"
-                " received_at FROM capture WHERE page_id = ? ORDER BY received_at",
-                page["id"],
+                "SELECT b.sha256, b.mime, b.size, cb.filename FROM capture_blob cb"
+                " JOIN blob b USING (sha256) WHERE capture_id = ? ORDER BY ord",
+                c["id"],
             )
-            for c in captures:
-                c["blobs"] = _rows(
-                    conn,
-                    "SELECT b.sha256, b.mime, b.size, cb.filename FROM capture_blob cb"
-                    " JOIN blob b USING (sha256) WHERE capture_id = ? ORDER BY ord",
-                    c["id"],
-                )
-                for blob in c["blobs"]:
-                    blob["ingest"] = self._ingest(conn, c["id"], blob["sha256"])
-            tags = [r[0] for r in conn.execute(
-                "SELECT tag FROM tag WHERE page_id = ? ORDER BY tag", (page["id"],)
-            )]  # fmt: skip
+            for blob in c["blobs"]:
+                blob["ingest"] = self._ingest(conn, c["id"], blob["sha256"])
+        tags = [r[0] for r in conn.execute(
+            "SELECT tag FROM tag WHERE page_id = ? ORDER BY tag", (page["id"],)
+        )]  # fmt: skip
         del page["deleted_at"]
         fields = json.loads(page["fields"])
         return {**page, "fields": fields, "tags": tags, "captures": captures}
@@ -410,11 +435,25 @@ class Store:
         }
 
     def update_page(
-        self, key: str, base_rev: int, title: str | None, body: str | None, author: str
+        self,
+        key: str,
+        base_rev: int | None,
+        title: str | None,
+        body: str | None,
+        author: str,
+        kind: str | None = None,
+        fields: dict[str, str | None] | None = None,
     ) -> dict[str, Any]:
-        """Change a page's title and/or body, refusing an edit of a stale revision."""
+        """Change a page's title and/or body, refusing an edit of a stale revision;
+        and/or its kind (the user's choice, which ingest then keeps) and fields."""
+        if kind not in (None, *KINDS):
+            raise InvalidError(f"kind must be one of {KINDS}")
         with self.connect() as conn, transaction(conn):
             page = self._page_row(conn, key)
+            if kind is not None or fields:
+                self._set_kind(conn, page, kind, fields or {})
+            if title is None and body is None:
+                return self.page_in(conn, page["id"])
             if page["rev"] != base_rev:
                 raise ConflictError(page["rev"])
             if (
@@ -438,10 +477,39 @@ class Store:
                 )
                 conn.execute(
                     "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
-                    (page["id"], base_rev + 1, new_title, new_body, author, stamp),
+                    (page["id"], page["rev"] + 1, new_title, new_body, author, stamp),
                 )
                 self._index(conn, page["id"], new_title, new_body)
-        return self.page(page["id"])
+            return self.page_in(conn, page["id"])
+
+    def _set_kind(
+        self,
+        conn: sqlite3.Connection,
+        page: sqlite3.Row,
+        kind: str | None,
+        changes: dict[str, str | None],
+    ) -> None:
+        """A kind the user chose, fixed so ingest never changes it: a new kind starts
+        from its default fields. Then changes to the fields (None drops one). Neither
+        is a new revision, nor moves the page up the recent list."""
+        fields = json.loads(page["fields"])
+        if kind is not None and kind != page["kind"]:
+            url = conn.execute(
+                "SELECT url FROM capture WHERE page_id = ? AND url IS NOT NULL"
+                " ORDER BY received_at LIMIT 1",
+                (page["id"],),
+            ).fetchone()
+            fields = fields_for(kind, url and url[0])
+        for name, value in changes.items():
+            if value is None:
+                fields.pop(name, None)
+            else:
+                fields[name] = value
+        conn.execute(
+            "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
+            (kind or page["kind"], int(kind is not None or page["kind_fixed"]),
+             json.dumps(fields), page["id"]),
+        )  # fmt: skip
 
     def delete_page(self, key: str, undo: bool = False) -> None:
         """Move a page to the trash (or back); captures and files stay until a purge."""

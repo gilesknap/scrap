@@ -12,7 +12,6 @@ import {
 } from "./api";
 import { go, view } from "./app";
 import { drafts } from "./db";
-import { editor } from "./editor";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { deletePage } from "./swipe";
@@ -81,8 +80,11 @@ const ingestOf = (p: Page) => JSON.stringify(p.captures.map((c) => c.blobs.map((
 interface Draft {
   title: string;
   text: string;
+  kind?: string;
   base: number; // the revision it was made on
 }
+const JSON_TYPE = { "Content-Type": "application/json" };
+const done = (p: Page) => p.fields.status === "done";
 
 export async function page(key: string): Promise<Node> {
   const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
@@ -153,6 +155,8 @@ export async function page(key: string): Promise<Node> {
         "div",
         { className: "bar tools" },
         editButton(p),
+        p.kind === "todo" &&
+          h("button", { onclick: () => tick(p) }, icon("todo"), done(p) ? "Reopen" : "Done"),
         download(`/api/pages/${p.id}/download`),
         share(() => ({ title: p.title, text: p.body })), // its text as typed, no link here
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
@@ -164,7 +168,14 @@ export async function page(key: string): Promise<Node> {
     // An unsaved edit comes back, on the revision it was made on: if the page has changed
     // since, saving it shows the conflict rather than overwriting.
     const key = `page:${p.id}`;
-    const kept = await drafts.get<Draft>(key).catch(() => undefined);
+    const [kept, { editor, kindPicker, BARE_URL }] = await Promise.all([
+      drafts.get<Draft>(key).catch(() => undefined),
+      import("./editor"), // a chunk of its own, with the composer
+    ]);
+    // Its kind; a link nobody filed yet suggests Read
+    const unfiled = !p.kind_fixed && p.kind === "note" && BARE_URL.test(p.body.trim());
+    const was = unfiled ? "consume" : p.kind;
+    const kind = kindPicker(kept?.kind ?? was);
     let base = kept?.base ?? p.rev;
     const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
@@ -173,12 +184,13 @@ export async function page(key: string): Promise<Node> {
       try {
         const saved = await api<Page>(`pages/${p.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: JSON_TYPE,
           // The title only if changed: ingest may rename a provisional title meanwhile
           body: JSON.stringify({
             base_rev: base,
             body: text.value,
             ...(title.value !== p.title && { title: title.value }),
+            ...(kind.value() !== p.kind && { kind: kind.value() }),
           }),
         });
         await ed.done();
@@ -221,21 +233,30 @@ export async function page(key: string): Promise<Node> {
     };
     const ed = editor({
       text,
-      before: [title],
+      before: [kind.el, title],
       after: [conflict],
       key,
-      draft: (): Draft => ({ title: title.value, text: text.value, base }),
-      dirty: () => title.value !== p.title || text.value !== p.body,
+      draft: (): Draft => ({ title: title.value, text: text.value, kind: kind.value(), base }),
+      dirty: () => title.value !== p.title || text.value !== p.body || kind.value() !== was,
       restored: !!kept,
       ondiscard: () => {
         title.value = p.title;
         text.value = p.body;
+        kind.reset(was);
         base = p.rev;
       },
       onsave: () => void save(),
     });
     text.focus();
   }
+
+  // A todo ticked off (or not): its fields only, no new revision
+  const tick = (p: Page) =>
+    api<Page>(`pages/${p.id}`, {
+      method: "PATCH",
+      headers: JSON_TYPE,
+      body: JSON.stringify({ fields: { status: done(p) ? "open" : "done" } }),
+    }).then(show, (err) => toast(`Not changed: ${err}`));
 
   function editButton(p: Page) {
     const b = h("button", { onclick: () => void edit(p) }, icon("edit"), "Edit");
