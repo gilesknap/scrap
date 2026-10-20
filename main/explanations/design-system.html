@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.1.dev90+gc3571dd58 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.1.dev96+gd1dbaece1 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=79ec2586"></script>
+    <script src="../_static/documentation_options.js?v=aabb6ca6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -514,6 +514,9 @@ buttons (close, previous/next photo, remove a photo) carry an <code class="docut
 one action. On the capture screen a problem is a quiet inline line, never a whole screen.</p></li>
 <li><p><strong>Dark is designed, not inverted.</strong> Surfaces get lighter as they come forward; amber is a step
 lighter; toasts stay dark slabs in both themes.</p></li>
+<li><p><strong>Every gesture has a button.</strong> Swipes are shortcuts, never the only way: a row’s Edit and
+Delete are also on its page, the page’s swipe is also its ‹ › pager and the arrow keys.
+Gestures start away from the screen’s edges, which belong to the phone’s Back gesture.</p></li>
 <li><p><strong>Motion confirms, never decorates.</strong> 90-260 ms, eased out; none under reduced motion.</p></li>
 </ul>
 </section>
@@ -669,7 +672,7 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-even"><td><p>Button, ghost</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.ghost</span></code>, <code class="docutils literal notranslate"><span class="pre">button.link</span></code></p></td>
-<td><p>no fill (Cancel, Raw text, Discard it)</p></td>
+<td><p>no fill (Cancel, Discard it, the pager’s ‹ ›)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Button, danger</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.danger</span></code></p></td>
@@ -711,47 +714,59 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">li</span></code></p></td>
 <td><p>48 thumbnail or kind icon, title, date and kind chip; actions under it</p></td>
 </tr>
-<tr class="row-odd"><td><p>Kind chip</p></td>
+<tr class="row-odd"><td><p>Swipe row</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">li.swipe</span></code>, <code class="docutils literal notranslate"><span class="pre">.row-under</span></code></p></td>
+<td><p>follows the finger; behind it Edit on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code> (right) or Delete on <code class="docutils literal notranslate"><span class="pre">--danger-soft</span></code> (left); past the threshold the icon grows (Edit turns <code class="docutils literal notranslate"><span class="pre">--accent</span></code>) and letting go does it</p></td>
+</tr>
+<tr class="row-even"><td><p>Fold</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.claude-text</span></code> (<code class="docutils literal notranslate"><span class="pre">details</span></code>)</p></td>
+<td><p>hairline above, a chevron before the heading: right folded, down open</p></td>
+</tr>
+<tr class="row-odd"><td><p>Pager</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.pager</span></code></p></td>
+<td><p>a page opened from a list: ‹ “3 of 23 · Recent” ›; the page follows a sideways swipe and slides off to the next</p></td>
+</tr>
+<tr class="row-even"><td><p>Kind chip</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">em</span></code></p></td>
 <td><p>amber-soft pill: “todo”, “read later”</p></td>
 </tr>
-<tr class="row-even"><td><p>Thumbnail</p></td>
+<tr class="row-odd"><td><p>Thumbnail</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">img</span></code>, <code class="docutils literal notranslate"><span class="pre">.thumbs</span> <span class="pre">img</span></code>, <code class="docutils literal notranslate"><span class="pre">.originals</span> <span class="pre">img</span></code></p></td>
 <td><p>fixed size or 4:3 frame reserved before load, shimmering <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> placeholder</p></td>
 </tr>
-<tr class="row-odd"><td><p>Photo strip</p></td>
+<tr class="row-even"><td><p>Photo strip</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.thumbs</span></code></p></td>
 <td><p>84 squares, remove button with a 48 target</p></td>
 </tr>
-<tr class="row-even"><td><p>Field</p></td>
+<tr class="row-odd"><td><p>Field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">input</span></code>, <code class="docutils literal notranslate"><span class="pre">textarea</span></code></p></td>
 <td><p>surface, strong edge, 2 px accent-ink focus ring</p></td>
 </tr>
-<tr class="row-odd"><td><p>Search field</p></td>
+<tr class="row-even"><td><p>Search field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.field-search</span></code></p></td>
 <td><p>pill with a search icon</p></td>
 </tr>
-<tr class="row-even"><td><p>Editor sheet</p></td>
+<tr class="row-odd"><td><p>Editor sheet</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.editor</span></code></p></td>
 <td><p>full screen over the keyboard; top bar Cancel / Preview / Save</p></td>
 </tr>
-<tr class="row-odd"><td><p>Toast</p></td>
+<tr class="row-even"><td><p>Toast</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.toast</span></code></p></td>
 <td><p>dark slab above what is under the thumb, amber text action</p></td>
 </tr>
-<tr class="row-even"><td><p>Banner</p></td>
+<tr class="row-odd"><td><p>Banner</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.conflict</span></code>, <code class="docutils literal notranslate"><span class="pre">.restored</span></code></p></td>
 <td><p>danger-soft with a red edge; accent-soft info line</p></td>
 </tr>
-<tr class="row-odd"><td><p>Empty state</p></td>
+<tr class="row-even"><td><p>Empty state</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.empty</span></code> (<code class="docutils literal notranslate"><span class="pre">empty()</span></code> in ui.ts)</p></td>
 <td><p>icon in a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> circle, a sentence, one action</p></td>
 </tr>
-<tr class="row-even"><td><p>Photo viewer</p></td>
+<tr class="row-odd"><td><p>Photo viewer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.viewer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--viewer</span></code>; close top right, count pill top centre, tools on an <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> scrim</p></td>
 </tr>
-<tr class="row-odd"><td><p>Icons</p></td>
+<tr class="row-even"><td><p>Icons</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">icons.ts</span></code></p></td>
 <td><p>24 px strokes (1.8), currentColor, <code class="docutils literal notranslate"><span class="pre">aria-hidden</span></code></p></td>
 </tr>

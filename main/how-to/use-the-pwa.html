@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev90+gc3571dd58 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev96+gd1dbaece1 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=79ec2586"></script>
+    <script src="../_static/documentation_options.js?v=aabb6ca6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -574,6 +574,11 @@ with no connection either, shows a page saying it was not saved.</p></li>
 <h2>View, edit, search<a class="headerlink" href="#view-edit-search" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><strong>Recent</strong> lists pages newest first, with a thumbnail of the first photo.</p></li>
+<li><p>Swipe a row of <strong>Recent</strong>, the capture screen’s list or search results: to the <strong>right</strong> to
+edit it (the page opens in its editor), to the <strong>left</strong> to delete it (with <strong>Undo</strong> for a few
+seconds). The row follows your finger with <em>Edit</em> or <em>Delete</em> showing behind it; past a third
+of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
+it slides back. The page itself has the same Edit and Delete.</p></li>
 <li><p>A page shows its text and its files: photos inline (as previews the server makes, so iPhone HEIC
 photos show too), other files as links. Each has a <strong>Download</strong> of the original.</p></li>
 <li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
@@ -586,8 +591,13 @@ phone allows, a <strong>Photo ready</strong> message offers <strong>Share</stron
 has any. <strong>Share</strong> sends its title and text, as typed, to another app (never a link to scrap).
 Share appears only where the browser can share.</p></li>
 <li><p>Page text is shown as Markdown (headings, <strong>bold</strong>, <em>italic</em>, lists, quotes, code, links);
-<strong>Show raw text</strong> shows it exactly as typed, and the phone remembers the choice. The text is
-always stored as typed.</p></li>
+it is always stored as typed, and <strong>Edit</strong> shows it so.</p></li>
+<li><p>A page opened from <strong>Recent</strong> or a search shows where it is in that list (<em>3 of 23 ·
+Recent</em>): swipe left for the next one and right for the previous one, or use the ‹ › beside
+it (or the arrow keys). The page follows your finger and slides away to the next one; a short
+drag settles back, and at the first or last it only gives a little and says so. Back returns to the list. Swipes start
+away from the screen’s edges (the phone’s own Back gesture lives there) and are ignored on
+text that scrolls sideways, while zoomed in or while selecting text.</p></li>
 <li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
 <strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves.</p></li>
 <li><p>Nothing typed is lost: the composer and <strong>Edit</strong> keep a draft on the phone as you type
@@ -608,14 +618,14 @@ Claude</em>, <em>Failed</em> with the reason and <strong>Retry</strong>, or <em>
 (nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
 <strong>Reprocess</strong> sends it to Claude again; if you have edited its drawing, it asks first:
 <strong>Replace mine</strong>, or <strong>Keep mine</strong> (Claude’s new drawing goes into History).</p></li>
-<li><p><strong>Description</strong> and <strong>Text Claude read</strong>, folded; tap to open, and the text can be selected
-and copied.</p></li>
+<li><p><strong>Description</strong> and <strong>Text Claude read</strong>, open; tap a heading (its arrow) to fold it away,
+and the phone remembers that for the next page. The text can be selected and copied.</p></li>
 <li><p><strong>The drawing</strong> of a whiteboard or diagram, beside the photo when the screen is wide enough
 (a tablet, or a phone on its side), else under a <strong>Photo</strong> / <strong>Drawing</strong> switch. It is a
 picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
 the drawing is made in the photo’s own pixels.</p></li>
 </ul>
-<p>Tap the drawing (or <strong>Open drawing</strong>) to open it full screen:</p>
+<p>Tap the drawing to open it full screen:</p>
 <ul class="simple">
 <li><p>Pinch and drag to zoom and pan; <strong>Fit</strong> shows all of it again. <strong>Photo</strong> shows the photo
 beside the drawing (on its side) or over it (upright), to compare. The phone’s Back button
@@ -624,7 +634,8 @@ closes it.</p></li>
 <strong>Undo</strong> is in the top bar, <strong>Cancel</strong> puts the drawing back, <strong>Save</strong> stores it as a new
 version. Zoom, scroll and the edit are kept when switching between viewing and editing.</p></li>
 <li><p>Nothing drawn is lost: the edit is kept as a draft on the phone as you draw, so after Back, a
-failed save, a reload or a closed app, <strong>Edit (unsaved draft)</strong> brings it back
+failed save, a reload or a closed app, <strong>Edit</strong> (with a dot, and a line under the bar
+saying so) brings it back
 (<strong>Discard it</strong> drops it). If the drawing was changed elsewhere meanwhile, saving says so:
 <strong>Save mine</strong> adds yours as a newer version (theirs stays in History), or <strong>Discard mine,
 show theirs</strong>.</p></li>
