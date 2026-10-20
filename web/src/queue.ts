@@ -127,7 +127,9 @@ export class Queue {
       if (item.failed || item.next > this.now()) continue;
       const { status, detail } = await this.send(item).catch((e) => ({
         status: 0,
-        detail: e?.name === "TimeoutError" ? "timed out" : "offline",
+        // A dropped upload while the phone says it is online is not "offline"
+        detail:
+          e?.name === "TimeoutError" ? "timed out" : this.online() ? "connection lost" : "offline",
       }));
       if (status === 200 || status === 201) {
         await this.store.del(item.id);

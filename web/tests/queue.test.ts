@@ -56,7 +56,7 @@ describe("queue", () => {
     await q.add({ text: "x", source: "pwa", files: [] });
     await q.flush();
     let [item] = await q.items();
-    expect(item).toMatchObject({ attempts: 1, next: clock + backoff(0), error: "offline" });
+    expect(item).toMatchObject({ attempts: 1, next: clock + backoff(0), error: "connection lost" });
     await q.flush(); // not due yet: nothing sent
     expect(sent).toHaveLength(1);
     clock = item.next;
@@ -192,6 +192,25 @@ describe("queue", () => {
     await q.add({ text: "x", source: "pwa", files: [] });
     await q.flush();
     expect((await q.items())[0].error).toBe("timed out");
+  });
+
+  it("says the connection was lost, not offline, when an upload drops while online", async () => {
+    let online = true;
+    const q = new Queue(
+      idb,
+      send,
+      () => clock,
+      () => online,
+    );
+    replies = [0];
+    await q.add({ text: "x", source: "pwa", files: [] });
+    await q.flush();
+    expect((await q.items())[0].error).toBe("connection lost");
+    online = false;
+    clock += backoff(1);
+    replies = [0];
+    await q.flush(); // offline: not even tried
+    expect(sent).toHaveLength(1);
   });
 
   it("leaves nothing behind when storage refuses a capture", async () => {
