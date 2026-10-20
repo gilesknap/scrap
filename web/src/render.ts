@@ -58,6 +58,15 @@ const anchor = (text: string) =>
     .replace(/[^\p{L}\p{N}\s_-]/gu, "")
     .replace(/\s/g, "-")}`;
 
+/** A link's text as typed: markdown-it percent-encodes an href (a malformed % stays). */
+function decoded(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
 /** After parsing: safe links and images, heading ids, task list boxes. */
 function tidy(state: StateCore) {
   const ids = new Map<string, number>();
@@ -95,10 +104,11 @@ function inline(children: Token[], state: StateCore): Token[] {
   for (const t of children) {
     if (t.type === "link_open") {
       const href = String(t.attrGet("href") ?? "");
-      if (EXTERNAL.test(href)) {
+      if (opened.some((o) => !o.hidden)) t.hidden = true; // a link in a link: text only
+      else if (EXTERNAL.test(href)) {
         t.attrSet("target", "_blank");
         t.attrSet("rel", "noopener noreferrer");
-      } else if (href.startsWith("#")) t.attrSet("href", `#${anchor(href.slice(1))}`);
+      } else if (href.startsWith("#")) t.attrSet("href", `#${anchor(decoded(href.slice(1)))}`);
       else if (!t.meta?.wiki && !PAGE.test(href)) t.hidden = true; // its text stays
       opened.push(t);
     } else if (t.type === "link_close") {

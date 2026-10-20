@@ -51,6 +51,14 @@ describe("markdown", () => {
     expect(html).toContain('<a href="#h-next-steps">them</a>');
   });
 
+  it("links to a heading with spaces, accents or quotes as it is typed", () => {
+    const html = one('# Café ünïcode\n\n## Two words\n\n[a](#café-ünïcode) [b](<#Two words>) [c](#100%)');
+    expect(html).toContain('<h1 id="h-café-ünïcode">');
+    expect(html).toContain('<a href="#h-café-ünïcode">a</a>');
+    expect(html).toContain('<a href="#h-two-words">b</a>');
+    expect(html).toContain('<a href="#h-100">c</a>'); // a malformed % is no error
+  });
+
   it("leaves a ```mermaid block as code, for the diagram chunk", () => {
     expect(one("```mermaid\ngraph TD; A-->B\n```")).toBe(
       '<pre><code class="language-mermaid">graph TD; A--&gt;B\n</code></pre>',
@@ -61,7 +69,18 @@ describe("markdown", () => {
     expect(one("[`code`](https://e.com)")).toBe(
       `<p>${a("https://e.com", "<code>code</code>")}</p>`,
     );
-    expect(one("[see [[a|Label]]](http://x)")).not.toMatch(/<a[^>]*>[^<]*<a/);
+    const nested = /<a[^>]*>(?:(?!<\/a>).)*<a/s;
+    for (const text of [
+      "[see [[a|Label]]](http://x)",
+      "[[a|<https://x.y>]]",
+      "[a <https://x.y>](https://y.z)",
+      "[[a|see https://x.y]]",
+      "[a https://x.y b](https://y.z)",
+    ]) {
+      const html = one(text);
+      expect(html, text).not.toMatch(nested);
+      expect(html, text).toMatch(/x(\.y)?/); // the inner link's text stays
+    }
   });
 
   it("leaves snake_case and lone stars alone", () => {

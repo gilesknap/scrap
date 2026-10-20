@@ -83,7 +83,11 @@ document.addEventListener("click", (e) => {
   e.preventDefault();
   if (a.hash && a.pathname === location.pathname && a.search === location.search) {
     // A heading or footnote of this page: scrolled to, not routed
-    document.getElementById(decodeURIComponent(a.hash.slice(1)))?.scrollIntoView();
+    let id = a.hash.slice(1);
+    try {
+      id = decodeURIComponent(id);
+    } catch {} // a malformed % stays as typed
+    document.getElementById(id)?.scrollIntoView();
     return;
   }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
