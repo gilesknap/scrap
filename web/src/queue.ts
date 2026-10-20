@@ -29,10 +29,13 @@ export interface Item extends Capture {
 /** POST the item; resolve to the HTTP status and the server's reason, or reject. */
 export type Send = (item: Item) => Promise<{ status: number; detail?: string }>;
 
-/** Run fn holding the queue lock, so two open tabs never send the same item at once. */
-export type Lock = (fn: () => Promise<void>) => Promise<void>;
-const webLock: Lock = (fn) =>
-  globalThis.navigator?.locks ? navigator.locks.request("scrap-queue", fn) : fn();
+/** Run fn holding the queue lock, so two open tabs never send the same item at once.
+ * ifFree: skip fn (resolve at once) if another tab holds it, i.e. is uploading. */
+export type Lock = (fn: () => Promise<void>, ifFree?: boolean) => Promise<void>;
+const webLock: Lock = (fn, ifFree = false) =>
+  globalThis.navigator?.locks
+    ? navigator.locks.request("scrap-queue", { ifAvailable: ifFree }, (l) => (l ? fn() : undefined))
+    : fn();
 
 export const backoff = (attempts: number) => Math.min(5 * 60_000, 2000 * 2 ** attempts);
 
@@ -90,6 +93,16 @@ export class Queue {
     return this.running;
   }
 
+  /** The app opened, came back into view or online: send what is waiting now, backoff or
+   * not (failed items stay failed). Nothing if an upload is already running, here or in
+   * another tab: no second attempt on top of it. */
+  nudge(): Promise<void> {
+    this.running ??= this.lock(() => this.sendDue(true), true).finally(() => {
+      this.running = undefined;
+    });
+    return this.running;
+  }
+
   /** Tap to retry: failed and waiting items (or just the one with id) are due now. */
   async retry(id?: string): Promise<void> {
     await this.running;
@@ -120,11 +133,11 @@ export class Queue {
     return this.lock(() => this.sendDue());
   }
 
-  private async sendDue() {
+  private async sendDue(now = false) {
     clearTimeout(this.timer);
     if (!this.online()) return; // no timer: the "online" event flushes again
     for (const item of await this.items()) {
-      if (item.failed || item.next > this.now()) continue;
+      if (item.failed || (!now && item.next > this.now())) continue;
       const { status, detail } = await this.send(item).catch((e) => ({
         status: 0,
         // A dropped upload while the phone says it is online is not "offline"

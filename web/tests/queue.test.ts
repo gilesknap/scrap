@@ -194,6 +194,61 @@ describe("queue", () => {
     expect((await q.items())[0].error).toBe("timed out");
   });
 
+  it("nudge sends what waits now, backoff or not, but not what failed", async () => {
+    const q = queue();
+    replies = [0, 413];
+    await q.add({ text: "waiting", source: "pwa", files: [] });
+    await q.flush(); // offline: backs off
+    {
+      const [item] = await q.items();
+      expect(item.next).toBeGreaterThan(clock);
+    }
+    await q.flush(); // the timer's way: not due, nothing sent
+    expect(sent).toHaveLength(1);
+    await q.nudge(); // the app opened: sent now
+    expect(sent).toHaveLength(2);
+    expect((await q.items())[0]).toMatchObject({ failed: true }); // 413
+    await q.nudge(); // failed stays failed until the user taps retry
+    expect(sent).toHaveLength(2);
+  });
+
+  it("nudge makes no second attempt while an upload is running", async () => {
+    let finish: () => void = () => {};
+    let calls = 0;
+    const slow = () => {
+      calls++;
+      return new Promise<{ status: number }>((ok) => (finish = () => ok({ status: 201 })));
+    };
+    const q = new Queue(idb, slow, () => clock);
+    await q.add({ text: "big photo", source: "pwa", files: [] }); // starts sending
+    await vi.waitFor(() => expect(calls).toBe(1));
+    const nudged = q.nudge();
+    await Promise.resolve();
+    expect(calls).toBe(1);
+    finish();
+    await nudged;
+    expect(calls).toBe(1);
+    expect(await q.items()).toEqual([]);
+  });
+
+  it("nudge skips the run if another tab holds the lock", async () => {
+    const q = queue();
+    replies = [0];
+    await q.add({ text: "x", source: "pwa", files: [] });
+    await q.flush();
+    const busy = new Queue(
+      idb,
+      send,
+      () => clock,
+      () => true,
+      async (fn, ifFree) => {
+        if (!ifFree) await fn(); // held elsewhere: only a waiting request gets it
+      },
+    );
+    await busy.nudge();
+    expect(sent).toHaveLength(1);
+  });
+
   it("says the connection was lost, not offline, when an upload drops while online", async () => {
     let online = true;
     const q = new Queue(
