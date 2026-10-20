@@ -339,6 +339,22 @@ failed (a dead job), with `last_error` and a *retry* button. The original and th
 exist, so nothing is lost; if `summarise` fails, the kind stays as the user chose or `extract` left it,
 else `note`.
 
+## Images in the text
+
+Every page is Markdown with its images embedded (#48). A photo capture's page text is its text,
+if any, then one `![](/api/blobs/<sha>/preview?size=2048)` per image, in order; from then on the
+text is the user's: ingest never touches it, and reprocessing only adds derived versions. The PWA
+shows each embedded image of this server's files where the text puts it, as a figure: a tap opens
+the photo viewer (every image of the page, in order), and its caption has the file's name,
+Download and *Ask Claude*, which queues ingest for that one image (on any capture holding it,
+not only photo captures). Once queued it is the photo's panel instead: its state, then what
+Claude read, described and drew. Below the text are only the files it doesn't embed (PDFs, or
+photos of pages made before this). Images on lines of their own (one or several in a row) become
+figures; one in a link, heading, list or quote, or beside text, stays a plain image, and its file
+is listed below the text as well. A page's download (and `scrap export`) points the text's images
+and links at the files beside it (never inside code) and doesn't list a shown image again. Share
+leaves out lines that only embed images. The figure code is a lazy chunk, outside the app shell.
+
 ## Excalidraw
 
 The photo and its derived drawing are shown side by side. The PWA embeds the Excalidraw React
@@ -411,8 +427,7 @@ so revisions and the search index stay consistent. Each page keeps the vault's d
 images, PDFs in a second `file` capture. The capture id is made from the page's path, so a second
 run skips pages already imported. Links between pages become `[[slug|label]]`, which the PWA
 renders as links to `/p/<slug>` (the `link` table does not exist yet); images are embedded as
-`![](/api/blobs/<sha>/preview?size=2048)`, and the PWA shows an image the body embeds there only,
-not again among the page's files (unless it has ingest results to show). Dates alone become noon
+`![](/api/blobs/<sha>/preview?size=2048)`, as a photo capture's are. Dates alone become noon
 UTC. A rerun never updates a page already imported.
 
 The search index holds the labels of links and images, not their addresses (for every page, not

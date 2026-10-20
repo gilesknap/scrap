@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev115+g7822f4e35 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev119+g60851f9c5 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=995a0dbd"></script>
+    <script src="../_static/documentation_options.js?v=be63798a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -592,8 +592,13 @@ edit it (the page opens in its editor), to the <strong>left</strong> to delete i
 seconds). The row follows your finger with <em>Edit</em> or <em>Delete</em> showing behind it; past a third
 of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
 it slides back. The page itself has the same Edit and Delete.</p></li>
-<li><p>A page shows its text and its files: photos inline (as previews the server makes, so iPhone HEIC
-photos show too), other files as links. Each has a <strong>Download</strong> of the original.</p></li>
+<li><p>A photo capture’s photos are part of its page’s text, one line each (<code class="docutils literal notranslate"><span class="pre">![](/api/blobs/...)</span></code>),
+in the order taken: edit the text to move or remove them. Claude reading a photo never
+changes the text. The page shows each photo where its line is, as a preview the server makes
+(so iPhone HEIC photos show too), with its file name, a <strong>Download</strong> of the original and
+<strong>Ask Claude</strong>, which sends that photo to Claude; once sent, the photo shows Claude’s
+progress (waiting, reading, paused) and then what it read, described and drew. Below the text
+are the files it doesn’t show, such as PDFs, as links with a <strong>Download</strong>.</p></li>
 <li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
 drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
 <strong>Download</strong> and <strong>Share</strong> are along the bottom and the cross at the top right closes it, as
@@ -601,7 +606,9 @@ does the phone’s Back button. <strong>Share</strong> sends the photo to anothe
 JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
 phone allows, a <strong>Photo ready</strong> message offers <strong>Share</strong> again.</p></li>
 <li><p><strong>Download</strong> on a page saves it as Markdown, or as a zip of the Markdown and its files when it
-has any. <strong>Share</strong> sends its title and text, as typed, to another app (never a link to scrap).
+has any; its photos are in the zip and its text points at them there. <strong>Share</strong> sends its
+title and text to another app, as typed but without the lines that only show a photo (never a
+link to scrap).
 Share appears only where the browser can share.</p></li>
 <li><p>Page text is shown as Markdown (headings, <strong>bold</strong>, <em>italic</em>, lists, quotes, code, links);
 it is always stored as typed, and <strong>Edit</strong> shows it so.</p></li>

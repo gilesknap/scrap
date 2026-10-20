@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev115+g7822f4e35 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev119+g60851f9c5 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=995a0dbd"></script>
+    <script src="../_static/documentation_options.js?v=be63798a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -855,6 +855,22 @@ exist, so nothing is lost; if <code class="docutils literal notranslate"><span c
 else <code class="docutils literal notranslate"><span class="pre">note</span></code>.</p>
 </section>
 </section>
+<section id="images-in-the-text">
+<h2>Images in the text<a class="headerlink" href="#images-in-the-text" title="Link to this heading">#</a></h2>
+<p>Every page is Markdown with its images embedded (#48). A photo capture’s page text is its text,
+if any, then one <code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code> per image, in order; from then on the
+text is the user’s: ingest never touches it, and reprocessing only adds derived versions. The PWA
+shows each embedded image of this server’s files where the text puts it, as a figure: a tap opens
+the photo viewer (every image of the page, in order), and its caption has the file’s name,
+Download and <em>Ask Claude</em>, which queues ingest for that one image (on any capture holding it,
+not only photo captures). Once queued it is the photo’s panel instead: its state, then what
+Claude read, described and drew. Below the text are only the files it doesn’t embed (PDFs, or
+photos of pages made before this). Images on lines of their own (one or several in a row) become
+figures; one in a link, heading, list or quote, or beside text, stays a plain image, and its file
+is listed below the text as well. A page’s download (and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>) points the text’s images
+and links at the files beside it (never inside code) and doesn’t list a shown image again. Share
+leaves out lines that only embed images. The figure code is a lazy chunk, outside the app shell.</p>
+</section>
 <section id="excalidraw">
 <h2>Excalidraw<a class="headerlink" href="#excalidraw" title="Link to this heading">#</a></h2>
 <p>The photo and its derived drawing are shown side by side. The PWA embeds the Excalidraw React
@@ -955,8 +971,7 @@ so revisions and the search index stay consistent. Each page keeps the vault’s
 images, PDFs in a second <code class="docutils literal notranslate"><span class="pre">file</span></code> capture. The capture id is made from the page’s path, so a second
 run skips pages already imported. Links between pages become <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, which the PWA
 renders as links to <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code> (the <code class="docutils literal notranslate"><span class="pre">link</span></code> table does not exist yet); images are embedded as
-<code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code>, and the PWA shows an image the body embeds there only,
-not again among the page’s files (unless it has ingest results to show). Dates alone become noon
+<code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code>, as a photo capture’s are. Dates alone become noon
 UTC. A rerun never updates a page already imported.</p>
 <p>The search index holds the labels of links and images, not their addresses (for every page, not
 only imported ones), so <code class="docutils literal notranslate"><span class="pre">/api/blobs/...</span></code> and URLs in Markdown links (<code class="docutils literal notranslate"><span class="pre">&lt;...&gt;</span></code> addresses too) are
@@ -1077,6 +1092,7 @@ MCP port only; scoped <code class="docutils literal notranslate"><span class="pr
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#background-jobs">Background jobs</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#images-in-the-text">Images in the text</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw">Excalidraw</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mcp-tools-v0">MCP tools (v0)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#security-posture">Security posture</a></li>
