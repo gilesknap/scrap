@@ -235,7 +235,11 @@ rewrites the user's words or fits them to templates.
   offered until wanted; a hard-coded list until real use asks for configurable kinds). A bare
   URL pre-selects Read; photos skip the choice (ingest classifies them; the user can change it).
   The capture's `kind` field or `PATCH /api/pages/{id}` sets it.
-- **A kind change** (capture kind, PWA edit, `extract` or `summarise`) **resets `fields`** to the new kind's
+- **A kind the user changes** (PWA edit, `PATCH`) **keeps every field** the page has (a summary,
+  a due date, an imported status: a stray tap on a chip must lose nothing) and adds the new
+  kind's defaults for the keys it lacks. So todo -> note -> todo comes back as it was, and a
+  status or subtype carried over keeps its value.
+- **A kind set by a capture, `extract` or `summarise`** starts from the new kind's
   defaults plus any checked model output: todo `{"status":"open"}`; consume
   `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL (omitted if it has
   none). Either way the page is listed at once, even if `summarise` never succeeds.

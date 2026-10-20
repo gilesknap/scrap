@@ -23,7 +23,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt
 from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -85,7 +85,8 @@ class Restore(BaseModel):
 
 
 FIELD_NAME = Annotated[str, Field(min_length=1, max_length=40)]
-FIELD = Annotated[str, Field(max_length=200)]
+# A field's value: flat, as the importer stores them too (None in a PATCH drops it)
+FIELD = Annotated[str, Field(max_length=200)] | StrictBool | StrictInt | StrictFloat
 
 
 class PageEdit(BaseModel):

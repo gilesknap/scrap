@@ -26,7 +26,9 @@ The buttons say how you capture, not what the page is. Its **kind** is chosen in
 default), **Todo**, **Read** (to read later), **Board** (a whiteboard) or **Doc** (a document). A link on its own
 picks **Read** for you until you pick something else. Photos skip the choice: Claude reads them
 and makes a whiteboard or document a page of that kind, and you can change it after. A kind
-you choose is kept: Claude never changes it.
+you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
+already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
+changing it back gives the page as it was.
 
 In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.

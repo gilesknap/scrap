@@ -180,12 +180,16 @@ export async function page(key: string): Promise<Node> {
     ]);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
     const { editor, kindPicker, suggested, toSend } = mod;
-    // Its kind; a link nobody filed yet suggests Read
-    const was = p.kind_fixed || p.kind !== "note" ? p.kind : suggested(p.body);
-    const kind = kindPicker(kept?.kind ?? was, !!kept?.picked);
+    // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
+    // as in the composer, until the user picks one; a draft's kind only if the user picked it
+    const unfiled = !p.kind_fixed && p.kind === "note";
+    const was = unfiled ? suggested(p.body) : p.kind;
+    const initial = unfiled ? suggested(kept?.text ?? p.body) : p.kind;
+    const kind = kindPicker(kept?.picked ? (kept.kind ?? initial) : initial, !!kept?.picked);
     let base = kept?.base ?? p.rev;
     const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
+    if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(text.value)));
     const conflict = h("div");
     const save = async () => {
       try {

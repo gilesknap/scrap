@@ -212,13 +212,34 @@ def test_edit_kind_fixes_it_and_fills_its_fields(client, note):
     }  # fmt: skip
     assert read["updated_at"] == before["updated_at"]  # stays put in Recent
     todo = client.patch(url, json={"kind": "todo"}).json()
-    assert todo["fields"] == {"status": "open"}
+    assert todo["fields"] == read["fields"]  # kept: status is there already
     done = client.patch(url, json={"fields": {"status": "done"}}).json()
-    assert (done["kind"], done["fields"]) == ("todo", {"status": "done"})
+    assert (done["kind"], done["fields"]["status"]) == ("todo", "done")
     same = client.patch(url, json={"kind": "todo", "base_rev": 1, "body": "x"}).json()
-    assert (same["fields"], same["rev"], same["body"]) == ({"status": "done"}, 2, "x")
-    gone = client.patch(url, json={"fields": {"status": None}}).json()
-    assert gone["fields"] == {}
+    assert (same["fields"], same["rev"], same["body"]) == (done["fields"], 2, "x")
+    gone = client.patch(url, json={"fields": {"status": None, "subtype": None}}).json()
+    assert gone["fields"] == {"source": "https://example.com/a"}
+
+
+def test_a_kind_change_keeps_every_field(client, note):
+    url = f"/api/pages/{note('imported')['page_id']}"
+    imported = {
+        "status": "done", "due": "2026-11-01", "priority": 2, "estimate": 1.5,
+        "personal": True, "summary": "s" * 200,
+    }  # fmt: skip
+    first = client.patch(url, json={"kind": "todo", "fields": imported}).json()
+    assert first["fields"] == imported  # values of any flat type, as the importer's
+    there_and_back = [
+        client.patch(url, json={"kind": kind}).json()["fields"]
+        for kind in ("note", "consume", "todo")
+    ]
+    assert there_and_back[0] == imported
+    # consume adds its missing default, and it stays: nothing is ever dropped
+    assert there_and_back[1] == there_and_back[2] == {**imported, "subtype": "read"}
+    fresh = f"/api/pages/{note('fresh')['page_id']}"
+    assert client.patch(fresh, json={"kind": "todo"}).json()["fields"] == {
+        "status": "open"
+    }
 
 
 @pytest.mark.parametrize(
@@ -226,7 +247,8 @@ def test_edit_kind_fixes_it_and_fills_its_fields(client, note):
     [
         {"kind": "memory"},
         {"body": "no base_rev"},
-        {"fields": {"a": 1}},
+        {"fields": {"a": [1]}},
+        {"fields": {"a": {"b": "c"}}},
         {"fields": {"": "empty name"}},
         {"fields": {"k" * 41: "x"}},
         {"fields": {"a": "x" * 201}},

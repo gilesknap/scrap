@@ -34,6 +34,7 @@ DEFAULT_FIELDS = {
     "todo": {"status": "open"},
     "consume": {"subtype": "read", "status": "open"},
 }
+HINT_FIELDS = DEFAULT_FIELDS  # its older name, used by the importer (#47): remove later
 HINTS = ("todo", "consume")  # the older capture field, still accepted
 ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
 SOURCES = ("pwa", "share", "mcp")
@@ -117,9 +118,12 @@ def lines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
-def fields_for(kind: str | None, url: str | None) -> dict[str, str]:
+Value = str | int | float | bool  # a field's value: flat, no nulls
+
+
+def fields_for(kind: str | None, url: str | None) -> dict[str, Value]:
     """A kind's default fields; consume also links its source, if it has one."""
-    fields = dict(DEFAULT_FIELDS.get(kind or "", {}))
+    fields: dict[str, Value] = dict(DEFAULT_FIELDS.get(kind or "", {}))
     if kind == "consume" and url:
         fields["source"] = url
     return fields
@@ -441,7 +445,7 @@ class Store:
         body: str | None,
         author: str,
         kind: str | None = None,
-        fields: dict[str, str | None] | None = None,
+        fields: dict[str, Value | None] | None = None,
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
         and/or its kind (the user's choice, which ingest then keeps) and fields."""
@@ -486,12 +490,13 @@ class Store:
         conn: sqlite3.Connection,
         page: sqlite3.Row,
         kind: str | None,
-        changes: dict[str, str | None],
+        changes: dict[str, Value | None],
     ) -> None:
-        """A kind the user chose, fixed so ingest never changes it: a new kind starts
-        from its default fields. Then changes to the fields (None drops one), at most
-        MAX_FIELDS in all. Neither is a new revision, nor moves the page up the recent
-        list."""
+        """A kind the user chose, fixed so ingest never changes it. A new kind keeps
+        every field the page has (a summary, a due date, an imported status: a stray
+        tap must lose nothing) and adds its defaults for those it lacks. Then changes to
+        the fields (None drops one), at most MAX_FIELDS in all. Neither is a new
+        revision, nor moves the page up the recent list."""
         fields = json.loads(page["fields"])
         if kind is not None and kind != page["kind"]:
             url = conn.execute(
@@ -499,7 +504,7 @@ class Store:
                 " ORDER BY received_at LIMIT 1",
                 (page["id"],),
             ).fetchone()
-            fields = fields_for(kind, url and url[0])
+            fields = {**fields_for(kind, url and url[0]), **fields}  # the page's win
         for name, value in changes.items():
             if value is None:
                 fields.pop(name, None)

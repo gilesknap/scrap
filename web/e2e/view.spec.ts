@@ -638,3 +638,31 @@ test("a Note chosen for a link is kept, not made Read later", async ({ page }) =
   await page.getByPlaceholder("Note or link").fill("https://example.com/later");
   await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
 });
+
+test("a draft keeps only a kind the user picked, not one suggested", async ({ page }) => {
+  const slug = await note(page, "https://example.com/draft-kind");
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // suggested only
+  await page.getByLabel("Title").fill("A link to read");
+  await page.waitForTimeout(600); // kept as a draft
+  await page.goBack(); // closes the editor, keeping the draft
+  await expect(page.locator(".editor")).toBeHidden();
+  const url = `/api/pages/${slug}`;
+  await page.request.patch(url, { data: { kind: "todo" } }); // chosen elsewhere meanwhile
+  await page.reload();
+  await page.getByRole("button", { name: "Edit draft (unsaved)" }).click();
+  await expect(page.getByLabel("Title")).toHaveValue("A link to read");
+  await expect(page.getByRole("radio", { name: "Todo" })).toBeChecked();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  expect(await (await page.request.get(url)).json()).toMatchObject({ kind: "todo" });
+
+  // On an unfiled note the suggestion follows the text, as in the composer
+  const other = await note(page, "https://example.com/commented");
+  await page.goto(`/p/${other}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
+  await page.getByLabel("Body").fill("https://example.com/commented\n\nmy own thoughts");
+  await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
+});

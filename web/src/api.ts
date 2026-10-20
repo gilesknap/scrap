@@ -34,7 +34,7 @@ export interface Summary {
   slug: string;
   title: string;
   kind: string;
-  fields: Record<string, string>; // e.g. a todo's status: open or done
+  fields: Record<string, string | number | boolean>; // e.g. a todo's status: open or done
   created_at: string;
   updated_at: string;
   thumb: string | null;
