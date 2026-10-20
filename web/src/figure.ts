@@ -16,7 +16,7 @@ import {
 } from "./api";
 import { icon } from "./icons";
 import { photoPanel } from "./ingest";
-import { download, h, settle, toast } from "./ui";
+import { download, h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
 type Placed = FileRef & { cid: string };
@@ -70,7 +70,7 @@ export function figures(
     const img = settle(h("img", { src: photos[at - 1].src, alt: name, loading: "lazy" }));
     const open = (e: Event) => {
       e.preventDefault();
-      viewer(photos, at - 1);
+      viewer(photos, at - 1, pageLink(p.slug));
     };
     const caption = h("figcaption", {}, h("span", {}, name), save);
     const fig = h("figure", { className: "orig" }, h("a", { href, onclick: open }, img), caption);
