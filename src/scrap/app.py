@@ -36,6 +36,7 @@ from .store import (
     Store,
     TooLargeError,
     new_ulid,
+    upload_limit,
 )
 
 __all__ = ["create_app"]
@@ -165,7 +166,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     """Build the app on a data folder (default $SCRAP_DATA_DIR, else ./data)."""
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
     store.migrate()
-    limit = int(float(os.environ.get("SCRAP_MAX_UPLOAD_MB", "50")) * 2**20)
+    limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
 
     @asynccontextmanager

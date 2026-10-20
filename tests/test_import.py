@@ -288,6 +288,7 @@ def test_dates_and_front_matter(tmp_path):
     write(root, "notes/bad.md", "---\ntype: entity\ncreated: 2024-13-45\n---\nb\n")
     write(root, "notes/junk.md", '---\ncreated: "garbage"\nupdated: 2024-05-05\n---\n')
     write(root, "notes/empty.md", "---\n---\nbody only\n")
+    write(root, "notes/compact.md", '---\nupdated: "20240302"\n---\n')
     store, plan = edge_plan(tmp_path, root)
     assert store.page("quoted")["created_at"] == "2024-03-01T12:00:00.000Z"
     assert store.page("stamp")["created_at"] == "2024-03-01T08:00:00.000Z"
@@ -295,6 +296,7 @@ def test_dates_and_front_matter(tmp_path):
     bad = store.page("bad")  # imported as if it had no front matter
     assert bad["kind"] == "note" and bad["body"].startswith("---\ntype: entity")
     assert store.page("empty")["body"] == "body only"
+    assert store.page("compact")["created_at"] == "2024-03-02T12:00:00.000Z"
     assert plan.issues["invalid date"] == ["notes/junk.md: created"]
     assert [i.split(":")[0] for i in plan.issues["bad front matter"]] == [
         "notes/bad.md"
@@ -311,7 +313,9 @@ def test_embeds_anchors_and_ambiguous_names(tmp_path):
         "notes/page.md",
         front(title="Page")
         + "![[my pic.png]] ![](../raw/assets/my%20pic.png) ![](../raw/assets/logo.svg)"
-        "\n[sec](dup.md#part) [[#A heading]] [[dup]] [[other]] [[odd]]\n",
+        "\n[sec](dup.md#part) [[#A heading]] [[dup]] [[other]] [[odd]]\n"
+        "[[memories/dup]] [[../memories/dup.md|up]]\n| [[odd\\|cell]] |\n"
+        "```\n```js\n[[dup]]\n```\n[[dup]]\n",
     )
     write(root, "notes/dup.md", front(title="Dup in notes"))
     write(root, "memories/dup.md", front(title="Dup in memories", type="memory"))
@@ -324,6 +328,8 @@ def test_embeds_anchors_and_ambiguous_names(tmp_path):
     assert body.startswith(f"![]({inline[4:]} {inline} *logo.svg (attached)*")
     assert "[[dup-2|sec]] A heading [[dup-2|Dup in notes]] [[other|Other]]" in body
     assert "[[odd|Odd ) title]]" in body
+    assert "[[dup|Dup in memories]] [[dup|up]]\n| [[odd|cell]] |" in body
+    assert body.endswith("```\n```js\n[[dup]]\n```\n[[dup-2|Dup in notes]]")
     files = [
         (c["kind"], [b["filename"] for b in c["blobs"]])
         for c in store.page("page")["captures"]
@@ -331,6 +337,7 @@ def test_embeds_anchors_and_ambiguous_names(tmp_path):
     assert files == [("photo", ["my pic.png"]), ("file", ["logo.svg"])]
     assert sorted(plan.issues["ambiguous link"]) == [
         "notes/page.md: dup -> notes/dup.md",
+        "notes/page.md: dup -> notes/dup.md",  # once more, after the fences
         "notes/page.md: other -> media/other.md",
     ]
 
@@ -397,3 +404,19 @@ def test_search_ignores_link_and_image_addresses(tmp_path, vault):
     assert store.search("api blobs", 5) == [] and store.search("example", 5) == []
     assert [h["slug"] for h in store.search("chart", 5)] == ["alpha"]  # alt text
     assert [h["slug"] for h in store.search("wiki beta", 5)] == ["alpha"]  # label
+
+
+def test_a_bad_upload_limit_is_a_clear_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_MAX_UPLOAD_MB", "lots")
+    with pytest.raises(SystemExit, match="SCRAP_MAX_UPLOAD_MB must be a number"):
+        importer.plan(tmp_path, Store(tmp_path / "data"))
+
+
+def test_long_field_values_are_cut(tmp_path):
+    root = tmp_path / "v"
+    write(root, "notes/long.md", front(title="Long", summary="word " * 100))
+    store, plan = edge_plan(tmp_path, root)
+    summary = store.page("long")["fields"]["summary"]
+    assert len(summary) == 200 and summary.endswith("word…")
+    assert plan.issues["field cut"] == ["notes/long.md: summary: 499 characters"]
+    assert "word " * 100 in store.page("long")["captures"][0]["text"]  # all of it

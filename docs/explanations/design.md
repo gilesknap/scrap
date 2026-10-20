@@ -404,7 +404,10 @@ not again among the page's files (unless it has ingest results to show). Dates a
 UTC. A rerun never updates a page already imported.
 
 The search index holds the labels of links and images, not their addresses (for every page, not
-only imported ones), so `/api/blobs/...` and URLs in Markdown links are not words to find. A page
+only imported ones), so `/api/blobs/...` and URLs in Markdown links (and `<...>` addresses and reference definitions)
+are not words to find: a hand-written link is found by its text, not its domain, by choice. Not
+handled: a link whose text holds brackets keeps its URL, a URL with parentheses leaves a `)`, and
+code is unlinked like the rest. A page
 indexed before that keeps its old chunk until it is next edited; there is no `scrap reindex` yet,
 and an import into an empty data folder is indexed this way from the start.
 

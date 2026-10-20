@@ -26,8 +26,12 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 BARE_URL = re.compile(r"https?://\S+")
 WORD = re.compile(r"[^\W_]")  # a letter or digit
 MAX_WORDS = 16  # search words used
-MD_LINK = re.compile(r"!?\[([^\]\n]*)\]\([^)\s]*(?:\s+\"[^\"\n]*\")?\)")
-WIKI_LINK = re.compile(r"\[\[([^\]|\n]+)(?:\|([^\]\n]+))?\]\]")
+# Each part stops at the next bracket, so no line takes more than linear time
+MD_LINK = re.compile(
+    r"!?\[([^\[\]\n]*)\]\((?:<[^<>\n]*>|[^()\s]*)(?:\s+\"[^\"\n]*\")?\)"
+)
+WIKI_LINK = re.compile(r"\[\[([^\[\]|\n]+)(?:\|([^\[\]\n]+))?\]\]")
+REF_DEF = re.compile(r"^( {0,3}\[[^\[\]\n]+\]:)[ \t]*\S+.*$", re.M)  # [r]: url
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 HINT_FIELDS = {
@@ -75,11 +79,24 @@ def new_ulid() -> str:
     return "".join(CROCKFORD[(n >> shift) & 31] for shift in range(125, -1, -5))
 
 
+def upload_limit() -> int:
+    """The largest upload (and imported file), from SCRAP_MAX_UPLOAD_MB."""
+    value = os.environ.get("SCRAP_MAX_UPLOAD_MB", "50")
+    try:
+        return int(float(value) * 2**20)
+    except ValueError:
+        raise SystemExit(
+            f"SCRAP_MAX_UPLOAD_MB must be a number, not {value!r}"
+        ) from None
+
+
 def unlink(text: str) -> str:
     """Markdown text with each link or image reduced to its label, and a page link to
-    its label (else slug): addresses are not words to search for."""
+    its label (else slug): addresses are not words to search for. Not handled: link
+    text holding brackets, a URL with parentheses (leaves a ")"), and code (unlinked
+    too)."""
     text = WIKI_LINK.sub(lambda m: m[2] or m[1], text)
-    return MD_LINK.sub(r"\1", text)
+    return REF_DEF.sub(r"\1", MD_LINK.sub(r"\1", text))
 
 
 def slug_base(title: str) -> str:

@@ -8,7 +8,6 @@ SCHEMA pages, and anything else that is not a page. See docs/how-to/import-a-vau
 
 import hashlib
 import mimetypes
-import os
 import posixpath
 import re
 from collections import Counter
@@ -20,7 +19,19 @@ from urllib.parse import unquote
 
 import yaml
 
-from .store import CROCKFORD, HINT_FIELDS, BlobRef, Store, lines, slug_base
+from .store import (
+    CROCKFORD,
+    BlobRef,
+    Store,
+    lines,
+    slug_base,
+    upload_limit,
+)
+
+try:  # TODO: once #46 and this are both merged, import DEFAULT_FIELDS only
+    from .store import DEFAULT_FIELDS  # type: ignore[attr-defined]
+except ImportError:
+    from .store import HINT_FIELDS as DEFAULT_FIELDS
 
 __all__ = ["plan", "run", "report", "Plan"]
 
@@ -76,6 +87,7 @@ PREVIEWABLE = {
     "image/heic",
     "image/heif",
 }
+MAX_VALUE, MAX_KEY, MAX_FIELDS = 200, 40, 32  # as a PWA edit of fields allows
 MAX_ALIASES = 64  # YAML aliases per page: refuse an alias bomb (Thoth uses a few)
 # One pass over a body: inline code (kept), wiki links and embeds, Markdown links and
 # images. Fenced code blocks are skipped before this. A code span's backtick runs are
@@ -137,9 +149,9 @@ def _stamp(value: Any) -> str | None:
     alone is noon UTC."""
     if isinstance(value, str):
         text = value.strip()
-        try:
-            value = date.fromisoformat(text) if len(text) == 10 else None
-            value = value or datetime.fromisoformat(text)
+        try:  # a date alone (2024-03-02 or 20240302) has no time part
+            alone = "T" not in text.upper() and " " not in text
+            value = date.fromisoformat(text) if alone else datetime.fromisoformat(text)
         except ValueError:
             return None
     if isinstance(value, datetime):
@@ -203,7 +215,7 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
     title = title or (heading[1].strip() if heading else Path(rel).stem)
     if heading and heading[1].strip() == title:  # the page shows its title already
         body = body[heading.end() :]
-    fields: dict[str, Any] = dict(HINT_FIELDS.get(kind, {}))
+    fields: dict[str, Any] = dict(DEFAULT_FIELDS.get(kind, {}))
     for key, value in fm.items():
         if key in USED or value is None:
             continue
@@ -215,12 +227,18 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
             continue
         if isinstance(value, str):
             value = " ".join(value.split())
+            if len(value) > MAX_VALUE:  # the whole of it stays in the capture's text
+                plan.note("field cut", rel, f"{key}: {len(value)} characters")
+                value = value[: MAX_VALUE - 1] + "…"
         if name in ("status", "priority", "media_type"):
             value = str(value).lower()
             value = STATUS.get(value, value)
         if name == "status" and value not in STATUSES:
             plan.note("unknown status", rel, str(value))
         if name == "source" and "source" in fields:  # the first of url and source_url
+            continue
+        if name not in fields and len(fields) >= MAX_FIELDS:
+            plan.note("field dropped", rel, f"{key}: over {MAX_FIELDS} fields")
             continue
         fields[name] = value
     if kind == "consume" and fields.get("media_type") in SUBTYPE:
@@ -269,6 +287,12 @@ class _Linker:
 
     def find(self, src: str, target: str, wiki: bool) -> tuple[str | None, bool]:
         """The vault path a link names, and whether it was only found by its name."""
+        if wiki and "/" in target:  # a path: from the top, else from here
+            for base in ("", posixpath.dirname(src)):
+                path = posixpath.normpath(posixpath.join(base, target))
+                for rel in (path, path + ".md"):
+                    if rel in self.files:
+                        return rel, False
         if wiki:  # Obsidian: by name, wherever it is
             name = posixpath.basename(target).lower()
             got = self.by_name.get(name) or self.by_name.get(name + ".md") or []
@@ -330,7 +354,8 @@ class _Linker:
         wiki = m["wiki"] is not None
         embed = bool(m["wbang"] if wiki else m["bang"])
         if wiki:
-            target, _, label = m["wiki"].partition("|")
+            # A wiki link in a table cell escapes its pipe
+            target, _, label = m["wiki"].replace("\\|", "|").partition("|")
             target = target.split("#")[0].strip()
             label = label.strip()
         else:
@@ -371,9 +396,11 @@ class _Linker:
         fence = ""
         for line in page.body.split("\n"):
             opened = FENCE.match(line)
-            if fence:
-                if opened and opened[1][0] == fence[0] and len(opened[1]) >= len(fence):
-                    fence = ""
+            if fence:  # closed by the same character, at least as many, nothing after
+                run = opened[1] if opened else ""
+                if run[:1] == fence[0] and len(run) >= len(fence):
+                    if not line.strip().strip(fence[0]):
+                        fence = ""
                 out.append(line)
             elif opened:
                 fence = opened[1]
@@ -386,8 +413,7 @@ class _Linker:
 def plan(vault: Path, store: Store) -> Plan:
     """Read the vault and work out every page, its slug and its rewritten body.
     Writes nothing; slugs already in store are avoided."""
-    limit = int(float(os.environ.get("SCRAP_MAX_UPLOAD_MB", "50")) * 2**20)
-    result = Plan(vault, limit=limit)
+    result = Plan(vault, limit=upload_limit())
     root = vault.resolve()
     files: dict[str, Path] = {}
     for path in sorted(vault.rglob("*")):
@@ -448,13 +474,21 @@ def plan(vault: Path, store: Store) -> Plan:
 def run(store: Store, plan: Plan, ingest: bool = False, author: str = "import") -> int:
     """Import the planned pages that are not there yet; return how many."""
     store.migrate()
+    root = plan.vault.resolve()
     count = 0
     for page in plan.pages:
         if not page.new:
             continue
         blobs: dict[str, BlobRef] = {}
         for rel in page.images + page.files:
-            with open(plan.vault / rel, "rb") as f:
+            path = plan.vault / rel  # checked again: it may have changed since plan()
+            if (
+                path.is_symlink()
+                or not path.resolve().is_relative_to(root)
+                or path.stat().st_size > plan.limit
+            ):
+                raise SystemExit(f"{rel} changed since it was checked: run again")
+            with open(path, "rb") as f:
                 sha, size = store.put_blob(f)
             mime = mimetypes.guess_type(rel)[0] or "application/octet-stream"
             blobs[rel] = (sha, mime, size, posixpath.basename(rel))

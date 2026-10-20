@@ -30,7 +30,9 @@ type Panels = typeof import("./ingest");
 function originals(p: Page, queue: Queue | null, panels: Panels | null, refresh: () => void) {
   // An image the text embeds is shown there only, unless Claude has (or will have) a panel for it
   const embedded = (f: FileRef) =>
-    isImage(f) && !f.ingest && p.body.includes(`/api/blobs/${f.sha256}`);
+    isImage(f) &&
+    !f.ingest &&
+    new RegExp(`!\\[[^\\]\\n]*\\]\\(/api/blobs/${f.sha256}[/)]`).test(p.body);
   const files: Placed[] = p.captures
     .flatMap((c) => c.blobs.map((b) => ({ ...b, cid: c.id })))
     .filter((f) => !embedded(f));

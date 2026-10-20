@@ -419,3 +419,18 @@ def test_search_ignores_addresses_in_links(client, note):
 
     assert hit("docs") == ["Links"] and hit("label") == ["Links"]
     assert hit("example") == [] and hit("guide") == [] and hit("other") == []
+
+
+def test_unlink_keeps_labels_in_linear_time():
+    import time
+
+    from scrap.store import unlink
+
+    assert unlink("[a](http://x) ![alt](/api/blobs/f/preview?size=2048)") == "a alt"
+    assert unlink("[t](<http://x y>) [[s|Label]] [[s]]") == "t Label s"
+    assert unlink("[see [[a|Label]]](http://x)") == "see Label"
+    assert unlink("[r]: https://example.org/x\ntext") == "[r]:\ntext"
+    start = time.monotonic()
+    for line in ["[" * 50_000, "[[" * 25_000, "[a](" * 25_000, "![" * 25_000]:
+        unlink(line)
+    assert time.monotonic() - start < 2

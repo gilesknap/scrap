@@ -44,13 +44,14 @@ no model unless you ask it to.
 | `created`, `updated` (no `created`: `memory_date`, else the file's time) | `created_at`, `updated_at` and the time of revision 1; a date alone is taken as noon UTC, so it is the same day in any time zone |
 | `tags` | Tags, lower-cased and cut to 64 characters |
 | `status` (`todo` becomes `open`), `due_date` or `due` (as `due`), `priority` (lower-cased), `media_type`, `url` or `source_url` (as `source`), `memory_date`, `summary`, `personal` | `fields`, over the kind's defaults (a todo's `status` is `open`); a consume page also gets `subtype` (`read`, `watch` or `listen`) from `media_type` |
-| `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA. A path is tried from the linking page's folder, then from the top. A wiki name found in several places prefers an imported page, then the linking page's folder, and never `raw/` or `inbox/` over a content folder |
+| `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA. A path is tried from the linking page's folder, then from the top; a wiki link with a folder (`[[memories/x]]`) is tried as a path first, from the top. A wiki link in a table cell, its pipe escaped with a backslash, works too. A wiki name found in several places prefers an imported page, then the linking page's folder, and never `raw/` or `inbox/` over a content folder |
 | `![](../raw/assets/x.png)` and `![[x.png]]` | The image, stored with the page (a photo capture) and shown where it was, not again among the page's files. An image the PWA cannot preview (SVG) is attached as a file instead |
 | A PDF embedded or linked | Attached to the page as a file |
 | The page file as it is | Kept as its capture's text |
 
 Symbolic links are never followed, and nothing outside `DIR` is read. Search ignores the addresses
-of links and images (it indexes their labels and alt text).
+of links and images (it indexes their labels and alt text), for every page: a link's domain is
+not a word to find, even in a note you wrote by hand. That is the intended trade-off.
 
 Not imported: `raw/` and `inbox/` (except the images and PDFs pages use), every folder starting
 `.` or `_`, the top `index.md`, `log.md` and `SCHEMA.md`, pages of any other `type` (such as
@@ -75,6 +76,7 @@ are dropped, Thoth's `source` among them (the original stays in the capture's te
 | `bad front matter` | Front matter that is not valid YAML (an impossible date such as `2024-13-45`, or more than 64 aliases): the page is imported as if it had none |
 | `invalid date` | A `created`, `updated` or `memory_date` that is not a date: the next one is used, else the file's time |
 | `ambiguous link` | A wiki name that matches several files, and the one chosen |
+| `field cut`, `field dropped` | A field value over 200 characters, cut to 200 (ending `…`; the whole of it stays in the capture's text), and fields past 32, as a PWA edit allows |
 | `tag dropped` | A tag that is not text or a number (empty, a list) |
 | `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
 | `skipped`, `dropped folder` | Files left out, and why |
