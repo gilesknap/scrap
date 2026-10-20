@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev96+gd1dbaece1 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev102+g3a63d3732 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=aabb6ca6"></script>
+    <script src="../_static/documentation_options.js?v=5dccb9c6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -511,7 +511,7 @@ trying it out on the server itself.</p></li>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>Photo</strong></p></td>
+<tr class="row-even"><td><p><strong>Camera</strong></p></td>
 <td><p>Opens the camera</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Gallery</strong></p></td>
@@ -520,17 +520,22 @@ trying it out on the server itself.</p></li>
 <tr class="row-even"><td><p><strong>Note</strong></p></td>
 <td><p>A text box; a pasted link alone becomes a link capture</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Todo</strong>, <strong>Read later</strong></p></td>
-<td><p>A note with a hint that fixes the page kind (<code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">consume</span></code>)</p></td>
-</tr>
 </tbody>
 </table>
 </div>
+<p>The buttons say how you capture, not what the page is. Its <strong>kind</strong> is chosen in the composer
+(and changed later in the page’s editor) with the row of chips above the text: <strong>Note</strong> (the
+default), <strong>Todo</strong>, <strong>Read</strong> (to read later), <strong>Board</strong> (a whiteboard) or <strong>Doc</strong> (a document). A link on its own
+picks <strong>Read</strong> for you until you pick something else. Photos skip the choice: Claude reads them
+and makes a whiteboard or document a page of that kind, and you can change it after. A kind
+you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
+already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
+changing it back gives the page as it was.</p>
 <p>In the composer, <strong>Camera</strong> and <strong>Gallery</strong> add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server’s upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or <strong>Save separately</strong>, one capture per photo
-with the text and hint on the first.
+with the text and kind on the first.
 <strong>Save</strong> returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.</p>
 </section>
@@ -557,7 +562,7 @@ next time scrap is open with a connection.</p></li>
 <li><p>A capture the server refuses (for example over the upload limit, <code class="docutils literal notranslate"><span class="pre">413</span></code>) is marked <strong>failed</strong>
 with the server’s reason, and stays on the phone with <strong>Retry</strong> and <strong>Discard</strong> (which asks
 first, then deletes it and its photos from the phone). A multi-photo capture refused as too
-large offers <strong>Split and retry</strong> instead of Retry: one capture per photo, text and hint on the first.</p></li>
+large offers <strong>Split and retry</strong> instead of Retry: one capture per photo, text and kind on the first.</p></li>
 <li><p>A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
 no progress for a minute is given up and retried later. Once the phone has handed over the whole
 upload, it waits at least two minutes for the answer (longer for big uploads, which may still
@@ -573,7 +578,10 @@ with no connection either, shows a page saying it was not saved.</p></li>
 <section id="view-edit-search">
 <h2>View, edit, search<a class="headerlink" href="#view-edit-search" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>Recent</strong> lists pages newest first, with a thumbnail of the first photo.</p></li>
+<li><p><strong>Recent</strong> lists pages newest first, with a thumbnail of the first photo. Its chips filter
+it: <strong>All</strong>, <strong>Todos</strong> and <strong>Read</strong>. The filter stays in the address, so Back and a reload keep it.</p></li>
+<li><p>A todo’s page has <strong>Done</strong> (and <strong>Reopen</strong>) in its toolbar; a done todo is marked <em>done</em> in
+the lists. Ticking it or changing a kind doesn’t move the page up Recent.</p></li>
 <li><p>Swipe a row of <strong>Recent</strong>, the capture screen’s list or search results: to the <strong>right</strong> to
 edit it (the page opens in its editor), to the <strong>left</strong> to delete it (with <strong>Undo</strong> for a few
 seconds). The row follows your finger with <em>Edit</em> or <em>Delete</em> showing behind it; past a third
@@ -669,8 +677,10 @@ resizes the page.</p>
 </section>
 <section id="updates">
 <h2>Updates<a class="headerlink" href="#updates" title="Link to this heading">#</a></h2>
-<p>The app’s files are cached on the phone so it opens instantly and offline; API answers and
-files are never cached. After a new scrap is deployed, the app shows <strong>Update available,
+<p>The app’s files are cached on the phone so it opens instantly and offline, the composer and
+editor included; API answers and files are never cached. Some parts load only when first used
+and are not cached ahead: a page’s pager and list swipes, what Claude made of a photo, and the
+drawing viewer. So a page opened offline from a list has no ‹ › pager, and rows don’t swipe. After a new scrap is deployed, the app shows <strong>Update available,
 Reload</strong>. Until you tap it the old version keeps running; it is also replaced the next time the
 app is opened after being closed.</p>
 </section>

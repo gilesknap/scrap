@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev96+gd1dbaece1 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev102+g3a63d3732 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=aabb6ca6"></script>
+    <script src="../_static/documentation_options.js?v=5dccb9c6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -723,18 +723,29 @@ rewrites the user’s words or fits them to templates.</p>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
 todo has <code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>) and optional <code class="docutils literal notranslate"><span class="pre">due</span></code>; consume has <code class="docutils literal notranslate"><span class="pre">subtype</span></code> (<code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">watch</span></code>,
 <code class="docutils literal notranslate"><span class="pre">listen</span></code>), <code class="docutils literal notranslate"><span class="pre">status</span></code> and the <code class="docutils literal notranslate"><span class="pre">source</span></code> link.</p></li>
-<li><p><strong>A kind change</strong> (hint, PWA edit, <code class="docutils literal notranslate"><span class="pre">extract</span></code> or <code class="docutils literal notranslate"><span class="pre">summarise</span></code>) <strong>resets <code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> to the new kind’s
+<li><p><strong>Choosing a kind.</strong> The capture buttons (camera, gallery, note) only choose the input; the
+kind is chosen in the PWA’s editor, for a new capture or an existing page, from Note
+(default), Todo, Read (<code class="docutils literal notranslate"><span class="pre">consume</span></code>), Whiteboard and Document (<code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code> are not
+offered until wanted; a hard-coded list until real use asks for configurable kinds). A bare
+URL pre-selects Read; photos skip the choice (ingest classifies them; the user can change it).
+The capture’s <code class="docutils literal notranslate"><span class="pre">kind</span></code> field or <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{id}</span></code> sets it.</p></li>
+<li><p><strong>A kind the user changes</strong> (PWA edit, <code class="docutils literal notranslate"><span class="pre">PATCH</span></code>) <strong>keeps every field</strong> the page has (a summary,
+a due date, an imported status: a stray tap on a chip must lose nothing) and adds the new
+kind’s defaults for the keys it lacks. So todo -&gt; note -&gt; todo comes back as it was, and a
+status or subtype carried over keeps its value.</p></li>
+<li><p><strong>A kind set by a capture, <code class="docutils literal notranslate"><span class="pre">extract</span></code> or <code class="docutils literal notranslate"><span class="pre">summarise</span></code></strong> starts from the new kind’s
 defaults plus any checked model output: todo <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;open&quot;}</span></code>; consume
 <code class="docutils literal notranslate"><span class="pre">{&quot;subtype&quot;:&quot;read&quot;,&quot;status&quot;:&quot;open&quot;}</span></code> and <code class="docutils literal notranslate"><span class="pre">source</span></code>, always the capture’s own URL (omitted if it has
 none). Either way the page is listed at once, even if <code class="docutils literal notranslate"><span class="pre">summarise</span></code> never succeeds.</p></li>
-<li><p><strong>The user wins</strong>, as with titles. A hint or a PWA edit sets <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>. <code class="docutils literal notranslate"><span class="pre">extract</span></code> and
+<li><p><strong>The user wins</strong>, as with titles. A kind chosen at capture or in the editor sets
+<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>. <code class="docutils literal notranslate"><span class="pre">extract</span></code> and
 <code class="docutils literal notranslate"><span class="pre">summarise</span></code> set the kind only while it is still <code class="docutils literal notranslate"><span class="pre">note</span></code> and not fixed. <code class="docutils literal notranslate"><span class="pre">summarise</span></code> writes kind,
 <code class="docutils literal notranslate"><span class="pre">fields</span></code> and tags only on its first success; a regenerated summary replaces just the summary text,
 so a cleared <code class="docutils literal notranslate"><span class="pre">due</span></code> stays cleared. It calls Claude holding no lock, then in one <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code>
 re-reads the page, picks the resulting <code class="docutils literal notranslate"><span class="pre">:kind</span></code>, checks the output against its schema (dropping
 other keys, nulls and <code class="docutils literal notranslate"><span class="pre">source</span></code>) and writes:</p>
 <div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">UPDATE</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">kind</span><span class="w">  </span><span class="c1">-- json_patch: the 2nd wins</span>
-<span class="w">    </span><span class="k">THEN</span><span class="w"> </span><span class="n">json_patch</span><span class="p">(:</span><span class="n">fields</span><span class="p">,</span><span class="w"> </span><span class="n">fields</span><span class="p">)</span><span class="w">     </span><span class="c1">-- hinted kind: existing keys win</span>
+<span class="w">    </span><span class="k">THEN</span><span class="w"> </span><span class="n">json_patch</span><span class="p">(:</span><span class="n">fields</span><span class="p">,</span><span class="w"> </span><span class="n">fields</span><span class="p">)</span><span class="w">     </span><span class="c1">-- chosen kind: existing keys win</span>
 <span class="w">    </span><span class="k">ELSE</span><span class="w"> </span><span class="n">json_patch</span><span class="p">(:</span><span class="k">defaults</span><span class="p">,</span><span class="w"> </span><span class="p">:</span><span class="n">fields</span><span class="p">)</span><span class="w">  </span><span class="c1">-- new kind: its defaults plus the checked output</span>
 <span class="w">  </span><span class="k">END</span>
 <span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">id</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="p">(</span><span class="w">          </span><span class="c1">-- first success only: no summary yet</span>
@@ -747,8 +758,9 @@ other keys, nulls and <code class="docutils literal notranslate"><span class="pr
 insert first, then writes the summary row, then deletes the <code class="docutils literal notranslate"><span class="pre">fetched</span></code> text if the stored kind is
 now <code class="docutils literal notranslate"><span class="pre">consume</span></code>. Only regenerating the summary re-fetches it, for example after a change to
 <code class="docutils literal notranslate"><span class="pre">reference</span></code>.</p></li>
-<li><p><strong>Views.</strong> The PWA lists Todos, the Consume queue and an Inbox: captured pages with no summary
-yet (processing or failed). Pages made by MCP <code class="docutils literal notranslate"><span class="pre">write</span></code> have no capture and skip it.</p></li>
+<li><p><strong>Views.</strong> Recent has filter chips, not screens of their own: All, Todos (<code class="docutils literal notranslate"><span class="pre">?kind=todo</span></code>; a
+todo’s page has a Done/Reopen tick setting <code class="docutils literal notranslate"><span class="pre">fields.status</span></code>), and Read (<code class="docutils literal notranslate"><span class="pre">?kind=consume</span></code>). No
+Inbox: <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> is only for the user-wins rule.</p></li>
 </ul>
 </section>
 </section>
@@ -756,8 +768,8 @@ yet (processing or failed). Pages made by MCP <code class="docutils literal notr
 <h2>Phone quick capture<a class="headerlink" href="#phone-quick-capture" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Tap the icon.</strong> The installed PWA opens from the service worker cache, even offline, on the
-capture screen: camera, note, <em>todo</em> and <em>read later</em> buttons (hints that fix the kind), and a
-“recent” strip with each capture’s state.</p></li>
+capture screen: camera, gallery and note buttons (how to capture; the kind is chosen in the
+composer), and a “recent” strip with each capture’s state.</p></li>
 <li><p><strong>Choose an input.</strong></p>
 <ul class="simple">
 <li><p><em>Camera</em>: <code class="docutils literal notranslate"><span class="pre">&lt;input</span> <span class="pre">type=&quot;file&quot;</span> <span class="pre">accept=&quot;image/*&quot;</span> <span class="pre">capture=&quot;environment&quot;&gt;</span></code>, or the gallery;
@@ -773,8 +785,8 @@ Android often sends a link as <code class="docutils literal notranslate"><span c
 failure it stays queued and retries with backoff while the app is open, and on next open.</p></li>
 <li><p><strong>Store.</strong> The server writes blobs to <code class="docutils literal notranslate"><span class="pre">files/</span></code>, then in one <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code> transaction looks
 up the capture id (found: a retry, return <code class="docutils literal notranslate"><span class="pre">200</span></code>), else inserts blobs (<code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">DO</span> <span class="pre">NOTHING</span></code>),
-page (before capture, for the foreign key; a hint sets <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> and default
-<code class="docutils literal notranslate"><span class="pre">fields</span></code>), <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> 1, capture, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, and the <code class="docutils literal notranslate"><span class="pre">extract</span></code> and <code class="docutils literal notranslate"><span class="pre">index</span></code> jobs, and returns
+page (before capture, for the foreign key; a chosen kind sets <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> and
+default <code class="docutils literal notranslate"><span class="pre">fields</span></code>), <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> 1, capture, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, and the <code class="docutils literal notranslate"><span class="pre">extract</span></code> and <code class="docutils literal notranslate"><span class="pre">index</span></code> jobs, and returns
 <code class="docutils literal notranslate"><span class="pre">201</span></code>. No LLM call on this path, and the note or title is searchable even if Claude is down.</p></li>
 <li><p><strong>Process.</strong> The worker runs the jobs; the PWA polls <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/captures?since=...</span></code> while open.</p></li>
 </ol>
@@ -836,7 +848,7 @@ crash is requeued at start-up. If a job’s page is deleted mid-run, the cascade
 row, and the worker treats that as finished, not as an error.</p>
 <p><strong>Failure visibility.</strong> The recent strip shows each capture as queued, saved, processing, done or
 failed (a dead job), with <code class="docutils literal notranslate"><span class="pre">last_error</span></code> and a <em>retry</em> button. The original and the page already
-exist, so nothing is lost; if <code class="docutils literal notranslate"><span class="pre">summarise</span></code> fails, the kind stays as the hint or <code class="docutils literal notranslate"><span class="pre">extract</span></code> left it,
+exist, so nothing is lost; if <code class="docutils literal notranslate"><span class="pre">summarise</span></code> fails, the kind stays as the user chose or <code class="docutils literal notranslate"><span class="pre">extract</span></code> left it,
 else <code class="docutils literal notranslate"><span class="pre">note</span></code>.</p>
 </section>
 </section>
