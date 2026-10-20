@@ -456,8 +456,9 @@ The server parses with markdown-it-py (`scrap/markdown.py`, with mdit-py-plugins
 the search index holds plain text from the parse (link and image text, not addresses; a page
 link's label; code as typed; a table's cells; no markup), and the importer rewrites links,
 images and wiki links found by the parse, mapped back to their place in the text, so code is
-never rewritten and a link in a table cell escapes its pipe. Both parsers are linear in the
-text (markdown-it-py does about 300 kB a second on normal text, a tenth of that on a megabyte
+never rewritten and a link in a table cell escapes every pipe (a block whose lines can't be
+mapped back keeps its links as typed, and the import plan says so). Both parsers are linear in
+the text (markdown-it-py does about 300 kB a second on normal text, a tenth of that on a megabyte
 of brackets). Migration 0004 re-indexed every page this way.
 
 ## Claude ingest (M2)
