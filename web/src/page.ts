@@ -13,9 +13,9 @@ import {
 import { go, view } from "./app";
 import { drafts } from "./db";
 import { editor } from "./editor";
-import { placeIn, type Trail } from "./gesture";
+import type { Trail } from "./gesture";
 import { icon } from "./icons";
-import { swipePages } from "./swipe";
+import { deletePage } from "./swipe";
 import { bodyView, download, h, settle, share, toast, when } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -84,14 +84,14 @@ interface Draft {
   base: number; // the revision it was made on
 }
 
-let arriving = 0; // the way the last swipe went: the next page slides in from that side
-
 export async function page(key: string): Promise<Node> {
   const state = history.state as { trail?: Trail; edit?: boolean } | null;
   const p = await api<Page>(`pages/${encodeURIComponent(key)}`);
   const root = h("article", { className: "page" });
-  if (arriving) root.classList.add(arriving > 0 ? "from-next" : "from-prev");
-  arriving = 0;
+  // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
+  const pager = state?.trail
+    ? (await import("./pager").catch(() => null))?.pager(state.trail, p.slug, root)
+    : null;
   const signal = view.signal;
   let shown = p;
   let queue: Queue | null = null;
@@ -251,68 +251,12 @@ export async function page(key: string): Promise<Node> {
     return b;
   }
 
-  const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
-
-  async function remove(p: Page) {
-    try {
-      await api(`pages/${p.id}`, { method: "DELETE" });
-    } catch (err) {
-      return toast(`Not deleted: ${why(err)}`);
-    }
-    go("/recent");
-    const undo = async () => {
-      try {
-        await api(`pages/${p.id}/undelete`, { method: "POST" });
-        go(`/p/${encodeURIComponent(p.slug)}`);
-      } catch (err) {
-        toast(`Undo failed: ${why(err)}`, "Try again", undo, 8000);
-      }
-    };
-    toast("Page deleted", "Undo", undo, 8000);
-  }
-
-  // Opened from a list: swipe (or ‹ ›, or the arrow keys) to its previous or next page.
-  // Each replaces this page's history entry, so Back still goes back to the list.
-  const trail = state?.trail;
-  const at = placeIn(trail, p.slug);
-  const step = (d: 1 | -1) => {
-    const to = d > 0 ? at?.next : at?.prev;
-    if (!trail || !to)
-      return toast(d > 0 ? "That's the last in the list" : "That's the first in the list");
-    arriving = d;
-    go(`/p/${encodeURIComponent(to)}`, true, { trail });
-  };
-  const pager =
-    at &&
-    trail &&
-    h(
-      "div",
-      { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
-      h(
-        "button",
-        {
-          type: "button",
-          className: "ghost",
-          "aria-label": "Previous",
-          disabled: !at.prev,
-          onclick: () => step(-1),
-        },
-        icon("back"),
-      ),
-      h("span", {}, `${at.i + 1} of ${at.n} · ${trail.label}`),
-      h(
-        "button",
-        {
-          type: "button",
-          className: "ghost",
-          "aria-label": "Next",
-          disabled: !at.next,
-          onclick: () => step(1),
-        },
-        icon("next"),
-      ),
+  const remove = (p: Page) =>
+    deletePage(
+      p.id,
+      () => go("/recent"),
+      () => go(`/p/${encodeURIComponent(p.slug)}`),
     );
-  if (at) swipePages(step);
 
   show(p);
   if (state?.edit) {
