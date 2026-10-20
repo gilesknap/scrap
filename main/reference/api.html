@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 0.1.dev113+gfa3cd143c documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 0.1.dev115+g7822f4e35 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=37eec66f"></script>
+    <script src="../_static/documentation_options.js?v=995a0dbd"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -546,7 +546,7 @@ in front. The author of a capture or edit is the <code class="docutils literal n
 <td><p>Bring a page back from the trash</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search?q=...&amp;limit=20</span></code></p></td>
-<td><p>Full-text search of titles, bodies and what Claude read from photos (their text and descriptions): every word must match somewhere in the page (the last as a prefix); one hit per page. Link and image addresses in Markdown are not indexed, only their text. Only the first 16 distinct words with a letter or digit are used; others (<code class="docutils literal notranslate"><span class="pre">&amp;</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">?</span></code>) are ignored. Each hit has an HTML-escaped <code class="docutils literal notranslate"><span class="pre">snippet</span></code> with matches in <code class="docutils literal notranslate"><span class="pre">&lt;mark&gt;</span></code></p></td>
+<td><p>Full-text search of titles, bodies and what Claude read from photos (their text and descriptions): every word must match somewhere in the page (the last as a prefix); one hit per page. Link and image addresses in Markdown are not indexed, only their text. Only the first 16 distinct words with a letter or digit are used; others (<code class="docutils literal notranslate"><span class="pre">&amp;</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">?</span></code>) are ignored. Each hit has <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">slug</span></code>, <code class="docutils literal notranslate"><span class="pre">title</span></code>, <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">fields</span></code> (so a todo’s row can show its status) and an HTML-escaped <code class="docutils literal notranslate"><span class="pre">snippet</span></code> with matches in <code class="docutils literal notranslate"><span class="pre">&lt;mark&gt;</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/{id</span> <span class="pre">or</span> <span class="pre">slug}/download</span></code></p></td>
 <td><p>The page to keep: <code class="docutils literal notranslate"><span class="pre">&lt;slug&gt;.md</span></code> (front matter, then the body), or if it has files <code class="docutils literal notranslate"><span class="pre">&lt;slug&gt;.zip</span></code> holding the <code class="docutils literal notranslate"><span class="pre">.md</span></code> and <code class="docutils literal notranslate"><span class="pre">files/</span></code> with the originals, linked relatively so it reads offline. Each photo is followed by Claude’s description (a quote) and the text it read (a fenced block), and its drawing is beside it as <code class="docutils literal notranslate"><span class="pre">&lt;photo</span> <span class="pre">name&gt;.excalidraw</span></code> (Claude’s skeleton converted approximately on the server: Excalidraw re-measures the text when it opens it)</p></td>
