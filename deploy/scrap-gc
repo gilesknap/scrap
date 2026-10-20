@@ -1,0 +1,28 @@
+#!/bin/sh
+# Delete the stored files nothing uses any more (`scrap gc --delete`), in a
+# throwaway container, but only after a backup in the last 26 hours: every file
+# a backup's database names is in that backup, so deleting the live copy never
+# loses the only one. Files younger than 24 hours are kept (uploads in flight).
+# Started by scrap-gc.timer, after the nightly backup.
+# Settings come from the environment (~/.config/scrap/env via systemd).
+# Installed by install.sh to ~/.local/lib/scrap/.
+set -eu
+
+: "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
+: "${SCRAP_DATA:?SCRAP_DATA is not set}"
+: "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
+exec 9>"$SCRAP_BACKUPS/.lock" # never during a backup run
+flock 9
+recent=$(find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d -mmin -1560 \
+    -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' |
+    head -n 1)
+mode=--delete
+if [ -z "$recent" ]; then
+    echo "No backup in the last 26 hours: counting only, deleting nothing." >&2
+    mode=--dry-run
+fi
+podman run --rm --replace --name scrap-gc \
+    --userns=keep-id:uid=10001,gid=10001 --network=none \
+    --volume "$SCRAP_DATA:/data" --env SCRAP_DATA_DIR=/data \
+    "$SCRAP_IMAGE" gc "$mode" --grace-hours 24
+[ -n "$recent" ] || exit 1

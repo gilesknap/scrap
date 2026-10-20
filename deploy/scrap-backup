@@ -31,12 +31,16 @@ fi
 
 : "${SCRAP_DATA:?SCRAP_DATA is not set}"
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
+# Never at the same time as scrap-gc: a file it deletes mid-backup could be one
+# the backup's database still names.
+exec 9>"$SCRAP_BACKUPS/.lock"
+flock 9
 dest=$(date -u +%Y%m%dT%H%M%SZ)
 # No -p: a run that already exists (two runs in one second) must fail here,
 # before the cleanup below could delete the other run's backup.
 mkdir "$SCRAP_BACKUPS/$dest"
 if ! podman run --rm --replace --name scrap-backup \
-    --userns=keep-id:uid=10001,gid=10001 \
+    --userns=keep-id:uid=10001,gid=10001 --network=none \
     --volume "$SCRAP_DATA:/data" --volume "$SCRAP_BACKUPS:/backups" \
     --env SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" backup "/backups/$dest"; then

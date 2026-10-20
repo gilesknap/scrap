@@ -1,8 +1,8 @@
 // A page's images as figures (a chunk of its own, with what Claude made of them): each image
 // its text embeds, where it is, and below the text the files it doesn't (a PDF, or a photo of
-// a page made before photos were embedded). A figure opens the photo viewer (every image of
-// the page, in order), and its caption has the file's name, Download and Ask Claude; once
-// Claude has (or will have) seen it, its panel instead (ingest.ts).
+// a page made before photos were embedded; not one whose embed was deleted). A figure opens the
+// photo viewer (every image of the page, in order), and its caption has the file's name,
+// Download and Ask Claude; once Claude has (or will have) seen it, its panel instead (ingest.ts).
 import {
   ApiError,
   api,
@@ -56,7 +56,9 @@ export function figures(
   const shown = new Set(
     runs.flatMap((el) => [...el.children].filter(own).map((i) => i.dataset.sha)),
   );
-  const rest = [...files.values()].filter((f) => !shown.has(f.sha256));
+  // Not an image whose embed was deleted from the text: it went with its line
+  const removed = new Set(p.removed);
+  const rest = [...files.values()].filter((f) => !shown.has(f.sha256) && !removed.has(f.sha256));
   const photos: Photo[] = [];
 
   const figure = (sha: string, name: string, f?: Placed) => {

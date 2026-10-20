@@ -161,7 +161,7 @@ export async function page(key: string): Promise<Node> {
       import("./editor").catch(() => null), // a chunk of its own, with the composer
     ]);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    const { editor, kindPicker, suggested, toSend } = mod;
+    const { editor, kindPicker, suggested, toSend, confirmRemoval } = mod;
     // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
     // as in the composer, until the user picks one; a draft's kind only if the user picked it
     const unfiled = !p.kind_fixed && p.kind === "note";
@@ -169,11 +169,13 @@ export async function page(key: string): Promise<Node> {
     const initial = unfiled ? suggested(kept?.text ?? p.body) : p.kind;
     const kind = kindPicker(kept?.picked ? (kept.kind ?? initial) : initial, !!kept?.picked);
     let base = kept?.base ?? p.rev;
+    let over = p.body; // the text a save replaces: its deleted embeds are warned about
     const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
     if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(text.value)));
     const conflict = h("div");
     const save = async () => {
+      if (!(await confirmRemoval(p, over, text.value))) return; // still editing, as it was
       try {
         const saved = await api<Page>(`pages/${p.id}`, {
           method: "PATCH",
@@ -194,6 +196,7 @@ export async function page(key: string): Promise<Node> {
         const theirs = await api<Page>(`pages/${p.id}`).catch(() => null);
         if (!theirs) return toast("Changed elsewhere, and the server can't be reached to show it");
         base = theirs.rev; // saving again now overwrites their version with yours
+        over = theirs.body;
         conflict.replaceChildren(
           h(
             "div",
@@ -245,6 +248,7 @@ export async function page(key: string): Promise<Node> {
         text.value = p.body;
         kind.reset(was);
         base = p.rev;
+        over = p.body;
       },
       onsave: () => void save(),
     });

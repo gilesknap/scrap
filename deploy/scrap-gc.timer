@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly scrap gc, after the backup
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+RandomizedDelaySec=15min
+# Not Persistent: a night missed while the machine was off is skipped, not run
+# at boot, where it could beat the catch-up backup to the lock, find no recent
+# backup and fail as a false alarm. The next night runs after that day's backup.
+Persistent=false
+
+[Install]
+WantedBy=timers.target
