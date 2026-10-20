@@ -426,6 +426,48 @@ test("an image added by an edit is a figure at once; one in a list or a line sta
   await expect(page.locator(".md figure figure, .md p figure, .md li figure")).toHaveCount(0);
 });
 
+test("every photo of the page can be opened, saved and sent, wherever the text puts it", async ({
+  page,
+}) => {
+  const form = new FormData();
+  form.append("id", ulid());
+  const names = ["list", "line1", "line2", "beside", "quote"];
+  for (const [i, n] of names.entries())
+    form.append(
+      "file",
+      new Blob([new Uint8Array(png(30, 20, 20 + i * 40))], { type: "image/png" }),
+      `${n}.png`,
+    );
+  form.append("file", new Blob(["%PDF-1.4"], { type: "application/pdf" }), "doc.pdf"); // not sent to Claude
+  const { page_id, slug } = await (
+    await page.request.post("/api/captures", { multipart: form })
+  ).json();
+  const url = `/api/pages/${page_id}`;
+  const blobs = (await (await page.request.get(url)).json()).captures[0].blobs;
+  const e = (i: number) => `![](/api/blobs/${blobs[i].sha256}/preview?size=2048)`;
+  const body = `Text\n\n- ${e(0)}\n\n${e(1)}\n${e(2)}\n\nsee ${e(3)} here\n\n> ${e(4)}`;
+  await page.request.patch(url, { data: { base_rev: 1, body } });
+  await page.goto(`/p/${slug}`);
+  // Two lines of images alone: a figure each, in the text
+  await expect(page.locator(".md > figure.orig figcaption span")).toHaveText([
+    "line1.png",
+    "line2.png",
+  ]);
+  // In a list, beside text or in a quote: as typed, and below the text with the rest
+  await expect(page.locator(".md li img, .md p img, .md blockquote img")).toHaveCount(3);
+  const below = page.locator(".originals figure.orig");
+  await expect(below.locator("figcaption span")).toHaveText([
+    "list.png",
+    "beside.png",
+    "quote.png",
+  ]);
+  await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(5);
+  await expect(page.locator("figure.orig").getByRole("link", { name: "Download" })).toHaveCount(5);
+  await below.nth(2).locator("img").click();
+  await expect(page.getByRole("dialog").getByText("5 / 5")).toBeVisible();
+  await page.goBack();
+});
+
 test("photos the server can't preview fall back to the file", async ({ page }) => {
   const r = await page.request.post("/api/captures", {
     multipart: {

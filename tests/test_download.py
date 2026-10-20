@@ -110,3 +110,30 @@ def test_safe_names():
     assert attachment('a"\\b.md') == (
         "attachment; filename=\"a__b.md\"; filename*=UTF-8''a%22%5Cb.md"
     )
+
+
+def test_download_leaves_code_alone_and_shows_each_photo_once(client):
+    files = [
+        ("file", ("a.png", PNG, "image/png")),
+        ("file", ("a again.png", PNG, "image/png")),  # the same photo: one copy
+        ("file", ("b.png", PNG + b"b", "image/png")),
+        ("file", ("c.png", PNG + b"c", "image/png")),
+    ]
+    ref = client.post("/api/captures", data={"id": new_ulid()}, files=files).json()
+    url = f"/api/pages/{ref['page_id']}"
+    blobs = client.get(url).json()["captures"][0]["blobs"]
+    a, _, b, c = (x["sha256"] for x in blobs)
+    body = (
+        f"`![](/api/blobs/{a})` and [only a link](/api/blobs/{b})\n\n"
+        f"```\n![](/api/blobs/{c})\n```\n\n[get it](/api/blobs/{c}?download=1)"
+    )
+    client.patch(url, json={"base_rev": 1, "body": body})
+    zf = zipfile.ZipFile(io.BytesIO(client.get(f"{url}/download").content))
+    assert zf.namelist()[1:] == ["files/a.png", "files/b.png", "files/c.png"]
+    md = zf.read(zf.namelist()[0]).decode()
+    assert f"`![](/api/blobs/{a})`" in md and f"```\n![](/api/blobs/{c})\n```" in md
+    assert "[only a link](files/b.png)" in md and "[get it](files/c.png)" in md
+    # none is shown as an image in the text: each is, once, below it
+    for f in ("a", "b", "c"):
+        assert md.count(f"![{f}.png](files/{f}.png)") == 1
+    assert "a again" not in md

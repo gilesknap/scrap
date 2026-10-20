@@ -37,11 +37,21 @@ export function figures(
       const had = files.get(b.sha256);
       if (!had || (!had.ingest && b.ingest)) files.set(b.sha256, { ...b, cid: c.id });
     }
-  // Only md.ts's own images: this server's files, by their sha
-  const embeds = [...body.querySelectorAll<HTMLImageElement>("img[data-sha]")].filter((img) =>
-    SHA.test(img.dataset.sha ?? ""),
+  // Only md.ts's own images (this server's files, by their sha), in a paragraph of images
+  // alone, one or more lines of them: each becomes a figure. One in a link, a heading, a list,
+  // a quote or beside text stays as it is (a figure there is not valid HTML), and its file is
+  // listed below the text too, so every file of the page has its Download and Claude.
+  const own = (n: Node): n is HTMLImageElement =>
+    n instanceof HTMLImageElement && SHA.test(n.dataset.sha ?? "");
+  const runs = [...body.children].filter(
+    (el) =>
+      el.tagName === "P" &&
+      [...el.childNodes].some(own) &&
+      [...el.childNodes].every((n) => own(n) || n.nodeName === "BR" || !n.textContent?.trim()),
   );
-  const shown = new Set(embeds.map((img) => img.dataset.sha));
+  const shown = new Set(
+    runs.flatMap((el) => [...el.children].filter(own).map((i) => i.dataset.sha)),
+  );
   const rest = [...files.values()].filter((f) => !shown.has(f.sha256));
   const photos: Photo[] = [];
 
@@ -79,15 +89,13 @@ export function figures(
     return fig;
   };
 
-  for (const img of embeds) {
-    // Only an image on a line of its own becomes a figure: one in a link, a heading, a list
-    // or beside text stays as it is (a figure there would not be valid HTML)
-    const para = img.parentElement;
-    if (para?.tagName !== "P" || para.parentElement !== body || para.childNodes.length !== 1)
-      continue;
-    const sha = img.dataset.sha as string;
-    const f = files.get(sha);
-    para.replaceWith(figure(sha, f?.filename || img.alt || `Image ${sha.slice(0, 8)}`, f));
+  for (const para of runs) {
+    const figs = [...para.children].filter(own).map((img) => {
+      const sha = img.dataset.sha as string;
+      const f = files.get(sha);
+      return figure(sha, f?.filename || img.alt || `Image ${sha.slice(0, 8)}`, f);
+    });
+    para.replaceWith(...figs);
   }
   return rest.map((f) => {
     const name = f.filename || f.mime;
