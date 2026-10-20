@@ -12,6 +12,7 @@ import footnote from "markdown-it-footnote";
 const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const EXTERNAL = /^(https?:\/\/|mailto:)/i;
 const PAGE = /^\/p\/[a-z0-9-]+$/;
+const FOOTNOTE = /^#fn(ref)?\d+(:\d+)?$/;
 const WIKI = /^([a-z0-9-]+)(?:\\?\|(.+))?$/;
 
 const md = markdownit({ html: false, breaks: true, linkify: true });
@@ -109,8 +110,10 @@ function inline(children: Token[], state: StateCore): Token[] {
       else if (EXTERNAL.test(href)) {
         t.attrSet("target", "_blank");
         t.attrSet("rel", "noopener noreferrer");
-      } else if (href.startsWith("#")) t.attrSet("href", `#${anchor(decoded(href.slice(1)))}`);
-      else if (!t.meta?.wiki && !PAGE.test(href)) t.hidden = true; // its text stays
+      } else if (href.startsWith("#")) {
+        // A heading's id; a footnote's (fn1, fnref1, as markdown-it-footnote makes) as it is
+        if (!FOOTNOTE.test(href)) t.attrSet("href", `#${anchor(decoded(href.slice(1)))}`);
+      } else if (!t.meta?.wiki && !PAGE.test(href)) t.hidden = true; // its text stays
       opened.push(t);
     } else if (t.type === "link_close") {
       t.hidden = !!opened.pop()?.hidden;
@@ -125,7 +128,8 @@ function inline(children: Token[], state: StateCore): Token[] {
         const alt = state.md.renderer.renderInlineAsText(t.children ?? [], state.md.options, {});
         const text = new state.Token("text", "", 0);
         text.content = alt || src;
-        if (!EXTERNAL.test(src)) {
+        // Not a link either inside a link (a badge in a link): the text only
+        if (!EXTERNAL.test(src) || opened.some((o) => !o.hidden)) {
           out.push(text);
           continue;
         }

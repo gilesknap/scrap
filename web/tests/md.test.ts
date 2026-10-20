@@ -78,11 +78,60 @@ describe("markdown", () => {
       "[a <https://x.y>](https://y.z)",
       "[[a|see https://x.y]]",
       "[a https://x.y b](https://y.z)",
+      "[![x.y](https://e.com/i.png)](https://y.z)", // a README badge
+      "[x ![x.y](https://e.com/i.png)](/p/b)",
+      "[[b|![x.y](https://e.com/i.png)]]",
     ]) {
       const html = one(text);
       expect(html, text).not.toMatch(nested);
       expect(html, text).toMatch(/x(\.y)?/); // the inner link's text stays
     }
+  });
+
+  it("never nests a link, whatever links, images and page links are combined", () => {
+    const SHA_SRC = `/api/blobs/${SHA}`;
+    const inner = [
+      "<https://x.y>",
+      "https://x.y",
+      "[[a]]",
+      "[t](https://x.y)",
+      "[t](/p/a)",
+      "[t](#h)",
+      "![i](https://e.com/i.png)",
+      "![i](/x.png)",
+      `![i](${SHA_SRC})`,
+      "[![i](https://e.com/i.png)](https://x.y)",
+      "`code`",
+    ];
+    const outer = [
+      (x: string) => `[${x}](https://y.z)`,
+      (x: string) => `[${x}](/p/b)`,
+      (x: string) => `[${x}](#top)`,
+      (x: string) => `[${x}](javascript:x)`,
+      (x: string) => `[[b|${x}]]`,
+      (x: string) => `[w ${x} w](https://y.z)`,
+    ];
+    const depth = (html: string) => {
+      let open = 0;
+      for (const m of html.matchAll(/<(\/?)a[\s>]/g)) {
+        open += m[1] ? -1 : 1;
+        if (open > 1) return open;
+      }
+      return open;
+    };
+    for (const f of outer)
+      for (const g of [...outer, (x: string) => x])
+        for (const x of inner) {
+          const text = f(g(x));
+          expect(depth(one(text)), text).toBeLessThanOrEqual(1);
+        }
+  });
+
+  it("keeps a hand-written link to a footnote as it is", () => {
+    const html = one("See [the note](#fn1) and [back](#fnref1:1).\n\nSaid[^1].\n\n[^1]: Note.");
+    expect(html).toContain('<a href="#fn1">the note</a>');
+    expect(html).toContain('<a href="#fnref1:1">back</a>');
+    expect(html).toContain('id="fn1"');
   });
 
   it("leaves snake_case and lone stars alone", () => {
