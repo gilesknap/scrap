@@ -193,16 +193,33 @@ export function saveBlob(blob: Blob, name: string) {
   toast(`Downloaded ${name} (${mb(blob.size)})`);
 }
 
+/** A page's own address, e.g. to share as a link. */
+export const pageLink = (slug: string, origin = location.origin) =>
+  `${origin}/p/${encodeURIComponent(slug)}`;
+
+/** Where a menu of this width goes: just above its button, kept on the screen. */
+export function menuSpot(button: DOMRect, width: number, screenW: number, screenH: number) {
+  const gap = 8;
+  const left = Math.min(button.left + (button.width - width) / 2, screenW - width - gap);
+  return { left: Math.round(Math.max(left, gap)), bottom: Math.round(screenH - button.top + gap) };
+}
+
 /** A Share button to send text, or a file from the server, to another app; none where
- * the phone can't share. Never shares a link to this server. */
-export function share(what: () => { title: string; text?: string; file?: string[] }) {
+ * the phone can't share. Given the page's link, Share first asks which: **Link** (the
+ * address, nothing fetched) or the content (`content`: its icon and word). Each choice is a
+ * tap of its own, so it calls the share sheet within that tap. */
+export function share(
+  what: () => { title: string; text?: string; file?: string[] },
+  link?: string,
+  content: [Icon, string] = ["note", "Text"],
+) {
   if (!navigator.share) return null;
   const b = h("button", { type: "button" }, icon("share"), "Share");
   const send = (data: ShareData) =>
     navigator.share(data).catch((err: Error) => {
       if (err.name !== "AbortError") toast(`Share failed: ${err.message}`, "", undefined, 8000);
     });
-  b.onclick = busy(b, "Share", async () => {
+  const shareContent = busy(b, "Share", async () => {
     const { title, text, file } = what();
     if (!file) return navigator.share({ title, text });
     const [href, name, type] = file;
@@ -216,6 +233,60 @@ export function share(what: () => { title: string; text?: string; file?: string[
       toast("Photo ready", "Share", () => void send({ title, files }), 30_000);
     }
   });
+  const menu = h("div", { className: "share-menu", popover: "auto" });
+  if (!link || !menu.showPopover) {
+    b.onclick = shareContent; // nothing to choose, or no menu on this browser
+    return b;
+  }
+  const pick = (glyph: Icon, label: string, go: (e: Event) => void) =>
+    h(
+      "button",
+      {
+        type: "button",
+        onclick: (e: Event) => {
+          menu.hidePopover();
+          go(e);
+        },
+      },
+      icon(glyph),
+      label,
+    );
+  menu.append(
+    pick("link", "Link", () => void send({ title: what().title, url: link })),
+    pick(...content, shareContent),
+  );
+  b.setAttribute("aria-expanded", "false"); // a disclosure of two buttons, not a menu role
+  const isOpen = () => menu.matches(":popover-open");
+  menu.addEventListener("beforetoggle", (e) => {
+    b.setAttribute("aria-expanded", String((e as ToggleEvent).newState === "open"));
+  });
+  menu.addEventListener("toggle", () => {
+    if (!isOpen()) menu.remove();
+  });
+  // A tap on Share while the menu is open closes it, even where that tap's light dismiss
+  // closes it first (a browser without a popover's source): so ask at the touch, not the click
+  let wasOpen = false;
+  b.onpointerdown = () => {
+    wasOpen = isOpen();
+  };
+  b.onclick = (e) => {
+    // Only a tap carries what its own touch saw (a key's click has detail 0), so a touch
+    // dragged off the button can't leave a stale answer for the next key
+    const open = (e.detail > 0 && wasOpen) || isOpen();
+    wasOpen = false;
+    if (b.getAttribute("aria-busy") === "true") return;
+    if (open) {
+      if (isOpen()) menu.hidePopover();
+      return;
+    }
+    // Inside a modal dialog (the photo viewer), or assistive tech treats it as hidden
+    (b.closest('[aria-modal="true"]') ?? document.body).append(menu);
+    // The button as its source, so a tap on it toggles the menu rather than dismissing it
+    (menu.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b });
+    const spot = menuSpot(b.getBoundingClientRect(), menu.offsetWidth, innerWidth, innerHeight);
+    menu.style.left = `${spot.left}px`;
+    menu.style.bottom = `${spot.bottom}px`;
+  };
   return b;
 }
 

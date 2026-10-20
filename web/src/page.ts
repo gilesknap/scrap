@@ -9,7 +9,7 @@ import { unembedded } from "./md";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
-import { bodyView, download, h, share, toast, when } from "./ui";
+import { bodyView, download, h, pageLink, share, toast, when } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
 
@@ -116,6 +116,17 @@ export async function page(key: string): Promise<Node> {
         { className: "meta" },
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
+        // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
+        p.captures[0]?.source === "mcp" &&
+          h(
+            "a",
+            {
+              className: "badge",
+              href: "/search?q=is%3Aclaude",
+              title: String(p.fields.origin ?? "Written by Claude over MCP"),
+            },
+            "Written by Claude",
+          ),
       ),
       body,
       h("div", { className: "originals" }, ...files),
@@ -133,7 +144,8 @@ export async function page(key: string): Promise<Node> {
           ),
         ),
         download(`/api/pages/${p.id}/download`),
-        share(() => ({ title: p.title, text: unembedded(p.body) })), // as typed, no link here
+        // Its link, or its text as typed (no link to scrap in it)
+        share(() => ({ title: p.title, text: unembedded(p.body) }), pageLink(p.slug)),
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );

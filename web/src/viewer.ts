@@ -13,7 +13,8 @@ export interface Photo {
 
 type Pt = { x: number; y: number };
 
-export function viewer(photos: Photo[], start: number) {
+/** link: the page's address, which Share offers beside the photo. */
+export function viewer(photos: Photo[], start: number, link?: string) {
   let i = start;
   let v: View = { s: 1, x: 0, y: 0 };
   let min = 1;
@@ -65,7 +66,7 @@ export function viewer(photos: Photo[], start: number) {
     tool("fit", "Fit", () => toFit()),
     tool(null, "100%", () => zoom(actual(), centre(), true)),
     save,
-    share(() => ({ title: photos[i].name, file: photos[i].share })),
+    share(() => ({ title: photos[i].name, file: photos[i].share }), link, ["image", "Photo"]),
   );
   const root = h(
     "div",
@@ -165,8 +166,12 @@ export function viewer(photos: Photo[], start: number) {
   };
 
   const keys = (e: KeyboardEvent) => {
-    if (e.key === "Escape") history.back();
-    else if (e.key === "ArrowLeft") show(i - 1);
+    if (e.key === "Escape") {
+      // Escape closes Share's menu first, not the viewer behind it
+      const menu = root.querySelector<HTMLElement>(".share-menu");
+      if (menu?.matches(":popover-open")) menu.hidePopover();
+      else history.back();
+    } else if (e.key === "ArrowLeft") show(i - 1);
     else if (e.key === "ArrowRight") show(i + 1);
   };
   const resize = () => (v.s <= min * 1.01 ? toFit(false) : set(v));

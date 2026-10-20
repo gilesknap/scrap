@@ -7,6 +7,7 @@ Technical reference material including APIs and release notes.
 :glob:
 
 reference/api
+reference/mcp
 Python API <_api/scrap>
 genindex
 Release Notes <https://github.com/gilesknap/scrap/releases>

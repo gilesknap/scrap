@@ -28,7 +28,7 @@ from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, drawing, ingest, preview
+from . import __version__, backup, drawing, ingest, mcp_server, preview
 from .store import (
     MAX_FIELDS,
     ConflictError,
@@ -178,14 +178,27 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store.migrate()
     limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
+    # MCP at /mcp: stateless (each POST stands alone: a restart drops no session),
+    # JSON replies, Host and Origin checked against loopback and $SCRAP_PUBLIC_URL
+    tools = mcp_server.server(store)
+    mcp_routes = tools.streamable_http_app(
+        streamable_http_path="/mcp",
+        stateless_http=True,
+        json_response=True,
+        max_request_body_size=mcp_server.MAX_REQUEST,
+        transport_security=mcp_server.security(mcp_server.public_urls()),
+    ).routes
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if worker:
             worker.start()
-        yield
-        if worker:
-            worker.stop()
+        try:
+            async with tools.session_manager.run():
+                yield
+        finally:
+            if worker:
+                worker.stop()
 
     app = FastAPI(title="scrap", version=__version__, lifespan=lifespan)
     app.state.worker = worker
@@ -388,7 +401,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         offset: int = Query(0, ge=0, le=10_000),  # the next page of results
     ) -> list[dict[str, Any]]:
         """Full-text search over titles, tags, summaries and bodies, with -word,
-        "phrase", kind:, tag: and is:; snippets mark hits with <mark>."""
+        "phrase", kind:, tag:, is:, has:, image: and dates; snippets mark hits with
+        <mark>."""
         return store.search(q, limit, offset)
 
     @app.get("/api/search/facets")
@@ -454,6 +468,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
             name = backup.file_name(store.blob_name(sha), sha, mime)
             headers["Content-Disposition"] = attachment(name)
         return FileResponse(path, media_type=mime, headers=headers)
+
+    app.router.routes.extend(mcp_routes)  # before the PWA's catch-all mount
 
     # $SCRAP_WEB_DIR serves a PWA build from elsewhere, e.g. one being tried out live
     static = Path(os.environ.get("SCRAP_WEB_DIR") or STATIC)

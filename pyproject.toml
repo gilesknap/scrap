@@ -21,6 +21,7 @@ dependencies = [
     "pyyaml>=6",
     "python-multipart>=0.0.32",
     "uvicorn",
+    "mcp>=2.3,<3",
 ]
 dynamic = ["version"]
 license.file = "LICENSE"
