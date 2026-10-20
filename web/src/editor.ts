@@ -16,12 +16,13 @@ import type { Kind } from "./queue";
 import { h, previewer, saveKey, toast } from "./ui";
 
 /** The kinds offered, in the order shown (memory and reference are not offered yet). */
-const KINDS: [Kind, string, Icon][] = [
-  ["note", "Note", "note"],
-  ["todo", "Todo", "todo"],
-  ["consume", "Read", "later"],
-  ["whiteboard", "Whiteboard", "board"],
-  ["document", "Document", "file"],
+// [kind, short label (five fit one row on a 360 px phone), full name, icon]
+const KINDS: [Kind, string, string, Icon][] = [
+  ["note", "Note", "Note", "note"],
+  ["todo", "Todo", "Todo", "todo"],
+  ["consume", "Read", "Read", "later"],
+  ["whiteboard", "Board", "Whiteboard", "board"],
+  ["document", "Doc", "Document", "file"],
 ];
 export const BARE_URL = /^https?:\/\/\S+$/;
 
@@ -39,11 +40,17 @@ export function kindPicker(initial: string, picked = false) {
       "aria-label": "Kind",
       onchange: () => (picked = true),
     },
-    ...KINDS.map(([value, label, glyph]) =>
+    ...KINDS.map(([value, label, name, glyph]) =>
       h(
         "label",
-        {},
-        h("input", { type: "radio", name: "kind", value, checked: value === initial }),
+        { title: name },
+        h("input", {
+          type: "radio",
+          name: "kind",
+          value,
+          checked: value === initial,
+          "aria-label": name,
+        }),
         icon(glyph),
         label,
       ),

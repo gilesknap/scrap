@@ -89,7 +89,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Button, danger | `.danger` | red label, never filled |
 | Tile | `.tile` | icon over a short label on `--sunk`, 72 high; the capture actions Camera, Gallery and Note, three equal columns |
 | Toolbar | `.tools` | equal icon-over-label tiles: page actions (sticky above the nav), viewer tools |
-| Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Whiteboard, Document; wraps to two rows on a narrow phone) and Recent's filters (`.filters`: All, Todos, Read, Inbox); selected = raised surface, amber icon |
+| Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Board, Doc: short labels so all five fit one row from 320 px, with the full names Whiteboard and Document as the radios' accessible names and titles) and Recent's filters (`.filters`: All, Todos, Read); selected = raised surface, amber icon |
 | Top bar | `header` | wordmark with the scrap mark; the queue badge on the right |
 | Badge | `.badge`, `.badge.failed` | pill with a status dot: amber waiting, red failed |
 | Bottom nav | `nav` | icon over label; active item gets an amber-soft pill and ink label |

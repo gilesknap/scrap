@@ -337,13 +337,8 @@ class Store:
             raise NotFoundError(key)
         return row
 
-    def recent(
-        self, limit: int, kind: str | None = None, inbox: bool = False
-    ) -> list[dict[str, Any]]:
-        """Pages, newest change first; only those of one kind, or the Inbox (notes
-        whose kind nobody chose yet)."""
-        if inbox:
-            kind = "note"
+    def recent(self, limit: int, kind: str | None = None) -> list[dict[str, Any]]:
+        """Pages, newest change first; only those of one kind, if given."""
         with self.connect() as conn:
             rows = _rows(  # thumb: the page's first image, if any
                 conn,
@@ -354,9 +349,9 @@ class Store:
                 " WHERE c.page_id = page.id AND b.mime LIKE 'image/%'"
                 " ORDER BY c.received_at, cb.ord LIMIT 1) AS thumb"
                 " FROM page WHERE deleted_at IS NULL"
-                " AND coalesce(?, kind) = kind AND (NOT ? OR kind_fixed = 0)"
+                " AND coalesce(?, kind) = kind"
                 " ORDER BY updated_at DESC, id DESC LIMIT ?",
-                kind, inbox, limit,
+                kind, limit,
             )  # fmt: skip
         return [{**r, "fields": json.loads(r["fields"])} for r in rows]
 

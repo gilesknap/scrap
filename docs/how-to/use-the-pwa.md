@@ -23,7 +23,7 @@ Installing is what puts scrap in the Android **share sheet**.
 
 The buttons say how you capture, not what the page is. Its **kind** is chosen in the composer
 (and changed later in the page's editor) with the row of chips above the text: **Note** (the
-default), **Todo**, **Read** (to read later), **Whiteboard** or **Document**. A link on its own
+default), **Todo**, **Read** (to read later), **Board** (a whiteboard) or **Doc** (a document). A link on its own
 picks **Read** for you until you pick something else. Photos skip the choice: Claude reads them
 and makes a whiteboard or document a page of that kind, and you can change it after. A kind
 you choose is kept: Claude never changes it.
@@ -73,8 +73,7 @@ the link as the capture's URL.
 ## View, edit, search
 
 - **Recent** lists pages newest first, with a thumbnail of the first photo. Its chips filter
-  it: **All**, **Todos**, **Read**, and **Inbox** (notes nobody has chosen a kind for yet,
-  shared links among them). The filter stays in the address, so Back and a reload keep it.
+  it: **All**, **Todos** and **Read**. The filter stays in the address, so Back and a reload keep it.
 - A todo's page has **Done** (and **Reopen**) in its toolbar; a done todo is marked *done* in
   the lists. Ticking it or changing a kind doesn't move the page up Recent.
 - Swipe a row of **Recent**, the capture screen's list or search results: to the **right** to

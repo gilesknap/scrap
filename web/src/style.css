@@ -993,14 +993,10 @@ div.orig .save {
   height: 18px;
 }
 .filters {
-  margin-bottom: var(--s-3); /* Recent: All, Todos, Read, Inbox */
-}
-.kinds {
-  flex-wrap: wrap; /* five kinds: two rows on a narrow phone */
+  margin-bottom: var(--s-3); /* Recent: All, Todos, Read */
 }
 .kinds label {
-  flex: 1 0 auto;
-  padding: 0 var(--s-2);
+  gap: 4px; /* five kinds in one row */
 }
 @media (max-width: 379px) {
   .chips .i {

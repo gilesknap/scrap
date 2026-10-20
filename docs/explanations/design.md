@@ -262,8 +262,8 @@ rewrites the user's words or fits them to templates.
   now `consume`. Only regenerating the summary re-fetches it, for example after a change to
   `reference`.
 - **Views.** Recent has filter chips, not screens of their own: All, Todos (`?kind=todo`; a
-  todo's page has a Done/Reopen tick setting `fields.status`), Read (`?kind=consume`) and Inbox
-  (`?inbox=1`): notes whose kind nobody chose, `kind = 'note' AND kind_fixed = 0`.
+  todo's page has a Done/Reopen tick setting `fields.status`), and Read (`?kind=consume`). No
+  Inbox: `kind_fixed` is only for the user-wins rule.
 
 ## Phone quick capture
 

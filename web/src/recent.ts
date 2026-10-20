@@ -7,12 +7,11 @@ import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read" };
-// Recent's filters: [label, API query]. Inbox: notes nobody chose a kind for yet.
+// Recent's filters: [label, API query]
 const FILTERS = [
   ["All", ""],
   ["Todos", "kind=todo"],
   ["Read", "kind=consume"],
-  ["Inbox", "inbox=1"],
 ];
 
 function row(

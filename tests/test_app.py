@@ -238,19 +238,17 @@ def test_stale_edit_leaves_the_kind(client, note):
     assert client.get(url).json()["kind"] == "note"
 
 
-def test_pages_by_kind_and_inbox(client, note):
+def test_pages_by_kind(client, note):
     todo = note("a todo", kind="todo")["slug"]
-    filed = note("a filed note")
-    client.patch(f"/api/pages/{filed['page_id']}", json={"kind": "note"})
-    inbox = note("an unfiled note")["slug"]
+    plain = note("a note")["slug"]
 
     def slugs(**params):
         return [p["slug"] for p in client.get("/api/pages", params=params).json()]
 
     assert slugs(kind="todo") == [todo]
-    assert slugs(inbox=1) == [inbox]
-    assert slugs(kind="note") == [inbox, filed["slug"]]
-    assert len(slugs()) == 3
+    assert slugs(kind="note") == [plain]
+    assert slugs(kind="consume") == []
+    assert len(slugs()) == 2
 
 
 def search(client, query):

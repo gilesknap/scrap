@@ -272,11 +272,10 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     def recent(
         limit: int = Query(50, ge=1, le=500),
         kind: str | None = None,
-        inbox: bool = False,
     ) -> list[dict[str, Any]]:
         """Pages, most recently changed first; the trash is left out. Only those of
-        one kind, or with inbox=1 the notes whose kind nobody chose."""
-        return store.recent(limit, kind, inbox)
+        one kind, if given."""
+        return store.recent(limit, kind)
 
     @app.get("/api/pages/{key}")
     def page(key: str) -> dict[str, Any]:

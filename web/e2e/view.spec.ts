@@ -568,6 +568,15 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, Recent filt
   expect((await api()).kind).toBe("consume");
 
   await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("radio", { name: "Whiteboard" })).toBeAttached(); // full names
+  for (const width of [320, 360, 412]) {
+    await page.setViewportSize({ width, height: 800 });
+    const tops = await page
+      .locator(".kinds label")
+      .evaluateAll((ls) => new Set(ls.map((l) => l.getBoundingClientRect().top)).size);
+    expect(tops, `kinds in one row at ${width} px`).toBe(1);
+    await page.screenshot({ path: test.info().outputPath(`kinds-${width}.png`) });
+  }
   await page.locator(".kinds").getByText("Todo").click();
   await page.getByRole("button", { name: "Save" }).click();
   await page.getByRole("button", { name: "Done" }).click();
@@ -581,7 +590,9 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, Recent filt
   await expect(rows.filter({ hasText: "example.com/kinds" })).toContainText("done");
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
   await page.reload(); // the filter stays
-  await page.locator(".filters").getByText("Inbox").click();
+  await expect(page.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
+  await page.locator(".filters").getByText("All").click();
+  await expect(page).toHaveURL(/\/recent$/);
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
-  await expect(rows.filter({ hasText: "example.com/kinds" })).toHaveCount(0);
 });
