@@ -7,6 +7,7 @@ import { debugPanel } from "./debug";
 import { page } from "./page";
 import { recent } from "./recent";
 import { search } from "./search";
+import { whenSlow } from "./slow";
 import { trailOf } from "./swipe";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
@@ -37,8 +38,20 @@ async function render() {
     const m = path.match(re);
     if (!m) continue;
     let el: Node;
+    // A view waiting for the server (behind an upload on a slow link, say) says so at once,
+    // rather than leaving the last one up as if the tap did nothing. Not for the same page
+    // again, and not for quick answers: no flash.
+    const loading = () => {
+      if (n !== rendering || path === shown) return;
+      shown = ""; // no page on screen now
+      view.replaceChildren(h("p", { className: "empty", role: "status" }, "Loading…"));
+    };
     try {
-      el = await fn(m);
+      el = await whenSlow(
+        Promise.resolve().then(() => fn(m)),
+        150,
+        loading,
+      );
     } catch (e) {
       el = problem(e);
     }
@@ -79,7 +92,7 @@ queue.onchange = () => void showQueue();
 
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
-  void queue.flush();
+  void queue.nudge(); // now, not when its backoff says: the user is here
   void learnLimit(); // the server's upload limit, kept for offline checks
 };
 window.addEventListener("online", flush);

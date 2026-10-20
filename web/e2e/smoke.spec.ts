@@ -346,3 +346,54 @@ test("a slow upload finishes; a stalled one is dropped and retried", async ({ pa
   await upload(-1);
   await expect.poll(() => found("stuck"), { timeout: 30_000 }).toBe(1);
 });
+
+test("a slow view says Loading at once, and a newer tap wins", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".capture")).toBeVisible();
+  let hold = true;
+  await page.route("**/api/pages?limit=100*", async (r) => {
+    while (hold) await new Promise((ok) => setTimeout(ok, 100));
+    await r.continue();
+  });
+  await page.getByRole("link", { name: "Recent", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Loading…", { timeout: 1000 });
+  await expect(page.locator(".capture")).toHaveCount(0); // not the old view, as if stuck
+  await page.getByRole("link", { name: "Search", exact: true }).click();
+  await expect(page.getByRole("searchbox")).toBeVisible();
+  hold = false; // Recent's answer comes late: it must not cover Search
+  await page.waitForResponse("**/api/pages?limit=100*");
+  await page.waitForTimeout(300);
+  await expect(page.getByRole("searchbox")).toBeVisible();
+  await expect(page.getByText("Loading…")).toHaveCount(0);
+});
+
+test("opening the app sends what waits now, not when its backoff says", async ({ page }) => {
+  await page.goto("/");
+  let refuse = true;
+  await page.route("**/api/captures", (r) => (refuse ? r.abort() : r.continue()));
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("Sent on open");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("waiting to upload (connection lost)")).toBeVisible();
+  // As after many failures: the next timed try is far off
+  await page.evaluate(
+    () =>
+      new Promise((ok) => {
+        indexedDB.open("scrap").onsuccess = (e) => {
+          const store = (e.target as IDBOpenDBRequest).result
+            .transaction("queue", "readwrite")
+            .objectStore("queue");
+          store.getAll().onsuccess = (g) => {
+            for (const i of (g.target as IDBRequest).result)
+              store.put({ ...i, next: Date.now() + 10 * 60_000 });
+            store.transaction.oncomplete = ok;
+          };
+        };
+      }),
+  );
+  refuse = false;
+  await page.reload();
+  await expect(page.locator("#queue")).toBeHidden({ timeout: 10_000 });
+  const pages = await (await page.request.get("/api/pages")).json();
+  expect(pages.map((p: { title: string }) => p.title)).toContain("Sent on open");
+});
