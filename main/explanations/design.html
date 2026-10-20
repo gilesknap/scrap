@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev119+g60851f9c5 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev125+ga543789bf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=be63798a"></script>
+    <script src="../_static/documentation_options.js?v=b234e4b2"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -696,9 +696,11 @@ chunk first, then in one short write transaction drops and recreates <code class
 dimension (before deleting any chunk, since <code class="docutils literal notranslate"><span class="pre">chunk_ad</span></code> needs the table), updates <code class="docutils literal notranslate"><span class="pre">meta</span></code>, and
 replaces all chunks. One model at a time; no mixing. A page edited during <code class="docutils literal notranslate"><span class="pre">reindex</span></code> may
 briefly be found by its older text.</p></li>
-<li><p><strong>Indexed</strong> is text only: the title and body (the title heads the body’s first chunk) and every
-derived text: OCR, fetched article, Claude’s image description and the summary. Not pixels, and
-not raw Excalidraw JSON (coordinates and IDs).</p></li>
+<li><p><strong>Indexed</strong> is text only: the title, tags, summary field and body (a page’s own chunk has a
+column for each, so ranking can weigh them: #84) and every derived text: OCR, fetched article,
+Claude’s image description and the summary. Not pixels, and not raw Excalidraw JSON
+(coordinates and IDs). Pages with every word in the title rank first, then those with every
+word in the title, tags or summary, then by bm25 (column weights 10, 5, 3, 1).</p></li>
 </ul>
 <section id="page-identity-links-tags">
 <h3>Page identity, links, tags<a class="headerlink" href="#page-identity-links-tags" title="Link to this heading">#</a></h3>
