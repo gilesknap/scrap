@@ -1,6 +1,8 @@
 # scrap as a rootless podman container, run by systemd for one unix user.
-# Settings come from ~/.config/scrap/env (see install.sh). Installed by
-# deploy/install.sh into ~/.config/systemd/user/.
+# Unit settings come from ~/.config/scrap/env; scrap's own settings (ingest,
+# the API key, the notify URL) from ~/.config/scrap/ingest.env, which podman
+# passes into the container. See install.sh. Installed by deploy/install.sh
+# into ~/.config/systemd/user/.
 [Unit]
 Description=scrap personal knowledge store
 Documentation=https://gilesknap.github.io/scrap/
@@ -12,7 +14,6 @@ StartLimitBurst=5
 [Service]
 EnvironmentFile=%h/.config/scrap/env
 Environment=PODMAN_SYSTEMD_UNIT=%n
-# pids-limit leaves room for the claude -p subprocesses that ingest will run.
 # The image runs as uid 10001; keep-id maps it to this user so the files
 # under SCRAP_DATA stay owned by this user on the host.
 ExecStartPre=/usr/bin/mkdir -p ${SCRAP_DATA}
@@ -22,6 +23,7 @@ ExecStart=/usr/bin/podman run --name scrap --replace --rm -d \
     --memory=${SCRAP_MEMORY_MAX} --pids-limit=512 \
     --publish 127.0.0.1:${SCRAP_PORT}:8000 \
     --volume ${SCRAP_DATA}:/data \
+    --env-file %h/.config/scrap/ingest.env \
     --env SCRAP_DATA_DIR=/data \
     ${SCRAP_IMAGE} serve --host 0.0.0.0 --port 8000
 ExecStop=/usr/bin/podman rm -v -f -i scrap

@@ -72,4 +72,20 @@ for keep in 0 00 "" abc -1 2x; do
     fi
 done
 
+# A run in the same second as an existing one fails without deleting it.
+b="$tmp/same-second"
+bin="$tmp/bin"
+make_runs "$b" 1
+mkdir -p "$bin"
+printf '#!/bin/sh\necho 20261001T033000Z\n' >"$bin/date"
+printf '#!/bin/sh\nexit 1\n' >"$bin/podman"
+chmod +x "$bin/date" "$bin/podman"
+if PATH="$bin:$PATH" SCRAP_BACKUPS="$b" SCRAP_BACKUP_KEEP=3 SCRAP_DATA="$tmp" \
+    SCRAP_IMAGE=none "$here/scrap-backup" 2>/dev/null; then
+    expect "same-second run rejected" "non-zero exit" "exit 0"
+else
+    expect "same-second run kept the existing backup" "./scrap.db " \
+        "$(listing "$b/20261001T033000Z")"
+fi
+
 exit "$fail"

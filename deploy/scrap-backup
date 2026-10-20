@@ -32,7 +32,9 @@ fi
 : "${SCRAP_DATA:?SCRAP_DATA is not set}"
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
 dest=$(date -u +%Y%m%dT%H%M%SZ)
-mkdir -p "$SCRAP_BACKUPS/$dest"
+# No -p: a run that already exists (two runs in one second) must fail here,
+# before the cleanup below could delete the other run's backup.
+mkdir "$SCRAP_BACKUPS/$dest"
 if ! podman run --rm --replace --name scrap-backup \
     --userns=keep-id:uid=10001,gid=10001 \
     --volume "$SCRAP_DATA:/data" --volume "$SCRAP_BACKUPS:/backups" \
