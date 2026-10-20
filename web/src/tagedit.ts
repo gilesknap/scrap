@@ -61,7 +61,7 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
     onchange();
   };
   input.onkeydown = (e) => {
-    if (e.key !== "Enter") return;
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return; // an IME's Enter
     e.preventDefault(); // not the form's submit: adding a tag saves nothing yet
     add();
   };

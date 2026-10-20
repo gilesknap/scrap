@@ -4,6 +4,14 @@ import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 
+/** A photo whose reading failed (e2e/draw.py): its Retry draws the page again. */
+function failedPhoto(): { slug: string } {
+  const data = process.env.SCRAP_E2E_DATA as string;
+  const args = ["run", "--locked", "python", "web/e2e/draw.py", data, "failed"];
+  const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
+  return JSON.parse(out.trim().split("\n").pop() || "null");
+}
+
 let slugs: string[] = [];
 test.beforeAll(() => {
   const data = process.env.SCRAP_E2E_DATA as string;
@@ -179,4 +187,71 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
     [...titles].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
   );
   expect(await page.evaluate(lowContrast, ""), "sort").toEqual([]);
+});
+
+test("an open tag edit survives the page being drawn again; Cancel and Escape close it", async ({
+  page,
+}) => {
+  const { slug } = failedPhoto();
+  await page.goto(`/p/${slug}`);
+  const retry = page.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  await page.getByRole("button", { name: "Add tags" }).click();
+  const box = page.getByRole("combobox", { name: "Add a tag" });
+  await box.fill("wombat");
+  await box.press("Enter");
+  await box.fill("still typing");
+  await Promise.all([page.waitForResponse("**/api/pages/*"), retry.click()]); // drawn again
+  await expect(page.getByText("Waiting: Claude ingest is off")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove #wombat" })).toBeVisible();
+  await expect(box).toHaveValue("still typing");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  const tagsButton = page.locator(".page h1 + .tags").getByRole("button", { name: "Add tags" });
+  await expect(tagsButton).toBeFocused(); // back where it was
+  await expect(page.getByText("Waiting: Claude ingest is off")).toBeVisible(); // the page as it is now
+  await tagsButton.click();
+  await box.fill("x");
+  await box.press("Escape");
+  await expect(box).toBeHidden();
+  await expect(tagsButton).toBeFocused();
+  expect((await (await page.request.get(`/api/pages/${slug}`)).json()).tags).toEqual([]);
+});
+
+test("a kept draft brings back only the tags changed in it", async ({ page }) => {
+  const made = async (text: string) => {
+    const r = await page.request.post("/api/captures", {
+      data: { id: `01E2EDRAFT${text.length}`.padEnd(26, "0"), text },
+    });
+    return (await r.json()) as { page_id: string; slug: string };
+  };
+  const tagsOf = async (id: string) =>
+    (await (await page.request.get(`/api/pages/${id}`)).json()).tags as string[];
+  const editor = page.locator(".editor");
+  const open = async (slug: string) => {
+    await page.goto(`/p/${slug}`);
+    await page.locator(".page .tools").getByRole("button", { name: /^Edit/ }).click();
+    await expect(editor).toBeVisible();
+  };
+  // Only the text changed in the draft: tags set elsewhere since are kept, not overwritten
+  const a = await made("Draft text only");
+  await open(a.slug);
+  await editor.getByRole("textbox", { name: "Body" }).fill("Draft text only, edited");
+  await page.goBack(); // keeps the draft
+  await page.request.patch(`/api/pages/${a.page_id}`, { data: { tags: ["elsewhere"] } });
+  await open(a.slug);
+  await expect(editor.getByRole("button", { name: "Remove #elsewhere" })).toBeVisible();
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  expect(await tagsOf(a.page_id)).toEqual(["elsewhere"]);
+  // Tags changed in the draft (one still in the box) come back, and are saved
+  const b = await made("Draft with its own tags");
+  await open(b.slug);
+  await editor.getByRole("combobox", { name: "Add a tag" }).fill("drafted");
+  await page.goBack();
+  await page.request.patch(`/api/pages/${b.page_id}`, { data: { tags: ["elsewhere"] } });
+  await open(b.slug);
+  await expect(editor.getByRole("button", { name: "Remove #drafted" })).toBeVisible();
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  expect(await tagsOf(b.page_id)).toEqual(["drafted"]);
 });
