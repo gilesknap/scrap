@@ -16,9 +16,13 @@ export function pager(
   root: HTMLElement,
   signal: AbortSignal,
 ) {
-  if (from) root.classList.add(from > 0 ? "from-next" : "from-prev");
   const at = placeIn(trail, slug);
   if (!trail || !at || signal.aborted) return null;
+  if (from) {
+    // slide in from that side once: not again on Back, Forward or a reload
+    root.classList.add(from > 0 ? "from-next" : "from-prev");
+    history.replaceState({ ...history.state, from: 0 }, "");
+  }
   const step = (d: 1 | -1) => {
     const to = d > 0 ? at.next : at.prev;
     if (signal.aborted) return; // gone elsewhere meanwhile: never replace that entry

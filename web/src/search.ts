@@ -3,7 +3,7 @@ import { api, type Hit } from "./api";
 import { go, view } from "./app";
 import { icon, kindIcon } from "./icons";
 import { snippetParts } from "./snippet";
-import { rowGestures, trail, trailOf } from "./swipe";
+import { swipeRows, trail, trailOf } from "./swipe";
 import { empty, h } from "./ui";
 
 export function search(): Node {
@@ -32,42 +32,38 @@ export function search(): Node {
     abort = new AbortController();
     if (!query) return results.replaceChildren(hint());
     try {
-      const [hits, swipeRow] = await Promise.all([
-        api<Hit[]>(`search?q=${encodeURIComponent(query)}`, { signal: abort.signal }),
-        rowGestures(),
-      ]);
+      const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}`, {
+        signal: abort.signal,
+      });
       trail(
         results,
         "Search results",
         hits.map((hit) => hit.slug),
       );
-      results.replaceChildren(
-        ...hits.map((hit) =>
-          swipeRow(
+      const rows = hits.map((hit) =>
+        h(
+          "li",
+          {},
+          h(
+            "a",
+            { href: `/p/${encodeURIComponent(hit.slug)}` },
+            h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
             h(
-              "li",
+              "span",
               {},
+              h("strong", { dir: "auto" }, hit.title),
               h(
-                "a",
-                { href: `/p/${encodeURIComponent(hit.slug)}` },
-                h("span", { className: "noimg" }, icon(kindIcon(hit.kind))),
-                h(
-                  "span",
-                  {},
-                  h("strong", { dir: "auto" }, hit.title),
-                  h(
-                    "small",
-                    { dir: "auto" },
-                    ...snippetParts(hit.snippet).map((p) =>
-                      p.mark ? h("mark", {}, p.text) : p.text,
-                    ),
-                  ),
-                ),
+                "small",
+                { dir: "auto" },
+                ...snippetParts(hit.snippet).map((p) => (p.mark ? h("mark", {}, p.text) : p.text)),
               ),
             ),
-            hit.slug,
           ),
         ),
+      );
+      swipeRows(rows.map((li, i) => [li, hits[i].slug]));
+      results.replaceChildren(
+        ...rows,
         ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]),
       );
     } catch (e) {

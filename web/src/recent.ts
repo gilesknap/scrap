@@ -3,7 +3,7 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
-import { rowGestures, trail } from "./swipe";
+import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
@@ -94,10 +94,7 @@ export async function pendingList(): Promise<Node> {
 export async function pageList(limit: number, label = "Recent"): Promise<Node> {
   try {
     if (!navigator.onLine) throw new TypeError("offline");
-    const [list, swipeRow] = await Promise.all([
-      api<Summary[]>(`pages?limit=${limit}`),
-      rowGestures(), // loaded with the list
-    ]);
+    const list = await api<Summary[]>(`pages?limit=${limit}`);
     if (!list.length)
       return empty(
         "note",
@@ -108,20 +105,17 @@ export async function pageList(limit: number, label = "Recent"): Promise<Node> {
       "ul",
       { className: "list" },
       ...list.map((p) =>
-        swipeRow(
-          row(
-            p.thumb && previewUrl(p.thumb, 480),
-            p.title,
-            whenShort(p.updated_at),
-            KIND[p.kind],
-            `/p/${encodeURIComponent(p.slug)}`,
-            p.kind,
-          ),
-          p.slug,
-          p.id,
+        row(
+          p.thumb && previewUrl(p.thumb, 480),
+          p.title,
+          whenShort(p.updated_at),
+          KIND[p.kind],
+          `/p/${encodeURIComponent(p.slug)}`,
+          p.kind,
         ),
       ),
     );
+    swipeRows(list.map((p, i) => [ul.children[i], p.slug, p.id]));
     return trail(
       ul,
       label,

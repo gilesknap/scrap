@@ -93,6 +93,17 @@ test("a row swiped right opens its page in the editor; a short drag does nothing
   await expect(page).toHaveURL("/recent");
 });
 
+test("after a touch swipe settles back, a mouse click still opens the row", async ({ page }) => {
+  const [c] = await three(page);
+  const cdp = await page.context().newCDPSession(page);
+  await page.goto("/recent");
+  const row = rowOf(page, c);
+  await drag(cdp, await rowY(row), 100, 140, 4, 120); // settles back
+  await expect(row).toHaveClass("swipe");
+  await row.locator("strong").click(); // a mouse, e.g. a touchscreen laptop's
+  await expect(page).toHaveURL(`/p/${c}`);
+});
+
 test("a second finger never leaves a row half swiped", async ({ page }) => {
   const [c] = await three(page);
   const cdp = await page.context().newCDPSession(page);
@@ -118,17 +129,27 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   const [c, b, a] = await three(page);
   const cdp = await page.context().newCDPSession(page);
   await page.goto("/recent");
+  // Each step: wait until the new page is drawn (its pager listening), not just its address
+  const at = (n: number) => expect(page.locator(".pager span")).toHaveText(new RegExp(`^${n} of `));
   await rowOf(page, c).locator("a").click();
-  await expect(page.locator(".pager")).toContainText("1 of");
+  await at(1);
   await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page).toHaveURL(`/p/${b}`);
+  await at(2);
   await drag(cdp, 500, 330, 100); // swipe left: the next one
   await expect(page).toHaveURL(`/p/${a}`);
+  await at(3);
   await page.keyboard.press("ArrowLeft");
   await expect(page).toHaveURL(`/p/${b}`);
+  await at(2);
+  await expect(page.locator("#view > .page")).toHaveClass(/from-prev/); // slid in from the left
   await drag(cdp, 500, 400, 150); // from the screen's edge: the phone's, not ours
+  await page.waitForTimeout(400);
   await expect(page).toHaveURL(`/p/${b}`);
+  await page.reload(); // no slide again on a reload
+  await at(2);
+  await expect(page.locator("#view > .page")).not.toHaveClass(/from-/);
   await page.goBack();
   await expect(page).toHaveURL("/recent");
 });
@@ -156,9 +177,10 @@ test("a swipe's step never replaces where the nav went meanwhile", async ({ page
   await page.goto("/recent");
   await rowOf(page, c).locator("a").click();
   await expect(page.locator(".pager")).toBeVisible();
+  await page.clock.install(); // the slide-off's wait only passes when told to
   await drag(cdp, 500, 330, 100, 4, 8);
   await page.locator("nav a", { hasText: "Search" }).click(); // within the slide-off
-  await page.waitForTimeout(500);
+  await page.clock.runFor(1000);
   await expect(page).toHaveURL(/\/search/);
   await page.goBack();
   await expect(page).toHaveURL(`/p/${c}`);

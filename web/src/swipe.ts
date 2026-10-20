@@ -23,12 +23,17 @@ export function trailOf(a: Element): { trail: Trail } | null {
   return t ? { trail: t } : null;
 }
 
-/** The row gestures (rows.ts), or rows that only open their page if it can't load. */
-export const rowGestures = () =>
+/** Give list rows their gestures (rows.ts) once that chunk is here: the list shows at once,
+ * and its rows only open their page if the chunk can't load. Per row: the row, its page's
+ * slug and the key to delete it by. */
+export function swipeRows(rows: [Element, string, string?][]) {
   import("./rows").then(
-    (m) => m.swipeRow,
-    () => (li: HTMLLIElement, _slug: string, _key?: string) => li,
+    (m) => {
+      for (const [li, slug, key] of rows) m.swipeRow(li as HTMLLIElement, slug, key);
+    },
+    () => {},
   );
+}
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 

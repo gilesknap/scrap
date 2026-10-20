@@ -28,8 +28,9 @@ export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
   let start: { x: number; y: number; t: number; id: number } | null = null;
   let sideways = false;
   li.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" || !e.isPrimary) return; // a second finger changes nothing
-    sideways = false;
+    if (!e.isPrimary) return; // a second finger changes nothing
+    sideways = false; // any new press: a mouse's click, too, opens the page again
+    if (e.pointerType === "mouse") return;
     if (e.clientX < EDGE || e.clientX > innerWidth - EDGE) return;
     start = { x: e.clientX, y: e.clientY, t: e.timeStamp, id: e.pointerId };
   });
@@ -58,7 +59,11 @@ export function swipeRow(li: HTMLLIElement, slug: string, key = slug) {
     if (!sideways) return;
     if (d === 1) {
       move(-li.offsetWidth, true); // off it goes
-      void remove(li, slug, key).then(() => li.isConnected && move(0, true)); // or not deleted
+      void remove(li, slug, key).then(() => {
+        if (!li.isConnected) return; // not deleted: back it comes
+        move(0, true);
+        li.className = "swipe";
+      });
     } else {
       move(0, true);
       li.className = "swipe";
