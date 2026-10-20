@@ -90,7 +90,56 @@ the link as the capture's URL.
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.
 - **Delete** moves the page to the trash, with **Undo** for a few seconds.
+
+## What Claude made of a photo
+
+With Claude ingest on (see [](../explanations/ingest.md)), each photo on a page has, under it:
+
+- Its state: *Waiting for Claude* (or *Claude ingest is off*), *Claude is reading it*, *Read by
+  Claude*, *Failed* with the reason and **Retry**, or *Paused* with the reason and **Resume**
+  (nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
+  **Reprocess** sends it to Claude again; if you have edited its drawing, it asks first:
+  **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
+- **Description** and **Text Claude read**, folded; tap to open, and the text can be selected
+  and copied.
+- **The drawing** of a whiteboard or diagram, beside the photo when the screen is wide enough
+  (a tablet, or a phone on its side), else under a **Photo** / **Drawing** switch. It is a
+  picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
+  the drawing is made in the photo's own pixels.
+
+Tap the drawing (or **Open drawing**) to open it full screen:
+
+- Pinch and drag to zoom and pan; **Fit** shows all of it again. **Photo** shows the photo
+  beside the drawing (on its side) or over it (upright), to compare. The phone's Back button
+  closes it.
+- **Edit** turns on Excalidraw's tools (draw, shapes, arrows, text, the eraser; not images).
+  **Undo** is in the top bar, **Cancel** puts the drawing back, **Save** stores it as a new
+  version. Zoom, scroll and the edit are kept when switching between viewing and editing.
+- Nothing drawn is lost: the edit is kept as a draft on the phone as you draw, so after Back, a
+  failed save, a reload or a closed app, **Edit (unsaved draft)** brings it back
+  (**Discard it** drops it). If the drawing was changed elsewhere meanwhile, saving says so:
+  **Save mine** adds yours as a newer version (theirs stays in History), or **Discard mine,
+  show theirs**.
+- **More**, **History** lists every version (Claude's, yours, restored ones) with **Restore**,
+  which makes an old version current again as a new copy: nothing is ever overwritten.
+- **More**, **Export** saves the drawing as `.excalidraw` (opens in excalidraw.com or the
+  Excalidraw app), PNG or SVG. The page's **Download** zip has it too, beside the photo, with
+  the description and text in the Markdown.
+- The drawing follows the phone's light or dark theme. Viewing a drawing needs the server: the
+  app shell works offline, but a page and its drawing are not cached.
+- Excalidraw is loaded only when a drawing is first shown (about 435 kB over the network, as
+  scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture, Recent
+  or Search. Its fonts are served by scrap itself, never
+  from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
 - **Search** searches titles and text as you type.
+
+## Licences of the drawing fonts
+
+The drawing viewer is [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT). scrap serves
+the drawing fonts that come with it: Excalifont, Virgil, Nunito, Lilita One, Cascadia Code and
+Liberation Sans under the SIL Open Font License 1.1, and Comic Shanns under the MIT licence;
+Excalidraw's interface font, Assistant, is OFL 1.1 too. The CJK font (Xiaolai, 14 MB) is left
+out.
 
 ## Troubleshooting the screen layout
 
@@ -117,7 +166,8 @@ these limits:
 
 ## Build it (developers)
 
-The PWA's source is in `web/` (TypeScript, Vite, no UI framework). The container image builds
+The PWA's source is in `web/` (TypeScript, Vite, no UI framework; the drawing viewer in
+`web/src/board/` uses Excalidraw and React, in a chunk of its own). The container image builds
 it; for `scrap serve` from a checkout, build it once with Node 22:
 
 ```sh
@@ -128,4 +178,6 @@ npm --prefix web run build   # writes src/scrap/static/, which scrap serve picks
 Without it `scrap serve` still serves the API, and `/` says how to build the app. For working on
 the app, run `scrap serve` and `npm --prefix web run dev` (Vite proxies `/api` to port 8000).
 Checks: `npm --prefix web run check` (Biome, TypeScript), `npm --prefix web test` (unit tests),
+`npm --prefix web run size` (after a build: the app shell stays within its size budget and
+never loads Excalidraw),
 `npm --prefix web run e2e` (Playwright against a real `scrap serve` on a throwaway data folder).

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest (M2) &#8212; scrap 0.1.dev82+gd4a66a0a8 documentation</title>
+    <title>Claude ingest (M2) &#8212; scrap 0.1.dev90+gc3571dd58 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=5ca5048e"></script>
+    <script src="../_static/documentation_options.js?v=79ec2586"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -649,14 +649,48 @@ drawing’s text is NULL, because its words are the OCR. M1 needs two changes:</
 </section>
 <section id="excalidraw-in-the-pwa">
 <h2>Excalidraw in the PWA<a class="headerlink" href="#excalidraw-in-the-pwa" title="Link to this heading">#</a></h2>
-<p>A Vite dynamic <code class="docutils literal notranslate"><span class="pre">import()</span></code> loads <code class="docutils literal notranslate"><span class="pre">&#64;excalidraw/excalidraw</span></code> and React (about 410 kB gzipped) only
-when a drawing opens; the base app stays about 8 kB. Only the fonts used are self-hosted
+<p>A Vite dynamic <code class="docutils literal notranslate"><span class="pre">import()</span></code> loads <code class="docutils literal notranslate"><span class="pre">&#64;excalidraw/excalidraw</span></code> and React (about 435 kB gzipped) only
+when a drawing is shown; the base app stays small. Only the fonts used are self-hosted
 (<code class="docutils literal notranslate"><span class="pre">EXCALIDRAW_ASSET_PATH</span></code>; the default is a CDN, the full set 14 MB). <code class="docutils literal notranslate"><span class="pre">convertToExcalidrawElements</span></code>
 expands skeletons in the browser with the experiment’s two workarounds: an arrow bound to free
 text carries that text’s <code class="docutils literal notranslate"><span class="pre">x</span></code>/<code class="docutils literal notranslate"><span class="pre">y</span></code> in <code class="docutils literal notranslate"><span class="pre">start</span></code>/<code class="docutils literal notranslate"><span class="pre">end</span></code>, and the scene is converted again after
 <code class="docutils literal notranslate"><span class="pre">document.fonts.ready</span></code>. View mode by default, beside the photo; <strong>Edit</strong> saves the scene with its
 base version (409 if stale) as a <code class="docutils literal notranslate"><span class="pre">human</span></code> version whose labels become <code class="docutils literal notranslate"><span class="pre">text</span></code>; <strong>History</strong> has
 <strong>Restore</strong>; export to <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code>, PNG and SVG; the image tool is hidden.</p>
+<p><strong>As built</strong> (the PWA, <code class="docutils literal notranslate"><span class="pre">web/src/board/</span></code>):</p>
+<ul class="simple">
+<li><p><em>On the page</em> the drawing is a static SVG from Excalidraw’s <code class="docutils literal notranslate"><span class="pre">exportToSvg</span></code>, framed like the
+photo (its <code class="docutils literal notranslate"><span class="pre">viewBox</span></code> is the frame, so it lines up with the photo whatever the photo’s size),
+rendered when it nears the screen and kept in memory. It behaves like an image: no gestures,
+so a finger drag scrolls the page. Its aspect ratio comes with the page (<code class="docutils literal notranslate"><span class="pre">ingest.drawing</span></code>
+has the frame), so nothing shifts when it renders. Wide screens show it beside the photo,
+phones upright a Photo / Drawing switch.</p></li>
+<li><p><em>Tapping it</em> opens the full-screen viewer: a layer sized to the visual viewport with a history
+entry (Back closes it), Excalidraw in view mode fitted to the frame (clear of its own tool
+bars), <strong>Edit</strong> switching the same scene to edit mode, so zoom, scroll and edits survive the
+switch. Edits are kept as a draft in IndexedDB as they change. <strong>Photo</strong> shows the photo beside
+the drawing (landscape) or over it (portrait).</p></li>
+<li><p><em>Fonts:</em> Excalidraw’s drawing fonts but Xiaolai (CJK, 14 MB) are copied from the package into
+the build (<code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>), about 440 kB, fetched only when used. Excalidraw always
+lists its CDN as a fallback source; a <code class="docutils literal notranslate"><span class="pre">font-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">connect-src</span> <span class="pre">'self'</span></code> policy keeps
+the app from ever using it (Chrome logs each blocked fallback). The preview skips Excalidraw’s
+font inlining (the page has the fonts), which would load its 740 kB font subsetter; exported
+SVGs inline them.</p></li>
+<li><p><em>The second workaround</em> (convert again once fonts are loaded) is done before anything is
+shown: convert, export the text to a 1 px canvas (which makes Excalidraw load the fonts it
+uses), wait for <code class="docutils literal notranslate"><span class="pre">document.fonts.ready</span></code>, convert again.</p></li>
+<li><p><em>Sizes:</em> the app shell is 14.1 kB of JavaScript gzipped (32 kB raw), 2.0 kB more than
+without drawings (the photo panel and the preview’s loader); the viewer chunk is 412 kB JS
+and 22 kB CSS gzipped (1.32 MB and 142 kB raw). scrap gzips its scripts, styles, pages and
+JSON for clients that accept it (not files, previews, downloads, fonts or range requests), so
+the gzipped sizes are what crosses the network. The service worker precaches only the shell,
+never the viewer or its fonts. <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">size</span></code> checks both in CI.</p></li>
+<li><p><em>Reprocess</em> shows <strong>Replace mine</strong> / <strong>Keep mine</strong> when the current drawing is a human one, and
+<code class="docutils literal notranslate"><span class="pre">{queued,</span> <span class="pre">already}</span></code> tells it whether the photo was waiting already.</p></li>
+<li><p><em>Downloads:</em> the page’s zip carries <code class="docutils literal notranslate"><span class="pre">&lt;photo&gt;.excalidraw</span></code> beside each photo; a model skeleton
+is converted on the server, approximately (Excalidraw re-measures text when it opens it). The
+viewer’s own exports (<code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code>, PNG, SVG) are made by Excalidraw in the browser.</p></li>
+</ul>
 <p><strong>Sanitising.</strong></p>
 <p><em>Model output</em> is strict; a violation drops just that element, with a warning in the run:</p>
 <ul class="simple">
