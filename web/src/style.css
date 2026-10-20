@@ -611,7 +611,7 @@ mark {
 }
 .build {
   margin: var(--s-4) 0 0;
-  color: var(--ink-3);
+  color: var(--ink-2); /* --ink-3 is 4.5:1 only just: small text needs the margin */
   font-size: var(--t-xs);
   text-align: center;
 }
