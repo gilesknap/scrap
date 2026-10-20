@@ -61,6 +61,27 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Also queue the imported images for Claude (off: their pages describe"
         " them already)",
     )
+    gc = subparsers.add_parser(
+        "gc",
+        parents=[common],
+        help="Find the stored files nothing uses any more (no page, trashed ones too,"
+        " capture, Claude result or model run); a dry run unless --delete",
+    )
+    gc.add_argument(
+        "--delete", action="store_true", help="Delete them (default: only count them)"
+    )
+    gc.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Only count them, delete nothing (the default; overrides --delete)",
+    )
+    gc.add_argument(
+        "--grace-hours",
+        type=float,
+        default=24.0,
+        help="Keep files younger than this, used or not: an upload may be on its way"
+        " (default 24)",
+    )
     once = subparsers.add_parser(
         "ingest-once",
         help="Send one image to Claude as ingest would (no database) and print the"
@@ -96,7 +117,17 @@ def main(args: Sequence[str] | None = None) -> None:
         from .store import Store
 
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
-        if parsed.command == "import":
+        if parsed.command == "gc":
+            from .gc import GcError, collect
+
+            try:
+                report = collect(
+                    store, parsed.delete and not parsed.dry_run, parsed.grace_hours
+                )
+            except GcError as error:
+                raise SystemExit(f"scrap gc: {error}") from None
+            print(report.text())
+        elif parsed.command == "import":
             from . import importer
 
             if not parsed.dir.is_dir():

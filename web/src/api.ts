@@ -45,6 +45,7 @@ export interface Page extends Summary {
   rev: number;
   tags: string[];
   captures: { id: string; url: string | null; source: string; blobs: FileRef[] }[];
+  removed?: string[]; // files an earlier revision's text embedded and this one doesn't
 }
 export interface Hit
   extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb"> {

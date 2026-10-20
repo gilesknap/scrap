@@ -16,6 +16,7 @@ import { KINDS } from "./kinds";
 import { h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, toSend } from "./kinds";
+export { confirmRemoval } from "./unembed";
 
 /** The kind control: a segmented radio group. suggest() picks a kind until the user picks
  * one (picked: they did, e.g. in a restored draft). */
