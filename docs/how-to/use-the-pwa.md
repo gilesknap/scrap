@@ -17,16 +17,24 @@ Installing is what puts scrap in the Android **share sheet**.
 
 | Button | Does |
 | --- | --- |
-| **Photo** | Opens the camera |
+| **Camera** | Opens the camera |
 | **Gallery** | Picks one or more images from the phone |
 | **Note** | A text box; a pasted link alone becomes a link capture |
-| **Todo**, **Read later** | A note with a hint that fixes the page kind (`todo`, `consume`) |
+
+The buttons say how you capture, not what the page is. Its **kind** is chosen in the composer
+(and changed later in the page's editor) with the row of chips above the text: **Note** (the
+default), **Todo**, **Read** (to read later), **Board** (a whiteboard) or **Doc** (a document). A link on its own
+picks **Read** for you until you pick something else. Photos skip the choice: Claude reads them
+and makes a whiteboard or document a page of that kind, and you can change it after. A kind
+you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
+already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
+changing it back gives the page as it was.
 
 In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
-with the text and hint on the first.
+with the text and kind on the first.
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
@@ -52,7 +60,7 @@ the link as the capture's URL.
 - A capture the server refuses (for example over the upload limit, `413`) is marked **failed**
   with the server's reason, and stays on the phone with **Retry** and **Discard** (which asks
   first, then deletes it and its photos from the phone). A multi-photo capture refused as too
-  large offers **Split and retry** instead of Retry: one capture per photo, text and hint on the first.
+  large offers **Split and retry** instead of Retry: one capture per photo, text and kind on the first.
 - A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
   no progress for a minute is given up and retried later. Once the phone has handed over the whole
   upload, it waits at least two minutes for the answer (longer for big uploads, which may still
@@ -66,7 +74,10 @@ the link as the capture's URL.
 
 ## View, edit, search
 
-- **Recent** lists pages newest first, with a thumbnail of the first photo.
+- **Recent** lists pages newest first, with a thumbnail of the first photo. Its chips filter
+  it: **All**, **Todos** and **Read**. The filter stays in the address, so Back and a reload keep it.
+- A todo's page has **Done** (and **Reopen**) in its toolbar; a done todo is marked *done* in
+  the lists. Ticking it or changing a kind doesn't move the page up Recent.
 - Swipe a row of **Recent**, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
   seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
@@ -160,8 +171,10 @@ resizes the page.
 
 ## Updates
 
-The app's files are cached on the phone so it opens instantly and offline; API answers and
-files are never cached. After a new scrap is deployed, the app shows **Update available,
+The app's files are cached on the phone so it opens instantly and offline, the composer and
+editor included; API answers and files are never cached. Some parts load only when first used
+and are not cached ahead: a page's pager and list swipes, what Claude made of a photo, and the
+drawing viewer. So a page opened offline from a list has no ‹ › pager, and rows don't swipe. After a new scrap is deployed, the app shows **Update available,
 Reload**. Until you tap it the old version keeps running; it is also replaced the next time the
 app is opened after being closed.
 

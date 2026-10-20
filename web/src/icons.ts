@@ -22,6 +22,8 @@ const PATHS = {
     '<path d="M7 18.5h10a4 4 0 0 0 .6-8A6 6 0 0 0 6.3 9.6 4.5 4.5 0 0 0 7 18.5zM4 4l16 16"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   file: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4"/>',
+  board:
+    '<rect x="3.5" y="4.5" width="17" height="12" rx="1.5"/><path d="M8 20l2-3.5m6 3.5-2-3.5M7 9h6m-6 3h9"/>',
 };
 export type Icon = keyof typeof PATHS;
 
@@ -34,6 +36,8 @@ export function icon(name: Icon): SVGSVGElement {
 const KINDS: Record<string, Icon> = {
   todo: "todo",
   consume: "later",
+  whiteboard: "board",
+  document: "file",
   photo: "image",
   url: "link",
   file: "file",

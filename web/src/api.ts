@@ -34,11 +34,13 @@ export interface Summary {
   slug: string;
   title: string;
   kind: string;
+  fields: Record<string, string | number | boolean>; // e.g. a todo's status: open or done
   created_at: string;
   updated_at: string;
   thumb: string | null;
 }
 export interface Page extends Summary {
+  kind_fixed: number; // 1: the user chose the kind
   body: string;
   rev: number;
   captures: { id: string; url: string | null; blobs: FileRef[] }[];
@@ -78,8 +80,8 @@ export function send(
   Xhr: typeof XMLHttpRequest = XMLHttpRequest,
   stallMs = 60_000,
 ): Promise<{ status: number; detail?: string }> {
-  const { id, text, url, hint, source, created_at, files } = item;
-  const fields = { id, text, url, hint, source, created_at };
+  const { id, text, url, kind, hint, source, created_at, files } = item;
+  const fields = { id, text, url, kind, hint, source, created_at };
   let body: string | FormData = JSON.stringify(fields);
   if (files.length) {
     body = new FormData(); // its text fields go as CRLF; the server makes them LF

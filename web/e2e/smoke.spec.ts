@@ -24,7 +24,8 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.reload();
   await context.setOffline(true);
   await page.goto("/");
-  await page.getByRole("button", { name: "Todo" }).click();
+  await page.getByRole("button", { name: "Note" }).click(); // the composer, kept offline
+  await page.locator(".kinds").getByText("Todo").click();
   await page.getByPlaceholder("Note or link").fill("Ring the plumber");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator("#queue")).toHaveText("1 waiting");
