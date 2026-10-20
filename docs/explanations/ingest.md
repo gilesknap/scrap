@@ -264,10 +264,12 @@ spend without the ledger seeing it:
    model). A row settles once: a second settle of the same attempt does nothing, and each try
    of a job is its own attempt, so a retry is never counted twice.
 
-An answer that never comes back is counted at its worst case, flagged `estimated`: a timeout or
-an unclassified error (it may have been billed), a call abandoned at shutdown, and a
-reservation still open at the next start (a crash). An outage, a credit or login error, or any
-other error status costs nothing (the API refused the request). If recording a result fails,
+An answer that never comes back is counted at its worst case, flagged `estimated`: a timeout, a
+connection lost after the request was sent (still an outage for the queue) or an unclassified
+error (it may have been billed), a call abandoned at shutdown, a reservation still open at the
+next start (a crash), and an answer whose usage block lacks its token counts. A connection
+that never reached the API (connect, DNS, proxy), a credit or login error, or any other error
+status costs nothing (the API refused the request or never saw it). If recording a result fails,
 the cost is still settled from its usage. A model missing from the price table is costed at the
 dearest prices and flagged `unpriced`.
 
@@ -292,7 +294,9 @@ its `cost_microusd` for each run. Months and days are UTC.
 - `SCRAP_PRICES` adds or replaces prices, JSON in dollars per million tokens:
   `{"claude-opus-5-5": [4, 20, 5, 0.2]}` (input, output, cache write, cache read).
 
-A malformed setting stops the service at start.
+A malformed setting stops the service at start, with ingest on or off: an empty, blank,
+negative, infinite or tiny value (under a micro-dollar) never turns a limit off; only an
+explicit `0` does.
 
 **Notices.** `SCRAP_NOTIFY_URL` gets one line when the month's spend passes 80% of the cap and
 one when the cap is reached (a call refused for it), each once a month: `spend_notice` records

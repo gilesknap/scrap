@@ -60,7 +60,7 @@ Every command takes `--data-dir` (default `$SCRAP_DATA_DIR`, else `./data`), whi
 | `ANTHROPIC_API_KEY` | | The key for the Claude API; keep it in the service user's mode-600 env file |
 | `SCRAP_VISION_MODEL` | `claude-opus-5-5` | The model photos are sent to |
 | `SCRAP_BUDGET_DAY_USD` | `3` | Daily spend, from recorded usage, after which the queue pauses until UTC midnight; `0`: none |
-| `SCRAP_MONTHLY_CAP_USD` | `20` | Hard monthly cap (UTC month): a call whose worst case would take the month past it is not made, and the queue pauses until the next month (photos stay queued); `0`: none |
+| `SCRAP_MONTHLY_CAP_USD` | `20` | Hard monthly cap (UTC month): a call whose worst case would take the month past it is not made, and the queue pauses until the next month (photos stay queued); `0`: none. An empty or malformed value (in any of these dollar settings) stops the service at start |
 | `SCRAP_CALL_CAP_USD` | `0` (none) | Most one call may cost: `max_tokens` is lowered to fit its worst case; a call that cannot fit 1024 output tokens is not made |
 | `SCRAP_PRICES` | built in | Extra or replacement prices, JSON in dollars per million tokens: `{"model": [input, output, cache write, cache read]}`. A model with no price is costed at the dearest built-in prices and its spend flagged |
 | `SCRAP_NOTIFY_URL` | unset | If set, the first pause of an episode POSTs one fixed line naming its reason here (an ntfy topic works), as do the month's 80% and cap notices, once a month each |

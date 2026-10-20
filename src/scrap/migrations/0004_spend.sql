@@ -5,7 +5,7 @@
 
 CREATE TABLE spend (
     id             INTEGER PRIMARY KEY,
-    attempt        TEXT NOT NULL UNIQUE,          -- one paid call: 'run:<model_run id>'
+    attempt        TEXT NOT NULL UNIQUE,          -- one paid call: a ULID ('run:<id>' if copied)
     purpose        TEXT NOT NULL,                 -- ingest, refine, discuss, ...
     model          TEXT NOT NULL,                 -- served, else requested
     run_id         INTEGER,                       -- no foreign key: a purge keeps the spend

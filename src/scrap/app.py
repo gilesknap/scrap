@@ -28,7 +28,7 @@ from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, drawing, ingest, preview
+from . import __version__, backup, drawing, ingest, preview, spend
 from .store import (
     MAX_FIELDS,
     ConflictError,
@@ -177,6 +177,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
     store.migrate()
     limit = upload_limit()
+    spend.check_settings()  # a malformed limit stops the start, ingest on or off
     worker = ingest.Worker(store) if ingest.enabled() else None
 
     @asynccontextmanager

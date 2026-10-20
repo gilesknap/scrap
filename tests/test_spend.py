@@ -6,12 +6,15 @@ import json
 import threading
 from contextlib import closing
 
+import anthropic
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
 from scrap import claude, ingest, spend
 from scrap.app import create_app
 from scrap.store import Store, connect, migrations, now, transaction
+from test_claude import REQUEST
 from test_ingest import BOARD, USAGE, Fake, job, jpeg, photo
 
 OPUS = "claude-opus-5-5"
@@ -97,16 +100,34 @@ def test_cost_from_usage_and_the_price_table(monkeypatch):
         ("SCRAP_PRICES", '{"m": [1, 2, 3]}'),
         ("SCRAP_PRICES", '{"m": [1, 2, 3, -4]}'),
         ("SCRAP_PRICES", "[1]"),
+        ("SCRAP_PRICES", '{"claude-opus-5-5": "0000"}'),
+        ("SCRAP_MONTHLY_CAP_USD", ""),
+        ("SCRAP_MONTHLY_CAP_USD", " "),
+        ("SCRAP_MONTHLY_CAP_USD", "1e-7"),
+        ("SCRAP_MONTHLY_CAP_USD", "0.0000004"),
+        ("SCRAP_MONTHLY_CAP_USD", "inf"),
+        ("SCRAP_BUDGET_DAY_USD", ""),
         ("SCRAP_MONTHLY_CAP_USD", "lots"),
         ("SCRAP_MONTHLY_CAP_USD", "-1"),
         ("SCRAP_CALL_CAP_USD", "nan"),
         ("SCRAP_BUDGET_DAY_USD", "inf"),
     ],
 )
-def test_a_bad_setting_stops_the_start(store, monkeypatch, name, value):
+def test_a_bad_setting_stops_the_start(tmp_path, store, monkeypatch, name, value):
     monkeypatch.setenv(name, value)
     with pytest.raises(SystemExit, match=name):
         ingest.Worker(store, Fake())
+    with pytest.raises(SystemExit, match=name):  # with ingest off too
+        create_app(tmp_path / "off")
+
+
+def test_only_an_explicit_zero_turns_a_limit_off(monkeypatch):
+    assert spend.monthly_cap() == 20_000_000  # unset: the default
+    for zero in ("0", "0.0", "0e0"):
+        monkeypatch.setenv("SCRAP_MONTHLY_CAP_USD", zero)
+        assert spend.monthly_cap() == 0
+    monkeypatch.setenv("SCRAP_MONTHLY_CAP_USD", "0.000001")
+    assert spend.monthly_cap() == 1  # the smallest cap there is
 
 
 def test_an_unknown_model_is_costed_dearest_and_flagged(conn):
@@ -131,7 +152,9 @@ def test_the_cap_is_checked_before_the_call_with_the_worst_case(conn, monkeypatc
     with pytest.raises(spend.RefusedError) as refused:
         admit(conn, stamp, "c")
     assert refused.value.reason == "cap"
-    settle(conn, stamp, "a", usage={"input_tokens": 10})  # a cost far less
+    settle(
+        conn, stamp, "a", usage={"input_tokens": 10, "output_tokens": 0}
+    )  # a cost far less
     admit(conn, stamp, "c")
     assert [r["attempt"] for r in ledger(conn)] == ["a", "b", "c"]
 
@@ -151,7 +174,17 @@ def test_admit_needs_a_transaction(conn):
                     max_tokens=1, stamp=now())  # fmt: skip
 
 
-def test_the_worker_stops_at_the_cap_and_photos_stay_queued(store, conn, monkeypatch):
+@pytest.fixture
+def clock(monkeypatch):
+    """The worker's clock, fixed mid-month: no test straddles a UTC day or month."""
+    stamp = "2099-05-15T12:00:00.000Z"
+    monkeypatch.setattr(ingest, "now", lambda: stamp)
+    return stamp
+
+
+def test_the_worker_stops_at_the_cap_and_photos_stay_queued(
+    store, conn, monkeypatch, clock
+):
     photo(store, [jpeg()])
     second = photo(store, [jpeg("blue")])
     fake = Fake(BOARD, BOARD)
@@ -165,7 +198,7 @@ def test_the_worker_stops_at_the_cap_and_photos_stay_queued(store, conn, monkeyp
     assert job(conn, 2) == ("queued", 0, "cap")
     status = ingest.status(store)
     assert (status["paused"], status["reason"]) == (True, "cap")
-    assert status["paused_until"] == spend.next_month(now())
+    assert status["paused_until"] == "2099-06-01T00:00:00.000Z"
     assert status["spent_month_usd"] == 0.06 and status["capped"] is False
     blob = store.page(second["page_id"])["captures"][0]["blobs"][0]
     assert blob["ingest"]["state"] == "paused"
@@ -235,13 +268,48 @@ def test_retried_jobs_through_the_worker(store, conn):
     assert [r["run_id"] for r in rows] == [1, 2, 3]
 
 
-def test_a_purge_never_lowers_the_spend(store, conn):
+def test_a_purge_never_lowers_the_spend(store, conn, clock):
     ref = photo(store, [jpeg()])
     ingest.Worker(store, Fake(BOARD)).step()
     with transaction(conn):
         conn.execute("DELETE FROM page WHERE id = ?", (ref["page_id"],))
     assert conn.execute("SELECT count(*) FROM model_run").fetchone()[0] == 0
     assert ingest.status(store)["spent_today_usd"] == 0.06
+
+
+def dropped(cause: BaseException) -> claude.CallError:
+    """The SDK's error for a connection that failed with cause, as classified."""
+    error = anthropic.APIConnectionError(request=REQUEST)
+    error.__cause__ = cause
+    return claude.classify(error)
+
+
+def test_a_connection_lost_after_sending_counts_its_worst_case(store, conn):
+    photo(store, [jpeg()])
+    lost = dropped(httpx2.RemoteProtocolError("Server disconnected"))
+    assert (lost.cls, lost.maybe_billed) == ("outage", True)
+    unsent = dropped(httpx2.ConnectError("Name or service not known"))
+    assert (unsent.cls, unsent.maybe_billed) == ("outage", False)
+    fake = Fake(lost, unsent)
+    worker = ingest.Worker(store, fake)
+    worker.step()
+    ingest.resume_queue(store)
+    worker.step()
+    rows = ledger(conn)
+    assert [(r["cost_microusd"], r["flag"]) for r in rows] == [
+        (fake.tickets[0].estimate, "estimated"), (0, None)
+    ]  # fmt: skip
+    assert job(conn) == ("queued", 0, "outage")  # an outage still: it backs off
+
+
+def test_a_usage_block_without_counts_is_the_worst_case(conn):
+    for n, usage in enumerate([{}, {"input_tokens": 5}, {"input_tokens": -1,
+                               "output_tokens": 1}, {"input_tokens": "9",
+                               "output_tokens": 1}]):  # fmt: skip
+        ticket = admit(conn, now(), str(n))
+        settle(conn, now(), str(n), usage=usage)
+        row = ledger(conn)[n]
+        assert (row["cost_microusd"], row["flag"]) == (ticket.estimate, "estimated")
 
 
 def test_a_failure_recording_the_result_keeps_its_cost(store, conn, monkeypatch):
@@ -339,13 +407,17 @@ def test_the_80_percent_and_cap_notices_go_once_a_month(store, sent, monkeypatch
     jan = "2099-01-05T00:00:00.000Z"
     with closing(connect(store.db)) as conn:
         admit(conn, jan, "a", max_tokens=10_000)
-        levels = settle(conn, jan, "a", usage={"output_tokens": 40_000})  # $0.80
+        levels = settle(
+            conn, jan, "a", usage={"input_tokens": 0, "output_tokens": 40_000}
+        )  # $0.80
     assert levels == ["warn"]
     spend.notify(levels)
     assert sent == ["scrap: Claude spend this month passed 80% of the $1.00 cap."]
     with closing(connect(store.db)) as conn:  # a restart: the notice was kept
         admit(conn, jan, "b", max_tokens=1000)
-        assert settle(conn, jan, "b", usage={"output_tokens": 1}) == []
+        assert (
+            settle(conn, jan, "b", usage={"input_tokens": 0, "output_tokens": 1}) == []
+        )
         with pytest.raises(spend.RefusedError):
             admit(conn, jan, "c", max_tokens=10_000)
         with transaction(conn):
@@ -353,9 +425,8 @@ def test_the_80_percent_and_cap_notices_go_once_a_month(store, sent, monkeypatch
             assert spend.due(conn, jan, capped=True) == []
         feb = "2099-02-01T00:00:00.000Z"
         admit(conn, feb, "d", max_tokens=10_000)
-        assert settle(conn, feb, "d", usage={"output_tokens": 50_000}) == [
-            "warn", "cap"
-        ]  # fmt: skip
+        usage = {"input_tokens": 0, "output_tokens": 50_000}
+        assert settle(conn, feb, "d", usage=usage) == ["warn", "cap"]
         months = conn.execute("SELECT month, level FROM spend_notice ORDER BY 1, 2")
         assert [tuple(r) for r in months] == [
             ("2099-01", "cap"), ("2099-01", "warn"),

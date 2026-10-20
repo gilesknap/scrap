@@ -74,15 +74,19 @@ def unmetered(max_tokens: int) -> Ticket:
 
 
 def _usd(name: str, default: str) -> int:
-    """A dollar setting in micro-dollars (0: none)."""
-    value = os.environ.get(name, default) or "0"
+    """A dollar setting in micro-dollars; only an explicit 0 means none. Anything
+    else that is not a positive number of at least a micro-dollar (empty, blank,
+    NaN, infinite, negative, too small) stops the service: a limit never fails
+    open."""
+    value = os.environ.get(name, default)
     try:
         usd = float(value)
     except ValueError:
-        usd = -1.0
-    if not math.isfinite(usd) or usd < 0:
-        raise SystemExit(f"{name} must be a number of dollars, not {value!r}")
-    return round(usd * 1e6)
+        usd = math.nan
+    micro = round(usd * 1e6) if math.isfinite(usd) else -1
+    if usd < 0 or micro < 0 or (usd > 0 and micro == 0):
+        raise SystemExit(f"{name} must be a number of dollars (0: none), not {value!r}")
+    return micro
 
 
 def monthly_cap() -> int:
@@ -107,6 +111,8 @@ def prices() -> dict[str, tuple[float, float, float, float]]:
         return dict(PRICES)
     try:
         extra = json.loads(raw)
+        if not all(isinstance(p, list) for p in extra.values()):
+            raise ValueError
         table = {
             str(model): tuple(float(p) for p in four) for model, four in extra.items()
         }
@@ -259,6 +265,8 @@ def settle(
     if row is None:
         return []  # settled already, or never admitted (unmetered)
     model = model or str(row["model"])
+    if usage is not None and not _counted(usage):
+        usage, billed = None, True  # a usage block we cannot read: the worst case
     if usage is not None:
         _, known = price(model)
         cost, flag = cost_microusd(model, usage), None if known else "unpriced"
@@ -284,6 +292,14 @@ def settle(
         ),
     )
     return due(conn, stamp)
+
+
+def _counted(usage: dict[str, Any]) -> bool:
+    """Whether a usage block has the token counts a cost needs."""
+    return all(
+        type(usage.get(key)) is int and usage[key] >= 0
+        for key in ("input_tokens", "output_tokens")
+    )
 
 
 def recover(conn: sqlite3.Connection, stamp: str, attempts: list[str]) -> list[str]:

@@ -461,7 +461,7 @@ class Worker:
                 now(),
                 model=done.served_model if done else None,
                 usage=done.usage if done else None,
-                billed=error.cls in UNKNOWN_BILLING,
+                billed=error.cls in UNKNOWN_BILLING or error.maybe_billed,
             )
             self._record(
                 conn,

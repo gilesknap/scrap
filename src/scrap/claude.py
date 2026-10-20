@@ -16,6 +16,7 @@ from importlib.resources import files as package_files
 from typing import Any
 
 import anthropic
+import httpx2
 
 from .spend import Ticket
 
@@ -101,7 +102,9 @@ class Completion:
 
 class CallError(Exception):
     """A failed call, with its class (credit, auth, outage, timeout, invalid, content
-    or internal) and, for an outage, the seconds the API asked us to wait."""
+    or internal), for an outage the seconds the API asked us to wait, and whether
+    it may have been billed with no answer (a connection lost after the request was
+    sent)."""
 
     def __init__(
         self,
@@ -109,9 +112,28 @@ class CallError(Exception):
         message: str,
         retry_after: float | None = None,
         completion: Completion | None = None,
+        maybe_billed: bool = False,
     ):
         super().__init__(message)
         self.cls, self.retry_after, self.completion = cls, retry_after, completion
+        self.maybe_billed = maybe_billed
+
+
+# Connection failures that prove the request never reached the API: free to retry.
+UNSENT = (httpx2.ConnectError, httpx2.ConnectTimeout, httpx2.PoolTimeout,
+          httpx2.ProxyError)  # fmt: skip
+
+
+def _unsent(error: BaseException) -> bool:
+    """Whether a connection error happened before the request was sent."""
+    seen: set[int] = set()
+    cause: BaseException | None = error
+    while cause is not None and id(cause) not in seen:
+        if isinstance(cause, UNSENT):
+            return True
+        seen.add(id(cause))
+        cause = cause.__cause__ or cause.__context__
+    return False
 
 
 def _retry_after(error: anthropic.APIStatusError) -> float | None:
@@ -138,7 +160,9 @@ def classify(error: BaseException) -> CallError:
     if isinstance(error, anthropic.APITimeoutError):
         return CallError("timeout", message)
     if isinstance(error, anthropic.APIConnectionError):
-        return CallError("outage", message)
+        # lost after sending (a dropped or reset connection): it may have been
+        # billed, so the ledger counts its worst case, but the queue backs off
+        return CallError("outage", message, maybe_billed=not _unsent(error))
     if not isinstance(error, anthropic.APIStatusError):
         return CallError("internal", message)
     status = error.status_code
