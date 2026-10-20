@@ -1,7 +1,7 @@
 // A page opened from a list (Recent, search results): where it is in it, and the previous
 // and next by its ‹ ›, a swipe or the arrow keys. A chunk of its own, loaded only for such a
 // page. Each step replaces the page's history entry, so Back still goes back to the list.
-import { go } from "./app";
+import { go, plain } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";
 import { icon } from "./icons";
 import { EDGE } from "./swipe";
@@ -29,15 +29,22 @@ export function pager(
     if (!to) return toast(d > 0 ? "That's the last in the list" : "That's the first in the list");
     go(`/p/${encodeURIComponent(to)}`, true, { trail, from: d });
   };
-  const button = (d: 1 | -1, label: string, to?: string) =>
+  // Real links (long-press or Ctrl-click opens the next page in a new tab); a plain tap steps
+  // here, in place, so Back still goes back to the list
+  const link = (d: 1 | -1, label: string, to?: string) =>
     h(
-      "button",
+      "a",
       {
-        type: "button",
-        className: "ghost",
+        className: "button ghost",
         "aria-label": label,
-        disabled: !to,
-        onclick: () => step(d),
+        ...(to
+          ? { href: `/p/${encodeURIComponent(to)}` }
+          : { role: "link", "aria-disabled": "true" }),
+        onclick: (e: MouseEvent) => {
+          if (!plain(e)) return;
+          e.preventDefault();
+          step(d);
+        },
       },
       icon(d > 0 ? "next" : "back"),
     );
@@ -45,9 +52,9 @@ export function pager(
   return h(
     "div",
     { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
-    button(-1, "Previous", at.prev),
+    link(-1, "Previous", at.prev),
     h("span", {}, `${at.i + 1} of ${at.n} · ${trail.label}`),
-    button(1, "Next", at.next),
+    link(1, "Next", at.next),
   );
 }
 

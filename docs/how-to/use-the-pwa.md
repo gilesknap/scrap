@@ -89,6 +89,11 @@ the link as the capture's URL.
 - The query and its filters are in the address (`/search?q=...`), so a reload keeps them, and
   Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
   `/recent` links open this screen (`/recent?kind=todo` with Todos on).
+- Every row, a page's tags, its `[[links]]` and the pager's ‹ › are ordinary links with their own
+  address, so you can open one in a new tab: on a phone, long-press it and choose *Open in new
+  tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
+  Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
+  wasn't opened from a list. A plain tap opens it in place, as before.
 - Todos and Read pages carry a status (open, in progress, done or cancelled). The page's
   toolbar has **Done** unless it is done, and **Reopen** if it is done or cancelled (a
   cancelled one has both). In the list, the capture screen's list and search results, their

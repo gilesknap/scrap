@@ -1,7 +1,7 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
 import { learnLimit } from "./api";
-import { view as current, go, markNav, queue } from "./app";
+import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { debugPanel } from "./debug";
 import { page } from "./page";
@@ -77,9 +77,13 @@ async function render() {
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));
 }
 
+// Every page, tag and list is a real link (long-press or Ctrl-click opens it in a new tab):
+// a plain tap on one routes here instead of loading the app again.
 document.addEventListener("click", (e) => {
   const a = (e.target as Element).closest("a");
-  if (!a || a.origin !== location.origin || a.target || a.pathname.startsWith("/api/")) return;
+  if (!a || !plain(e) || a.origin !== location.origin || a.target || a.hasAttribute("download"))
+    return;
+  if (a.pathname.startsWith("/api/") || a.pathname === "/share") return;
   e.preventDefault();
   if (a.hash && a.pathname === location.pathname && a.search === location.search) {
     // A heading or footnote of this page: scrolled to, not routed
