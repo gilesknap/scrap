@@ -249,6 +249,16 @@ def index_all(conn: sqlite3.Connection) -> None:
 AFTER = {3: index_all}  # migration number -> its Python step
 
 
+def tag_counts(rows: list[Any]) -> dict[str, int]:
+    """How many pages have each tag, from (page id, tag) rows: a/b counts for a too."""
+    pages: dict[str, set[str]] = {}
+    for page_id, tag in rows:
+        parts = tag.split("/")
+        for n in range(1, len(parts) + 1):
+            pages.setdefault("/".join(parts[:n]), set()).add(page_id)
+    return {tag: len(ps) for tag, ps in pages.items()}
+
+
 class Store:
     def __init__(self, data_dir: Path | str):
         self.dir = Path(data_dir)
@@ -758,27 +768,25 @@ class Store:
         total = personal[0]
         out["total"] = total
         out["personal"] = {"work": total - personal[1], "personal": personal[1]}
-        counts: dict[str, set[str]] = {}  # a tag and its parents -> pages
-        for page_id, tag in tags:
-            parts = tag.split("/")
-            for n in range(1, len(parts) + 1):
-                counts.setdefault("/".join(parts[:n]), set()).add(page_id)
+        counts = tag_counts(tags)
         chosen = [f.value for f in q.filters if f.key == "tag" and not f.neg]
         ranked = sorted(
-            ((tag, len(ps)) for tag, ps in counts.items()
-             if tag not in chosen and (len(ps) < total or total == 1)),
+            ((tag, n) for tag, n in counts.items()
+             if tag not in chosen and (n < total or total == 1)),
             key=lambda t: (-t[1], t[0]),
         )  # fmt: skip
         out["tags"] = [list(t) for t in ranked[:top]]
         return out
 
     def tags(self) -> list[list[Any]]:
-        """Every tag on a page (not in the trash) and how many pages have it."""
+        """Every tag on a page (not in the trash), a/b's parent a too, with how many
+        pages have it (a: those with a or a/anything), in order."""
         with self.connect() as conn:
-            return [list(r) for r in conn.execute(
-                "SELECT tag, count(*) FROM tag JOIN page p ON p.id = tag.page_id"
-                " WHERE p.deleted_at IS NULL GROUP BY tag ORDER BY tag"
-            )]  # fmt: skip
+            rows = conn.execute(
+                "SELECT page_id, tag FROM tag JOIN page p ON p.id = tag.page_id"
+                " WHERE p.deleted_at IS NULL"
+            ).fetchall()
+        return [[t, n] for t, n in sorted(tag_counts(rows).items())]
 
     def _where(self, q: Query) -> tuple[str, list[Any]]:
         """SQL conditions on page p for a query's words and filters, and their args."""

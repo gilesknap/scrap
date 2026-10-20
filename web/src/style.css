@@ -627,6 +627,108 @@ mark {
   border-radius: var(--r-pill);
 }
 
+.searchbar {
+  display: flex;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.searchbar .field-search {
+  flex: 1;
+  margin: 0;
+}
+.searchbar > .button {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+  border-radius: 50%;
+}
+/* Refine chips: one row that scrolls sideways, the query's own filters first */
+.refine {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--s-4)) var(--s-3);
+  padding: 2px var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.refine .count {
+  flex: none;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.facet {
+  flex: none;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.facet small {
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+}
+.facet.on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.facet.on .i {
+  width: 16px;
+  height: 16px;
+}
+/* A page's tags, each a search */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  margin: 0 0 var(--s-3);
+}
+.tags a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  text-decoration: none;
+}
+/* Browse tags: a tree, a parent's chevron opens it */
+.tagtree li {
+  display: flex;
+  align-items: center;
+}
+.list.tagtree li > a {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding-inline-start: calc(var(--s-3) + var(--depth, 0) * var(--s-5));
+}
+.tagtree a > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tagtree a > small {
+  flex: none;
+  margin-inline-start: auto;
+}
+.tagtree button {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+}
+.tagtree button .i {
+  transition: rotate var(--d-2) var(--ease);
+}
+.tagtree button[aria-expanded="true"] .i {
+  rotate: 90deg;
+}
+
 /* ---- Page ---- */
 .page {
   flex: 1;

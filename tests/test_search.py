@@ -170,7 +170,10 @@ def test_tags_lists_live_pages_only(tmp_path):
     page(store, "A", tags=["x", "y/z"])
     gone = page(store, "B", tags=["x", "trashed"])
     store.delete_page(gone)
-    assert client.get("/api/tags").json() == [["x", 1], ["y/z", 1]]
+    page(store, "C", tags=["y/w", "y/z"])
+    assert client.get("/api/tags").json() == [
+        ["x", 1], ["y", 2], ["y/w", 1], ["y/z", 2]
+    ]  # fmt: skip
     assert client.get("/api/search/facets", params={"q": "tag:x"}).json()["total"] == 1
     assert client.get("/tags").status_code in (200, 503)  # the PWA's route
 

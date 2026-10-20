@@ -14,6 +14,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()],
   [/^\/search$/, () => search()],
+  [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
   [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
 ];
 

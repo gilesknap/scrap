@@ -8,6 +8,7 @@ import { icon } from "./icons";
 import { unembedded } from "./md";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
+import { token } from "./terms";
 import { bodyView, download, h, share, toast, when } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
@@ -105,6 +106,16 @@ export async function page(key: string): Promise<Node> {
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
       ),
+      // Its tags: each one tapped searches for it (with its children: tag:a finds a/b)
+      p.tags?.length
+        ? h(
+            "p",
+            { className: "tags" },
+            ...p.tags.map((t) =>
+              h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
+            ),
+          )
+        : "",
       body,
       h("div", { className: "originals" }, ...files),
       h(
