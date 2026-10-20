@@ -40,6 +40,15 @@ def test_filters_keep_their_token_as_typed():
     ]
 
 
+def test_image_filters_parse():
+    q = parse("has:image -image:Photo mantis")
+    assert q.terms == [Term("mantis")]
+    assert q.filters == [
+        Filter("has", "image", False, "has:image"),
+        Filter("image", "photo", True, "-image:Photo"),
+    ]
+
+
 def test_what_is_not_a_term():
     assert parse('- ! & ? "" -"" kind: tag:""').terms == []
     assert parse("- ! kind: tag:").filters == []
@@ -312,3 +321,18 @@ def test_search_pages_through_hits_with_offset(tmp_path):
         assert get(q=q, limit=3, offset=7) == []
     assert client.get("/api/search", params={"q": "x", "offset": -1}).status_code == 422
     assert client.get("/api/search", params={"q": "x", "limit": 101}).status_code == 422
+
+
+def test_the_web_search_takes_image_filters(tmp_path):
+    client = TestClient(create_app(tmp_path))
+    store = Store(tmp_path)
+    c = store.prepare({"id": new_ulid()}, ["image/png"])
+    ref = store.capture(c, [("ab" * 32, "image/png", 3, "a.png")], "me")[0]
+    page(store, "Words only", "no picture")
+    hits = client.get("/api/search", params={"q": "has:image"}).json()
+    assert [h["id"] for h in hits] == [ref["page_id"]]
+    facets = client.get("/api/search/facets", params={"q": "-has:image"}).json()
+    assert facets["total"] == 1
+    assert facets["active"] == [
+        {"token": "-has:image", "key": "has", "value": "image", "neg": True}
+    ]

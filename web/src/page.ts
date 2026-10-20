@@ -117,6 +117,17 @@ export async function page(key: string): Promise<Node> {
         { className: "meta" },
         `Created ${when(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
+        // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
+        p.captures[0]?.source === "mcp" &&
+          h(
+            "a",
+            {
+              className: "badge",
+              href: "/search?q=is%3Aclaude",
+              title: String(p.fields.origin ?? "Written by Claude over MCP"),
+            },
+            "Written by Claude",
+          ),
       ),
       body,
       h("div", { className: "originals" }, ...files),
