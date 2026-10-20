@@ -61,7 +61,10 @@ that way (480 px JPEGs, so a few hundred kB each).
   origin as the tooltip), and `is:claude` finds them. Clients of `POST /api/captures` cannot send
   source `mcp`.
 - **Idempotency.** With `key` (at most 128 characters), a retry with the same key adds nothing
-  and returns the same page with `created: false`. Without it, every call adds.
+  and returns the same page with `created: false`. Without it, every call adds. Keys are
+  global, not per session: use a random value per post, reused only to retry it. A key is
+  matched together with its target (a new page, or the page appended to, by id or slug), so
+  reusing one for another page writes there rather than being taken for a retry.
 - **Limits.** `title` 1 to 200 characters (whitespace collapsed); `body` at most 200 kB of UTF-8
   per call, and a page appended to at most 1 MB; at most 20 tags, each 1 to 64 characters once
   normalised as imported tags are (one space between words, no leading `#`, lower case;

@@ -47,7 +47,8 @@ curl -s https://myhost.my-tailnet.ts.net:8446/mcp \
 `skills/scrap-post/SKILL.md` in this repository is a Claude Code skill: "post this to scrap"
 makes Claude summarise the useful findings of the conversation into one page, reusing existing
 tags and linking related pages, and show you the title and tags before it writes. Copy it to
-`~/.claude/skills/scrap-post/SKILL.md` and set the address in it.
+`~/.claude/skills/scrap-post/SKILL.md` unchanged: it uses the server added in step 2, and
+`<SCRAP_URL>` in it is only a placeholder in the hint it gives when the server is missing.
 
 Pages written this way carry a *Written by Claude* badge and the origin the session gave;
 `is:claude` lists them. Claude can append to its own pages but never change yours.

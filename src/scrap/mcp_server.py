@@ -84,10 +84,13 @@ def security(urls: list[str]) -> TransportSecuritySettings:
     return TransportSecuritySettings(allowed_hosts=hosts, allowed_origins=origins)
 
 
-def key_id(key: str) -> str:
-    """A capture id (ULID-shaped) from a client's idempotency key: the same key is the
-    same capture, so a retried write adds nothing."""
-    n = int.from_bytes(hashlib.sha256(b"scrap-mcp\0" + key.encode()).digest()[:16])
+def key_id(key: str, target: str = "") -> str:
+    """A capture id (ULID-shaped) from a client's idempotency key and the id of the
+    page appended to ("" for a new page): the same key and target are the same
+    capture, so a retried write adds nothing, while a key reused for another target
+    is a different capture rather than a silent no-op."""
+    seed = key.encode() + (b"\0" + target.encode() if target else b"")
+    n = int.from_bytes(hashlib.sha256(b"scrap-mcp\0" + seed).digest()[:16])
     return "".join(CROCKFORD[(n >> shift) & 31] for shift in range(125, -1, -5))
 
 
@@ -300,10 +303,13 @@ def server(store: Store) -> MCPServer:
         origin = " ".join(text(origin, "origin").split())
         title = " ".join(text(title, "title").split())
         cleaned = clean_tags(tags)
-        cid = key_id(text(key, "key")) if key else new_ulid()
+        key = text(key, "key") if key else None
+        cid = key_id(key) if key else new_ulid()
         if append_to:
             if not body:
                 raise ToolError("nothing to append")
+            if key:  # keyed by the page itself, whether named by id or slug
+                cid = key_id(key, checked(store.page, append_to)["id"])
             ref, new = checked(
                 store.append, append_to, cid, body, AUTHOR, cleaned, MAX_PAGE
             )

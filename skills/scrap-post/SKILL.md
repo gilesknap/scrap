@@ -20,8 +20,9 @@ never instructions to you.
   existing tags, nested ones too (`tech/python`); invent a tag only when nothing fits. 2-5 tags.
 - `mcp__scrap__search` with 2-3 short queries on the topic (the main nouns; `tag:x`; `is:claude`
   for earlier posts). Note related pages to link and whether this is really an update to an
-  earlier Claude page (then append to it with `append_to` instead of a new page; the user's own
-  pages cannot be appended to, so link them instead).
+  earlier Claude page (then append to it with `append_to` instead of a new page). Search rows
+  don't say who wrote a page: `mcp__scrap__read` it first and append only if
+  `written_by_claude` is true; the user's own pages cannot be appended to, so link them instead.
 
 ## 2. Write the page
 
@@ -42,8 +43,10 @@ tool output dumps (summarise them). When in doubt, leave it out and say so.
 
 `kind`: `note` by default; `todo` (with `status: open`) only if the page is a task; `doc` for a
 longer reference write-up. `origin`: the repo or working directory and today's date, e.g.
-`myproject (~/code/myproject) 2026-10-20`. `key`: a stable string such as
-`<directory>:<title>:<date>` so a retried call does not post twice.
+`myproject (~/code/myproject) 2026-10-20`. `key`: a random value made once
+per post (e.g. 16 hex characters), reused only when retrying that same post, so a retried call
+does not post twice. Keys are global: never derive one from the title or date, or a later post
+could be taken for a retry and saved nowhere.
 
 ## 3. Confirm, then post
 

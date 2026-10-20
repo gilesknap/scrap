@@ -76,14 +76,14 @@ def test_write_makes_a_claude_page_with_provenance(store, monkeypatch):
         tags=["#Tech", "tech", "Claude Code"],
         kind="todo",
         status="in_progress",
-        origin="homebase 2026-10-20",
+        origin="myproject 2026-10-20",
     )
     assert out["created"] is True
     assert out["url"] == f"https://scrap.example.ts.net:8446/p/{out['slug']}"
     page = store.page(out["id"])
     assert page["title"] == "Findings on MCP"
     assert page["kind"] == "todo" and page["kind_fixed"] == 1
-    assert page["fields"] == {"status": "in_progress", "origin": "homebase 2026-10-20"}
+    assert page["fields"] == {"status": "in_progress", "origin": "myproject 2026-10-20"}
     assert sorted(page["tags"]) == ["claude code", "tech"]
     assert [(c["source"], c["author"]) for c in page["captures"]] == [("mcp", "claude")]
     with store.connect() as conn:
@@ -138,6 +138,21 @@ def test_append_to_a_claude_page(store):
     assert p["body"] == "first\n\n## Later\n\nsecond"
     assert sorted(p["tags"]) == ["a", "b"] and p["rev"] == 2
     assert p["title"] == "Log"
+
+
+def test_a_key_reused_for_another_page_still_writes(store):
+    a = write(store, key="k1", title="A", body="a")
+    b = write(store, title="B", body="b")
+    out = write(store, append_to=b["slug"], body="more", key="k1")
+    assert out["id"] == b["id"] and out["created"] is True
+    assert store.page(b["id"])["body"] == "b\n\nmore"
+    c = write(store, title="C", body="c")
+    assert write(store, append_to=c["id"], body="more", key="k1")["created"] is True
+    assert store.page(c["id"])["body"] == "c\n\nmore"
+    assert store.page(a["id"])["body"] == "a"
+    # the same key and page, named by id rather than slug, is still a retry
+    assert write(store, append_to=b["id"], body="more", key="k1")["created"] is False
+    assert store.page(b["id"])["body"] == "b\n\nmore"
 
 
 def test_human_pages_are_never_changed(store):
