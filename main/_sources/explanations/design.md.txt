@@ -364,22 +364,24 @@ The photo and its derived drawing are shown side by side. The PWA embeds the Exc
 component to view and edit the drawing. Saving an edit overwrites the `excalidraw` row with producer
 `human`, and regenerating asks before replacing a human edit.
 
-## MCP tools (v0)
+## MCP tools
 
-Served at `/mcp`. Results carry each page's PWA URL (`https://<serve-host>/p/<slug>`) and say when
-it has images, so Claude links there instead of trying to show them.
+Served at `/mcp` by the official MCP SDK inside the FastAPI app (Streamable HTTP, stateless,
+JSON replies), so a session adds it with one `claude mcp add --transport http` line and nothing
+local, and it works the same behind the cluster's ingress. A stdio `scrap mcp` command was the
+alternative: it needs a shell where the database is (inside the container), which no client
+session has. Tools and limits: [](../reference/mcp.md).
 
-| Tool | Arguments | Returns |
-| --- | --- | --- |
-| `search` | `query`, optional `tags`, `limit` | Ranked pages: title, URL, best snippets and where each came from |
-| `read` | `slug` | Title, tags, body, backlinks, attachments with their descriptions, OCR text and URLs |
-| `recent` | optional `days`, `limit` | Recently created or updated pages |
-| `write` | new page (`title`, `body`), or `slug` with `body` to replace or `append`; optional `tags` | Page URL and revision |
-| `ingest` | `url` or `text` | A capture id; it runs the same jobs as a phone capture |
-| `todos` | optional `status` (default `open`) | Todo pages: title, URL, status, due date |
-
-`write` records the caller as the revision author. Deleting, setting a kind and ticking off a
-todo are PWA actions only in v0.
+- `search`, `read`, `recent`, `todos`, `tags`: thin wrappers over the store; `search` takes the
+  search box's syntax. Results carry each page's PWA URL (`$SCRAP_PUBLIC_URL/p/<slug>`) and its
+  images as URLs, so Claude links there instead of trying to show them. Page text is returned in
+  JSON fields, as data.
+- `write` only adds: a new page, or a section appended to a page written over MCP. Provenance is
+  the capture's source `mcp` (which clients of the HTTP API cannot send), author `claude`, and a
+  free-text `fields.origin`; no migration was needed. The PWA shows a badge; `is:claude` filters.
+  A client key is hashed into the capture id, the store's existing retry key.
+- Deferred: `ingest` (a URL or text as a capture), a `context` tool for a photo's stored model
+  run, deleting, setting a kind and ticking a todo (PWA actions).
 
 ## Security posture
 

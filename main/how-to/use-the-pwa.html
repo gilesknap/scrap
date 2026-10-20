@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev137+g653c49458 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev143+ga2b9798b4 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=67f32b97"></script>
+    <script src="../_static/documentation_options.js?v=fb295804"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -422,6 +422,7 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-code.html">Connect a Claude Code session</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
@@ -690,7 +691,7 @@ word: <code class="docutils literal notranslate"><span class="pre">vsc</span></c
 search, tap a chip of the query’s own filters to take it out. The chips only write the query,
 which you can also type: <code class="docutils literal notranslate"><span class="pre">-word</span></code> or <code class="docutils literal notranslate"><span class="pre">!word</span></code> (without it), <code class="docutils literal notranslate"><span class="pre">&quot;a</span> <span class="pre">phrase&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> (or
 <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>…), <code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>
-too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), <code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or
+too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> (pages Claude wrote over MCP, which show a <em>Written by Claude</em> badge), <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with a photo), <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), <code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or
 <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code> (last edited; dates are UTC days, both ends included; add <code class="docutils literal notranslate"><span class="pre">date:created</span></code>
 for when it was made). The chip row also has <strong>Tags</strong> (browse them), <strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>
 and <strong>Dates…</strong> (pick a From and a To).
