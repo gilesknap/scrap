@@ -31,11 +31,11 @@ export async function removalWarning(p: Page, before: string, after: string) {
           `blobs/${sha}/uses?page=${encodeURIComponent(p.id)}`,
         );
         return pages
-          ? `• ${name}: still used by ${pages} other page${pages === 1 ? "" : "s"}, so it stays there`
-          : `• ${name}: deleted`;
+          ? `• ${name}: still shown on ${pages} other page${pages === 1 ? "" : "s"}`
+          : `• ${name}: no longer shown on any page`;
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) return null; // not a file we hold
-        return `• ${name}: deleted, unless another page uses it`; // offline: can't tell
+        return `• ${name}: no longer shown here (other pages may still show it)`; // offline: can't tell
       }
     }),
   );
@@ -43,8 +43,10 @@ export async function removalWarning(p: Page, before: string, after: string) {
   if (!shown.length) return null;
   const n = shown.length;
   return [
-    `Saving deletes ${n === 1 ? "an image" : `${n} images`} from this page, because you deleted ${n === 1 ? "its line" : "their lines"}:`,
+    `Saving removes ${n === 1 ? "an image" : `${n} images`} from this page, because you deleted ${n === 1 ? "its line" : "their lines"}:`,
     ...shown,
+    "",
+    "This doesn't delete the stored file: a photo stays with its capture, and scrap gc deletes a file only once nothing uses it.",
     "",
     "Save anyway? Cancel to keep editing.",
   ].join("\n");

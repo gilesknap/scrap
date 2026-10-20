@@ -57,8 +57,8 @@ test("deleting an image's line warns on Save; Cancel keeps editing, Undo, OK sav
   expect(edited).not.toContain(sha);
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => d.seen.length).toBe(1);
-  expect(d.seen[0]).toContain("Saving deletes an image from this page");
-  expect(d.seen[0]).toContain("• whiteboard.png: deleted");
+  expect(d.seen[0]).toContain("Saving removes an image from this page");
+  expect(d.seen[0]).toContain("• whiteboard.png: no longer shown on any page");
   await expect(page.locator(".editor")).toBeVisible();
   expect(await body.inputValue()).toBe(edited);
   expect((await (await page.request.get(`/api/pages/${ref.page_id}`)).json()).rev).toBe(1);
@@ -83,7 +83,7 @@ test("deleting an image's line warns on Save; Cancel keeps editing, Undo, OK sav
   await deleteLastLine(page);
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => d.seen.length).toBe(2);
-  expect(d.seen[1]).toContain("• whiteboard.png: still used by 1 other page, so it stays there");
+  expect(d.seen[1]).toContain("• whiteboard.png: still shown on 1 other page");
   await expect(page.locator(".editor")).toBeVisible();
 
   // OK saves: the image is gone from the page (not listed below the text either)

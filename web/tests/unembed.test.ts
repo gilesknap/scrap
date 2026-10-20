@@ -51,24 +51,24 @@ it("says nothing when no embed goes, without asking the server", async () => {
 it("names the image whose line went", async () => {
   serve({ [A]: 0, [B]: 0 });
   const w = await removalWarning(page, `x\n\n${embed(A)}\n${embed(B)}`, `x\n\n${embed(B)}`);
-  expect(w).toContain("Saving deletes an image from this page, because you deleted its line:");
-  expect(w).toContain("• IMG_1.jpg: deleted");
+  expect(w).toContain("Saving removes an image from this page, because you deleted its line:");
+  expect(w).toContain("• IMG_1.jpg: no longer shown on any page");
   expect(w).not.toContain(B.slice(0, 8));
 });
 
 it("counts each image and falls back to its alt text, then its start", async () => {
   serve({ [A]: 0, [B]: 0, [C]: 0 });
   const w = await removalWarning(page, `${embed(A)}\n${embed(B, "whiteboard")}\n${embed(C)}`, "");
-  expect(w).toContain("Saving deletes 3 images from this page, because you deleted their lines:");
-  expect(w).toContain("• whiteboard: deleted");
-  expect(w).toContain(`• image ${C.slice(0, 8)}: deleted`);
+  expect(w).toContain("Saving removes 3 images from this page, because you deleted their lines:");
+  expect(w).toContain("• whiteboard: no longer shown on any page");
+  expect(w).toContain(`• image ${C.slice(0, 8)}: no longer shown on any page`);
 });
 
 it("says a shared image stays on the other pages", async () => {
   serve({ [A]: 2, [B]: 1 });
   const w = await removalWarning(page, `${embed(A)}\n${embed(B)}`, "");
-  expect(w).toContain("• IMG_1.jpg: still used by 2 other pages, so it stays there");
-  expect(w).toContain(`• image ${B.slice(0, 8)}: still used by 1 other page, so it stays there`);
+  expect(w).toContain("• IMG_1.jpg: still shown on 2 other pages");
+  expect(w).toContain(`• image ${B.slice(0, 8)}: still shown on 1 other page`);
 });
 
 it("leaves out a file the server doesn't hold, and hedges when offline", async () => {
@@ -78,7 +78,7 @@ it("leaves out a file the server doesn't hold, and hedges when offline", async (
     throw new TypeError("offline");
   });
   expect(await removalWarning(page, embed(A), "")).toContain(
-    "• IMG_1.jpg: deleted, unless another page uses it",
+    "• IMG_1.jpg: no longer shown here (other pages may still show it)",
   );
 });
 
