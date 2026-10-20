@@ -55,7 +55,9 @@ else
     echo "Keeping existing $conf/env"
 fi
 
-if [ ! -e "$conf/ingest.env" ]; then
+if [ -L "$conf/ingest.env" ] && [ ! -e "$conf/ingest.env" ]; then
+    echo "Warning: $conf/ingest.env is a dangling symlink; not writing through it." >&2
+elif [ ! -e "$conf/ingest.env" ]; then
     (
         umask 077
         cat >"$conf/ingest.env" <<'ENV'
@@ -78,16 +80,22 @@ ENV
     echo "Wrote $conf/ingest.env"
 else
     echo "Keeping existing $conf/ingest.env"
-    if [ -n "$(find "$conf/ingest.env" -perm /077)" ]; then
-        echo "Warning: $conf/ingest.env is readable by others: chmod 600 it." >&2
+    if [ -n "$(find -L "$conf/ingest.env" -perm /077)" ]; then
+        echo "Warning: $conf/ingest.env is readable or writable by others: chmod 600 it." >&2
     fi
 fi
 
-unit_changed=
-cmp -s "$here/scrap.service" "$units/scrap.service" || unit_changed=1
+# Remembered until scrap has (re)started on the new unit, even if this run
+# stops before that.
+pending="$lib/restart-pending"
+cmp -s "$here/scrap.service" "$units/scrap.service" || : >"$pending"
 cp "$here/scrap-backup" "$lib/"
 cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" "$units/"
 systemctl --user daemon-reload
+if dropins=$(grep -ls '^ExecStart=' "$units"/scrap.service.d/*.conf); then
+    echo "Note: a drop-in sets ExecStart, so scrap.service's own command is not used:" >&2
+    echo "$dropins" >&2
+fi
 
 if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ]; then
     loginctl --no-ask-password enable-linger 2>/dev/null || {
@@ -105,15 +113,24 @@ fi
 # A running scrap keeps its old image and unit until restarted. A restart
 # ends requests in flight; a photo being described counts one failed try
 # and is retried later.
-if systemctl --user is-active --quiet scrap.service; then
+started=yes
+case $(systemctl --user is-active scrap.service || true) in
+active | activating | reloading)
     running=$(podman container inspect --format '{{.Image}}' scrap 2>/dev/null || true)
-    if [ -n "$unit_changed" ] ||
+    if [ -e "$pending" ] ||
         [ "$running" != "$(podman image inspect --format '{{.Id}}' "$image")" ]; then
         echo "Restarting scrap onto the new image or unit."
-        systemctl --user restart scrap.service
+        systemctl --user restart scrap.service || started=
     fi
+    ;;
+esac
+[ -z "$started" ] || systemctl --user enable --now scrap.service || started=
+if [ -n "$started" ]; then
+    rm -f "$pending"
+else
+    echo "scrap did not start: journalctl --user -u scrap -n 50, and check" >&2
+    echo "$conf/ingest.env and the image." >&2
 fi
-systemctl --user enable --now scrap.service
 # The backup timer needs an image with the `scrap backup` command.
 if podman run --rm "$image" backup --help >/dev/null 2>&1; then
     systemctl --user enable --now scrap-backup.timer
@@ -122,4 +139,5 @@ else
     echo "Note: $image has no 'scrap backup' command, so the daily backup" >&2
     echo "timer is NOT enabled. Re-run this script after updating the image." >&2
 fi
+[ -n "$started" ] || exit 1
 echo "scrap is running: try $here/smoke.sh"

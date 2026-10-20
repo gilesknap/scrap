@@ -127,8 +127,9 @@ After changing a setting: `systemctl --user restart scrap`.
 scrap's own settings go in `~/.config/scrap/ingest.env`, which podman passes into the container
 (`--env-file`). `install.sh` creates it with mode 600 and every line commented out, so ingest is
 off until you edit it. It holds the API key: keep it mode 600, never copy it into the repo, and do
-not paste it anywhere it would be logged. Plain `KEY=value` lines, with no quotes (podman takes
-the rest of the line literally). For example:
+not paste it anywhere it would be logged. The same goes for the output of `podman inspect scrap`,
+which shows the key and the notify URL in plain text. Plain `KEY=value` lines, with no quotes
+(podman takes the rest of the line literally). For example:
 
 ```
 SCRAP_INGEST=on
@@ -225,6 +226,11 @@ running. A restart drops requests in flight (a capture being uploaded fails and 
 it), and a photo Claude is describing at that moment counts one failed try and is retried later.
 After editing only a settings file, restart by hand: `systemctl --user restart scrap`.
 
+If a drop-in under `~/.config/systemd/user/scrap.service.d/` replaces `ExecStart`, its command
+runs instead of the unit's, now and after every update (`install.sh` prints a note when it finds
+one). A drop-in that only added `--env-file ~/.config/scrap/ingest.env` is no longer needed:
+delete it, then `systemctl --user daemon-reload` and `systemctl --user restart scrap`.
+
 `SCRAP_IMAGE` pinned to a release version changes only when you edit it.
 
 ## Backup and restore
@@ -272,9 +278,9 @@ systemctl --user daemon-reload
 podman rmi localhost/scrap:dev
 ```
 
-As an admin, remove the Serve entry (`sudo tailscale serve --https=8446 off`). The data, backups
-and the settings in `~/.config/scrap/` stay until you delete them; `sudo userdel --remove scrap` removes the
-user and everything it owns.
+As an admin, remove the Serve entry (`sudo tailscale serve --https=8446 off`). The data,
+backups and the settings in `~/.config/scrap/` stay until you delete them;
+`sudo userdel --remove scrap` removes the user and everything it owns.
 
 (scrap-docker)=
 ## Using Docker instead

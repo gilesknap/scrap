@@ -78,7 +78,7 @@ bin="$tmp/bin"
 make_runs "$b" 1
 mkdir -p "$bin"
 printf '#!/bin/sh\necho 20261001T033000Z\n' >"$bin/date"
-printf '#!/bin/sh\nexit 1\n' >"$bin/podman"
+printf '#!/bin/sh\ntouch "%s/podman-called"\nexit 1\n' "$tmp" >"$bin/podman"
 chmod +x "$bin/date" "$bin/podman"
 if PATH="$bin:$PATH" SCRAP_BACKUPS="$b" SCRAP_BACKUP_KEEP=3 SCRAP_DATA="$tmp" \
     SCRAP_IMAGE=none "$here/scrap-backup" 2>/dev/null; then
@@ -87,5 +87,7 @@ else
     expect "same-second run kept the existing backup" "./scrap.db " \
         "$(listing "$b/20261001T033000Z")"
 fi
+expect "same-second run stopped before the backup" "no" \
+    "$([ -e "$tmp/podman-called" ] && echo yes || echo no)"
 
 exit "$fail"
