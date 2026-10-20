@@ -437,3 +437,21 @@ def test_a_file_changed_after_the_plan_stops_the_run(tmp_path):
     (root / "raw/assets/b.png").unlink()
     with pytest.raises(SystemExit, match="raw/assets/b.png changed since it was"):
         importer.run(store, plan)
+
+
+def test_links_in_tables_and_indented_code(tmp_path):
+    """A link in a table cell keeps the table whole; code (fenced, indented, inline)
+    is never rewritten."""
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "| Who | Link |\n|---|---|\n| me | [[other]] |\n| you | [b](other.md) |\n\n"
+        "    [[other]] in code\n\n`[x](other.md)`\n",
+    )
+    write(root, "notes/other.md", front(title="Other one"))
+    store, _ = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    assert "| me | [[other\\|Other one]] |\n| you | [[other\\|b]] |" in body
+    assert body.endswith("    [[other]] in code\n\n`[x](other.md)`")

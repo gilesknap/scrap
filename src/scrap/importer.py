@@ -19,6 +19,8 @@ from urllib.parse import unquote
 
 import yaml
 
+from . import markdown
+from .markdown import Link, wiki_parts
 from .store import (
     CROCKFORD,
     BlobRef,
@@ -89,16 +91,6 @@ PREVIEWABLE = {
 }
 MAX_VALUE, MAX_KEY, MAX_FIELDS = 200, 40, 32  # as a PWA edit of fields allows
 MAX_ALIASES = 64  # YAML aliases per page: refuse an alias bomb (Thoth uses a few)
-# One pass over a body: inline code (kept), wiki links and embeds, Markdown links and
-# images. Fenced code blocks are skipped before this. A code span's backtick runs are
-# whole runs, so a long run of backticks is not tried every way it could be split.
-TOKEN = re.compile(
-    r"(?<!`)(?P<code>`+)(?!`)[^\n]*?(?<!`)(?P=code)(?!`)"
-    r"|(?P<wbang>!?)\[\[(?P<wiki>[^\[\]\n]+)\]\]"
-    r"|(?P<bang>!?)\[(?P<text>[^\[\]\n]*)\]"
-    r"\((?P<href><[^<>\n]+>|[^()\s]+)(?:\s+\"[^\"\n]*\")?\)"
-)
-FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 
 
 @dataclass
@@ -348,24 +340,21 @@ class _Linker:
             attached.append(rel)
         return self.plan.sha[rel]
 
-    def token(self, page: Page, m: re.Match[str]) -> str:
-        if m["code"]:
-            return m[0]
-        wiki = m["wiki"] is not None
-        embed = bool(m["wbang"] if wiki else m["bang"])
+    def token(self, page: Page, link: Link) -> str | None:
+        """What replaces a link, image or wiki link (None: kept as it is)."""
+        wiki = link.kind == "wiki"
+        embed = link.embed
         if wiki:
-            # A wiki link in a table cell escapes its pipe
-            target, _, label = m["wiki"].replace("\\|", "|").partition("|")
+            target, label = wiki_parts(link.target)
             target = target.split("#")[0].strip()
-            label = label.strip()
         else:
-            target, label = m["href"].strip("<>"), m["text"]
+            target, label = link.target, link.label
             if re.match(r"[a-z][a-z0-9+.-]*:", target, re.I):  # http(s), mailto: as is
-                return m[0]
+                return None
             target = unquote(target.split("#")[0])
         name = posixpath.basename(target) or target
         if not target:  # #anchor: within the page
-            return label or (m["wiki"] or "").lstrip("#").strip()
+            return label or (link.target if wiki else "").lstrip("#").strip()
         rel, by_name = self.find(page.path, target, wiki)
         if rel is None:
             what = "missing file" if embed else "broken link"
@@ -379,7 +368,8 @@ class _Linker:
             label = label or linked.title.replace("[", "(").replace("]", ")")
             if label == linked.slug:
                 return f"[[{label}]]"
-            return f"[[{linked.slug}|{label}]]"
+            pipe = "\\|" if link.in_table else "|"  # a table cell's would end the cell
+            return f"[[{linked.slug}{pipe}{label}]]"
         if rel.endswith(".md") and not rel.endswith(DRAWINGS):
             self.plan.note("link to dropped page", page.path, rel)
             return label or name
@@ -393,22 +383,11 @@ class _Linker:
         return f"*{label or name} (attached)*"
 
     def rewrite(self, page: Page) -> str:
-        out: list[str] = []
-        fence = ""
-        for line in page.body.split("\n"):
-            opened = FENCE.match(line)
-            if fence:  # closed by the same character, at least as many, nothing after
-                run = opened[1] if opened else ""
-                if run[:1] == fence[0] and len(run) >= len(fence):
-                    if not line.strip().strip(fence[0]):
-                        fence = ""
-                out.append(line)
-            elif opened:
-                fence = opened[1]
-                out.append(line)
-            else:
-                out.append(TOKEN.sub(lambda m: self.token(page, m), line))
-        return "\n".join(out).strip("\n")
+        """The page's text with its links, images and wiki links rewritten (as
+        Markdown parses it: never in code)."""
+        return markdown.rewrite(page.body, lambda link: self.token(page, link)).strip(
+            "\n"
+        )
 
 
 def plan(vault: Path, store: Store) -> Plan:

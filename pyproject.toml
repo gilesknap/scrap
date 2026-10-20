@@ -16,6 +16,8 @@ description = "A tiny personal knowledge store you feed from your phone and quer
 dependencies = [
     "anthropic>=1.15.0",
     "fastapi",
+    "markdown-it-py>=4",
+    "mdit-py-plugins>=0.6",
     "pillow>=13.0.0",
     "pillow-heif>=1.8.1",
     "pyyaml>=6",
