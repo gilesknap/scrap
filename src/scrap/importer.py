@@ -341,7 +341,14 @@ class _Linker:
         return self.plan.sha[rel]
 
     def token(self, page: Page, link: Link) -> str | None:
-        """What replaces a link, image or wiki link (None: kept as it is)."""
+        """What replaces a link, image or wiki link (None: kept as it is). In a table
+        cell every pipe is escaped: a bare one would end the cell."""
+        new = self._token(page, link)
+        if new is None or not link.in_table:
+            return new
+        return new.replace("\\|", "|").replace("|", "\\|")
+
+    def _token(self, page: Page, link: Link) -> str | None:
         wiki = link.kind == "wiki"
         embed = link.embed
         if wiki:
@@ -368,8 +375,7 @@ class _Linker:
             label = label or linked.title.replace("[", "(").replace("]", ")")
             if label == linked.slug:
                 return f"[[{label}]]"
-            pipe = "\\|" if link.in_table else "|"  # a table cell's would end the cell
-            return f"[[{linked.slug}{pipe}{label}]]"
+            return f"[[{linked.slug}|{label}]]"
         if rel.endswith(".md") and not rel.endswith(DRAWINGS):
             self.plan.note("link to dropped page", page.path, rel)
             return label or name
@@ -385,9 +391,13 @@ class _Linker:
     def rewrite(self, page: Page) -> str:
         """The page's text with its links, images and wiki links rewritten (as
         Markdown parses it: never in code)."""
-        return markdown.rewrite(page.body, lambda link: self.token(page, link)).strip(
-            "\n"
-        )
+
+        def unmapped(line: int) -> None:
+            self.plan.note("links kept as typed", page.path, f"body line {line}")
+
+        return markdown.rewrite(
+            page.body, lambda link: self.token(page, link), unmapped
+        ).strip("\n")
 
 
 def plan(vault: Path, store: Store) -> Plan:

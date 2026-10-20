@@ -455,3 +455,22 @@ def test_links_in_tables_and_indented_code(tmp_path):
     body = store.page("page")["body"]
     assert "| me | [[other\\|Other one]] |\n| you | [[other\\|b]] |" in body
     assert body.endswith("    [[other]] in code\n\n`[x](other.md)`")
+
+
+def test_a_pipe_in_a_table_links_text_stays_escaped(tmp_path):
+    """A link's text, or a page's title, with a pipe in a table cell: every pipe
+    escaped, so the cell is not cut in two."""
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "| A | B |\n|---|---|\n| [x\\|y](other.md) | [[other]] |\n"
+        "| [[other\\|p\\|q]] | z |\n\n[x|y](other.md)\n",
+    )
+    write(root, "notes/other.md", front(title="One | Two"))
+    store, _ = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    assert "| [[other\\|x\\|y]] | [[other\\|One \\| Two]] |" in body
+    assert "| [[other\\|p\\|q]] | z |" in body
+    assert body.endswith("[[other|x|y]]")  # outside a table, as it was

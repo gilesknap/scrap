@@ -4,6 +4,7 @@ it with markdown-it: raw HTML is text, a line break stays one. Used for the text
 search index holds (`plain`) and for the importer's link rewriting (`rewrite`), so code
 is never mistaken for a link, and no part of it backtracks on hostile text."""
 
+from bisect import bisect_left, bisect_right
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from functools import cache
@@ -160,12 +161,15 @@ def _source(
         where.append((at, lead, found, pipes))
         at += len(part) + 1
 
-    def source(offset: int) -> int:
-        for begin, lead, found, pipes in reversed(where):
-            if offset >= begin:
-                col = max(offset - begin - lead, 0)
-                return found + col + sum(p < col for p in pipes)
-        return offset
+    begins = [w[0] for w in where]
+
+    def source(offset: int) -> int:  # a binary search: no line is looked at twice
+        at = bisect_right(begins, offset) - 1
+        if at < 0:
+            return offset
+        begin, lead, found, pipes = where[at]
+        col = max(offset - begin - lead, 0)
+        return found + col + bisect_left(pipes, col)
 
     return source
 
@@ -184,11 +188,16 @@ def _spans(tokens: list[Token], table: bool) -> Iterator[tuple[int, int, Link]]:
             yield start, end, Link(kind, href, t.meta["label"], kind == "image", table)
 
 
-def rewrite(text: str, replace: Callable[[Link], str | None]) -> str:
+def rewrite(
+    text: str,
+    replace: Callable[[Link], str | None],
+    unmapped: Callable[[int], None] = lambda line: None,
+) -> str:
     """text with each link, image and wiki link outside code replaced by what replace
     returns for it (None: kept as typed), in the order they appear. A link whose text
     holds a bracket is kept, and what is inside it is replaced instead; one spanning
-    lines is kept."""
+    lines is kept. A block whose lines can't be found as the parser saw them (a tab
+    it expanded) is kept whole: unmapped is told its first line (from 1)."""
     md = parser()
     text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\0", "\ufffd")
     starts = _lines(text)
@@ -202,6 +211,8 @@ def rewrite(text: str, replace: Callable[[Link], str | None]) -> str:
             continue
         source = _source(block, text, starts, cursor)
         if source is None:
+            if any("start" in t.meta for t in block.children):
+                unmapped((block.map or [0])[0] + 1)
             continue
         for start, end, link in _spans(block.children, table):
             raw = block.content[start:end]

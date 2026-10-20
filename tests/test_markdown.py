@@ -5,6 +5,7 @@ from contextlib import closing
 
 import pytest
 
+from scrap import markdown
 from scrap.markdown import Link, plain, rewrite
 from scrap.store import Store, connect, migrations
 
@@ -73,7 +74,22 @@ def test_rewrite_keeps_what_it_is_told_to_and_the_rest_as_typed():
 
 @pytest.mark.parametrize(
     "pattern",
-    ["[", "[[", "[a](", "![", "`", "*a", "_a ", "<", "> ", "- ", "[[a|", "\\"],
+    [
+        "[",
+        "[[",
+        "[a](",
+        "![",
+        "`",
+        "*a",
+        "_a ",
+        "<",
+        "> ",
+        "- ",
+        "[[a|",
+        "\\",
+        "x [[y]]\n",
+        "| [[y]] |\n",
+    ],
 )
 def test_hostile_text_takes_linear_time(pattern):
     """Twice the text takes about twice as long, not four times."""
@@ -87,6 +103,24 @@ def test_hostile_text_takes_linear_time(pattern):
 
     small, large = took(10_000), took(40_000)
     assert large < 8 * small + 0.5
+
+
+def test_a_paragraph_of_many_lines_is_rewritten_in_linear_time():
+    text = "x [[y]]\n" * 20_000  # one paragraph: every link maps back to its line
+    start = time.monotonic()
+    out = rewrite(text, lambda link: f"<{link.target}>")
+    assert out == "x <y>\n" * 20_000
+    assert time.monotonic() - start < 10  # about 9 s per 20k lines was quadratic
+
+
+def test_a_block_that_cannot_be_mapped_back_is_kept_and_told(monkeypatch):
+    """A block whose lines aren't found as typed (none is known today: the parser's
+    tab expansion was the risk) keeps its links as typed, and says where."""
+    monkeypatch.setattr(markdown, "_source", lambda *args: None)
+    told: list[int] = []
+    text = "first\n\nsecond [[b]]\nthird [[d]]\n"
+    assert rewrite(text, lambda link: "X", told.append) == text
+    assert told == [3]
 
 
 def test_a_megabyte_page_is_indexed():
