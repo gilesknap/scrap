@@ -224,6 +224,9 @@ main {
     calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-4))
     max(env(safe-area-inset-left), var(--s-4));
 }
+#view {
+  overflow-x: clip; /* a page swiped sideways never widens the screen; sticky still works */
+}
 #view > :not(.still) {
   animation: enter var(--d-2) var(--ease);
 }
@@ -431,7 +434,7 @@ nav a[aria-current] .i {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-/* A row swiped left shows its Edit and Delete behind it (swipe.ts) */
+/* A row follows the finger sideways (swipe.ts): right to edit, left to delete, said behind it */
 .list li.swipe {
   position: relative;
   isolation: isolate; /* the row's layers stay under the capture cluster */
@@ -445,32 +448,43 @@ nav a[aria-current] .i {
     transform var(--d-2) var(--ease),
     background-color var(--d-1) linear;
 }
-.list li.dragging > a {
-  transition: none; /* it follows the finger */
-}
-.list li > .row-actions {
+.list li > .row-under {
   position: absolute;
-  inset-block: 0;
-  right: 0;
-  align-items: stretch;
-  gap: 0;
-  padding: 0;
-}
-.row-actions button {
-  flex-direction: column;
-  gap: 2px;
-  width: 76px;
-  padding: 0;
-  border: none;
-  border-radius: 0;
+  inset: 0;
+  justify-content: space-between;
+  padding: 0 var(--s-5);
   background: var(--sunk);
   color: var(--ink);
-  font-size: var(--t-xs);
+  font-size: var(--t-sm);
   font-weight: 600;
 }
-.row-actions .danger {
+.row-under span {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.list li:not(.to-edit, .to-delete) > .row-under,
+.to-edit .row-under span + span,
+.to-delete .row-under span:first-child {
+  visibility: hidden;
+}
+.list li.to-edit > .row-under {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.list li.to-delete > .row-under {
   background: var(--danger-soft);
   color: var(--danger);
+}
+.list li.armed.to-edit > .row-under {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.row-under .i {
+  transition: scale var(--d-1) var(--ease);
+}
+.armed .row-under .i {
+  scale: 1.3; /* far enough: letting go does it */
 }
 .list em {
   flex: none;

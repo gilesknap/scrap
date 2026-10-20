@@ -67,9 +67,11 @@ the link as the capture's URL.
 ## View, edit, search
 
 - **Recent** lists pages newest first, with a thumbnail of the first photo.
-- Swipe a row of **Recent** or of search results to the left to show its **Edit** (opens the
-  page in its editor) and **Delete** (with **Undo** for a few seconds); swipe it back, or tap
-  anywhere, to close it. The page itself has the same Edit and Delete.
+- Swipe a row of **Recent**, the capture screen's list or search results: to the **right** to
+  edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
+  seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
+  of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
+  it slides back. The page itself has the same Edit and Delete.
 - A page shows its text and its files: photos inline (as previews the server makes, so iPhone HEIC
   photos show too), other files as links. Each has a **Download** of the original.
 - Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
@@ -85,7 +87,8 @@ the link as the capture's URL.
   it is always stored as typed, and **Edit** shows it so.
 - A page opened from **Recent** or a search shows where it is in that list (*3 of 23 ·
   Recent*): swipe left for the next one and right for the previous one, or use the ‹ › beside
-  it (or the arrow keys). The first and last say so. Back returns to the list. Swipes start
+  it (or the arrow keys). The page follows your finger and slides away to the next one; a short
+  drag settles back, and at the first or last it only gives a little and says so. Back returns to the list. Swipes start
   away from the screen's edges (the phone's own Back gesture lives there) and are ignored on
   text that scrolls sideways, while zoomed in or while selecting text.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
@@ -107,14 +110,14 @@ With Claude ingest on (see [](../explanations/ingest.md)), each photo on a page 
   (nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
   **Reprocess** sends it to Claude again; if you have edited its drawing, it asks first:
   **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
-- **Description** and **Text Claude read**, folded; tap to open, and the text can be selected
-  and copied.
+- **Description** and **Text Claude read**, open; tap a heading (its arrow) to fold it away,
+  and the phone remembers that for the next page. The text can be selected and copied.
 - **The drawing** of a whiteboard or diagram, beside the photo when the screen is wide enough
   (a tablet, or a phone on its side), else under a **Photo** / **Drawing** switch. It is a
   picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
   the drawing is made in the photo's own pixels.
 
-Tap the drawing (or **Open drawing**) to open it full screen:
+Tap the drawing to open it full screen:
 
 - Pinch and drag to zoom and pan; **Fit** shows all of it again. **Photo** shows the photo
   beside the drawing (on its side) or over it (upright), to compare. The phone's Back button

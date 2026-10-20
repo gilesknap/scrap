@@ -33,7 +33,7 @@ export function pager(trail: Trail | undefined, slug: string, root: HTMLElement)
       },
       icon(d > 0 ? "next" : "back"),
     );
-  swipePages(step);
+  swipePages(step, at);
   return h(
     "div",
     { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
@@ -47,7 +47,8 @@ export function pager(trail: Trail | undefined, slug: string, root: HTMLElement)
  * view lasts. Not inside anything that scrolls sideways or takes typing, not from the
  * screen's edges, not while zoomed in, selecting text, or with a layer (editor, photo,
  * drawing) open. */
-function swipePages(step: (d: 1 | -1) => void) {
+function swipePages(step: (d: 1 | -1) => void, at: { prev?: string; next?: string }) {
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const blocked = () => document.body.matches(".editing, .viewing, .drawing-open");
   const typing = (t: EventTarget | null) =>
     t instanceof Element && !!t.closest("input, textarea, select, [contenteditable]");
@@ -58,47 +59,69 @@ function swipePages(step: (d: 1 | -1) => void) {
     }
     return false;
   };
+  // The page follows the finger sideways, then slides off (the next one comes in from that
+  // side) or settles back. Passive listeners: scrolling and zooming stay the browser's.
   let start: { x: number; y: number; t: number } | null = null;
+  let sideways = false;
+  const page = () => document.querySelector<HTMLElement>("#view > .page");
+  const slide = (x: number, glide: boolean) => {
+    const el = page();
+    if (!el) return;
+    el.style.transition = glide
+      ? "translate var(--d-2) var(--ease), opacity var(--d-2) linear"
+      : "none";
+    el.style.translate = x ? `${x}px 0` : "";
+    el.style.opacity = x ? String(1 - Math.min(0.6, Math.abs(x) / innerWidth)) : "";
+  };
   const signal = view.signal;
-  document.addEventListener(
-    "touchstart",
-    (e) => {
-      const p = e.touches[0];
-      start = null;
-      if (e.touches.length !== 1 || blocked() || typing(e.target) || scrolls(e.target)) return;
-      if (!(e.target instanceof Element && e.target.closest("#view"))) return;
-      if (p.clientX < EDGE || p.clientX > innerWidth - EDGE) return;
-      if ((visualViewport?.scale ?? 1) > 1.01) return; // zoomed in: the touch pans the page
-      start = { x: p.clientX, y: p.clientY, t: e.timeStamp };
-    },
-    { signal, passive: true },
-  );
-  document.addEventListener(
-    "touchmove",
-    (e) => {
-      if (e.touches.length > 1) start = null; // a pinch
-    },
-    { signal, passive: true },
-  );
-  document.addEventListener(
-    "touchcancel",
-    () => {
-      start = null; // e.g. the phone took it for its Back gesture
-    },
-    { signal },
-  );
-  document.addEventListener(
-    "touchend",
-    (e) => {
-      const p = e.changedTouches[0];
-      if (!start || e.touches.length) return;
-      const d = swipeStep(p.clientX - start.x, p.clientY - start.y, e.timeStamp - start.t);
-      start = null;
-      if (!d || blocked() || !getSelection()?.isCollapsed) return;
-      step(d);
-    },
-    { signal },
-  );
+  const on = <K extends keyof DocumentEventMap>(type: K, fn: (e: DocumentEventMap[K]) => void) =>
+    document.addEventListener(type, fn, { signal, passive: true });
+  on("touchstart", (e) => {
+    const p = e.touches[0];
+    start = null;
+    sideways = false;
+    if (e.touches.length !== 1 || blocked() || typing(e.target) || scrolls(e.target)) return;
+    if (!(e.target instanceof Element && e.target.closest("#view"))) return;
+    if (p.clientX < EDGE || p.clientX > innerWidth - EDGE) return;
+    if ((visualViewport?.scale ?? 1) > 1.01) return; // zoomed in: the touch pans the page
+    start = { x: p.clientX, y: p.clientY, t: e.timeStamp };
+  });
+  on("touchmove", (e) => {
+    if (!start) return;
+    if (e.touches.length > 1 || !getSelection()?.isCollapsed) return cancel(); // a pinch, a selection
+    const dx = e.touches[0].clientX - start.x;
+    const dy = e.touches[0].clientY - start.y;
+    if (!sideways) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx))
+        start = null; // a scroll
+      else if (Math.abs(dx) > 10) sideways = true;
+      if (!sideways) return;
+    }
+    const to = dx < 0 ? at.next : at.prev;
+    slide(to ? dx : dx / 4, false); // at an end it only gives a little
+  });
+  const cancel = () => {
+    if (sideways) slide(0, true);
+    start = null;
+    sideways = false;
+  };
+  on("touchcancel", cancel); // e.g. the phone took it for its Back gesture
+  on("touchend", (e) => {
+    const p = e.changedTouches[0];
+    if (!start || !sideways || e.touches.length) return cancel();
+    const dx = p.clientX - start.x;
+    const d = swipeStep(dx, p.clientY - start.y, e.timeStamp - start.t, innerWidth);
+    const to = d > 0 ? at.next : at.prev;
+    start = null;
+    sideways = false;
+    if (!d || !to) {
+      slide(0, true);
+      if (d) step(d); // says it is the first or last
+      return;
+    }
+    slide(dx < 0 ? -innerWidth : innerWidth, true);
+    setTimeout(() => step(d), reduced() ? 0 : 150);
+  });
   document.addEventListener(
     "keydown",
     (e) => {

@@ -94,8 +94,9 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Bottom nav | `nav` | icon over label; active item gets an amber-soft pill and ink label |
 | List group | `.list` | rows in one rounded card; `.pending` is dashed (still on the phone) |
 | List row | `.list li` | 48 thumbnail or kind icon, title, date and kind chip; actions under it |
-| Swipe row | `.list li.swipe`, `.row-actions` | swiped left, the row slides to show Edit (`--sunk`) and Delete (`--danger-soft`) tiles behind it; a tap anywhere closes it |
-| Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; swipe left/right does the same |
+| Swipe row | `.list li.swipe`, `.row-under` | follows the finger; behind it Edit on `--accent-soft` (right) or Delete on `--danger-soft` (left); past the threshold the icon grows (Edit turns `--accent`) and letting go does it |
+| Fold | `.claude-text` (`details`) | hairline above, a chevron before the heading: right folded, down open |
+| Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; the page follows a sideways swipe and slides off to the next |
 | Kind chip | `.list em` | amber-soft pill: "todo", "read later" |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
