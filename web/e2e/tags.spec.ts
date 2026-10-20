@@ -146,3 +146,37 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   await expect(page.locator(".tagedit datalist option[value='quokka/water']")).toHaveCount(1);
   expect(await page.evaluate(lowContrast, ""), "tag editor").toEqual([]);
 });
+
+test("Sort writes sort: into the query, and the results follow it", async ({ page }) => {
+  await page.goto("/search?q=zephyr");
+  const sort = refine(page).getByRole("combobox", { name: "Sort" });
+  await expect(sort).toHaveValue(""); // Best match
+  await sort.selectOption({ label: "Title Z–A" });
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title");
+  await expect(hits(page)).toHaveText([
+    "Zephyr shed plans",
+    "Zephyr fence repair",
+    "Zephyr fence paint",
+    "Zephyr fence book",
+  ]);
+  await expect(refine(page).getByRole("button", { name: /sort:/ })).toHaveCount(0); // no chip
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title kind:todo");
+  await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
+  await sort.selectOption({ label: "Oldest" });
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:todo -sort:created");
+  await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
+  await sort.selectOption({ label: "Best match" });
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:todo");
+  // With nothing typed: every page, in that order
+  await page.goto("/search");
+  await refine(page).getByRole("combobox", { name: "Sort" }).selectOption({ label: "Title A–Z" });
+  await expect(page.getByRole("searchbox")).toHaveValue("sort:title");
+  await expect(hits(page).first()).toBeVisible();
+  const titles = await hits(page).allTextContents();
+  expect(titles.length).toBeGreaterThan(4);
+  expect(titles).toEqual(
+    [...titles].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+  );
+  expect(await page.evaluate(lowContrast, ""), "sort").toEqual([]);
+});

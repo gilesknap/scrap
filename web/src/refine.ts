@@ -2,8 +2,8 @@
 // their top tags), each with how many have it; tapping one adds its filter to the query, and
 // the query's filters show first, tapped to take them out (kinds are search.ts's fixed row).
 // The chips only edit the query's text (tag:tech, is:personal), so it can be typed too. Also
-// Clear, and the way to browse tags and a time range (presets, or dates). A chunk of its own,
-// loaded with the search screen.
+// Clear, the way to browse tags, the order (sort:), and a time range (presets, or dates). A
+// chunk of its own, loaded with the search screen.
 import { api } from "./api";
 import { icon } from "./icons";
 import { adding, day, removing, token } from "./terms";
@@ -33,6 +33,15 @@ const NONE: Facets = {
   personal: { work: 0, personal: 0 },
   active: [],
 };
+// Orders: [sort: as typed, label]; "" is the default (best match, or newest edit first)
+const SORTS = [
+  ["sort:updated", "Last edited"],
+  ["-sort:updated", "First edited"],
+  ["sort:created", "Newest"],
+  ["-sort:created", "Oldest"],
+  ["sort:title", "Title A–Z"],
+  ["-sort:title", "Title Z–A"],
+];
 // Time ranges: [label, token value, what it says]
 const RANGES = [
   ["1w", "1w", "the past week"],
@@ -48,9 +57,10 @@ export async function refine(
 ): Promise<HTMLElement> {
   const f = q ? await api<Facets>(`search/facets?q=${encodeURIComponent(q)}`, { signal }) : NONE;
   const add = (t: string) => () => apply((now) => adding(now, t));
-  // A kind is the fixed row's (search.ts), unless it is a "not" one (-kind:todo)
+  // A kind is the fixed row's (search.ts), unless it is a "not" one (-kind:todo); an order
+  // is the Sort menu's
   const chips: HTMLElement[] = f.active
-    .filter((a) => a.key !== "kind" || a.neg)
+    .filter((a) => (a.key !== "kind" || a.neg) && a.key !== "sort")
     .map((a) => {
       const b = chip(a.token, null, () => apply((now) => removing(now, a.token)), true);
       b.setAttribute("aria-label", `Remove ${a.token}`);
@@ -102,6 +112,29 @@ export async function refine(
     ),
     h("small", {}, "Days are UTC; both ends included."),
   );
+  // Sort: a native menu (the phone's own picker), writing sort: into the query. Without a
+  // query (no facets fetched) the list is the default, newest edit first
+  const sorts = f.active.filter((a) => a.key === "sort");
+  const last = sorts[sorts.length - 1];
+  const words = q.split(/\s+/).some((w) => w && !"-!".includes(w[0]) && !w.includes(":"));
+  const sort = h(
+    "select",
+    {
+      className: "button facet sort",
+      "aria-label": "Sort",
+      onchange: () =>
+        apply((now) => {
+          const rest = sorts.reduce((s, a) => removing(s, a.token), now);
+          return sort.value ? adding(rest, sort.value) : rest;
+        }),
+    },
+    h("option", { value: "" }, words ? "Best match" : "Last edited"),
+    ...SORTS.filter(([t]) => words || t !== "sort:updated").map(([t, label]) =>
+      h("option", { value: t }, label),
+    ),
+  );
+  sort.value = last ? `${last.neg ? "-" : ""}sort:${last.value}` : "";
+  if (sort.selectedIndex < 0) sort.value = ""; // an unknown order: the default
   const side = f.active.find((a) => a.key === "is" && ["work", "personal"].includes(a.value));
   const { work, personal } = f.personal;
   if (!side && work && personal) {
@@ -117,6 +150,7 @@ export async function refine(
       // Anything chosen or typed: one tap back to every page, newest first
       q && chip("Clear", -1, () => apply(() => "")),
       h("a", { className: "button facet", href: "/tags" }, icon("tag"), "Tags"),
+      sort,
       q && h("span", { className: "count" }, `${f.total} ${f.total === 1 ? "page" : "pages"}`),
       ...chips,
     ),

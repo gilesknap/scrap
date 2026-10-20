@@ -77,6 +77,12 @@ IMAGE_KIND = (
     " AND json_extract(d.data, '$.kind') = ?)"
 )
 KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
+# What each sort: orders a page p by (query.SORTS has its default direction)
+SORT_SQL = {
+    "updated": "p.updated_at",
+    "created": "p.created_at",
+    "title": "p.title COLLATE NOCASE",
+}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
@@ -901,12 +907,19 @@ class Store:
         (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
         the page's best chunk, title, tag and summary matches weighing most; a query
-        of filters alone lists its pages newest first. offset: skip that many hits
-        (the next page of results)."""
+        of filters alone lists its pages newest first; sort: orders either its own
+        way. offset: skip that many hits (the next page of results)."""
         q = parse(query)
         if not q.terms and not q.filters:
             return []
         where, args = self._where(q)
+        # sort: first, then the default order (a page's chunks share its sort key, so
+        # its best chunk still comes first)
+        order = ""
+        if q.sort:
+            key, desc = q.sort
+            way = "DESC" if desc else "ASC"
+            order = f"{SORT_SQL[key]} {way}, p.id {way}, "
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
@@ -921,7 +934,8 @@ class Store:
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
                     f" WHERE chunk_fts MATCH ? AND {where}"
-                    f" ORDER BY {tier} DESC, {tier} DESC, bm25(chunk_fts, {WEIGHTS})",
+                    f" ORDER BY {order}{tier} DESC, {tier} DESC,"
+                    f" bm25(chunk_fts, {WEIGHTS})",
                     (" OR ".join(q.fts(t) for t in q.positive), *args,
                      f"title : ({every})", f"{{title tags summary}} : ({every})"),
                 )  # fmt: skip
@@ -929,7 +943,7 @@ class Store:
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.body AS snippet"
                     f" FROM page p WHERE {where}"
-                    " ORDER BY p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
+                    f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
                     (*args, limit, offset),
                 )
                 offset = 0  # done by SQL
@@ -1059,6 +1073,8 @@ class Store:
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")
+            elif f.key == "sort":  # an order, not a condition: see search()
+                continue
             elif f.key == "is":  # a status: is:done, is:open...
                 status = "coalesce(json_extract(p.fields, '$.status'), '')"
                 sql.append(f"{no}({status} = ?)")

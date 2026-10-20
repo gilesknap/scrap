@@ -404,8 +404,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         offset: int = Query(0, ge=0, le=10_000),  # the next page of results
     ) -> list[dict[str, Any]]:
         """Full-text search over titles, tags, summaries and bodies, with -word,
-        "phrase", kind:, tag:, is:, has:, image: and dates; snippets mark hits with
-        <mark>."""
+        "phrase", kind:, tag:, is:, has:, image:, dates and sort:; snippets mark hits
+        with <mark>."""
         return store.search(q, limit, offset)
 
     @app.get("/api/search/facets")
