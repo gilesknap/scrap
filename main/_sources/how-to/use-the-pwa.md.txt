@@ -1,7 +1,7 @@
 # Capture from your phone (the PWA)
 
-scrap serves a small web app (a PWA) at the root of its address: capture, recent pages, search
-and a page view. It is built for one-handed use on a phone and keeps working offline.
+scrap serves a small web app (a PWA) at the root of its address: capture, one screen of pages
+to browse and search, and a page view. It is built for one-handed use on a phone and keeps working offline.
 
 ## Install it on Android
 
@@ -52,7 +52,7 @@ the link as the capture's URL.
 - The queue lives in the browser's IndexedDB (photos as they are, not re-encoded) and survives
   closing the app and restarting the phone.
 - The header badge shows what is on the phone: **2 waiting**, **1 failed**. Tap it to retry
-  everything now. Waiting items are also listed at the top of the capture and Recent screens.
+  everything now. Waiting items are also listed at the top of the capture and search screens.
   Opening scrap, coming back to it or coming back online sends what waits at once (another
   tab's upload first, if one is running). A screen still waiting for the server after a moment
   says *Loading…*, and an upload that drops while the phone is online says *connection lost*.
@@ -77,15 +77,25 @@ the link as the capture's URL.
 
 ## View, edit, search
 
-- **Recent** lists pages newest first, with a thumbnail of the first photo. Its chips filter
-  it: **All**, **Todos** and **Read**. The filter stays in the address, so Back and a reload keep it.
+- The nav has two tabs, **Capture** and **Search**. **Search** opens the one list screen: with
+  nothing in the search box it lists every page newest first, with a thumbnail of the first
+  photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
+  box. (There is no separate Recent screen any more: the empty box is it.)
+- Under the search box, a fixed row of kinds: **All**, **Notes**, **Todos**, **Reads**,
+  **Boards**, **Docs**. One tap shows only that kind (it writes `kind:todo` into the query), a
+  second tap on it (or **All**) shows every kind again. A kind alone still lists newest first.
+- Whenever anything is chosen or typed, a **Clear** chip starts the row of chips below: one tap
+  goes back to every page, newest first.
+- The query and its filters are in the address (`/search?q=...`), so a reload keeps them, and
+  Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
+  `/recent` links open this screen (`/recent?kind=todo` with Todos on).
 - Todos and Read pages carry a status (open, in progress, done or cancelled). The page's
   toolbar has **Done** unless it is done, and **Reopen** if it is done or cancelled (a
-  cancelled one has both). In **Recent**, the capture screen's list and search results, their
+  cancelled one has both). In the list, the capture screen's list and search results, their
   rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
   open it again; the row stays where it is and its chip says *done* (or *cancelled*). Ticking
-  it or changing a kind doesn't move the page up Recent.
-- Swipe a row of **Recent**, the capture screen's list or search results: to the **right** to
+  it or changing a kind doesn't move the page up the list.
+- Swipe a row of the list, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
   seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
   of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
@@ -110,7 +120,7 @@ the link as the capture's URL.
   Share appears only where the browser can share.
 - Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
   it is always stored as typed, and **Edit** shows it so.
-- A page opened from **Recent** or a search shows where it is in that list (*3 of 23 ·
+- A page opened from the list or a search shows where it is in that list (*3 of 23 ·
   Recent*): swipe left for the next one and right for the previous one, or use the ‹ › beside
   it (or the arrow keys). The page follows your finger and slides away to the next one; a short
   drag settles back, and at the first or last it only gives a little and says so. Back returns to the list. Swipes start
@@ -124,7 +134,8 @@ the link as the capture's URL.
   before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.
-- **Delete** moves the page to the trash, with **Undo** for a few seconds.
+- **Delete** moves the page to the trash, with **Undo** for a few seconds, and goes back to the
+  list or search it was opened from (else to every page, newest first).
 
 ## What Claude made of a photo
 
@@ -164,12 +175,12 @@ Tap the drawing to open it full screen:
 - The drawing follows the phone's light or dark theme. Viewing a drawing needs the server: the
   app shell works offline, but a page and its drawing are not cached.
 - Excalidraw is loaded only when a drawing is first shown (about 435 kB over the network, as
-  scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture, Recent
-  or Search. Its fonts are served by scrap itself, never
+  scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture or the
+  search screen. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
 - **Search** searches titles, tags, summaries and text as you type (each word as the start of a
   word: `vsc` finds `vscode`); a title or tag match ranks first. Under the results, chips say how many pages were found and what they have in common
-  (Work or Personal, their kinds, their top tags, each with a count): tap one to narrow the
+  (Work or Personal and their top tags, each with a count; kinds are the fixed row above): tap one to narrow the
   search, tap a chip of the query's own filters to take it out. The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
@@ -192,7 +203,7 @@ out.
 
 ## Troubleshooting the screen layout
 
-Tapping the build id at the bottom of **Recent** five times turns on a small debug panel of
+Tapping the build id at the bottom of the search screen five times turns on a small debug panel of
 viewport numbers (and five more taps turn it off). It helps to report how a phone's keyboard
 resizes the page.
 

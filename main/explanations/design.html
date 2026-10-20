@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev132+g49760faf5 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev137+g653c49458 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0098f379"></script>
+    <script src="../_static/documentation_options.js?v=67f32b97"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -763,9 +763,10 @@ other keys, nulls and <code class="docutils literal notranslate"><span class="pr
 insert first, then writes the summary row, then deletes the <code class="docutils literal notranslate"><span class="pre">fetched</span></code> text if the stored kind is
 now <code class="docutils literal notranslate"><span class="pre">consume</span></code>. Only regenerating the summary re-fetches it, for example after a change to
 <code class="docutils literal notranslate"><span class="pre">reference</span></code>.</p></li>
-<li><p><strong>Views.</strong> Recent has filter chips, not screens of their own: All, Todos (<code class="docutils literal notranslate"><span class="pre">?kind=todo</span></code>; a
-todo’s page has a Done/Reopen tick setting <code class="docutils literal notranslate"><span class="pre">fields.status</span></code>), and Read (<code class="docutils literal notranslate"><span class="pre">?kind=consume</span></code>). No
-Inbox: <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> is only for the user-wins rule.</p></li>
+<li><p><strong>Views.</strong> One list screen (Search; <code class="docutils literal notranslate"><span class="pre">/recent</span></code> redirects to it): an empty box lists every page
+newest first, a fixed kind row (All, Notes, Todos, Reads, Boards, Docs) sets or clears <code class="docutils literal notranslate"><span class="pre">kind:</span></code>,
+and the query rides in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>). A todo’s page has a Done/Reopen tick
+setting <code class="docutils literal notranslate"><span class="pre">fields.status</span></code>. No Inbox: <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> is only for the user-wins rule.</p></li>
 </ul>
 </section>
 </section>
