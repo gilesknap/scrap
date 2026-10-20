@@ -51,7 +51,9 @@ no model unless you ask it to.
 
 Symbolic links are never followed, and nothing outside `DIR` is read. Search ignores the addresses
 of links and images (it indexes their labels and alt text), for every page: a link's domain is
-not a word to find, even in a note you wrote by hand. That is the intended trade-off.
+not a word to find, even in a note you wrote by hand. That is the intended trade-off. Links are
+found by parsing the page as Markdown, so one in code (fenced, indented or `inline`) is left as
+it is.
 
 Not imported: `raw/` and `inbox/` (except the images and PDFs pages use), every folder starting
 `.` or `_`, the top `index.md`, `log.md` and `SCHEMA.md`, pages of any other `type` (such as
@@ -66,6 +68,7 @@ are dropped, Thoth's `source` among them (the original stays in the capture's te
 | `link to dropped page` | A link into `raw/`, `inbox/`, an index or a skipped page: left as its label |
 | `link found by name` | A link whose path was wrong, matched to a page by its file name or title |
 | `missing file` | An embedded image or file that is not in the vault |
+| `links kept as typed` | A block of text (paragraph, list item, table row) whose links could not be found back in the text as typed: its links are left as they were, not rewritten |
 | `file not imported` | A drawing or other file a page embeds: replaced by its name |
 | `unreferenced image` | An image in `raw/` no imported page uses: not imported |
 | `slug collision` | Two pages with the same file name: the later (in path order) gets a suffix |

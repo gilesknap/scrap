@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev156+g343a089f0 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev171+g8c2864113 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=e0d0b73b"></script>
+    <script src="../_static/documentation_options.js?v=43cd0bca"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -637,8 +637,18 @@ has any; its photos are in the zip and its text points at them there. <strong>Sh
 scrap; <strong>Text</strong> sends its title and text, as typed but without the lines that only show a
 photo (no link to scrap in it). Tap <strong>Share</strong> again, or anywhere else, to close the choice.
 Share appears only where the browser can share.</p></li>
-<li><p>Page text is shown as Markdown (headings, <strong>bold</strong>, <em>italic</em>, lists, quotes, code, links);
-it is always stored as typed, and <strong>Edit</strong> shows it so.</p></li>
+<li><p>Page text is shown as Markdown, as GitHub writes it: headings, <strong>bold</strong>, <em>italic</em>,
+~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
+<code class="docutils literal notranslate"><span class="pre">https://</span></code> addresses (a <code class="docutils literal notranslate"><span class="pre">www.</span></code> address without <code class="docutils literal notranslate"><span class="pre">https://</span></code> stays plain text), tables
+(a <code class="docutils literal notranslate"><span class="pre">|</span></code> inside a cell is written <code class="docutils literal notranslate"><span class="pre">\|</span></code>), task lists (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span></code> and <code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[x]</span></code>, shown as boxes you tick by
+editing the text) and footnotes (<code class="docutils literal notranslate"><span class="pre">[^1]</span></code>); <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> links to another
+page (in a table cell write <code class="docutils literal notranslate"><span class="pre">[[slug\|label]]</span></code>: a bare <code class="docutils literal notranslate"><span class="pre">|</span></code> starts the next cell). A
+<code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block is drawn as a <a class="reference external" href="https://mermaid.js.org">Mermaid</a> diagram (flowcharts,
+sequence diagrams and the rest); offline, or if it has a mistake, it shows as code. A link to
+<code class="docutils literal notranslate"><span class="pre">#a-heading</span></code> scrolls to that heading. HTML is shown as typed, never run; images show only
+when they are this server’s own photos; links open only to the web (<code class="docutils literal notranslate"><span class="pre">https</span></code>, <code class="docutils literal notranslate"><span class="pre">http</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mailto</span></code>) or to pages here. A line break stays a line break. A wide table scrolls sideways in
+its own box. The text is always stored as typed, and <strong>Edit</strong> shows it so.</p></li>
 <li><p>A page opened from the list or a search shows where it is in that list (<em>3 of 23 ·
 Recent</em>): swipe left for the next one and right for the previous one, or use the ‹ › beside
 it (or the arrow keys). The page follows your finger and slides away to the next one; a short
@@ -713,6 +723,13 @@ Filters alone list their pages, newest first.</p></li>
 tap one to search for it. <strong>Tags</strong> (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
 arrow), A to Z or most used first, with a box to filter it.</p></li>
 </ul>
+</section>
+<section id="licences-of-the-markdown-libraries">
+<h2>Licences of the Markdown libraries<a class="headerlink" href="#licences-of-the-markdown-libraries" title="Link to this heading">#</a></h2>
+<p>Page text is rendered by <a class="reference external" href="https://github.com/markdown-it/markdown-it">markdown-it</a> and its
+<a class="reference external" href="https://github.com/markdown-it/markdown-it-footnote">footnote plugin</a> (MIT), and diagrams by
+<a class="reference external" href="https://github.com/mermaid-js/mermaid">Mermaid</a> (MIT), all bundled with scrap and served by
+it, never from a CDN.</p>
 </section>
 <section id="licences-of-the-drawing-fonts">
 <h2>Licences of the drawing fonts<a class="headerlink" href="#licences-of-the-drawing-fonts" title="Link to this heading">#</a></h2>
@@ -819,6 +836,7 @@ never loads Excalidraw),
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#view-edit-search">View, edit, search</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-made-of-a-photo">What Claude made of a photo</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#licences-of-the-markdown-libraries">Licences of the Markdown libraries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#licences-of-the-drawing-fonts">Licences of the drawing fonts</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-the-screen-layout">Troubleshooting the screen layout</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#updates">Updates</a></li>

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import a Thoth vault &#8212; scrap 0.1.dev156+g343a089f0 documentation</title>
+    <title>Import a Thoth vault &#8212; scrap 0.1.dev171+g8c2864113 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=e0d0b73b"></script>
+    <script src="../_static/documentation_options.js?v=43cd0bca"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -568,7 +568,9 @@ be (they run once <code class="docutils literal notranslate"><span class="pre">S
 </div>
 <p>Symbolic links are never followed, and nothing outside <code class="docutils literal notranslate"><span class="pre">DIR</span></code> is read. Search ignores the addresses
 of links and images (it indexes their labels and alt text), for every page: a link’s domain is
-not a word to find, even in a note you wrote by hand. That is the intended trade-off.</p>
+not a word to find, even in a note you wrote by hand. That is the intended trade-off. Links are
+found by parsing the page as Markdown, so one in code (fenced, indented or <code class="docutils literal notranslate"><span class="pre">inline</span></code>) is left as
+it is.</p>
 <p>Not imported: <code class="docutils literal notranslate"><span class="pre">raw/</span></code> and <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> (except the images and PDFs pages use), every folder starting
 <code class="docutils literal notranslate"><span class="pre">.</span></code> or <code class="docutils literal notranslate"><span class="pre">_</span></code>, the top <code class="docutils literal notranslate"><span class="pre">index.md</span></code>, <code class="docutils literal notranslate"><span class="pre">log.md</span></code> and <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code>, pages of any other <code class="docutils literal notranslate"><span class="pre">type</span></code> (such as
 <code class="docutils literal notranslate"><span class="pre">summary</span></code>), Excalidraw drawings, and every file that is not Markdown. Other front matter fields
@@ -595,46 +597,49 @@ are dropped, Thoth’s <code class="docutils literal notranslate"><span class="p
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">missing</span> <span class="pre">file</span></code></p></td>
 <td><p>An embedded image or file that is not in the vault</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">file</span> <span class="pre">not</span> <span class="pre">imported</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">links</span> <span class="pre">kept</span> <span class="pre">as</span> <span class="pre">typed</span></code></p></td>
+<td><p>A block of text (paragraph, list item, table row) whose links could not be found back in the text as typed: its links are left as they were, not rewritten</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">file</span> <span class="pre">not</span> <span class="pre">imported</span></code></p></td>
 <td><p>A drawing or other file a page embeds: replaced by its name</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unreferenced</span> <span class="pre">image</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unreferenced</span> <span class="pre">image</span></code></p></td>
 <td><p>An image in <code class="docutils literal notranslate"><span class="pre">raw/</span></code> no imported page uses: not imported</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code></p></td>
 <td><p>Two pages with the same file name: the later (in path order) gets a suffix</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">changed</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">changed</span></code></p></td>
 <td><p>A tag that was lower-cased or cut</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unmapped</span> <span class="pre">field</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unmapped</span> <span class="pre">field</span></code></p></td>
 <td><p>A front matter field scrap has no field for: dropped</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unknown</span> <span class="pre">status</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unknown</span> <span class="pre">status</span></code></p></td>
 <td><p>A status other than <code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code> or <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>: kept as it is</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
 <td><p>Imported anyway, with its folder’s kind and the file’s time</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
 <td><p>Front matter that is not valid YAML (an impossible date such as <code class="docutils literal notranslate"><span class="pre">2024-13-45</span></code>, or more than 64 aliases): the page is imported as if it had none</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">date</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">date</span></code></p></td>
 <td><p>A <code class="docutils literal notranslate"><span class="pre">created</span></code>, <code class="docutils literal notranslate"><span class="pre">updated</span></code> or <code class="docutils literal notranslate"><span class="pre">memory_date</span></code> that is not a date: the next one is used, else the file’s time</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ambiguous</span> <span class="pre">link</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ambiguous</span> <span class="pre">link</span></code></p></td>
 <td><p>A wiki name that matches several files, and the one chosen</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">cut</span></code>, <code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">dropped</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">cut</span></code>, <code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">dropped</span></code></p></td>
 <td><p>A field value over 200 characters, cut to 200 (ending <code class="docutils literal notranslate"><span class="pre">…</span></code>; the whole of it stays in the capture’s text), and fields past 32, as a PWA edit allows</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">dropped</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">dropped</span></code></p></td>
 <td><p>A tag that is not text or a number (empty, a list)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">symlink</span> <span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">unreadable</span></code>, <code class="docutils literal notranslate"><span class="pre">too</span> <span class="pre">large</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">symlink</span> <span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">unreadable</span></code>, <code class="docutils literal notranslate"><span class="pre">too</span> <span class="pre">large</span></code></p></td>
 <td><p>Files left out: symbolic links, files that cannot be read, and images or PDFs over <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (50 MB)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code></p></td>
 <td><p>Files left out, and why</p></td>
 </tr>
 </tbody>
