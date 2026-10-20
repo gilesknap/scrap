@@ -969,6 +969,28 @@ div.orig .save {
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
+/* Share's choice (a popover just above it, placed by ui.ts): Link, or the content */
+.share-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 10rem;
+  padding: var(--s-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+}
+.share-menu:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+.share-menu button {
+  justify-content: flex-start;
+  border: none;
+  background: transparent;
+}
 .dot {
   position: relative;
 }

@@ -106,6 +106,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
 | Search field | `.field-search` | pill with a search icon |
 | Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
+| Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it |
 | Toast | `.toast` | dark slab above what is under the thumb, amber text action |
 | Banner | `.conflict`, `.restored` | danger-soft with a red edge; accent-soft info line |
 | Empty state | `.empty` (`empty()` in ui.ts) | icon in a `--sunk` circle, a sentence, one action |
@@ -166,7 +167,8 @@ paper scrap on amber; the header mark is the same scrap in amber.
 - No colour outside `tokens.css` (the debug panel aside), and no second accent; no gradients
   except the viewer's scrim. High-contrast mode uses the system's colour keywords.
 - No colour as the only signal: selection also raises, failure also says so in words.
-- No modal dialogs of our own (the browser's `confirm()` stays for destructive questions).
+- No modal dialogs of our own (the browser's `confirm()` stays for destructive questions);
+  the share menu is a light-dismiss popover, not a modal.
 - No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.
 - No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
   extend their hit area with an invisible `::after`), no text under 12.75 px, no text pair
