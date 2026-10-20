@@ -52,6 +52,10 @@ THUMB = (
     "(SELECT b.sha256 FROM capture c JOIN capture_blob cb"
     " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
     " WHERE c.page_id = p.id AND b.mime LIKE 'image/%'"
+    # not one whose embed was deleted from the text (see Store.removed)
+    " AND (instr(p.body, '/api/blobs/' || b.sha256) OR NOT EXISTS (SELECT 1"
+    " FROM page_rev r WHERE r.page_id = p.id"
+    " AND instr(r.body, '/api/blobs/' || b.sha256)))"
     " ORDER BY c.received_at, cb.ord LIMIT 1)"
 )
 # Search filters on a page p's images (SQL): has:image, has:drawing, and image:K (the
@@ -586,7 +590,37 @@ class Store:
         )]  # fmt: skip
         del page["deleted_at"]
         fields = json.loads(page["fields"])
-        return {**page, "fields": fields, "tags": tags, "captures": captures}
+        removed = sorted(self.removed(conn, page["id"], page["body"]))
+        return {**page, "fields": fields, "tags": tags, "captures": captures,
+                "removed": removed}  # fmt: skip
+
+    def removed(self, conn: sqlite3.Connection, page_id: str, body: str) -> set[str]:
+        """The files an earlier revision of a page's text referred to and its text no
+        longer does: their embeds were deleted, so the page no longer shows them (a
+        photo of a page made before photos were embedded still is)."""
+        earlier: set[str] = set()
+        for (text,) in conn.execute(
+            "SELECT body FROM page_rev WHERE page_id = ?", (page_id,)
+        ):
+            earlier |= body_refs(text)
+        return earlier - body_refs(body)
+
+    def blob_uses(self, sha: str, page: str) -> int:
+        """How many pages other than page (an id) show a stored file, by its embed or
+        as a file of their own; the trash left out. NotFoundError if not stored."""
+        if not SHA256.fullmatch(sha):
+            raise NotFoundError(sha)
+        with self.connect() as conn:
+            stored = "SELECT 1 FROM blob WHERE sha256 = ?"
+            if not conn.execute(stored, (sha,)).fetchone():
+                raise NotFoundError(sha)
+            return conn.execute(
+                "SELECT count(*) FROM page p WHERE p.deleted_at IS NULL AND p.id <> ?"
+                " AND (instr(p.body, '/api/blobs/' || ?) OR EXISTS (SELECT 1 FROM"
+                " capture c JOIN capture_blob cb ON cb.capture_id = c.id"
+                " WHERE c.page_id = p.id AND cb.sha256 = ?))",
+                (page, sha, sha),
+            ).fetchone()[0]
 
     def _ingest(
         self, conn: sqlite3.Connection, cid: str, sha: str

@@ -425,10 +425,16 @@ Where the code so far differs from the text above; later milestones should build
 
 ## Unused files (`scrap gc`)
 
+A page shows its images by embedding them in its text (`![](/api/blobs/<sha>/preview?size=2048)`;
+a photo capture writes one per photo), and only there: a photo whose embed is deleted from the
+text is no longer shown or used as the page's thumbnail. A photo of a page made before photos were
+embedded, which no revision ever embedded, is still listed below the text. The editor warns on
+Save when an embed of a stored file goes, naming the file and how many other pages still show it.
+
 `scrap gc` deletes the files nothing uses: a file is in use while any page's text (the trash's
 too) mentions its address, or a capture, a `derived` row, an ingest `job` or a `model_run` (its
 photo or `sent_sha256`) refers to it. Captures are never purged yet, so a photo's own file, and its
-Claude results, stay; what gc deletes today is files nobody recorded
+Claude results, stay after its embed is deleted; what gc deletes today is files nobody recorded
 (failed or abandoned uploads), leftover upload temporaries and files only a page's text used. Page
 text is read for references by one function, `store.body_refs`, which a Markdown parser can
 replace. A run reads every reference in one transaction (and refuses if it cannot), skips files

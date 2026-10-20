@@ -459,6 +459,12 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
                 decoding.release()
         return FileResponse(path, media_type="image/jpeg", headers=BLOB_HEADERS)
 
+    @app.get("/api/blobs/{sha}/uses")
+    def blob_uses(sha: str, page: str) -> dict[str, int]:
+        """How many other pages show a stored file (the trash left out), for the
+        editor's warning when its embed is deleted from page (an id)."""
+        return {"pages": store.blob_uses(sha.lower(), page)}
+
     @app.get("/api/blobs/{sha}")
     def blob(sha: str, download: bool = False) -> FileResponse:
         """A stored original, byte for byte; ?download=1 saves it under its name."""

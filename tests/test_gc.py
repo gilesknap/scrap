@@ -259,3 +259,33 @@ def test_cli_dry_run_by_default_prints_counts_only(client, store, capsys):
     with pytest.raises(SystemExit, match="scrap gc: no database"):
         main(["gc", "--data-dir", str(store.dir / "none")])
 
+
+def test_removing_an_embed_hides_the_photo_and_counts_other_pages(client, store):
+    ref, sha = photo(client)
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["removed"] == []
+    assert client.get("/api/pages").json()[0]["thumb"] == sha
+    assert client.get(f"/api/blobs/{sha}/uses?page={ref['page_id']}").json() == {
+        "pages": 0
+    }
+    other, _ = photo(client, b"other", "Other page")
+    client.patch(
+        f"/api/pages/{other['page_id']}",
+        json={"base_rev": 1, "body": f"![](/api/blobs/{sha}/preview?size=2048)"},
+    ).raise_for_status()
+    uses = client.get(f"/api/blobs/{sha}/uses?page={ref['page_id']}").json()
+    assert uses == {"pages": 1}
+    client.delete(f"/api/pages/{other['page_id']}").raise_for_status()  # the trash
+    assert client.get(f"/api/blobs/{sha}/uses?page={ref['page_id']}").json() == {
+        "pages": 0
+    }
+    edited = client.patch(
+        f"/api/pages/{ref['page_id']}", json={"base_rev": 1, "body": "A photo"}
+    ).json()
+    assert edited["removed"] == [sha]
+    rows = {p["id"]: p for p in client.get("/api/pages").json()}
+    assert rows[ref["page_id"]]["thumb"] is None
+    assert client.get(f"/api/blobs/{'d' * 64}/uses?page=x").status_code == 404
+    # Still the capture's: gc keeps it (and its Claude results) while it has a capture
+    age_all(store)
+    assert sha not in gc.collect(store, delete=True).shas
