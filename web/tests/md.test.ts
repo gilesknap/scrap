@@ -62,6 +62,9 @@ describe("markdown", () => {
     );
     expect(inline("[[a-page|`x` & y]]")).toBe('<a href="/p/a-page"><code>x</code> &amp; y</a>');
     expect(inline('[[Not A Slug]] [[../x]] [[a"b]]')).not.toContain("<a");
+    const start = performance.now();
+    inline("[[a|".repeat(50_000));
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 
   it("shows images only from this server's files", () => {

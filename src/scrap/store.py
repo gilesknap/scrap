@@ -31,7 +31,6 @@ MD_LINK = re.compile(
     r"!?\[([^\[\]\n]*)\]\((?:<[^<>\n]*>|[^()\s]*)(?:\s+\"[^\"\n]*\")?\)"
 )
 WIKI_LINK = re.compile(r"\[\[([^\[\]|\n]+)(?:\|([^\[\]\n]+))?\]\]")
-REF_DEF = re.compile(r"^( {0,3}\[[^\[\]\n]+\]:)[ \t]*\S+.*$", re.M)  # [r]: url
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")  # all but \t and \n
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 HINT_FIELDS = {
@@ -92,11 +91,11 @@ def upload_limit() -> int:
 
 def unlink(text: str) -> str:
     """Markdown text with each link or image reduced to its label, and a page link to
-    its label (else slug): addresses are not words to search for. Not handled: link
-    text holding brackets, a URL with parentheses (leaves a ")"), and code (unlinked
-    too)."""
+    its label (else slug): addresses are not words to search for. Not handled:
+    reference definitions ([r]: url), link text holding brackets, a URL with
+    parentheses (leaves a ")"), and code (unlinked too)."""
     text = WIKI_LINK.sub(lambda m: m[2] or m[1], text)
-    return REF_DEF.sub(r"\1", MD_LINK.sub(r"\1", text))
+    return MD_LINK.sub(r"\1", text)
 
 
 def slug_base(title: str) -> str:

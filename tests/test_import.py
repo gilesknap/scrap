@@ -321,13 +321,13 @@ def test_embeds_anchors_and_ambiguous_names(tmp_path):
     write(root, "memories/dup.md", front(title="Dup in memories", type="memory"))
     write(root, "inbox/other.md", "held\n")
     write(root, "media/other.md", front(title="Other", type="media"))
-    write(root, "entities/odd.md", front(title="Odd ] title", type="entity"))
+    write(root, "entities/odd.md", front(title="'Odd ] [title'", type="entity"))
     store, plan = edge_plan(tmp_path, root)
     body = store.page("page")["body"]
     inline = f"![](/api/blobs/{SHA}/preview?size=2048)"
     assert body.startswith(f"![]({inline[4:]} {inline} *logo.svg (attached)*")
     assert "[[dup-2|sec]] A heading [[dup-2|Dup in notes]] [[other|Other]]" in body
-    assert "[[odd|Odd ) title]]" in body
+    assert "[[odd|Odd ) (title]]" in body
     assert "[[dup|Dup in memories]] [[dup|up]]\n| [[odd|cell]] |" in body
     assert body.endswith("```\n```js\n[[dup]]\n```\n[[dup-2|Dup in notes]]")
     files = [
@@ -420,3 +420,20 @@ def test_long_field_values_are_cut(tmp_path):
     assert len(summary) == 200 and summary.endswith("word…")
     assert plan.issues["field cut"] == ["notes/long.md: summary: 499 characters"]
     assert "word " * 100 in store.page("long")["captures"][0]["text"]  # all of it
+
+
+def test_a_file_changed_after_the_plan_stops_the_run(tmp_path):
+    root = tmp_path / "v"
+    write(root, "raw/assets/a.png", PNG)
+    write(root, "raw/assets/b.png", PNG)
+    write(root, "notes/a.md", "![](../raw/assets/a.png)\n")
+    write(root, "notes/b.md", "![](../raw/assets/b.png)\n")
+    store = Store(tmp_path / "data")
+    plan = importer.plan(root, store)
+    (root / "raw/assets/a.png").write_bytes(PNG.upper())  # same size, new bytes
+    with pytest.raises(SystemExit, match="raw/assets/a.png changed since it was"):
+        importer.run(store, plan)
+    plan = importer.plan(root, store)
+    (root / "raw/assets/b.png").unlink()
+    with pytest.raises(SystemExit, match="raw/assets/b.png changed since it was"):
+        importer.run(store, plan)

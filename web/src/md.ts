@@ -34,10 +34,10 @@ export function inline(raw: string): string {
   s = s.replace(/!\[([^\]\uE000]*)\]\(([^)\s\uE000]+)\)/g, (m, alt: string, src: string) =>
     IMAGE.test(src) ? keep(`<img src="${src}" alt="${alt}" loading="lazy">`) : m,
   );
-  s = s.replace(/\[\[([a-z0-9-]+)(?:\|([^\]]+))?\]\]/g, (_, slug: string, label?: string) =>
+  s = s.replace(/\[\[([a-z0-9-]+)(?:\|([^[\]]+))?\]\]/g, (_, slug: string, label?: string) =>
     keep(`<a href="/p/${slug}">${em(label ?? slug)}</a>`),
   );
-  s = s.replace(/\[([^\]]+)\]\(([^)\s\uE000]+)\)/g, (m, text: string, href: string) =>
+  s = s.replace(/\[([^[\]]+)\]\(([^)\s\uE000]+)\)/g, (m, text: string, href: string) =>
     LINK.test(href) ? keep(a(href, em(text))) : m,
   );
   s = s.replace(/https?:\/\/[^\s\uE000]+/g, (m) => {

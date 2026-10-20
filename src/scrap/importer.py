@@ -375,7 +375,8 @@ class _Linker:
             self.plan.note("link found by name", page.path, target)
         if rel in self.pages:
             linked = self.pages[rel]
-            label = label or linked.title.replace("]", ")")  # ends no link early
+            # A bracket in a title would end or confuse the link: use a parenthesis
+            label = label or linked.title.replace("[", "(").replace("]", ")")
             if label == linked.slug:
                 return f"[[{label}]]"
             return f"[[{linked.slug}|{label}]]"
@@ -482,14 +483,20 @@ def run(store: Store, plan: Plan, ingest: bool = False, author: str = "import") 
         blobs: dict[str, BlobRef] = {}
         for rel in page.images + page.files:
             path = plan.vault / rel  # checked again: it may have changed since plan()
-            if (
-                path.is_symlink()
-                or not path.resolve().is_relative_to(root)
-                or path.stat().st_size > plan.limit
-            ):
-                raise SystemExit(f"{rel} changed since it was checked: run again")
-            with open(path, "rb") as f:
-                sha, size = store.put_blob(f)
+            changed = SystemExit(f"{rel} changed since it was checked: run again")
+            try:
+                if (
+                    path.is_symlink()
+                    or not path.resolve().is_relative_to(root)
+                    or path.stat().st_size > plan.limit
+                ):
+                    raise changed
+                with open(path, "rb") as f:
+                    sha, size = store.put_blob(f)
+            except OSError:
+                raise changed from None
+            if sha != plan.sha[rel]:  # the page's text names the planned bytes
+                raise changed
             mime = mimetypes.guess_type(rel)[0] or "application/octet-stream"
             blobs[rel] = (sha, mime, size, posixpath.basename(rel))
         main = "photo" if page.images else "note"

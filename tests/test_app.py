@@ -429,8 +429,15 @@ def test_unlink_keeps_labels_in_linear_time():
     assert unlink("[a](http://x) ![alt](/api/blobs/f/preview?size=2048)") == "a alt"
     assert unlink("[t](<http://x y>) [[s|Label]] [[s]]") == "t Label s"
     assert unlink("[see [[a|Label]]](http://x)") == "see Label"
-    assert unlink("[r]: https://example.org/x\ntext") == "[r]:\ntext"
+    line = "[2024-03-02]: met Bob at the cafe"  # not a reference definition to cut
+    assert unlink(line) == line
     start = time.monotonic()
     for line in ["[" * 50_000, "[[" * 25_000, "[a](" * 25_000, "![" * 25_000]:
         unlink(line)
     assert time.monotonic() - start < 2
+
+
+def test_a_line_like_a_reference_definition_stays_searchable(client, note):
+    note("Diary\n[2024-03-02]: met Bob at the cafe")
+    hits = client.get("/api/search", params={"q": "Bob cafe"}).json()
+    assert [h["title"] for h in hits] == ["Diary"]
