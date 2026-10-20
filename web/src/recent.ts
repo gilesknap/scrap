@@ -3,7 +3,7 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
-import { swipeRow, trail } from "./swipe";
+import { rowGestures, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
 const KIND: Record<string, string> = { todo: "todo", consume: "read later" };
@@ -90,10 +90,14 @@ export async function pendingList(): Promise<Node> {
 }
 
 /** The latest pages from the server, or a note saying they need it. */
-export async function pageList(limit: number): Promise<Node> {
+/** label: what a page opened from it says it is in */
+export async function pageList(limit: number, label = "Recent"): Promise<Node> {
   try {
     if (!navigator.onLine) throw new TypeError("offline");
-    const list = await api<Summary[]>(`pages?limit=${limit}`);
+    const [list, swipeRow] = await Promise.all([
+      api<Summary[]>(`pages?limit=${limit}`),
+      rowGestures(), // loaded with the list
+    ]);
     if (!list.length)
       return empty(
         "note",
@@ -114,12 +118,13 @@ export async function pageList(limit: number): Promise<Node> {
             p.kind,
           ),
           p.slug,
+          p.id,
         ),
       ),
     );
     return trail(
       ul,
-      "Recent",
+      label,
       list.map((p) => p.slug),
     );
   } catch (e) {

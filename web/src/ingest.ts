@@ -33,7 +33,8 @@ function block(summary: string, text: string, pre = false) {
     h("summary", {}, summary),
     h(pre ? "pre" : "p", {}, text),
   );
-  el.ontoggle = () => localStorage.setItem(key, el.open ? "0" : "1");
+  // (opening it at creation fires a toggle too: removing a missing key changes nothing)
+  el.ontoggle = () => (el.open ? localStorage.removeItem(key) : localStorage.setItem(key, "1"));
   return el;
 }
 

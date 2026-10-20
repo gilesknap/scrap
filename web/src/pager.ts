@@ -1,25 +1,29 @@
 // A page opened from a list (Recent, search results): where it is in it, and the previous
 // and next by its ‹ ›, a swipe or the arrow keys. A chunk of its own, loaded only for such a
 // page. Each step replaces the page's history entry, so Back still goes back to the list.
-import { go, view } from "./app";
+import { go } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";
 import { icon } from "./icons";
 import { EDGE } from "./swipe";
 import { h, toast } from "./ui";
 
-let arriving = 0; // the way the last step went: the next page slides in from that side
-
-/** The pager for a page (null if it isn't in the trail), and the swipes and keys for it. */
-export function pager(trail: Trail | undefined, slug: string, root: HTMLElement) {
-  if (arriving) root.classList.add(arriving > 0 ? "from-next" : "from-prev");
-  arriving = 0;
+/** The pager for a page (null if it isn't in the trail), and the swipes and keys for it
+ * while its view lasts (signal). A step says in the history entry which way it went, so the
+ * next page slides in from that side. */
+export function pager(
+  { trail, from }: { trail?: Trail; from?: 1 | -1 },
+  slug: string,
+  root: HTMLElement,
+  signal: AbortSignal,
+) {
+  if (from) root.classList.add(from > 0 ? "from-next" : "from-prev");
   const at = placeIn(trail, slug);
-  if (!trail || !at) return null;
+  if (!trail || !at || signal.aborted) return null;
   const step = (d: 1 | -1) => {
     const to = d > 0 ? at.next : at.prev;
+    if (signal.aborted) return; // gone elsewhere meanwhile: never replace that entry
     if (!to) return toast(d > 0 ? "That's the last in the list" : "That's the first in the list");
-    arriving = d;
-    go(`/p/${encodeURIComponent(to)}`, true, { trail });
+    go(`/p/${encodeURIComponent(to)}`, true, { trail, from: d });
   };
   const button = (d: 1 | -1, label: string, to?: string) =>
     h(
@@ -33,7 +37,7 @@ export function pager(trail: Trail | undefined, slug: string, root: HTMLElement)
       },
       icon(d > 0 ? "next" : "back"),
     );
-  swipePages(step, at);
+  swipePages(step, at, signal);
   return h(
     "div",
     { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
@@ -47,7 +51,11 @@ export function pager(trail: Trail | undefined, slug: string, root: HTMLElement)
  * view lasts. Not inside anything that scrolls sideways or takes typing, not from the
  * screen's edges, not while zoomed in, selecting text, or with a layer (editor, photo,
  * drawing) open. */
-function swipePages(step: (d: 1 | -1) => void, at: { prev?: string; next?: string }) {
+function swipePages(
+  step: (d: 1 | -1) => void,
+  at: { prev?: string; next?: string },
+  signal: AbortSignal,
+) {
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const blocked = () => document.body.matches(".editing, .viewing, .drawing-open");
   const typing = (t: EventTarget | null) =>
@@ -73,7 +81,6 @@ function swipePages(step: (d: 1 | -1) => void, at: { prev?: string; next?: strin
     el.style.translate = x ? `${x}px 0` : "";
     el.style.opacity = x ? String(1 - Math.min(0.6, Math.abs(x) / innerWidth)) : "";
   };
-  const signal = view.signal;
   const on = <K extends keyof DocumentEventMap>(type: K, fn: (e: DocumentEventMap[K]) => void) =>
     document.addEventListener(type, fn, { signal, passive: true });
   on("touchstart", (e) => {

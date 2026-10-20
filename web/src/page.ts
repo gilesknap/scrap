@@ -85,14 +85,14 @@ interface Draft {
 }
 
 export async function page(key: string): Promise<Node> {
-  const state = history.state as { trail?: Trail; edit?: boolean } | null;
+  const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
+  const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
   const p = await api<Page>(`pages/${encodeURIComponent(key)}`);
   const root = h("article", { className: "page" });
   // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
   const pager = state?.trail
-    ? (await import("./pager").catch(() => null))?.pager(state.trail, p.slug, root)
+    ? (await import("./pager").catch(() => null))?.pager(state, p.slug, root, signal)
     : null;
-  const signal = view.signal;
   let shown = p;
   let queue: Queue | null = null;
   let poll = 0;

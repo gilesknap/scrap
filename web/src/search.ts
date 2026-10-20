@@ -3,7 +3,7 @@ import { api, type Hit } from "./api";
 import { go, view } from "./app";
 import { icon, kindIcon } from "./icons";
 import { snippetParts } from "./snippet";
-import { swipeRow, trail, trailOf } from "./swipe";
+import { rowGestures, trail, trailOf } from "./swipe";
 import { empty, h } from "./ui";
 
 export function search(): Node {
@@ -32,9 +32,10 @@ export function search(): Node {
     abort = new AbortController();
     if (!query) return results.replaceChildren(hint());
     try {
-      const hits = await api<Hit[]>(`search?q=${encodeURIComponent(query)}`, {
-        signal: abort.signal,
-      });
+      const [hits, swipeRow] = await Promise.all([
+        api<Hit[]>(`search?q=${encodeURIComponent(query)}`, { signal: abort.signal }),
+        rowGestures(),
+      ]);
       trail(
         results,
         "Search results",
