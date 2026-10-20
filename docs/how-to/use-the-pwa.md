@@ -110,13 +110,16 @@ the link as the capture's URL.
 - Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
   drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
   **Download** and **Share** are along the bottom and the cross at the top right closes it, as
-  does the phone's Back button. **Share** sends the photo to another app: the original, or a
+  does the phone's Back button. **Share** asks **Link** or **Photo**: **Link** sends the
+  address of the photo's page; **Photo** sends the photo to another app: the original, or a
   JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
   phone allows, a **Photo ready** message offers **Share** again.
 - **Download** on a page saves it as Markdown, or as a zip of the Markdown and its files when it
-  has any; its photos are in the zip and its text points at them there. **Share** sends its
-  title and text to another app, as typed but without the lines that only show a photo (never a
-  link to scrap).
+  has any; its photos are in the zip and its text points at them there. **Share** asks
+  **Link** or **Text**: **Link** sends the page's address (such as
+  `https://<your scrap>/p/shopping-list`), which opens the page for anyone who can reach your
+  scrap; **Text** sends its title and text, as typed but without the lines that only show a
+  photo (no link to scrap in it). Tap **Share** again, or anywhere else, to close the choice.
   Share appears only where the browser can share.
 - Page text is shown as Markdown (headings, **bold**, *italic*, lists, quotes, code, links);
   it is always stored as typed, and **Edit** shows it so.
