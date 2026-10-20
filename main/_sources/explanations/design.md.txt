@@ -227,8 +227,11 @@ A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, wa
 rewrites the user's words or fits them to templates.
 
 - **`fields`** is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
-  todo has `status` (`open`, `done`) and optional `due`; consume has `subtype` (`read`, `watch`,
-  `listen`), `status` and the `source` link.
+  todo has `status` and optional `due`; consume has `subtype` (`read`, `watch`, `listen`),
+  `status` and the `source` link.
+- **Status** is one lifecycle for todo and consume, Thoth's: `open`, `in_progress`, `done`,
+  `cancelled`. New pages start `open`; ticking a todo toggles `open` and `done`, and the other two
+  are stored and shown (set by an import, richer controls later).
 - **Choosing a kind.** The capture buttons (camera, gallery, note) only choose the input; the
   kind is chosen in the PWA's editor, for a new capture or an existing page, from Note
   (default), Todo, Read (`consume`), Whiteboard and Document (`memory` and `reference` are not
@@ -398,6 +401,27 @@ Where the code so far differs from the text above; later milestones should build
   server's `POST /share` is a fallback if it does not. No per-capture processing states yet (there
   are no jobs): the capture screen shows what is still on the phone and the newest pages. Todos,
   Consume and Inbox views wait for the worker. `GET /api/pages` gained `thumb`.
+
+## Import (M2)
+
+`scrap import` brings in a Thoth vault ([how-to](../how-to/import-a-vault.md)) through `Store`,
+so revisions and the search index stay consistent. Each page keeps the vault's dates (its
+`created_at`, `updated_at` and revision 1), kind (fixed), fields and tags; its capture has source
+`import`, the vault file as its text (which also keeps ingest from retitling it) and the page's
+images, PDFs in a second `file` capture. The capture id is made from the page's path, so a second
+run skips pages already imported. Links between pages become `[[slug|label]]`, which the PWA
+renders as links to `/p/<slug>` (the `link` table does not exist yet); images are embedded as
+`![](/api/blobs/<sha>/preview?size=2048)`, and the PWA shows an image the body embeds there only,
+not again among the page's files (unless it has ingest results to show). Dates alone become noon
+UTC. A rerun never updates a page already imported.
+
+The search index holds the labels of links and images, not their addresses (for every page, not
+only imported ones), so `/api/blobs/...` and URLs in Markdown links (`<...>` addresses too) are
+not words to find: a hand-written link is found by its text, not its domain, by choice. Not
+handled: reference definitions (`[r]: url`) keep their URL, as does a link whose text holds
+brackets; a URL with parentheses leaves a `)`; and code is unlinked like the rest. A page indexed
+before that keeps its old chunk until it is next edited; there is no `scrap reindex` yet,
+and an import into an empty data folder is indexed this way from the start.
 
 ## Claude ingest (M2)
 
