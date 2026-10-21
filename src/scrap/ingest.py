@@ -476,7 +476,10 @@ class Worker:
         out: dict[str, Any],
         stamp: str,
     ) -> None:
-        """Title, tags and kind from a capture's first photo; the user's win."""
+        """Title, tags and kind from a capture's first photo; the user's win. Claude's
+        tags join the user's on its first reading of the photo (tagging a photo in the
+        composer keeps both); a later reading (Reprocess) adds them only to a page with
+        none, so a tag the user took off since does not come back."""
         page_id = conn.execute(
             "SELECT page_id FROM capture WHERE id = ?", (cid,)
         ).fetchone()[0]
@@ -493,9 +496,20 @@ class Worker:
             ).rowcount
         else:
             changed = 0
-        if not conn.execute(
-            "SELECT 1 FROM tag WHERE page_id = ?", (page_id,)
-        ).fetchone():
+        first_read = (
+            conn.execute(
+                "SELECT count(*) FROM derived WHERE capture_id = ?"
+                " AND source_sha256 = ? AND kind = 'description'",
+                (cid, photo),
+            ).fetchone()[0]
+            == 1  # the version just put
+        )
+        if (
+            first_read
+            or not conn.execute(
+                "SELECT 1 FROM tag WHERE page_id = ?", (page_id,)
+            ).fetchone()
+        ):
             changed += conn.executemany(
                 "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
                 [(page_id, tag) for tag in out["tags"]],

@@ -39,8 +39,9 @@ Under the text, a tags box works as on a page (below): type a tag and press Ente
 (it suggests the tags already in use), or tap one of your most used tags, offered under the
 box; tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
-also when it was saved offline and uploaded later. A photo you tag keeps your tags: Claude adds
-its own only to a photo page with none. Saved separately, every photo's page gets the tags.
+also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude's
+join them when it first reads the photo (a later Reprocess adds its tags only to a page with
+none, so one you took off stays off). Saved separately, every photo's page gets the tags.
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
