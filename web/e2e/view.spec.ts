@@ -776,6 +776,11 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind ro
   await kinds.getByText("Todos").click(); // nothing else asked: the Todos screen
   await expect(page).toHaveURL(/\/todos$/);
   await page.goBack();
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(kinds.getByRole("radio", { name: "All" })).toBeChecked(); // drawn again first
+  await expect(
+    page.locator(".list li").filter({ hasText: "an unfiled note" }).first(),
+  ).toBeVisible();
   await page.getByRole("searchbox").fill("kind:todo");
   await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
   const rows = page.locator(".list li");
