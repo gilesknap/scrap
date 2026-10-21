@@ -209,11 +209,21 @@ Tap the drawing to open it full screen:
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
   too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
-  for when it was made). The chip row also has **Tags** (browse them), **1w**, **1m**, **1y**
+  for when it was made), `sort:title` (A to Z; also `sort:created`, newest first, and
+  `sort:updated`; `-sort:` turns one round: `-sort:created` is oldest first). The chip row
+  also has **Tags** (browse them), **Sort** (a menu: **Best match** or **Last edited**,
+  **First edited**, **Newest**, **Oldest**, **Title A–Z**, **Title Z–A**; it writes the
+  `sort:` for you, and works with nothing typed too, on every page), **1w**, **1m**, **1y**
   and **Dates…** (pick a From and a To).
   Filters alone list their pages, newest first.
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
-  tap one to search for it. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+  tap one to search for it. **Tags** (or **Add tags**), first in that line, edits them in
+  place: tap a tag's ✕ to take it off, type one in the box (it suggests the tags already in
+  use) and press Enter or type a comma to add it, then **Save**; what is still in the box when
+  you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
+  `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
+  saves them with the text. Changing tags is not a new revision and does not move the page up
+  the list. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
 
 ## Licences of the Markdown libraries

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev171+g8c2864113 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev177+g7b8b55c38 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=43cd0bca"></script>
+    <script src="../_static/documentation_options.js?v=bd9323a3"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -716,11 +716,21 @@ which you can also type: <code class="docutils literal notranslate"><span class=
 <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>…), <code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>
 too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> (pages Claude wrote over MCP, which show a <em>Written by Claude</em> badge), <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with a photo), <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), <code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or
 <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code> (last edited; dates are UTC days, both ends included; add <code class="docutils literal notranslate"><span class="pre">date:created</span></code>
-for when it was made). The chip row also has <strong>Tags</strong> (browse them), <strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>
+for when it was made), <code class="docutils literal notranslate"><span class="pre">sort:title</span></code> (A to Z; also <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, newest first, and
+<code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>; <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> turns one round: <code class="docutils literal notranslate"><span class="pre">-sort:created</span></code> is oldest first). The chip row
+also has <strong>Tags</strong> (browse them), <strong>Sort</strong> (a menu: <strong>Best match</strong> or <strong>Last edited</strong>,
+<strong>First edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>Title A–Z</strong>, <strong>Title Z–A</strong>; it writes the
+<code class="docutils literal notranslate"><span class="pre">sort:</span></code> for you, and works with nothing typed too, on every page), <strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>
 and <strong>Dates…</strong> (pick a From and a To).
 Filters alone list their pages, newest first.</p></li>
 <li><p>A page shows its <strong>tags</strong> in one line under its title, most used first (swipe it for more):
-tap one to search for it. <strong>Tags</strong> (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+tap one to search for it. <strong>Tags</strong> (or <strong>Add tags</strong>), first in that line, edits them in
+place: tap a tag’s ✕ to take it off, type one in the box (it suggests the tags already in
+use) and press Enter or type a comma to add it, then <strong>Save</strong>; what is still in the box when
+you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
+<code class="docutils literal notranslate"><span class="pre">#</span></code>. <strong>Edit</strong> (also a list row swiped right) has the same tags box, under the title, and
+saves them with the text. Changing tags is not a new revision and does not move the page up
+the list. <strong>Tags</strong> (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
 arrow), A to Z or most used first, with a box to filter it.</p></li>
 </ul>
 </section>
