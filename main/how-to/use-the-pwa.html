@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev191+g509785d87 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev207+g7c448f8af documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=ec66c5c9"></script>
+    <script src="../_static/documentation_options.js?v=a6a8f760"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -588,18 +588,34 @@ with no connection either, shows a page saying it was not saved.</p></li>
 <section id="view-edit-search">
 <h2>View, edit, search<a class="headerlink" href="#view-edit-search" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>The nav has two tabs, <strong>Capture</strong> and <strong>Search</strong>. <strong>Search</strong> opens the one list screen: with
+<li><p>The nav has three tabs, <strong>Capture</strong>, <strong>Todos</strong> and <strong>Search</strong>. <strong>Todos</strong> opens the Todos
+screen on <strong>Now</strong> (below); its badge counts the open todos due today or overdue, by your
+phone’s day (none: no badge), and is counted again when the app opens or comes back and
+after a tick or an edit. <strong>Search</strong> opens the list screen for everything else: with
 nothing in the search box it lists every page newest first, with a thumbnail of the first
 photo (<strong>Show more</strong> at the end for older ones). The keyboard only comes up when you tap the
 box. (There is no separate Recent screen any more: the empty box is it.)</p></li>
 <li><p>Under the search box, a fixed row of kinds: <strong>All</strong>, <strong>Notes</strong>, <strong>Todos</strong>, <strong>Reads</strong>,
-<strong>Boards</strong>, <strong>Docs</strong>. One tap shows only that kind (it writes <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> into the query), a
-second tap on it (or <strong>All</strong>) shows every kind again. A kind alone still lists newest first.</p></li>
-<li><p>Whenever anything is chosen or typed, a <strong>Clear</strong> chip starts the row of chips below: one tap
-goes back to every page, newest first.</p></li>
+<strong>Boards</strong>, <strong>Docs</strong>. One tap shows only that kind (it writes <code class="docutils literal notranslate"><span class="pre">kind:read</span></code> into the query), a
+second tap on it (or <strong>All</strong>) shows every kind again. A kind alone still lists newest first.
+<strong>Todos</strong> with nothing else asked opens the Todos screen, as the Todos tab does; with words or filters in
+the box it narrows the search to todos (<code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>), as before.</p></li>
+<li><p>Whenever anything is chosen or typed, the search box has a <strong>✕</strong> at its end: one tap goes
+back to every page, newest first (the keyboard stays down).</p></li>
+<li><p>Under the kind row, a short row: <strong>Filters</strong> first (with how many filters are on), then the
+results’ top tags with their counts, which scroll sideways; tap one to narrow the search.
+Above the list, how many pages were found and each filter that is on as a chip with a ✕:
+tap it to take that filter out. So the row’s start never moves, and nothing chosen is hidden.</p></li>
+<li><p><strong>Filters</strong> opens a sheet from the bottom of the screen: <strong>Sort</strong>, <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>,
+<strong>1y</strong>, <strong>Dates…</strong> with a From and a To, and <strong>By created date</strong> once a range is on),
+<strong>Work</strong> or <strong>Personal</strong> (with counts), for a search of todos <strong>Due</strong> (<strong>Today</strong>, <strong>Overdue</strong>,
+<strong>Upcoming</strong>), and <strong>Browse tags</strong>. Each tap changes the search at once (the list behind
+follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
+<strong>Clear filters</strong> takes every filter off and keeps the words; <strong>Done</strong>, Back, Escape or a tap
+above the sheet closes it.</p></li>
 <li><p>The query and its filters are in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>), so a reload keeps them, and
 Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
-<code class="docutils literal notranslate"><span class="pre">/recent</span></code> links open this screen (<code class="docutils literal notranslate"><span class="pre">/recent?kind=todo</span></code> with Todos on).</p></li>
+<code class="docutils literal notranslate"><span class="pre">/recent</span></code> links open this screen (<code class="docutils literal notranslate"><span class="pre">/recent?kind=todo</span></code> the Todos screen).</p></li>
 <li><p>Every row, a page’s tags, its <code class="docutils literal notranslate"><span class="pre">[[links]]</span></code> and the pager’s ‹ › are ordinary links with their own
 address, so you can open one in a new tab: on a phone, long-press it and choose <em>Open in new
 tab</em> (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
@@ -619,11 +635,17 @@ not done says <em>overdue</em> in red, until ticked off. They are a todo’s onl
 keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
 nor moves the page up the list. Today is your phone’s day on rows and pages, and the server’s
 for <code class="docutils literal notranslate"><span class="pre">due:</span></code> searches.</p></li>
-<li><p>On the Todos screen (<strong>Todos</strong> in the kind row), chips <strong>Today</strong>, <strong>Overdue</strong> and
-<strong>Upcoming</strong> are saved views: todos due today, before today or after it, not done or
-cancelled, soonest first (<code class="docutils literal notranslate"><span class="pre">due:&lt;today</span> <span class="pre">-is:done</span> <span class="pre">-is:cancelled</span> <span class="pre">sort:due</span></code>, say). Tap the one
-that is on to go back to every todo. Its <strong>Sort</strong> menu adds <strong>Due soonest</strong>, <strong>Due latest</strong>
-and <strong>Priority</strong>.</p></li>
+<li><p>The <strong>Todos</strong> screen (<code class="docutils literal notranslate"><span class="pre">/todos</span></code>, the Todos tab) opens on <strong>Now</strong>: the todos not done or
+cancelled, what to do first at the top, in groups: <strong>Overdue</strong> (oldest due date first),
+<strong>Today</strong>, <strong>High priority</strong> (no due date), then <strong>Later</strong> (by priority, then due date, then
+last edited). Each row starts with its priority and due date. Done and cancelled todos are
+folded away at the end (<strong>Done</strong>, tap to open; those among the 500 todos last edited). A
+switch at the top picks the list instead: <strong>Upcoming</strong> (due after today, soonest first) or
+<strong>All</strong> (every open todo and those done ones, last edited first). Each list sets its own
+order: there is no Sort here. The address says which list (<code class="docutils literal notranslate"><span class="pre">/todos?view=upcoming</span></code>), so
+Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
+<strong>Search todos</strong>, at the end, opens the search screen on <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>, where <code class="docutils literal notranslate"><span class="pre">due:</span></code>,
+<code class="docutils literal notranslate"><span class="pre">priority:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> still search and order todos.</p></li>
 <li><p>Swipe a row of the list, the capture screen’s list or search results: to the <strong>right</strong> to
 edit it (the page opens in its editor), to the <strong>left</strong> to delete it (with <strong>Undo</strong> for a few
 seconds). The row follows your finger with <em>Edit</em> or <em>Delete</em> showing behind it; past a third
@@ -727,20 +749,19 @@ scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for ca
 search screen. Its fonts are served by scrap itself, never
 from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.</p></li>
 <li><p><strong>Search</strong> searches titles, tags, summaries and text as you type (each word as the start of a
-word: <code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>); a title or tag match ranks first. Under the results, chips say how many pages were found and what they have in common
-(Work or Personal and their top tags, each with a count; kinds are the fixed row above): tap one to narrow the
-search, tap a chip of the query’s own filters to take it out. The chips only write the query,
+word: <code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>); a title or tag match ranks first. Above the results, how many pages were found and the filters on; the row
+under the kinds and the Filters sheet narrow it (Work or Personal and the top tags, each with
+a count; kinds are the fixed row). The chips only write the query,
 which you can also type: <code class="docutils literal notranslate"><span class="pre">-word</span></code> or <code class="docutils literal notranslate"><span class="pre">!word</span></code> (without it), <code class="docutils literal notranslate"><span class="pre">&quot;a</span> <span class="pre">phrase&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> (or
 <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>…), <code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>
 too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> (pages Claude wrote over MCP, which show a <em>Written by Claude</em> badge), <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with a photo), <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), a todo’s <code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> (overdue), <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>,
 <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code> (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code>, <code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>), <code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or
 <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code> (last edited; dates are UTC days, both ends included; add <code class="docutils literal notranslate"><span class="pre">date:created</span></code>
 for when it was made), <code class="docutils literal notranslate"><span class="pre">sort:title</span></code> (A to Z; also <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, newest first,
-<code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, and a todo’s <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, soonest first, and <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code>, high first; <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> turns one round: <code class="docutils literal notranslate"><span class="pre">-sort:created</span></code> is oldest first). The chip row
-also has <strong>Tags</strong> (browse them), <strong>Sort</strong> (a menu: <strong>Best match</strong> or <strong>Last edited</strong>,
-<strong>First edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>Title A–Z</strong>, <strong>Title Z–A</strong>; it writes the
-<code class="docutils literal notranslate"><span class="pre">sort:</span></code> for you, and works with nothing typed too, on every page), <strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>
-and <strong>Dates…</strong> (pick a From and a To).
+<code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, and a todo’s <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, soonest first, and <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code>, high first; <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> turns one round: <code class="docutils literal notranslate"><span class="pre">-sort:created</span></code> is oldest first). The Filters
+sheet’s <strong>Sort</strong> is a menu (<strong>Best match</strong> or <strong>Last edited</strong>, <strong>First edited</strong>, <strong>Newest</strong>,
+<strong>Oldest</strong>, <strong>Title A–Z</strong>, <strong>Title Z–A</strong>, and for todos <strong>Due soonest</strong>, <strong>Due latest</strong> and
+<strong>Priority</strong>) that writes the <code class="docutils literal notranslate"><span class="pre">sort:</span></code> for you, and works with nothing typed too.
 Filters alone list their pages, newest first.</p></li>
 <li><p>A page shows its <strong>tags</strong> in one line under its title, most used first (swipe it for more):
 tap one to search for it. <strong>Tags</strong> (or <strong>Add tags</strong>), first in that line, edits them in
@@ -749,7 +770,7 @@ use) and press Enter or type a comma to add it, then <strong>Save</strong>; what
 you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
 <code class="docutils literal notranslate"><span class="pre">#</span></code>. <strong>Edit</strong> (also a list row swiped right) has the same tags box, under the title, and
 saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
-the list. <strong>Tags</strong> (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+the list. <strong>Browse tags</strong> (in the Filters sheet) lists every tag with how many pages have it, as a tree (open a parent with its
 arrow), A to Z or most used first, with a box to filter it.</p></li>
 </ul>
 </section>
@@ -806,7 +827,7 @@ npm<span class="w"> </span>--prefix<span class="w"> </span>web<span class="w"> <
 <p>Without it <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> still serves the API, and <code class="docutils literal notranslate"><span class="pre">/</span></code> says how to build the app. For working on
 the app, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> and <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">dev</span></code> (Vite proxies <code class="docutils literal notranslate"><span class="pre">/api</span></code> to port 8000).
 Checks: <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">check</span></code> (Biome, TypeScript), <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">test</span></code> (unit tests),
-<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">size</span></code> (after a build: the app shell stays within its size budget and
+<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">size</span></code> (after a build: the app shell stays within its 16 kB gzipped budget and
 never loads Excalidraw),
 <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">e2e</span></code> (Playwright against a real <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> on a throwaway data folder).</p>
 </section>
