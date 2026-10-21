@@ -74,9 +74,12 @@ CREATE TABLE page (
     kind_fixed  INTEGER NOT NULL DEFAULT 0 CHECK (kind_fixed IN (0, 1)),  -- 1: the user chose it
     fields      TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields) = 'object'),  -- flat
     created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    updated_at  TEXT NOT NULL,
+    due         TEXT CHECK (due IS NULL OR (length(due) = 10 AND date(due) = due)),  -- a todo's
+    priority    TEXT CHECK (priority IN ('high', 'medium', 'low'))                  -- a todo's
 );
 CREATE INDEX page_by_kind ON page(kind);
+CREATE INDEX page_by_due ON page(due) WHERE due IS NOT NULL;
 
 -- Rev 1 is written at creation; every title or body change adds one. Tags are not revisioned.
 CREATE TABLE page_rev (
@@ -229,8 +232,19 @@ A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, wa
 rewrites the user's words or fits them to templates.
 
 - **`fields`** is a flat JSON object (no nulls, no nested values in v0), not per-kind tables: a
-  todo has `status` and optional `due`; consume has `subtype` (`read`, `watch`, `listen`),
-  `status` and the `source` link.
+  todo has `status`; consume has `subtype` (`read`, `watch`, `listen`), `status` and the
+  `source` link.
+- **A todo's due date and priority** (#104) are typed columns of `page`, not fields, so `due:`
+  and `priority:` filters and `sort:due` / `sort:priority` are plain indexed SQL. `due` is a
+  calendar day (`YYYY-MM-DD`, no time, no time zone: "today" is the server's local day in
+  searches and the phone's on rows); `priority` is `high`, `medium` or `low` (three: enough to
+  sort by, few enough to pick without thinking; Thoth's `urgent` imports as `high`). They belong
+  to the todo kind: the API refuses them on another, and a todo made a note keeps them (a stray
+  tap loses nothing) but they are ignored (not returned, filtered, sorted or exported) until it
+  is a todo again. Setting them is like ticking: not a revision, no new `updated_at`. Migration
+  5 moved the `due` and `priority` an import had left in `fields` into the columns. The Markdown
+  download and export write them as front matter, so a page stays portable. Deliberately out:
+  recurring tasks, sub-tasks and projects (that is a task app).
 - **Status** is one lifecycle for todo and consume, Thoth's: `open`, `in_progress`, `done`,
   `cancelled`. New pages start `open`; ticking a todo toggles `open` and `done`, and the other two
   are stored and shown (set by an import, richer controls later).

@@ -138,3 +138,22 @@ def test_migration_5_moves_imported_fields_into_columns(tmp_path):
             conn.execute("UPDATE page SET due = '2026-02-30' WHERE id = 'A'")
         with pytest.raises(Exception, match="CHECK"):
             conn.execute("UPDATE page SET priority = 'urgent' WHERE id = 'A'")
+
+
+def test_markdown_carries_due_and_priority_as_front_matter(client, note, tmp_path):
+    from scrap.__main__ import main
+
+    ref = note("Fix the fence", kind="todo", due="2026-11-01", priority="high")
+    text = client.get(f"/api/pages/{ref['page_id']}/download").text
+    assert '\nkind: "todo"\n' in text
+    assert '\ndue: "2026-11-01"\npriority: "high"\nfields: {"status": "open"}\n' in text
+    bare = note("Someday", kind="todo")
+    text = client.get(f"/api/pages/{bare['page_id']}/download").text
+    assert "\ndue:" not in text and "\npriority:" not in text
+    url = f"/api/pages/{ref['page_id']}"
+    client.patch(url, json={"kind": "note"})  # kept, but a note's are not exported
+    assert "\ndue:" not in client.get(f"{url}/download").text
+    client.patch(url, json={"kind": "todo"})
+    main(["export", "--data-dir", str(tmp_path / "data"), str(tmp_path / "md")])
+    exported = (tmp_path / "md" / f"{ref['slug']}.md").read_text()
+    assert '\ndue: "2026-11-01"\npriority: "high"\n' in exported
