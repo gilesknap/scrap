@@ -294,6 +294,6 @@ npm --prefix web run build   # writes src/scrap/static/, which scrap serve picks
 Without it `scrap serve` still serves the API, and `/` says how to build the app. For working on
 the app, run `scrap serve` and `npm --prefix web run dev` (Vite proxies `/api` to port 8000).
 Checks: `npm --prefix web run check` (Biome, TypeScript), `npm --prefix web test` (unit tests),
-`npm --prefix web run size` (after a build: the app shell stays within its size budget and
+`npm --prefix web run size` (after a build: the app shell stays within its 16 kB gzipped budget and
 never loads Excalidraw),
 `npm --prefix web run e2e` (Playwright against a real `scrap serve` on a throwaway data folder).
