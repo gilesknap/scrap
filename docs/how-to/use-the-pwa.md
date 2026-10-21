@@ -77,14 +77,17 @@ the link as the capture's URL.
 
 ## View, edit, search
 
-- The nav has two tabs, **Capture** and **Search**. **Search** opens the one list screen: with
+- The nav has three tabs, **Capture**, **Todos** and **Search**. **Todos** opens the Todos
+  screen on **Now** (below); its badge counts the open todos due today or overdue (none: no
+  badge), and is counted again when the app opens or comes back and after a tick or an edit.
+  **Search** opens the list screen for everything else: with
   nothing in the search box it lists every page newest first, with a thumbnail of the first
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. (There is no separate Recent screen any more: the empty box is it.)
 - Under the search box, a fixed row of kinds: **All**, **Notes**, **Todos**, **Reads**,
   **Boards**, **Docs**. One tap shows only that kind (it writes `kind:read` into the query), a
   second tap on it (or **All**) shows every kind again. A kind alone still lists newest first.
-  **Todos** with nothing else asked opens the Todos screen (below); with words or filters in
+  **Todos** with nothing else asked opens the Todos screen, as the Todos tab does; with words or filters in
   the box it narrows the search to todos (`kind:todo`), as before.
 - Whenever anything is chosen or typed, a **Clear** chip starts the row of chips below: one tap
   goes back to every page, newest first.
@@ -110,7 +113,7 @@ the link as the capture's URL.
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.
-- The **Todos** screen (`/todos`) opens on **Now**: the todos not done or cancelled, what to
+- The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or cancelled, what to
   do first at the top, in groups: **Overdue** (oldest due date first), **Today**, **High
   priority** (no due date), then **Later** (by priority, then due date, then last edited). Each
   row starts with its priority and due date. Done and cancelled todos are folded away at the

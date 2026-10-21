@@ -1,6 +1,6 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
-import { learnLimit } from "./api";
+import { api, learnLimit } from "./api";
 import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { debugPanel } from "./debug";
@@ -119,11 +119,34 @@ async function showQueue() {
   document.dispatchEvent(new Event("queuechange"));
 }
 badge.onclick = () => void queue.retry();
-queue.onchange = () => void showQueue();
+queue.onchange = () => {
+  void showQueue();
+  dueSoon(); // a capture uploaded may be a todo due today
+};
+
+// The Todos tab's badge: how many open todos are due today or overdue (one count from the
+// server), refreshed when the app opens or comes back, and after a change (a tick, an edit).
+const tab = document.querySelector('nav a[href="/todos"]') as HTMLAnchorElement;
+const dueN = tab.querySelector("b") as HTMLElement;
+const DUE = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled");
+let dueTimer: ReturnType<typeof setTimeout>;
+function dueSoon() {
+  clearTimeout(dueTimer);
+  dueTimer = setTimeout(async () => {
+    try {
+      const { total } = await api<{ total: number }>(`search/facets?q=${DUE}`);
+      dueN.textContent = String(total);
+      dueN.hidden = !total;
+      tab.ariaLabel = total ? `Todos, ${total} due` : null;
+    } catch {} // offline: as it was
+  }, 300);
+}
+addEventListener("scrap:wrote", dueSoon);
 
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
   void queue.nudge(); // now, not when its backoff says: the user is here
+  dueSoon();
   void learnLimit(); // the server's upload limit, kept for offline checks
 };
 window.addEventListener("online", flush);

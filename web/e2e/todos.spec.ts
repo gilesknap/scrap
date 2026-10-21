@@ -122,3 +122,38 @@ test("the Todos screen meets AA contrast, in both themes", async ({ page }) => {
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} todos`).toEqual([]);
   }
 });
+
+test("the Todos tab: one tap to Now, with a count of the todos due", async ({ page }) => {
+  const tab = page.locator('nav a[href="/todos"]');
+  const badge = tab.locator(".due-n");
+  const q = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled");
+  const due = async () =>
+    (await (await page.request.get(`/api/search/facets?q=${q}`)).json()).total as number;
+  await page.goto("/");
+  await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search"]);
+  const n = await due();
+  expect(n).toBeGreaterThanOrEqual(4); // the Quolls: two overdue, two today
+  await expect(badge).toHaveText(String(n));
+  await expect(tab).toHaveAccessibleName(`Todos, ${n} due`);
+  expect((await tab.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await tab.click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await expect(tab).toHaveAttribute("aria-current");
+  await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
+  // Ticking one off counts down at once, and back up
+  const tick = page.getByRole("button", { name: "Done: Quoll today high" });
+  await tick.click();
+  await expect(badge).toHaveText(String(n - 1));
+  await tick.click();
+  await expect(badge).toHaveText(String(n));
+  // None due: no badge
+  await page.route(
+    (url) =>
+      url.pathname === "/api/search/facets" && !!url.searchParams.get("q")?.includes("due:<="),
+    (route) => route.fulfill({ json: { total: 0 } }),
+  );
+  await page.reload();
+  await expect(page.locator(".todos")).toBeVisible();
+  await expect(badge).toBeHidden();
+  await expect(tab).toHaveAccessibleName("Todos");
+});

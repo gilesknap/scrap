@@ -93,7 +93,8 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Board, Doc: short labels so all five fit one row from 320 px, with the full names Whiteboard and Document as the radios' accessible names and titles) the search screen's fixed kind row (`.kindrow`: All, Notes, Todos, Reads, Boards, Docs; one tap sets or clears `kind:`) and the Tags screen's order (`.filters`); selected = raised surface, amber icon |
 | Top bar | `header` | wordmark with the scrap mark; the queue badge on the right |
 | Badge | `.badge`, `.badge.failed` | pill with a status dot: amber waiting, red failed |
-| Bottom nav | `nav` | icon over label; active item gets an amber-soft pill and ink label |
+| Bottom nav | `nav` | three tabs, Capture, Todos, Search: icon over label; active item gets an amber-soft pill and ink label (`aria-current`) |
+| Nav count | `nav .due-n` | the Todos tab's open todos due today or overdue: a 20 px `--accent` pill with `--on-accent` digits on the icon's corner, ringed in `--bg`; hidden at 0; the tab's accessible name says it ("Todos, 3 due"). One count request when the app opens or comes back and after a change, never polled |
 | List group | `.list` | rows in one rounded card; `.pending` is dashed (still on the phone) |
 | List row | `.list li` | 48 thumbnail or kind icon, title, date and kind chip; actions under it |
 | Swipe row | `.list li.swipe`, `.row-under` | follows the finger; behind it Edit on `--accent-soft` (right) or Delete on `--danger-soft` (left); past the threshold the icon grows (Edit turns `--accent`) and letting go does it |
@@ -166,7 +167,7 @@ segmented control, 16 on a photo's remove button, 52 (in a circle) in empty stat
 Icons: camera, image, note, todo (check in a square; Done, and a row's tick, which hides the
 check until done), later (bookmark), board (a whiteboard on
 its stand), link, file, download,
-share, edit, trash, search, close, back, next, fit, retry (also Reopen), offline; the nav's plus and clock are
+share, edit, trash, search, close, back, next, fit, retry (also Reopen), offline; the nav's plus, check box and magnifier are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the
 paper scrap on amber; the header mark is the same scrap in amber.
 

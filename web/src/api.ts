@@ -69,6 +69,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`/api/${path}`, init);
   if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({})));
+  if (init?.method) dispatchEvent(new Event("scrap:wrote")); // a change: e.g. the Todos badge
   return (r.status === 204 ? null : await r.json()) as T;
 }
 
