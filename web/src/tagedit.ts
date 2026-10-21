@@ -27,11 +27,13 @@ export function tagProblem(tags: string[]): string | undefined {
 
 let n = 0; // a datalist id per field
 const TOP = 6; // most used tags offered
+const DOUBLE = 400; // ms: a second tap on the chips sooner than this is a double tap, ignored
 
 export function tagField(initial: string[], onchange: () => void = () => {}) {
   let tags = [...initial];
   const list = h("datalist", { id: `tags-${++n}` });
   let used: string[] = []; // the tags pages were given, most used first
+  let tapped = -Infinity; // when a chip under the box was last tapped
   const top = h("div", {
     className: "toptags",
     role: "group",
@@ -51,7 +53,10 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
               className: "facet",
               "aria-label": `Add #${t}`,
               onclick: (e: Event) => {
-                tags.push(t);
+                // A double tap: the second lands on the chip that slid into the first's place
+                if (e.timeStamp - tapped < DOUBLE) return;
+                tapped = e.timeStamp;
+                if (!tags.includes(t)) tags.push(t);
                 const at = [...top.children].indexOf(e.currentTarget as Element);
                 draw(top.contains(document.activeElement) ? at : -1);
                 onchange();

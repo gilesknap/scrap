@@ -245,8 +245,10 @@ test("the most used tags are offered one tap each, on a page and in the composer
   await page.getByRole("button", { name: "Note", exact: true }).click();
   const offered = page.locator(".editor").getByRole("group", { name: "Most used tags" });
   await expect(offered.getByRole("button")).toHaveText(await expected([]));
-  await offered.getByRole("button").nth(1).click();
+  // A double tap adds one tag, not the one that slid under the finger too
+  await offered.getByRole("button").nth(1).dblclick();
   await expect(page.locator(".editor .tagchips .facet")).toHaveCount(1);
+  await expect(offered.getByRole("button")).toHaveCount(6);
   page.once("dialog", (d) => d.accept());
   await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".editor")).toBeHidden();
