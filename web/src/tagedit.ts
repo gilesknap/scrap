@@ -38,22 +38,30 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
               type: "button",
               className: "facet",
               "aria-label": `Add #${t}`,
+              title: `#${t}`,
               onclick: () => {
                 tags.push(t);
                 draw();
                 onchange();
               },
             },
-            h("span", { dir: "auto" }, `#${t}`),
+            // Cut at its start when long ("…/raised-beds"): the leaf is what tells them apart
+            h("span", { className: "lead" }, h("bdi", { dir: "ltr" }, `#${t}`)),
           ),
         ),
     );
     top.hidden = !top.childElementCount;
   };
-  api<[string, number][]>("tags")
+  api<[string, number, number?][]>("tags")
     .then((all) => {
       list.replaceChildren(...all.map(([t]) => h("option", { value: t })));
-      used = [...all].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+      // Most used as typed: by the pages with exactly that tag, so a parent (domain, of
+      // domain/x) never used on its own is not offered (an older server: by its total)
+      const own = ([, n, d]: [string, number, number?]) => d ?? n;
+      used = all
+        .filter((t) => own(t) > 0)
+        .sort((a, b) => own(b) - own(a))
+        .map(([t]) => t);
       drawTop();
     })
     .catch(() => {}); // offline: no suggestions, typing still works

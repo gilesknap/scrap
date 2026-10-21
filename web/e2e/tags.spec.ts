@@ -194,10 +194,21 @@ test("the most used tags are offered one tap each, on a page and in the composer
   const made = await page.request.post("/api/captures", { data: { id, text: "Top tags here" } });
   const { slug, page_id } = await made.json();
   /** The most used tags not on the page, as the chips should offer them. */
+  // A parent used only through its children (plover, of plover/nest) has a high total
+  // and no use of its own: never offered; plover/nest, used on its own pages, is
+  for (let i = 0; i < 9; i++) {
+    const p = await page.request.post("/api/captures", {
+      data: { id: `01E2ETAGP${String(i).padStart(2, "0")}`.padEnd(26, "0"), text: `Plover ${i}` },
+    });
+    const { page_id: pid } = await p.json();
+    await page.request.patch(`/api/pages/${pid}`, { data: { tags: ["plover/nest"] } });
+  }
   const expected = async (on: string[]) => {
-    const all = (await (await page.request.get("/api/tags")).json()) as [string, number][];
-    return [...all]
-      .sort((a, b) => b[1] - a[1])
+    const all = (await (await page.request.get("/api/tags")).json()) as [string, number, number][];
+    expect(all.find(([t]) => t === "plover")).toEqual(["plover", 9, 0]);
+    return all
+      .filter(([, , direct]) => direct > 0)
+      .sort((a, b) => b[2] - a[2])
       .map(([t]) => t)
       .filter((t) => !on.includes(t))
       .slice(0, 6)
@@ -209,6 +220,12 @@ test("the most used tags are offered one tap each, on a page and in the composer
   const want = await expected([]);
   expect(want).toHaveLength(6);
   await expect(top.getByRole("button")).toHaveText(want);
+  expect(want).toContain("#plover/nest");
+  await expect(top.getByRole("button", { name: "Add #plover", exact: true })).toHaveCount(0);
+  await expect(top.getByRole("button", { name: "Add #plover/nest" })).toHaveAttribute(
+    "title",
+    "#plover/nest",
+  );
   // A tap adds it (no typing): a chip to remove, and it leaves the offer
   const first = want[0];
   await top.getByRole("button", { name: `Add ${first}`, exact: true }).click();

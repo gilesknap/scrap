@@ -269,7 +269,7 @@ def server(store: Store) -> MCPServer:
         a/b's pages too); only those starting with prefix, if given. Reuse these
         when writing rather than inventing new ones."""
         prefix = text(prefix, "prefix").lower()
-        found = [t for t in store.tags() if t[0].startswith(prefix)]
+        found = [[t, n] for t, n, _ in store.tags() if t.startswith(prefix)]
         found.sort(key=lambda t: (-t[1], t[0]))
         return {"tags": found[:limit], "total": len(found)}
 

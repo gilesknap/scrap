@@ -903,6 +903,12 @@ mark {
   overflow-x: auto;
   scrollbar-width: none;
 }
+.toptags .lead {
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl; /* the ellipsis at the start: the leaf of a/b/leaf shows */
+}
 .toptags .facet {
   border-style: dashed; /* offered, not chosen: the chosen ones are filled */
   border-color: var(--line-strong);

@@ -293,8 +293,8 @@ Tap the drawing to open it full screen:
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
   tap one to search for it. **Tags** (or **Add tags**), first in that line, edits them in
   place: tap a tag's ✕ to take it off, type one in the box (it suggests the tags already in
-  use) and press Enter or type a comma to add it, or tap one of the six most used tags offered
-  under the box, then **Save**; what is still in the box when
+  use) and press Enter or type a comma to add it, or tap one of the six tags you use most offered
+  under the box (as you type them: `domain/x`, never a parent like `domain` used only through it), then **Save**; what is still in the box when
   you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
   `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
   saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
