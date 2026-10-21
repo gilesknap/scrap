@@ -21,8 +21,9 @@ permissions, which a loopback port is not.
 
 - `scrap serve --uds PATH` listens only on a Unix socket. scrap binds it itself: mode 600, in a
   folder that must belong to the same user and be closed to others (made mode 700 if missing). A
-  socket left by an earlier run is replaced; anything else at the path is refused, as is a socket
-  another process is still listening on. `--uds` with `--host` or `--port` is a usage error, so
+  socket left by an earlier run (connecting is refused) is replaced; anything else at the path is
+  refused, as is a socket that accepts or is too busy to answer. A lock file beside the socket
+  keeps two starts from replacing it at once. `--uds` with `--host` or `--port` is a usage error, so
   there is never a TCP listener by accident.
 - The single-server units (`deploy/`) use it by default: `SCRAP_LISTEN=socket` in
   `~/.config/scrap/env` bind-mounts the unit's runtime folder (`$XDG_RUNTIME_DIR/scrap`, mode 700,
@@ -35,8 +36,8 @@ permissions, which a loopback port is not.
   move an existing install, which could cut off whatever reaches it on the port today, but it
   prints how to switch. New env files say `socket`.
 - An SSH tunnel to the socket (`ssh -N -L 8790:/path/to/scrap.sock`) is a documented fallback
-  for a machine without Tailscale, not a supported path: it needs sshd to allow TCP and stream
-  local forwarding, and it gives no identity header.
+  for a machine without Tailscale, not a supported path: it needs sshd to allow forwarding to a
+  Unix socket (`AllowStreamLocalForwarding`), and it gives no identity header.
 - Loopback TCP stays the default for development, plain containers and the Helm chart; the
   image's default command does not change. In a pod the network is the pod's own, and the
   chart's NetworkPolicy and the Tailscale operator are the controls there.

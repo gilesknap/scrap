@@ -158,5 +158,17 @@ def test_reinstall_with_an_old_env_file_stays_on_tcp(tmp_path):
     assert env == old
     assert "port 8791 on 127.0.0.1, which any local user can reach" in result.stderr
     assert "SCRAP_LISTEN=socket" in result.stderr
-    # ...and scrap-run, now installed, treats the missing setting as tcp
+    # scrap-run is installed; that it takes the missing setting as tcp is
+    # test_tcp_mode_publishes_only_on_loopback's "unset" case
     assert (tmp_path / "home" / ".local" / "lib" / "scrap" / "scrap-run").exists()
+
+
+def test_install_reads_the_env_file_as_systemd_does(tmp_path):
+    for case, line in (
+        ("quoted", 'SCRAP_LISTEN="socket"'),
+        ("spaces", "SCRAP_LISTEN=socket  "),
+    ):
+        result, _ = _install(tmp_path / case, f"SCRAP_IMAGE=x\n{line}\n")
+        assert "any local user can reach" not in result.stderr, case
+    result, _ = _install(tmp_path / "bare", "SCRAP_IMAGE=x\n")
+    assert "port 8790 on 127.0.0.1" in result.stderr  # scrap-run's default port

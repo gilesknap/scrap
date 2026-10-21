@@ -60,13 +60,21 @@ ENV
 else
     echo "Keeping existing $conf/env"
 fi
+# setting KEY: KEY's value in the env file as systemd reads it: the last
+# KEY= line, with surrounding whitespace and one pair of quotes removed.
+setting() {
+    sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$conf/env" 2>/dev/null |
+        tail -n 1 | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
+        -e "s/^'\\(.*\\)'$/\\1/"
+}
 sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/scrap/scrap.sock"
 # An env file from before the socket has no SCRAP_LISTEN and stays on TCP:
 # moving it would cut off whatever reaches scrap on the port today.
-case $(sed -n 's/^SCRAP_LISTEN=//p' "$conf/env" | tail -n 1) in
+case $(setting SCRAP_LISTEN) in
 socket) listen="the Unix socket $sock" target="unix:$sock" ;;
 '' | tcp)
-    port=$(sed -n 's/^SCRAP_PORT=//p' "$conf/env" | tail -n 1)
+    port=$(setting SCRAP_PORT)
+    port=${port:-8790} # as scrap-run
     listen="port $port on 127.0.0.1" target="http://127.0.0.1:$port"
     echo "Note: scrap listens on $listen, which any local user can reach." >&2
     echo "To serve it on a Unix socket only, set SCRAP_LISTEN=socket in" >&2
@@ -131,7 +139,7 @@ if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ];
     }
 fi
 
-image=$(sed -n 's/^SCRAP_IMAGE=//p' "$conf/env")
+image=$(setting SCRAP_IMAGE)
 if ! podman image exists "$image"; then
     echo "Image $image is not here yet: build or pull it, then re-run this script." >&2
     exit 0

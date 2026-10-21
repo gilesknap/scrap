@@ -4,8 +4,9 @@ Milestone 1: quick capture end to end, with no LLM. Requests and responses are J
 Responses of text (JSON, the PWA's scripts, styles and pages) over 1 kB are gzipped for a client
 that sends `Accept-Encoding: gzip`; stored files, previews, downloads, fonts and range requests
 never are.
-The service binds `127.0.0.1` and has no login; put Tailscale Serve (or an authenticating proxy)
-in front. The author of a capture or edit is the `Tailscale-User-Login` header, else `tagged`.
+The service listens on `127.0.0.1`, or with `scrap serve --uds` only on a Unix socket (the
+single-server install's default), and has no login; put Tailscale Serve (or an authenticating
+proxy) in front. The author of a capture or edit is the `Tailscale-User-Login` header, else `tagged`.
 
 ## HTTP
 

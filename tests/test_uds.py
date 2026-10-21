@@ -1,3 +1,4 @@
+import fcntl
 import os
 import socket
 import stat
@@ -37,6 +38,72 @@ def test_socket_in_use_is_refused(tmp_path):
     path = tmp_path / "run" / "scrap.sock"
     with bind(path), pytest.raises(UdsError, match="in use"):
         bind(path)
+
+
+def test_busy_live_socket_is_never_removed(tmp_path):
+    """A listener whose queue is full does not answer, but it is not stale."""
+    (tmp_path / "run").mkdir(mode=0o700)
+    path = tmp_path / "run" / "scrap.sock"
+    with socket.socket(socket.AF_UNIX) as live:
+        live.bind(str(path))
+        live.listen(0)
+        waiting = []
+        try:
+            while True:  # fill the queue without accepting
+                client = socket.socket(socket.AF_UNIX)
+                client.setblocking(False)
+                waiting.append(client)
+                client.connect(str(path))
+        except BlockingIOError:
+            pass
+        try:
+            with pytest.raises(UdsError, match="may be in use"):
+                bind(path)
+        finally:
+            for client in waiting:
+                client.close()
+        assert stat.S_ISSOCK(path.lstat().st_mode)
+        assert live.getsockname() == str(path)
+
+
+def test_setup_by_another_process_is_refused(tmp_path):
+    (tmp_path / "run").mkdir(mode=0o700)
+    path = tmp_path / "run" / "scrap.sock"
+    with open(tmp_path / "run" / ".scrap.sock.lock", "w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        with pytest.raises(UdsError, match="another process"):
+            bind(path)
+    assert not path.exists()
+
+
+def test_too_long_path_is_refused_before_making_anything(tmp_path):
+    folder = tmp_path / ("d" * 120)
+    with pytest.raises(UdsError, match="longer than 107 bytes"):
+        bind(folder / "scrap.sock")
+    assert not folder.exists()
+
+
+def test_folder_that_cannot_be_made_is_an_error(tmp_path):
+    (tmp_path / "file").write_text("")
+    with pytest.raises(UdsError, match="cannot make"):
+        bind(tmp_path / "file" / "run" / "scrap.sock")
+
+
+def test_symlinked_folder_is_refused(tmp_path):
+    (tmp_path / "real").mkdir(mode=0o700)
+    (tmp_path / "run").symlink_to(tmp_path / "real")
+    with pytest.raises(UdsError, match="not a folder"):
+        bind(tmp_path / "run" / "scrap.sock")
+    assert list((tmp_path / "real").iterdir()) == []
+
+
+def test_symlink_at_the_socket_path_is_refused_and_kept(tmp_path):
+    (tmp_path / "run").mkdir(mode=0o700)
+    path = tmp_path / "run" / "scrap.sock"
+    path.symlink_to(tmp_path / "elsewhere.sock")
+    with pytest.raises(UdsError, match="not a socket"):
+        bind(path)
+    assert path.is_symlink()
 
 
 def test_non_socket_is_refused_and_kept(tmp_path):
@@ -80,16 +147,17 @@ def test_app_answers_over_the_socket(tmp_path):
     with subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True) as server:
         try:
             client = socket.socket(socket.AF_UNIX)
-            for _ in range(100):
+            deadline = time.monotonic() + 60  # a slow CI runner
+            while True:
                 try:
                     client.connect(str(path))
                     break
                 except OSError:
                     if server.poll() is not None:
                         pytest.fail(server.communicate()[1])
+                    if time.monotonic() > deadline:
+                        pytest.fail("scrap did not listen on the socket")
                     time.sleep(0.1)
-            else:
-                pytest.fail("scrap did not listen on the socket")
             with client:
                 client.sendall(b"GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n")
                 reply = client.recv(4096)

@@ -4,7 +4,8 @@
 #   socket  only a Unix socket, scrap.sock in the unit's runtime folder
 #           ($XDG_RUNTIME_DIR/scrap, mode 700): this user and root can open
 #           it, so Tailscale Serve can, other local users cannot.
-#   tcp     a port on 127.0.0.1 (SCRAP_PORT) that any local process can reach.
+#   tcp     a port on 127.0.0.1 (SCRAP_PORT, default 8790) that any local
+#           process can reach.
 #           The default when SCRAP_LISTEN is unset, as in env files written
 #           before the socket existed.
 # Settings come from the environment (~/.config/scrap/env via systemd).
@@ -21,8 +22,7 @@ socket)
         "$SCRAP_IMAGE" serve --uds /run/scrap/scrap.sock
     ;;
 tcp)
-    : "${SCRAP_PORT:?SCRAP_PORT is not set}"
-    set -- --publish "127.0.0.1:$SCRAP_PORT:8000" \
+    set -- --publish "127.0.0.1:${SCRAP_PORT:-8790}:8000" \
         "$SCRAP_IMAGE" serve --host 0.0.0.0 --port 8000
     ;;
 *)

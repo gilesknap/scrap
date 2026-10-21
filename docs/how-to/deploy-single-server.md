@@ -219,9 +219,9 @@ new captures in its offline queue and sends them when it can reach scrap again
 ### Fallback: an SSH tunnel
 
 From a machine that cannot join the tailnet, an SSH tunnel can carry a local port to the socket.
-This is a fallback, not a supported path: sshd on the server must allow it
-(`AllowTcpForwarding` and `AllowStreamLocalForwarding`, both on by default), the tunnel sends no
-identity header (changes are recorded under the fallback author), and anything on the client
+This is a fallback, not a supported path: sshd on the server must allow forwarding to a Unix
+socket (`AllowStreamLocalForwarding`, on by default, and no `DisableForwarding` or `restrict` for
+the key; `AllowTcpForwarding` does not matter here), the tunnel sends no identity header (changes are recorded under the fallback author), and anything on the client
 machine can use the forwarded port while the tunnel is open.
 
 ```
@@ -411,9 +411,10 @@ Images built from this repo's Dockerfile carry them; rebuild with a current chec
 the port: `ss -ltnp | grep :8790`. Pick a free port in `SCRAP_PORT`, restart, and point
 `tailscale serve` at the new port.
 
-**The service fails with "is in use: is scrap already running?" or "is not a socket".** Something
-else is at `$XDG_RUNTIME_DIR/scrap/scrap.sock`: another scrap, or a file scrap will not remove.
-Stop or move it and restart. A socket left by a scrap that stopped is replaced on its own.
+**The service fails with "is in use", "may be in use" or "is not a socket".** Something else is
+at `$XDG_RUNTIME_DIR/scrap/scrap.sock`: another scrap, a busy listener, or a file scrap will not
+remove. Stop or move it and restart. A socket nothing listens on (left by a scrap that stopped) is
+replaced on its own.
 
 **Tailscale Serve answers 502 with `SCRAP_LISTEN=socket`.** scrap is not running (the socket's
 folder is removed when it stops), or the Serve target names another path or user id: compare

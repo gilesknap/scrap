@@ -5,7 +5,13 @@
 set -eu
 
 env="${XDG_CONFIG_HOME:-$HOME/.config}/scrap/env"
-setting() { sed -n "s/^$1=//p" "$env" 2>/dev/null | tail -n 1; }
+# setting KEY: KEY's value in the env file as systemd reads it: the last
+# KEY= line, with surrounding whitespace and one pair of quotes removed.
+setting() {
+    sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$env" 2>/dev/null |
+        tail -n 1 | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
+        -e "s/^'\\(.*\\)'$/\\1/"
+}
 listen=${SCRAP_LISTEN:-$(setting SCRAP_LISTEN)}
 port=${SCRAP_PORT:-$(setting SCRAP_PORT)}
 
