@@ -1,27 +1,28 @@
 # Deploy on a single server
 
 Run scrap on one Linux machine (a VPS, a home server) as the same container image that a
-cluster would run, under rootless podman, as a systemd user service. scrap listens on
-`127.0.0.1` only; [Tailscale Serve](https://tailscale.com/kb/1312/serve) publishes it over HTTPS to
-your tailnet and nowhere else.
+cluster would run, under rootless podman, as a systemd user service. scrap listens only on a Unix
+socket that only its own user (and root) can open;
+[Tailscale Serve](https://tailscale.com/kb/1312/serve) publishes it over HTTPS to your tailnet and
+nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-server-installs.md).
 
 Podman is the tested path. Docker works with the small changes in
 {ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
 [](deploy-kubernetes.md).
 
 ```{warning}
-v0 of scrap has **no login**. Anyone who can reach its port can read and change everything.
+v0 of scrap has **no login**. Anyone who can reach it can read and change everything.
 Only expose it through Tailscale Serve (tailnet only, never Funnel), or put an authenticating
 reverse proxy in front of it. Read {ref}`scrap-access` first.
 ```
 
 ```{warning}
-scrap listens on `127.0.0.1`, so **every local account and process on the server** can read and
-change all of its data, and can send its own `Tailscale-User-Login` header to be recorded as any
-author (Tailscale Serve strips forged headers, but a direct local connection skips Serve). v0
-assumes a single-purpose server or a dedicated VM with no untrusted local users or workloads. If
-the server also runs things you do not fully trust (other people's services, agents with broad
-permissions), keep only test data in scrap there, or give scrap its own VM.
+On the server itself, **root, anyone with `sudo`, and anything running as the scrap user** can
+open the socket, read and change all of scrap's data, and send its own `Tailscale-User-Login`
+header to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
+connection skips Serve). Other local users cannot. Run scrap as its own user with no `sudo`
+rights, and run nothing else as that user. With `SCRAP_LISTEN=tcp` (below) **every local account
+and process** can do the same through the port: keep that for single-purpose servers.
 ```
 
 ## Prerequisites
@@ -95,14 +96,15 @@ The script:
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
 - copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`, `scrap-gc.service` and
-  `scrap-gc.timer` to `~/.config/systemd/user/`, and the scripts `scrap-backup` and `scrap-gc` to
-  `~/.local/lib/scrap/`;
+  `scrap-gc.timer` to `~/.config/systemd/user/`, and the scripts `scrap-run`, `scrap-backup` and
+  `scrap-gc` to `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
 - enables and starts `scrap.service` if the image named in the settings is present, and the daily
   backup timer only if that image has the `scrap backup` command, and the nightly gc timer only if
   it has `scrap gc` (images built before them do not; re-run the script after updating the image);
 - restarts a running `scrap.service` if the image it runs or its unit has changed (see
-  {ref}`scrap-update`).
+  {ref}`scrap-update`);
+- prints where scrap listens, and a note if that is a TCP port (see {ref}`scrap-listen`).
 
 It is safe to re-run after pulling a newer version of the repo.
 
@@ -114,13 +116,44 @@ plain `KEY=value` lines with absolute paths.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run. |
-| `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on. |
+| `SCRAP_LISTEN` | `socket` | `socket`: only the Unix socket `$XDG_RUNTIME_DIR/scrap/scrap.sock`. `tcp`: `SCRAP_PORT` on `127.0.0.1`. Unset means `tcp` (see {ref}`scrap-listen`). |
+| `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
 | `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
 
 After changing a setting: `systemctl --user restart scrap`.
+
+(scrap-listen)=
+### Socket or port
+
+With `SCRAP_LISTEN=socket` the container publishes no port. scrap listens on
+`scrap.sock` in the unit's runtime folder, `$XDG_RUNTIME_DIR/scrap` (normally
+`/run/user/<uid>/scrap`), which systemd creates with mode 700 when scrap starts and removes when
+it stops; the socket itself is mode 600. Only the scrap user and root can open it, so Tailscale
+Serve (which runs as root) can and other local users cannot. To call scrap from the server, as
+the scrap user:
+
+```
+curl --unix-socket "$XDG_RUNTIME_DIR/scrap/scrap.sock" http://localhost/healthz
+```
+
+`SCRAP_LISTEN=tcp` publishes `SCRAP_PORT` on `127.0.0.1` instead, reachable by every local
+process. Use it only on a server with no other users or workloads.
+
+**Existing installs.** An env file written before the socket existed has no `SCRAP_LISTEN`,
+which means `tcp`: re-running `install.sh` keeps scrap on its port, so nothing that reaches it
+there today is cut off, and prints a note. To move to the socket:
+
+1. Add `SCRAP_LISTEN=socket` to `~/.config/scrap/env` and `systemctl --user restart scrap`.
+2. As an admin, point the existing Serve entry at the socket (the same `--https` port, so the
+   address, `SCRAP_PUBLIC_URL` and installed PWAs stay the same):
+   `sudo tailscale serve --bg --https=8446 unix:/run/user/<uid>/scrap/scrap.sock`
+3. `./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446`
+
+Between steps 1 and 2 scrap is unreachable from the tailnet; the PWA keeps captures in its
+offline queue and sends them once it is back.
 
 (scrap-ingest-settings)=
 ### Ingest settings
@@ -151,18 +184,21 @@ systemctl --user status scrap
 ./deploy/smoke.sh
 ```
 
-`smoke.sh` calls `/healthz` on the local port and should print `{"status":"ok",...}`. Logs:
+`smoke.sh` calls `/healthz` on the socket (or the local port) and should print
+`{"status":"ok",...}`. Logs:
 `journalctl --user -u scrap`.
 
 ## Publish on your tailnet
 
-As an admin on the server, publish the local port over HTTPS on a port that is not already in
-use. Check first, and leave existing entries alone:
+As an admin on the server, publish the socket over HTTPS on a port that is not already in use
+(`install.sh` prints the target). Check first, and leave existing entries alone:
 
 ```
 sudo tailscale serve status
-sudo tailscale serve --bg --https=8446 http://127.0.0.1:8790
+sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap.sock
 ```
+
+With `SCRAP_LISTEN=tcp` the target is `http://127.0.0.1:8790` instead.
 
 scrap is then at `https://<host>.<tailnet>.ts.net:8446` from devices on your tailnet. `--bg`
 makes the setting persist across reboots. Check it from any tailnet device:
@@ -173,6 +209,29 @@ makes the setting persist across reboots. Check it from any tailnet device:
 
 Use `--https=443` instead if the machine serves nothing else. Never use `tailscale funnel` for
 scrap: that publishes it to the internet.
+
+This is the only supported way in, from phones and other computers alike. If the server is down
+or unreachable for a while (a restart, a workstation asleep or off the network), the PWA keeps
+new captures in its offline queue and sends them when it can reach scrap again
+([](../explanations/decisions/0005-capture-never-waits.md)); reading needs scrap to be up.
+
+(scrap-ssh-tunnel)=
+### Fallback: an SSH tunnel
+
+From a machine that cannot join the tailnet, an SSH tunnel can carry a local port to the socket.
+This is a fallback, not a supported path: sshd on the server must allow forwarding to a Unix
+socket (`AllowStreamLocalForwarding`, on by default, and no `DisableForwarding` or `restrict` for
+the key; `AllowTcpForwarding` does not matter here), the tunnel sends no identity header (changes are recorded under the fallback author), and anything on the client
+machine can use the forwarded port while the tunnel is open.
+
+```
+ssh -N -L 8790:/run/user/<uid>/scrap/scrap.sock scrap@<host>
+```
+
+Then open `http://127.0.0.1:8790` (a loopback address is a secure context, so the PWA works),
+or add the MCP server with
+`claude mcp add --transport http scrap http://127.0.0.1:8790/mcp` (`/mcp` accepts loopback
+hosts).
 
 ### Tailnet ACL: deny tagged servers by default
 
@@ -199,15 +258,15 @@ scrap v0 has no login code. Who may use it is decided by the network in front of
   records that login as the author of each change. Tagged devices get no identity headers, so
   their changes are recorded under a fixed fallback author.
 - **Anything else** (a public reverse proxy, a LAN port): put an authenticating reverse proxy in
-  front, and keep scrap bound to `127.0.0.1`. Without Tailscale Serve, every change is recorded
+  front, and keep scrap on its socket or bound to `127.0.0.1`. Without Tailscale Serve, every change is recorded
   under the fixed fallback author. Do not let a proxy pass through `Tailscale-User-*` headers
   sent by clients.
 
-Either way the network only guards the way in from outside. On the server itself, anything that
-can open a connection to `127.0.0.1` gets full access (see the warning at the top). If you cannot
-keep untrusted users and workloads off the server, run scrap on a dedicated host or VM.
-Listening on a unix socket protected by file permissions, behind the proxy, would also close
-this gap, but scrap v0 does not offer it yet.
+Either way the network only guards the way in from outside. On the server itself, the socket's
+permissions keep other users out, but root, anyone with `sudo`, and anything running as the
+scrap user get full access, and so does whoever controls Tailscale on the server or administers
+the tailnet (see the warning at the top). With `SCRAP_LISTEN=tcp`, anything that can open a
+connection to `127.0.0.1` gets full access too.
 
 (scrap-update)=
 ## Update
@@ -321,11 +380,12 @@ backups and the settings in `~/.config/scrap/` stay until you delete them;
 ## Using Docker instead
 
 With Docker, edit the installed copies. In `scrap.service`: replace `/usr/bin/podman` with
-`/usr/bin/docker`, drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`, change
-`Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`, and drop `-i` from the `rm`
-commands. In `~/.local/lib/scrap/scrap-backup` and `scrap-gc`: replace `podman` with `docker` and drop
-`--replace`. In both, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of
-the user that owns `SCRAP_DATA` and `SCRAP_BACKUPS` (`id -u`, `id -g`). Re-running `install.sh`
+`/usr/bin/docker`, change `Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`,
+and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace `podman` with
+`docker` and drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`. In
+`scrap-backup` and `scrap-gc`: replace `podman` with `docker` and drop `--replace`. In all three
+scripts, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of the user
+that owns `SCRAP_DATA`, `SCRAP_BACKUPS` and the socket's folder (`id -u`, `id -g`). Re-running `install.sh`
 overwrites these edits. Membership of the `docker` group is equivalent to root, so on a shared
 machine prefer rootless podman.
 
@@ -347,17 +407,26 @@ the user. Log in with `ssh` or `sudo machinectl shell scrap@`.
 has no CA certificates, so no HTTPS call can succeed (Claude or the pause notification).
 Images built from this repo's Dockerfile carry them; rebuild with a current checkout.
 
-**The service fails with "address already in use".** Another process has the port:
-`ss -ltnp | grep :8790`. Pick a free port in `SCRAP_PORT`, restart, and point
+**The service fails with "address already in use"** (`SCRAP_LISTEN=tcp`). Another process has
+the port: `ss -ltnp | grep :8790`. Pick a free port in `SCRAP_PORT`, restart, and point
 `tailscale serve` at the new port.
+
+**The service fails with "is in use", "may be in use" or "is not a socket".** Something else is
+at `$XDG_RUNTIME_DIR/scrap/scrap.sock`: another scrap, a busy listener, or a file scrap will not
+remove. Stop or move it and restart. A socket nothing listens on (left by a scrap that stopped) is
+replaced on its own.
+
+**Tailscale Serve answers 502 with `SCRAP_LISTEN=socket`.** scrap is not running (the socket's
+folder is removed when it stops), or the Serve target names another path or user id: compare
+`sudo tailscale serve status` with what `install.sh` printed.
 
 **Permission denied writing `/data`.** The data directory must be owned by the `scrap` user and
 the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do this). On
 SELinux systems (Fedora, RHEL) also add `:Z` to the `--volume` options.
 
-**The access log shows every client as the server's own address.** Rootless podman's network
-(pasta) forwards connections so that local clients, including Tailscale Serve, appear to come
-from one of the host's own addresses, which may be its public one. These lines are not outside
-traffic.
+**The access log shows every client as the server's own address** (`SCRAP_LISTEN=tcp`).
+Rootless podman's network (pasta) forwards connections so that local clients, including Tailscale
+Serve, appear to come from one of the host's own addresses, which may be its public one. These
+lines are not outside traffic. On the socket the log shows no client address at all.
 
 **Anything else.** `journalctl --user -u scrap -e` and `podman logs scrap`.

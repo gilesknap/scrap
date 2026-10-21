@@ -1,0 +1,42 @@
+#!/bin/sh
+# Start the scrap container for scrap.service (podman run -d; conmon tells
+# systemd when it is up). SCRAP_LISTEN says how scrap is reached (ADR 0018):
+#   socket  only a Unix socket, scrap.sock in the unit's runtime folder
+#           ($XDG_RUNTIME_DIR/scrap, mode 700): this user and root can open
+#           it, so Tailscale Serve can, other local users cannot.
+#   tcp     a port on 127.0.0.1 (SCRAP_PORT, default 8790) that any local
+#           process can reach.
+#           The default when SCRAP_LISTEN is unset, as in env files written
+#           before the socket existed.
+# Settings come from the environment (~/.config/scrap/env via systemd).
+# Installed by install.sh to ~/.local/lib/scrap/.
+set -eu
+
+: "${SCRAP_DATA:?SCRAP_DATA is not set}"
+: "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
+: "${SCRAP_MEMORY_MAX:?SCRAP_MEMORY_MAX is not set}"
+case ${SCRAP_LISTEN:-tcp} in
+socket)
+    : "${RUNTIME_DIRECTORY:?RUNTIME_DIRECTORY is not set (RuntimeDirectory= in the unit)}"
+    set -- --volume "$RUNTIME_DIRECTORY:/run/scrap" \
+        "$SCRAP_IMAGE" serve --uds /run/scrap/scrap.sock
+    ;;
+tcp)
+    set -- --publish "127.0.0.1:${SCRAP_PORT:-8790}:8000" \
+        "$SCRAP_IMAGE" serve --host 0.0.0.0 --port 8000
+    ;;
+*)
+    echo "SCRAP_LISTEN must be socket or tcp, not '$SCRAP_LISTEN'" >&2
+    exit 1
+    ;;
+esac
+# The image runs as uid 10001; keep-id maps it to this user so the files
+# under SCRAP_DATA, and the socket, stay owned by this user on the host.
+exec podman run --name scrap --replace --rm -d \
+    --cgroups=split --sdnotify=conmon \
+    --userns=keep-id:uid=10001,gid=10001 \
+    --memory="$SCRAP_MEMORY_MAX" --pids-limit=512 \
+    --volume "$SCRAP_DATA:/data" \
+    --env-file "$HOME/.config/scrap/ingest.env" \
+    --env SCRAP_DATA_DIR=/data \
+    "$@"
