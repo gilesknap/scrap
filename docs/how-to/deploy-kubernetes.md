@@ -108,6 +108,15 @@ The settings themselves are in the [API reference](../reference/api.md). The cha
 `SCRAP_DATA_DIR=/data`; `SCRAP_WEB_DIR` (for trying out a PWA build) has no value of its own,
 use `extraEnv`.
 
+Set `TZ` the same way, to your own time zone: the server decides what "today" means for
+`due:today` searches from its own clock (UTC by default), while the PWA uses the phone's date.
+
+```yaml
+extraEnv:
+  - name: TZ
+    value: Europe/London
+```
+
 The preview cache (`cache/previews` under `/data`) stays on the data volume: it is regenerable and
 never backed up, and keeping it saves redoing every preview after a restart, which is slow on
 small ARM nodes.

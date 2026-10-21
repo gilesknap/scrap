@@ -40,8 +40,11 @@ FROM ubuntu:resolute AS runtime
 
 # CA certificates: without them every HTTPS call (Claude, notifications) fails with
 # "certificate verify failed"
+# tzdata: without it a TZ setting (e.g. TZ=Europe/London) is silently ignored and the
+# server stays on UTC, so `due:today` follows the wrong day
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ca-certificates \
+    tzdata \
     && apt-get dist-clean
 
 # Copy the python installation from the build stage
