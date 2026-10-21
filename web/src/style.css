@@ -523,11 +523,26 @@ nav a[aria-current] .i {
   width: 24px;
   height: 24px;
 }
-.tick[aria-pressed="false"] path {
+.tick:not([aria-pressed="true"]) path {
   visibility: hidden; /* an empty box; done: ticked, in amber */
 }
 .tick[aria-pressed="true"] {
   color: var(--accent-ink);
+}
+/* Some of its task boxes ticked: a bar across the box, in amber (the row says "2 of 5") */
+.tick[aria-pressed="mixed"] {
+  color: var(--accent-ink);
+}
+.tick[aria-pressed="mixed"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 2.4px;
+  border-radius: 1px;
+  background: currentColor;
+  translate: -50% -50%;
 }
 .list em {
   flex: none;
@@ -1051,12 +1066,39 @@ mark {
 .md li.task {
   list-style: none;
 }
+/* A task's box, in the bullet's place; on a page it ticks (tasks.ts): a --tap target, the
+   items spaced (a 49 px pitch on the body's 27.2 px line) so that no two targets overlap */
+.md li.task {
+  padding-block: 11px;
+}
+.md li + li.task,
+.md li.task + li {
+  margin-top: 0;
+}
+.md li.task .taskbox {
+  position: relative;
+  margin-inline: calc(-1em - var(--s-1)) var(--s-1);
+}
+.md li.task .taskbox::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--tap);
+  height: var(--tap);
+  translate: -50% -50%;
+}
 .md li.task input {
+  position: relative;
+  z-index: 1; /* over its own target: a tap on the box is the box's */
   width: 1em;
   height: 1em;
-  margin: 0 var(--s-1) 0 calc(-1em - var(--s-1));
+  margin: 0;
   vertical-align: -0.125em;
   accent-color: var(--accent);
+}
+.md li.task input:enabled {
+  cursor: pointer;
 }
 .md s {
   color: var(--ink-2);

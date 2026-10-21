@@ -4,6 +4,7 @@ it with markdown-it: raw HTML is text, a line break stays one. Used for the text
 search index holds (`plain`) and for the importer's link rewriting (`rewrite`), so code
 is never mistaken for a link, and no part of it backtracks on hostile text."""
 
+import re
 from bisect import bisect_left, bisect_right
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -234,3 +235,37 @@ def rewrite(
         done = e
     out.append(text[done:])
     return "".join(out)
+
+
+TASK = re.compile(r"\[([ xX])\](?: |$)")
+# A list item's first line: quote markers, a bullet or number, then a task marker (as
+# tasks.ts ITEM, which ticks it there)
+ITEM = re.compile(r"(?:[ \t]*>)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+\[[ xX]\]")
+
+
+def tasks(text: str) -> tuple[int, int]:
+    """A page's task boxes (- [ ] and - [x]) exactly as the PWA draws them (render.ts
+    task): a list item whose paragraph's first text (escapes and all, as parsed)
+    starts with the marker, and whose first line in the text holds it as typed (so
+    the PWA can tick it). One in code, a quote's text, a heading, escaped (\\[ ]) or
+    a link named [x] is none. Returns (ticked, all)."""
+    tokens = parser().parse(text)
+    source = re.split(r"\r\n?|\n", text)  # markdown-it's lines (its normalize)
+    done = total = 0
+    for i, t in enumerate(tokens):
+        item = tokens[i - 2] if i >= 2 else None
+        first = t.children[0] if t.children else None
+        if (
+            item is not None
+            and t.type == "inline"
+            and tokens[i - 1].type == "paragraph_open"
+            and item.type == "list_item_open"
+            and item.map
+            and first is not None
+            and first.type == "text"
+            and (m := TASK.match(first.content))
+            and ITEM.match(source[item.map[0]])
+        ):
+            total += 1
+            done += m[1] != " "
+    return done, total

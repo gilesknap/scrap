@@ -68,10 +68,15 @@ function decoded(text: string): string {
   }
 }
 
+/** A list item's first line: quote markers, then a bullet or number, then its task marker (as
+ * the server counts them, markdown.py ITEM; tasks.ts ticks it there). */
+export const ITEM = /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\]/;
+
 /** After parsing: safe links and images, heading ids, task list boxes. */
 function tidy(state: StateCore) {
   const ids = new Map<string, number>();
   const tokens = state.tokens;
+  let lines: string[] | undefined; // the source's, for task boxes, split once
   tokens.forEach((t, i) => {
     if (t.type === "heading_open") {
       const text = tokens[i + 1]?.children?.map((c) => c.content).join("") ?? "";
@@ -81,20 +86,32 @@ function tidy(state: StateCore) {
       t.attrSet("id", n ? `${id}-${n}` : id);
     }
     if (t.type !== "inline" || !t.children) return;
-    if (tokens[i - 1]?.type === "paragraph_open" && tokens[i - 2]?.type === "list_item_open")
-      task(t, tokens[i - 2], state);
+    const item = tokens[i - 2];
+    if (tokens[i - 1]?.type === "paragraph_open" && item?.type === "list_item_open" && item.map) {
+      lines ??= state.src.split("\n");
+      task(t, item, lines[item.map[0]] ?? "", state);
+    }
     t.children = inline(t.children, state);
   });
 }
 
-/** A list item that starts [ ] or [x]: a box, ticked or not (it can't be ticked here). */
-function task(t: Token, item: Token, state: StateCore) {
+/** A list item that starts [ ] or [x], typed so on its first line (so not escaped, nor a link
+ * named [x]): a box, ticked or not, disabled here, named by its item's text; data-line is
+ * that line in the source, so a page can tick it there (tasks.ts), and a label around it
+ * gives it a --tap target. */
+function task(t: Token, item: Token, line: string, state: StateCore) {
   const first = t.children?.[0];
   const m = first?.type === "text" && /^\[([ xX])\](?: |$)/.exec(first.content);
-  if (!first || !m) return;
+  if (!first || !m || !ITEM.test(line)) return;
   first.content = first.content.slice(m[0].length);
+  const said = (t.children ?? [])
+    .map((c) => (c.type === "text" || c.type === "code_inline" ? c.content : " "))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  const name = state.md.utils.escapeHtml([...said].slice(0, 120).join("") || "Task");
   const box = new state.Token("html_inline", "", 0);
-  box.content = `<input type="checkbox" disabled${m[1] === " " ? "" : " checked"}> `;
+  box.content = `<label class="taskbox"><input type="checkbox" aria-label="${name}" data-line="${item.map?.[0]}" disabled${m[1] === " " ? "" : " checked"}></label> `;
   t.children?.unshift(box);
   item.attrJoin("class", "task");
 }

@@ -172,6 +172,8 @@ def page_markdown(
     }
     if page["kind"] == "todo":  # a todo's due date and priority, if it has them
         front |= {k: page[k] for k in ("due", "priority", "snoozed_until") if page[k]}
+    if page["task_total"]:  # its task boxes, as counted
+        front["tasks"] = {"done": page["task_done"], "total": page["task_total"]}
     front["fields"] = json.loads(page["fields"])
     lines = ["---", *(f"{k}: {json.dumps(v)}" for k, v in front.items())]
     files: list[tuple[str, str | bytes]] = []

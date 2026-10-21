@@ -94,6 +94,12 @@ export async function page(key: string): Promise<Node> {
     shown = p;
     schedule(p);
     const body = bodyView(p.body, false);
+    // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
+    if (body.querySelector("[data-line]"))
+      import("./tasks").then(
+        (m) => m.wire(body, () => shown, show, signal),
+        () => {},
+      );
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     const typing = !!tagForm?.contains(document.activeElement);
     const said = dueOf(p);

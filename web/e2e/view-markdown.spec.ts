@@ -92,7 +92,7 @@ test("tables, task lists, code, page links, a figure and a diagram", async ({ pa
   await expect(body.locator(`td a[href="/p/${target}"]`)).toHaveText("the target");
   await expect(body.locator("li.task input[type=checkbox]")).toHaveCount(2);
   await expect(body.locator("li.task input").nth(1)).toBeChecked();
-  await expect(body.locator("li.task input").first()).toBeDisabled();
+  await expect(body.locator("li.task input").first()).toBeEnabled(); // ticks in place (tasks.ts)
   await expect(body.locator("pre code:not(.language-mermaid)")).toContainText(
     "<b>not bold</b> [[not-a-link]]",
   );
@@ -169,4 +169,73 @@ test("a figure's Download stays whole beside a long file name, at 360 and 412 px
     expect(got.lines, `Download on one line at ${width} px`).toBe(1);
     await expect(page.locator(".page figure figcaption span").first()).toHaveText(name);
   }
+});
+
+test("a task box ticks in place: that item, saved at once; never over a newer edit", async ({
+  page,
+  context,
+}) => {
+  const text = "Packing\n\n- [ ] socks\n- [ ] socks\n- [x] passport\n\n```\n- [ ] in code\n```";
+  const made = await (
+    await page.request.post("/api/captures", { data: { id: ulid(), text } })
+  ).json();
+  const body = async () =>
+    (await (await page.request.get(`/api/pages/${made.page_id}`)).json()) as {
+      body: string;
+      rev: number;
+    };
+  await page.goto(`/p/${made.slug}`);
+  const boxes = page.locator(".page .md li.task input");
+  await expect(boxes).toHaveCount(3); // not the one in code
+  await expect(boxes.first()).toBeEnabled();
+  // Each box is named by its item's text
+  await expect(page.getByRole("checkbox", { name: "passport" })).toBeChecked();
+  // A 48 px target: a tap beside the box still reaches it, and that box, not its neighbour's,
+  // right up to the edge of its target (the items are spaced so that no two meet)
+  const at = await boxes.nth(1).boundingBox();
+  if (!at) throw new Error("no box");
+  const [x, y] = [at.x + at.width / 2, at.y + at.height / 2];
+  for (const [dx, dy] of [
+    [15, 15],
+    [0, -23],
+    [0, 23],
+  ]) {
+    const hit = await page.evaluate(
+      ([px, py]) =>
+        document
+          .elementFromPoint(px, py)
+          ?.closest(".taskbox")
+          ?.querySelector("input")
+          ?.getAttribute("data-line"),
+      [x + dx, y + dy],
+    );
+    expect(hit).toBe(await boxes.nth(1).getAttribute("data-line"));
+  }
+  // The second "socks": that one only, saved with no editor
+  await boxes.nth(1).click();
+  await expect
+    .poll(async () => (await body()).body)
+    .toBe(text.replace("- [ ] socks\n- [x]", "- [x] socks\n- [x]"));
+  await expect(page.locator(".editor")).toHaveCount(0);
+  await expect(boxes.nth(1)).toBeChecked();
+  await expect(boxes.nth(0)).not.toBeChecked();
+  // Changed elsewhere meanwhile: not overwritten; the page as it is now, and why
+  const now = await body();
+  await page.request.patch(`/api/pages/${made.page_id}`, {
+    data: { base_rev: now.rev, body: `${now.body}\n\nAdded elsewhere` },
+  });
+  await boxes.nth(0).click();
+  await expect(page.locator(".toast")).toContainText("Changed elsewhere");
+  await expect(page.getByText("Added elsewhere")).toBeVisible();
+  await expect(boxes.nth(0)).not.toBeChecked();
+  expect((await body()).body).toBe(`${now.body}\n\nAdded elsewhere`);
+  // Offline: the boxes are off
+  await context.setOffline(true);
+  await expect(boxes.first()).toBeDisabled();
+  await context.setOffline(false);
+  await expect(boxes.first()).toBeEnabled();
+  // In the editor's Preview they never tick
+  await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
+  await page.locator(".editor").getByRole("button", { name: "Preview" }).click();
+  await expect(page.locator(".editor .preview li.task input").first()).toBeDisabled();
 });
