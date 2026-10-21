@@ -14,6 +14,9 @@ export const queue = new Queue(
 /** Navigate inside the app; main.ts renders on popstate. The state rides in the history
  * entry (e.g. the list a page was opened from). */
 export function go(path: string, replace = false, state: object | null = null) {
+  // A step back of the app's own still on its way (the Filters sheet closed): after it lands,
+  // or it would land on this new entry and undo it
+  if (back.pending) return void back.pending.then(() => go(path, replace, state));
   history[replace ? "replaceState" : "pushState"](state, "", path);
   window.scrollTo(0, 0);
   rerender();
@@ -27,8 +30,24 @@ export const plain = (e: MouseEvent) =>
 /** Show the current view again (main.ts renders on popstate). */
 export const rerender = () => window.dispatchEvent(new PopStateEvent("popstate"));
 
-/** While set (the Filters sheet is open), Back runs it instead of showing a view (main.ts). */
-export const back: { take: (() => void) | null } = { take: null };
+let land = () => {};
+/** take: while set (the Filters sheet is open), Back runs it instead of showing a view
+ * (main.ts). pending: while a step back of the app's own (pop()) is on its way, which
+ * go() and the sheet wait for; landed() (main.ts, on the browser's popstate) ends it. */
+export const back = {
+  take: null as (() => void) | null,
+  pending: null as Promise<void> | null,
+  pop() {
+    back.pending ??= new Promise((r) => {
+      land = r;
+    });
+    history.back();
+  },
+  landed() {
+    back.pending = null;
+    land();
+  },
+};
 
 /** Aborted when the view changes: views pass it to their event listeners. */
 export const view = { signal: new AbortController().signal };

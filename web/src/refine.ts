@@ -58,7 +58,8 @@ export async function refine(
       className: "facet filter",
       "aria-haspopup": "dialog",
       "aria-label": on.length ? `Filters, ${on.length} on` : "Filters",
-      onclick: () => sheet(q, f, apply),
+      // After a closed sheet's step back has landed (Escape, then Enter at once)
+      onclick: () => void (back.pending ?? Promise.resolve()).then(() => sheet(q, f, apply)),
     },
     icon("filter"),
     "Filters",
@@ -165,13 +166,24 @@ function sheet(q: string, f: Facets, apply: (edit: Edit) => void) {
     body.replaceChildren(
       ...sections(q, f, set, () => {
         then = () => go("/tags");
-        dlg.close();
+        shut();
       }),
     );
   };
   clear.onclick = () => set((now) => filtersOf(f).reduce((s, a) => removing(s, a.token), now));
-  done.onclick = () => dlg.close();
-  dlg.onclick = (e) => e.target === dlg && dlg.close(); // a tap outside it (on the backdrop)
+  // Its entry off the stack at once (the close event comes a task later: a tap could come
+  // first), and go() waits for that step back to land; popped() runs then
+  const leave = () => {
+    if (entry) back.pop();
+    entry = false;
+  };
+  const shut = () => {
+    leave();
+    dlg.close();
+  };
+  done.onclick = shut;
+  dlg.oncancel = leave; // Escape
+  dlg.onclick = (e) => e.target === dlg && shut(); // a tap outside it (on the backdrop)
   const popped = () => {
     entry = false; // main.ts took it off back.take: the screen stays as it is
     if (here() !== url) history.replaceState(null, "", url); // the query as it is now
@@ -180,7 +192,7 @@ function sheet(q: string, f: Facets, apply: (edit: Edit) => void) {
   };
   dlg.addEventListener("close", () => {
     dlg.remove();
-    if (entry) history.back(); // its entry off the stack: popped() runs next
+    leave();
     if (!then) (document.querySelector(".refine .filter") as HTMLElement | null)?.focus();
   });
   view.signal.addEventListener("abort", () => {

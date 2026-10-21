@@ -48,7 +48,6 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   await sheet.getByRole("button", { name: "Personal 1" }).click();
   await expect(hits(page)).toHaveText(["Zephyr fence repair"]);
   await sheet.getByRole("button", { name: "Done", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await page.getByRole("button", { name: "Remove tag:zephyr/garden" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr fence is:personal");
   await expect(hits(page)).toHaveCount(1);
@@ -101,8 +100,6 @@ test("the new views meet AA contrast, in both themes", async ({ page }) => {
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} filters`).toEqual([]);
     await page.keyboard.press("Escape");
     await expect(sheet).toBeHidden();
-    // Its history entry gone first: closing takes it off with history.back(), which lands later
-    await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
     await page.goto(`/p/${slugs[0]}`);
     await page.locator(".page .tags a").first().waitFor();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page tags`).toEqual([]);
@@ -131,7 +128,6 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
   await expect(page.getByText("No matches")).toBeVisible(); // made in January 2026
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await page.getByRole("button", { name: "Remove after:1m" }).click();
   sheet = await filters(page);
   await sheet.getByRole("button", { name: "Dates…" }).click();
@@ -204,7 +200,6 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
   ]);
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByRole("button", { name: "Remove -sort:title" })).toBeVisible(); // on show
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title kind:todo");
   await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
@@ -222,7 +217,6 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
   await expect(page.getByRole("searchbox")).toHaveValue("sort:title");
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(hits(page).first()).toBeVisible();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   const titles = await hits(page).allTextContents();
   expect(titles.length).toBeGreaterThan(4);
   expect(titles).toEqual(

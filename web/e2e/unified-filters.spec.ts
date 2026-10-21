@@ -59,9 +59,12 @@ test("the sheet: opens at the bottom, applies at once, Clear filters, Done", asy
   expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBeGreaterThanOrEqual(vh - 1);
   await expect(s.getByRole("heading", { name: "Filters" })).toBeFocused();
   await expect(s).toContainText("3 pages");
-  // Every control a 44 px target
+  // Every control a 44 px target (rounded: still sliding up, a box can be 43.99997 px)
   for (const b of await s.locator("button:visible, a:visible, select:visible").all())
-    expect((await b.boundingBox())?.height, await b.innerText()).toBeGreaterThanOrEqual(44);
+    expect(
+      Math.round((await b.boundingBox())?.height ?? 0),
+      await b.innerText(),
+    ).toBeGreaterThanOrEqual(44);
   await s.getByRole("combobox", { name: "Sort" }).selectOption({ label: "Title A–Z" });
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo sort:title");
   await expect(hits(page)).toHaveText(["Potoroo one", "Potoroo three", "Potoroo two"]);
@@ -77,7 +80,6 @@ test("the sheet: opens at the bottom, applies at once, Clear filters, Done", asy
   await s.getByRole("button", { name: "Edited in the past week" }).click();
   await s.getByRole("button", { name: "Done" }).click();
   await expect(s).toBeHidden();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await expect(filtersChip(page)).toBeFocused(); // back where it was
   await expect(filtersChip(page)).toHaveAccessibleName("Filters, 1 on");
   await expect(page.getByRole("button", { name: "Remove after:1w" })).toBeVisible();
@@ -92,7 +94,6 @@ test("Escape, Back and a tap outside close it; Back then leaves the screen", asy
   await expect(sheet(page)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sheet(page)).toBeHidden();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await expect(filtersChip(page)).toBeFocused();
   await expect(page).toHaveURL(/\/search\?q=potoroo$/);
   // Back: closes it, keeps what it chose, and the screen stays
@@ -110,9 +111,57 @@ test("Escape, Back and a tap outside close it; Back then leaves the screen", asy
   await expect(sheet(page)).toBeVisible();
   await page.mouse.click(200, 60);
   await expect(sheet(page)).toBeHidden();
-  // Its entry off the stack first: closing takes it off with history.back(), which lands later
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
   // Back now: off the screen, as before (no stray entries left)
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("a tap just as the sheet closes is not undone by its step back", async ({ page }) => {
+  await page.goto("/");
+  await page.goto("/search?q=potoroo");
+  await expect(hits(page)).toHaveCount(3);
+  await filtersChip(page).click();
+  await expect(sheet(page)).toBeVisible();
+  // Done and a row tapped in the same moment, before the sheet's history.back() lands
+  const title = await page.evaluate(() => {
+    (document.querySelector(".sheet .primary") as HTMLElement).click();
+    const a = document.querySelector(".hits li a") as HTMLAnchorElement;
+    a.click();
+    return a.querySelector("strong")?.textContent;
+  });
+  await expect(page).toHaveURL(/\/p\//);
+  await expect(page.locator(".page h1")).toHaveText(title ?? "");
+  // Back: the search screen once (no stray entry), then where it came from
+  await page.goBack();
+  await expect(page).toHaveURL(/\/search\?q=potoroo$/);
+  await expect(hits(page)).toHaveCount(3);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("closed and opened again at once, it stays open; Forward steps over its old entry", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.goto("/search?q=potoroo");
+  await expect(hits(page)).toHaveCount(3);
+  await filtersChip(page).click();
+  await expect(sheet(page)).toBeVisible();
+  await page.evaluate(() => {
+    (document.querySelector(".sheet .primary") as HTMLElement).click();
+    (document.querySelector(".refine .filter") as HTMLElement).click();
+  });
+  await expect(sheet(page)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBe(1);
+  await expect(sheet(page)).toBeVisible(); // the first close's step back did not close it
+  await sheet(page).getByRole("button", { name: "Done" }).click();
+  await expect(sheet(page)).toBeHidden();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
+  // Forward: onto the closed sheet's entry, which is stepped over, back to the list
+  await page.goForward();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
+  await expect(sheet(page)).toBeHidden();
+  await expect(hits(page)).toHaveCount(3);
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
 });

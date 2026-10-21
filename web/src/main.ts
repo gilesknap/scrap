@@ -8,6 +8,7 @@ import { pageRow } from "./lists";
 import { page } from "./page";
 import { search } from "./search";
 import { whenSlow } from "./slow";
+import { today } from "./status";
 import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
@@ -103,11 +104,16 @@ document.addEventListener("click", (e) => {
   }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
-window.addEventListener("popstate", () => {
+window.addEventListener("popstate", (e) => {
+  if (!e.isTrusted) return void render(); // go() and rerender(): this entry, drawn
+  back.landed();
   const take = back.take; // Back closes the sheet open, rather than leaving the screen
   back.take = null;
   if (take) take();
-  else void render();
+  else if (history.state?.sheet) {
+    back.take = render; // a closed sheet's entry (Forward, say): stepped over
+    back.pop();
+  } else void render();
 });
 
 // Header badge: what is waiting to upload; tap to retry now.
@@ -133,13 +139,14 @@ queue.onchange = () => {
 // server), refreshed when the app opens or comes back, and after a change (a tick, an edit).
 const tab = document.querySelector('nav a[href="/todos"]') as HTMLAnchorElement;
 const dueN = tab.querySelector("b") as HTMLElement;
-const DUE = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled");
+// Today as this device has it, as the Todos screen does (the server's day may differ)
+const due = () => encodeURIComponent(`kind:todo due:<=${today()} -is:done -is:cancelled`);
 let dueTimer: ReturnType<typeof setTimeout>;
 function dueSoon() {
   clearTimeout(dueTimer);
   dueTimer = setTimeout(async () => {
     try {
-      const { total } = await api<{ total: number }>(`search/facets?q=${DUE}`);
+      const { total } = await api<{ total: number }>(`search/facets?q=${due()}`);
       dueN.textContent = String(total);
       dueN.hidden = !total;
       tab.ariaLabel = total ? `Todos, ${total} due` : null;
