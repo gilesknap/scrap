@@ -63,3 +63,100 @@ def test_gc_without_a_recent_backup_only_counts_and_fails(tmp_path):
         assert result.returncode == 1
         assert "--dry-run" in args.split() and "--delete" not in args.split()
         assert "No backup in the last 26 hours" in result.stderr
+
+
+def _fake(bin_dir, name, script):
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    (bin_dir / name).write_text(f"#!/bin/sh\n{script}\n")
+    (bin_dir / name).chmod(0o755)
+
+
+def _run_scrap(tmp_path, **settings):
+    """deploy/scrap-run with a fake podman; returns (result, podman args)."""
+    _fake(tmp_path / "bin", "podman", f'echo "$@" > {tmp_path}/args')
+    env = {
+        **{k: v for k, v in os.environ.items() if not k.startswith("SCRAP_")},
+        "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}",
+        "SCRAP_DATA": str(tmp_path / "data"),
+        "SCRAP_IMAGE": "localhost/scrap:test",
+        "SCRAP_MEMORY_MAX": "1g",
+        "SCRAP_PORT": "8790",
+        "RUNTIME_DIRECTORY": "/run/user/1000/scrap",
+        **settings,
+    }
+    result = subprocess.run(
+        [DEPLOY / "scrap-run"], env=env, capture_output=True, text=True
+    )
+    args = tmp_path / "args"
+    return result, args.read_text().split() if args.exists() else []
+
+
+def test_socket_mode_publishes_no_port(tmp_path):
+    result, args = _run_scrap(tmp_path, SCRAP_LISTEN="socket")
+    assert result.returncode == 0, result.stderr
+    assert "--publish" not in args
+    assert "/run/user/1000/scrap:/run/scrap" in args
+    assert args[-3:] == ["serve", "--uds", "/run/scrap/scrap.sock"]
+
+
+def test_tcp_mode_publishes_only_on_loopback(tmp_path):
+    for case, settings in (("tcp", {"SCRAP_LISTEN": "tcp"}), ("unset", {})):
+        result, args = _run_scrap(tmp_path / case, **settings)
+        assert result.returncode == 0, result.stderr
+        published = [args[i + 1] for i, a in enumerate(args) if a == "--publish"]
+        assert published == ["127.0.0.1:8790:8000"]
+        assert "--uds" not in args
+
+
+def test_unknown_listen_mode_starts_nothing(tmp_path):
+    result, args = _run_scrap(tmp_path, SCRAP_LISTEN="Socket")
+    assert result.returncode == 1 and args == []
+    assert "must be socket or tcp" in result.stderr
+
+
+def test_unit_keeps_the_socket_folder_private():
+    unit = (DEPLOY / "scrap.service").read_text()
+    assert "RuntimeDirectoryMode=0700" in unit.splitlines()
+    assert "--publish" not in unit
+
+
+def _install(tmp_path, env_file=None):
+    """deploy/install.sh with fakes for systemctl, loginctl and podman (no image,
+    so it stops before starting anything)."""
+    home = tmp_path / "home"
+    conf = home / ".config" / "scrap"
+    conf.mkdir(parents=True, exist_ok=True)
+    if env_file is not None:
+        (conf / "env").write_text(env_file)
+    bin_dir = tmp_path / "bin"
+    _fake(bin_dir, "systemctl", "exit 0")
+    _fake(bin_dir, "loginctl", "echo yes")
+    _fake(bin_dir, "podman", "exit 1")
+    env = {
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "HOME": str(home),
+        "XDG_RUNTIME_DIR": "/run/user/1000",
+    }
+    result = subprocess.run(
+        [DEPLOY / "install.sh"], env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    return result, (conf / "env").read_text()
+
+
+def test_new_install_listens_on_the_socket(tmp_path):
+    result, env = _install(tmp_path)
+    assert "SCRAP_LISTEN=socket" in env.splitlines()
+    assert "any local user can reach" not in result.stderr
+    result, again = _install(tmp_path)  # a re-run keeps the file
+    assert again == env
+
+
+def test_reinstall_with_an_old_env_file_stays_on_tcp(tmp_path):
+    old = "SCRAP_IMAGE=localhost/scrap:dev\nSCRAP_PORT=8791\n"
+    result, env = _install(tmp_path, old)
+    assert env == old
+    assert "port 8791 on 127.0.0.1, which any local user can reach" in result.stderr
+    assert "SCRAP_LISTEN=socket" in result.stderr
+    # ...and scrap-run, now installed, treats the missing setting as tcp
+    assert (tmp_path / "home" / ".local" / "lib" / "scrap" / "scrap-run").exists()

@@ -37,7 +37,13 @@ if [ ! -e "$conf/env" ]; then
 # or a published one, e.g. ghcr.io/gilesknap/scrap:<version>.
 SCRAP_IMAGE=localhost/scrap:dev
 
-# Port on 127.0.0.1 that scrap listens on. Only local processes can reach it.
+# How scrap is reached. socket: only a Unix socket, scrap.sock in
+# \$XDG_RUNTIME_DIR/scrap, that this user and root (so Tailscale Serve) can
+# open and other local users cannot. tcp: SCRAP_PORT on 127.0.0.1, which any
+# local process can reach. Unset means tcp.
+SCRAP_LISTEN=socket
+
+# Port on 127.0.0.1 that scrap listens on when SCRAP_LISTEN=tcp.
 SCRAP_PORT=8790
 
 # Host directory for the database and files (mounted at /data).
@@ -54,6 +60,24 @@ ENV
 else
     echo "Keeping existing $conf/env"
 fi
+sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/scrap/scrap.sock"
+# An env file from before the socket has no SCRAP_LISTEN and stays on TCP:
+# moving it would cut off whatever reaches scrap on the port today.
+case $(sed -n 's/^SCRAP_LISTEN=//p' "$conf/env" | tail -n 1) in
+socket) listen="the Unix socket $sock" target="unix:$sock" ;;
+'' | tcp)
+    port=$(sed -n 's/^SCRAP_PORT=//p' "$conf/env" | tail -n 1)
+    listen="port $port on 127.0.0.1" target="http://127.0.0.1:$port"
+    echo "Note: scrap listens on $listen, which any local user can reach." >&2
+    echo "To serve it on a Unix socket only, set SCRAP_LISTEN=socket in" >&2
+    echo "$conf/env, restart scrap and point Tailscale Serve at" >&2
+    echo "unix:$sock (see the single-server deploy guide)." >&2
+    ;;
+*)
+    echo "SCRAP_LISTEN in $conf/env must be socket or tcp." >&2
+    exit 1
+    ;;
+esac
 
 if [ -L "$conf/ingest.env" ] && [ ! -e "$conf/ingest.env" ]; then
     echo "Warning: $conf/ingest.env is a dangling symlink; not writing through it." >&2
@@ -89,7 +113,8 @@ fi
 # stops before that.
 pending="$lib/restart-pending"
 cmp -s "$here/scrap.service" "$units/scrap.service" || : >"$pending"
-cp "$here/scrap-backup" "$here/scrap-gc" "$lib/"
+cmp -s "$here/scrap-run" "$lib/scrap-run" || : >"$pending"
+cp "$here/scrap-backup" "$here/scrap-gc" "$here/scrap-run" "$lib/"
 cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" \
     "$here/scrap-gc.service" "$here/scrap-gc.timer" "$units/"
 systemctl --user daemon-reload
@@ -149,4 +174,5 @@ else
     echo "timer is NOT enabled. Re-run this script after updating the image." >&2
 fi
 [ -n "$started" ] || exit 1
-echo "scrap is running: try $here/smoke.sh"
+echo "scrap is running on $listen: try $here/smoke.sh"
+echo "Tailscale Serve proxies to $target (see the single-server deploy guide)."
