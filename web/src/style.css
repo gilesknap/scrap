@@ -730,6 +730,8 @@ mark {
   font-weight: 400;
 }
 .recents .again span {
+  display: block; /* not a list row's column of lines */
+  text-align: start;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
