@@ -21,3 +21,35 @@ export const chipOf = (kind: string, fields: Fields): string => {
   const s = statusOf(kind, fields);
   return s === "done" || s === "cancelled" ? s : (CHIP[kind] ?? "");
 };
+
+// ---- a todo's due date and priority (#104): columns of its page, a todo's only
+
+/** Today on this device, as a due date is written (YYYY-MM-DD). */
+export const today = (d = new Date()) =>
+  new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+
+interface Todo {
+  kind: string;
+  fields?: Fields;
+  due?: string | null;
+  priority?: string | null;
+}
+
+/** What a todo's row and page say of its due date and priority ("high · due 3 Nov"), and
+ * whether it is overdue (due before today and not done or cancelled); null if neither. */
+export function dueOf(p: Todo, now = today()): [string, boolean] | null {
+  if (p.kind !== "todo" || !(p.due || p.priority)) return null;
+  const status = statusOf(p.kind, p.fields);
+  const late = !!p.due && p.due < now && status !== "done" && status !== "cancelled";
+  const day =
+    p.due &&
+    (p.due === now
+      ? "today"
+      : new Date(`${p.due}T12:00`).toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "short",
+          ...(p.due.slice(0, 4) !== now.slice(0, 4) && { year: "numeric" }),
+        }));
+  const said = [p.priority, day && `${late ? "overdue" : "due"} ${day}`];
+  return [said.filter(Boolean).join(" · "), late];
+}
