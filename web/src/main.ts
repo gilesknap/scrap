@@ -115,6 +115,11 @@ window.addEventListener("popstate", (e) => {
     back.pop();
   } else void render();
 });
+// A sheet's entry from before a reload (or the phone discarding the app) is a plain one now:
+// stepping over it could leave this document, with no popstate to end the step
+if (history.state?.sheet) history.replaceState(null, "");
+// Back from bfcache after such a step: it never landed here
+window.addEventListener("pageshow", (e) => e.persisted && back.landed());
 
 // Header badge: what is waiting to upload; tap to retry now.
 const badge = document.getElementById("queue") as HTMLButtonElement;

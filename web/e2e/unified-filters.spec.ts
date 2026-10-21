@@ -149,20 +149,28 @@ test("closed and opened again at once, it stays open; Forward steps over its old
   await expect(sheet(page)).toBeVisible();
   await page.evaluate(() => {
     (document.querySelector(".sheet .primary") as HTMLElement).click();
-    (document.querySelector(".refine .filter") as HTMLElement).click();
+    const chip = document.querySelector(".refine .filter") as HTMLElement;
+    chip.click();
+    chip.click(); // a double tap while the step back is on its way: still one sheet
   });
   await expect(sheet(page)).toBeVisible();
   await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBe(1);
   await expect(sheet(page)).toBeVisible(); // the first close's step back did not close it
+  await expect(page.locator("dialog.sheet")).toHaveCount(1);
+  // Something changed in it: its entry stays marked
+  await sheet(page).getByRole("button", { name: "Edited in the past year" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue("potoroo after:1y");
   await sheet(page).getByRole("button", { name: "Done" }).click();
   await expect(sheet(page)).toBeHidden();
   await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
+  await expect(page).toHaveURL(/\/search\?q=potoroo%20after%3A1y$/);
   // Forward: onto the closed sheet's entry, which is stepped over, back to the list
   await page.goForward();
   await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
   await expect(sheet(page)).toBeHidden();
+  await expect(page).toHaveURL(/\/search\?q=potoroo%20after%3A1y$/);
   await expect(hits(page)).toHaveCount(3);
-  await page.goBack();
+  await page.goBack(); // no copy of the list left behind
   await expect(page).toHaveURL(/\/$/);
 });
 

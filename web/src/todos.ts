@@ -49,9 +49,11 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       open(),
       api<Todo[]>(`pages?limit=${LIMIT}&kind=todo`, { signal }),
     ]);
-    list = [...opened, ...recent.filter((p) => !isOpen(p))].sort((a, b) =>
-      b.updated_at.localeCompare(a.updated_at),
-    );
+    // by id: an edit between two pages shifts the list, so a todo can come twice
+    const seen = new Set<string>();
+    list = [...opened, ...recent.filter((p) => !isOpen(p))]
+      .filter((p) => !seen.has(p.id) && !!seen.add(p.id))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   } catch (e) {
     return problem(e);
   }

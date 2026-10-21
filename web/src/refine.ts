@@ -6,7 +6,7 @@
 // only edits the query's text (tag:tech, is:personal), so it can be typed too. In the app
 // shell, so Filters opens at once.
 import { api } from "./api";
-import { back, go, view } from "./app";
+import { address, back, go, view } from "./app";
 import { icon } from "./icons";
 import { adding, day, has, kindsIn, removing, token } from "./terms";
 import { h } from "./ui";
@@ -42,6 +42,8 @@ const facets = (q: string, signal?: AbortSignal) =>
 const filtersOf = (f: Facets) => f.active.filter((a) => a.key !== "kind" || a.neg);
 const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
 
+let queued = false; // a tap on Filters waiting for a step back to land
+
 /** The row and the line above the list, for a query (with none: Filters alone). apply edits
  * the query in the box and runs it. */
 export async function refine(
@@ -59,7 +61,14 @@ export async function refine(
       "aria-haspopup": "dialog",
       "aria-label": on.length ? `Filters, ${on.length} on` : "Filters",
       // After a closed sheet's step back has landed (Escape, then Enter at once)
-      onclick: () => void (back.pending ?? Promise.resolve()).then(() => sheet(q, f, apply)),
+      onclick: () => {
+        if (queued) return;
+        queued = true;
+        void (back.pending ?? Promise.resolve()).then(() => {
+          queued = false;
+          sheet(q, f, apply);
+        });
+      },
     },
     icon("filter"),
     "Filters",
@@ -186,7 +195,7 @@ function sheet(q: string, f: Facets, apply: (edit: Edit) => void) {
   dlg.onclick = (e) => e.target === dlg && shut(); // a tap outside it (on the backdrop)
   const popped = () => {
     entry = false; // main.ts took it off back.take: the screen stays as it is
-    if (here() !== url) history.replaceState(null, "", url); // the query as it is now
+    if (here() !== url) address(url); // the query as it is now
     if (dlg.open) dlg.close();
     then?.();
   };

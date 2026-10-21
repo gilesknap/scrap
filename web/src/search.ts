@@ -6,7 +6,7 @@
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
-import { go, markNav, view } from "./app";
+import { address, go, markNav, view } from "./app";
 import { icon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
 import { refine } from "./refine";
@@ -88,7 +88,7 @@ export async function search(): Promise<Node> {
     if (!first) {
       limit = PAGE; // a new query: from the top
       scroll = 0;
-      history.replaceState(null, "", query ? `/search?q=${encodeURIComponent(query)}` : "/search");
+      address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
     markNav();
     showKinds(query);

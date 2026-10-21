@@ -83,9 +83,9 @@ the link as the capture's URL.
 ## View, edit, search
 
 - The nav has three tabs, **Capture**, **Todos** and **Search**. **Todos** opens the Todos
-  screen on **Now** (below); its badge counts the open todos due today or overdue, by your phone's day (none: no
-  badge), and is counted again when the app opens or comes back and after a tick or an edit.
-  **Search** opens the list screen for everything else: with
+  screen on **Now** (below); its badge counts the open todos due today or overdue, by your
+  phone's day (none: no badge), and is counted again when the app opens or comes back and
+  after a tick or an edit. **Search** opens the list screen for everything else: with
   nothing in the search box it lists every page newest first, with a thumbnail of the first
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. (There is no separate Recent screen any more: the empty box is it.)
@@ -129,13 +129,14 @@ the link as the capture's URL.
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.
-- The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or cancelled, what to
-  do first at the top, in groups: **Overdue** (oldest due date first), **Today**, **High
-  priority** (no due date), then **Later** (by priority, then due date, then last edited). Each
-  row starts with its priority and due date. Done and cancelled todos are folded away at the
-  end (**Done**, tap to open; those among the 500 todos last edited). A switch at the top picks the list instead: **Upcoming** (due
-  after today, soonest first) or **All** (every open todo and those done ones, last edited first). Each list sets its
-  own order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
+- The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or
+  cancelled, what to do first at the top, in groups: **Overdue** (oldest due date first),
+  **Today**, **High priority** (no due date), then **Later** (by priority, then due date, then
+  last edited). Each row starts with its priority and due date. Done and cancelled todos are
+  folded away at the end (**Done**, tap to open; those among the 500 todos last edited). A
+  switch at the top picks the list instead: **Upcoming** (due after today, soonest first) or
+  **All** (every open todo and those done ones, last edited first). Each list sets its own
+  order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
   **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
   `priority:` and `sort:due` still search and order todos.

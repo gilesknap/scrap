@@ -22,6 +22,14 @@ export function go(path: string, replace = false, state: object | null = null) {
   rerender();
 }
 
+/** Write the current entry's address (a new query, say), keeping the Filters sheet's mark on
+ * its entry. While a step back of the app's own is on its way, on the entry it lands on, after
+ * the sheet's own write there (so the newest address wins). */
+export function address(path: string) {
+  if (back.pending) return void back.pending.then(() => address(path));
+  history.replaceState(history.state?.sheet ? { sheet: 1 } : null, "", path);
+}
+
 /** A plain click (or tap) the app may route itself: not one meant for a new tab or window
  * (Ctrl, Cmd, Shift, Alt, a middle click) nor one a handler already took. */
 export const plain = (e: MouseEvent) =>
