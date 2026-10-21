@@ -98,41 +98,79 @@ test("ticks on Read rows and search results; none on notes", async ({ page }) =>
   await expect(page).toHaveURL(/\/search/);
 });
 
-test("a page offers Done from any status but done, Reopen from done or cancelled", async ({
+test("a page offers Mark done from any status but done, Reopen from done or cancelled", async ({
   page,
 }) => {
   const tools = page.locator(".page > .tools");
-  const offered = () => tools.getByRole("button", { name: /^(Done|Reopen)$/ }).allTextContents();
+  const offered = () =>
+    tools.getByRole("button", { name: /^(Mark done|Reopen)$/ }).allTextContents();
 
   const [, busy, busyId] = await make(page, "todo", "in_progress");
   await page.goto(`/p/${busy}`);
-  await expect.poll(offered).toEqual(["Done"]);
-  await tools.getByRole("button", { name: "Done" }).click();
+  await expect.poll(offered).toEqual(["Mark done"]);
+  await tools.getByRole("button", { name: "Mark done" }).click();
   await expect.poll(offered).toEqual(["Reopen"]);
   expect(await statusOf(page, busyId)).toBe("done");
 
   const [, gone, goneId] = await make(page, "todo", "cancelled");
   await page.goto(`/p/${gone}`);
-  await expect.poll(offered).toEqual(["Done", "Reopen"]);
-  await page.setViewportSize({ width: 320, height: 700 }); // six tools still fit
+  await expect.poll(offered).toEqual(["Mark done", "Reopen"]);
+  await page.setViewportSize({ width: 320, height: 700 }); // five tools still fit
   await page.screenshot({ path: test.info().outputPath("cancelled-320.png") });
   await tools.getByRole("button", { name: "Reopen" }).click();
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
   expect(await statusOf(page, goneId)).toBe("open");
 
   // A Read has them too, and a done todo turned into a Read can be reopened (#69)
   const [, read] = await make(page, "consume");
   await page.goto(`/p/${read}`);
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
   const [, was, wasId] = await make(page, "todo", "done");
   await page.request.patch(`/api/pages/${wasId}`, { data: { kind: "consume" } });
   await page.goto(`/p/${was}`);
   await expect.poll(offered).toEqual(["Reopen"]);
   await tools.getByRole("button", { name: "Reopen" }).click();
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
 
   const [, note] = await make(page, "note");
   await page.goto(`/p/${note}`);
   await expect(tools.getByRole("button", { name: "Edit" })).toBeVisible();
   await expect.poll(offered).toEqual([]);
+});
+
+test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's menu", async ({
+  page,
+}) => {
+  const tools = page.locator(".page > .tools");
+  const names = () =>
+    tools.locator(":scope > *").evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
+  const [, slug] = await make(page, "todo");
+  // No share sheet on this browser: Download stays in Share's place
+  await page.goto(`/p/${slug}`);
+  await expect.poll(names).toEqual(["Mark done", "Edit", "Download", "Delete"]);
+  const done = tools.getByRole("button", { name: "Mark done" });
+  await expect(done).toHaveClass(/primary/);
+  const width = async (name: string) =>
+    (await tools.getByText(name, { exact: true }).boundingBox())?.width ?? 0;
+  expect(await width("Mark done")).toBeGreaterThan(await width("Edit"));
+  // Every label whole at 360 px
+  await page.setViewportSize({ width: 360, height: 740 });
+  const cut = await tools
+    .locator(":scope > *")
+    .evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).length);
+  expect(cut).toBe(0);
+
+  // With a share sheet: Share's menu ends with Download, and a tap on it closes the menu
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", { value: async () => {}, configurable: true });
+  });
+  await page.goto(`/p/${slug}`);
+  await expect.poll(names).toEqual(["Mark done", "Edit", "Share", "Delete"]);
+  await tools.getByRole("button", { name: "Share" }).click();
+  const menu = page.locator(".share-menu");
+  await expect(menu.locator(":scope > *")).toHaveText(["Link", "Text", "Download"]);
+  const saved = page.waitForEvent("download");
+  await menu.getByRole("link", { name: "Download" }).click();
+  await expect(menu).toHaveCount(0);
+  expect((await saved).suggestedFilename()).toMatch(/\.md$/);
 });

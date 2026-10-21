@@ -14,7 +14,8 @@ design into another tool and back.
   No blue-greys, no second accent.
 - **One hero per screen.** Composer and editor: Save, the one amber fill. Capture: no hero; its
   three actions (Camera, Gallery, Note) are equal tiles, since none is more likely than the
-  others. Page: its toolbar. Everything else steps down: secondary (outlined surface), then
+  others. Page: a todo's or a Read's **Mark done**, the toolbar's one fill; a page with no
+  status has none. Everything else steps down: secondary (outlined surface), then
   ghost (text only).
 - **Under the thumb.** Capture actions, the page toolbar and the nav sit at the bottom; Cancel,
   Preview and Save sit in the editor's top bar because the keyboard owns the bottom.
@@ -25,8 +26,8 @@ design into another tool and back.
 - **Dark is designed, not inverted.** Surfaces get lighter as they come forward; amber is a step
   lighter; toasts stay dark slabs in both themes.
 - **Every gesture has a button.** Swipes are shortcuts, never the only way: a row's Edit and
-  Delete are also on its page (and a row's tick is a button of its own, with Done and Reopen
-  on the page too), the page's swipe is also its ‹ › pager and the arrow keys.
+  Delete are also on its page (and a row's tick is a button of its own, with Mark done and
+  Reopen on the page too), the page's swipe is also its ‹ › pager and the arrow keys.
   Gestures start away from the screen's edges, which belong to the phone's Back gesture.
 - **Motion confirms, never decorates.** 90-260 ms, eased out; none under reduced motion.
 
@@ -89,7 +90,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Button, ghost | `.ghost`, `button.link` | no fill (Cancel, Discard it, the pager's ‹ ›) |
 | Button, danger | `.danger` | red label, never filled |
 | Tile | `.tile` | icon over a short label on `--sunk`, 72 high; the capture actions Camera, Gallery and Note, three equal columns |
-| Toolbar | `.tools` | icon-over-label tiles sharing the width by their labels (`flex: 1 1 auto`), so no word is cut: Edit draft, Done, Reopen, Download, Share and Delete all fit whole from 360 px; page actions (sticky above the nav), viewer tools |
+| Toolbar | `.tools` | icon-over-label tiles sharing the width by their labels (`flex: 1 1 auto`), so no word is cut; page actions (sticky above the nav, over the page text: `z-index` 2), viewer tools. A page's order: **Mark done** (a todo or a Read not done: `.primary`, `--accent` fill, `--on-accent` label at `--t-sm`, `--r-md` corners, wider at `flex: 1.6 1 auto`, the check icon), **Reopen** (done or cancelled; plain, the retry icon; a cancelled one has both), **Edit** (or Edit draft), **Share**, **Delete** (danger); Download is in Share's menu, or in Share's place where the browser can't share. Four fit whole at 360 px, a cancelled todo's five at 320 |
 | Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Board, Doc: short labels so all five fit one row from 320 px, with the full names Whiteboard and Document as the radios' accessible names and titles) the search screen's fixed kind row (`.kindrow`: All, Notes, Todos, Reads, Boards, Docs; one tap sets or clears `kind:`) and the Tags screen's order (`.filters`); selected = raised surface, amber icon |
 | Top bar | `header` | wordmark with the scrap mark; the queue badge on the right |
 | Badge | `.badge`, `.badge.failed` | pill with a status dot: amber waiting, red failed |
@@ -114,7 +115,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
 | Search field | `.field-search` | pill with a search icon; on the search screen a ✕ (`.clear`, a 48 px ghost button, "Clear search") at its end while it has text, in place of the browser's own |
 | Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
-| Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it |
+| Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, the content (**Text** on a page, **Photo** in the viewer) and on a page **Download** (a link drawn as the rows are; tapping it closes the menu), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it. What Share and Download do is a chunk of its own (`sharing.ts`), loaded on the first tap |
 | Sort menu | `select.facet.sort` | in the Filters sheet: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:`; selects take the app's face like every control (`font: inherit`) |
 | Tag line | `.tags` | a page's tags under its title, `--sunk` pills that each search for their tag, in one line that scrolls; first an outlined **Tags** pill (tag icon) that edits them |
 | Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`), then the six most used tags not on it yet as `.facet` chips with a dashed `--line-strong` edge (offered, where the chosen are filled), one tap each, in a line that scrolls (`.toptags`, a group "Most used tags", from the same `/api/tags` answer as the suggestions); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, under the title; in the composer, under the text (above the photos) |
@@ -189,8 +190,8 @@ badge get a `ButtonText` edge.
 
 Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 18 in the
 segmented control, 16 on a photo's remove button, 52 (in a circle) in empty states.
-Icons: camera, image, note, todo (check in a square; Done, and a row's tick, which hides the
-check until done), later (bookmark), board (a whiteboard on
+Icons: camera, image, note, todo (check in a square; a row's tick, which hides the check until
+done), done (a check alone: Mark done, so a box always means a tick you can see), later (bookmark), board (a whiteboard on
 its stand), link, file, download,
 share, edit, trash, search, filter (two sliders: the Filters chip), close, back, next, fit, retry (also Reopen), offline; the nav's plus, check box and magnifier are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the

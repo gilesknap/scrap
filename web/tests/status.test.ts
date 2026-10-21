@@ -9,12 +9,12 @@ it("gives todos and Reads a status, open if they have none, and nothing else one
   expect(statusOf("whiteboard", undefined)).toBeNull();
 });
 
-it("offers Done from any status but done, Reopen from done or cancelled", () => {
-  expect(ticks("open")).toEqual([["Done", "done"]]);
-  expect(ticks("in_progress")).toEqual([["Done", "done"]]);
+it("offers Mark done from any status but done, Reopen from done or cancelled", () => {
+  expect(ticks("open")).toEqual([["Mark done", "done"]]);
+  expect(ticks("in_progress")).toEqual([["Mark done", "done"]]);
   expect(ticks("done")).toEqual([["Reopen", "open"]]);
   expect(ticks("cancelled")).toEqual([
-    ["Done", "done"],
+    ["Mark done", "done"],
     ["Reopen", "open"],
   ]);
   expect(ticks(null)).toEqual([]);

@@ -240,13 +240,13 @@ test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the la
   await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
   expect((await api()).fields.status).toBe("done");
   await boxes.nth(0).click();
-  await expect(tools.getByRole("button", { name: "Done", exact: true })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "Mark done", exact: true })).toBeVisible();
   expect(await api()).toMatchObject({ fields: { status: "open" }, tasks: { done: 2, total: 3 } });
   // Done by hand ticks no box (opened on its own, not from a list)
   await page.goto("/");
   await page.goto(`/p/${made.slug}`);
   await expect(page.locator(".pager")).toHaveCount(0);
-  await tools.getByRole("button", { name: "Done", exact: true }).click();
+  await tools.getByRole("button", { name: "Mark done", exact: true }).click();
   await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
   await expect(boxes.nth(0)).not.toBeChecked();
   expect(await api()).toMatchObject({ fields: { status: "done" }, tasks: { done: 2, total: 3 } });

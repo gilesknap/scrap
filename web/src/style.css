@@ -1229,6 +1229,7 @@ div.orig .save {
 }
 .page > .tools {
   position: sticky;
+  z-index: 2; /* over the page text scrolling under it, task boxes (z-index 1) too */
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   gap: 0;
   margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
@@ -1236,7 +1237,16 @@ div.orig .save {
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
-/* Share's choice (a popover just above it, placed by ui.ts): Link, or the content */
+/* A todo's or a Read's Mark done: the page's hero, filled and wider than the other tools */
+.tools > .primary {
+  flex: 1.6 1 auto;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--t-sm);
+}
+/* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
+   page Download (a link drawn as its rows are) */
 .share-menu {
   position: fixed;
   inset: auto;
@@ -1253,7 +1263,7 @@ div.orig .save {
   display: flex;
   flex-direction: column;
 }
-.share-menu button {
+.share-menu :is(button, .button) {
   justify-content: flex-start;
   border: none;
   background: transparent;
@@ -1604,10 +1614,10 @@ div.orig .save {
 .viewer .button:active {
   background: color-mix(in srgb, var(--on-overlay) 14%, transparent);
 }
-.viewer .share-menu button {
+.viewer .share-menu :is(button, .button) {
   color: var(--ink); /* the menu is a light surface, not the dark viewer */
 }
-.viewer .share-menu button:active {
+.viewer .share-menu :is(button, .button):active {
   background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .viewer .tools b {

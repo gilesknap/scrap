@@ -103,6 +103,7 @@ export async function page(key: string): Promise<Node> {
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     const typing = !!tagForm?.contains(document.activeElement);
     const said = dueOf(p);
+    const saved = download(`/api/pages/${p.id}/download`); // the page as a file
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
@@ -167,19 +168,28 @@ export async function page(key: string): Promise<Node> {
       h(
         "div",
         { className: "bar tools" },
-        editButton(p),
-        // A todo or a Read: Done, Reopen (done or cancelled), or both (cancelled)
+        // A todo or a Read leads with Mark done (the page's hero), Reopen when done, or both
+        // when cancelled
         ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(
             "button",
-            { onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement) },
-            icon(to === "done" ? "todo" : "retry"),
+            {
+              className: to === "done" ? "primary" : "",
+              onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement),
+            },
+            icon(to === "done" ? "done" : "retry"),
             label,
           ),
         ),
-        download(`/api/pages/${p.id}/download`),
-        // Its link, or its text as typed (no link to scrap in it)
-        share(() => ({ title: p.title, text: unembedded(p.body) }), pageLink(p.slug)),
+        editButton(p),
+        // Its link, its text as typed (no link to scrap in it), or the page as a file; where
+        // the phone can't share, Download in Share's place
+        share(
+          () => ({ title: p.title, text: unembedded(p.body) }),
+          pageLink(p.slug),
+          undefined,
+          saved,
+        ) ?? saved,
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );
