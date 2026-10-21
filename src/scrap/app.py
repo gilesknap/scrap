@@ -52,7 +52,8 @@ BLOB_HEADERS = {
 SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
 SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
-APP_ROUTES = ("/", "/recent", "/search", "/tags", "/p/{key}")  # served index.html
+# Served index.html
+APP_ROUTES = ("/", "/recent", "/search", "/tags", "/todos", "/p/{key}")
 NOT_BUILT = (
     "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
     "\n(the API under /api works without it)\n"

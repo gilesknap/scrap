@@ -93,7 +93,8 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Board, Doc: short labels so all five fit one row from 320 px, with the full names Whiteboard and Document as the radios' accessible names and titles) the search screen's fixed kind row (`.kindrow`: All, Notes, Todos, Reads, Boards, Docs; one tap sets or clears `kind:`) and the Tags screen's order (`.filters`); selected = raised surface, amber icon |
 | Top bar | `header` | wordmark with the scrap mark; the queue badge on the right |
 | Badge | `.badge`, `.badge.failed` | pill with a status dot: amber waiting, red failed |
-| Bottom nav | `nav` | icon over label; active item gets an amber-soft pill and ink label |
+| Bottom nav | `nav` | three tabs, Capture, Todos, Search: icon over label; active item gets an amber-soft pill and ink label (`aria-current`) |
+| Nav count | `nav .due-n` | the Todos tab's open todos due today or overdue: a 20 px `--accent` pill with `--on-accent` digits on the icon's corner, ringed in `--bg`; hidden at 0; the tab's accessible name says it ("Todos, 3 due"). One count request when the app opens or comes back and after a change, never polled |
 | List group | `.list` | rows in one rounded card; `.pending` is dashed (still on the phone) |
 | List row | `.list li` | 48 thumbnail or kind icon, title, date and kind chip; actions under it |
 | Swipe row | `.list li.swipe`, `.row-under` | follows the finger; behind it Edit on `--accent-soft` (right) or Delete on `--danger-soft` (left); past the threshold the icon grows (Edit turns `--accent`) and letting go does it |
@@ -101,15 +102,19 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; the page follows a sideways swipe and slides off to the next |
 | Kind chip | `.list em` | amber-soft pill: "todo", "read", or the status that ends one: "done", "cancelled" |
 | Due line | `.list .due`, `.todoline`, `.todoedit` | a todo's priority and due date in words ("high · due 3 Nov") after its chip, `--ink-2`; overdue (`.late`: due before today, not done or cancelled) says "overdue" in `--danger`, semibold: the word carries it, never colour alone. On its page, a pill button under the tags opens `.todoedit` in place: a native date input, **No date** (ghost) and a native priority `select`, then Cancel and Save; the editor shows the same while the kind is Todo |
-| Saved views | `.facet` in `.refine` | the Todos screen's **Today**, **Overdue**, **Upcoming**: chips like the facets, `.on` while their filters are the query's (those filters then get no chips of their own) |
+| Refine row | `.refine` | under the kind row, one line that scrolls sideways: **Filters** always first and alone at its start (a `.facet.filter` with a slider icon and, when filters are on, their number in a 20 px `--accent` pill with `--on-accent` digits; its name says "Filters, 2 on"), then the results' top tags as `.facet` chips with counts. Nothing is added at the start as filters are chosen |
+| Found line | `.found` | above the list: the count ("104 pages", `--ink-2`), then each filter on as a `.facet.on` chip with a ✕ (`aria-label` "Remove tag:x"), wrapping rather than scrolling, so what is chosen is always in view |
+| Filters sheet | `dialog.sheet` | a bottom sheet (below) holding what used to crowd the row: **Sort**, **When** (1w, 1m, 1y, Dates…, By created date), **Work or personal**, a todo search's **Due** views (Today, Overdue, Upcoming), **Browse tags**; sections under small uppercase `h3`s in `--ink-2`, options as `.facet` chips that wrap, a chosen one `aria-pressed` on `--accent-soft`, semibold; a sticky bar under the thumb: **Clear filters** (ghost) and **Done** (primary, the sheet's one hero) |
+| Todos screen | `.todos` | the segmented control again (**Now**, **Upcoming**, **All**: each sets its own order, so no Sort), the count in `--ink-2`, then Now's groups under `h2.label` headings ("Overdue · 3", "Today", "High priority", "Later"), each its own `.list`; rows lead with the due line (CSS `order`), then the edit date |
+| Done fold | `.donefold` (`details`) | Now's done and cancelled todos, folded at the end: a 48 px summary in `--ink-2` with the chevron of `.claude-text` |
 | Row tick | `.list .tick` | a todo's or a Read's row: a 48 px toggle (`aria-pressed`, `aria-label` "Done: title") at its end, beside the row's link rather than in it, so tapping it opens nothing; an empty box in `--ink-2`, ticked in `--accent-ink` when done; it slides with the row, and a drag that starts on it swipes the row |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
-| Search field | `.field-search` | pill with a search icon |
+| Search field | `.field-search` | pill with a search icon; on the search screen a ✕ (`.clear`, a 48 px ghost button, "Clear search") at its end while it has text, in place of the browser's own |
 | Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
 | Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it |
-| Sort menu | `select.facet.sort` | in the refine row, after Tags: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:` |
+| Sort menu | `select.facet.sort` | in the Filters sheet: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:` |
 | Tag line | `.tags` | a page's tags under its title, `--sunk` pills that each search for their tag, in one line that scrolls; first an outlined **Tags** pill (tag icon) that edits them |
 | Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, under the title; in the composer, under the text (above the photos) |
 | Toast | `.toast` | dark slab above what is under the thumb, amber text action |
@@ -131,6 +136,28 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Loading image | the reserved box shimmers between `--sunk` and `--line` until the image loads or fails, then stops |
 | Failed | `--danger` text in words, a `--danger-soft` badge; never colour alone |
 | Overdue | a todo's due line in `--danger`, semibold, saying "overdue" (AA on `--bg`, `--surface` and `--sunk` in both themes, as `--danger` is checked); back to `--ink-2` once done |
+
+## The Filters sheet: our one modal
+
+The refine row kept gaining controls at its left end (Clear, Tags, Sort, the count, then every
+filter chosen), pushing what you came for off the screen. Those controls are used now and then,
+not on every search, so they moved behind one **Filters** chip into a sheet; the row keeps only
+Filters and the tags. A popover (like the share menu) is too small for five groups of options
+and would open far from the thumb; a new screen would hide the list the choices change. So the
+sheet is a native `<dialog>` opened with `showModal()`, which makes the rest of the page inert
+(focus stays inside, screen readers see only it), with the platform's own Escape handling:
+
+- At the bottom of the screen, full width (at most 40rem), `--surface` with `--r-lg` top
+  corners and `--shadow-2`, at most 85 % of the screen high (it scrolls inside); its bar of
+  Clear filters and Done is sticky at the bottom, above the safe area. It slides up over
+  `--d-3` (none under reduced motion); the page behind is dimmed with `--overlay`.
+- It opens with focus on its title (`aria-labelledby`); Done, Escape, Back (it pushes a history
+  entry of its own, so Back closes it rather than leaving the screen) or a tap on the dimmed
+  page closes it, and focus returns to the Filters chip.
+- A tap in it changes the query at once and the list behind follows, so it is never a form to
+  submit and never holds state the address doesn't: Back after closing it, a reload or a shared
+  link show the same list. A control keeps its focus as the sheet is drawn again.
+- It is in the app shell, not a lazy chunk, so it opens without a wait.
 
 ## Layout and breakpoints
 
@@ -164,7 +191,7 @@ segmented control, 16 on a photo's remove button, 52 (in a circle) in empty stat
 Icons: camera, image, note, todo (check in a square; Done, and a row's tick, which hides the
 check until done), later (bookmark), board (a whiteboard on
 its stand), link, file, download,
-share, edit, trash, search, close, back, next, fit, retry (also Reopen), offline; the nav's plus and clock are
+share, edit, trash, search, filter (two sliders: the Filters chip), close, back, next, fit, retry (also Reopen), offline; the nav's plus, check box and magnifier are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the
 paper scrap on amber; the header mark is the same scrap in amber.
 
@@ -174,8 +201,9 @@ paper scrap on amber; the header mark is the same scrap in amber.
 - No colour outside `tokens.css` (the debug panel aside), and no second accent; no gradients
   except the viewer's scrim. High-contrast mode uses the system's colour keywords.
 - No colour as the only signal: selection also raises, failure also says so in words.
-- No modal dialogs of our own (the browser's `confirm()` stays for destructive questions);
-  the share menu is a light-dismiss popover, not a modal.
+- One modal of our own, and only one: the search screen's **Filters** sheet (below). Otherwise
+  no modal dialogs (the browser's `confirm()` stays for destructive questions); the share menu
+  is a light-dismiss popover, not a modal.
 - No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.
 - No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
   extend their hit area with an invisible `::after`), no text under 12.75 px, no text pair

@@ -484,7 +484,7 @@ Page text is Markdown, parsed by a library on both sides with the same grammar: 
 GitHub's tables, strikethrough and footnotes, `[[slug|label]]` page links, raw HTML as text and
 a line break kept as one. The PWA renders it with markdown-it (task lists, bare `https://` links
 and heading ids too) in `render.ts`, a lazy chunk the service worker keeps for offline use, so
-the app shell stays within its 15 kB budget; the page view loads it while it fetches the page,
+the app shell stays within its 16 kB budget; the page view loads it while it fetches the page,
 and without it (offline before it was kept) shows the text as typed. A post-parse pass allows
 only http(s), mailto, page and in-page links (opened with `rel=noopener`), and only this server's
 own images, each marked with its `data-sha` for `figure.ts`. A ` ```mermaid ` block is drawn by
