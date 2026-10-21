@@ -38,6 +38,8 @@ interface Draft {
   text: string;
   kind?: string;
   picked?: boolean; // the user chose the kind
+  tags?: string[];
+  tagsFrom?: string[]; // the page's tags when it was made: changed elsewhere since, they stay
   base: number; // the revision it was made on
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
@@ -93,25 +95,39 @@ export async function page(key: string): Promise<Node> {
     ]);
   };
   await load(p);
+  // Its tags being edited in place: kept as they are (what is typed, chips taken off) when
+  // the page is drawn again meanwhile, e.g. a photo's reading state changing
+  let tagForm: HTMLFormElement | null = null;
   const show = (p: Page) => {
     shown = p;
     schedule(p);
     const body = bodyView(p.body, false);
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
+    const typing = !!tagForm?.contains(document.activeElement);
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
       // Its tags, most used first, in one line that scrolls; each one tapped searches for it
-      // (with its children: tag:a finds a/b)
-      p.tags?.length
-        ? h(
-            "p",
-            { className: "tags" },
-            ...p.tags.map((t) =>
-              h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
-            ),
-          )
-        : "",
+      // (with its children: tag:a finds a/b). First, Tags: tapped, edits them in place
+      tagForm ??
+        h(
+          "p",
+          { className: "tags" },
+          h(
+            "button",
+            // Not "Edit tags": the toolbar's Edit stays the only button named Edit
+            {
+              type: "button",
+              "aria-label": p.tags.length ? "Change tags" : "Add tags",
+              onclick: (e: Event) => tagEdit(e),
+            },
+            icon("tag"),
+            p.tags.length ? "Tags" : "Add tags",
+          ),
+          ...p.tags.map((t) =>
+            h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
+          ),
+        ),
       h(
         "p",
         { className: "meta" },
@@ -150,6 +166,7 @@ export async function page(key: string): Promise<Node> {
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );
+    if (typing) tagForm?.querySelector("input")?.focus();
   };
 
   async function edit(p: Page) {
@@ -161,7 +178,7 @@ export async function page(key: string): Promise<Node> {
       import("./editor").catch(() => null), // a chunk of its own, with the composer
     ]);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    const { editor, kindPicker, suggested, toSend, confirmRemoval } = mod;
+    const { editor, kindPicker, suggested, toSend, confirmRemoval, tagField, same } = mod;
     // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
     // as in the composer, until the user picks one; a draft's kind only if the user picked it
     const unfiled = !p.kind_fixed && p.kind === "note";
@@ -173,6 +190,12 @@ export async function page(key: string): Promise<Node> {
     const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
     const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
     if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(text.value)));
+    // Tags: a draft's only if they were changed in it (not, say, tags Claude or another
+    // device set since); and sent only if changed from those it started from
+    const ours = kept?.tags && !same(kept.tags, kept.tagsFrom ?? p.tags) ? kept : null;
+    let tagsFrom = ours?.tagsFrom ?? p.tags;
+    const tags = tagField(ours?.tags ?? p.tags, () => ed.keep());
+    const retagged = () => !same(tags.value(), tagsFrom);
     const conflict = h("div");
     const save = async () => {
       if (!(await confirmRemoval(p, over, text.value))) return; // still editing, as it was
@@ -186,6 +209,7 @@ export async function page(key: string): Promise<Node> {
             body: text.value,
             ...(title.value !== p.title && { title: title.value }),
             kind: toSend(kind.value(), kind.picked(), p.kind),
+            ...(retagged() && { tags: tags.value() }),
           }),
         });
         await ed.done();
@@ -231,7 +255,7 @@ export async function page(key: string): Promise<Node> {
     };
     const ed = editor({
       text,
-      before: [kind.el, title],
+      before: [kind.el, title, tags.el],
       after: [conflict],
       key,
       draft: (): Draft => ({
@@ -239,20 +263,72 @@ export async function page(key: string): Promise<Node> {
         text: text.value,
         kind: kind.value(),
         picked: kind.picked(),
+        tags: tags.value(),
+        tagsFrom,
         base,
       }),
-      dirty: () => title.value !== p.title || text.value !== p.body || kind.value() !== was,
+      dirty: () =>
+        title.value !== p.title || text.value !== p.body || kind.value() !== was || retagged(),
       restored: !!kept,
       ondiscard: () => {
         title.value = p.title;
         text.value = p.body;
         kind.reset(was);
+        tags.reset(p.tags);
+        tagsFrom = p.tags;
         base = p.rev;
         over = p.body;
       },
       onsave: () => void save(),
     });
     text.focus();
+  }
+
+  // Its tags edited in place of their line: no new revision (a chunk of its own)
+  async function tagEdit(e: Event) {
+    const line = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const mod = await import("./tagedit").catch(() => null);
+    if (!mod) return toast("Can't edit tags offline");
+    const p = shown; // as it is now
+    const field = mod.tagField(p.tags);
+    const save = h("button", { type: "submit", className: "primary" }, "Save");
+    // Closed (saved or not): the page as it is now, focus back on its Tags button
+    const close = (to: Page) => {
+      tagForm = null;
+      show(to);
+      root.querySelector<HTMLElement>(".tags > button")?.focus();
+    };
+    const form = h(
+      "form",
+      {
+        className: "tagform",
+        onkeydown: (e: KeyboardEvent) => {
+          if (e.key === "Escape") close(shown);
+        },
+        onsubmit: (e: Event) => {
+          e.preventDefault();
+          save.disabled = true;
+          api<Page>(`pages/${p.id}`, {
+            method: "PATCH",
+            headers: JSON_TYPE,
+            body: JSON.stringify({ tags: field.value() }),
+          }).then(close, (err) => {
+            save.disabled = false;
+            toast(`Not saved: ${why(err)}`);
+          });
+        },
+      },
+      field.el,
+      h(
+        "div",
+        { className: "row" },
+        h("button", { type: "button", className: "ghost", onclick: () => close(shown) }, "Cancel"),
+        save,
+      ),
+    );
+    tagForm = form;
+    line.replaceWith(form);
+    field.input.focus();
   }
 
   // Ticked off (or not): its status only, no new revision

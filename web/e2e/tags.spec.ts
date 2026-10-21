@@ -4,6 +4,14 @@ import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 
+/** A photo whose reading failed (e2e/draw.py): its Retry draws the page again. */
+function failedPhoto(): { slug: string } {
+  const data = process.env.SCRAP_E2E_DATA as string;
+  const args = ["run", "--locked", "python", "web/e2e/draw.py", data, "failed"];
+  const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
+  return JSON.parse(out.trim().split("\n").pop() || "null");
+}
+
 let slugs: string[] = [];
 test.beforeAll(() => {
   const data = process.env.SCRAP_E2E_DATA as string;
@@ -108,4 +116,142 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await expect(hits(page)).toHaveCount(2);
   await refine(page).getByRole("link", { name: "Tags" }).click();
   await expect(page).toHaveURL(/\/tags$/);
+});
+
+test("tags are edited on the page, and in the editor (a row's swipe opens it)", async ({
+  page,
+}) => {
+  const id = "01E2ETAGED17".padEnd(26, "0");
+  const made = await page.request.post("/api/captures", { data: { id, text: "Tag me please" } });
+  const { slug } = await made.json();
+  await page.goto(`/p/${slug}`);
+  const line = page.locator(".page h1 + .tags");
+  await line.getByRole("button", { name: "Add tags" }).click();
+  const box = page.getByRole("combobox", { name: "Add a tag" });
+  await expect(box).toBeFocused();
+  await box.fill("#Quokka Pen");
+  await box.press("Enter");
+  await box.fill("quokka/feed,");
+  await expect(page.getByRole("button", { name: "Remove #quokka pen" })).toBeVisible();
+  await page.getByRole("button", { name: "Remove #quokka pen" }).click();
+  await box.fill("zebu"); // still in the box when saved: it counts
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#zebu"]);
+  await expect(line.getByRole("button", { name: "Change tags" })).toBeVisible();
+  // In the editor: Cancel puts them back, Save sends them with the text
+  await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
+  const editor = page.locator(".editor");
+  await editor.getByRole("button", { name: "Remove #zebu" }).click();
+  await editor.getByRole("combobox", { name: "Add a tag" }).fill("quokka/water");
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#quokka/water"]);
+  await page.goto("/search?q=tag%3Aquokka");
+  await expect(hits(page)).toHaveText(["Tag me please"]);
+  // Suggestions: the tags in use
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Change tags" }).click();
+  await expect(page.locator(".tagedit datalist option[value='quokka/water']")).toHaveCount(1);
+  expect(await page.evaluate(lowContrast, ""), "tag editor").toEqual([]);
+});
+
+test("Sort writes sort: into the query, and the results follow it", async ({ page }) => {
+  await page.goto("/search?q=zephyr");
+  const sort = refine(page).getByRole("combobox", { name: "Sort" });
+  await expect(sort).toHaveValue(""); // Best match
+  await sort.selectOption({ label: "Title Z–A" });
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title");
+  await expect(hits(page)).toHaveText([
+    "Zephyr shed plans",
+    "Zephyr fence repair",
+    "Zephyr fence paint",
+    "Zephyr fence book",
+  ]);
+  await expect(refine(page).getByRole("button", { name: /sort:/ })).toHaveCount(0); // no chip
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title kind:todo");
+  await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
+  await sort.selectOption({ label: "Oldest" });
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:todo -sort:created");
+  await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
+  await sort.selectOption({ label: "Best match" });
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:todo");
+  // With nothing typed: every page, in that order
+  await page.goto("/search");
+  await refine(page).getByRole("combobox", { name: "Sort" }).selectOption({ label: "Title A–Z" });
+  await expect(page.getByRole("searchbox")).toHaveValue("sort:title");
+  await expect(hits(page).first()).toBeVisible();
+  const titles = await hits(page).allTextContents();
+  expect(titles.length).toBeGreaterThan(4);
+  expect(titles).toEqual(
+    [...titles].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+  );
+  expect(await page.evaluate(lowContrast, ""), "sort").toEqual([]);
+});
+
+test("an open tag edit survives the page being drawn again; Cancel and Escape close it", async ({
+  page,
+}) => {
+  const { slug } = failedPhoto();
+  await page.goto(`/p/${slug}`);
+  const retry = page.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  await page.getByRole("button", { name: "Add tags" }).click();
+  const box = page.getByRole("combobox", { name: "Add a tag" });
+  await box.fill("wombat");
+  await box.press("Enter");
+  await box.fill("still typing");
+  await Promise.all([page.waitForResponse("**/api/pages/*"), retry.click()]); // drawn again
+  await expect(page.getByText("Waiting: Claude ingest is off")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove #wombat" })).toBeVisible();
+  await expect(box).toHaveValue("still typing");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  const tagsButton = page.locator(".page h1 + .tags").getByRole("button", { name: "Add tags" });
+  await expect(tagsButton).toBeFocused(); // back where it was
+  await expect(page.getByText("Waiting: Claude ingest is off")).toBeVisible(); // the page as it is now
+  await tagsButton.click();
+  await box.fill("x");
+  await box.press("Escape");
+  await expect(box).toBeHidden();
+  await expect(tagsButton).toBeFocused();
+  expect((await (await page.request.get(`/api/pages/${slug}`)).json()).tags).toEqual([]);
+});
+
+test("a kept draft brings back only the tags changed in it", async ({ page }) => {
+  const made = async (text: string) => {
+    const r = await page.request.post("/api/captures", {
+      data: { id: `01E2EDRAFT${text.length}`.padEnd(26, "0"), text },
+    });
+    return (await r.json()) as { page_id: string; slug: string };
+  };
+  const tagsOf = async (id: string) =>
+    (await (await page.request.get(`/api/pages/${id}`)).json()).tags as string[];
+  const editor = page.locator(".editor");
+  const open = async (slug: string) => {
+    await page.goto(`/p/${slug}`);
+    await page.locator(".page .tools").getByRole("button", { name: /^Edit/ }).click();
+    await expect(editor).toBeVisible();
+  };
+  // Only the text changed in the draft: tags set elsewhere since are kept, not overwritten
+  const a = await made("Draft text only");
+  await open(a.slug);
+  await editor.getByRole("textbox", { name: "Body" }).fill("Draft text only, edited");
+  await page.goBack(); // keeps the draft
+  await page.request.patch(`/api/pages/${a.page_id}`, { data: { tags: ["elsewhere"] } });
+  await open(a.slug);
+  await expect(editor.getByRole("button", { name: "Remove #elsewhere" })).toBeVisible();
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  expect(await tagsOf(a.page_id)).toEqual(["elsewhere"]);
+  // Tags changed in the draft (one still in the box) come back, and are saved
+  const b = await made("Draft with its own tags");
+  await open(b.slug);
+  await editor.getByRole("combobox", { name: "Add a tag" }).fill("drafted");
+  await page.goBack();
+  await page.request.patch(`/api/pages/${b.page_id}`, { data: { tags: ["elsewhere"] } });
+  await open(b.slug);
+  await expect(editor.getByRole("button", { name: "Remove #drafted" })).toBeVisible();
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  expect(await tagsOf(b.page_id)).toEqual(["drafted"]);
 });

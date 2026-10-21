@@ -1,15 +1,19 @@
-"""The search box's syntax (#84): words, "phrases", -word or !word (NOT), and the
-filters kind:, tag:, is:, after:, before:, date:, has: and image:. One pass over the
-text (the only regular expressions match one character), so no input can make parsing
-take more than linear time."""
+"""The search box's syntax (#84): words, "phrases", -word or !word (NOT), the filters
+kind:, tag:, is:, after:, before:, date:, has: and image:, and sort:. One pass over
+the text (the only regular expressions match one character), so no input can make
+parsing take more than linear time."""
 
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-__all__ = ["Term", "Filter", "Query", "parse", "bound", "KEYS"]
+__all__ = ["Term", "Filter", "Query", "parse", "bound", "KEYS", "SORTS"]
 
-KEYS = ("kind", "tag", "is", "after", "before", "date", "has", "image")
+KEYS = ("kind", "tag", "is", "after", "before", "date", "has", "image", "sort")
+# sort:K orders the results by K, the way it goes by default (True: highest first);
+# -sort:K the other way. The store maps each to SQL: a new one (due, priority) slots in
+# as a name here and a column there.
+SORTS = {"updated": True, "created": True, "title": False}
 DAYS = {"d": 1, "w": 7, "m": 30, "y": 365}  # after:2w, before:1y
 MAX_AGO = 100  # 100y at most
 END = "~"  # after every ISO 8601 timestamp, as text
@@ -39,6 +43,15 @@ class Filter:
 class Query:
     terms: list[Term] = field(default_factory=list)
     filters: list[Filter] = field(default_factory=list)
+
+    @property
+    def sort(self) -> tuple[str, bool] | None:
+        """The order asked for, and whether highest first: the last sort: with a known
+        value (another is ignored). None: the default (best match, or newest)."""
+        for f in reversed(self.filters):
+            if f.key == "sort" and f.value in SORTS:
+                return f.value, SORTS[f.value] != f.neg
+        return None
 
     @property
     def positive(self) -> list[Term]:

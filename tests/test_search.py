@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from scrap.app import create_app
-from scrap.query import Filter, Term, bound, parse
-from scrap.store import Store, connect, migrations, new_ulid, slug_base
+from scrap.query import SORTS, Filter, Term, bound, parse
+from scrap.store import SORT_SQL, Store, connect, migrations, new_ulid, slug_base
 
 # ---- the parser
 
@@ -335,4 +335,46 @@ def test_the_web_search_takes_image_filters(tmp_path):
     assert facets["total"] == 1
     assert facets["active"] == [
         {"token": "-has:image", "key": "has", "value": "image", "neg": True}
+    ]
+
+
+# ---- sort:
+
+
+def test_sort_parses_and_the_last_known_one_wins():
+    assert parse("garden").sort is None
+    assert parse("sort:Title").sort == ("title", False)  # A to Z
+    assert parse("-sort:title").sort == ("title", True)
+    assert parse("sort:created").sort == ("created", True)  # newest first
+    assert parse("!sort:updated").sort == ("updated", False)
+    assert parse("sort:title sort:created sort:nope").sort == ("created", True)
+    assert parse("sort:nope").sort is None  # ignored: the default order
+    assert parse("sort:title").filters == [Filter("sort", "title", False, "sort:title")]
+
+
+def test_every_sort_has_its_sql():
+    assert SORT_SQL.keys() == SORTS.keys()
+
+
+def test_sort_orders_search_and_filters(store):
+    b = page(store, "beta fence")  # created 2026-01-01
+    a = page(store, "Alpha fence", "fence fence fence")  # 01-02
+    c = page(store, "gamma", "a fence", tags=["x"])  # 01-03
+    edited = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    with store.connect() as conn:  # b edited last
+        conn.execute("UPDATE page SET updated_at = ? WHERE slug = ?", (edited, b))
+    assert slugs(store, "fence sort:title") == [a, b, c]  # case ignored
+    assert slugs(store, "fence -sort:title") == [c, b, a]
+    assert slugs(store, "fence sort:created") == [c, a, b]
+    assert slugs(store, "fence -sort:created") == [b, a, c]
+    assert slugs(store, "fence sort:updated") == [b, c, a]
+    assert slugs(store, "sort:title") == [a, b, c]  # alone: every page, in that order
+    assert slugs(store, "-sort:created") == [b, a, c]
+    assert slugs(store, "tag:x sort:title") == [c]
+    assert slugs(store, "sort:nope") == [b, c, a]  # an unknown one: newest first
+    assert [h["slug"] for h in store.search("sort:title", 1, 1)] == [b]  # offset
+    assert [h["slug"] for h in store.search("fence sort:title", 2, 1)] == [b, c]
+    assert store.facets("sort:title")["total"] == 3
+    assert store.facets("fence sort:title")["active"] == [
+        {"token": "sort:title", "key": "sort", "value": "title", "neg": False}
     ]

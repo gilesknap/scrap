@@ -31,6 +31,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from . import __version__, backup, drawing, ingest, mcp_server, preview
 from .store import (
     MAX_FIELDS,
+    MAX_TAGS,
     ConflictError,
     InvalidError,
     NotFoundError,
@@ -98,6 +99,7 @@ class PageEdit(BaseModel):
     fields: (
         Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
     ) = None
+    tags: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None  # all of them
 
 
 def author(request: Request) -> str:
@@ -304,13 +306,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     @app.patch("/api/pages/{key}")
     def edit(key: str, edit: PageEdit, request: Request) -> dict[str, Any]:
         """Change title and/or body (409 if base_rev is not the current revision),
-        and/or the kind and fields."""
+        and/or the kind, fields and tags."""
         if edit.base_rev is None and (edit.title, edit.body) != (None, None):
             raise InvalidError("base_rev is needed to change the title or body")
         who = author(request)
         return store.update_page(
-            key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields
-        )
+            key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
+            edit.tags,
+        )  # fmt: skip
 
     @app.delete("/api/pages/{key}", status_code=204)
     def delete(key: str) -> None:
@@ -401,8 +404,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         offset: int = Query(0, ge=0, le=10_000),  # the next page of results
     ) -> list[dict[str, Any]]:
         """Full-text search over titles, tags, summaries and bodies, with -word,
-        "phrase", kind:, tag:, is:, has:, image: and dates; snippets mark hits with
-        <mark>."""
+        "phrase", kind:, tag:, is:, has:, image:, dates and sort:; snippets mark hits
+        with <mark>."""
         return store.search(q, limit, offset)
 
     @app.get("/api/search/facets")

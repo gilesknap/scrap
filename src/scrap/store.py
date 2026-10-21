@@ -21,7 +21,10 @@ from typing import IO, Any
 from .markdown import plain
 from .query import CONTROL, Query, bound, parse
 
-__all__ = ["Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError"]
+__all__ = [
+    "Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError",
+    "clean_tags",
+]  # fmt: skip
 
 BlobRef = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
@@ -74,9 +77,17 @@ IMAGE_KIND = (
     " AND json_extract(d.data, '$.kind') = ?)"
 )
 KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
+# What each sort: orders a page p by (query.SORTS has its default direction)
+SORT_SQL = {
+    "updated": "p.updated_at",
+    "created": "p.created_at",
+    "title": "p.title COLLATE NOCASE",  # ASCII letters only: SQLite has no ICU here
+}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
+MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
+MAX_TAG = 64  # characters, as the tag table's CHECK has it
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
 # job_one_active makes a repeat add nothing.
@@ -156,6 +167,26 @@ def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str
         for sha in images
         if f"](/api/blobs/{sha}" not in text
     ]
+
+
+def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
+    """Tags as imported ones are: one space between words, no leading #, lower case;
+    each 1 to 64 characters, at most most of them, each once, in order."""
+    if len(tags) > most:
+        raise InvalidError(f"at most {most} tags")
+    out: list[str] = []
+    for tag in tags:
+        try:
+            tag.encode()
+        except UnicodeEncodeError:
+            raise InvalidError("a tag must be valid Unicode") from None
+        new = " ".join(CONTROL.sub(" ", tag).split()).lstrip("#").lower().strip()
+        new = unicodedata.normalize("NFC", new)
+        if not new or len(new) > MAX_TAG:
+            raise InvalidError(f"a tag must be 1 to {MAX_TAG} characters: {tag[:80]!r}")
+        if new not in out:
+            out.append(new)
+    return out
 
 
 def slug_base(title: str) -> str:
@@ -679,17 +710,25 @@ class Store:
         author: str,
         kind: str | None = None,
         fields: dict[str, Value | None] | None = None,
+        tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
-        and/or its kind (the user's choice, which ingest then keeps) and fields."""
+        and/or its kind (the user's choice, which ingest then keeps), fields and tags
+        (all of them: these replace the page's)."""
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
+        tags = None if tags is None else clean_tags(tags)
         with self.connect() as conn, transaction(conn):
             page = self._page_row(conn, key)
             if kind is not None or fields:
                 self._set_kind(conn, page, kind, fields or {})
-                if fields and "summary" in fields:  # indexed
-                    self.reindex(conn, page["id"])
+            if tags is not None:  # not a revision, nor a change to updated_at
+                conn.execute("DELETE FROM tag WHERE page_id = ?", (page["id"],))
+                conn.executemany(
+                    "INSERT INTO tag VALUES (?, ?)", [(page["id"], t) for t in tags]
+                )
+            if tags is not None or (fields and "summary" in fields):  # indexed
+                self.reindex(conn, page["id"])
             if title is None and body is None:
                 return self.page_in(conn, page["id"])
             if page["rev"] != base_rev:
@@ -868,12 +907,19 @@ class Store:
         (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
         the page's best chunk, title, tag and summary matches weighing most; a query
-        of filters alone lists its pages newest first. offset: skip that many hits
-        (the next page of results)."""
+        of filters alone lists its pages newest first; sort: orders either its own
+        way. offset: skip that many hits (the next page of results)."""
         q = parse(query)
         if not q.terms and not q.filters:
             return []
         where, args = self._where(q)
+        # sort: first, then the default order (a page's chunks share its sort key, so
+        # its best chunk still comes first)
+        order = ""
+        if q.sort:
+            key, desc = q.sort
+            way = "DESC" if desc else "ASC"
+            order = f"{SORT_SQL[key]} {way}, p.id {way}, "
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
@@ -888,7 +934,8 @@ class Store:
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
                     f" WHERE chunk_fts MATCH ? AND {where}"
-                    f" ORDER BY {tier} DESC, {tier} DESC, bm25(chunk_fts, {WEIGHTS})",
+                    f" ORDER BY {order}{tier} DESC, {tier} DESC,"
+                    f" bm25(chunk_fts, {WEIGHTS})",
                     (" OR ".join(q.fts(t) for t in q.positive), *args,
                      f"title : ({every})", f"{{title tags summary}} : ({every})"),
                 )  # fmt: skip
@@ -896,7 +943,7 @@ class Store:
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.body AS snippet"
                     f" FROM page p WHERE {where}"
-                    " ORDER BY p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
+                    f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
                     (*args, limit, offset),
                 )
                 offset = 0  # done by SQL
@@ -1026,6 +1073,8 @@ class Store:
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")
+            elif f.key == "sort":  # an order, not a condition: see search()
+                continue
             elif f.key == "is":  # a status: is:done, is:open...
                 status = "coalesce(json_extract(p.fields, '$.status'), '')"
                 sql.append(f"{no}({status} = ?)")

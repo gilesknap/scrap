@@ -228,6 +228,8 @@ def test_search_passes_the_query_syntax_through(store):
     ]
     assert ok(store, "search", query="alpha after:2000-01-01")["results"]
     assert ok(store, "search", query="alpha before:2000-01-01")["results"] == []
+    hits = ok(store, "search", query="plan -sort:title")["results"]
+    assert [h["title"] for h in hits] == ["Beta plan", "Alpha plan"]
 
 
 def test_search_pages_with_limit_and_offset(store):
