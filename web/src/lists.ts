@@ -47,7 +47,15 @@ function row(
 export const pageRow = (
   p: Pick<
     Summary,
-    "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb" | "due" | "priority"
+    | "slug"
+    | "title"
+    | "kind"
+    | "fields"
+    | "updated_at"
+    | "thumb"
+    | "due"
+    | "priority"
+    | "snoozed_until"
   >,
   snippet?: Node,
 ) =>

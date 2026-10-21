@@ -1,6 +1,7 @@
-// A todo's due date and priority (#104): a native date picker (Clear empties it) and a menu
-// of priorities. In place on a todo's page (todoForm: Save sends both, no new revision) and in
-// the editor (todoField, sent with the page). A chunk of its own: the page's due line and the
+// A todo's due date and priority (#104): a native date picker (No date empties it) and a menu
+// of priorities; on its page also Snooze until (a date, No snooze empties it). In place on a
+// todo's page (todoForm: Save sends them, no new revision) and in the editor (todoField, sent
+// with the page). A chunk of its own: the page's due line and the
 // editor load it.
 import { api, type Page } from "./api";
 import { why } from "./swipe";
@@ -17,14 +18,10 @@ export const todoStart = (kept: { todo?: Todo } | undefined, p: Partial<Page>): 
     ? { due: kept.todo.due, priority: kept.todo.priority }
     : { due: p.due ?? null, priority: p.priority ?? null };
 
-export function todoField(due: string | null = null, priority: string | null = null) {
+/** A day field: a native date picker and a ghost button that empties it. Each change is an
+ * input event (the editor keeps a draft). */
+function dayField(label: string, none: string) {
   const date = h("input", { type: "date", min: "0001-01-01", max: "9999-12-31" });
-  const rank = h(
-    "select",
-    { "aria-label": "Priority" },
-    h("option", { value: "" }, "No priority"),
-    ...PRIORITIES.map((p) => h("option", { value: p }, `${p[0].toUpperCase()}${p.slice(1)}`)),
-  );
   const clear = h(
     "button",
     {
@@ -32,28 +29,52 @@ export function todoField(due: string | null = null, priority: string | null = n
       className: "ghost",
       onclick: () => {
         date.value = "";
-        date.dispatchEvent(new Event("input", { bubbles: true })); // the editor keeps a draft
+        date.dispatchEvent(new Event("input", { bubbles: true }));
       },
     },
-    "No date",
+    none,
   );
-  const reset = (d: string | null, p: string | null) => {
+  return { date, els: [h("label", {}, label, date), clear] };
+}
+
+/** A todo's due date and priority; with snooze (a day, or null), its snooze too. */
+export function todoField(
+  due: string | null = null,
+  priority: string | null = null,
+  snooze?: string | null,
+) {
+  const day = dayField("Due", "No date");
+  const date = day.date;
+  const rank = h(
+    "select",
+    { "aria-label": "Priority" },
+    h("option", { value: "" }, "No priority"),
+    ...PRIORITIES.map((p) => h("option", { value: p }, `${p[0].toUpperCase()}${p.slice(1)}`)),
+  );
+  // Snooze: out of Now (and the Todos tab's count) until that day
+  const nap = snooze === undefined ? null : dayField("Snooze until", "No snooze");
+  const reset = (d: string | null, p: string | null, z: string | null = null) => {
     date.value = d ?? "";
     rank.value = p ?? "";
+    if (nap) nap.date.value = z ?? "";
   };
-  reset(due, priority);
+  reset(due, priority, snooze);
   const el = h(
     "div",
     { className: "todoedit" },
-    h("label", {}, "Due", date),
-    clear,
+    ...day.els,
     h("label", {}, "Priority", rank),
+    ...(nap ? [h("span", { className: "break" }), ...nap.els] : []),
   );
   return {
     el,
     date,
     /** As the API takes them: null for none. */
-    value: () => ({ due: date.value || null, priority: rank.value || null }),
+    value: () => ({
+      due: date.value || null,
+      priority: rank.value || null,
+      ...(nap && { snoozed_until: nap.date.value || null }),
+    }),
     reset,
   };
 }
@@ -61,7 +82,7 @@ export function todoField(due: string | null = null, priority: string | null = n
 /** The in-place form on a todo's page; close() gets the page as saved, or nothing when
  * cancelled (the page is then drawn as it is now, not as it was when the form opened). */
 export function todoForm(p: Page, close: (p?: Page) => void) {
-  const field = todoField(p.due, p.priority);
+  const field = todoField(p.due, p.priority, p.snoozed_until ?? null);
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const form = h(
     "form",

@@ -25,7 +25,7 @@ export function trailOf(a: Element): { trail: Trail } | null {
 
 export type RowPage = Pick<
   Summary,
-  "id" | "slug" | "title" | "kind" | "fields" | "due" | "priority"
+  "id" | "slug" | "title" | "kind" | "fields" | "due" | "priority" | "snoozed_until"
 >;
 
 /** Give list rows their gestures and ticks (rows.ts) once that chunk is here: the list shows

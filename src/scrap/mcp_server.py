@@ -128,6 +128,7 @@ def server(store: Store) -> MCPServer:
             "status": hit["fields"].get("status"),
             "due": hit.get("due"),  # a todo's (YYYY-MM-DD), else None
             "priority": hit.get("priority"),  # a todo's: high, medium, low; else None
+            "snoozed_until": hit.get("snoozed_until"),  # a todo's, hidden till then
             "updated_at": hit["updated_at"],
             "tags": tags,
             "title": hit["title"],
@@ -209,6 +210,7 @@ def server(store: Store) -> MCPServer:
                 "id": p["id"], "slug": p["slug"], "url": link(p["slug"]),
                 "kind": p["kind"], "status": fields.get("status"), "tags": p["tags"],
                 "due": p["due"], "priority": p["priority"],
+                "snoozed_until": p["snoozed_until"],
                 "created_at": p["created_at"], "updated_at": p["updated_at"],
                 "rev": p["rev"], "written_by_claude": any(
                     c["source"] == MCP for c in p["captures"]
@@ -245,14 +247,16 @@ def server(store: Store) -> MCPServer:
             Field(description="due (soonest first) or priority (high first)"),
         ] = None,
     ) -> dict[str, Any]:
-        """Todos not done or cancelled (open or in progress), newest first, or by
-        due date or priority (those with none last). Each has its due date
-        (YYYY-MM-DD) and priority (high, medium, low), or None. For overdue ones,
-        search "kind:todo due:<today -is:done -is:cancelled"."""
+        """Todos not done or cancelled (open or in progress) and not snoozed, newest
+        first, or by due date or priority (those with none last). Each has its due
+        date (YYYY-MM-DD) and priority (high, medium, low), or None. For overdue ones,
+        search "kind:todo due:<today -is:done -is:cancelled"; for those snoozed (hidden
+        until their snoozed_until day), "kind:todo is:snoozed"."""
         if sort not in (None, "due", "priority"):
             raise ToolError("sort must be due or priority")
         order = f" sort:{sort}" if sort else ""
-        hits = store.search(f"kind:todo -is:done -is:cancelled{order}", limit)
+        query = f"kind:todo -is:done -is:cancelled -is:snoozed{order}"
+        hits = store.search(query, limit)
         return {"results": rows(hits)}
 
     @mcp.tool()
@@ -293,6 +297,13 @@ def server(store: Store) -> MCPServer:
             str | None,
             Field(description="A todo's priority: high, medium, low (none: clear)"),
         ] = None,
+        snoozed_until: Annotated[
+            str | None,
+            Field(
+                description="Hide a todo from what to do now until this day, "
+                "YYYY-MM-DD (none: clear it)"
+            ),
+        ] = None,
         append_to: Annotated[
             str | None,
             Field(description="Id or slug of a page written over MCP to append to"),
@@ -306,7 +317,8 @@ def server(store: Store) -> MCPServer:
         ] = None,
     ) -> dict[str, Any]:
         """Save a new page (Markdown body; [[slug|label]] links to other pages), marked
-        as written by Claude with its origin; a todo may have a due date and priority.
+        as written by Claude with its origin; a todo may have a due date, priority and
+        a day it is snoozed until.
         With append_to, add body as a new section at the end of a page written over
         MCP instead (the user's own pages cannot be changed), and set its due date or
         priority if given (a todo's; body may then be empty). Returns the page's id,
@@ -320,7 +332,7 @@ def server(store: Store) -> MCPServer:
         key = text(key, "key") if key else None
         cid = key_id(key) if key else new_ulid()
         # a todo's due date and priority, those given ("none" clears one on append)
-        given = (("due", due), ("priority", priority))
+        given = (("due", due), ("priority", priority), ("snoozed_until", snoozed_until))
         todo = {k: None if v == "none" else v for k, v in given if v}
         if append_to:
             if not body and not todo:

@@ -145,7 +145,8 @@ queue.onchange = () => {
 const tab = document.querySelector('nav a[href="/todos"]') as HTMLAnchorElement;
 const dueN = tab.querySelector("b") as HTMLElement;
 // Today as this device has it, as the Todos screen does (the server's day may differ)
-const due = () => encodeURIComponent(`kind:todo due:<=${today()} -is:done -is:cancelled`);
+const due = () =>
+  encodeURIComponent(`kind:todo due:<=${today()} -is:done -is:cancelled -is:snoozed`);
 let dueTimer: ReturnType<typeof setTimeout>;
 function dueSoon() {
   clearTimeout(dueTimer);

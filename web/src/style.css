@@ -1816,6 +1816,11 @@ div.orig .save {
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
 }
+/* Snooze starts a line of its own, under the priority */
+.todoedit .break {
+  flex-basis: 100%;
+  height: 0;
+}
 
 /* ---- Todos: Now / Upcoming / All, a ranked list in groups ---- */
 .todos .count {
