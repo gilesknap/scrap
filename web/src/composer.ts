@@ -4,7 +4,7 @@ import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { editor, kindPicker, suggested, tagField, toSend } from "./editor";
+import { editor, kindPicker, suggested, tagField, tooLong, toSend } from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
 import { tagProblem } from "./tagedit";
@@ -103,6 +103,8 @@ export async function compose(picked: File[]) {
   const store = async (separately: boolean) => {
     const body = text.value.trim();
     if (!body && !files.length) return text.focus();
+    const long = tooLong(body);
+    if (long) return toast(long, "", undefined, 8000); // kept in the composer to shorten
     const tagged = tags.value();
     // The server's tag limits too: a capture it refuses would sit in the queue, unfixable.
     const bad = tagProblem(tagged);
