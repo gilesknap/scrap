@@ -114,11 +114,11 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
 | Search field | `.field-search` | pill with a search icon; on the search screen a ✕ (`.clear`, a 48 px ghost button, "Clear search") at its end while it has text, in place of the browser's own |
 | Recent searches | `.recents` (`searches.ts`) | under the empty search box while it is focused: a `h2.label` *Recent* and **Clear all** (`button.link`), then a `.list` of rows, each the query as a full-width ghost button (search icon, ellipsis) and a 48 px ✕; a tap keeps the box focused until a row is chosen. Kept in `localStorage`, like every setting through `kept()` (api.ts), which never throws |
-| Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
+| Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel and Preview (text buttons) / Save (the one fill); see *The edit pane* below |
 | Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2` (a page's adds **Download**, moved out of its toolbar); a tap elsewhere, Back or Share again closes it |
 | Sort menu | `select.facet.sort` | in the Filters sheet: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:`; selects take the app's face like every control (`font: inherit`) |
 | Tag line | `.tags` | a page's tags under its title, `--sunk` pills that each search for their tag, in one line that scrolls; first an outlined **Tags** pill (tag icon) that edits them |
-| Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`), then the six tags used most as typed (by pages with exactly that tag, so a parent such as `domain` used only through `domain/x` is never offered) not on it yet as `.facet` chips, a long one cut at its start ("…/raised-beds", `.lead`) with the whole tag as its title, with a dashed `--line-strong` edge (offered, where the chosen are filled), one tap each, in a line that scrolls (`.toptags`, a group "Most used tags", from the same `/api/tags` answer as the suggestions); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, under the title; in the composer, under the text (above the photos) |
+| Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`), then the six tags used most as typed (by pages with exactly that tag, so a parent such as `domain` used only through `domain/x` is never offered) not on it yet as `.facet` chips, a long one cut at its start ("…/raised-beds", `.lead`) with the whole tag as its title, with a dashed `--line-strong` edge (offered, where the chosen are filled), one tap each, in a line that scrolls (`.toptags`, a group "Most used tags", from the same `/api/tags` answer as the suggestions); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, folded under the title; in the composer, folded under the text (above the photos) |
 | Toast | `.toast` | dark slab above what is under the thumb, amber text action |
 | Banner | `.conflict`, `.restored` | danger-soft with a red edge; accent-soft info line |
 | Empty state | `.empty` (`empty()` in ui.ts) | icon in a `--sunk` circle, a sentence, one action |
@@ -138,6 +138,27 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Loading image | the reserved box shimmers between `--sunk` and `--line` until the image loads or fails, then stops |
 | Failed | `--danger` text in words, a `--danger-soft` badge; never colour alone |
 | Overdue | a todo's due line in `--danger`, semibold, saying "overdue" (AA on `--bg`, `--surface` and `--sunk` in both themes, as `--danger` is checked); back to `--ink-2` once done |
+
+## The edit pane: the text first
+
+The editor and the composer once stacked every control above or below the text: the kind,
+a boxed title, every tag as a filled chip on its own line, the tags box, the top tags, and a
+todo's date and priority with their labels. With 8 tags the text box was 85 px high (11 % of
+a 360x780 screen, 20 % with the keyboard up). Now:
+
+- **The text is the hero**: at least 60 % of what is visible (`calc(var(--vv-h) * 0.6)`;
+  `--vv-h` follows the visual viewport, so the keyboard's room is taken off), whatever the
+  tags or dates; the fields scroll as one when there is more.
+- **Folds** (`.fold`, `fold()` in editor.ts, a native `<details>`): the tags, and a todo's due
+  date and priority, are each one line saying what they hold, in `--ink-2` at `--t-sm`: an
+  18 px icon, the name in `--ink` semibold, then *15 · #work #garden…* or *24 Oct · high*
+  (*none*), cut with …, and a chevron. A tap opens the controls under the line (focus goes to
+  their first field) and the line turns `--ink`; a tap folds them. Two folds read as one group.
+- **One fill, one box**: Save is the bar's one fill; Cancel and Preview are text buttons. The
+  title is big and bold on a `--line-strong` rule, not in a second box; the text keeps its box.
+  The composer's Camera and Gallery are text buttons in `--ink-2`.
+
+The page's own tag editor (Tags on a page) is a deliberate mode, so it stays open.
 
 ## The Filters sheet: our one modal
 

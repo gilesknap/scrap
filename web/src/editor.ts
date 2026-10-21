@@ -11,7 +11,7 @@
 // It is a chunk of its own, with the composer (composer.ts): the service worker keeps it for
 // offline use, but screens that never edit don't load it.
 import { drafts } from "./db";
-import { icon } from "./icons";
+import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
 import { h, previewer, saveKey, toast } from "./ui";
 
@@ -21,6 +21,42 @@ export { todoField } from "./todoedit";
 export { confirmRemoval } from "./unembed";
 
 const MAX_PAGE = 1_000_000; // bytes of UTF-8: a page's text at most (the server's store.MAX_PAGE)
+
+/** A rarely changed part of the editor (tags, a todo's dates) folded into one line that
+ * says what it holds ("Tags · 15: #work #garden…"); tapped, it opens in place, tapped again
+ * it folds. The text stays the screen's hero. A native <details>, so it is a button to
+ * assistive tech and the keyboard; what it says follows every change made inside it. */
+export function fold(name: string, body: HTMLElement, says: () => string, glyph: Icon) {
+  const what = h("span", { className: "says", dir: "auto" });
+  const refresh = () => {
+    what.textContent = says();
+  };
+  const el = h(
+    "details",
+    { className: "fold" },
+    h("summary", {}, icon(glyph), h("b", {}, name), what),
+    body,
+  );
+  for (const type of ["input", "change", "click"]) body.addEventListener(type, refresh);
+  el.addEventListener("toggle", () => {
+    refresh();
+    if (el.open) body.querySelector<HTMLElement>("input:not([type=date]), select")?.focus();
+  });
+  refresh();
+  return { el, refresh };
+}
+
+/** What a tags fold says: how many, then them ("3 · #a #b #c"), or that there are none. */
+export const tagsSay = (tags: string[]) =>
+  tags.length ? `${tags.length} · ${tags.map((t) => `#${t}`).join(" ")}` : "none";
+
+/** What a todo's fold (Due) says: "24 Oct · high", or none. */
+export function todoSays(v: { due: string | null; priority: string | null }) {
+  const day =
+    v.due &&
+    new Date(`${v.due}T12:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return [day, v.priority].filter(Boolean).join(" · ") || "none";
+}
 
 /** Why text can't be saved as a page's (over 1 MB), said before sending it; else null. */
 export function tooLong(text: string) {

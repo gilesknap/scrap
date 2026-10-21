@@ -21,6 +21,14 @@ test.beforeAll(() => {
 });
 
 const hits = (page: import("@playwright/test").Page) => page.locator(".hits li a strong");
+/** Open the editor's (or composer's) Tags fold: folded into one line until tapped. */
+async function openTags(page: import("@playwright/test").Page) {
+  const fold = page.locator(".editor details.fold", {
+    has: page.locator("summary b", { hasText: /^Tags$/ }),
+  });
+  if ((await fold.getAttribute("open")) === null) await fold.locator("summary").click();
+  await expect(fold).toHaveAttribute("open", "");
+}
 const refine = (page: import("@playwright/test").Page) =>
   page.getByRole("group", { name: "Refine" });
 /** Open the Filters sheet. */
@@ -173,6 +181,7 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   // In the editor: Cancel puts them back, Save sends them with the text
   await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
   const editor = page.locator(".editor");
+  await openTags(page);
   await editor.getByRole("button", { name: "Remove #zebu" }).click();
   await editor.getByRole("combobox", { name: "Add a tag" }).fill("quokka/water");
   await editor.getByRole("button", { name: "Save" }).click();
@@ -240,6 +249,7 @@ test("the most used tags are offered one tap each, on a page and in the composer
   // The composer offers them too
   await page.goto("/");
   await page.getByRole("button", { name: "Note", exact: true }).click();
+  await openTags(page);
   const offered = page.locator(".editor").getByRole("group", { name: "Most used tags" });
   await expect(offered.getByRole("button")).toHaveText(await expected([]));
   await offered.getByRole("button").nth(1).click();
@@ -339,6 +349,7 @@ test("a kept draft brings back only the tags changed in it", async ({ page }) =>
   await page.goBack(); // keeps the draft
   await page.request.patch(`/api/pages/${a.page_id}`, { data: { tags: ["elsewhere"] } });
   await open(a.slug);
+  await openTags(page);
   await expect(editor.getByRole("button", { name: "Remove #elsewhere" })).toBeVisible();
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
@@ -346,10 +357,12 @@ test("a kept draft brings back only the tags changed in it", async ({ page }) =>
   // Tags changed in the draft (one still in the box) come back, and are saved
   const b = await made("Draft with its own tags");
   await open(b.slug);
+  await openTags(page);
   await editor.getByRole("combobox", { name: "Add a tag" }).fill("drafted");
   await page.goBack();
   await page.request.patch(`/api/pages/${b.page_id}`, { data: { tags: ["elsewhere"] } });
   await open(b.slug);
+  await openTags(page);
   await expect(editor.getByRole("button", { name: "Remove #drafted" })).toBeVisible();
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
@@ -373,6 +386,7 @@ test("a new note gets its tags as it is saved", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Wallaby feeder plans");
+  await openTags(page);
   await composer(page).locator(".kinds").getByText("Todo").click();
   const box = composer(page).getByRole("combobox", { name: "Add a tag" });
   await box.fill("#Wallaby Pen");
@@ -413,6 +427,7 @@ test("tags on a photo captured offline go with it when the queue sends it", asyn
   ]);
   await gallery.setFiles({ name: "q.png", mimeType: "image/png", buffer: Buffer.alloc(900, 7) });
   await page.getByPlaceholder("Caption (optional)").fill("Quoll den offline");
+  await openTags(page);
   const box = composer(page).getByRole("combobox", { name: "Add a tag" });
   await box.fill("quoll, den");
   await expect(composer(page).getByRole("button", { name: "Remove #den" })).toBeVisible();
@@ -429,6 +444,7 @@ test("a composer's tags are kept in its draft when the app is killed", async ({ 
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Bilby burrow survey");
+  await openTags(page);
   const box = composer(page).getByRole("combobox", { name: "Add a tag" });
   await box.fill("bilby");
   await box.press("Enter");
@@ -437,6 +453,7 @@ test("a composer's tags are kept in its draft when the app is killed", async ({ 
   await page.reload(); // as if the app was killed
   await page.getByRole("button", { name: "Note" }).click();
   await expect(composer(page).getByText("Restored your unsaved draft.")).toBeVisible();
+  await openTags(page);
   await expect(composer(page).getByRole("button", { name: "Remove #bilby" })).toBeVisible();
   await expect(composer(page).getByRole("button", { name: "Remove #burrow" })).toBeVisible();
   await composer(page).getByRole("button", { name: "Save" }).click();
@@ -445,4 +462,60 @@ test("a composer's tags are kept in its draft when the app is killed", async ({ 
   // Saved: the next note starts with no tags
   await page.getByRole("button", { name: "Note" }).click();
   await expect(composer(page).locator(".tagchips button")).toHaveCount(0);
+});
+
+test("the text keeps most of the screen with 15 tags, the keyboard up (simulated)", async ({
+  page,
+}) => {
+  page.on("dialog", (d) => void d.accept().catch(() => {}));
+  const tags = [
+    "work/epics-containers/deployment-configuration",
+    "personal/garden/raised-beds-by-the-fence",
+    ...Array.from({ length: 13 }, (_, i) => `numbat-tag-${i}`),
+  ];
+  const id = "01E2ETAGK8YB".padEnd(26, "0");
+  const made = await page.request.post("/api/captures", { data: { id, text: "Fifteen tags" } });
+  const { slug, page_id } = await made.json();
+  await page.request.patch(`/api/pages/${page_id}`, { data: { tags } });
+  const share = async () =>
+    page.evaluate(() => {
+      const ta = document.querySelector(".editor textarea") as HTMLElement;
+      const vh = window.visualViewport?.height ?? innerHeight;
+      const save = [...document.querySelectorAll(".editor .bar button")].at(-1) as HTMLElement;
+      const s = save.getBoundingClientRect();
+      return { share: ta.getBoundingClientRect().height / vh, save: s.top >= 0 && s.bottom <= vh };
+    });
+  for (const [width, height] of [
+    [360, 780],
+    [412, 915],
+  ]) {
+    // The on-screen keyboard: about 45 % of the screen, so 55 % is left
+    await page.setViewportSize({ width, height: Math.round(height * 0.55) });
+    await page.goto(`/p/${slug}`);
+    await page.locator(".page .tools").getByRole("button", { name: /^Edit/ }).click();
+    const fold = page.locator(".editor details.fold summary", { hasText: "Tags" });
+    await expect(fold).toContainText("15 · #numbat-tag-0 #numbat-tag-1");
+    const got = await share();
+    expect(got.share, `editor at ${width} px`).toBeGreaterThanOrEqual(0.4);
+    expect(got.save).toBe(true);
+    // Opened, the tags take room; folded again, the text has it back
+    await fold.click();
+    await expect(page.getByRole("button", { name: "Remove #numbat-tag-12" })).toBeVisible();
+    await fold.click();
+    expect((await share()).share).toBeGreaterThanOrEqual(0.4);
+    await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+    // The composer, with as many
+    await page.goto("/");
+    await page.getByRole("button", { name: "Note", exact: true }).click();
+    await page.locator(".editor textarea").fill("A note");
+    await openTags(page);
+    const box = page.locator(".editor").getByRole("combobox", { name: "Add a tag" });
+    for (const t of tags) {
+      await box.fill(t);
+      await box.press("Enter");
+    }
+    await page.locator(".editor details.fold summary", { hasText: "Tags" }).click();
+    expect((await share()).share, `composer at ${width} px`).toBeGreaterThanOrEqual(0.4);
+    await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+  }
 });

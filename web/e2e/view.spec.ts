@@ -229,7 +229,7 @@ test("the editor follows the visual viewport when only that moves", async ({ pag
   await page.getByRole("button", { name: "Note" }).click();
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
-  await page.mouse.move(100, 300);
+  await page.mouse.move(100, 20); // over the top bar: the text's box scrolls on its own
   await page.mouse.wheel(0, 400); // pans the zoomed visual viewport down
   const seen = () =>
     page.evaluate(() => {

@@ -170,10 +170,14 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   // A link would suggest Read: the kind was chosen, so it stays Todo
   await editor.locator("textarea").fill("Quokka new todo https://example.com/x");
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
-  // Its due date and priority, as on a todo's page (the same fields)
+  // Its due date and priority, as on a todo's page (the same fields), in a fold
+  const line = editor.locator("details.fold summary", { hasText: "Due" });
+  await expect(line).toContainText("none");
+  await line.click();
   await editor.getByRole("button", { name: "Tomorrow" }).click();
   await expect(editor.getByLabel("Due", { exact: true })).toHaveValue(day(1));
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("high");
+  await expect(line).toContainText("· high");
   await editor.getByRole("radio", { name: "Note" }).check({ force: true });
   await expect(editor.getByLabel("Due", { exact: true })).toBeHidden(); // a note has none
   await editor.getByRole("radio", { name: "Todo" }).check({ force: true });

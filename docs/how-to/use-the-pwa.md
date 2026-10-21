@@ -35,9 +35,10 @@ on a thumbnail removes one: all the photos and the text become one capture and o
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
 with the text on the first and the kind and tags on each.
-While the kind is **Todo** (and there are no photos), the composer has a todo's **Due** date
+While the kind is **Todo** (and there are no photos), the composer has a **Due** line (folded, like Tags: it says the date and priority set) for a todo's due date
 (**Today**, **Tomorrow**, **Next week** or a date picked) and **Priority**, as on its page.
-Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
+Under the text, **Tags** is one line saying how many there are and which (tap it to open the
+tags box, tap again to fold it); the box works as on a page (below): type a tag and press Enter or a comma
 (it suggests the tags already in use), or tap one of your most used tags, offered under the
 box; tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
@@ -296,7 +297,8 @@ Tap the drawing to open it full screen:
   use) and press Enter or type a comma to add it, or tap one of the six tags you use most offered
   under the box (as you type them: `domain/x`, never a parent like `domain` used only through it), then **Save**; what is still in the box when
   you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
-  `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
+  `#`. **Edit** (also a list row swiped right) has the same tags box, folded into a **Tags** line
+  under the title, and
   saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
   the list. **Browse tags** (in the Filters sheet) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.

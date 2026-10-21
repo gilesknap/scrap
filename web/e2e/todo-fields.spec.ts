@@ -153,6 +153,10 @@ test("the editor sets them while the kind is Todo", async ({ page }) => {
   await editor.getByRole("radio", { name: "Note" }).check({ force: true });
   await expect(due).toBeHidden();
   await editor.getByRole("radio", { name: "Todo" }).check({ force: true });
+  // Folded into one line saying what it holds; tapped, it opens
+  const line = editor.locator("details.fold summary", { hasText: "Due" });
+  await expect(line).toHaveText(/^Due\s*\S+/);
+  await line.click();
   await editor.getByRole("button", { name: "Next week" }).click();
   await expect(due).toHaveValue(day(7));
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("medium");
