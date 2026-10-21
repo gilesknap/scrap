@@ -172,6 +172,14 @@ describe("queue", () => {
       [undefined, "todo", "todo"],
     ]);
     expect(split({ source: "pwa", files: photos }).every((p) => !("kind" in p))).toBe(true);
+    // a todo's due date and priority too
+    const due = { due: "2026-11-01", priority: "high" };
+    const dated = split({ text: "t", kind: "todo", ...due, source: "pwa", files: photos });
+    expect(dated.map((p) => [p.due, p.priority])).toEqual([
+      ["2026-11-01", "high"],
+      ["2026-11-01", "high"],
+    ]);
+    expect(split({ source: "pwa", files: photos }).every((p) => !("due" in p))).toBe(true);
   });
 
   it("splits in one transaction: all parts and no original, or nothing", async () => {

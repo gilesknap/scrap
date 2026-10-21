@@ -251,3 +251,99 @@ test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the la
   await expect(boxes.nth(0)).not.toBeChecked();
   expect(await api()).toMatchObject({ fields: { status: "done" }, tasks: { done: 2, total: 3 } });
 });
+
+test("New todo opens the composer on Todo, and the saved todo joins the list", async ({ page }) => {
+  await page.goto("/todos?view=all");
+  const add = page.getByRole("button", { name: "New todo" });
+  await expect(add).toBeInViewport(); // under the thumb, however long the list
+  expect((await add.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await add.click();
+  const editor = page.locator(".editor");
+  await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
+  const text = editor.locator("textarea");
+  await expect(text).toHaveAttribute("placeholder", "What needs doing?");
+  // A link would suggest Read: the kind was chosen, so it stays Todo
+  await text.fill("Quokka new todo https://example.com/x");
+  await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
+  // Its due date and priority, as on a todo's page (the same fields)
+  await editor.getByRole("button", { name: "Tomorrow" }).click();
+  await expect(editor.getByLabel("Due", { exact: true })).toHaveValue(day(1));
+  await editor.getByRole("combobox", { name: "Priority" }).selectOption("high");
+  await editor.getByRole("radio", { name: "Note" }).check({ force: true });
+  await expect(editor.getByLabel("Due", { exact: true })).toBeHidden(); // a note has none
+  await editor.getByRole("radio", { name: "Todo" }).check({ force: true });
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  // Back on the list it was opened from, with the todo in it once uploaded
+  await expect(page).toHaveURL(/\/todos\?view=all$/);
+  const row = page.locator(".list li", { hasText: "Quokka new todo" });
+  await expect(row.locator("a strong")).toBeVisible();
+  await expect(row.getByRole("button", { name: /^Done: Quokka new todo/ })).toBeVisible();
+  await expect(row.locator(".due")).toHaveText(/^high · due /);
+  const [hit] = await (await page.request.get("/api/search?q=quokka+new+todo")).json();
+  const made = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
+  expect(made).toMatchObject({ kind: "todo", due: day(1), priority: "high" });
+});
+
+test("Mark done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({
+  page,
+}) => {
+  // The two oldest overdue: first in Now
+  const a = await todo(page, "Wombat first", { due: day(-40) });
+  const b = await todo(page, "Wombat second", { due: day(-39) });
+  const tools = page.locator(".page .tools");
+  await page.goto("/todos");
+  await page.locator(".list a", { hasText: "Wombat first" }).click();
+  await expect(page.locator(".page h1")).toHaveText("Wombat first");
+  const where = page.locator(".pager .up");
+  await expect(where).toHaveText(/^1 of \d+ · Todos · Now$/);
+  await tools.getByRole("button", { name: "Mark done" }).click();
+  // On to the next, saying so
+  await expect(page).toHaveURL(`/p/${b.slug}`);
+  await expect(page.locator(".page h1")).toHaveText("Wombat second");
+  await expect(where).toHaveText(/^2 of \d+ · Todos · Now$/);
+  await expect(page.locator(".toast")).toContainText("Done: Wombat first. Next todo, 2 of");
+  expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
+    "done",
+  );
+  // Undo: open again, and back on it
+  await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+  await expect(page).toHaveURL(`/p/${a.slug}`);
+  await expect(page.locator(".page h1")).toHaveText("Wombat first");
+  expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
+    "open",
+  );
+  // Where it is, tapped: back to the list (as Back does)
+  await expect(where).toHaveAccessibleName(/^1 of \d+: back to Todos · Now$/);
+  await where.click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
+  // From elsewhere (a search), Mark done stays on the page
+  await page.goto("/search?q=wombat+second");
+  await page.locator(".hits a", { hasText: "Wombat second" }).click();
+  await tools.getByRole("button", { name: "Mark done" }).click();
+  await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
+  await expect(page).toHaveURL(`/p/${b.slug}`);
+  await tools.getByRole("button", { name: "Reopen" }).click();
+  await expect(tools.getByRole("button", { name: "Mark done" })).toBeVisible();
+});
+
+test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) => {
+  const t = await todo(page, "Bilby chips", { due: day(0) });
+  await page.goto(`/p/${t.slug}`);
+  await page.locator(".todoline > button").click();
+  const naps = page.getByRole("group", { name: "Snooze for" });
+  await expect(naps.getByRole("button")).toHaveText(["Tomorrow", "Next week"]);
+  await naps.getByRole("button", { name: "Next week" }).click();
+  await expect(page.getByLabel("Snooze until")).toHaveValue(day(7));
+  await expect(naps.getByRole("button", { name: "Next week" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // Below Priority, not beside it
+  const pri = await page.getByRole("combobox", { name: "Priority" }).boundingBox();
+  const nap = await page.getByLabel("Snooze until").boundingBox();
+  expect(nap && pri && nap.y > pri.y + pri.height - 1).toBe(true);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".todoline > button")).toHaveText(/ · snoozed till /);
+});

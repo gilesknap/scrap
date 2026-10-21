@@ -30,10 +30,10 @@ const SOON: [string, number][] = [
   ["Next week", 7],
 ];
 
-/** Due soon: Today, Tomorrow and Next week, each setting the date as if picked; the one
- * matching the date now set is pressed. */
-function soon(date: HTMLInputElement) {
-  const chips = SOON.map(([label, n]) =>
+/** Chips that set date in one tap (Today, Tomorrow, Next week: days on), each as if picked;
+ * the one matching the date now set is pressed. A group named name. */
+function soon(date: HTMLInputElement, days: [string, number][], name: string) {
+  const chips = days.map(([label, n]) =>
     h(
       "button",
       {
@@ -49,11 +49,11 @@ function soon(date: HTMLInputElement) {
   );
   const mark = () =>
     chips.forEach((c, i) => {
-      c.setAttribute("aria-pressed", String(!!date.value && date.value === inDays(SOON[i][1])));
+      c.setAttribute("aria-pressed", String(!!date.value && date.value === inDays(days[i][1])));
     });
   date.addEventListener("input", mark);
   return {
-    el: h("div", { className: "soon", role: "group", "aria-label": "Due soon" }, ...chips),
+    el: h("div", { className: "soon", role: "group", "aria-label": name }, ...chips),
     mark,
   };
 }
@@ -85,7 +85,7 @@ export function todoField(
 ) {
   const day = dayField("Due", "No date");
   const date = day.date;
-  const chips = soon(date);
+  const chips = soon(date, SOON, "Due soon");
   const rank = h(
     "select",
     { "aria-label": "Priority" },
@@ -94,11 +94,13 @@ export function todoField(
   );
   // Snooze: out of Now (and the Todos tab's count) until that day
   const nap = snooze === undefined ? null : dayField("Snooze until", "No snooze");
+  const naps = nap && soon(nap.date, SOON.slice(1), "Snooze for");
   const reset = (d: string | null, p: string | null, z: string | null = null) => {
     date.value = d ?? "";
     rank.value = p ?? "";
     if (nap) nap.date.value = z ?? "";
     chips.mark();
+    naps?.mark();
   };
   reset(due, priority, snooze);
   const el = h(
@@ -107,7 +109,7 @@ export function todoField(
     ...day.els,
     chips.el,
     h("label", {}, "Priority", rank),
-    ...(nap ? [h("span", { className: "break" }), ...nap.els] : []),
+    ...(nap && naps ? [h("span", { className: "break" }), ...nap.els, naps.el] : []),
   );
   return {
     el,

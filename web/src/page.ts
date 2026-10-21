@@ -270,10 +270,14 @@ export async function page(key: string): Promise<Node> {
   // Ticked off (or not): its status only, no new revision
   const tick = (p: Page, to: string, b: HTMLButtonElement) => {
     b.disabled = true;
-    setStatus(p.id, to).then(show, (err) => {
-      b.disabled = false;
-      toast(`Not changed: ${why(err)}`);
-    });
+    // Mark done on a todo from the Todos screen: on to the next one (pager.ts), else shown here
+    setStatus(p.id, to).then(
+      (q) => (to === "done" && pager?.done(q, statusOf(p.kind, p.fields) ?? "open")) || show(q),
+      (err) => {
+        b.disabled = false;
+        toast(`Not changed: ${why(err)}`);
+      },
+    );
   };
 
   function editButton(p: Page) {

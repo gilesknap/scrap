@@ -28,7 +28,9 @@ picks **Read** for you until you pick something else. Photos skip the choice: Cl
 and makes a whiteboard or document a page of that kind, and you can change it after. A kind
 you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
 already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
-changing it back gives the page as it was.
+changing it back gives the page as it was. While the kind is **Todo** (and there are no
+photos), the composer also has the todo's **Due** date (**Today**, **Tomorrow**, **Next week**
+or a date) and **Priority**, as on its page; the text box asks *What needs doing?*.
 
 In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
@@ -151,7 +153,8 @@ the link as the capture's URL.
   one opens a done todo again; otherwise a todo marked done by hand stays done. **Mark done**
   ticks no box, and a cancelled todo is left as it is.
 - **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
-  tags and pick a **Snooze until** date (**No snooze** wakes it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
+  tags and pick a **Snooze until** date, or **Tomorrow** or **Next week** (**No snooze** wakes
+  it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
   tab's count (Now's count says how many are snoozed); **All** shows it, marked *snoozed till 3
   Nov*, and `is:snoozed` finds them. On its day it comes back by itself.
 - The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or
@@ -167,6 +170,12 @@ the link as the capture's URL.
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
   **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
   `priority:` and `sort:due` still search and order todos.
+- **New todo**, at the bottom left of the Todos screen, opens the composer on **Todo**; save,
+  and you are back on the list with the new todo in it once it has uploaded.
+- Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the pager
+  says *3 of 9 · Todos · Now*) with **Undo** for a few seconds; on the last one it stays, and
+  offers **Back to list**. Tap *3 of 9 · Todos · Now* to go back to the list at any time.
+  Opened from anywhere else, Mark done stays on the page.
 - Swipe a row of the list, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
   seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
