@@ -56,6 +56,7 @@ export const pageRow = (
     | "due"
     | "priority"
     | "snoozed_until"
+    | "tasks"
   >,
   snippet?: Node,
 ) =>

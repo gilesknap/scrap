@@ -41,6 +41,7 @@ export interface Summary {
   due?: string | null; // a todo's: YYYY-MM-DD
   priority?: string | null; // a todo's: high, medium or low
   snoozed_until?: string | null; // a todo's: out of Now until this day (YYYY-MM-DD)
+  tasks?: { done: number; total: number }; // its task boxes: ticked, and in all
 }
 export interface Page extends Summary {
   kind_fixed: number; // 1: the user chose the kind
@@ -63,6 +64,7 @@ export interface Hit
     | "due"
     | "priority"
     | "snoozed_until"
+    | "tasks"
   > {
   snippet: string;
 }

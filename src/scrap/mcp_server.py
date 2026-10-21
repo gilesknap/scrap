@@ -129,6 +129,7 @@ def server(store: Store) -> MCPServer:
             "due": hit.get("due"),  # a todo's (YYYY-MM-DD), else None
             "priority": hit.get("priority"),  # a todo's: high, medium, low; else None
             "snoozed_until": hit.get("snoozed_until"),  # a todo's, hidden till then
+            "tasks": hit.get("tasks"),  # its task boxes: {done, total}
             "updated_at": hit["updated_at"],
             "tags": tags,
             "title": hit["title"],
@@ -211,6 +212,7 @@ def server(store: Store) -> MCPServer:
                 "kind": p["kind"], "status": fields.get("status"), "tags": p["tags"],
                 "due": p["due"], "priority": p["priority"],
                 "snoozed_until": p["snoozed_until"],
+                "tasks": p["tasks"],
                 "created_at": p["created_at"], "updated_at": p["updated_at"],
                 "rev": p["rev"], "written_by_claude": any(
                     c["source"] == MCP for c in p["captures"]

@@ -295,3 +295,38 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   await page.goto("/todos");
   await expect(inNow()).toBeVisible();
 });
+
+test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the last box", async ({
+  page,
+}) => {
+  const id = "01E2ETASKS01".padEnd(26, "0");
+  const text = "Kowari trip\n\n- [x] tickets\n- [ ] tent\n- [ ] stove";
+  const made = await (await page.request.post("/api/captures", { data: { id, text } })).json();
+  const api = async () => (await page.request.get(`/api/pages/${made.page_id}`)).json();
+  expect(await api()).toMatchObject({ kind: "todo", tasks: { done: 1, total: 3 } }); // a note: filed
+  await page.goto("/todos?view=all");
+  const row = page.locator(".list li", { hasText: "Kowari trip" });
+  await expect(row.locator(".due")).toHaveText("1 of 3");
+  const tick = row.getByRole("button", { name: /^Done: Kowari trip/ });
+  await expect(tick).toHaveAttribute("aria-pressed", "mixed");
+  // Ticked in place on its page: the last box makes it done; one unticked opens it again
+  await row.locator("a").click();
+  const boxes = page.locator(".page .md li.task input");
+  const tools = page.locator(".page > .tools");
+  await boxes.nth(1).click();
+  await expect(page.locator(".todoline > button")).toHaveText(/2 of 3/);
+  await boxes.nth(2).click();
+  await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
+  expect((await api()).fields.status).toBe("done");
+  await boxes.nth(0).click();
+  await expect(tools.getByRole("button", { name: "Mark done" })).toBeVisible();
+  expect(await api()).toMatchObject({ fields: { status: "open" }, tasks: { done: 2, total: 3 } });
+  // Done by hand ticks no box (opened on its own, not from a list: Done stays on the page)
+  await page.goto("/");
+  await page.goto(`/p/${made.slug}`);
+  await expect(page.locator(".pager")).toHaveCount(0);
+  await tools.getByRole("button", { name: "Mark done" }).click();
+  await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
+  await expect(boxes.nth(0)).not.toBeChecked();
+  expect(await api()).toMatchObject({ fields: { status: "done" }, tasks: { done: 2, total: 3 } });
+});

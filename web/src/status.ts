@@ -34,7 +34,15 @@ interface Todo {
   due?: string | null;
   priority?: string | null;
   snoozed_until?: string | null;
+  tasks?: { done: number; total: number };
 }
+
+/** Some of a todo's task boxes ticked, not all: "2 of 5" (its tick is shown partly done). */
+export const partly = (p: Todo) =>
+  !!p.tasks &&
+  p.tasks.done > 0 &&
+  p.tasks.done < p.tasks.total &&
+  `${p.tasks.done} of ${p.tasks.total}`;
 
 /** A day as a row says it: "3 Nov", with the year if it is not this one's. */
 const short = (d: string, now: string) =>
@@ -57,15 +65,17 @@ export const snoozed = (p: Todo, now = today()) =>
  * "due"; null if neither. */
 export function dueOf(p: Todo, now = today()): [string, string] | null {
   const until = snoozed(p, now) && p.snoozed_until;
-  if (p.kind !== "todo" || !(p.due || p.priority || until)) return null;
   const status = statusOf(p.kind, p.fields);
   const closed = status === "done" || status === "cancelled";
+  const part = !closed && partly(p);
+  if (p.kind !== "todo" || !(p.due || p.priority || until || part)) return null;
   const late = !!p.due && p.due < now && !closed;
   const day = p.due && (p.due === now && !closed ? "today" : short(p.due, now));
   const said = [
     p.priority,
     day && `${late ? "overdue" : "due"} ${day}`,
     until && `snoozed till ${short(until, now)}`,
+    part,
   ];
   return [said.filter(Boolean).join(" · "), late ? "due late" : closed ? "due closed" : "due"];
 }
