@@ -238,21 +238,33 @@ def rewrite(
 
 
 TASK = re.compile(r"\[([ xX])\](?: |$)")
+# A list item's first line: quote markers, a bullet or number, then a task marker (as
+# tasks.ts ITEM, which ticks it there)
+ITEM = re.compile(r"(?:[ \t]*>)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+\[[ xX]\]")
 
 
 def tasks(text: str) -> tuple[int, int]:
-    """A page's task boxes (- [ ] and - [x]) as the PWA draws them (render.ts): a
-    list item whose paragraph starts with the marker; one in code, a quote's text or a
-    heading is none. Returns (ticked, all)."""
+    """A page's task boxes (- [ ] and - [x]) exactly as the PWA draws them (render.ts
+    task): a list item whose paragraph's first text (escapes and all, as parsed)
+    starts with the marker, and whose first line in the text holds it as typed (so
+    the PWA can tick it). One in code, a quote's text, a heading, escaped (\\[ ]) or
+    a link named [x] is none. Returns (ticked, all)."""
     tokens = parser().parse(text)
+    source = re.split(r"\r\n?|\n", text)  # markdown-it's lines (its normalize)
     done = total = 0
     for i, t in enumerate(tokens):
+        item = tokens[i - 2] if i >= 2 else None
+        first = t.children[0] if t.children else None
         if (
-            t.type == "inline"
-            and i >= 2
+            item is not None
+            and t.type == "inline"
             and tokens[i - 1].type == "paragraph_open"
-            and tokens[i - 2].type == "list_item_open"
-            and (m := TASK.match(t.content))
+            and item.type == "list_item_open"
+            and item.map
+            and first is not None
+            and first.type == "text"
+            and (m := TASK.match(first.content))
+            and ITEM.match(source[item.map[0]])
         ):
             total += 1
             done += m[1] != " "

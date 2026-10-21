@@ -429,6 +429,14 @@ def add_tasks(conn: sqlite3.Connection) -> None:
 AFTER = {3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks}
 
 
+def boxes_before(page: sqlite3.Row) -> tuple[int, int]:
+    """A page's task boxes (ticked, all) before an edit, as its status follows them: a
+    todo's counts; none for a page that was not a todo, so one filed as a todo by this
+    edit (by its boxes, or by hand) is filed as a new capture of its text would be: done
+    if every box is ticked."""
+    return (page["task_done"], page["task_total"]) if page["kind"] == "todo" else (0, 0)
+
+
 def tag_counts(rows: list[Any]) -> dict[str, int]:
     """How many pages have each tag, from (page id, tag) rows: a/b counts for a too."""
     pages: dict[str, set[str]] = {}
@@ -892,7 +900,12 @@ class Store:
                     "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
                     (page["id"], page["rev"] + 1, new_title, new_body, author, stamp),
                 )
-                self._body(conn, page["id"], (page["task_done"], page["task_total"]))
+                self._body(
+                    conn,
+                    page["id"],
+                    boxes_before(page),
+                    status_set=bool(fields and "status" in fields),
+                )
                 self.reindex(conn, page["id"])
             return self.page_in(conn, page["id"])
 
@@ -902,13 +915,15 @@ class Store:
         page_id: str,
         before: tuple[int, int] = (0, 0),
         follow: bool = True,
+        status_set: bool = False,
     ) -> None:
         """After a page's text is written (before: its task boxes, ticked and in
-        all, as they were): its boxes counted. With follow, a note nobody filed
-        (kind_fixed 0) that has boxes becomes a todo, and a todo's status follows
-        them: all ticked, when they were not, is done; one unticked when all were
-        reopens a done one. Ticking a page done by hand changes no box, a cancelled
-        one is left as it is, and neither is a revision."""
+        all, as they were: boxes_before): its boxes counted. With follow, a note
+        nobody filed (kind_fixed 0) that has boxes becomes a todo, and a todo's
+        status follows them: all ticked, when they were not, is done; one unticked,
+        or a new unticked one, when all were reopens a done one. Ticking a page done
+        by hand changes no box, a cancelled one is left as it is, a status set in
+        the same edit (status_set) wins, and none of it is a revision."""
         row = conn.execute(
             "SELECT body, kind, kind_fixed, fields FROM page WHERE id = ?", (page_id,)
         ).fetchone()
@@ -926,7 +941,9 @@ class Store:
             return
         was_all = before[1] > 0 and before[0] == before[1]
         status = fields.get("status", "open")
-        if done == total and not was_all and status not in ("done", "cancelled"):
+        if status_set:  # the user's own, in this edit: the boxes don't override it
+            pass
+        elif done == total and not was_all and status not in ("done", "cancelled"):
             fields["status"] = "done"
         elif was_all and done < total and status == "done":
             fields["status"] = "open"
@@ -1032,7 +1049,7 @@ class Store:
                     "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
                     (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
                 )
-                self._body(conn, page["id"], (page["task_done"], page["task_total"]))
+                self._body(conn, page["id"], boxes_before(page))
             conn.execute(  # the retry key, even with no text
                 "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
                 (cid, text or None, MCP, author, stamp, stamp, page["id"]),

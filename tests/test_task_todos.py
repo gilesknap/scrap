@@ -29,6 +29,14 @@ def test_boxes_are_counted_as_the_pwa_draws_them():
         2,
         3,
     )
+    # Exactly the boxes the PWA draws (render.ts task): a box whose text is on the next
+    # line is one; an escaped one, a link named [x] and one not on the item's first
+    # line are none
+    assert tasks("- [ ]\n  continued\n- [x]") == (1, 2)
+    assert tasks("- \\[ ] escaped\n- [x] ok") == (1, 1)
+    assert tasks("[x]: http://e.com\n\n- [x] ref\n- [ ] box") == (0, 1)
+    assert tasks("-\n  [ ] below its bullet\n- - [ ] in an item in an item") == (0, 0)
+    assert tasks("- [ ] a\r- [x] b\r\n- [x] c") == (2, 3)
 
 
 def test_a_note_with_boxes_becomes_a_todo_unless_its_kind_was_chosen(client, note):
@@ -69,6 +77,10 @@ def test_the_status_follows_the_boxes_both_ways(client, note):
     client.patch(url, json={"fields": {"status": "done"}})
     assert client.get(url).json()["body"] == BOXES
     assert save(BOXES + "\n\nA line more") == ("done", {"done": 1, "total": 3})
+    # A new unticked box on a done todo opens it again
+    client.patch(url, json={"fields": {"status": "open"}})
+    assert save(every)[0] == "done"
+    assert save(every + "\n- [ ] one more") == ("open", {"done": 3, "total": 4})
     # Cancelled: never changed by its boxes
     client.patch(url, json={"fields": {"status": "cancelled"}})
     assert save(every)[0] == "cancelled"
@@ -150,3 +162,59 @@ def test_migration_7_upgrades_a_version_6_scrap(tmp_path, monkeypatch):
         )
         # counted, and nothing refiled: migrating changes no page's kind or status
         assert [tuple(r) for r in rows] == [("A", 1, 3, "note"), ("B", 0, 0, "note")]
+
+
+def test_a_status_set_with_the_body_wins_over_its_boxes(client, note):
+    ref = note(BOXES)
+    url = f"/api/pages/{ref['page_id']}"
+    every = BOXES.replace("[ ]", "[x]")
+    page = client.patch(
+        url, json={"base_rev": 1, "body": every, "fields": {"status": "open"}}
+    ).json()
+    assert page["fields"]["status"] == "open"
+    assert page["tasks"] == {"done": 3, "total": 3}
+    page = client.patch(
+        url, json={"base_rev": 2, "body": BOXES, "fields": {"status": "done"}}
+    ).json()
+    assert page["fields"]["status"] == "done"
+    assert page["tasks"] == {"done": 1, "total": 3}
+
+
+def test_filed_a_todo_by_hand_with_every_box_ticked_is_done(client, note):
+    every = BOXES.replace("[ ]", "[x]")
+    ref = note(every, kind="note")  # a note, by choice, with every box ticked
+    url = f"/api/pages/{ref['page_id']}"
+    page = client.patch(
+        url, json={"base_rev": 1, "body": every + "\n\nA line", "kind": "todo"}
+    ).json()
+    assert (page["kind"], page["fields"]["status"]) == ("todo", "done")
+
+
+def test_a_migrated_note_with_every_box_ticked_is_filed_done(tmp_path, monkeypatch):
+    """A version 6 note whose boxes are all ticked is counted 3 of 3 by migration 7;
+    its next edit files it as a todo, done, as a new capture of its text would be
+    (not open: its boxes were a note's, not a todo's)."""
+    import scrap.store as store_module
+
+    every = migrations()
+    monkeypatch.setattr(store_module, "migrations", lambda: every[:6])
+    data = tmp_path / "data"
+    Store(data).migrate()
+    with closing(connect(data / "scrap.db")) as conn:
+        conn.execute(
+            "INSERT INTO page (id, slug, title, body, kind, fields, created_at,"
+            " updated_at) VALUES ('A', 'a', 'T', ?, 'note', '{}', 'x', 'x')",
+            (BOXES.replace("[ ]", "[x]"),),
+        )
+        conn.execute(
+            "INSERT INTO page_rev VALUES ('A', 1, 'T', ?, 'pwa', 'x')",
+            (BOXES.replace("[ ]", "[x]"),),
+        )
+    monkeypatch.setattr(store_module, "migrations", lambda: every)
+    store = Store(data)
+    store.migrate()
+    assert store.page("A")["tasks"] == {"done": 3, "total": 3}
+    page = store.update_page(
+        "A", 1, None, BOXES.replace("[ ]", "[x]") + "\n\nA typo fixed", "pwa"
+    )
+    assert (page["kind"], page["fields"]["status"]) == ("todo", "done")
