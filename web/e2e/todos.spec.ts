@@ -177,3 +177,45 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   const row = page.locator(".list li", { hasText: "Quokka new todo" });
   await expect(row.getByRole("button", { name: /^Done: Quokka new todo/ })).toBeVisible();
 });
+
+test("Done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({
+  page,
+}) => {
+  // The two oldest overdue: first in Now
+  const a = await todo(page, "Wombat first", { due: day(-40) });
+  const b = await todo(page, "Wombat second", { due: day(-39) });
+  await page.goto("/todos");
+  await page.locator(".list a", { hasText: "Wombat first" }).click();
+  await expect(page.locator(".page h1")).toHaveText("Wombat first");
+  const where = page.locator(".pager .up");
+  await expect(where).toHaveText(/^1 of \d+ · Todos · Now$/);
+  await page.locator(".page .tools").getByRole("button", { name: "Done" }).click();
+  // On to the next, saying so
+  await expect(page).toHaveURL(`/p/${b.slug}`);
+  await expect(page.locator(".page h1")).toHaveText("Wombat second");
+  await expect(where).toHaveText(/^2 of \d+ · Todos · Now$/);
+  await expect(page.locator(".toast")).toContainText("Done: Wombat first. Next todo, 2 of");
+  expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
+    "done",
+  );
+  // Undo: open again, and back on it
+  await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
+  await expect(page).toHaveURL(`/p/${a.slug}`);
+  await expect(page.locator(".page h1")).toHaveText("Wombat first");
+  expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
+    "open",
+  );
+  // Where it is, tapped: back to the list (as Back does)
+  await expect(where).toHaveAccessibleName(/^1 of \d+: back to Todos · Now$/);
+  await where.click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
+  // From elsewhere (a search), Done stays on the page
+  await page.goto("/search?q=wombat+second");
+  await page.locator(".hits a", { hasText: "Wombat second" }).click();
+  await page.locator(".page .tools").getByRole("button", { name: "Done" }).click();
+  await expect(page.locator(".page .tools").getByRole("button", { name: "Reopen" })).toBeVisible();
+  await expect(page).toHaveURL(`/p/${b.slug}`);
+  await page.locator(".page .tools").getByRole("button", { name: "Reopen" }).click();
+  await expect(page.locator(".page .tools").getByRole("button", { name: "Done" })).toBeVisible();
+});

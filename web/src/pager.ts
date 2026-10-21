@@ -1,6 +1,9 @@
 // A page opened from a list (Recent, search results): where it is in it, and the previous
 // and next by its ‹ ›, a swipe or the arrow keys. A chunk of its own, loaded only for such a
-// page. Each step replaces the page's history entry, so Back still goes back to the list.
+// page. Each step replaces the page's history entry, so Back still goes back to the list, as
+// does a tap on where it is ("3 of 8 · Todos · Now"). Done on a todo opened from the Todos
+// screen moves on to the next one in that list.
+import { type Page, setStatus } from "./api";
 import { go, plain } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";
 import { icon } from "./icons";
@@ -49,13 +52,41 @@ export function pager(
       icon(d > 0 ? "next" : "back"),
     );
   swipePages(step, at, signal);
-  return h(
+  const el = h(
     "div",
     { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
     link(-1, "Previous", at.prev),
-    h("span", {}, `${at.i + 1} of ${at.n} · ${trail.label}`),
+    // Where it is; tapped, back to the list (the entry before: steps replace this one)
+    h(
+      "button",
+      {
+        type: "button",
+        className: "up",
+        "aria-label": `${at.i + 1} of ${at.n}: back to ${trail.label}`,
+        onclick: () => history.back(),
+      },
+      `${at.i + 1} of ${at.n} · ${trail.label}`,
+    ),
     link(1, "Next", at.next),
   );
+  /** Ticked Done (p as saved; was: its status before): from the Todos screen, on to the
+   * next todo in its list, saying so with an Undo (true); else false, it stays. */
+  const done = (p: Page, was: string) => {
+    if (!trail.label.startsWith("Todos ·")) return false;
+    if (!at.next) {
+      toast("Done: that was the last in the list", "Back to list", () => history.back(), 6000);
+      return false;
+    }
+    step(1);
+    const undo = () =>
+      setStatus(p.id, was).then(
+        () => go(`/p/${encodeURIComponent(p.slug)}`, true, { trail, from: -1 }),
+        () => toast("Undo failed: can't reach the server"),
+      );
+    toast(`Done: ${p.title}. Next todo, ${at.i + 2} of ${at.n}`, "Undo", undo, 6000);
+    return true;
+  };
+  return Object.assign(el, { done });
 }
 
 /** Calls step(+1) for a swipe left or the right arrow, step(-1) the other way, while the

@@ -910,11 +910,20 @@ mark {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.pager span {
+/* Where it is in the list; tapped, back to it (a ghost button, underlined as a link) */
+.pager .up {
   flex: 1;
+  display: block;
   min-width: 0;
+  padding: 0 var(--s-1);
   overflow: hidden;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
   text-align: center;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 0.25em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
