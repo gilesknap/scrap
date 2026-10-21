@@ -14,7 +14,7 @@ import unicodedata
 from collections import Counter
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from importlib.resources import files as package_files
 from pathlib import Path
 from typing import IO, Any
@@ -88,7 +88,7 @@ SORT_SQL = {
     "priority": "CASE WHEN p.kind = 'todo' THEN CASE p.priority"
     " WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 END END",
 }
-TODO = ("due", "priority")  # a todo's own columns
+TODO = ("due", "priority", "snoozed_until")  # a todo's own columns
 TODO_SQL = "p.kind = 'todo' AND "  # a filter on them: only a todo's count
 RANK = "coalesce(p.priority, 'none')"  # priority:none finds a todo with none
 # Priorities as an imported todo may have them (Thoth's Urgent: the highest there is)
@@ -212,13 +212,13 @@ def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
 
 
 def check_todo(name: str, value: Any) -> str | None:
-    """A due date (YYYY-MM-DD) or priority (high, medium, low) as given, checked; None
-    clears it."""
+    """A due date or a day snoozed until (YYYY-MM-DD) or a priority (high, medium,
+    low) as given, checked; None clears it."""
     if value is None:
         return None
-    if name == "due":
+    if name in ("due", "snoozed_until"):
         if not isinstance(value, str) or day(value) is None:
-            raise InvalidError("due must be a date, YYYY-MM-DD")
+            raise InvalidError(f"{name} must be a date, YYYY-MM-DD")
         return value
     if value not in PRIORITIES:
         raise InvalidError(f"priority must be one of {PRIORITIES}")
@@ -234,8 +234,9 @@ def todo_columns(
     if kind != "todo":
         return out, fields
     rest = dict(fields)
-    if isinstance(when := rest.get("due"), str) and day(when):
-        out["due"] = rest.pop("due")
+    for name in ("due", "snoozed_until"):  # an export's front matter has them too
+        if isinstance(when := rest.get(name), str) and day(when):
+            out[name] = rest.pop(name)
     rank = rest.get("priority")
     rank = PRIORITY_NAMES.get(rank, rank) if isinstance(rank, str) else None
     if rank in PRIORITIES:
@@ -392,7 +393,22 @@ def move_todo_fields(conn: sqlite3.Connection) -> None:
             )
 
 
-AFTER = {3: index_all, 4: index_all, 5: move_todo_fields}  # migration -> Python step
+def add_snooze(conn: sqlite3.Connection) -> None:
+    """A todo's snoozed_until (migration 6), unless an earlier run added it."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(page)")}
+    if "snoozed_until" not in columns:
+        conn.execute(
+            "ALTER TABLE page ADD COLUMN snoozed_until TEXT CHECK (snoozed_until"
+            " IS NULL OR (length(snoozed_until) = 10"
+            " AND date(snoozed_until) = snoozed_until))"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS page_by_snooze ON page(snoozed_until)"
+        " WHERE snoozed_until IS NOT NULL"
+    )
+
+
+AFTER = {3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze}
 
 
 def tag_counts(rows: list[Any]) -> dict[str, int]:
@@ -531,11 +547,11 @@ class Store:
             page_id = new_ulid()
             conn.execute(
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at, due, priority)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " created_at, updated_at, due, priority, snoozed_until)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (page_id, self._slug(conn, title), title, body, kind or "note",
                  int(bool(kind)), json.dumps(c["fields"]), stamp, stamp,
-                 c.get("due"), c.get("priority")),
+                 c.get("due"), c.get("priority"), c.get("snoozed_until")),
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
@@ -589,11 +605,11 @@ class Store:
             todo, fields = todo_columns(p["kind"], p["fields"])
             conn.execute(
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at, due, priority)"
-                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)",
+                " created_at, updated_at, due, priority, snoozed_until)"
+                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)",
                 (page_id, p["slug"], p["title"], p["body"], p["kind"],
                  json.dumps(fields), p["created_at"], p["updated_at"], todo["due"],
-                 todo["priority"]),
+                 todo["priority"], todo["snoozed_until"]),
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
@@ -679,7 +695,7 @@ class Store:
             rows = _rows(
                 conn,
                 "SELECT id, slug, title, kind, kind_fixed, fields, created_at,"
-                f" updated_at, due, priority, {THUMB} AS thumb"
+                f" updated_at, due, priority, snoozed_until, {THUMB} AS thumb"
                 " FROM page p WHERE deleted_at IS NULL"
                 " AND coalesce(?, kind) = kind"
                 " ORDER BY updated_at DESC, id DESC LIMIT ?",
@@ -1053,6 +1069,7 @@ class Store:
                 tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
+                    " p.snoozed_until,"
                     " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet"
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
@@ -1065,7 +1082,7 @@ class Store:
             else:
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
-                    " p.body AS snippet"
+                    " p.snoozed_until, p.body AS snippet"
                     f" FROM page p WHERE {where}"
                     f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
                     (*args, limit, offset),
@@ -1201,6 +1218,9 @@ class Store:
                     " AND c.source = ?)"
                 )
                 args.append(MCP)
+            elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
+                sql.append(f"{no}coalesce({TODO_SQL}p.snoozed_until > ?, 0)")
+                args.append(date.today().isoformat())  # the server's day, as due:'s
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")

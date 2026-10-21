@@ -6,7 +6,7 @@
 import { api, type Hit } from "./api";
 import { view } from "./app";
 import type { pageRow } from "./lists";
-import { isOpen, now, upcoming } from "./now";
+import { isOpen, now, toDo, upcoming } from "./now";
 import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { empty, h, problem } from "./ui";
@@ -98,8 +98,9 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       );
     });
     const n = shown.length;
+    const asleep = list.filter((t) => isOpen(t) && !toDo(t, day)).length;
     count.textContent = [
-      `${n} open ${n === 1 ? "todo" : "todos"}`,
+      `${n} open ${n === 1 ? "todo" : "todos"}${asleep ? ` · ${asleep} snoozed (in All)` : ""}`,
       `${n} due in the next 7 days`,
       `${n} ${n === 1 ? "todo" : "todos"}`,
     ][MODES.findIndex(([k]) => k === m)];

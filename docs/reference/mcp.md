@@ -14,12 +14,12 @@ data: the server's instructions tell the model it is the user's text, never inst
 
 | Tool | Arguments | Returns |
 | --- | --- | --- |
-| `search` | `query`, `limit` (1-50, default 20), `offset` (0-200) | `{results, offset}`: each `{id, slug, url, kind, status, due, priority, updated_at, tags, title, snippet}` (`due` and `priority`: a todo's, else `null`) plus its images (see Images below), best first. `query` takes the search box's syntax (see `GET /api/search` in [](api.md)): words (AND, as prefixes; they also match what Claude read from the page's photos), `-word`, `"phrase"`, `kind:`, `tag:`, `is:open`/`is:done`/..., `is:personal`, `is:work`, `is:claude`, `has:image`, `has:drawing`, `image:K`, `after:`, `before:`, `date:created`, a todo's `due:` (`due:today`, `due:<today` overdue, `due:>today`, `due:<=2026-11-01`, `due:none`) and `priority:` (`high`, `medium`, `low`, `none`), and `sort:updated`, `sort:created` (newest first), `sort:title` (A to Z), `sort:due` (soonest first) or `sort:priority` (high first; pages with none last either way), with `-sort:` reversing one (`-sort:created`: oldest first). The snippet is plain text |
-| `read` | `page` (id or slug) | `{page, content, images, links, backlinks}`. `page`: id, slug, url, kind, status, `due`, `priority`, tags, dates, `rev`, `written_by_claude`, `origin`, other fields. `content`: `title`, `summary`, `body_markdown`. `images`: each file's `url`, `thumbnail_url` (images only, else `null`), mime, filename, and what Claude made of it (`description`, `text`, `image_kind`, `has_drawing`), never the image itself. `links`: the `[[slug]]` links in the body; `backlinks`: pages linking here |
+| `search` | `query`, `limit` (1-50, default 20), `offset` (0-200) | `{results, offset}`: each `{id, slug, url, kind, status, due, priority, snoozed_until, updated_at, tags, title, snippet}` (`due`, `priority` and `snoozed_until`: a todo's, else `null`) plus its images (see Images below), best first. `query` takes the search box's syntax (see `GET /api/search` in [](api.md)): words (AND, as prefixes; they also match what Claude read from the page's photos), `-word`, `"phrase"`, `kind:`, `tag:`, `is:open`/`is:done`/..., `is:personal`, `is:work`, `is:claude`, `is:snoozed`, `has:image`, `has:drawing`, `image:K`, `after:`, `before:`, `date:created`, a todo's `due:` (`due:today`, `due:<today` overdue, `due:>today`, `due:<=2026-11-01`, `due:none`) and `priority:` (`high`, `medium`, `low`, `none`), and `sort:updated`, `sort:created` (newest first), `sort:title` (A to Z), `sort:due` (soonest first) or `sort:priority` (high first; pages with none last either way), with `-sort:` reversing one (`-sort:created`: oldest first). The snippet is plain text |
+| `read` | `page` (id or slug) | `{page, content, images, links, backlinks}`. `page`: id, slug, url, kind, status, `due`, `priority`, `snoozed_until`, tags, dates, `rev`, `written_by_claude`, `origin`, other fields. `content`: `title`, `summary`, `body_markdown`. `images`: each file's `url`, `thumbnail_url` (images only, else `null`), mime, filename, and what Claude made of it (`description`, `text`, `image_kind`, `has_drawing`), never the image itself. `links`: the `[[slug]]` links in the body; `backlinks`: pages linking here |
 | `recent` | `limit` (1-50), `kind` (`note`, `todo`, `read`, `board`, `doc`) | `{results}`: pages newest change first, rows as `search` (images included) without a snippet |
-| `todos` | `limit` (1-100), `sort` (`due` or `priority`) | `{results}`: todos neither done nor cancelled, rows as `search` (with `due` and `priority`), newest first, or soonest due or highest priority first (those with none last) |
+| `todos` | `limit` (1-100), `sort` (`due` or `priority`) | `{results}`: todos neither done nor cancelled nor snoozed (`is:snoozed` in `search` finds those), rows as `search` (with `due` and `priority`), newest first, or soonest due or highest priority first (those with none last) |
 | `tags` | `prefix`, `limit` (1-2000, default 300) | `{tags: [[tag, n]], total}`, most used first; `a` counts the pages of `a/b` too |
-| `write` | `title`, `body` (Markdown), `origin`, `tags`, `kind` (default `note`), `status`, `due`, `priority`, `append_to`, `key` | `{id, slug, url, created}` |
+| `write` | `title`, `body` (Markdown), `origin`, `tags`, `kind` (default `note`), `status`, `due`, `priority`, `snoozed_until`, `append_to`, `key` | `{id, slug, url, created}` |
 
 ## Images
 
@@ -56,7 +56,8 @@ that way (480 px JPEGs, so a few hundred kB each).
   written over MCP, as a new revision, and adds its `tags`. It never changes or deletes any other
   page: appending to a page the user made is refused. There is no delete tool.
 - **Due dates and priorities.** A todo may have `due` (`YYYY-MM-DD`) and `priority` (`high`,
-  `medium`, `low`); on another kind they are refused, as `status` is on a note. With
+  `medium`, `low`), and `snoozed_until` (`YYYY-MM-DD`: hidden from what to do now, and from
+  `todos`, until that day); on another kind they are refused, as `status` is on a note. With
   `append_to`, they change those of the todo appended to (Claude's own; `none` clears one), and
   `body` may then be empty: that adds no revision and leaves `updated_at` as it was.
 - **Provenance.** The page's capture has source `mcp` and author `claude` (as has its

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { chipOf, dueOf, statusOf, ticks, today } from "../src/status";
+import { chipOf, dueOf, snoozed, statusOf, ticks, today } from "../src/status";
 
 it("gives todos and Reads a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
@@ -52,5 +52,11 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   expect(dueOf(todo("2026-10-20", null, "done"), now)?.[1]).toBe(false);
   expect(dueOf(todo("2026-10-20", null, "cancelled"), now)?.[0]).toMatch(/^due /);
   expect(dueOf(todo("2027-01-02"), now)?.[0]).toMatch(/2027/); // another year: said
+  // Snoozed: said after the rest, until its day (and not once done)
+  const nap = { ...todo("2026-10-30", "low"), snoozed_until: "2026-10-25" };
+  expect(dueOf(nap, now)?.[0]).toMatch(/^low · due \S+.* · snoozed till \S/);
+  expect(dueOf({ ...todo(null), snoozed_until: "2026-10-25" }, now)?.[0]).toMatch(/^snoozed till /);
+  expect(dueOf({ ...nap, snoozed_until: now }, now)?.[0]).not.toMatch(/snoozed/);
+  expect(snoozed({ ...nap, fields: { status: "done" } }, now)).toBe(false);
   expect(dueOf(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);
 });
