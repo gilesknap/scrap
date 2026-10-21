@@ -248,3 +248,50 @@ test("switching Now, Upcoming and All replaces the entry: Back leaves Todos", as
   await expect(page).toHaveURL(/\/$/); // off Todos at once, not through each view
   await expect(page.getByRole("button", { name: "Camera" })).toBeVisible();
 });
+
+test("snooze a todo from its page: out of Now and the count until its day, marked in All", async ({
+  page,
+}) => {
+  const t = await todo(page, "Bilby snooze me", { due: day(-1), priority: "high" });
+  const inNow = () => page.locator(".todos .list a strong", { hasText: "Bilby snooze me" });
+  const badgeQ = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled -is:snoozed");
+  const counted = async () =>
+    (
+      (await (await page.request.get(`/api/search?q=${badgeQ}&limit=100`)).json()) as {
+        title: string;
+      }[]
+    ).some((h) => h.title === "Bilby snooze me");
+  await page.goto("/todos");
+  await expect(inNow()).toBeVisible();
+  expect(await counted()).toBe(true);
+  await page.goto(`/p/${t.slug}`);
+  const line = page.locator(".todoline > button");
+  await line.click();
+  const snooze = page.getByRole("group", { name: "Snooze for" });
+  await snooze.getByRole("button", { name: "Tomorrow" }).click();
+  await expect(page.getByLabel("Snooze until")).toHaveValue(day(1));
+  await expect(snooze.getByRole("button", { name: "Tomorrow" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(line).toHaveText(/ · snoozed till /);
+  expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).snoozed_until).toBe(
+    day(1),
+  );
+  expect(await counted()).toBe(false); // the Todos tab's count leaves it out
+  await page.goto("/todos");
+  await expect(page.locator(".todos .count")).toContainText("snoozed (in All)");
+  await expect(inNow()).toHaveCount(0);
+  await page.getByText("All", { exact: true }).click();
+  const row = page.locator(".list li", { hasText: "Bilby snooze me" });
+  await expect(row.locator(".due")).toHaveText(/^high · overdue .* · snoozed till /);
+  // Woken by hand: back in Now
+  await row.locator("a").click();
+  await line.click();
+  await page.getByRole("button", { name: "No snooze" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(line).not.toHaveText(/snoozed/);
+  await page.goto("/todos");
+  await expect(inNow()).toBeVisible();
+});

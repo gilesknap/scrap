@@ -33,26 +33,39 @@ interface Todo {
   fields?: Fields;
   due?: string | null;
   priority?: string | null;
+  snoozed_until?: string | null;
 }
 
-/** What a todo's row and page say of its due date and priority ("high · due 3 Nov"), and
+/** A day as a row says it: "3 Nov", with the year if it is not this one's. */
+const short = (d: string, now: string) =>
+  new Date(`${d}T12:00`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    ...(d.slice(0, 4) !== now.slice(0, 4) && { year: "numeric" }),
+  });
+
+/** Snoozed: out of Now and the Todos tab's count until its day (not once done). */
+export const snoozed = (p: Todo, now = today()) =>
+  !!p.snoozed_until &&
+  p.snoozed_until > now &&
+  !["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`);
+
+/** What a todo's row and page say of its due date, priority and snooze ("high · due 3 Nov ·
+ * snoozed till 1 Nov"), and
  * its class: "due late" if overdue (due before today and not done or cancelled), "due
  * closed" if done or cancelled (its date kept, greyed, never "today" or overdue), else
  * "due"; null if neither. */
 export function dueOf(p: Todo, now = today()): [string, string] | null {
-  if (p.kind !== "todo" || !(p.due || p.priority)) return null;
+  const until = snoozed(p, now) && p.snoozed_until;
+  if (p.kind !== "todo" || !(p.due || p.priority || until)) return null;
   const status = statusOf(p.kind, p.fields);
   const closed = status === "done" || status === "cancelled";
   const late = !!p.due && p.due < now && !closed;
-  const day =
-    p.due &&
-    (p.due === now && !closed
-      ? "today"
-      : new Date(`${p.due}T12:00`).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          ...(p.due.slice(0, 4) !== now.slice(0, 4) && { year: "numeric" }),
-        }));
-  const said = [p.priority, day && `${late ? "overdue" : "due"} ${day}`];
+  const day = p.due && (p.due === now && !closed ? "today" : short(p.due, now));
+  const said = [
+    p.priority,
+    day && `${late ? "overdue" : "due"} ${day}`,
+    until && `snoozed till ${short(until, now)}`,
+  ];
   return [said.filter(Boolean).join(" · "), late ? "due late" : closed ? "due closed" : "due"];
 }

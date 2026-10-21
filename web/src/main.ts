@@ -133,7 +133,7 @@ queue.onchange = () => {
 // server), refreshed when the app opens or comes back, and after a change (a tick, an edit).
 const tab = document.querySelector('nav a[href="/todos"]') as HTMLAnchorElement;
 const dueN = tab.querySelector("b") as HTMLElement;
-const DUE = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled");
+const DUE = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled -is:snoozed");
 let dueTimer: ReturnType<typeof setTimeout>;
 function dueSoon() {
   clearTimeout(dueTimer);

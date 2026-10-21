@@ -21,33 +21,20 @@ const SOON: [string, number][] = [
   ["Next week", 7],
 ];
 
-export function todoField(due: string | null = null, priority: string | null = null) {
+/** A day field: a native date picker, one-tap chips (pressed while theirs is the day set)
+ * and a ghost button that empties it. Each change is an input event (the editor keeps a
+ * draft). */
+function dayField(label: string, chips: [string, number][], none: string, quick: string) {
   const date = h("input", { type: "date", min: "0001-01-01", max: "9999-12-31" });
-  const rank = h(
-    "select",
-    { "aria-label": "Priority" },
-    h("option", { value: "" }, "No priority"),
-    ...PRIORITIES.map((p) => h("option", { value: p }, `${p[0].toUpperCase()}${p.slice(1)}`)),
-  );
-  const clear = h(
-    "button",
-    {
-      type: "button",
-      className: "ghost",
-      onclick: () => set(""),
-    },
-    "No date",
-  );
-  // One tap sets a date (pressed while it is the one set), as if picked in the date picker
   const set = (v: string) => {
     date.value = v;
-    date.dispatchEvent(new Event("input", { bubbles: true })); // the editor keeps a draft
+    date.dispatchEvent(new Event("input", { bubbles: true }));
   };
-  const soon = SOON.map(([label, n]) => {
+  const soon = chips.map(([name, n]) => {
     const b = h(
       "button",
       { type: "button", className: "facet", onclick: () => set(inDays(n)) },
-      label,
+      name,
     );
     b.dataset.n = String(n);
     return b;
@@ -57,32 +44,71 @@ export function todoField(due: string | null = null, priority: string | null = n
   };
   date.addEventListener("input", mark);
   date.addEventListener("change", mark);
-  const reset = (d: string | null, p: string | null) => {
+  const clear = h("button", { type: "button", className: "ghost", onclick: () => set("") }, none);
+  const group = h("div", { className: "soon", role: "group", "aria-label": quick }, ...soon);
+  return { date, mark, els: [h("label", {}, label, date), clear, group] };
+}
+
+/** A todo's due date and priority; with snooze (a day, or null), its snooze too. */
+export function todoField(
+  due: string | null = null,
+  priority: string | null = null,
+  snooze?: string | null,
+) {
+  const day = dayField("Due", SOON, "No date", "Due soon");
+  const date = day.date;
+  const rank = h(
+    "select",
+    { "aria-label": "Priority" },
+    h("option", { value: "" }, "No priority"),
+    ...PRIORITIES.map((p) => h("option", { value: p }, `${p[0].toUpperCase()}${p.slice(1)}`)),
+  );
+  // Snooze: out of Now (and the Todos tab's count) until that day
+  const nap =
+    snooze === undefined
+      ? null
+      : dayField(
+          "Snooze until",
+          [
+            ["Tomorrow", 1],
+            ["Next week", 7],
+          ],
+          "No snooze",
+          "Snooze for",
+        );
+  const reset = (d: string | null, p: string | null, z: string | null = null) => {
     date.value = d ?? "";
     rank.value = p ?? "";
-    mark();
+    day.mark();
+    if (nap) {
+      nap.date.value = z ?? "";
+      nap.mark();
+    }
   };
-  reset(due, priority);
+  reset(due, priority, snooze);
   const el = h(
     "div",
     { className: "todoedit" },
-    h("label", {}, "Due", date),
-    clear,
-    h("div", { className: "soon", role: "group", "aria-label": "Due soon" }, ...soon),
+    ...day.els,
     h("label", {}, "Priority", rank),
+    ...(nap?.els ?? []),
   );
   return {
     el,
     date,
     /** As the API takes them: null for none. */
-    value: () => ({ due: date.value || null, priority: rank.value || null }),
+    value: () => ({
+      due: date.value || null,
+      priority: rank.value || null,
+      ...(nap && { snoozed_until: nap.date.value || null }),
+    }),
     reset,
   };
 }
 
 /** The in-place form on a todo's page; close() gets the page as it is then. */
 export function todoForm(p: Page, close: (p: Page) => void) {
-  const field = todoField(p.due, p.priority);
+  const field = todoField(p.due, p.priority, p.snoozed_until ?? null);
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const form = h(
     "form",

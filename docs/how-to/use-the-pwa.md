@@ -135,6 +135,11 @@ the link as the capture's URL.
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.
+- **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
+  tags and pick **Snooze until** a date (**Tomorrow** or **Next week** in a tap; **No snooze**
+  wakes it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
+  tab's count (Now's count says how many are snoozed); **All** shows it, marked *snoozed till 3
+  Nov*, and `is:snoozed` finds them. On its day it comes back by itself.
 - The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or cancelled, what to
   do first at the top, in groups: **Overdue** (oldest due date first), **Today**, **High
   priority** (no due date), then **Later** (by priority, then due date, then last edited). Each
@@ -261,7 +266,7 @@ Tap the drawing to open it full screen:
   a count; kinds are the fixed row). The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
-  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
+  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `is:snoozed` (todos snoozed till later), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
   `due:2026-11-01` (also `<=`, `>=`), `due:none`, `priority:high` (`medium`, `low`, `none`), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
   for when it was made), `sort:title` (A to Z; also `sort:created`, newest first,
