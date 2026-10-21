@@ -100,6 +100,19 @@ the link as the capture's URL.
   rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
   open it again; the row stays where it is and its chip says *done* (or *cancelled*). Ticking
   it or changing a kind doesn't move the page up the list.
+- A todo may have a **due date** and a **priority** (high, medium or low). Its page shows them
+  in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to pick a date
+  (**No date** clears it) and a priority, then **Save**. **Edit** has the same two under the
+  tags while the kind is Todo. A todo's row in a list says them too; one due before today and
+  not done says *overdue* in red, until ticked off. They are a todo's only: a page made a note
+  keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
+  nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
+  for `due:` searches.
+- On the Todos screen (**Todos** in the kind row), chips **Today**, **Overdue** and
+  **Upcoming** are saved views: todos due today, before today or after it, not done or
+  cancelled, soonest first (`due:<today -is:done -is:cancelled sort:due`, say). Tap the one
+  that is on to go back to every todo. Its **Sort** menu adds **Due soonest**, **Due latest**
+  and **Priority**.
 - Swipe a row of the list, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
   seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
@@ -207,10 +220,11 @@ Tap the drawing to open it full screen:
   search, tap a chip of the query's own filters to take it out. The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
-  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), `after:1w` or
+  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
+  `due:2026-11-01` (also `<=`, `>=`), `due:none`, `priority:high` (`medium`, `low`, `none`), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
-  for when it was made), `sort:title` (A to Z; also `sort:created`, newest first, and
-  `sort:updated`; `-sort:` turns one round: `-sort:created` is oldest first). The chip row
+  for when it was made), `sort:title` (A to Z; also `sort:created`, newest first,
+  `sort:updated`, and a todo's `sort:due`, soonest first, and `sort:priority`, high first; `-sort:` turns one round: `-sort:created` is oldest first). The chip row
   also has **Tags** (browse them), **Sort** (a menu: **Best match** or **Last edited**,
   **First edited**, **Newest**, **Oldest**, **Title A–Z**, **Title Z–A**; it writes the
   `sort:` for you, and works with nothing typed too, on every page), **1w**, **1m**, **1y**

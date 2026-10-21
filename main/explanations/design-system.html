@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.1.dev177+g7b8b55c38 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.1.dev185+g24ce4d7dd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bd9323a3"></script>
+    <script src="../_static/documentation_options.js?v=79894842"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -729,6 +729,14 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">em</span></code></p></td>
 <td><p>amber-soft pill: “todo”, “read”, or the status that ends one: “done”, “cancelled”</p></td>
 </tr>
+<tr class="row-even"><td><p>Due line</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">.due</span></code>, <code class="docutils literal notranslate"><span class="pre">.todoline</span></code>, <code class="docutils literal notranslate"><span class="pre">.todoedit</span></code></p></td>
+<td><p>a todo’s priority and due date in words (“high · due 3 Nov”) after its chip, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; overdue (<code class="docutils literal notranslate"><span class="pre">.late</span></code>: due before today, not done or cancelled) says “overdue” in <code class="docutils literal notranslate"><span class="pre">--danger</span></code>, semibold: the word carries it, never colour alone. On its page, a pill button under the tags opens <code class="docutils literal notranslate"><span class="pre">.todoedit</span></code> in place: a native date input, <strong>No date</strong> (ghost) and a native priority <code class="docutils literal notranslate"><span class="pre">select</span></code>, then Cancel and Save; the editor shows the same while the kind is Todo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Saved views</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.facet</span></code> in <code class="docutils literal notranslate"><span class="pre">.refine</span></code></p></td>
+<td><p>the Todos screen’s <strong>Today</strong>, <strong>Overdue</strong>, <strong>Upcoming</strong>: chips like the facets, <code class="docutils literal notranslate"><span class="pre">.on</span></code> while their filters are the query’s (those filters then get no chips of their own)</p></td>
+</tr>
 <tr class="row-even"><td><p>Row tick</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">.tick</span></code></p></td>
 <td><p>a todo’s or a Read’s row: a 48 px toggle (<code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code>, <code class="docutils literal notranslate"><span class="pre">aria-label</span></code> “Done: title”) at its end, beside the row’s link rather than in it, so tapping it opens nothing; an empty box in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>, ticked in <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> when done; it slides with the row, and a drag that starts on it swipes the row</p></td>
@@ -826,6 +834,9 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-even"><td><p>Failed</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--danger</span></code> text in words, a <code class="docutils literal notranslate"><span class="pre">--danger-soft</span></code> badge; never colour alone</p></td>
+</tr>
+<tr class="row-odd"><td><p>Overdue</p></td>
+<td><p>a todo’s due line in <code class="docutils literal notranslate"><span class="pre">--danger</span></code>, semibold, saying “overdue” (AA on <code class="docutils literal notranslate"><span class="pre">--bg</span></code>, <code class="docutils literal notranslate"><span class="pre">--surface</span></code> and <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> in both themes, as <code class="docutils literal notranslate"><span class="pre">--danger</span></code> is checked); back to <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code> once done</p></td>
 </tr>
 </tbody>
 </table>

@@ -100,6 +100,8 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Fold | `.claude-text` (`details`) | hairline above, a chevron before the heading: right folded, down open |
 | Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; the page follows a sideways swipe and slides off to the next |
 | Kind chip | `.list em` | amber-soft pill: "todo", "read", or the status that ends one: "done", "cancelled" |
+| Due line | `.list .due`, `.todoline`, `.todoedit` | a todo's priority and due date in words ("high · due 3 Nov") after its chip, `--ink-2`; overdue (`.late`: due before today, not done or cancelled) says "overdue" in `--danger`, semibold: the word carries it, never colour alone. On its page, a pill button under the tags opens `.todoedit` in place: a native date input, **No date** (ghost) and a native priority `select`, then Cancel and Save; the editor shows the same while the kind is Todo |
+| Saved views | `.facet` in `.refine` | the Todos screen's **Today**, **Overdue**, **Upcoming**: chips like the facets, `.on` while their filters are the query's (those filters then get no chips of their own) |
 | Row tick | `.list .tick` | a todo's or a Read's row: a 48 px toggle (`aria-pressed`, `aria-label` "Done: title") at its end, beside the row's link rather than in it, so tapping it opens nothing; an empty box in `--ink-2`, ticked in `--accent-ink` when done; it slides with the row, and a drag that starts on it swipes the row |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
@@ -128,6 +130,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Busy | the label reads "Preparing…" and taps are ignored; no dimming, so it stays at full contrast |
 | Loading image | the reserved box shimmers between `--sunk` and `--line` until the image loads or fails, then stops |
 | Failed | `--danger` text in words, a `--danger-soft` badge; never colour alone |
+| Overdue | a todo's due line in `--danger`, semibold, saying "overdue" (AA on `--bg`, `--surface` and `--sunk` in both themes, as `--danger` is checked); back to `--ink-2` once done |
 
 ## Layout and breakpoints
 
