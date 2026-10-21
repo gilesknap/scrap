@@ -23,8 +23,8 @@ and shared, so deleting one safely is harder than deleting a row.
   one function, `store.body_refs`, deliberately *not* the Markdown parser, since gc deletes whatever
   it misses), capture, derived row, job or model run. Files younger than 24 hours are skipped; the
   references are reread in a write transaction before deleting; each file is renamed aside and
-  its age rechecked; a run interrupted mid-way is reconciled by the next. A nightly timer runs it
-  after backup.
+  its age rechecked; a run interrupted mid-way is reconciled by the next. On a single server a nightly timer runs it
+  after backup (the Helm chart has no gc job).
 
 ## Consequences
 

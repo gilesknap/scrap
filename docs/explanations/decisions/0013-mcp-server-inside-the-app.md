@@ -23,11 +23,12 @@ server it can add with one line, from anywhere on the tailnet.
   or delete the user's own pages. Provenance is the capture source `mcp` (which HTTP clients cannot
   send), author `claude`, and `fields.origin`; the PWA shows a badge and `is:claude` filters. A
   client key is hashed into the capture id, reusing the retry key mechanism.
-- Deferred: ingest of URLs or text, a `context` tool replaying a photo's model run, deleting, setting
-  a kind, ticking a todo.
+- Deferred: ingest of URLs or text, a `context` tool replaying a photo's model run, deleting, and changing
+  an existing page's kind or status (`write` can set kind, status, due and priority on a new page).
 
 ## Consequences
 
+- `/mcp` checks the Host/Origin of requests, which guards against DNS rebinding.
 - No separate process or credentials; the tailnet protects it as in
   [](0007-tailscale-serve-for-access-and-identity.md).
 - Page text may contain prompt injection, so sessions with other powerful credentials should not

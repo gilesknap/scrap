@@ -25,7 +25,7 @@ the vocabulary.
   They belong to todos: the API refuses them elsewhere, and a todo turned note keeps them hidden
   rather than losing them. Setting them is not a revision.
 - Changing a kind **keeps every field** and adds the new kind's defaults, so a stray tap loses
-  nothing. A kind set by capture or in the editor sets `kind_fixed`; `summarise`/ingest set kind
+  nothing. A kind set by capture or in the editor sets `kind_fixed`; ingest sets kind
   only while it is an unfixed `note`, and fields and tags only on the first success.
 - Deliberately out: recurring tasks, sub-tasks, projects.
 

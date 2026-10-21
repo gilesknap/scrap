@@ -23,11 +23,11 @@ dependencies today.)
 - A derived version's text is indexed as its own chunk while current (triggers), so OCR and image
   descriptions are searchable; pixels and raw Excalidraw JSON are not.
 - One query parser (`query.py`) serves the PWA's search box and MCP: `kind:`, `tag:`, `is:`,
-  `has:`, `image:`, `due:`, `priority:`, `before:`/`after:` ranges, negation and `sort:`.
+  `has:`, `image:`, `due:`, `priority:`, `before:`/`after:` ranges, `date:`, quoted phrases, negation and `sort:`.
   Facets and tag browsing come from the same code. The PWA has one Search screen: an empty box lists
   everything newest first.
-- The index is a cache and `scrap reindex` (or a numbered migration with an `AFTER` hook) rebuilds
-  it.
+- The index is a cache and a numbered migration with an `AFTER` hook (`store.AFTER`) rebuilds it;
+  there is no `reindex` command.
 
 ## Consequences
 
