@@ -111,7 +111,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it |
 | Sort menu | `select.facet.sort` | in the refine row, after Tags: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:` |
 | Tag line | `.tags` | a page's tags under its title, `--sunk` pills that each search for their tag, in one line that scrolls; first an outlined **Tags** pill (tag icon) that edits them |
-| Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, under the title |
+| Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, under the title; in the composer, under the text (above the photos) |
 | Toast | `.toast` | dark slab above what is under the thumb, amber text action |
 | Banner | `.conflict`, `.restored` | danger-soft with a red edge; accent-soft info line |
 | Empty state | `.empty` (`empty()` in ui.ts) | icon in a `--sunk` circle, a sentence, one action |
