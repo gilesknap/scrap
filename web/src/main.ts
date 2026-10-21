@@ -3,7 +3,7 @@ import "./style.css";
 import { api, learnLimit } from "./api";
 import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
-import { debugPanel } from "./debug";
+import { KEY } from "./debug";
 import { pageRow } from "./lists";
 import { page } from "./page";
 import { search } from "./search";
@@ -174,7 +174,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
-debugPanel();
+if (localStorage.getItem(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();
 flush();
