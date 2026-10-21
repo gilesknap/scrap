@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev244+g295691611 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev246+g349691184 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1cd157cf"></script>
+    <script src="../_static/documentation_options.js?v=3acdf81e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -639,6 +639,10 @@ not done says <em>overdue</em> in red, until ticked off. They are a todo’s onl
 keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
 nor moves the page up the list. Today is your phone’s day on rows and pages, and the server’s
 for <code class="docutils literal notranslate"><span class="pre">due:</span></code> searches.</p></li>
+<li><p><strong>Snooze</strong> a todo to put it out of the way until a day: on its page, tap the line under its
+tags and pick a <strong>Snooze until</strong> date (<strong>No snooze</strong> wakes it), then <strong>Save</strong>. Until that day it is out of <strong>Now</strong> and <strong>Upcoming</strong> and the Todos
+tab’s count (Now’s count says how many are snoozed); <strong>All</strong> shows it, marked <em>snoozed till 3
+Nov</em>, and <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> finds them. On its day it comes back by itself.</p></li>
 <li><p>The <strong>Todos</strong> screen (<code class="docutils literal notranslate"><span class="pre">/todos</span></code>, the Todos tab) opens on <strong>Now</strong>: the todos not done or
 cancelled, what to do first at the top, in groups: <strong>Overdue</strong> (oldest due date first),
 <strong>Today</strong>, <strong>High priority</strong> (no due date), then <strong>Later</strong> (by priority, then due date, then
@@ -762,7 +766,7 @@ under the kinds and the Filters sheet narrow it (Work or Personal and the top ta
 a count; kinds are the fixed row). The chips only write the query,
 which you can also type: <code class="docutils literal notranslate"><span class="pre">-word</span></code> or <code class="docutils literal notranslate"><span class="pre">!word</span></code> (without it), <code class="docutils literal notranslate"><span class="pre">&quot;a</span> <span class="pre">phrase&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> (or
 <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>…), <code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>
-too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> (pages Claude wrote over MCP, which show a <em>Written by Claude</em> badge), <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with a photo), <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), a todo’s <code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> (overdue), <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>,
+too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> (pages Claude wrote over MCP, which show a <em>Written by Claude</em> badge), <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> (todos snoozed till later), <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with a photo), <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), a todo’s <code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> (overdue), <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>,
 <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code> (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code>, <code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>), <code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or
 <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code> (last edited; dates are UTC days, both ends included; add <code class="docutils literal notranslate"><span class="pre">date:created</span></code>
 for when it was made), <code class="docutils literal notranslate"><span class="pre">sort:title</span></code> (A to Z; also <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, newest first,
