@@ -551,13 +551,16 @@ nav a[aria-current] .i {
 }
 .rowbar {
   display: flex;
+  flex-wrap: wrap; /* a second line rather than a label broken over two */
   gap: var(--s-2);
   margin-top: var(--s-2);
 }
 .rowbar button {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: var(--tap);
+  padding: 0 var(--s-3);
   font-size: var(--t-sm);
+  white-space: nowrap;
 }
 .snip {
   display: -webkit-box; /* a search hit's snippet, under its date: two lines at most */
@@ -1140,11 +1143,11 @@ div.orig .save {
   gap: var(--s-1);
 }
 .tools > * {
-  flex: 1 1 0; /* equal shares of the width, whatever the labels */
+  flex: 1 1 auto; /* shares of the width by label, so a long word (Download) is never cut */
   flex-direction: column;
   gap: 2px;
   min-height: 60px;
-  padding: var(--s-1);
+  padding: var(--s-1) 2px;
   border: none;
   background: transparent;
   font-size: var(--t-xs);
@@ -1156,8 +1159,9 @@ div.orig .save {
 .page > .tools {
   position: sticky;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  gap: 0;
   margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
-  padding: var(--s-1) var(--s-3);
+  padding: var(--s-1) var(--s-2);
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
@@ -1727,6 +1731,7 @@ div.orig .save {
 /* A todo's priority and due date (#104), on its row and its page; overdue in --danger */
 .list .due {
   color: var(--ink-2);
+  white-space: normal; /* when it is due matters more than one line: never cut */
 }
 .list .due.late,
 .todoline .late {
@@ -1797,6 +1802,11 @@ div.orig .save {
 /* A todo's row leads with its due date and priority, then when it was last edited */
 .todos .sub .due {
   order: -1;
+  flex-basis: 100%; /* its own line, whole: the date it was edited goes under it */
+}
+.todos .noimg,
+.todos .list em.todo {
+  display: none; /* every row here is a todo: the room goes to its title */
 }
 .donefold {
   margin-top: var(--s-4);

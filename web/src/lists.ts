@@ -34,7 +34,7 @@ function row(
       "span",
       { className: "sub" },
       h("small", {}, sub),
-      chip && h("em", {}, chip),
+      chip && h("em", { className: chip }, chip),
       todo && h("small", { className: todo[1] ? "due late" : "due" }, todo[0]),
     ),
     typeof extra !== "string" && extra,
