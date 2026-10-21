@@ -6,6 +6,10 @@ Date: 2026-10-19
 
 Accepted
 
+Update 2026-10-21: single-server installs now listen on a Unix socket that other local users
+cannot open, so the "any local process" point below holds only for TCP installs, development and
+Kubernetes. See [](0018-unix-socket-for-single-server-installs.md).
+
 ## Context
 
 scrap is single-user and holds personal notes. Writing and maintaining authentication would be the

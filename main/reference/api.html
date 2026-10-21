@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 0.1.dev210+g974eb857d documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 0.1.dev213+g0b22792fc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1275eaf9"></script>
+    <script src="../_static/documentation_options.js?v=42a4599f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -493,8 +493,9 @@
 Responses of text (JSON, the PWA’s scripts, styles and pages) over 1 kB are gzipped for a client
 that sends <code class="docutils literal notranslate"><span class="pre">Accept-Encoding:</span> <span class="pre">gzip</span></code>; stored files, previews, downloads, fonts and range requests
 never are.
-The service binds <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> and has no login; put Tailscale Serve (or an authenticating proxy)
-in front. The author of a capture or edit is the <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header, else <code class="docutils literal notranslate"><span class="pre">tagged</span></code>.</p>
+The service listens on <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>, or with <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--uds</span></code> only on a Unix socket (the
+single-server install’s default), and has no login; put Tailscale Serve (or an authenticating
+proxy) in front. The author of a capture or edit is the <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header, else <code class="docutils literal notranslate"><span class="pre">tagged</span></code>.</p>
 <section id="http">
 <h2>HTTP<a class="headerlink" href="#http" title="Link to this heading">#</a></h2>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -589,8 +590,8 @@ in front. The author of a capture or edit is the <code class="docutils literal n
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">[--host</span> <span class="pre">127.0.0.1]</span> <span class="pre">[--port</span> <span class="pre">8000]</span></code></p></td>
-<td><p>Run the service, migrating the database first</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">[--host</span> <span class="pre">127.0.0.1]</span> <span class="pre">[--port</span> <span class="pre">8000]</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--uds</span> <span class="pre">PATH</span></code></p></td>
+<td><p>Run the service, migrating the database first. <code class="docutils literal notranslate"><span class="pre">--uds</span></code> listens only on a Unix socket (mode 600, in a folder of its own closed to others) and cannot be combined with <code class="docutils literal notranslate"><span class="pre">--host</span></code>/<code class="docutils literal notranslate"><span class="pre">--port</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span> <span class="pre">DIR</span></code></p></td>
 <td><p>Consistent snapshot of the database (SQLite online backup) plus <code class="docutils literal notranslate"><span class="pre">files/</span></code>; safe while serving</p></td>

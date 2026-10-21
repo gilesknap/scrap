@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.1.dev210+g974eb857d documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.1.dev213+g0b22792fc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1275eaf9"></script>
+    <script src="../_static/documentation_options.js?v=42a4599f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -492,26 +492,27 @@
   <section id="deploy-on-a-single-server">
 <h1>Deploy on a single server<a class="headerlink" href="#deploy-on-a-single-server" title="Link to this heading">#</a></h1>
 <p>Run scrap on one Linux machine (a VPS, a home server) as the same container image that a
-cluster would run, under rootless podman, as a systemd user service. scrap listens on
-<code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> only; <a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> publishes it over HTTPS to
-your tailnet and nowhere else.</p>
+cluster would run, under rootless podman, as a systemd user service. scrap listens only on a Unix
+socket that only its own user (and root) can open;
+<a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> publishes it over HTTPS to your tailnet and
+nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.</p>
 <p>Podman is the tested path. Docker works with the small changes in
 <a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
 <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>v0 of scrap has <strong>no login</strong>. Anyone who can reach its port can read and change everything.
+<p>v0 of scrap has <strong>no login</strong>. Anyone who can reach it can read and change everything.
 Only expose it through Tailscale Serve (tailnet only, never Funnel), or put an authenticating
 reverse proxy in front of it. Read <a class="reference internal" href="#scrap-access"><span class="std std-ref">Access and identity</span></a> first.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>scrap listens on <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>, so <strong>every local account and process on the server</strong> can read and
-change all of its data, and can send its own <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header to be recorded as any
-author (Tailscale Serve strips forged headers, but a direct local connection skips Serve). v0
-assumes a single-purpose server or a dedicated VM with no untrusted local users or workloads. If
-the server also runs things you do not fully trust (other people’s services, agents with broad
-permissions), keep only test data in scrap there, or give scrap its own VM.</p>
+<p>On the server itself, <strong>root, anyone with <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, and anything running as the scrap user</strong> can
+open the socket, read and change all of scrap’s data, and send its own <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code>
+header to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
+connection skips Serve). Other local users cannot. Run scrap as its own user with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code>
+rights, and run nothing else as that user. With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> (below) <strong>every local account
+and process</strong> can do the same through the port: keep that for single-purpose servers.</p>
 </div>
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">#</a></h2>
@@ -576,14 +577,15 @@ name in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE
 <li><p>writes the settings files <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> if they do not
 exist yet (it never overwrites them);</p></li>
 <li><p>copies <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup.service</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code> and
-<code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code>, and the scripts <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> to
-<code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/</span></code>;</p></li>
+<code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code>, and the scripts <code class="docutils literal notranslate"><span class="pre">scrap-run</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and
+<code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/</span></code>;</p></li>
 <li><p>enables linger if it can (otherwise it prints the <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">loginctl</span> <span class="pre">enable-linger</span></code> command);</p></li>
 <li><p>enables and starts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> if the image named in the settings is present, and the daily
 backup timer only if that image has the <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> command, and the nightly gc timer only if
 it has <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> (images built before them do not; re-run the script after updating the image);</p></li>
 <li><p>restarts a running <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> if the image it runs or its unit has changed (see
-<a class="reference internal" href="#scrap-update"><span class="std std-ref">Update</span></a>).</p></li>
+<a class="reference internal" href="#scrap-update"><span class="std std-ref">Update</span></a>);</p></li>
+<li><p>prints where scrap listens, and a note if that is a TCP port (see <a class="reference internal" href="#scrap-listen"><span class="std std-ref">Socket or port</span></a>).</p></li>
 </ul>
 <p>It is safe to re-run after pulling a newer version of the repo.</p>
 <section id="settings">
@@ -602,23 +604,27 @@ plain <code class="docutils literal notranslate"><span class="pre">KEY=value</sp
 <td><p><code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code></p></td>
 <td><p>Image to run.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">8790</span></code></p></td>
-<td><p>Port on <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> that scrap listens on.</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code>: only the Unix socket <code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR/scrap/scrap.sock</span></code>. <code class="docutils literal notranslate"><span class="pre">tcp</span></code>: <code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code> on <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>. Unset means <code class="docutils literal notranslate"><span class="pre">tcp</span></code> (see <a class="reference internal" href="#scrap-listen"><span class="std std-ref">Socket or port</span></a>).</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">8790</span></code></p></td>
+<td><p>Port on <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> that scrap listens on with <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/data</span></code></p></td>
 <td><p>Database and files; mounted at <code class="docutils literal notranslate"><span class="pre">/data</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/backups</span></code></p></td>
 <td><p>Where the backup job writes.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">14</span></code></p></td>
 <td><p>Number of backup runs to keep (at least 1).</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_MEMORY_MAX</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_MEMORY_MAX</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1g</span></code></p></td>
 <td><p>Memory ceiling for the container.</p></td>
 </tr>
@@ -626,6 +632,32 @@ plain <code class="docutils literal notranslate"><span class="pre">KEY=value</sp
 </table>
 </div>
 <p>After changing a setting: <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
+</section>
+<section id="socket-or-port">
+<span id="scrap-listen"></span><h3>Socket or port<a class="headerlink" href="#socket-or-port" title="Link to this heading">#</a></h3>
+<p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code> the container publishes no port. scrap listens on
+<code class="docutils literal notranslate"><span class="pre">scrap.sock</span></code> in the unit’s runtime folder, <code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR/scrap</span></code> (normally
+<code class="docutils literal notranslate"><span class="pre">/run/user/&lt;uid&gt;/scrap</span></code>), which systemd creates with mode 700 when scrap starts and removes when
+it stops; the socket itself is mode 600. Only the scrap user and root can open it, so Tailscale
+Serve (which runs as root) can and other local users cannot. To call scrap from the server, as
+the scrap user:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">--</span><span class="n">unix</span><span class="o">-</span><span class="n">socket</span> <span class="s2">"$XDG_RUNTIME_DIR/scrap/scrap.sock"</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="o">/</span><span class="n">healthz</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> publishes <code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code> on <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> instead, reachable by every local
+process. Use it only on a server with no other users or workloads.</p>
+<p><strong>Existing installs.</strong> An env file written before the socket existed has no <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN</span></code>,
+which means <code class="docutils literal notranslate"><span class="pre">tcp</span></code>: re-running <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> keeps scrap on its port, so nothing that reaches it
+there today is cut off, and prints a note. To move to the socket:</p>
+<ol class="arabic simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p></li>
+<li><p>As an admin, point the existing Serve entry at the socket (the same <code class="docutils literal notranslate"><span class="pre">--https</span></code> port, so the
+address, <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> and installed PWAs stay the same):
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">tailscale</span> <span class="pre">serve</span> <span class="pre">--bg</span> <span class="pre">--https=8446</span> <span class="pre">unix:/run/user/&lt;uid&gt;/scrap/scrap.sock</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">./deploy/smoke.sh</span> <span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code></p></li>
+</ol>
+<p>Between steps 1 and 2 scrap is unreachable from the tailnet; the PWA keeps captures in its
+offline queue and sends them once it is back.</p>
 </section>
 <section id="ingest-settings">
 <span id="scrap-ingest-settings"></span><h3>Ingest settings<a class="headerlink" href="#ingest-settings" title="Link to this heading">#</a></h3>
@@ -653,17 +685,19 @@ setting, with its default, is in the <a class="reference internal" href="../refe
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> calls <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> on the local port and should print <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. Logs:
+<p><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> calls <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> on the socket (or the local port) and should print
+<code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. Logs:
 <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span></code>.</p>
 </section>
 <section id="publish-on-your-tailnet">
 <h2>Publish on your tailnet<a class="headerlink" href="#publish-on-your-tailnet" title="Link to this heading">#</a></h2>
-<p>As an admin on the server, publish the local port over HTTPS on a port that is not already in
-use. Check first, and leave existing entries alone:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="n">status</span>
-<span class="n">sudo</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">8446</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8790</span>
+<p>As an admin on the server, publish the socket over HTTPS on a port that is not already in use
+(<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> prints the target). Check first, and leave existing entries alone:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sudo tailscale serve status
+sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap.sock
 </pre></div>
 </div>
+<p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> the target is <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790</span></code> instead.</p>
 <p>scrap is then at <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> from devices on your tailnet. <code class="docutils literal notranslate"><span class="pre">--bg</span></code>
 makes the setting persist across reboots. Check it from any tailnet device:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
@@ -671,6 +705,25 @@ makes the setting persist across reboots. Check it from any tailnet device:</p>
 </div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">--https=443</span></code> instead if the machine serves nothing else. Never use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code> for
 scrap: that publishes it to the internet.</p>
+<p>This is the only supported way in, from phones and other computers alike. If the server is down
+or unreachable for a while (a restart, a workstation asleep or off the network), the PWA keeps
+new captures in its offline queue and sends them when it can reach scrap again
+(<a class="reference internal" href="../explanations/decisions/0005-capture-never-waits.html"><span class="std std-doc">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</span></a>); reading needs scrap to be up.</p>
+<section id="fallback-an-ssh-tunnel">
+<span id="scrap-ssh-tunnel"></span><h3>Fallback: an SSH tunnel<a class="headerlink" href="#fallback-an-ssh-tunnel" title="Link to this heading">#</a></h3>
+<p>From a machine that cannot join the tailnet, an SSH tunnel can carry a local port to the socket.
+This is a fallback, not a supported path: sshd on the server must allow forwarding to a Unix
+socket (<code class="docutils literal notranslate"><span class="pre">AllowStreamLocalForwarding</span></code>, on by default, and no <code class="docutils literal notranslate"><span class="pre">DisableForwarding</span></code> or <code class="docutils literal notranslate"><span class="pre">restrict</span></code> for
+the key; <code class="docutils literal notranslate"><span class="pre">AllowTcpForwarding</span></code> does not matter here), the tunnel sends no identity header (changes are recorded under the fallback author), and anything on the client
+machine can use the forwarded port while the tunnel is open.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span> <span class="o">-</span><span class="n">N</span> <span class="o">-</span><span class="n">L</span> <span class="mi">8790</span><span class="p">:</span><span class="o">/</span><span class="n">run</span><span class="o">/</span><span class="n">user</span><span class="o">/&lt;</span><span class="n">uid</span><span class="o">&gt;/</span><span class="n">scrap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">sock</span> <span class="n">scrap</span><span class="o">@&lt;</span><span class="n">host</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Then open <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790</span></code> (a loopback address is a secure context, so the PWA works),
+or add the MCP server with
+<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span> <span class="pre">--transport</span> <span class="pre">http</span> <span class="pre">scrap</span> <span class="pre">http://127.0.0.1:8790/mcp</span></code> (<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accepts loopback
+hosts).</p>
+</section>
 <section id="tailnet-acl-deny-tagged-servers-by-default">
 <h3>Tailnet ACL: deny tagged servers by default<a class="headerlink" href="#tailnet-acl-deny-tagged-servers-by-default" title="Link to this heading">#</a></h3>
 <p>The default tailnet policy lets every device reach every other. Replace it with rules that let
@@ -694,15 +747,15 @@ devices owned by a user, Serve adds identity headers such as <code class="docuti
 records that login as the author of each change. Tagged devices get no identity headers, so
 their changes are recorded under a fixed fallback author.</p></li>
 <li><p><strong>Anything else</strong> (a public reverse proxy, a LAN port): put an authenticating reverse proxy in
-front, and keep scrap bound to <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>. Without Tailscale Serve, every change is recorded
+front, and keep scrap on its socket or bound to <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>. Without Tailscale Serve, every change is recorded
 under the fixed fallback author. Do not let a proxy pass through <code class="docutils literal notranslate"><span class="pre">Tailscale-User-*</span></code> headers
 sent by clients.</p></li>
 </ul>
-<p>Either way the network only guards the way in from outside. On the server itself, anything that
-can open a connection to <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> gets full access (see the warning at the top). If you cannot
-keep untrusted users and workloads off the server, run scrap on a dedicated host or VM.
-Listening on a unix socket protected by file permissions, behind the proxy, would also close
-this gap, but scrap v0 does not offer it yet.</p>
+<p>Either way the network only guards the way in from outside. On the server itself, the socket’s
+permissions keep other users out, but root, anyone with <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, and anything running as the
+scrap user get full access, and so does whoever controls Tailscale on the server or administers
+the tailnet (see the warning at the top). With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>, anything that can open a
+connection to <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> gets full access too.</p>
 </section>
 <section id="update">
 <span id="scrap-update"></span><h2>Update<a class="headerlink" href="#update" title="Link to this heading">#</a></h2>
@@ -800,11 +853,12 @@ backups and the settings in <code class="docutils literal notranslate"><span cla
 <section id="using-docker-instead">
 <span id="scrap-docker"></span><h2>Using Docker instead<a class="headerlink" href="#using-docker-instead" title="Link to this heading">#</a></h2>
 <p>With Docker, edit the installed copies. In <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>: replace <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code> with
-<code class="docutils literal notranslate"><span class="pre">/usr/bin/docker</span></code>, drop <code class="docutils literal notranslate"><span class="pre">--replace</span></code>, <code class="docutils literal notranslate"><span class="pre">-d</span></code>, <code class="docutils literal notranslate"><span class="pre">--cgroups=split</span></code> and <code class="docutils literal notranslate"><span class="pre">--sdnotify=conmon</span></code>, change
-<code class="docutils literal notranslate"><span class="pre">Type=notify</span></code> to <code class="docutils literal notranslate"><span class="pre">Type=simple</span></code>, remove <code class="docutils literal notranslate"><span class="pre">NotifyAccess</span></code> and <code class="docutils literal notranslate"><span class="pre">Delegate</span></code>, and drop <code class="docutils literal notranslate"><span class="pre">-i</span></code> from the <code class="docutils literal notranslate"><span class="pre">rm</span></code>
-commands. In <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>: replace <code class="docutils literal notranslate"><span class="pre">podman</span></code> with <code class="docutils literal notranslate"><span class="pre">docker</span></code> and drop
-<code class="docutils literal notranslate"><span class="pre">--replace</span></code>. In both, replace <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code> with <code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">&lt;uid&gt;:&lt;gid&gt;</span></code> of
-the user that owns <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> (<code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-g</span></code>). Re-running <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>
+<code class="docutils literal notranslate"><span class="pre">/usr/bin/docker</span></code>, change <code class="docutils literal notranslate"><span class="pre">Type=notify</span></code> to <code class="docutils literal notranslate"><span class="pre">Type=simple</span></code>, remove <code class="docutils literal notranslate"><span class="pre">NotifyAccess</span></code> and <code class="docutils literal notranslate"><span class="pre">Delegate</span></code>,
+and drop <code class="docutils literal notranslate"><span class="pre">-i</span></code> from the <code class="docutils literal notranslate"><span class="pre">rm</span></code> commands. In <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/scrap-run</span></code>: replace <code class="docutils literal notranslate"><span class="pre">podman</span></code> with
+<code class="docutils literal notranslate"><span class="pre">docker</span></code> and drop <code class="docutils literal notranslate"><span class="pre">--replace</span></code>, <code class="docutils literal notranslate"><span class="pre">-d</span></code>, <code class="docutils literal notranslate"><span class="pre">--cgroups=split</span></code> and <code class="docutils literal notranslate"><span class="pre">--sdnotify=conmon</span></code>. In
+<code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>: replace <code class="docutils literal notranslate"><span class="pre">podman</span></code> with <code class="docutils literal notranslate"><span class="pre">docker</span></code> and drop <code class="docutils literal notranslate"><span class="pre">--replace</span></code>. In all three
+scripts, replace <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code> with <code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">&lt;uid&gt;:&lt;gid&gt;</span></code> of the user
+that owns <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> and the socket’s folder (<code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-g</span></code>). Re-running <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>
 overwrites these edits. Membership of the <code class="docutils literal notranslate"><span class="pre">docker</span></code> group is equivalent to root, so on a shared
 machine prefer rootless podman.</p>
 </section>
@@ -821,16 +875,23 @@ the user. Log in with <code class="docutils literal notranslate"><span class="pr
 <p><strong>Ingest pauses for an outage with “certificate verify failed” in the run’s error.</strong> The image
 has no CA certificates, so no HTTPS call can succeed (Claude or the pause notification).
 Images built from this repo’s Dockerfile carry them; rebuild with a current checkout.</p>
-<p><strong>The service fails with “address already in use”.</strong> Another process has the port:
-<code class="docutils literal notranslate"><span class="pre">ss</span> <span class="pre">-ltnp</span> <span class="pre">|</span> <span class="pre">grep</span> <span class="pre">:8790</span></code>. Pick a free port in <code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code>, restart, and point
+<p><strong>The service fails with “address already in use”</strong> (<code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>). Another process has
+the port: <code class="docutils literal notranslate"><span class="pre">ss</span> <span class="pre">-ltnp</span> <span class="pre">|</span> <span class="pre">grep</span> <span class="pre">:8790</span></code>. Pick a free port in <code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code>, restart, and point
 <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> at the new port.</p>
+<p><strong>The service fails with “is in use”, “may be in use” or “is not a socket”.</strong> Something else is
+at <code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR/scrap/scrap.sock</span></code>: another scrap, a busy listener, or a file scrap will not
+remove. Stop or move it and restart. A socket nothing listens on (left by a scrap that stopped) is
+replaced on its own.</p>
+<p><strong>Tailscale Serve answers 502 with <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code>.</strong> scrap is not running (the socket’s
+folder is removed when it stops), or the Serve target names another path or user id: compare
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">tailscale</span> <span class="pre">serve</span> <span class="pre">status</span></code> with what <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> printed.</p>
 <p><strong>Permission denied writing <code class="docutils literal notranslate"><span class="pre">/data</span></code>.</strong> The data directory must be owned by the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user and
 the container started with <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code> (the units do this). On
 SELinux systems (Fedora, RHEL) also add <code class="docutils literal notranslate"><span class="pre">:Z</span></code> to the <code class="docutils literal notranslate"><span class="pre">--volume</span></code> options.</p>
-<p><strong>The access log shows every client as the server’s own address.</strong> Rootless podman’s network
-(pasta) forwards connections so that local clients, including Tailscale Serve, appear to come
-from one of the host’s own addresses, which may be its public one. These lines are not outside
-traffic.</p>
+<p><strong>The access log shows every client as the server’s own address</strong> (<code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>).
+Rootless podman’s network (pasta) forwards connections so that local clients, including Tailscale
+Serve, appear to come from one of the host’s own addresses, which may be its public one. These
+lines are not outside traffic. On the socket the log shows no client address at all.</p>
 <p><strong>Anything else.</strong> <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code> and <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code>.</p>
 </section>
 </section>
@@ -887,11 +948,13 @@ traffic.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#get-the-image">Get the image</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install">Install</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#settings">Settings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#socket-or-port">Socket or port</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ingest-settings">Ingest settings</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#first-run">First run</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-on-your-tailnet">Publish on your tailnet</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fallback-an-ssh-tunnel">Fallback: an SSH tunnel</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tailnet-acl-deny-tagged-servers-by-default">Tailnet ACL: deny tagged servers by default</a></li>
 </ul>
 </li>

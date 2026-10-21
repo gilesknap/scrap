@@ -4,8 +4,9 @@ Milestone 1: quick capture end to end, with no LLM. Requests and responses are J
 Responses of text (JSON, the PWA's scripts, styles and pages) over 1 kB are gzipped for a client
 that sends `Accept-Encoding: gzip`; stored files, previews, downloads, fonts and range requests
 never are.
-The service binds `127.0.0.1` and has no login; put Tailscale Serve (or an authenticating proxy)
-in front. The author of a capture or edit is the `Tailscale-User-Login` header, else `tagged`.
+The service listens on `127.0.0.1`, or with `scrap serve --uds` only on a Unix socket (the
+single-server install's default), and has no login; put Tailscale Serve (or an authenticating
+proxy) in front. The author of a capture or edit is the `Tailscale-User-Login` header, else `tagged`.
 
 ## HTTP
 
@@ -40,7 +41,7 @@ in front. The author of a capture or edit is the `Tailscale-User-Login` header, 
 
 | Command | Does |
 | --- | --- |
-| `scrap serve [--host 127.0.0.1] [--port 8000]` | Run the service, migrating the database first |
+| `scrap serve [--host 127.0.0.1] [--port 8000]` or `scrap serve --uds PATH` | Run the service, migrating the database first. `--uds` listens only on a Unix socket (mode 600, in a folder of its own closed to others) and cannot be combined with `--host`/`--port` |
 | `scrap backup DIR` | Consistent snapshot of the database (SQLite online backup) plus `files/`; safe while serving |
 | `scrap restore DIR [--force]` | Restore a backup into an empty data folder, after checking its integrity and that its schema is not newer than this scrap. `DIR` may be read-only: only a copy of its database, made in the data folder, is opened. `--force` replaces the whole database (pages added since the backup are lost; files are kept); stop scrap first, or a running server goes on writing to the replaced database and those writes are lost |
 | `scrap ingest-once IMAGE [--save FILE]` | Send one image file to Claude as ingest would, without a database, and print the outcome in numbers only (tokens, cost, seconds, counts of lines, elements and warnings); `--save FILE` also writes the full result, including all the text Claude read from the image, to a new file with mode 600 (an existing file is refused), created before the paid call. Needs `ANTHROPIC_API_KEY` |
