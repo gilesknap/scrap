@@ -443,24 +443,16 @@ A page shows its images by embedding them in its text (`![](/api/blobs/<sha>/pre
 a photo capture writes one per photo), and only there: a photo whose embed is deleted from the
 text is no longer shown or used as the page's thumbnail. A photo of a page made before photos were
 embedded, which no revision ever embedded, is still listed below the text. The editor warns on
-Save when an embed of a stored file goes, naming the file and how many other pages still show it
-(or that a page in the trash keeps it, or that it will be deleted). Saving an edit that deletes
-the last mention of a file of the page's own captures (a photo, or any file it holds, such as a
-PDF linked from the text), when no other page uses it (by its text or a capture; the trash
-counts), takes the file off its capture with everything derived from it: Claude's text,
-description and drawing, a drawing the user made on it too, their search chunks, ingest jobs
-and model runs, and the JPEG sent to Claude (`Store._unlink`, in the edit's transaction). The
-warning asks the server the same question (`Store.blob_uses`, one SQL condition for both), and
-if it can't get an answer it warns that the page's own file will be deleted.
+Save when an embed of a stored file goes, naming the file and how many other pages still show it.
 
 `scrap gc` deletes the files nothing uses: a file is in use while any page's text (the trash's
 too) mentions its address, or a capture, a `derived` row, an ingest `job` or a `model_run` (its
-photo or `sent_sha256`) refers to it. So gc deletes files nobody recorded (failed or abandoned
-uploads), leftover upload temporaries, files only a page's text used, and the files Save unlinked
-from their capture (above). Only each page's current text counts: old revisions are not
-references, so a file only an old revision embedded goes, and the page's history then shows a
-broken image for that revision. That is the price of Save's unlink: keeping every revision's
-files would keep every photo ever deleted from a page. Page text is read for references by one function, `store.body_refs`: any mention of a file's
+photo or `sent_sha256`) refers to it. Captures are never purged yet, so a photo's own file, and its
+Claude results, stay after its embed is deleted; what gc deletes today is files nobody recorded
+(failed or abandoned uploads), leftover upload temporaries and files only a page's text used. Only
+each page's current text counts: old revisions are not references, so a file only an old revision
+embedded can go (harmless while captures keep their photos; it would matter if Save ever unlinked
+a photo from its capture). Page text is read for references by one function, `store.body_refs`: any mention of a file's
 address counts, even in code or a full URL. It deliberately does not use the Markdown parser, as
 gc deletes whatever it misses. A run reads every reference in one transaction (and refuses if it cannot), skips files
 younger than the grace period (24 hours), then rereads the references inside a write transaction

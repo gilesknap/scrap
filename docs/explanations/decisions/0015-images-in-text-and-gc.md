@@ -18,11 +18,7 @@ and shared, so deleting one safely is harder than deleting a row.
   figures (viewer, Download, Ask Claude); images elsewhere stay inline. Files not embedded (PDFs,
   older pages) are listed under the text. Export points text at the exported files.
 - The editor warns on Save when an embed of a stored file is removed, naming how many other pages
-  still show it, or that a page in the trash keeps it, or that it will be deleted.
-- Save unlinks a file of the page's own captures (a photo, or any file it holds) whose last
-  mention the edit deletes, when no other page uses it (the trash counts): it goes from its
-  capture with everything derived from it (Claude's results, and a drawing the user made on it),
-  so gc deletes it (2026-10-21, #123).
+  still show it.
 - `scrap gc` deletes only files nothing refers to: not any page's text (the trash's too, found by
   one function, `store.body_refs`, deliberately *not* the Markdown parser, since gc deletes whatever
   it misses), capture, derived row, job or model run. Files younger than 24 hours are skipped; the
@@ -32,8 +28,6 @@ and shared, so deleting one safely is harder than deleting a row.
 
 ## Consequences
 
-- Until 2026-10-21 captures kept their photos, so gc mostly removed abandoned uploads and orphans.
-  Now a photo deleted from its page's text, that nothing else uses, is deleted by the next gc.
-- Old revisions do not count as references: once gc has run, an old revision that embedded an
-  unlinked photo shows a broken image in the page's history.
+- Captures are never purged, so most files live on; gc mostly removes abandoned uploads and orphans.
+- Old revisions do not count as references.
 - A manual gc takes no lock and can race the nightly run harmlessly.
