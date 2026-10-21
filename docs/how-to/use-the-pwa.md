@@ -136,9 +136,9 @@ the link as the capture's URL.
   **Today**, **High priority** (no due date), then **Later** (by priority, then due date, then
   last edited). Each row starts with its priority and due date. Done and cancelled todos are
   folded away at the end (**Done**, tap to open; those among the 500 todos last edited). A
-  switch at the top picks the list instead: **Upcoming** (due after today, soonest first) or
-  **All** (every open todo and those done ones, last edited first). Each list sets its own
-  order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
+  switch at the top picks the list instead: **Upcoming** (due from tomorrow to a week away,
+  soonest first) or **All** (every open todo and those done ones, last edited first). Each list
+  sets its own order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
   **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
   `priority:` and `sort:due` still search and order todos.

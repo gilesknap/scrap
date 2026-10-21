@@ -44,6 +44,17 @@ export function now<T extends Todo>(list: T[], today: string): [string, T[]][] {
   return groups.filter(([, ts]) => ts.length);
 }
 
-/** Upcoming: the open todos due after today, soonest first. */
+/** A day n days after day (YYYY-MM-DD), on the calendar: no clock, so no time zone. */
+export function after(day: string, n: number) {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+export const AHEAD = 7; // Upcoming: from tomorrow to this many days away
+
+/** Upcoming: the open todos due from tomorrow to a week away, soonest first. */
 export const upcoming = <T extends Todo>(list: T[], today: string) =>
-  list.filter((t) => isOpen(t) && !!t.due && t.due > today).sort(by(due, rank, recent));
+  list
+    .filter((t) => isOpen(t) && !!t.due && t.due > today && t.due <= after(today, AHEAD))
+    .sort(by(due, rank, recent));

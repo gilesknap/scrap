@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { now, upcoming } from "../src/now";
+import { after, now, upcoming } from "../src/now";
 
 const T = "2026-10-21";
 let n = 0;
@@ -47,10 +47,22 @@ it("leaves out empty groups", () => {
   expect(now([todo("done", T, "high", "done")], T)).toEqual([]);
 });
 
-it("lists open todos due after today, soonest first", () => {
-  expect(upcoming(list, T).map((t) => t.title)).toEqual([
+it("lists open todos due from tomorrow to a week away, soonest first", () => {
+  const week = [
+    ...list,
+    todo("in a week", "2026-10-28", null),
+    todo("in 8 days", "2026-10-29", null),
+  ];
+  expect(upcoming(week, T).map((t) => t.title)).toEqual([
     "in progress",
     "rest low soon",
-    "rest high later",
-  ]);
+    "in a week",
+  ]); // not "rest high later" (30 Nov), nor 8 days on
+});
+
+it("counts days on the calendar, across months, years and clock changes", () => {
+  expect(after("2026-10-21", 7)).toBe("2026-10-28");
+  expect(after("2026-10-28", 7)).toBe("2026-11-04"); // the clocks go back on 25 Oct
+  expect(after("2026-12-29", 7)).toBe("2027-01-05");
+  expect(after("2028-02-28", 1)).toBe("2028-02-29");
 });
