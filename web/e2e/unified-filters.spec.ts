@@ -108,6 +108,8 @@ test("Escape, Back and a tap outside close it; Back then leaves the screen", asy
   await expect(sheet(page)).toBeVisible();
   await page.mouse.click(200, 60);
   await expect(sheet(page)).toBeHidden();
+  // Its own Back done first (closing calls history.back(), which lands a moment later)
+  await expect.poll(() => page.evaluate(() => history.state?.sheet ?? 0)).toBe(0);
   // Back now: off the screen, as before (no stray entries left)
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
