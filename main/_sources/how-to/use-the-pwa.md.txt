@@ -34,14 +34,15 @@ In the composer, **Camera** and **Gallery** add more photos (to a note too), and
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
-with the text and kind on the first.
+with the text on the first.
 Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
 (it suggests the tags already in use), or tap one of your most used tags, offered under the
 box; tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude's
 join them when it first reads the photo (a later Reprocess adds its tags only to a page with
-none, so one you took off stays off). Saved separately, every photo's page gets the tags.
+none, so one you took off stays off). Saved separately, every photo's page gets the tags (and a kind sent with photos, by an older
+version of the app, goes on every page too).
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
@@ -70,7 +71,8 @@ the link as the capture's URL.
 - A capture the server refuses (for example over the upload limit, `413`) is marked **failed**
   with the server's reason, and stays on the phone with **Retry** and **Discard** (which asks
   first, then deletes it and its photos from the phone). A multi-photo capture refused as too
-  large offers **Split and retry** instead of Retry: one capture per photo, text and kind on the first.
+  large offers **Split and retry** instead of Retry: one capture per photo, the text on the first,
+  the tags and any kind on every one.
 - A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
   no progress for a minute is given up and retried later. Once the phone has handed over the whole
   upload, it waits at least two minutes for the answer (longer for big uploads, which may still
@@ -104,8 +106,8 @@ the link as the capture's URL.
   tap it to take that filter out. So the row's start never moves, and nothing chosen is hidden.
 - **Filters** opens a sheet from the bottom of the screen: **Sort**, **When** (**1w**, **1m**,
   **1y**, **Dates…** with a From and a To, and **By created date** once a range is on),
-  **Work** or **Personal** (with counts), for a search of todos **Due** (**Today**, **Overdue**,
-  **Upcoming**), and **Browse tags**. Each tap changes the search at once (the list behind
+  **Work** or **Personal** (with counts), and **Browse tags** (for todos due today, overdue or
+  soon, use the Todos screen, or type `due:` in the box). Each tap changes the search at once (the list behind
   follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
   **Clear filters** takes every filter off and keeps the words; **Done**, Back, Escape or a tap
   above the sheet closes it.
@@ -136,9 +138,11 @@ the link as the capture's URL.
   **Today**, **High priority** (no due date), then **Later** (by priority, then due date, then
   last edited). Each row starts with its priority and due date. Done and cancelled todos are
   folded away at the end (**Done**, tap to open; those among the 500 todos last edited). A
-  switch at the top picks the list instead: **Upcoming** (due after today, soonest first) or
-  **All** (every open todo and those done ones, last edited first). Each list sets its own
-  order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
+  switch at the top picks the list instead: **Upcoming** (due from tomorrow to a week away,
+  soonest first) or **All** (every open todo and those done ones, last edited first). Each list
+  sets its own order: there is no Sort here. The address says which list
+  (`/todos?view=upcoming`; switching changes it in place, so Back leaves Todos rather than
+  stepping through the lists), so
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
   **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
   `priority:` and `sort:due` still search and order todos.

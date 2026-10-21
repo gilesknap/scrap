@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev237+g4000e7652 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev244+g295691611 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=7c9e8329"></script>
+    <script src="../_static/documentation_options.js?v=1cd157cf"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -537,14 +537,15 @@ changing it back gives the page as it was.</p>
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server’s upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or <strong>Save separately</strong>, one capture per photo
-with the text and kind on the first.
+with the text on the first.
 Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
 (it suggests the tags already in use), or tap one of your most used tags, offered under the
 box; tap a tag’s ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude’s
 join them when it first reads the photo (a later Reprocess adds its tags only to a page with
-none, so one you took off stays off). Saved separately, every photo’s page gets the tags.
+none, so one you took off stays off). Saved separately, every photo’s page gets the tags (and a kind sent with photos, by an older
+version of the app, goes on every page too).
 <strong>Save</strong> returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.</p>
 </section>
@@ -574,7 +575,8 @@ next time scrap is open with a connection.</p></li>
 <li><p>A capture the server refuses (for example over the upload limit, <code class="docutils literal notranslate"><span class="pre">413</span></code>) is marked <strong>failed</strong>
 with the server’s reason, and stays on the phone with <strong>Retry</strong> and <strong>Discard</strong> (which asks
 first, then deletes it and its photos from the phone). A multi-photo capture refused as too
-large offers <strong>Split and retry</strong> instead of Retry: one capture per photo, text and kind on the first.</p></li>
+large offers <strong>Split and retry</strong> instead of Retry: one capture per photo, the text on the first,
+the tags and any kind on every one.</p></li>
 <li><p>A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
 no progress for a minute is given up and retried later. Once the phone has handed over the whole
 upload, it waits at least two minutes for the answer (longer for big uploads, which may still
@@ -610,8 +612,8 @@ Above the list, how many pages were found and each filter that is on as a chip w
 tap it to take that filter out. So the row’s start never moves, and nothing chosen is hidden.</p></li>
 <li><p><strong>Filters</strong> opens a sheet from the bottom of the screen: <strong>Sort</strong>, <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>,
 <strong>1y</strong>, <strong>Dates…</strong> with a From and a To, and <strong>By created date</strong> once a range is on),
-<strong>Work</strong> or <strong>Personal</strong> (with counts), for a search of todos <strong>Due</strong> (<strong>Today</strong>, <strong>Overdue</strong>,
-<strong>Upcoming</strong>), and <strong>Browse tags</strong>. Each tap changes the search at once (the list behind
+<strong>Work</strong> or <strong>Personal</strong> (with counts), and <strong>Browse tags</strong> (for todos due today, overdue or
+soon, use the Todos screen, or type <code class="docutils literal notranslate"><span class="pre">due:</span></code> in the box). Each tap changes the search at once (the list behind
 follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
 <strong>Clear filters</strong> takes every filter off and keeps the words; <strong>Done</strong>, Back, Escape or a tap
 above the sheet closes it.</p></li>
@@ -642,9 +644,11 @@ cancelled, what to do first at the top, in groups: <strong>Overdue</strong> (old
 <strong>Today</strong>, <strong>High priority</strong> (no due date), then <strong>Later</strong> (by priority, then due date, then
 last edited). Each row starts with its priority and due date. Done and cancelled todos are
 folded away at the end (<strong>Done</strong>, tap to open; those among the 500 todos last edited). A
-switch at the top picks the list instead: <strong>Upcoming</strong> (due after today, soonest first) or
-<strong>All</strong> (every open todo and those done ones, last edited first). Each list sets its own
-order: there is no Sort here. The address says which list (<code class="docutils literal notranslate"><span class="pre">/todos?view=upcoming</span></code>), so
+switch at the top picks the list instead: <strong>Upcoming</strong> (due from tomorrow to a week away,
+soonest first) or <strong>All</strong> (every open todo and those done ones, last edited first). Each list
+sets its own order: there is no Sort here. The address says which list
+(<code class="docutils literal notranslate"><span class="pre">/todos?view=upcoming</span></code>; switching changes it in place, so Back leaves Todos rather than
+stepping through the lists), so
 Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
 <strong>Search todos</strong>, at the end, opens the search screen on <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>, where <code class="docutils literal notranslate"><span class="pre">due:</span></code>,
 <code class="docutils literal notranslate"><span class="pre">priority:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> still search and order todos.</p></li>
