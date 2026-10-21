@@ -359,6 +359,41 @@ def test_edit_rejects_bad_tags(client, note, tags):
     assert client.get(url).json()["tags"] == ["keep"]
 
 
+def test_capture_with_tags_is_tagged_and_indexed_at_once(client):
+    data = {"id": new_ulid(), "text": "seed trays", "tags": ["#Garden  Tools", "diy"]}
+    ref = client.post("/api/captures", json=data).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert sorted(page["tags"]) == ["diy", "garden tools"]  # cleaned as an edit's
+    hits = client.get("/api/search", params={"q": "tag:diy"}).json()
+    assert [h["id"] for h in hits] == [ref["page_id"]]
+    again = client.post("/api/captures", json={**data, "tags": ["other"]})
+    assert again.status_code == 200  # a retry: the first one's tags stay
+    assert client.get("/api/tags").json() == [["diy", 1], ["garden tools", 1]]
+
+
+def test_capture_tags_in_multipart_one_field_each(client):
+    data = {"id": new_ulid(), "text": "board", "tags": ["Work", "plans", "work"]}
+    files = [("file", ("b.png", PNG, "image/png"))]
+    ref = client.post("/api/captures", data=data, files=files).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert sorted(page["tags"]) == ["plans", "work"]
+    untagged = client.post("/api/captures", data={"id": new_ulid(), "text": "x"},
+                           files=MULTIPART).json()  # fmt: skip
+    assert client.get(f"/api/pages/{untagged['page_id']}").json()["tags"] == []
+
+
+@pytest.mark.parametrize(
+    "tags",
+    [["#"], ["x" * 65], [f"t{n}" for n in range(65)], ["\ud800"], [1], "a,b", {"a": 1}],
+)
+def test_capture_rejects_bad_tags(client, tags):
+    body = json.dumps({"id": new_ulid(), "text": "x", "tags": tags})
+    headers = {"content-type": "application/json"}
+    sent = client.post("/api/captures", content=body, headers=headers)
+    assert sent.status_code == 422
+    assert client.get("/api/pages").json() == []
+
+
 def test_pages_by_kind(client, note):
     todo = note("a todo", kind="todo")["slug"]
     plain = note("a note")["slug"]

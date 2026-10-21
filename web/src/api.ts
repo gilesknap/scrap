@@ -93,12 +93,14 @@ export function send(
   Xhr: typeof XMLHttpRequest = XMLHttpRequest,
   stallMs = 60_000,
 ): Promise<{ status: number; detail?: string }> {
-  const { id, text, url, kind, hint, source, created_at, files } = item;
-  const fields = { id, text, url, kind, hint, source, created_at };
+  const { id, text, url, kind, hint, source, created_at, tags, files } = item;
+  const fields = { id, text, url, kind, hint, source, created_at, tags };
   let body: string | FormData = JSON.stringify(fields);
   if (files.length) {
     body = new FormData(); // its text fields go as CRLF; the server makes them LF
-    for (const [k, v] of Object.entries(fields)) if (v) body.append(k, v);
+    // a field per tag
+    for (const [k, v] of Object.entries(fields))
+      for (const x of [v].flat()) if (x) body.append(k, x);
     for (const f of files) body.append("file", f.blob, f.name);
   }
   return new Promise((ok, fail) => {

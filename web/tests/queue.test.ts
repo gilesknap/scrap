@@ -158,6 +158,16 @@ describe("queue", () => {
     expect(split({ source: "pwa", files: [] })).toEqual([]);
   });
 
+  it("gives every part of a split capture its tags", () => {
+    const photos = ["a", "b"].map((n) => ({ name: `${n}.jpg`, blob: new Blob([n]) }));
+    const parts = split({ text: "t", tags: ["diy", "garden"], source: "pwa", files: photos });
+    expect(parts.map((p) => p.tags)).toEqual([
+      ["diy", "garden"],
+      ["diy", "garden"],
+    ]);
+    expect(split({ source: "pwa", files: photos }).every((p) => !("tags" in p))).toBe(true);
+  });
+
   it("splits in one transaction: all parts and no original, or nothing", async () => {
     const q = queue();
     replies = [413];

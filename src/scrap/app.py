@@ -265,7 +265,10 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         who = author(request)
         if request.headers.get("content-type", "").startswith("multipart/form-data"):
             async with request.form() as form:  # closes the spooled uploads
-                data = {k: v for k, v in form.items() if isinstance(v, str)}
+                data: dict[str, Any] = {
+                    k: v for k, v in form.items() if isinstance(v, str)
+                }
+                data["tags"] = form.getlist("tags")  # one field per tag
                 files = [f for f in form.getlist("file") if isinstance(f, UploadFile)]
                 ref, created = await run_in_threadpool(save, data, files, who)
         else:
