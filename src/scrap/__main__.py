@@ -27,8 +27,15 @@ def main(args: Sequence[str] | None = None) -> None:
     serve = subparsers.add_parser(
         "serve", parents=[common], help="Run the scrap web service"
     )
-    serve.add_argument("--host", default="127.0.0.1", help="Address to bind")
-    serve.add_argument("--port", type=int, default=8000, help="Port to listen on")
+    serve.add_argument("--host", help="Address to bind (default 127.0.0.1)")
+    serve.add_argument("--port", type=int, help="Port to listen on (default 8000)")
+    serve.add_argument(
+        "--uds",
+        type=Path,
+        help="Listen only on this Unix socket (mode 600) instead of TCP. Its folder"
+        " must be yours and closed to others (it is made mode 700 if missing); a"
+        " socket left by an earlier run is replaced. Not with --host or --port",
+    )
     for name, text in [
         ("backup", "Copy the database and files to DIR (safe while serving)"),
         ("restore", "Restore a backup from DIR into an empty data folder"),
@@ -107,11 +114,29 @@ def main(args: Sequence[str] | None = None) -> None:
     if parsed.command == "serve":
         import uvicorn
 
+        tcp = parsed.host is not None or parsed.port is not None
+        if parsed.uds is not None and tcp:
+            parser.error("serve: --uds listens on a socket only; drop --host/--port")
         if parsed.data_dir:
             os.environ["SCRAP_DATA_DIR"] = str(parsed.data_dir)
-        uvicorn.run(
-            "scrap.app:create_app", factory=True, host=parsed.host, port=parsed.port
-        )
+        if parsed.uds is None:
+            uvicorn.run(
+                "scrap.app:create_app",
+                factory=True,
+                host="127.0.0.1" if parsed.host is None else parsed.host,
+                port=8000 if parsed.port is None else parsed.port,
+            )
+            return
+        from .uds import UdsError, bind
+
+        try:
+            sock = bind(parsed.uds)
+        except UdsError as error:
+            raise SystemExit(f"scrap serve: {error}") from None
+        # Bound here, not by uvicorn, which would leave the socket mode 666. It is
+        # left behind on stop and replaced by the next start.
+        config = uvicorn.Config("scrap.app:create_app", factory=True)
+        uvicorn.Server(config).run(sockets=[sock])
     elif parsed.command:
         from . import backup
         from .store import Store
