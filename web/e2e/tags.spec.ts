@@ -48,6 +48,7 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   await sheet.getByRole("button", { name: "Personal 1" }).click();
   await expect(hits(page)).toHaveText(["Zephyr fence repair"]);
   await sheet.getByRole("button", { name: "Done", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await page.getByRole("button", { name: "Remove tag:zephyr/garden" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr fence is:personal");
   await expect(hits(page)).toHaveCount(1);
@@ -130,6 +131,7 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
   await expect(page.getByText("No matches")).toBeVisible(); // made in January 2026
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await page.getByRole("button", { name: "Remove after:1m" }).click();
   sheet = await filters(page);
   await sheet.getByRole("button", { name: "Dates…" }).click();
@@ -202,6 +204,7 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
   ]);
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByRole("button", { name: "Remove -sort:title" })).toBeVisible(); // on show
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title kind:todo");
   await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
@@ -219,6 +222,7 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
   await expect(page.getByRole("searchbox")).toHaveValue("sort:title");
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(hits(page).first()).toBeVisible();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   const titles = await hits(page).allTextContents();
   expect(titles.length).toBeGreaterThan(4);
   expect(titles).toEqual(
@@ -308,6 +312,7 @@ async function pageFor(page: import("@playwright/test").Page, word: string) {
 }
 
 test("a new note gets its tags as it is saved", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // no transition caught midway below
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Wallaby feeder plans");
@@ -323,7 +328,7 @@ test("a new note gets its tags as it is saved", async ({ page }) => {
   await expect(composer(page).getByRole("button", { name: "Remove #wallaby pen" })).toBeVisible();
   await expect(composer(page).locator("datalist option[value='zephyr/garden']")).toHaveCount(1);
   for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await page.emulateMedia({ colorScheme });
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} composer tags`).toEqual([]);
   }
   await box.fill("wallaby/water"); // still in the box when saved: it counts

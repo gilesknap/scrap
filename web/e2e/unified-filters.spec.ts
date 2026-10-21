@@ -77,6 +77,7 @@ test("the sheet: opens at the bottom, applies at once, Clear filters, Done", asy
   await s.getByRole("button", { name: "Edited in the past week" }).click();
   await s.getByRole("button", { name: "Done" }).click();
   await expect(s).toBeHidden();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await expect(filtersChip(page)).toBeFocused(); // back where it was
   await expect(filtersChip(page)).toHaveAccessibleName("Filters, 1 on");
   await expect(page.getByRole("button", { name: "Remove after:1w" })).toBeVisible();
@@ -91,6 +92,7 @@ test("Escape, Back and a tap outside close it; Back then leaves the screen", asy
   await expect(sheet(page)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sheet(page)).toBeHidden();
+  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined(); // its entry gone
   await expect(filtersChip(page)).toBeFocused();
   await expect(page).toHaveURL(/\/search\?q=potoroo$/);
   // Back: closes it, keeps what it chose, and the screen stays
