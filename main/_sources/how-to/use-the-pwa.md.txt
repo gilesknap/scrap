@@ -133,6 +133,16 @@ the link as the capture's URL.
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.
+- **Task lists drive a todo.** A note with task boxes (`- [ ]`) becomes a todo when it is saved
+  (done, if every box is ticked), unless its kind was chosen: the server files it, and the
+  composer and editor don't suggest a kind for boxes (the kind picker still shows **Note**, and
+  leaving it so is no choice). To keep such a page a note, **Edit** it and pick **Note**: a kind
+  picked by hand is kept. A Read, Board or Doc never changes. Boxes in code (a fenced or
+  indented block) don't count. Its row and page say how many are ticked (*2 of 5*), and its
+  tick box on rows shows a bar while only some are. Ticking the last box (on the page, or in
+  the editor) marks it done. While every box is ticked, unticking one or adding a new unticked
+  one opens a done todo again; otherwise a todo marked **Done** by hand stays done. **Done** by
+  hand ticks no box, and a cancelled todo is left as it is.
 - **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
   tags and pick a **Snooze until** date (**No snooze** wakes it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
   tab's count (Now's count says how many are snoozed); **All** shows it, marked *snoozed till 3
@@ -184,8 +194,11 @@ the link as the capture's URL.
 - Page text is shown as Markdown, as GitHub writes it: headings, **bold**, *italic*,
   ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
   `https://` addresses (a `www.` address without `https://` stays plain text), tables
-  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes you tick by
-  editing the text) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
+  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes: tap one on the
+  page to tick it, or untick it, and that item's line in the text is saved at once, with no
+  editor; the same words twice still tick the right one, and a box in code is no box. If the
+  page was changed elsewhere meanwhile, it is shown as it is now, and the tap is not saved: tap
+  again. Offline, and in **Preview**, the boxes don't tick) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
   page (in a table cell write `[[slug\|label]]`: a bare `|` starts the next cell). A
   ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram (flowcharts,
   sequence diagrams and the rest); offline, or if it has a mistake, it shows as code. A link to

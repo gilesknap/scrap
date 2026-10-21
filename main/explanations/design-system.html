@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.1.dev248+g63ea658b1 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.1.dev254+g130d9e1c8 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=da3e40bd"></script>
+    <script src="../_static/documentation_options.js?v=af3f8868"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -776,7 +776,7 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-odd"><td><p>Row tick</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">.tick</span></code></p></td>
-<td><p>a todo’s or a Read’s row: a 48 px toggle (<code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code>, <code class="docutils literal notranslate"><span class="pre">aria-label</span></code> “Done: title”) at its end, beside the row’s link rather than in it, so tapping it opens nothing; an empty box in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>, ticked in <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> when done; it slides with the row, and a drag that starts on it swipes the row</p></td>
+<td><p>a todo’s or a Read’s row: a 48 px toggle (<code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code>, <code class="docutils literal notranslate"><span class="pre">aria-label</span></code> “Done: title”) at its end, beside the row’s link rather than in it, so tapping it opens nothing; an empty box in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>, ticked in <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> when done, a bar across it (<code class="docutils literal notranslate"><span class="pre">aria-pressed=&quot;mixed&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code>) while only some of the page’s task boxes are ticked, its row saying “2 of 5”; it slides with the row, and a drag that starts on it swipes the row</p></td>
 </tr>
 <tr class="row-even"><td><p>Figure caption</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.orig</span> <span class="pre">figcaption</span></code>, <code class="docutils literal notranslate"><span class="pre">.save</span></code></p></td>
@@ -840,7 +840,7 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-odd"><td><p>Markdown</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.md</span></code> (page text, Preview)</p></td>
-<td><p>headings <code class="docutils literal notranslate"><span class="pre">--t-lg</span></code>/<code class="docutils literal notranslate"><span class="pre">--t-md</span></code>; code and a table’s head on <code class="docutils literal notranslate"><span class="pre">--sunk</span></code>; a table in a <code class="docutils literal notranslate"><span class="pre">.table</span></code> box with <code class="docutils literal notranslate"><span class="pre">--line</span></code> hairlines that scrolls sideways on its own (the page never does); task boxes in <code class="docutils literal notranslate"><span class="pre">--accent</span></code>; strikethrough, quotes and footnotes in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; a Mermaid <code class="docutils literal notranslate"><span class="pre">.diagram</span></code> in its dark or neutral theme, following the system’s</p></td>
+<td><p>headings <code class="docutils literal notranslate"><span class="pre">--t-lg</span></code>/<code class="docutils literal notranslate"><span class="pre">--t-md</span></code>; code and a table’s head on <code class="docutils literal notranslate"><span class="pre">--sunk</span></code>; a table in a <code class="docutils literal notranslate"><span class="pre">.table</span></code> box with <code class="docutils literal notranslate"><span class="pre">--line</span></code> hairlines that scrolls sideways on its own (the page never does); task boxes in <code class="docutils literal notranslate"><span class="pre">--accent</span></code>, in a <code class="docutils literal notranslate"><span class="pre">.taskbox</span></code> label with a <code class="docutils literal notranslate"><span class="pre">--tap</span></code> (48 px) target, the items spaced (11 px each side: a 49 px pitch on a 27.2 px line) so no two targets overlap; each box is named by its item’s text (<code class="docutils literal notranslate"><span class="pre">aria-label</span></code>); on a page they tick in place (<code class="docutils literal notranslate"><span class="pre">tasks.ts</span></code>: each box’s <code class="docutils literal notranslate"><span class="pre">data-line</span></code> is its item’s line in the text, from markdown-it’s map), off while offline and in Preview; strikethrough, quotes and footnotes in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; a Mermaid <code class="docutils literal notranslate"><span class="pre">.diagram</span></code> in its dark or neutral theme, following the system’s</p></td>
 </tr>
 </tbody>
 </table>
