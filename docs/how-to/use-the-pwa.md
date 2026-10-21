@@ -126,10 +126,12 @@ the link as the capture's URL.
   open it again; the row stays where it is and its chip says *done* (or *cancelled*). Ticking
   it or changing a kind doesn't move the page up the list.
 - A todo may have a **due date** and a **priority** (high, medium or low). Its page shows them
-  in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to pick a date
-  (**No date** clears it) and a priority, then **Save**. **Edit** has the same two under the
+  in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to pick a date,
+  or set one in a tap with **Today**, **Tomorrow** or **Next week** (**No date** clears it),
+  and a priority, then **Save**. **Edit** has the same two under the
   tags while the kind is Todo. A todo's row in a list says them too; one due before today and
-  not done says *overdue* in red, until ticked off. They are a todo's only: a page made a note
+  not done says *overdue* in red, until ticked off. Once done or cancelled it keeps its due
+  date, greyed. They are a todo's only: a page made a note
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.

@@ -54,26 +54,27 @@ const short = (d: string, now: string) =>
 
 /** Snoozed: out of Now and the Todos tab's count until its day (not once done). */
 export const snoozed = (p: Todo, now = today()) =>
-  !!p.snoozed_until &&
-  p.snoozed_until > now &&
-  !["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`);
+  !!p.snoozed_until && p.snoozed_until > now && !closed(p);
+
+/** Done or cancelled: a todo that is closed. */
+export const closed = (p: Todo) => ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`);
 
 /** What a todo's row and page say of its due date, priority and snooze ("high · due 3 Nov ·
- * snoozed till 1 Nov"), and whether it is overdue (due before today and not done or
- * cancelled); null if none. */
-export function dueOf(p: Todo, now = today()): [string, boolean] | null {
+ * snoozed till 1 Nov"), and its line's class: "due late" when overdue (due before today, not
+ * done or cancelled), "due closed" once done or cancelled (greyed, its due date said as a date:
+ * never today or overdue), else "due"; null if none. */
+export function dueOf(p: Todo, now = today()): [string, string] | null {
   const until = snoozed(p, now) && p.snoozed_until;
-  const status = statusOf(p.kind, p.fields);
-  const closed = status === "done" || status === "cancelled";
-  const part = !closed && partly(p);
+  const shut = closed(p);
+  const part = !shut && partly(p);
   if (p.kind !== "todo" || !(p.due || p.priority || until || part)) return null;
-  const late = !!p.due && p.due < now && !closed;
-  const day = p.due && (p.due === now ? "today" : short(p.due, now));
+  const late = !!p.due && p.due < now && !shut;
+  const day = p.due && (p.due === now && !shut ? "today" : short(p.due, now));
   const said = [
     p.priority,
     day && `${late ? "overdue" : "due"} ${day}`,
     until && `snoozed till ${short(until, now)}`,
     part,
   ];
-  return [said.filter(Boolean).join(" · "), late];
+  return [said.filter(Boolean).join(" · "), late ? "due late" : shut ? "due closed" : "due"];
 }

@@ -1,9 +1,11 @@
-// A todo's due date and priority (#104): a native date picker (No date empties it) and a menu
-// of priorities; on its page also Snooze until (a date, No snooze empties it). In place on a
+// A todo's due date and priority (#104): a native date picker (No date empties it, and Today,
+// Tomorrow and Next week set it in one tap) and a menu of priorities; on its page also Snooze
+// until (a date, No snooze empties it). In place on a
 // todo's page (todoForm: Save sends them, no new revision) and in the editor (todoField, sent
 // with the page). A chunk of its own: the page's due line and the
 // editor load it.
 import { api, type Page } from "./api";
+import { today } from "./status";
 import { why } from "./swipe";
 import { h, toast } from "./ui";
 
@@ -17,6 +19,44 @@ export const todoStart = (kept: { todo?: Todo } | undefined, p: Partial<Page>): 
   kept?.todo
     ? { due: kept.todo.due, priority: kept.todo.priority }
     : { due: p.due ?? null, priority: p.priority ?? null };
+
+/** The day n days from d on this phone's calendar, as a due date is written. */
+export const inDays = (n: number, d = new Date()) =>
+  today(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12));
+
+const SOON: [string, number][] = [
+  ["Today", 0],
+  ["Tomorrow", 1],
+  ["Next week", 7],
+];
+
+/** Due soon: Today, Tomorrow and Next week, each setting the date as if picked; the one
+ * matching the date now set is pressed. */
+function soon(date: HTMLInputElement) {
+  const chips = SOON.map(([label, n]) =>
+    h(
+      "button",
+      {
+        type: "button",
+        className: "facet",
+        onclick: () => {
+          date.value = inDays(n);
+          date.dispatchEvent(new Event("input", { bubbles: true }));
+        },
+      },
+      label,
+    ),
+  );
+  const mark = () =>
+    chips.forEach((c, i) => {
+      c.setAttribute("aria-pressed", String(!!date.value && date.value === inDays(SOON[i][1])));
+    });
+  date.addEventListener("input", mark);
+  return {
+    el: h("div", { className: "soon", role: "group", "aria-label": "Due soon" }, ...chips),
+    mark,
+  };
+}
 
 /** A day field: a native date picker and a ghost button that empties it. Each change is an
  * input event (the editor keeps a draft). */
@@ -45,6 +85,7 @@ export function todoField(
 ) {
   const day = dayField("Due", "No date");
   const date = day.date;
+  const chips = soon(date);
   const rank = h(
     "select",
     { "aria-label": "Priority" },
@@ -57,12 +98,14 @@ export function todoField(
     date.value = d ?? "";
     rank.value = p ?? "";
     if (nap) nap.date.value = z ?? "";
+    chips.mark();
   };
   reset(due, priority, snooze);
   const el = h(
     "div",
     { className: "todoedit" },
     ...day.els,
+    chips.el,
     h("label", {}, "Priority", rank),
     ...(nap ? [h("span", { className: "break" }), ...nap.els] : []),
   );

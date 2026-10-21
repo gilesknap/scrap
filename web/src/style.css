@@ -1819,6 +1819,11 @@ div.orig .save {
   color: var(--danger);
   font-weight: 600;
 }
+/* Done or cancelled: its due date kept, greyed */
+.list .due.closed,
+.todoline .closed {
+  color: var(--ink-3);
+}
 .todoline {
   margin: calc(-1 * var(--s-2)) 0 0; /* under the tag line, in its rhythm: 32 px drawn in 48 */
 }
@@ -1867,6 +1872,19 @@ div.orig .save {
 .todoedit select:focus {
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
+}
+/* Due soon: Today, Tomorrow, Next week, on a line of their own under the date; the one set is
+   pressed, as in the Filters sheet */
+.todoedit .soon {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: var(--s-2);
+}
+.todoedit .facet[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
 }
 /* Snooze starts a line of its own, under the priority */
 .todoedit .break {

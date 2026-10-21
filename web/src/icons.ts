@@ -7,6 +7,7 @@ const PATHS = {
   note: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4M9 12h7M9 16h5"/>',
   todo: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   done: '<path d="m5 12.5 4.5 4.5L19 7"/>',
+  due: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8.5 3v4m7-4v4"/>',
   later: '<path d="M7 3.5h10v17l-5-3.5-5 3.5z"/>',
   download: '<path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19.5h14"/>',
   share:

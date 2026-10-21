@@ -6,7 +6,7 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { renderer, unembedded } from "./md";
-import { dueOf, statusOf, ticks } from "./status";
+import { closed, dueOf, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
 import { bodyView, download, h, pageLink, share, toast, when } from "./ui";
@@ -128,8 +128,9 @@ export async function page(key: string): Promise<Node> {
             h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
           ),
         ),
-      // A todo's due date and priority: tapped, changed in place
-      p.kind !== "todo"
+      // A todo's due date and priority: tapped, changed in place (a closed one with none
+      // offers no "Add due date": Reopen it first)
+      p.kind !== "todo" || (!said && closed(p))
         ? ""
         : (todoForm ??
             h(
@@ -142,8 +143,8 @@ export async function page(key: string): Promise<Node> {
                   title: "Due date and priority",
                   onclick: (e: Event) => void todoEdit(e),
                 },
-                icon("todo"),
-                h("span", { className: said?.[1] ? "late" : "" }, said ? said[0] : "Add due date"),
+                icon("due"),
+                h("span", { className: said?.[1] ?? "" }, said ? said[0] : "Add due date"),
               ),
             )),
       h(
