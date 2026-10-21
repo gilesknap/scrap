@@ -8,7 +8,7 @@
 import { api } from "./api";
 import { address, back, go, view } from "./app";
 import { icon } from "./icons";
-import { adding, day, has, kindsIn, removing, sortsIn, token } from "./terms";
+import { adding, day, has, kindsIn, removing, token, unsorted } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -246,7 +246,7 @@ function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () =>
         // The orders in the query as it is now, not as this menu was drawn: two picks
         // before the sheet is drawn again must not leave the first one behind
         set((now) => {
-          const rest = sortsIn(now).reduce(removing, now);
+          const rest = unsorted(now);
           return sort.value ? adding(rest, sort.value) : rest;
         }),
     },

@@ -85,6 +85,28 @@ test("the sheet: opens at the bottom, applies at once, Clear filters, Done", asy
   await expect(page.getByRole("button", { name: "Remove after:1w" })).toBeVisible();
 });
 
+test("Sort replaces the order: a typed Sort:due, and two picks in a row", async ({ page }) => {
+  // The server reads the key in any case: a typed Sort:due is an order the menu replaces
+  await page.goto("/search?q=potoroo%20Sort:due");
+  await expect(hits(page)).toHaveCount(3);
+  await filtersChip(page).click();
+  const menu = sheet(page).getByRole("combobox", { name: "Sort" });
+  await menu.selectOption({ label: "Oldest" });
+  await expect(page.getByRole("searchbox")).toHaveValue("potoroo -sort:created");
+  // Two picks before the sheet is drawn again: the second replaces the first
+  await menu.evaluate((el: HTMLSelectElement) => {
+    for (const v of ["sort:title", "sort:created"]) {
+      el.value = v;
+      el.dispatchEvent(new Event("change"));
+    }
+  });
+  const box = page.getByRole("searchbox");
+  await expect(box).toHaveValue("potoroo sort:created");
+  expect((await box.inputValue()).match(/sort:/gi)).toHaveLength(1);
+  await expect(page).toHaveURL(/q=potoroo%20sort%3Acreated$/);
+  await expect(hits(page)).toHaveText(["Potoroo three", "Potoroo two", "Potoroo one"]);
+});
+
 test("Escape, Back and a tap outside close it; Back then leaves the screen", async ({ page }) => {
   await page.goto("/");
   await page.goto("/search?q=potoroo");

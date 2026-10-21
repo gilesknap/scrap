@@ -9,6 +9,7 @@ import {
   sortsIn,
   token,
   tree,
+  unsorted,
   withKind,
 } from "../src/terms";
 
@@ -37,8 +38,27 @@ it("finds the orders a query has, to replace them all", () => {
   expect(sortsIn("zephyr kind:todo -sort:created")).toEqual(["-sort:created"]);
   expect(sortsIn("sort:due a -sort:title")).toEqual(["sort:due", "-sort:title"]);
   expect(sortsIn("resort:x mysort:y")).toEqual([]);
-  const q = "zephyr -sort:created kind:todo sort:due";
-  expect(sortsIn(q).reduce(removing, q)).toBe("zephyr kind:todo");
+  expect(unsorted("zephyr -sort:created kind:todo sort:due")).toBe("zephyr kind:todo");
+});
+
+it("reads orders the way the server does: any case, - or !, quotes are text", () => {
+  expect(sortsIn("zephyr Sort:due")).toEqual(["Sort:due"]);
+  expect(sortsIn("a -SORT:x !sort:title")).toEqual(["-SORT:x", "!sort:title"]);
+  expect(unsorted("zephyr Sort:due kind:todo")).toBe("zephyr kind:todo");
+  expect(unsorted("-SORT:x")).toBe("");
+  // a phrase is text, sort: and all
+  expect(sortsIn('"fix sort:due bug"')).toEqual([]);
+  expect(unsorted('"fix  sort:due bug" sort:title')).toBe('"fix  sort:due bug"');
+  expect(sortsIn('"foo sort:due"')).toEqual([]);
+  expect(sortsIn('-"foo sort:due" x')).toEqual([]);
+  // an unbalanced quote runs to the end
+  expect(sortsIn('a "foo sort:due')).toEqual([]);
+  expect(sortsIn('sort:due a "b sort:title')).toEqual(["sort:due"]);
+  // a word ends at a quote; a quoted value is part of the order
+  expect(sortsIn('sort:due"x sort:y"')).toEqual(["sort:due"]);
+  expect(unsorted('a sort:"due" b')).toBe("a b");
+  expect(sortsIn("--sort:x sort tsort:x")).toEqual([]);
+  expect(sortsIn("a\x01sort:due b")).toEqual(["sort:due"]); // a control character: a space
 });
 
 it("makes a tree of tags, parents first", () => {
