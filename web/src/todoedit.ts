@@ -91,7 +91,7 @@ export function todoField(
     { className: "todoedit" },
     ...day.els,
     h("label", {}, "Priority", rank),
-    ...(nap?.els ?? []),
+    ...(nap ? [h("span", { className: "break" }), ...nap.els] : []),
   );
   return {
     el,
