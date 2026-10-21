@@ -113,3 +113,16 @@ it("accepts only a sane stall limit from the test hook", () => {
     expect(stallLimit(bad)).toBe(60_000);
   }
 });
+
+it("sends a capture's tags: a JSON list, or a form field per tag", () => {
+  const note = newItem({ text: "hi", tags: ["diy", "garden tools"], source: "pwa", files: [] });
+  void send(note, Xhr);
+  expect(JSON.parse(FakeXhr.last.body as string).tags).toEqual(["diy", "garden tools"]);
+  const shot = newItem({ ...note, files: [{ name: "p.jpg", blob: new Blob(["x"]) }] });
+  void send(shot, Xhr);
+  const form = FakeXhr.last.body as FormData;
+  expect(form.getAll("tags")).toEqual(["diy", "garden tools"]);
+  expect(form.get("text")).toBe("hi");
+  void send(photo, Xhr); // none: no field
+  expect((FakeXhr.last.body as FormData).has("tags")).toBe(false);
+});
