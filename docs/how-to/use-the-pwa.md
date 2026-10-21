@@ -139,6 +139,8 @@ the link as the capture's URL.
   after today, soonest first) or **All** (every todo, last edited first). Each list sets its
   own order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
+  **New todo**, at the bottom right above the tabs, opens the composer with Todo chosen; once
+  saved you are back on the list, and the todo joins it when it has uploaded.
   **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
   `priority:` and `sort:due` still search and order todos.
 - Swipe a row of the list, the capture screen's list or search results: to the **right** to

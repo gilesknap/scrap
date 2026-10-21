@@ -19,14 +19,18 @@ interface Draft {
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
 }
 
-export async function compose(picked: File[]) {
+/** as: a kind chosen before it opens (the Todos screen's New todo), over a draft's. */
+export async function compose(picked: File[], as?: string) {
   // An unsaved draft comes back, with any photos just picked added to it.
   const kept = await drafts.get<Draft>(DRAFT).catch(() => undefined);
   const files = [...(kept?.files ?? []), ...picked];
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
   // The kind: Note unless chosen (a bare URL suggests Read). Photos have none: ingest
   // decides, and the page's editor can change it.
-  const kind = kindPicker(kept?.kind ?? (kept?.hint || "note"), kept?.picked ?? !!kept?.hint);
+  const kind = kindPicker(
+    as ?? kept?.kind ?? (kept?.hint || "note"),
+    !!as || (kept?.picked ?? !!kept?.hint),
+  );
   text.addEventListener("input", () => kind.suggest(suggested(text.value)));
   // Its tags, as the page's editor has them; photos too (Claude then adds none of its own)
   const tags = tagField(kept?.tags ?? [], () => ed.keep());

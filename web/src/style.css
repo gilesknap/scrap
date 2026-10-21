@@ -1827,6 +1827,19 @@ div.orig .save {
 .todos h2.label {
   margin-top: var(--s-2);
 }
+/* New todo: the screen's one hero, under the thumb above the nav, over the list's end */
+.todos {
+  display: flex;
+  flex-direction: column;
+}
+.todos .newtodo {
+  position: sticky;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-3));
+  align-self: flex-end;
+  margin-top: var(--s-3);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-2);
+}
 /* A todo's row leads with its due date and priority, then when it was last edited */
 .todos .sub .due {
   order: -1;

@@ -157,3 +157,23 @@ test("the Todos tab: one tap to Now, with a count of the todos due", async ({ pa
   await expect(badge).toBeHidden();
   await expect(tab).toHaveAccessibleName("Todos");
 });
+
+test("New todo opens the composer on Todo, and the saved todo joins the list", async ({ page }) => {
+  await page.goto("/todos?view=all");
+  const add = page.getByRole("button", { name: "New todo" });
+  await expect(add).toBeInViewport(); // under the thumb, however long the list
+  expect((await add.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await add.click();
+  const editor = page.locator(".editor");
+  await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
+  // A link would suggest Read: the kind was chosen, so it stays Todo
+  await editor.locator("textarea").fill("Quokka new todo https://example.com/x");
+  await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  // Back on the list it was opened from, with the todo in it once uploaded
+  await expect(page).toHaveURL(/\/todos\?view=all$/);
+  await expect(page.locator(".todos .list a strong", { hasText: "Quokka new todo" })).toBeVisible();
+  const row = page.locator(".list li", { hasText: "Quokka new todo" });
+  await expect(row.getByRole("button", { name: /^Done: Quokka new todo/ })).toBeVisible();
+});

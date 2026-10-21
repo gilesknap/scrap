@@ -5,11 +5,12 @@
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
 import { api, type Summary } from "./api";
 import { view } from "./app";
+import { icon } from "./icons";
 import type { pageRow } from "./lists";
 import { isOpen, now, upcoming } from "./now";
 import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
-import { empty, h, problem } from "./ui";
+import { empty, h, problem, toast } from "./ui";
 
 const MODES = [
   ["now", "Now"],
@@ -26,13 +27,28 @@ const modeOf = () => {
 /** row: lists.ts's pageRow, passed in (main.ts) so this chunk imports nothing from lists.ts:
  * that would split the app shell into more, less compressible chunks. */
 export async function todos(row: typeof pageRow): Promise<Node> {
+  const signal = view.signal;
+  const fetchAll = () => {
+    if (!navigator.onLine) throw new TypeError("offline");
+    return api<Summary[]>(`pages?limit=${LIMIT}&kind=todo`, { signal });
+  };
   let list: Summary[];
   try {
-    if (!navigator.onLine) throw new TypeError("offline");
-    list = await api<Summary[]>(`pages?limit=${LIMIT}&kind=todo`, { signal: view.signal });
+    list = await fetchAll();
   } catch (e) {
     return problem(e);
   }
+  // A todo saved meanwhile (New todo, below): the list again once the upload is done
+  document.addEventListener(
+    "queuechange",
+    async () => {
+      try {
+        list = await fetchAll();
+        draw();
+      } catch {} // offline: as it was
+    },
+    { signal },
+  );
   const keep = () => history.replaceState({ ...history.state, scroll: scrollY }, "");
   const body = h("div");
   const count = h("p", { className: "count" });
@@ -103,6 +119,21 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   draw();
   const y = history.state?.scroll;
   if (y) requestAnimationFrame(() => scrollTo(0, y));
+  // New todo: the composer with Todo chosen; saved, it closes back onto this list
+  const add = h(
+    "button",
+    {
+      type: "button",
+      className: "primary newtodo",
+      onclick: () =>
+        import("./composer").then(
+          (m) => m.compose([], "todo"),
+          () => toast("Can't open the composer: reload scrap and try again"),
+        ),
+    },
+    icon("todo"),
+    "New todo",
+  );
   const root = h(
     "section",
     { className: "todos" },
@@ -114,6 +145,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       { className: "button ghost more", href: `/search?q=${encodeURIComponent("kind:todo")}` },
       "Search todos",
     ),
+    add,
   );
   // Leaving by a tap or a swipe: where the list is, for Back
   root.addEventListener("pointerdown", keep, { capture: true });
