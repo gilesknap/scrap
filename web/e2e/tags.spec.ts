@@ -100,6 +100,8 @@ test("the new views meet AA contrast, in both themes", async ({ page }) => {
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} filters`).toEqual([]);
     await page.keyboard.press("Escape");
     await expect(sheet).toBeHidden();
+    // Its history entry gone first, or that Back lands after the goto and undoes it
+    await expect.poll(() => page.evaluate(() => history.state?.sheet ?? 0)).toBe(0);
     await page.goto(`/p/${slugs[0]}`);
     await page.locator(".page .tags a").first().waitFor();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page tags`).toEqual([]);
