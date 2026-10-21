@@ -474,7 +474,9 @@ class Store:
             what = "url" if url else "note"
         if what == "note" and not text:
             raise InvalidError("empty capture")
-        tags = data.get("tags") or []
+        tags = data.get("tags")
+        if tags is None:  # only missing or null means none: "" or {} is refused below
+            tags = []
         if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
             raise InvalidError("tags must be a list of strings")
         tags = clean_tags(tags)  # as an edit's

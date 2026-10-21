@@ -11,6 +11,17 @@ import { h } from "./ui";
 export const clean = (t: string) =>
   t.split(/\s+/).join(" ").trim().replace(/^#+/, "").trim().toLowerCase();
 
+// The server's limits on a page's tags: MAX_TAGS and MAX_TAG in src/scrap/store.py.
+export const MAX_TAGS = 64;
+export const MAX_TAG = 64; // characters (code points, after NFC)
+
+/** Why the server would refuse these (cleaned) tags, or undefined if it would take them. */
+export function tagProblem(tags: string[]): string | undefined {
+  if (tags.length > MAX_TAGS) return `At most ${MAX_TAGS} tags, not ${tags.length}.`;
+  const long = tags.find((t) => [...t.normalize("NFC")].length > MAX_TAG);
+  if (long) return `A tag can be at most ${MAX_TAG} characters: "${long.slice(0, 40)}…"`;
+}
+
 let n = 0; // a datalist id per field
 
 export function tagField(initial: string[], onchange: () => void = () => {}) {

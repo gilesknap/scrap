@@ -384,7 +384,19 @@ def test_capture_tags_in_multipart_one_field_each(client):
 
 @pytest.mark.parametrize(
     "tags",
-    [["#"], ["x" * 65], [f"t{n}" for n in range(65)], ["\ud800"], [1], "a,b", {"a": 1}],
+    [
+        ["#"],
+        ["x" * 65],
+        [f"t{n}" for n in range(65)],
+        ["\ud800"],
+        [1],
+        "a,b",
+        {"a": 1},
+        "",
+        {},
+        0,
+        False,  # falsy non-lists too: not "no tags"
+    ],
 )
 def test_capture_rejects_bad_tags(client, tags):
     body = json.dumps({"id": new_ulid(), "text": "x", "tags": tags})
@@ -392,6 +404,14 @@ def test_capture_rejects_bad_tags(client, tags):
     sent = client.post("/api/captures", content=body, headers=headers)
     assert sent.status_code == 422
     assert client.get("/api/pages").json() == []
+
+
+def test_capture_null_tags_means_none(client):
+    body = json.dumps({"id": new_ulid(), "text": "x", "tags": None})
+    headers = {"content-type": "application/json"}
+    sent = client.post("/api/captures", content=body, headers=headers)
+    assert sent.status_code == 201, sent.text
+    assert client.get(f"/api/pages/{sent.json()['page_id']}").json()["tags"] == []
 
 
 def test_pages_by_kind(client, note):

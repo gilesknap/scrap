@@ -7,6 +7,7 @@ import { drafts } from "./db";
 import { editor, kindPicker, suggested, tagField, toSend } from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
+import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
 const DRAFT = "new"; // the composer's draft
@@ -103,6 +104,9 @@ export async function compose(picked: File[]) {
     const body = text.value.trim();
     if (!body && !files.length) return text.focus();
     const tagged = tags.value();
+    // The server's tag limits too: a capture it refuses would sit in the queue, unfixable.
+    const bad = tagProblem(tagged);
+    if (bad) return toast(`${bad} Fix the tags to save.`, "", undefined, 10000);
     const capture: Capture = {
       text: body || undefined,
       kind: files.length ? undefined : toSend(kind.value(), kind.picked(), "note"),
