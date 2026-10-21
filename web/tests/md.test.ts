@@ -47,6 +47,7 @@ describe("markdown", () => {
     );
     expect(one("- [ ]\n  continued")).toContain('aria-label="continued"');
     expect(one("- [ ]")).toContain('aria-label="Task"');
+    expect(one(`- [ ] ${"a".repeat(119)}😀b`)).toContain(`aria-label="${"a".repeat(119)}😀"`);
     const boxes = (text: string) => one(text).match(/type="checkbox"/g)?.length ?? 0;
     expect(boxes("- \\[ ] escaped")).toBe(0);
     expect(boxes("[x]: https://e.com\n\n- [x] ref")).toBe(0);

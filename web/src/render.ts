@@ -109,7 +109,7 @@ function task(t: Token, item: Token, line: string, state: StateCore) {
     .join("")
     .replace(/\s+/g, " ")
     .trim();
-  const name = state.md.utils.escapeHtml(said.slice(0, 120) || "Task");
+  const name = state.md.utils.escapeHtml([...said].slice(0, 120).join("") || "Task");
   const box = new state.Token("html_inline", "", 0);
   box.content = `<label class="taskbox"><input type="checkbox" aria-label="${name}" data-line="${item.map?.[0]}" disabled${m[1] === " " ? "" : " checked"}></label> `;
   t.children?.unshift(box);
