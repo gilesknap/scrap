@@ -4,7 +4,18 @@ import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { editor, kindPicker, suggested, tagField, todoField, tooLong, toSend } from "./editor";
+import {
+  editor,
+  fold,
+  kindPicker,
+  suggested,
+  tagField,
+  tagsSay,
+  todoField,
+  todoSays,
+  tooLong,
+  toSend,
+} from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
 import { tagProblem } from "./tagedit";
@@ -45,12 +56,15 @@ export async function compose(picked: File[], as?: string) {
   // A todo's due date (Today, Tomorrow, Next week or a date) and priority, as on its page:
   // shown while the kind is Todo (photos have no kind here, so none with them)
   const todo = todoField(kept?.todo?.due ?? null, kept?.todo?.priority ?? null);
+  // Folded into a line each, under the text: the text stays the hero
+  const tagLine = fold("Tags", tags.el, () => tagsSay(tags.value()), "tag");
+  const todoLine = fold("Due", todo.el, () => todoSays(todo.value()), "due");
   const showTodo = () => {
-    todo.el.hidden = kind.value() !== "todo" || files.length > 0;
+    todoLine.el.hidden = kind.value() !== "todo" || files.length > 0;
     text.placeholder = files.length ? "Caption (optional)" : (ASK[kind.value()] ?? "Note or link");
   };
   kind.el.addEventListener("change", showTodo);
-  const todoNow = () => (todo.el.hidden ? null : todo.value());
+  const todoNow = () => (todoLine.el.hidden ? null : todo.value());
   const dated = () => !!todoNow()?.due || !!todoNow()?.priority;
   const thumbs = h("div", { className: "thumbs" });
   // One capture, many photos: add from the camera (one at a time) or the gallery.
@@ -95,7 +109,7 @@ export async function compose(picked: File[], as?: string) {
   const ed = editor({
     text,
     before: [kind.el],
-    after: [todo.el, tags.el, thumbs, adders],
+    after: [todoLine.el, tagLine.el, thumbs, adders],
     key: DRAFT,
     draft: (): Draft => ({
       text: text.value,
@@ -114,6 +128,8 @@ export async function compose(picked: File[], as?: string) {
       tags.reset([]);
       todo.reset(null, null);
       showThumbs();
+      tagLine.refresh();
+      todoLine.refresh();
     },
     onsave: () => void store(false),
   });

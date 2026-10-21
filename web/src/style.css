@@ -1469,16 +1469,110 @@ div.orig .save {
   padding: var(--s-3) max(env(safe-area-inset-right), var(--s-4)) var(--s-3)
     max(env(safe-area-inset-left), var(--s-4));
 }
+/* The text is the hero: at least 60 % of what is visible (the keyboard's room taken off:
+   --vv-h follows the visual viewport), however many tags or dates; the fields scroll */
 .fields > textarea,
 .fields > .preview {
-  flex: 1 1 auto;
-  min-height: 5rem;
+  flex: 1 0 auto;
+  min-height: calc(var(--vv-h, 100dvh) * 0.6);
   resize: none;
   overflow-y: auto;
 }
+/* The title: big and bold, on a line rather than in a second box */
 .fields > input {
+  padding-inline: 0;
+  border-color: transparent;
+  border-bottom-color: var(--line-strong);
+  border-radius: 0;
+  background: transparent;
   font-size: var(--t-lg);
   font-weight: 600;
+}
+/* The composer's Camera and Gallery (more photos: now and then): text buttons, not boxes */
+.fields > .bar .add {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+/* Cancel and Preview: text buttons beside Save, the bar's one fill */
+.editor > .bar > button:not(.primary) {
+  border-color: transparent;
+  background: transparent;
+}
+/* Just above the keyboard, the editor's keys: Checkbox (the line becomes a task). Not while
+   the text is previewed */
+.editor > .keys {
+  flex: none;
+  display: flex;
+  gap: var(--s-2);
+  padding: 0 max(env(safe-area-inset-right), var(--s-2)) env(safe-area-inset-bottom)
+    max(env(safe-area-inset-left), var(--s-2));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.editor > .keys button {
+  gap: var(--s-1);
+  padding: 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.editor:has(> .fields > textarea[hidden]) > .keys {
+  display: none;
+}
+/* A fold (editor.ts fold): tags or a todo's dates as one line saying what they hold; tapped,
+   the controls open under it */
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  list-style: none;
+  cursor: pointer;
+}
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+.fold > summary .i {
+  width: 18px;
+  height: 18px;
+}
+.fold > summary b {
+  flex: none;
+  color: var(--ink);
+  font-weight: 600;
+}
+.fold > summary .says {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fold > summary::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: var(--s-1) 3px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: 45deg; /* down: opens */
+  transition: rotate var(--d-1) var(--ease);
+}
+.fold[open] > summary::after {
+  rotate: -135deg;
+}
+.fold[open] > summary {
+  color: var(--ink);
+}
+.fold > :not(summary) {
+  padding-bottom: var(--s-2);
+}
+.fields > .fold + .fold,
+.fields > .fold:has(+ .fold) {
+  margin-block: calc(-1 * var(--s-2)) 0; /* two folds read as one group */
 }
 .preview {
   padding: var(--s-3);
