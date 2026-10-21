@@ -172,6 +172,11 @@ SCRAP_BUDGET_DAY_USD=3
 SCRAP_NOTIFY_URL=https://ntfy.sh/<your private topic>
 ```
 
+Also set `TZ` to your own time zone, for example `TZ=Europe/London`. The server decides what
+"today" means for `due:today` searches (the web UI and the MCP tools alike) from its own clock,
+which is UTC unless `TZ` says otherwise, while the PWA uses the phone's date, so the two disagree
+for the hours around midnight. The image carries the time zone database, so `TZ` takes effect.
+
 Set `SCRAP_NOTIFY_URL`: without it, a pause (daily budget reached, credit or login problem, an
 outage) is only visible when you next open scrap. An ntfy topic URL is itself a secret. Every
 setting, with its default, is in the [API reference](../reference/api.md). After editing:
