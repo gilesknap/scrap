@@ -47,6 +47,7 @@ h2.label {
 /* ---- Buttons: secondary by default; .primary, .ghost, .danger ---- */
 button,
 input,
+select,
 textarea {
   font: inherit;
   color: inherit;
@@ -377,6 +378,9 @@ nav a[aria-current] .i {
 }
 .list li > a:active {
   background: var(--sunk);
+}
+.list li > a:focus-visible {
+  outline-offset: -2px; /* inside the card, which clips what is outside it */
 }
 .list img,
 .noimg {
@@ -730,6 +734,7 @@ mark {
   white-space: nowrap;
 }
 .facet small {
+  line-height: calc(var(--t-sm) * var(--lh)); /* the label's: on its baseline, not raised */
   color: var(--ink-2);
   font-size: var(--t-xs);
 }
@@ -1739,16 +1744,18 @@ div.orig .save {
   font-weight: 600;
 }
 .todoline {
-  margin: 0 0 var(--s-2);
+  margin: calc(-1 * var(--s-2)) 0 0; /* under the tag line, in its rhythm: 32 px drawn in 48 */
 }
 .todoline > button {
-  min-height: 40px;
   gap: 6px;
   padding: 0 var(--s-3);
+  border: 8px solid transparent; /* like Tags: a 32 px pill drawn in a 48 px target */
+  border-inline-width: 0;
   border-radius: var(--r-pill);
   box-shadow: inset 0 0 0 1px var(--line-strong);
-  background: var(--surface);
+  background: var(--surface) padding-box;
   font-size: var(--t-sm);
+  white-space: nowrap;
 }
 .todoline .i {
   width: 16px;
