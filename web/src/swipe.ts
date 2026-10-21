@@ -23,7 +23,10 @@ export function trailOf(a: Element): { trail: Trail } | null {
   return t ? { trail: t } : null;
 }
 
-export type RowPage = Pick<Summary, "id" | "slug" | "title" | "kind" | "fields">;
+export type RowPage = Pick<
+  Summary,
+  "id" | "slug" | "title" | "kind" | "fields" | "due" | "priority"
+>;
 
 /** Give list rows their gestures and ticks (rows.ts) once that chunk is here: the list shows
  * at once, and its rows only open their page if the chunk can't load. Per row: the row and

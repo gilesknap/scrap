@@ -1655,3 +1655,59 @@ div.orig .save {
   color: #0f0;
   pointer-events: none;
 }
+/* A todo's priority and due date (#104), on its row and its page; overdue in --danger */
+.list .due {
+  color: var(--ink-2);
+}
+.list .due.late,
+.todoline .late {
+  color: var(--danger);
+  font-weight: 600;
+}
+.todoline {
+  margin: 0 0 var(--s-2);
+}
+.todoline > button {
+  min-height: 40px;
+  gap: 6px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: var(--surface);
+  font-size: var(--t-sm);
+}
+.todoline .i {
+  width: 16px;
+  height: 16px;
+}
+.todoedit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--s-2) var(--s-3);
+}
+.todoedit[hidden] {
+  display: none; /* the editor's, while the kind is not Todo */
+}
+.todoedit label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.todoedit :is(input, select) {
+  min-height: 48px;
+}
+.todoedit select {
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.todoedit select:focus {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: -1px;
+}

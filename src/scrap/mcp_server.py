@@ -27,6 +27,7 @@ from .store import (
     InvalidError,
     NotFoundError,
     Store,
+    check_todo,
     clean_tags,
     fields_for,
     new_ulid,
@@ -125,6 +126,8 @@ def server(store: Store) -> MCPServer:
             "url": link(hit["slug"]),
             "kind": hit["kind"],
             "status": hit["fields"].get("status"),
+            "due": hit.get("due"),  # a todo's (YYYY-MM-DD), else None
+            "priority": hit.get("priority"),  # a todo's: high, medium, low; else None
             "updated_at": hit["updated_at"],
             "tags": tags,
             "title": hit["title"],
@@ -166,8 +169,11 @@ def server(store: Store) -> MCPServer:
         is:work, is:claude (written over MCP), has:image, has:drawing, image:K (the
         kind Claude gave a photo: photo, whiteboard, handwriting, diagram,
         screenshot, document, other), after:D and before:D (YYYY-MM-DD, or 1d, 2w,
-        1m, 1y ago), date:created, sort:updated, sort:created (newest first),
-        sort:title (A to Z; -sort: reverses one). Filters alone list newest first:
+        1m, 1y ago), date:created, a todo's due:D (due:today, due:<today overdue,
+        due:>today, due:<=2026-11-01, due:none; today is the server's day) and
+        priority:P (high, medium, low, none), sort:updated, sort:created (newest
+        first), sort:title (A to Z), sort:due (soonest first), sort:priority (high
+        first; -sort: reverses one). Filters alone list newest first:
         has:image lists the latest photos. Words also match what Claude read from a
         page's images.
         Each result has image_count and, if any, the first image's image_kind,
@@ -202,6 +208,7 @@ def server(store: Store) -> MCPServer:
             "page": {
                 "id": p["id"], "slug": p["slug"], "url": link(p["slug"]),
                 "kind": p["kind"], "status": fields.get("status"), "tags": p["tags"],
+                "due": p["due"], "priority": p["priority"],
                 "created_at": p["created_at"], "updated_at": p["updated_at"],
                 "rev": p["rev"], "written_by_claude": any(
                     c["source"] == MCP for c in p["captures"]
@@ -231,9 +238,21 @@ def server(store: Store) -> MCPServer:
         return {"results": rows(checked(store.recent, limit, kind))}
 
     @mcp.tool()
-    def todos(limit: Annotated[int, Field(ge=1, le=100)] = 50) -> dict[str, Any]:
-        """Todos not done or cancelled (open or in progress), newest first."""
-        hits = store.search("kind:todo -is:done -is:cancelled", limit)
+    def todos(
+        limit: Annotated[int, Field(ge=1, le=100)] = 50,
+        sort: Annotated[
+            str | None,
+            Field(description="due (soonest first) or priority (high first)"),
+        ] = None,
+    ) -> dict[str, Any]:
+        """Todos not done or cancelled (open or in progress), newest first, or by
+        due date or priority (those with none last). Each has its due date
+        (YYYY-MM-DD) and priority (high, medium, low), or None. For overdue ones,
+        search "kind:todo due:<today -is:done -is:cancelled"."""
+        if sort not in (None, "due", "priority"):
+            raise ToolError("sort must be due or priority")
+        order = f" sort:{sort}" if sort else ""
+        hits = store.search(f"kind:todo -is:done -is:cancelled{order}", limit)
         return {"results": rows(hits)}
 
     @mcp.tool()
@@ -266,6 +285,14 @@ def server(store: Store) -> MCPServer:
         status: Annotated[
             str | None, Field(description="open, in_progress, done, cancelled")
         ] = None,
+        due: Annotated[
+            str | None,
+            Field(description="A todo's due date, YYYY-MM-DD (none: clear it)"),
+        ] = None,
+        priority: Annotated[
+            str | None,
+            Field(description="A todo's priority: high, medium, low (none: clear)"),
+        ] = None,
         append_to: Annotated[
             str | None,
             Field(description="Id or slug of a page written over MCP to append to"),
@@ -279,9 +306,11 @@ def server(store: Store) -> MCPServer:
         ] = None,
     ) -> dict[str, Any]:
         """Save a new page (Markdown body; [[slug|label]] links to other pages), marked
-        as written by Claude with its origin. With append_to, add body as a new
-        section at the end of a page written over MCP instead (the user's own pages
-        cannot be changed). Returns the page's id, slug and URL."""
+        as written by Claude with its origin; a todo may have a due date and priority.
+        With append_to, add body as a new section at the end of a page written over
+        MCP instead (the user's own pages cannot be changed), and set its due date or
+        priority if given (a todo's; body may then be empty). Returns the page's id,
+        slug and URL."""
         body = text(body, "body").replace("\r\n", "\n").replace("\r", "\n").strip()
         if len(body.encode()) > MAX_BODY:
             raise ToolError(f"body is over {MAX_BODY} bytes")
@@ -290,13 +319,16 @@ def server(store: Store) -> MCPServer:
         cleaned = checked(clean_tags, [text(t, "a tag") for t in tags], MAX_TAGS)
         key = text(key, "key") if key else None
         cid = key_id(key) if key else new_ulid()
+        # a todo's due date and priority, those given ("none" clears one on append)
+        given = (("due", due), ("priority", priority))
+        todo = {k: None if v == "none" else v for k, v in given if v}
         if append_to:
-            if not body:
+            if not body and not todo:
                 raise ToolError("nothing to append")
             if key:  # keyed by the page itself, whether named by id or slug
                 cid = key_id(key, checked(store.page, append_to)["id"])
             ref, new = checked(
-                store.append, append_to, cid, body, AUTHOR, cleaned, MAX_PAGE
+                store.append, append_to, cid, body, AUTHOR, cleaned, MAX_PAGE, todo
             )
         else:
             if not title:
@@ -311,11 +343,15 @@ def server(store: Store) -> MCPServer:
                 fields["status"] = status
             if origin:
                 fields["origin"] = origin
+            if any(todo.values()) and kind != "todo":
+                raise ToolError("due and priority are for todos")
+            for name, value in todo.items():
+                checked(check_todo, name, value)
             stamp = now()
             capture = {
                 "id": cid, "kind": "note", "text": body or None, "url": None,
                 "source": MCP, "created_at": stamp, "page_kind": kind,
-                "fields": fields, "title": title, "body": body,
+                "fields": fields, "title": title, "body": body, **todo,
             }  # fmt: skip
             ref, new = store.capture(capture, [], AUTHOR, cleaned)
         return {

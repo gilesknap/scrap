@@ -6,7 +6,7 @@
 // chunk of its own, loaded with the search screen.
 import { api } from "./api";
 import { icon } from "./icons";
-import { adding, day, removing, token } from "./terms";
+import { adding, day, has, kindsIn, removing, token } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -42,6 +42,20 @@ const SORTS = [
   ["sort:title", "Title A–Z"],
   ["-sort:title", "Title Z–A"],
 ];
+// A todo's orders, offered on the Todos screen (kind:todo)
+const TODO_SORTS = [
+  ["sort:due", "Due soonest"],
+  ["-sort:due", "Due latest"],
+  ["sort:priority", "Priority"],
+];
+// Saved views of the Todos screen (#104): [label, what each adds to kind:todo]. The ones not
+// done or cancelled, soonest first. Tapped again, the view is cleared.
+const OPEN = ["-is:done", "-is:cancelled", "sort:due"];
+const VIEWS: [string, string[]][] = [
+  ["Today", ["due:today", ...OPEN]],
+  ["Overdue", ["due:<today", ...OPEN]],
+  ["Upcoming", ["due:>today", ...OPEN]],
+];
 // Time ranges: [label, token value, what it says]
 const RANGES = [
   ["1w", "1w", "the past week"],
@@ -57,10 +71,28 @@ export async function refine(
 ): Promise<HTMLElement> {
   const f = q ? await api<Facets>(`search/facets?q=${encodeURIComponent(q)}`, { signal }) : NONE;
   const add = (t: string) => () => apply((now) => adding(now, t));
+  // The Todos screen: its views, the one on as a chip that is on (its filters not shown again)
+  const todos = kindsIn(q).length === 1 && kindsIn(q)[0][1] === "todo";
+  const on = todos ? VIEWS.find(([, ts]) => ts.every((t) => has(q, t))) : undefined;
+  const views = todos
+    ? VIEWS.map(([label, ts]) =>
+        chip(
+          label,
+          -1,
+          () =>
+            apply((now) => {
+              let next = (on ?? ["", []])[1].reduce(removing, now);
+              if (on?.[0] !== label) next = ts.reduce(adding, next);
+              return next;
+            }),
+          on?.[0] === label,
+        ),
+      )
+    : [];
   // A kind is the fixed row's (search.ts), unless it is a "not" one (-kind:todo); an order
   // is the Sort menu's
   const chips: HTMLElement[] = f.active
-    .filter((a) => (a.key !== "kind" || a.neg) && a.key !== "sort")
+    .filter((a) => (a.key !== "kind" || a.neg) && a.key !== "sort" && !on?.[1].includes(a.token))
     .map((a) => {
       const b = chip(a.token, null, () => apply((now) => removing(now, a.token)), true);
       b.setAttribute("aria-label", `Remove ${a.token}`);
@@ -129,9 +161,9 @@ export async function refine(
         }),
     },
     h("option", { value: "" }, words ? "Best match" : "Last edited"),
-    ...SORTS.filter(([t]) => words || t !== "sort:updated").map(([t, label]) =>
-      h("option", { value: t }, label),
-    ),
+    ...[...SORTS, ...(todos ? TODO_SORTS : [])]
+      .filter(([t]) => words || t !== "sort:updated")
+      .map(([t, label]) => h("option", { value: t }, label)),
   );
   sort.value = last ? `${last.neg ? "-" : ""}sort:${last.value}` : "";
   if (sort.selectedIndex < 0) sort.value = ""; // an unknown order: the default
@@ -152,6 +184,7 @@ export async function refine(
       h("a", { className: "button facet", href: "/tags" }, icon("tag"), "Tags"),
       sort,
       q && h("span", { className: "count" }, `${f.total} ${f.total === 1 ? "page" : "pages"}`),
+      ...views,
       ...chips,
     ),
     panel,

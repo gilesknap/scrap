@@ -2,13 +2,13 @@
 
 import time
 from contextlib import closing
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 from scrap.app import create_app
-from scrap.query import SORTS, Filter, Term, bound, parse
+from scrap.query import SORTS, Filter, Term, bound, due, parse
 from scrap.store import SORT_SQL, Store, connect, migrations, new_ulid, slug_base
 
 # ---- the parser
@@ -378,3 +378,74 @@ def test_sort_orders_search_and_filters(store):
     assert store.facets("fence sort:title")["active"] == [
         {"token": "sort:title", "key": "sort", "value": "title", "neg": False}
     ]
+
+
+# ---- a todo's due: and priority: (#104)
+
+
+def test_due_values():
+    today = date(2026, 10, 21)
+    assert due("today", today) == ("=", "2026-10-21")
+    assert due("<today", today) == ("<", "2026-10-21")
+    assert due("<=tomorrow", today) == ("<=", "2026-10-22")
+    assert due(">yesterday", today) == (">", "2026-10-20")
+    assert due("2026-11-01", today) == ("=", "2026-11-01")
+    assert due(">=2026-11-01", today) == (">=", "2026-11-01")
+    assert due("=2026-11-01", today) == ("=", "2026-11-01")
+    assert due("none", today) == ("none", None)
+    for bad in ("soon", "<", "<=", "2026-02-30", "2026-1-1", "<none", "1w", "=<today"):
+        assert due(bad, today) is None, bad
+    assert parse("due:<Today").filters == [Filter("due", "<today", False, "due:<Today")]
+
+
+def todo(store, title, due=None, priority=None, **fields):
+    slug = page(store, title, kind="todo", **fields)
+    store.update_page(
+        slug, None, None, None, "me", todo={"due": due, "priority": priority}
+    )
+    return slug
+
+
+def test_due_and_priority_filters(store):
+    today = date.today()
+    day = lambda n: (today + timedelta(days=n)).isoformat()  # noqa: E731
+    late = todo(store, "late", day(-3), "high")
+    now = todo(store, "now", day(0), "low")
+    soon = todo(store, "soon", day(5))
+    never = todo(store, "never", priority="medium")
+    note = page(store, "a note")
+    noted = todo(store, "was a todo", day(-1), "high")
+    store.update_page(noted, None, None, None, "me", "note")  # keeps them, unused
+    assert set(slugs(store, "due:<today")) == {late}  # overdue
+    assert set(slugs(store, "due:today")) == {now}
+    assert set(slugs(store, "due:>today")) == {soon}
+    assert set(slugs(store, "due:<=today")) == {late, now}
+    assert set(slugs(store, f"due:{day(5)}")) == {soon}
+    assert set(slugs(store, f"due:>={day(0)} due:<{day(5)}")) == {now}
+    assert set(slugs(store, "due:none")) == {never}  # a todo's: not the note
+    assert set(slugs(store, "-due:none")) == {late, now, soon, note, noted}
+    assert set(slugs(store, "-due:<today")) == {now, soon, never, note, noted}
+    assert slugs(store, "due:soon") == []  # not a day: nothing
+    assert set(slugs(store, "priority:high")) == {late}
+    assert set(slugs(store, "priority:High priority:medium")) == {late, never}  # either
+    assert set(slugs(store, "priority:none")) == {soon}
+    assert set(slugs(store, "-priority:high")) == {now, soon, never, note, noted}
+    assert set(slugs(store, "priority:urgent")) == {late}  # Thoth's word for it
+    assert slugs(store, "priority:p1") == []
+    assert store.facets("due:<today")["total"] == 1
+    hit = store.search("due:<today", 5)[0]
+    assert (hit["due"], hit["priority"]) == (day(-3), "high")
+    assert store.search("was", 5)[0]["due"] is None  # a note shows none
+
+
+def test_sort_by_due_and_priority(store):
+    a = todo(store, "a", "2026-11-03", "low")
+    b = todo(store, "b", "2026-11-01")
+    c = todo(store, "c", None, "high")
+    d = todo(store, "d", "2026-11-02", "medium")
+    n = page(store, "n")
+    assert slugs(store, "kind:todo sort:due") == [b, d, a, c]  # soonest, none last
+    assert slugs(store, "kind:todo -sort:due") == [a, d, b, c]  # none last still
+    assert slugs(store, "kind:todo sort:priority") == [c, d, a, b]  # high first
+    assert slugs(store, "kind:todo -sort:priority") == [a, d, c, b]
+    assert slugs(store, "sort:due")[-2:] in ([c, n], [n, c])  # a note has none
