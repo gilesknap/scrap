@@ -17,7 +17,7 @@ import { h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, toSend } from "./kinds";
 export { same, tagField } from "./tagedit";
-export { todoField } from "./todoedit";
+export { todoField, todoStart } from "./todoedit";
 export { confirmRemoval } from "./unembed";
 
 /** The kind control: a segmented radio group. suggest() picks a kind until the user picks

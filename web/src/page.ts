@@ -199,8 +199,17 @@ export async function page(key: string): Promise<Node> {
       import("./editor").catch(() => null), // a chunk of its own, with the composer
     ]);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    const { editor, kindPicker, suggested, toSend, confirmRemoval, tagField, same, todoField } =
-      mod;
+    const {
+      editor,
+      kindPicker,
+      suggested,
+      toSend,
+      confirmRemoval,
+      tagField,
+      same,
+      todoField,
+      todoStart,
+    } = mod;
     // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
     // as in the composer, until the user picks one; a draft's kind only if the user picked it
     const unfiled = !p.kind_fixed && p.kind === "note";
@@ -219,7 +228,8 @@ export async function page(key: string): Promise<Node> {
     const tags = tagField(ours?.tags ?? p.tags, () => ed.keep());
     const retagged = () => !same(tags.value(), tagsFrom);
     // A todo's due date and priority: shown while the kind is Todo, sent if changed
-    const todo = todoField(kept?.todo?.due ?? p.due, kept?.todo?.priority ?? p.priority);
+    const start = todoStart(kept, p); // a draft's, cleared ones too, else the page's
+    const todo = todoField(start.due, start.priority);
     const todoNow = () => (kind.value() === "todo" ? todo.value() : null);
     const redated = () => {
       const t = todoNow();
@@ -376,9 +386,10 @@ export async function page(key: string): Promise<Node> {
     const line = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
     const mod = await import("./todoedit").catch(() => null);
     if (!mod) return toast("Can't change it offline");
+    // Saved: the page as saved; cancelled: as it is now (it may have changed meanwhile)
     const { form, focus } = mod.todoForm(shown, (to) => {
       todoForm = null;
-      show(to);
+      show(to ?? shown);
       root.querySelector<HTMLElement>(".todoline > button")?.focus();
     });
     todoForm = form;

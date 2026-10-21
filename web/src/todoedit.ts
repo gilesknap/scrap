@@ -8,6 +8,15 @@ import { h, toast } from "./ui";
 
 export const PRIORITIES = ["high", "medium", "low"];
 
+type Todo = { due: string | null; priority: string | null };
+
+/** What the editor starts from: a draft's due date and priority if it kept them (a null
+ * there is one the user cleared, not one missing), else the page's. */
+export const todoStart = (kept: { todo?: Todo } | undefined, p: Partial<Page>): Todo =>
+  kept?.todo
+    ? { due: kept.todo.due, priority: kept.todo.priority }
+    : { due: p.due ?? null, priority: p.priority ?? null };
+
 export function todoField(due: string | null = null, priority: string | null = null) {
   const date = h("input", { type: "date", min: "0001-01-01", max: "9999-12-31" });
   const rank = h(
@@ -49,8 +58,9 @@ export function todoField(due: string | null = null, priority: string | null = n
   };
 }
 
-/** The in-place form on a todo's page; close() gets the page as it is then. */
-export function todoForm(p: Page, close: (p: Page) => void) {
+/** The in-place form on a todo's page; close() gets the page as saved, or nothing when
+ * cancelled (the page is then drawn as it is now, not as it was when the form opened). */
+export function todoForm(p: Page, close: (p?: Page) => void) {
   const field = todoField(p.due, p.priority);
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const form = h(
@@ -58,7 +68,7 @@ export function todoForm(p: Page, close: (p: Page) => void) {
     {
       className: "tagform",
       onkeydown: (e: KeyboardEvent) => {
-        if (e.key === "Escape") close(p);
+        if (e.key === "Escape") close();
       },
       onsubmit: (e: Event) => {
         e.preventDefault();
@@ -77,7 +87,7 @@ export function todoForm(p: Page, close: (p: Page) => void) {
     h(
       "div",
       { className: "row" },
-      h("button", { type: "button", className: "ghost", onclick: () => close(p) }, "Cancel"),
+      h("button", { type: "button", className: "ghost", onclick: () => close() }, "Cancel"),
       save,
     ),
   );
