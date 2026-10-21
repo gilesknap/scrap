@@ -4,6 +4,7 @@ it with markdown-it: raw HTML is text, a line break stays one. Used for the text
 search index holds (`plain`) and for the importer's link rewriting (`rewrite`), so code
 is never mistaken for a link, and no part of it backtracks on hostile text."""
 
+import re
 from bisect import bisect_left, bisect_right
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -234,3 +235,25 @@ def rewrite(
         done = e
     out.append(text[done:])
     return "".join(out)
+
+
+TASK = re.compile(r"\[([ xX])\](?: |$)")
+
+
+def tasks(text: str) -> tuple[int, int]:
+    """A page's task boxes (- [ ] and - [x]) as the PWA draws them (render.ts): a
+    list item whose paragraph starts with the marker; one in code, a quote's text or a
+    heading is none. Returns (ticked, all)."""
+    tokens = parser().parse(text)
+    done = total = 0
+    for i, t in enumerate(tokens):
+        if (
+            t.type == "inline"
+            and i >= 2
+            and tokens[i - 1].type == "paragraph_open"
+            and tokens[i - 2].type == "list_item_open"
+            and (m := TASK.match(t.content))
+        ):
+            total += 1
+            done += m[1] != " "
+    return done, total

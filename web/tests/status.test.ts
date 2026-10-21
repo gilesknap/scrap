@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { chipOf, dueOf, snoozed, statusOf, ticks, today } from "../src/status";
+import { chipOf, dueOf, partly, snoozed, statusOf, ticks, today } from "../src/status";
 
 it("gives todos and Reads a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
@@ -58,5 +58,15 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   expect(dueOf({ ...todo(null), snoozed_until: "2026-10-25" }, now)?.[0]).toMatch(/^snoozed till /);
   expect(dueOf({ ...nap, snoozed_until: now }, now)?.[0]).not.toMatch(/snoozed/);
   expect(snoozed({ ...nap, fields: { status: "done" } }, now)).toBe(false);
+  // Task boxes: "2 of 5" while some (not all) are ticked; not once it is done
+  const boxes = (done: number, total: number, status = "open") => ({
+    ...todo(null, null, status),
+    tasks: { done, total },
+  });
+  expect(dueOf(boxes(2, 5), now)?.[0]).toBe("2 of 5");
+  expect(partly(boxes(0, 5))).toBe(false);
+  expect(partly(boxes(5, 5))).toBe(false);
+  expect(dueOf(boxes(2, 5, "done"), now)).toBeNull();
+  expect(dueOf({ ...boxes(1, 2), priority: "high" }, now)?.[0]).toBe("high · 1 of 2");
   expect(dueOf(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);
 });

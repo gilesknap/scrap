@@ -19,7 +19,7 @@ from importlib.resources import files as package_files
 from pathlib import Path
 from typing import IO, Any
 
-from .markdown import plain
+from .markdown import plain, tasks
 from .query import CONTROL, PRIORITIES, Query, bound, day, due, parse
 
 __all__ = [
@@ -246,9 +246,12 @@ def todo_columns(
 
 
 def todo_only(page: dict[str, Any]) -> dict[str, Any]:
-    """A page (or a list's row) with its due and priority if it is a todo, else None."""
+    """A page (or a list's row) with its due and priority if it is a todo, else None;
+    and its task boxes as tasks: {done, total} (any kind's)."""
     if page.get("kind") != "todo":
         page.update(dict.fromkeys(TODO))
+    if "task_total" in page:
+        page["tasks"] = {"done": page.pop("task_done"), "total": page.pop("task_total")}
     return page
 
 
@@ -408,7 +411,22 @@ def add_snooze(conn: sqlite3.Connection) -> None:
     )
 
 
-AFTER = {3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze}
+def add_tasks(conn: sqlite3.Connection) -> None:
+    """Each page's task box counts (migration 7): the columns if missing, counted."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(page)")}
+    for name in ("task_done", "task_total"):
+        if name not in columns:
+            conn.execute(
+                f"ALTER TABLE page ADD COLUMN {name} INTEGER NOT NULL DEFAULT 0"
+            )
+    for page_id, body in conn.execute("SELECT id, body FROM page").fetchall():
+        conn.execute(
+            "UPDATE page SET task_done = ?, task_total = ? WHERE id = ?",
+            (*tasks(body), page_id),
+        )
+
+
+AFTER = {3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks}
 
 
 def tag_counts(rows: list[Any]) -> dict[str, int]:
@@ -569,6 +587,7 @@ class Store:
             conn.executemany(
                 "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in tags or []]
             )
+            self._body(conn, page_id)
             self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
@@ -630,6 +649,9 @@ class Store:
             conn.executemany(
                 "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in p["tags"]]
             )
+            self._body(
+                conn, page_id, follow=False
+            )  # counted; its kind and status as it was
             self.reindex(conn, page_id)
             return p["slug"], True
 
@@ -695,7 +717,8 @@ class Store:
             rows = _rows(
                 conn,
                 "SELECT id, slug, title, kind, kind_fixed, fields, created_at,"
-                f" updated_at, due, priority, snoozed_until, {THUMB} AS thumb"
+                f" updated_at, due, priority, snoozed_until, task_done, task_total,"
+                f" {THUMB} AS thumb"
                 " FROM page p WHERE deleted_at IS NULL"
                 " AND coalesce(?, kind) = kind"
                 " ORDER BY updated_at DESC, id DESC LIMIT ?",
@@ -869,8 +892,48 @@ class Store:
                     "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
                     (page["id"], page["rev"] + 1, new_title, new_body, author, stamp),
                 )
+                self._body(conn, page["id"], (page["task_done"], page["task_total"]))
                 self.reindex(conn, page["id"])
             return self.page_in(conn, page["id"])
+
+    def _body(
+        self,
+        conn: sqlite3.Connection,
+        page_id: str,
+        before: tuple[int, int] = (0, 0),
+        follow: bool = True,
+    ) -> None:
+        """After a page's text is written (before: its task boxes, ticked and in
+        all, as they were): its boxes counted. With follow, a note nobody filed
+        (kind_fixed 0) that has boxes becomes a todo, and a todo's status follows
+        them: all ticked, when they were not, is done; one unticked when all were
+        reopens a done one. Ticking a page done by hand changes no box, a cancelled
+        one is left as it is, and neither is a revision."""
+        row = conn.execute(
+            "SELECT body, kind, kind_fixed, fields FROM page WHERE id = ?", (page_id,)
+        ).fetchone()
+        done, total = tasks(row["body"])
+        conn.execute(
+            "UPDATE page SET task_done = ?, task_total = ? WHERE id = ?",
+            (done, total, page_id),
+        )
+        if not follow or not total:
+            return
+        kind, fields = row["kind"], json.loads(row["fields"])
+        if kind == "note" and not row["kind_fixed"]:  # filed by its boxes, not fixed
+            kind, fields = "todo", {**fields_for("todo", None), **fields}
+        if kind != "todo":
+            return
+        was_all = before[1] > 0 and before[0] == before[1]
+        status = fields.get("status", "open")
+        if done == total and not was_all and status not in ("done", "cancelled"):
+            fields["status"] = "done"
+        elif was_all and done < total and status == "done":
+            fields["status"] = "open"
+        conn.execute(
+            "UPDATE page SET kind = ?, fields = ? WHERE id = ?",
+            (kind, json.dumps(fields), page_id),
+        )
 
     def _set_kind(
         self,
@@ -969,6 +1032,7 @@ class Store:
                     "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
                     (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
                 )
+                self._body(conn, page["id"], (page["task_done"], page["task_total"]))
             conn.execute(  # the retry key, even with no text
                 "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
                 (cid, text or None, MCP, author, stamp, stamp, page["id"]),
@@ -1069,7 +1133,7 @@ class Store:
                 tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
-                    " p.snoozed_until,"
+                    " p.snoozed_until, p.task_done, p.task_total,"
                     " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet"
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
@@ -1082,7 +1146,7 @@ class Store:
             else:
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
-                    " p.snoozed_until, p.body AS snippet"
+                    " p.snoozed_until, p.task_done, p.task_total, p.body AS snippet"
                     f" FROM page p WHERE {where}"
                     f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
                     (*args, limit, offset),

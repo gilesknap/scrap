@@ -523,11 +523,26 @@ nav a[aria-current] .i {
   width: 24px;
   height: 24px;
 }
-.tick[aria-pressed="false"] path {
+.tick:not([aria-pressed="true"]) path {
   visibility: hidden; /* an empty box; done: ticked, in amber */
 }
 .tick[aria-pressed="true"] {
   color: var(--accent-ink);
+}
+/* Some of its task boxes ticked: a bar across the box, in amber (the row says "2 of 5") */
+.tick[aria-pressed="mixed"] {
+  color: var(--accent-ink);
+}
+.tick[aria-pressed="mixed"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 2.4px;
+  border-radius: 1px;
+  background: currentColor;
+  translate: -50% -50%;
 }
 .list em {
   flex: none;

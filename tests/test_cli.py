@@ -133,9 +133,9 @@ def test_restore_refuses_a_bad_backup_without_touching_data(note, tmp_path):
     main(["backup", "--data-dir", str(data), str(bak)])
     before = _dump(data)
     with Store(bak).connect() as conn:
-        conn.execute("PRAGMA user_version = 7")
+        conn.execute("PRAGMA user_version = 99")
     for target in [data, tmp_path / "new"]:
-        with pytest.raises(SystemExit, match="schema 7"):
+        with pytest.raises(SystemExit, match="schema 99"):
             main(["restore", "--force", "--data-dir", str(target), str(bak)])
     (bak / "scrap.db").write_bytes(b"not a database" * 100)
     with pytest.raises(SystemExit, match="bad backup"):

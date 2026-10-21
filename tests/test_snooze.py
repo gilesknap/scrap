@@ -86,7 +86,7 @@ def test_migration_6_is_additive_and_can_run_again(tmp_path):
     db = tmp_path / "scrap.db"
     with closing(connect(db)) as conn:
         assert (
-            conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations()) == 6
+            conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations()) >= 6
         )
         conn.execute(
             "INSERT INTO page (id, slug, title, kind, fields, created_at, updated_at,"
@@ -104,7 +104,7 @@ def test_migration_6_is_additive_and_can_run_again(tmp_path):
         conn.execute("PRAGMA user_version = 5")
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         rows = conn.execute("SELECT id, snoozed_until FROM page ORDER BY id")
         assert [tuple(r) for r in rows] == [("A", LATER), ("B", None)]
 

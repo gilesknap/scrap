@@ -6,7 +6,7 @@ import { setStatus } from "./api";
 import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
-import { chipOf, dueOf, statusOf } from "./status";
+import { chipOf, dueOf, partly, statusOf } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
 import { h, toast } from "./ui";
 
@@ -105,7 +105,10 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
     icon("todo"),
   );
   const show = () => {
-    b.setAttribute("aria-pressed", String(status === "done"));
+    // Done; else some of its task boxes ticked: partly ("mixed", a bar in the box)
+    const some = status !== "cancelled" && partly(p);
+    b.setAttribute("aria-pressed", status === "done" ? "true" : some ? "mixed" : "false");
+    b.title = some ? `${some} ticked` : "";
     const chip = li.querySelector("em");
     if (chip) chip.textContent = chipOf(p.kind, { status });
     // A todo's due date: overdue no longer once done

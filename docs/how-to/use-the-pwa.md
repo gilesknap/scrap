@@ -133,6 +133,12 @@ the link as the capture's URL.
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.
+- **Task lists drive a todo.** A note with task boxes (`- [ ]`) becomes a todo when it is saved,
+  unless you chose Note for it (in the composer or the editor; it is never done to a Read, Board
+  or Doc). Its row and page say how many are ticked (*2 of 5*), and its tick box on rows shows a
+  bar while only some are. Ticking the last box (on the page, or in the editor) marks it done;
+  unticking one on a done todo opens it again. **Done** by hand ticks no box, and a
+  cancelled todo is left as it is.
 - **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
   tags and pick a **Snooze until** date (**No snooze** wakes it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
   tab's count (Now's count says how many are snoozed); **All** shows it, marked *snoozed till 3
