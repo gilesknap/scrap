@@ -170,6 +170,13 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   // A link would suggest Read: the kind was chosen, so it stays Todo
   await editor.locator("textarea").fill("Quokka new todo https://example.com/x");
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
+  // Its due date and priority, as on a todo's page (the same fields)
+  await editor.getByRole("button", { name: "Tomorrow" }).click();
+  await expect(editor.getByLabel("Due", { exact: true })).toHaveValue(day(1));
+  await editor.getByRole("combobox", { name: "Priority" }).selectOption("high");
+  await editor.getByRole("radio", { name: "Note" }).check({ force: true });
+  await expect(editor.getByLabel("Due", { exact: true })).toBeHidden(); // a note has none
+  await editor.getByRole("radio", { name: "Todo" }).check({ force: true });
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
   // Back on the list it was opened from, with the todo in it once uploaded
@@ -177,6 +184,10 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   await expect(page.locator(".todos .list a strong", { hasText: "Quokka new todo" })).toBeVisible();
   const row = page.locator(".list li", { hasText: "Quokka new todo" });
   await expect(row.getByRole("button", { name: /^Done: Quokka new todo/ })).toBeVisible();
+  await expect(row.locator(".due")).toHaveText(/^high · due /);
+  const [hit] = await (await page.request.get("/api/search?q=quokka+new+todo")).json();
+  const made = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
+  expect(made).toMatchObject({ kind: "todo", due: day(1), priority: "high" });
 });
 
 test("Done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({

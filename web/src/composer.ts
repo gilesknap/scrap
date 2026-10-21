@@ -4,7 +4,7 @@ import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { editor, kindPicker, suggested, tagField, toSend } from "./editor";
+import { editor, kindPicker, suggested, tagField, todoField, toSend } from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
 import { blobImg, clearToasts, h, toast } from "./ui";
@@ -16,6 +16,7 @@ interface Draft {
   picked?: boolean; // the user chose the kind
   hint?: string; // the kind, in drafts of older builds ("": Note)
   tags?: string[];
+  todo?: { due: string | null; priority: string | null }; // while the kind is Todo
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
 }
 
@@ -34,6 +35,13 @@ export async function compose(picked: File[], as?: string) {
   text.addEventListener("input", () => kind.suggest(suggested(text.value)));
   // Its tags, as the page's editor has them; photos too (Claude's join them on its first reading)
   const tags = tagField(kept?.tags ?? [], () => ed.keep());
+  // A todo's due date (Today, Tomorrow, Next week or a date) and priority, as on its page:
+  // shown while the kind is Todo (photos have no kind here, so none with them)
+  const todo = todoField(kept?.todo?.due ?? null, kept?.todo?.priority ?? null);
+  const showTodo = () => (todo.el.hidden = kind.value() !== "todo" || files.length > 0);
+  kind.el.addEventListener("change", showTodo);
+  const todoNow = () => (todo.el.hidden ? null : todo.value());
+  const dated = () => !!todoNow()?.due || !!todoNow()?.priority;
   const thumbs = h("div", { className: "thumbs" });
   // One capture, many photos: add from the camera (one at a time) or the gallery.
   const add = (more: File[]) => {
@@ -43,6 +51,7 @@ export async function compose(picked: File[], as?: string) {
   };
   const showThumbs = () => {
     kind.el.hidden = files.length > 0;
+    showTodo();
     text.placeholder = files.length ? "Caption (optional)" : "Note or link";
     thumbs.replaceChildren(
       ...files.map((f, i) =>
@@ -77,22 +86,24 @@ export async function compose(picked: File[], as?: string) {
   const ed = editor({
     text,
     before: [kind.el],
-    after: [tags.el, thumbs, adders],
+    after: [todo.el, tags.el, thumbs, adders],
     key: DRAFT,
     draft: (): Draft => ({
       text: text.value,
       kind: kind.value(),
       picked: kind.picked(),
       tags: tags.value(),
+      ...(dated() && { todo: todo.value() }),
       files,
     }),
-    dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0,
+    dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0 || dated(),
     restored: !!kept,
     ondiscard: () => {
       text.value = "";
       files.length = 0;
       kind.reset("note");
       tags.reset([]);
+      todo.reset(null, null);
       showThumbs();
     },
     onsave: () => void store(false),
@@ -111,6 +122,8 @@ export async function compose(picked: File[], as?: string) {
       text: body || undefined,
       kind: files.length ? undefined : toSend(kind.value(), kind.picked(), "note"),
       tags: tagged.length ? tagged : undefined,
+      ...(todoNow()?.due && { due: todoNow()?.due as string }),
+      ...(todoNow()?.priority && { priority: todoNow()?.priority as string }),
       source: "pwa",
       files: files.map((f) => ({ name: f.name, blob: f })),
     };

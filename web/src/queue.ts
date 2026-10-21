@@ -14,6 +14,8 @@ export interface Capture {
   kind?: Kind; // chosen in the composer; none: the server decides (a note, or ingest)
   hint?: string; // the kind, as queued by older builds
   tags?: string[]; // the new page's, as the server cleans them
+  due?: string; // a todo's (YYYY-MM-DD) and its priority, from the composer
+  priority?: string;
   source: "pwa" | "share";
   files: { name: string; blob: Blob }[];
 }
@@ -48,15 +50,14 @@ export function newItem(c: Capture, now = Date.now()): Item {
 
 /** One capture per file, the text with the first: for photos too big to send together.
  * Each page gets the tags. */
-export const split = ({ text, url, kind, hint, tags, source, files }: Capture): Capture[] =>
-  files.map((f, i) => ({
-    ...(!i && { text, url }), // the text once; the kind and tags on every part
-    ...(kind && { kind }),
-    ...(hint && { hint }),
-    ...(tags && { tags }),
-    source,
-    files: [f],
-  }));
+export const split = (c: Capture): Capture[] =>
+  c.files.map((f, i) => {
+    const part: Capture = { ...(!i && { text: c.text, url: c.url }), source: c.source, files: [f] };
+    // The text once; the kind, its due date and priority, and the tags on every part
+    for (const k of ["kind", "hint", "tags", "due", "priority"] as const)
+      if (c[k]) Object.assign(part, { [k]: c[k] });
+    return part;
+  });
 
 const permanent = (status: number) => status >= 400 && status < 500 && ![408, 429].includes(status);
 

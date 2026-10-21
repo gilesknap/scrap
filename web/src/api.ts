@@ -94,8 +94,8 @@ export function send(
   Xhr: typeof XMLHttpRequest = XMLHttpRequest,
   stallMs = 60_000,
 ): Promise<{ status: number; detail?: string }> {
-  const { id, text, url, kind, hint, source, created_at, tags, files } = item;
-  const fields = { id, text, url, kind, hint, source, created_at, tags };
+  const { id, text, url, kind, hint, source, created_at, tags, due, priority, files } = item;
+  const fields = { id, text, url, kind, hint, source, created_at, tags, due, priority };
   let body: string | FormData = JSON.stringify(fields);
   if (files.length) {
     body = new FormData(); // its text fields go as CRLF; the server makes them LF

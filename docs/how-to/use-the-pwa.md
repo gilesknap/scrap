@@ -34,7 +34,9 @@ In the composer, **Camera** and **Gallery** add more photos (to a note too), and
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
-with the text and kind on the first.
+with the text on the first and the kind and tags on each.
+While the kind is **Todo** (and there are no photos), the composer has a todo's **Due** date
+(**Today**, **Tomorrow**, **Next week** or a date picked) and **Priority**, as on its page.
 Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
 (it suggests the tags already in use), or tap one of your most used tags, offered under the
 box; tap a tag's ✕ to take it off; what is still in the box
