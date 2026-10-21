@@ -1,5 +1,5 @@
 // A todo's due date and priority (#104): set on its page and in the editor, shown on its row
-// (overdue in red until done), and the Todos screen's views Today, Overdue and Upcoming.
+// (overdue in red until done), and a todo search's views Today, Overdue and Upcoming.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 
@@ -24,7 +24,11 @@ const api = async (page: Page, id: string) =>
     due: string | null;
     priority: string | null;
   };
-const refine = (page: Page) => page.getByRole("group", { name: "Refine" });
+/** Open the search screen's Filters sheet. */
+async function filters(page: Page) {
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  return page.getByRole("dialog", { name: "Filters" });
+}
 const hits = (page: Page) => page.locator(".hits li a strong");
 const rowOf = (page: Page, title: string) => page.locator(".list li").filter({ hasText: title });
 
@@ -57,25 +61,28 @@ test("rows show priority and due date, overdue until ticked done", async ({ page
   await expect(late).toHaveClass("due late");
 });
 
-test("the Todos screen's views: Today, Overdue, Upcoming", async ({ page }) => {
-  await page.goto("/search?q=kind%3Atodo");
+test("a todo search's views in Filters: Today, Overdue, Upcoming", async ({ page }) => {
+  await page.goto("/search?q=numbat+kind%3Atodo");
   const box = page.getByRole("searchbox");
-  await refine(page).getByRole("button", { name: "Overdue" }).click();
-  await expect(box).toHaveValue("kind:todo due:<today -is:done -is:cancelled sort:due");
+  const sheet = await filters(page);
+  const due = sheet.getByRole("region", { name: "Due" });
+  await due.getByRole("button", { name: "Overdue" }).click();
+  await expect(box).toHaveValue("numbat kind:todo due:<today -is:done -is:cancelled sort:due");
   await expect(hits(page)).toHaveText(["Numbat late"]); // not the done one
-  await expect(refine(page).getByRole("button", { name: "Overdue" })).toHaveClass(/\bon\b/);
-  await expect(refine(page).getByRole("button", { name: /^Remove/ })).toHaveCount(0);
-  await expect(refine(page).getByRole("combobox", { name: "Sort" })).toHaveValue("sort:due");
-  await refine(page).getByRole("button", { name: "Today" }).click();
-  await expect(box).toHaveValue("kind:todo due:today -is:done -is:cancelled sort:due");
+  await expect(due.getByRole("button", { name: "Overdue" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(sheet.getByRole("combobox", { name: "Sort" })).toHaveValue("sort:due");
+  await due.getByRole("button", { name: "Today" }).click();
+  await expect(box).toHaveValue("numbat kind:todo due:today -is:done -is:cancelled sort:due");
   await expect(hits(page)).toHaveText(["Numbat today"]);
-  await refine(page).getByRole("button", { name: "Upcoming" }).click();
+  await due.getByRole("button", { name: "Upcoming" }).click();
   await expect(hits(page)).toHaveText(["Numbat soon"]);
-  await refine(page).getByRole("button", { name: "Upcoming" }).click(); // again: cleared
-  await expect(box).toHaveValue("kind:todo");
-  // The Todos screen's own orders
-  const sort = refine(page).getByRole("combobox", { name: "Sort" });
-  await box.fill("numbat kind:todo");
+  await due.getByRole("button", { name: "Upcoming" }).click(); // again: cleared
+  await expect(box).toHaveValue("numbat kind:todo");
+  // A todo search's own orders
+  const sort = sheet.getByRole("combobox", { name: "Sort" });
   await expect(hits(page)).toHaveCount(5);
   await sort.selectOption({ label: "Priority" });
   await expect(box).toHaveValue("numbat kind:todo sort:priority");
@@ -88,8 +95,11 @@ test("the Todos screen's views: Today, Overdue, Upcoming", async ({ page }) => {
     "Numbat soon",
     "Numbat none",
   ]);
+  // Typed, the views' filters still work
+  await page.goto("/search?q=numbat+kind%3Atodo+due%3A%3Ctoday+-is%3Adone");
+  await expect(hits(page)).toHaveText(["Numbat late"]);
   await page.goto("/search?q=numbat");
-  await expect(refine(page).getByRole("button", { name: "Overdue" })).toHaveCount(0); // todos only
+  await expect((await filters(page)).getByRole("region", { name: "Due" })).toHaveCount(0); // todos only
 });
 
 test("due date and priority are set and cleared on a todo's page", async ({ page }) => {
@@ -146,8 +156,13 @@ test("the todo views meet AA contrast, in both themes", async ({ page }) => {
     await page.emulateMedia({ colorScheme });
     await page.goto("/search?q=numbat+kind%3Atodo");
     await expect(rowOf(page, "Numbat late").locator(".due.late")).toBeVisible();
-    await expect(refine(page).getByRole("button", { name: "Overdue" })).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} rows`).toEqual([]);
+    await (await filters(page)).getByRole("button", { name: "Overdue" }).click();
+    await expect(page.getByRole("button", { name: "Overdue" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await page.evaluate(lowContrast, ""), `${colorScheme} due views`).toEqual([]);
     await page.goto(`/p/${made.late.slug}`);
     await expect(page.locator(".todoline .late")).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page`).toEqual([]);

@@ -765,13 +765,18 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind ro
   await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
   expect(await api()).toMatchObject({ kind: "todo", kind_fixed: 1, fields: { status: "done" } });
 
-  await page.goto("/recent?kind=todo"); // an old address: the search screen, Todos on
-  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
+  await page.goto("/recent?kind=todo"); // an old address: the Todos screen, on Now
+  await expect(page).toHaveURL(/\/todos$/);
+  await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
+  await page.goto("/search?q=kind%3Atodo"); // a search of todos: still the search screen
   const kinds = page.locator(".kindrow");
   await expect(kinds.getByRole("radio", { name: "Todos" })).toBeChecked();
   await kinds.getByText("All").click();
   await expect(page).toHaveURL(/\/search$/);
-  await kinds.getByText("Todos").click(); // one tap sets it
+  await kinds.getByText("Todos").click(); // nothing else asked: the Todos screen
+  await expect(page).toHaveURL(/\/todos$/);
+  await page.goBack();
+  await page.getByRole("searchbox").fill("kind:todo");
   await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
   const rows = page.locator(".list li");
   await expect(rows.filter({ hasText: "example.com/kinds" })).toContainText("done");
@@ -807,11 +812,11 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind ro
 
   // A slow answer for a kind left meanwhile is dropped, not shown
   await page.goto("/search");
-  await page.route("**/api/pages?limit=100&kind=todo", async (route) => {
+  await page.route("**/api/pages?limit=100&kind=consume", async (route) => {
     await new Promise((ok) => setTimeout(ok, 1500));
     await route.continue();
   });
-  await kinds.getByText("Todos").click();
+  await kinds.getByText("Reads").click();
   await kinds.getByText("All").click();
   await page.waitForTimeout(2500);
   await expect(page).toHaveURL(/\/search$/);

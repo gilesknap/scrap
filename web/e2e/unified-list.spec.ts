@@ -20,7 +20,7 @@ test("one Search tab: newest first, no keyboard; /recent is this screen", async 
   const newer = await make(page, `List newer ${tag}`, "todo");
   await page.goto("/recent");
   await expect(page).toHaveURL(/\/search$/);
-  await expect(page.locator("nav a")).toHaveText(["Capture", "Search"]); // one tab for it
+  await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search"]); // one tab for it
   await expect(tab(page, "Search")).toHaveAttribute("aria-current");
   await expect(page.getByRole("searchbox")).toHaveValue("");
   await expect(page.getByRole("searchbox")).not.toBeFocused(); // the list, not the keyboard
@@ -28,7 +28,7 @@ test("one Search tab: newest first, no keyboard; /recent is this screen", async 
   await expect(links.first()).toHaveAttribute("href", `/p/${newer}`);
   await expect(links.nth(1)).toHaveAttribute("href", `/p/${older}`);
   await expect(page.locator(".list li").first().locator(".tick")).toBeVisible(); // a todo's
-  await expect(page.locator(".refine")).not.toContainText("Clear"); // nothing to clear
+  await expect(page.getByRole("button", { name: "Clear search" })).toBeHidden(); // nothing to clear
 
   // A query keeps the tab lit; the Search tab from elsewhere: the list again, no keyboard
   await page.getByRole("searchbox").fill(tag);
@@ -48,13 +48,27 @@ test("Clear resets text, kind and filters to the newest-first list", async ({ pa
   await page.goto(`/search?q=${encodeURIComponent(`clear kind:todo after:1w`)}`);
   await expect(page.locator(".kindrow").getByRole("radio", { name: "Todos" })).toBeChecked();
   await expect(page.locator(".hits li", { hasText: `Clear me ${tag}` })).toBeVisible();
-  const clear = page.locator(".refine button", { hasText: "Clear" });
-  await expect(page.locator(".refine > :first-child")).toHaveText("Clear"); // the row's start
+  // The box's ✕, inside it at its end, a 48 px target
+  const clear = page.getByRole("button", { name: "Clear search" });
+  const [field, x] = [await page.getByRole("searchbox").boundingBox(), await clear.boundingBox()];
+  expect(x?.height).toBeGreaterThanOrEqual(44);
+  expect(
+    Math.abs((x?.x ?? 0) + (x?.width ?? 0) - ((field?.x ?? 0) + (field?.width ?? 0))),
+  ).toBeLessThan(2);
+  await expect(page.locator(".refine > :first-child")).toHaveAccessibleName(/^Filters, 1 on$/); // the row's start
   await clear.click();
   await expect(page).toHaveURL(/\/search$/);
   await expect(page.getByRole("searchbox")).toHaveValue("");
+  await expect(page.getByRole("searchbox")).not.toBeFocused(); // a tap: no keyboard
   await expect(page.locator(".kindrow").getByRole("radio", { name: "All" })).toBeChecked();
-  await expect(clear).toHaveCount(0);
+  await expect(clear).toBeHidden();
+  // Typed again, it shows again; by key it leaves the focus in the box
+  await page.getByRole("searchbox").fill("clear");
+  await expect(clear).toBeVisible();
+  await clear.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("searchbox")).toHaveValue("");
+  await expect(page.getByRole("searchbox")).toBeFocused();
   await expect(page.locator(".list li").first()).toContainText(`Clear me ${tag}`);
 });
 
@@ -113,7 +127,7 @@ test("search results page on with Show more, as far as the count says", async ({
   await page.goto(`/search?q=${tag}`);
   const rows = page.locator(".hits > li");
   await expect(rows).toHaveCount(100);
-  await expect(page.locator(".refine")).toContainText("105 pages");
+  await expect(page.locator(".found")).toContainText("105 pages"); // above the list
   await page.getByRole("button", { name: "Show more" }).click();
   await expect(rows).toHaveCount(105);
   await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
