@@ -208,7 +208,7 @@ function sheet(q: string, f: Facets, apply: (edit: Edit) => void) {
   dlg.showModal();
 }
 
-/** The sheet's sections for a query: Sort, When, Work or personal, Due (todos), Tags. */
+/** The sheet's sections for a query: Sort, When, Work or personal, Tags. */
 function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () => void) {
   const toggle = (label: string, t: string, n = -1, others: string[] = []) => {
     const on = has(q, t);

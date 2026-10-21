@@ -227,8 +227,8 @@ composer's due and priority now, and the Snooze line only once snooze lands.
 These go through normal pull requests, not Design. They are listed so Design doesn't redo them;
 build on them once they are on `main`.
 
-- **Page cap:** a page holds at most 1 MB of text; the API answers 422 (#62). Vault import is
-  not capped.
+- **Page cap** (on `main`, #125): a page holds at most 1 MB of text; the API answers 422 (#62).
+  Vault import is not capped.
 - **Snooze data:** `snoozed_until` on todos (an additive migration), `is:snoozed`, snoozed todos
   out of Now, Upcoming and the nav count until their day, "· snoozed till 3 Nov" in All. Only the
   form's layout is item 4.

@@ -47,7 +47,7 @@ export function newItem(c: Capture, now = Date.now()): Item {
 }
 
 /** One capture per file, the text with the first: for photos too big to send together.
- * Each page gets the tags. */
+ * Each page gets the tags and the kind (or an older build's hint), if any. */
 export const split = ({ text, url, kind, hint, tags, source, files }: Capture): Capture[] =>
   files.map((f, i) => ({
     ...(!i && { text, url }), // the text once; the kind and tags on every part

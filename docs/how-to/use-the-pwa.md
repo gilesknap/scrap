@@ -34,14 +34,15 @@ In the composer, **Camera** and **Gallery** add more photos (to a note too), and
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
-with the text and kind on the first.
+with the text on the first.
 Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
 (it suggests the tags already in use), or tap one of your most used tags, offered under the
 box; tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude's
 join them when it first reads the photo (a later Reprocess adds its tags only to a page with
-none, so one you took off stays off). Saved separately, every photo's page gets the kind and the tags.
+none, so one you took off stays off). Saved separately, every photo's page gets the tags (and a kind sent with photos, by an older
+version of the app, goes on every page too).
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
@@ -70,7 +71,8 @@ the link as the capture's URL.
 - A capture the server refuses (for example over the upload limit, `413`) is marked **failed**
   with the server's reason, and stays on the phone with **Retry** and **Discard** (which asks
   first, then deletes it and its photos from the phone). A multi-photo capture refused as too
-  large offers **Split and retry** instead of Retry: one capture per photo, text and kind on the first.
+  large offers **Split and retry** instead of Retry: one capture per photo, the text on the first,
+  the tags and any kind on every one.
 - A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
   no progress for a minute is given up and retried later. Once the phone has handed over the whole
   upload, it waits at least two minutes for the answer (longer for big uploads, which may still

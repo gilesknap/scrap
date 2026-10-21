@@ -1,5 +1,5 @@
 // A todo's due date and priority (#104): set on its page and in the editor, shown on its row
-// (overdue in red until done), and a todo search's views Today, Overdue and Upcoming.
+// (overdue in red until done), and a todo search's orders and typed due: searches.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 
