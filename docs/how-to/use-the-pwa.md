@@ -36,7 +36,8 @@ If the photos together are over the server's upload limit (it tells the app, whi
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
 with the text and kind on the first.
 Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
-(it suggests the tags already in use), tap a tag's ✕ to take it off; what is still in the box
+(it suggests the tags already in use), or tap one of your most used tags, offered under the
+box; tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags: Claude adds
 its own only to a photo page with none. Saved separately, every photo's page gets the tags.
@@ -260,7 +261,8 @@ Tap the drawing to open it full screen:
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
   tap one to search for it. **Tags** (or **Add tags**), first in that line, edits them in
   place: tap a tag's ✕ to take it off, type one in the box (it suggests the tags already in
-  use) and press Enter or type a comma to add it, then **Save**; what is still in the box when
+  use) and press Enter or type a comma to add it, or tap one of the six most used tags offered
+  under the box, then **Save**; what is still in the box when
   you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
   `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
   saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up

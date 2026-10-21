@@ -834,6 +834,20 @@ mark {
   flex: 1 1 10rem;
   min-height: 44px;
 }
+/* The most used tags not on it yet, one tap each: one line under the box that scrolls */
+.toptags {
+  display: flex;
+  flex-basis: 100%;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--s-4));
+  padding: 0 var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toptags .facet {
+  border-style: dashed; /* offered, not chosen: the chosen ones are filled */
+  border-color: var(--line-strong);
+}
 .tagform {
   display: flex;
   flex-direction: column;
@@ -846,7 +860,7 @@ mark {
   gap: var(--s-2);
 }
 /* More to the right: the row fades out at its end */
-:is(.tags, .refine) {
+:is(.tags, .refine, .toptags) {
   mask-image: linear-gradient(to left, transparent, #000 var(--s-6));
 }
 /* Browse tags: a tree, a parent's chevron opens it */
