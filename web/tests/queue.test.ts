@@ -149,8 +149,8 @@ describe("queue", () => {
     const parts = await q.items();
     expect(parts.map((i) => [i.text, i.kind, i.files.map((f) => f.name), i.failed])).toEqual([
       ["board", "todo", ["a.jpg"], undefined],
-      [undefined, undefined, ["b.jpg"], undefined], // the kind goes with the text
-      [undefined, undefined, ["c.jpg"], undefined],
+      [undefined, "todo", ["b.jpg"], undefined], // every part keeps the kind
+      [undefined, "todo", ["c.jpg"], undefined],
     ]);
     expect(new Set(parts.map((i) => i.id)).size).toBe(3);
     expect(parts.map((i) => i.id)).not.toContain(big.id);
@@ -158,7 +158,7 @@ describe("queue", () => {
     expect(split({ source: "pwa", files: [] })).toEqual([]);
   });
 
-  it("gives every part of a split capture its tags", () => {
+  it("gives every part of a split capture its kind and tags", () => {
     const photos = ["a", "b"].map((n) => ({ name: `${n}.jpg`, blob: new Blob([n]) }));
     const parts = split({ text: "t", tags: ["diy", "garden"], source: "pwa", files: photos });
     expect(parts.map((p) => p.tags)).toEqual([
@@ -166,6 +166,12 @@ describe("queue", () => {
       ["diy", "garden"],
     ]);
     expect(split({ source: "pwa", files: photos }).every((p) => !("tags" in p))).toBe(true);
+    const kinds = split({ text: "t", kind: "todo", hint: "todo", source: "pwa", files: photos });
+    expect(kinds.map((p) => [p.text, p.kind, p.hint])).toEqual([
+      ["t", "todo", "todo"],
+      [undefined, "todo", "todo"],
+    ]);
+    expect(split({ source: "pwa", files: photos }).every((p) => !("kind" in p))).toBe(true);
   });
 
   it("splits in one transaction: all parts and no original, or nothing", async () => {
