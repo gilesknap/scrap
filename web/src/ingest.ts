@@ -1,7 +1,7 @@
 // What Claude made of a photo, under it on the page: its ingest state with Reprocess, Retry or
 // Resume, the description and text it read, and its drawing beside the photo (side by side
 // when there is room, else a Photo / Drawing switch).
-import { ApiError, api, type FileRef, type Ingest, type Queue } from "./api";
+import { ApiError, api, type FileRef, type Ingest, kept, type Queue } from "./api";
 import "./excalidraw.css";
 import { drawingCard, openDrawing, type Target } from "./drawing";
 import { h, toast } from "./ui";
@@ -29,12 +29,12 @@ function block(summary: string, text: string, pre = false) {
   const key = `scrap.fold.${summary}`;
   const el = h(
     "details",
-    { className: "claude-text", open: localStorage.getItem(key) !== "1" },
+    { className: "claude-text", open: kept(key) !== "1" },
     h("summary", {}, summary),
     h(pre ? "pre" : "p", {}, text),
   );
   // (opening it at creation fires a toggle too: removing a missing key changes nothing)
-  el.ontoggle = () => (el.open ? localStorage.removeItem(key) : localStorage.setItem(key, "1"));
+  el.ontoggle = () => kept(key, el.open ? null : "1");
   return el;
 }
 

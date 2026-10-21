@@ -113,6 +113,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
 | Search field | `.field-search` | pill with a search icon; on the search screen a ✕ (`.clear`, a 48 px ghost button, "Clear search") at its end while it has text, in place of the browser's own |
+| Recent searches | `.recents` (`searches.ts`) | under the empty search box while it is focused: a `h2.label` *Recent* and **Clear all** (`button.link`), then a `.list` of rows, each the query as a full-width ghost button (search icon, ellipsis) and a 48 px ✕; a tap keeps the box focused until a row is chosen. Kept in `localStorage`, like every setting through `kept()` (api.ts), which never throws |
 | Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
 | Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2` (a page's adds **Download**, moved out of its toolbar); a tap elsewhere, Back or Share again closes it |
 | Sort menu | `select.facet.sort` | in the Filters sheet: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:`; selects take the app's face like every control (`font: inherit`) |

@@ -158,15 +158,27 @@ export const blobUrl = (sha: string) => `/api/blobs/${sha}`;
 export const previewUrl = (sha: string, size: 480 | 2048) =>
   `/api/blobs/${sha}/preview?size=${size}`;
 
+/** A setting kept on this phone (localStorage): set it (null: drop it) if v is given; read
+ * it. Nothing, never an error, where the phone keeps none (a private tab, blocked storage). */
+export function kept(k: string, v?: string | null): string | null {
+  try {
+    if (v === null) localStorage.removeItem(k);
+    else if (v !== undefined) localStorage.setItem(k, v);
+    return localStorage.getItem(k);
+  } catch {
+    return null;
+  }
+}
+
 const LIMIT = "scrap.max_upload_bytes";
 
 /** The server's upload limit as last seen (0 if never), so the check works offline. */
-export const uploadLimit = () => Number(localStorage.getItem(LIMIT)) || 0;
+export const uploadLimit = () => Number(kept(LIMIT)) || 0;
 
 export async function learnLimit() {
   try {
     const { max_upload_bytes } = await (await fetch("/healthz")).json();
-    if (max_upload_bytes) localStorage.setItem(LIMIT, String(max_upload_bytes));
+    if (max_upload_bytes) kept(LIMIT, String(max_upload_bytes));
   } catch {} // offline: keep the last one
 }
 

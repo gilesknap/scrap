@@ -36,6 +36,11 @@ export async function search(): Promise<Node> {
     "aria-label": "Search",
   });
   const pending = h("div");
+  const recents = h("div"); // the last searches, under the empty box (searches.ts)
+  const past = import("./searches").catch(() => null); // a chunk: kept offline too
+  // Remembered once run: Enter, a result opened, or the query left a moment with results
+  const remember = (q: string) => void past.then((m) => m?.remember(q));
+  let settled: ReturnType<typeof setTimeout>;
   const results = h("div");
   const chips = h("div");
   // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
@@ -68,6 +73,7 @@ export async function search(): Promise<Node> {
   view.signal.addEventListener("abort", () => {
     clearTimeout(timer);
     clearTimeout(saving);
+    clearTimeout(settled);
     abort.abort();
   });
   // Where the list is scrolled to rides in its history entry, for Back
@@ -109,6 +115,9 @@ export async function search(): Promise<Node> {
     const shown = await list(query, signal);
     if (signal.aborted) return;
     results.replaceChildren(shown);
+    clearTimeout(settled);
+    if (!first && query && results.querySelector(".list a"))
+      settled = setTimeout(() => remember(query), 3000);
     if (scroll) {
       const y = scroll;
       scroll = 0;
@@ -203,6 +212,7 @@ export async function search(): Promise<Node> {
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
     const first = results.querySelector("a");
+    if (e.key === "Enter") remember(input.value);
     if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
   };
   const first = run(true);
@@ -213,6 +223,7 @@ export async function search(): Promise<Node> {
     "section",
     { className: "search" },
     h("div", { className: "field-search" }, icon("search"), input, clear),
+    recents,
     kinds,
     chips,
     pending,
@@ -220,6 +231,14 @@ export async function search(): Promise<Node> {
     build(),
   );
   // Leaving by a tap or a swipe: where the list is now, not 150 ms ago
-  root.addEventListener("pointerdown", () => keep({ scroll: scrollY }), { capture: true });
+  root.addEventListener(
+    "pointerdown",
+    (e) => {
+      keep({ scroll: scrollY });
+      if (results.contains(e.target as Node)) remember(input.value); // a result opened
+    },
+    { capture: true },
+  );
+  void past.then((m) => m?.attach(input, recents, (q) => apply(() => q)));
   return root;
 }

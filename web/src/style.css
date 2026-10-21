@@ -686,6 +686,48 @@ mark {
   appearance: none;
 }
 
+/* The last searches, under the empty box while it is focused (searches.ts) */
+.recents {
+  margin-bottom: var(--s-4);
+}
+.recents-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.recents-top .label {
+  margin: 0;
+}
+.recents-top .link {
+  margin: 0 calc(-1 * var(--s-3)) 0 0;
+}
+.recents li {
+  display: flex;
+  align-items: center;
+}
+.recents .again {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+}
+.recents .again span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recents .again .i,
+.recents .forget .i {
+  color: var(--ink-2);
+}
+.recents .forget {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+}
 /* Refine chips: one row that scrolls sideways, the query's own filters first */
 .refine {
   display: flex;

@@ -264,6 +264,11 @@ Tap the drawing to open it full screen:
   scrap compresses it; 1.46 MB unpacked; then cached by the browser), never for capture or the
   search screen. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
+- Tap the empty search box for your **Recent** searches (the last ten, newest first, with the
+  filters each had): tap one to run it again, its ✕ to forget it, or **Clear all**. A search
+  counts once it is run: **Enter**, a result opened, or the same words left a few seconds with
+  results; not each letter typed. They are kept on this phone only (never sent to scrap), and
+  where the phone keeps nothing (a private tab) search works the same, without them.
 - **Search** searches titles, tags, summaries and text as you type (each word as the start of a
   word: `vsc` finds `vscode`); a title or tag match ranks first. Above the results, how many pages were found and the filters on; the row
   under the kinds and the Filters sheet narrow it (Work or Personal and the top tags, each with
