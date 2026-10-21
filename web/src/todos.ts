@@ -1,6 +1,6 @@
 // The Todos screen: what to do now, first (now.ts ranks it). A switch on top picks the list:
 // Now (open todos: overdue, today, high priority with no date, then the rest; done ones
-// folded away at the end), Upcoming (due after today) or All (last edited first). The address
+// folded away at the end), Upcoming (due from tomorrow to a week away) or All (last edited first). The address
 // says which (/todos, /todos?view=upcoming, /todos?view=all), so Back and a reload come back
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
 import { api, type Summary } from "./api";
@@ -92,12 +92,12 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     const n = shown.length;
     count.textContent = [
       `${n} open ${n === 1 ? "todo" : "todos"}`,
-      `${n} due after today`,
+      `${n} due in the next 7 days`,
       `${n} ${n === 1 ? "todo" : "todos"}`,
     ][MODES.findIndex(([k]) => k === m)];
     const none = [
       "Nothing to do: every todo is done.",
-      "Nothing due after today.",
+      "Nothing due in the next 7 days.",
       "No todos yet.",
     ];
     if (!n) lists.push(empty("todo", none[MODES.findIndex(([k]) => k === m)]));
