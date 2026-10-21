@@ -499,3 +499,61 @@ def test_read_gives_image_thumbnails(store, monkeypatch):
     [image] = ok(store, "read", page=ref["page_id"])["images"]
     assert image["thumbnail_url"].endswith("/preview?size=480")
     assert image["description"] == "A cat." and image["image_kind"] == "photo"
+
+
+def test_todos_have_due_dates_and_priorities(store):
+    a = write(store, title="A", kind="todo", due="2026-11-03", priority="low")
+    b = write(store, title="B", kind="todo", due="2026-11-01")
+    c = write(store, title="C", kind="todo", priority="high")
+    write(store, title="N")  # a note: none
+    rows = ok(store, "todos")["results"]
+    assert {r["title"]: (r["due"], r["priority"]) for r in rows} == {
+        "A": ("2026-11-03", "low"), "B": ("2026-11-01", None), "C": (None, "high"),
+    }  # fmt: skip
+    assert [r["id"] for r in ok(store, "todos", sort="due")["results"]] == [
+        b["id"], a["id"], c["id"],
+    ]  # fmt: skip
+    by_rank = ok(store, "todos", sort="priority")["results"]
+    assert [r["id"] for r in by_rank] == [c["id"], a["id"], b["id"]]
+    assert "sort must be" in refused(store, "todos", sort="title")
+    found = ok(store, "search", query="due:<=2026-11-02")["results"]
+    assert [r["id"] for r in found] == [b["id"]]
+    assert ok(store, "search", query="priority:high")["results"][0]["id"] == c["id"]
+    assert ok(store, "recent", limit=1)["results"][0]["due"] is None  # N
+    page = ok(store, "read", page=a["id"])["page"]
+    assert (page["due"], page["priority"]) == ("2026-11-03", "low")
+
+
+def test_write_checks_due_and_priority(store):
+    for args, error in [
+        ({"kind": "note", "due": "2026-11-01"}, "for todos"),
+        ({"kind": "todo", "due": "Friday"}, "YYYY-MM-DD"),
+        ({"kind": "todo", "priority": "urgent"}, "priority must be"),
+    ]:
+        assert error in refused(store, "write", title="T", body="", origin="o", **args)
+    assert store.recent(5) == []
+
+
+def test_append_sets_due_and_priority_on_a_claude_todo_only(store):
+    todo = write(store, title="Plan", kind="todo", due="2026-11-01")
+    out = write(store, append_to=todo["id"], body="", priority="high", due="none")
+    assert out["created"] is True
+    p = store.page(todo["id"])
+    assert (p["due"], p["priority"], p["rev"]) == (None, "high", 1)  # no revision
+    note = write(store, title="Log", body="first")
+    assert "for todos" in refused(
+        store,
+        "write",
+        title="",
+        body="x",
+        origin="",
+        append_to=note["id"],
+        due="2026-11-01",
+    )
+    assert store.page(note["id"])["body"] == "first"  # nothing appended either
+    human_todo = human(store, "mine", kind="todo")
+    assert "only a page written over MCP" in refused(
+        store, "write", title="", body="", origin="", append_to=human_todo["page_id"],
+        priority="low",
+    )  # fmt: skip
+    assert store.page(human_todo["page_id"])["priority"] is None
