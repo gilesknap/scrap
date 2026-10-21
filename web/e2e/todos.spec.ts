@@ -220,3 +220,20 @@ test("Done on a todo from the Todos screen moves on to the next, with Undo and a
   await page.locator(".page .tools").getByRole("button", { name: "Reopen" }).click();
   await expect(page.locator(".page .tools").getByRole("button", { name: "Done" })).toBeVisible();
 });
+
+test("switching Now, Upcoming and All replaces the entry: Back leaves Todos", async ({ page }) => {
+  await page.goto("/");
+  await page
+    .locator("nav")
+    .getByRole("link", { name: /^Todos/ })
+    .click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await page.getByText("Upcoming", { exact: true }).click();
+  await page.getByText("All", { exact: true }).click();
+  await page.getByText("Now", { exact: true }).click();
+  await page.getByText("All", { exact: true }).click();
+  await expect(page).toHaveURL(/\/todos\?view=all$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/); // off Todos at once, not through each view
+  await expect(page.getByRole("button", { name: "Camera" })).toBeVisible();
+});
