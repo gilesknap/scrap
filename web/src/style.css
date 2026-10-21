@@ -1788,6 +1788,13 @@ div.orig .save {
   color: var(--ink);
   font: inherit;
 }
+/* Today, Tomorrow, Next week: one tap sets the date; the one set is pressed */
+.todoedit .soon {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: var(--s-2);
+}
 .todoedit select:focus {
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
@@ -1910,7 +1917,7 @@ div.orig .save {
   flex-wrap: wrap;
   gap: var(--s-2);
 }
-.sheet .facet[aria-pressed="true"] {
+:is(.sheet, .soon) .facet[aria-pressed="true"] {
   border-color: transparent;
   background: var(--accent-soft);
   font-weight: 600;

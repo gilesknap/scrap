@@ -121,6 +121,26 @@ test("due date and priority are set and cleared on a todo's page", async ({ page
   await page.getByRole("button", { name: "Save" }).click();
   await expect(line).toHaveText("Add due date");
   expect(await api(page, made.none.page_id)).toMatchObject({ due: null, priority: null });
+  // One tap: Today, Tomorrow or Next week (in 7 days), pressed while it is the date set
+  await line.click();
+  const soon = page.getByRole("group", { name: "Due soon" });
+  await expect(soon.getByRole("button")).toHaveText(["Today", "Tomorrow", "Next week"]);
+  await soon.getByRole("button", { name: "Tomorrow" }).click();
+  await expect(due).toHaveValue(day(1));
+  await expect(soon.getByRole("button", { name: "Tomorrow" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(soon.getByRole("button", { name: "Today" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await due.fill(day(3)); // picked by hand: none pressed
+  await expect(soon.locator('[aria-pressed="true"]')).toHaveCount(0);
+  await soon.getByRole("button", { name: "Today" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(line).toHaveText("due today");
+  expect(await api(page, made.none.page_id)).toMatchObject({ due: day(0) });
   await line.click();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(line).toBeFocused();
@@ -142,12 +162,13 @@ test("the editor sets them while the kind is Todo", async ({ page }) => {
   await editor.getByRole("radio", { name: "Note" }).check({ force: true });
   await expect(due).toBeHidden();
   await editor.getByRole("radio", { name: "Todo" }).check({ force: true });
-  await due.fill(day(1));
+  await editor.getByRole("button", { name: "Next week" }).click();
+  await expect(due).toHaveValue(day(7));
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("medium");
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
   await expect(page.locator(".todoline > button")).toHaveText(/^medium · due /);
-  expect(await api(page, made.soon.page_id)).toMatchObject({ due: day(1), priority: "medium" });
+  expect(await api(page, made.soon.page_id)).toMatchObject({ due: day(7), priority: "medium" });
 });
 
 test("the todo views meet AA contrast, in both themes", async ({ page }) => {

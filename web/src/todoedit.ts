@@ -1,12 +1,25 @@
-// A todo's due date and priority (#104): a native date picker (Clear empties it) and a menu
-// of priorities. In place on a todo's page (todoForm: Save sends both, no new revision) and in
+// A todo's due date and priority (#104): a native date picker (No date empties it) with
+// one-tap Today, Tomorrow and Next week (in 7 days) under it, and a menu of priorities. In place on a todo's page (todoForm: Save sends both, no new revision) and in
 // the editor (todoField, sent with the page). A chunk of its own: the page's due line and the
 // editor load it.
 import { api, type Page } from "./api";
+import { today } from "./status";
 import { why } from "./swipe";
 import { h, toast } from "./ui";
 
 export const PRIORITIES = ["high", "medium", "low"];
+
+/** A day from today on this phone's calendar, as a due date is written (YYYY-MM-DD). */
+export function inDays(n: number, from = new Date()) {
+  const d = new Date(from);
+  d.setDate(d.getDate() + n);
+  return today(d);
+}
+const SOON: [string, number][] = [
+  ["Today", 0],
+  ["Tomorrow", 1],
+  ["Next week", 7],
+];
 
 export function todoField(due: string | null = null, priority: string | null = null) {
   const date = h("input", { type: "date", min: "0001-01-01", max: "9999-12-31" });
@@ -21,16 +34,33 @@ export function todoField(due: string | null = null, priority: string | null = n
     {
       type: "button",
       className: "ghost",
-      onclick: () => {
-        date.value = "";
-        date.dispatchEvent(new Event("input", { bubbles: true })); // the editor keeps a draft
-      },
+      onclick: () => set(""),
     },
     "No date",
   );
+  // One tap sets a date (pressed while it is the one set), as if picked in the date picker
+  const set = (v: string) => {
+    date.value = v;
+    date.dispatchEvent(new Event("input", { bubbles: true })); // the editor keeps a draft
+  };
+  const soon = SOON.map(([label, n]) => {
+    const b = h(
+      "button",
+      { type: "button", className: "facet", onclick: () => set(inDays(n)) },
+      label,
+    );
+    b.dataset.n = String(n);
+    return b;
+  });
+  const mark = () => {
+    for (const b of soon) b.ariaPressed = String(date.value === inDays(Number(b.dataset.n)));
+  };
+  date.addEventListener("input", mark);
+  date.addEventListener("change", mark);
   const reset = (d: string | null, p: string | null) => {
     date.value = d ?? "";
     rank.value = p ?? "";
+    mark();
   };
   reset(due, priority);
   const el = h(
@@ -38,6 +68,7 @@ export function todoField(due: string | null = null, priority: string | null = n
     { className: "todoedit" },
     h("label", {}, "Due", date),
     clear,
+    h("div", { className: "soon", role: "group", "aria-label": "Due soon" }, ...soon),
     h("label", {}, "Priority", rank),
   );
   return {
