@@ -4,7 +4,7 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
-import { chipOf } from "./status";
+import { chipOf, dueOf } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
 
@@ -16,6 +16,7 @@ function row(
   href?: string,
   kind?: string,
   chip = typeof extra === "string" ? extra : "", // beside sub, when extra is a node
+  todo: [string, boolean] | null = null, // a todo's priority and due date, and if overdue
 ) {
   const none = () => h("span", { className: "noimg" }, icon(kindIcon(kind)));
   let img: HTMLElement = none();
@@ -29,7 +30,13 @@ function row(
     "span",
     {},
     h("strong", { dir: "auto" }, title),
-    h("span", { className: "sub" }, h("small", {}, sub), chip && h("em", {}, chip)),
+    h(
+      "span",
+      { className: "sub" },
+      h("small", {}, sub),
+      chip && h("em", {}, chip),
+      todo && h("small", { className: todo[1] ? "due late" : "due" }, todo[0]),
+    ),
     typeof extra !== "string" && extra,
   );
   return h("li", {}, href ? h("a", { href }, img, body) : h("div", {}, img, body));
@@ -38,7 +45,10 @@ function row(
 /** A page's row, however it was found: its thumbnail (else its kind's icon), title, when last
  * edited and its chip; a search's hit also has its snippet. */
 export const pageRow = (
-  p: Pick<Summary, "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb">,
+  p: Pick<
+    Summary,
+    "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb" | "due" | "priority"
+  >,
   snippet?: Node,
 ) =>
   row(
@@ -49,6 +59,7 @@ export const pageRow = (
     `/p/${encodeURIComponent(p.slug)}`,
     p.kind,
     snippet && chipOf(p.kind, p.fields),
+    dueOf(p),
   );
 
 /** Captures still on the phone, oldest first. */

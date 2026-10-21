@@ -6,7 +6,7 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { renderer, unembedded } from "./md";
-import { statusOf, ticks } from "./status";
+import { dueOf, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
 import { bodyView, download, h, pageLink, share, toast, when } from "./ui";
@@ -40,6 +40,7 @@ interface Draft {
   picked?: boolean; // the user chose the kind
   tags?: string[];
   tagsFrom?: string[]; // the page's tags when it was made: changed elsewhere since, they stay
+  todo?: { due: string | null; priority: string | null }; // a todo's, if changed
   base: number; // the revision it was made on
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
@@ -98,12 +99,14 @@ export async function page(key: string): Promise<Node> {
   // Its tags being edited in place: kept as they are (what is typed, chips taken off) when
   // the page is drawn again meanwhile, e.g. a photo's reading state changing
   let tagForm: HTMLFormElement | null = null;
+  let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
   const show = (p: Page) => {
     shown = p;
     schedule(p);
     const body = bodyView(p.body, false);
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     const typing = !!tagForm?.contains(document.activeElement);
+    const said = dueOf(p);
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
@@ -128,6 +131,24 @@ export async function page(key: string): Promise<Node> {
             h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
           ),
         ),
+      // A todo's due date and priority: tapped, changed in place
+      p.kind !== "todo"
+        ? ""
+        : (todoForm ??
+            h(
+              "p",
+              { className: "todoline" },
+              h(
+                "button",
+                {
+                  type: "button",
+                  title: "Due date and priority",
+                  onclick: (e: Event) => void todoEdit(e),
+                },
+                icon("todo"),
+                h("span", { className: said?.[1] ? "late" : "" }, said ? said[0] : "Add due date"),
+              ),
+            )),
       h(
         "p",
         { className: "meta" },
@@ -178,7 +199,17 @@ export async function page(key: string): Promise<Node> {
       import("./editor").catch(() => null), // a chunk of its own, with the composer
     ]);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    const { editor, kindPicker, suggested, toSend, confirmRemoval, tagField, same } = mod;
+    const {
+      editor,
+      kindPicker,
+      suggested,
+      toSend,
+      confirmRemoval,
+      tagField,
+      same,
+      todoField,
+      todoStart,
+    } = mod;
     // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
     // as in the composer, until the user picks one; a draft's kind only if the user picked it
     const unfiled = !p.kind_fixed && p.kind === "note";
@@ -196,6 +227,17 @@ export async function page(key: string): Promise<Node> {
     let tagsFrom = ours?.tagsFrom ?? p.tags;
     const tags = tagField(ours?.tags ?? p.tags, () => ed.keep());
     const retagged = () => !same(tags.value(), tagsFrom);
+    // A todo's due date and priority: shown while the kind is Todo, sent if changed
+    const start = todoStart(kept, p); // a draft's, cleared ones too, else the page's
+    const todo = todoField(start.due, start.priority);
+    const todoNow = () => (kind.value() === "todo" ? todo.value() : null);
+    const redated = () => {
+      const t = todoNow();
+      return !!t && (t.due !== (p.due ?? null) || t.priority !== (p.priority ?? null));
+    };
+    const showTodo = () => (todo.el.hidden = kind.value() !== "todo");
+    kind.el.addEventListener("change", showTodo);
+    showTodo();
     const conflict = h("div");
     const save = async () => {
       if (!(await confirmRemoval(p, over, text.value))) return; // still editing, as it was
@@ -210,6 +252,7 @@ export async function page(key: string): Promise<Node> {
             ...(title.value !== p.title && { title: title.value }),
             kind: toSend(kind.value(), kind.picked(), p.kind),
             ...(retagged() && { tags: tags.value() }),
+            ...(redated() && todoNow()),
           }),
         });
         await ed.done();
@@ -255,7 +298,7 @@ export async function page(key: string): Promise<Node> {
     };
     const ed = editor({
       text,
-      before: [kind.el, title, tags.el],
+      before: [kind.el, title, tags.el, todo.el],
       after: [conflict],
       key,
       draft: (): Draft => ({
@@ -265,10 +308,15 @@ export async function page(key: string): Promise<Node> {
         picked: kind.picked(),
         tags: tags.value(),
         tagsFrom,
+        ...(redated() && { todo: todo.value() }),
         base,
       }),
       dirty: () =>
-        title.value !== p.title || text.value !== p.body || kind.value() !== was || retagged(),
+        title.value !== p.title ||
+        text.value !== p.body ||
+        kind.value() !== was ||
+        retagged() ||
+        redated(),
       restored: !!kept,
       ondiscard: () => {
         title.value = p.title;
@@ -276,6 +324,8 @@ export async function page(key: string): Promise<Node> {
         kind.reset(was);
         tags.reset(p.tags);
         tagsFrom = p.tags;
+        todo.reset(p.due ?? null, p.priority ?? null);
+        showTodo();
         base = p.rev;
         over = p.body;
       },
@@ -329,6 +379,22 @@ export async function page(key: string): Promise<Node> {
     tagForm = form;
     line.replaceWith(form);
     field.input.focus();
+  }
+
+  // A todo's due date and priority, changed in place of their line: no new revision
+  async function todoEdit(e: Event) {
+    const line = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const mod = await import("./todoedit").catch(() => null);
+    if (!mod) return toast("Can't change it offline");
+    // Saved: the page as saved; cancelled: as it is now (it may have changed meanwhile)
+    const { form, focus } = mod.todoForm(shown, (to) => {
+      todoForm = null;
+      show(to ?? shown);
+      root.querySelector<HTMLElement>(".todoline > button")?.focus();
+    });
+    todoForm = form;
+    line.replaceWith(form);
+    focus();
   }
 
   // Ticked off (or not): its status only, no new revision

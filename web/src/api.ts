@@ -38,6 +38,8 @@ export interface Summary {
   created_at: string;
   updated_at: string;
   thumb: string | null;
+  due?: string | null; // a todo's: YYYY-MM-DD
+  priority?: string | null; // a todo's: high, medium or low
 }
 export interface Page extends Summary {
   kind_fixed: number; // 1: the user chose the kind
@@ -48,7 +50,10 @@ export interface Page extends Summary {
   removed?: string[]; // files an earlier revision's text embedded and this one doesn't
 }
 export interface Hit
-  extends Pick<Summary, "id" | "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb"> {
+  extends Pick<
+    Summary,
+    "id" | "slug" | "title" | "kind" | "fields" | "updated_at" | "thumb" | "due" | "priority"
+  > {
   snippet: string;
 }
 

@@ -6,7 +6,7 @@ import { setStatus } from "./api";
 import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
-import { chipOf, statusOf } from "./status";
+import { chipOf, dueOf, statusOf } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
 import { h, toast } from "./ui";
 
@@ -108,6 +108,13 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
     b.setAttribute("aria-pressed", String(status === "done"));
     const chip = li.querySelector("em");
     if (chip) chip.textContent = chipOf(p.kind, { status });
+    // A todo's due date: overdue no longer once done
+    const due = li.querySelector(".due");
+    const said = dueOf({ ...p, fields: { status } });
+    if (due && said) {
+      due.textContent = said[0];
+      due.className = said[1] ? "due late" : "due";
+    }
   };
   let busy = false; // taps meanwhile are ignored (not disabled: that would drop its focus)
   b.onclick = () => {
