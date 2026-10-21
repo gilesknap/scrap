@@ -1211,6 +1211,17 @@ div.orig .save {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Mark done: the page's hero, first, filled and wider than the other tools */
+.tools > .primary {
+  flex: 1.6 1 auto;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--t-sm);
+}
+.tools > .primary:active {
+  background: var(--accent);
+}
 .page > .tools {
   position: sticky;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -1237,7 +1248,7 @@ div.orig .save {
   display: flex;
   flex-direction: column;
 }
-.share-menu button {
+.share-menu :is(button, .button) {
   justify-content: flex-start;
   border: none;
   background: transparent;
@@ -1588,10 +1599,10 @@ div.orig .save {
 .viewer .button:active {
   background: color-mix(in srgb, var(--on-overlay) 14%, transparent);
 }
-.viewer .share-menu button {
+.viewer .share-menu :is(button, .button) {
   color: var(--ink); /* the menu is a light surface, not the dark viewer */
 }
-.viewer .share-menu button:active {
+.viewer .share-menu :is(button, .button):active {
   background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .viewer .tools b {

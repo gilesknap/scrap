@@ -102,37 +102,82 @@ test("a page offers Done from any status but done, Reopen from done or cancelled
   page,
 }) => {
   const tools = page.locator(".page > .tools");
-  const offered = () => tools.getByRole("button", { name: /^(Done|Reopen)$/ }).allTextContents();
+  const offered = () =>
+    tools.getByRole("button", { name: /^(Mark done|Reopen)$/ }).allTextContents();
 
   const [, busy, busyId] = await make(page, "todo", "in_progress");
   await page.goto(`/p/${busy}`);
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
   await tools.getByRole("button", { name: "Done" }).click();
   await expect.poll(offered).toEqual(["Reopen"]);
   expect(await statusOf(page, busyId)).toBe("done");
 
   const [, gone, goneId] = await make(page, "todo", "cancelled");
   await page.goto(`/p/${gone}`);
-  await expect.poll(offered).toEqual(["Done", "Reopen"]);
+  await expect.poll(offered).toEqual(["Mark done", "Reopen"]);
   await page.setViewportSize({ width: 320, height: 700 }); // six tools still fit
   await page.screenshot({ path: test.info().outputPath("cancelled-320.png") });
   await tools.getByRole("button", { name: "Reopen" }).click();
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
   expect(await statusOf(page, goneId)).toBe("open");
 
   // A Read has them too, and a done todo turned into a Read can be reopened (#69)
   const [, read] = await make(page, "consume");
   await page.goto(`/p/${read}`);
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
   const [, was, wasId] = await make(page, "todo", "done");
   await page.request.patch(`/api/pages/${wasId}`, { data: { kind: "consume" } });
   await page.goto(`/p/${was}`);
   await expect.poll(offered).toEqual(["Reopen"]);
   await tools.getByRole("button", { name: "Reopen" }).click();
-  await expect.poll(offered).toEqual(["Done"]);
+  await expect.poll(offered).toEqual(["Mark done"]);
 
   const [, note] = await make(page, "note");
   await page.goto(`/p/${note}`);
   await expect(tools.getByRole("button", { name: "Edit" })).toBeVisible();
   await expect.poll(offered).toEqual([]);
+});
+
+test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's menu", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    navigator.share = async () => {};
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const tools = page.locator(".page > .tools");
+  const [, slug] = await make(page, "todo");
+  await page.goto(`/p/${slug}`);
+  await expect(tools.locator(":scope > *")).toHaveText(["Mark done", "Edit", "Share", "Delete"]);
+  const done = tools.getByRole("button", { name: "Mark done" });
+  await expect(done).toHaveClass("primary");
+  const widths = await tools
+    .locator(":scope > *")
+    .evaluateAll((els) =>
+      els.map((e) => [e.getBoundingClientRect().width, e.scrollWidth - e.clientWidth]),
+    );
+  expect(widths[0][0]).toBeGreaterThan(Math.max(...widths.slice(1).map((w) => w[0])));
+  expect(widths.every(([, cut]) => cut <= 0)).toBe(true); // no label cut at 360 px
+  await tools.getByRole("button", { name: "Share" }).click();
+  await expect(page.locator(".share-menu").getByRole("link", { name: "Download" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  // Done: a plain Reopen, first
+  await done.click();
+  await expect(tools.locator(":scope > *").first()).toHaveText("Reopen");
+  await expect(tools.getByRole("button", { name: "Reopen" })).not.toHaveClass("primary");
+  // A cancelled one: both, still fitting at 320 px
+  const [, gone] = await make(page, "todo", "cancelled");
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto(`/p/${gone}`);
+  await expect(tools.locator(":scope > *")).toHaveText([
+    "Mark done",
+    "Reopen",
+    "Edit",
+    "Share",
+    "Delete",
+  ]);
+  const cut = await tools
+    .locator(":scope > *")
+    .evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).length);
+  expect(cut).toBe(0);
 });

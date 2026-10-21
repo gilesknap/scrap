@@ -120,8 +120,8 @@ the link as the capture's URL.
   Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
   wasn't opened from a list. A plain tap opens it in place, as before.
 - Todos and Read pages carry a status (open, in progress, done or cancelled). The page's
-  toolbar has **Done** unless it is done, and **Reopen** if it is done or cancelled (a
-  cancelled one has both). In the list, the capture screen's list and search results, their
+  toolbar starts with **Mark done** (filled in amber, wider than the rest) unless it is done,
+  and has a plain **Reopen** if it is done or cancelled (a cancelled one has both). In the list, the capture screen's list and search results, their
   rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
   open it again; the row stays where it is and its chip says *done* (or *cancelled*). Ticking
   it or changing a kind doesn't move the page up the list.
@@ -181,9 +181,10 @@ the link as the capture's URL.
   address of the photo's page; **Photo** sends the photo to another app: the original, or a
   JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
   phone allows, a **Photo ready** message offers **Share** again.
-- **Download** on a page saves it as Markdown, or as a zip of the Markdown and its files when it
+- **Download** on a page (in **Share**'s choice, where the phone can share; else in the
+  toolbar) saves it as Markdown, or as a zip of the Markdown and its files when it
   has any; its photos are in the zip and its text points at them there. **Share** asks
-  **Link** or **Text**: **Link** sends the page's address (such as
+  **Link**, **Text** or **Download**: **Link** sends the page's address (such as
   `https://<your scrap>/p/shopping-list`), which opens the page for anyone who can reach your
   scrap; **Text** sends its title and text, as typed but without the lines that only show a
   photo (no link to scrap in it). Tap **Share** again, or anywhere else, to close the choice.

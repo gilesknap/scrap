@@ -103,6 +103,7 @@ export async function page(key: string): Promise<Node> {
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     const typing = !!tagForm?.contains(document.activeElement);
     const said = dueOf(p);
+    const dl = download(`/api/pages/${p.id}/download`);
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
@@ -167,19 +168,29 @@ export async function page(key: string): Promise<Node> {
       h(
         "div",
         { className: "bar tools" },
-        editButton(p),
-        // A todo or a Read: Done, Reopen (done or cancelled), or both (cancelled)
+        // A todo or a Read: Mark done first, filled (the page's hero); Reopen (done or
+        // cancelled) plain; or both (cancelled)
         ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(
             "button",
-            { onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement) },
+            {
+              className: to === "done" ? "primary" : "",
+              onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement),
+            },
             icon(to === "done" ? "todo" : "retry"),
             label,
           ),
         ),
-        download(`/api/pages/${p.id}/download`),
-        // Its link, or its text as typed (no link to scrap in it)
-        share(() => ({ title: p.title, text: unembedded(p.body) }), pageLink(p.slug)),
+        editButton(p),
+        // Its link, or its text as typed (no link to scrap in it); Download in its menu,
+        // else (no menu here) in the toolbar
+        share(
+          () => ({ title: p.title, text: unembedded(p.body) }),
+          pageLink(p.slug),
+          undefined,
+          dl,
+        ),
+        !dl.parentElement && dl,
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );

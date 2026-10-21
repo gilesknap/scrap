@@ -212,6 +212,7 @@ export function share(
   what: () => { title: string; text?: string; file?: string[] },
   link?: string,
   content: [Icon, string] = ["note", "Text"],
+  more?: HTMLElement, // a rarer action for the menu too (a page's Download)
 ) {
   if (!navigator.share) return null;
   const b = h("button", { type: "button" }, icon("share"), "Share");
@@ -255,6 +256,10 @@ export function share(
     pick("link", "Link", () => void send({ title: what().title, url: link })),
     pick(...content, shareContent),
   );
+  if (more) {
+    more.addEventListener("click", () => menu.hidePopover());
+    menu.append(more);
+  }
   b.setAttribute("aria-expanded", "false"); // a disclosure of two buttons, not a menu role
   const isOpen = () => menu.matches(":popover-open");
   menu.addEventListener("beforetoggle", (e) => {
