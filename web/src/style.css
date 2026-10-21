@@ -1761,6 +1761,11 @@ div.orig .save {
   color: var(--ink-2);
   white-space: normal; /* when it is due matters more than one line: never cut */
 }
+/* Done or cancelled: its due date kept, greyed (--ink-3), never overdue */
+.list .due.closed,
+.todoline .closed {
+  color: var(--ink-3);
+}
 .list .due.late,
 .todoline .late {
   color: var(--danger);

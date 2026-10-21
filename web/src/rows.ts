@@ -107,13 +107,13 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
   const show = () => {
     b.setAttribute("aria-pressed", String(status === "done"));
     const chip = li.querySelector("em");
-    if (chip) chip.textContent = chipOf(p.kind, { status });
-    // A todo's due date: overdue no longer once done
+    if (chip) chip.className = chip.textContent = chipOf(p.kind, { status });
+    // A todo's due date: overdue no longer once done, greyed
     const due = li.querySelector(".due");
     const said = dueOf({ ...p, fields: { status } });
     if (due && said) {
       due.textContent = said[0];
-      due.className = said[1] ? "due late" : "due";
+      due.className = said[1];
     }
   };
   let busy = false; // taps meanwhile are ignored (not disabled: that would drop its focus)

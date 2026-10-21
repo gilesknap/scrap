@@ -128,7 +128,8 @@ the link as the capture's URL.
   (**Today**, **Tomorrow** and **Next week**, seven days on, set one in a tap; **No date**
   clears it) and a priority, then **Save**. **Edit** has the same two under the
   tags while the kind is Todo. A todo's row in a list says them too; one due before today and
-  not done says *overdue* in red, until ticked off. They are a todo's only: a page made a note
+  not done says *overdue* in red, until ticked off. A done or cancelled todo keeps its due date,
+  shown greyed: it is never overdue or due today, and the Todos tab's count leaves it out. They are a todo's only: a page made a note
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.

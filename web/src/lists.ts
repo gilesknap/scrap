@@ -16,7 +16,7 @@ function row(
   href?: string,
   kind?: string,
   chip = typeof extra === "string" ? extra : "", // beside sub, when extra is a node
-  todo: [string, boolean] | null = null, // a todo's priority and due date, and if overdue
+  todo: [string, string] | null = null, // a todo's priority and due date, and its class
 ) {
   const none = () => h("span", { className: "noimg" }, icon(kindIcon(kind)));
   let img: HTMLElement = none();
@@ -35,7 +35,7 @@ function row(
       { className: "sub" },
       h("small", {}, sub),
       chip && h("em", { className: chip }, chip),
-      todo && h("small", { className: todo[1] ? "due late" : "due" }, todo[0]),
+      todo && h("small", { className: todo[1] }, todo[0]),
     ),
     typeof extra !== "string" && extra,
   );

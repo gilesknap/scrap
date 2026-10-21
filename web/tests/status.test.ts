@@ -44,12 +44,17 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   });
   expect(dueOf(todo(null), now)).toBeNull();
   expect(dueOf({ ...todo("2026-10-01"), kind: "note" }, now)).toBeNull();
-  expect(dueOf(todo(null, "high"), now)).toEqual(["high", false]);
-  expect(dueOf(todo("2026-10-21", "low"), now)).toEqual(["low · due today", false]);
+  expect(dueOf(todo(null, "high"), now)).toEqual(["high", "due"]);
+  expect(dueOf(todo("2026-10-21", "low"), now)).toEqual(["low · due today", "due"]);
   const [late, overdue] = dueOf(todo("2026-10-20"), now) ?? [];
-  expect([late?.startsWith("overdue "), overdue]).toEqual([true, true]);
+  expect([late?.startsWith("overdue "), overdue]).toEqual([true, "due late"]);
   expect(late).toMatch(/20/);
-  expect(dueOf(todo("2026-10-20", null, "done"), now)?.[1]).toBe(false);
+  expect(dueOf(todo("2026-10-20", null, "done"), now)?.[1]).toBe("due closed");
+  // Done or cancelled: its date kept, greyed, never "today" nor overdue
+  const [doneToday, cls] = dueOf(todo("2026-10-21", "high", "done"), now) ?? [];
+  expect(doneToday).toMatch(/^high · due \S/);
+  expect(doneToday).not.toMatch(/today/);
+  expect(cls).toBe("due closed");
   expect(dueOf(todo("2026-10-20", null, "cancelled"), now)?.[0]).toMatch(/^due /);
   expect(dueOf(todo("2027-01-02"), now)?.[0]).toMatch(/2027/); // another year: said
   expect(dueOf(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);

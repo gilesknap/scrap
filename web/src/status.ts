@@ -36,14 +36,17 @@ interface Todo {
 }
 
 /** What a todo's row and page say of its due date and priority ("high · due 3 Nov"), and
- * whether it is overdue (due before today and not done or cancelled); null if neither. */
-export function dueOf(p: Todo, now = today()): [string, boolean] | null {
+ * its class: "due late" if overdue (due before today and not done or cancelled), "due
+ * closed" if done or cancelled (its date kept, greyed, never "today" or overdue), else
+ * "due"; null if neither. */
+export function dueOf(p: Todo, now = today()): [string, string] | null {
   if (p.kind !== "todo" || !(p.due || p.priority)) return null;
   const status = statusOf(p.kind, p.fields);
-  const late = !!p.due && p.due < now && status !== "done" && status !== "cancelled";
+  const closed = status === "done" || status === "cancelled";
+  const late = !!p.due && p.due < now && !closed;
   const day =
     p.due &&
-    (p.due === now
+    (p.due === now && !closed
       ? "today"
       : new Date(`${p.due}T12:00`).toLocaleDateString(undefined, {
           day: "numeric",
@@ -51,5 +54,5 @@ export function dueOf(p: Todo, now = today()): [string, boolean] | null {
           ...(p.due.slice(0, 4) !== now.slice(0, 4) && { year: "numeric" }),
         }));
   const said = [p.priority, day && `${late ? "overdue" : "due"} ${day}`];
-  return [said.filter(Boolean).join(" · "), late];
+  return [said.filter(Boolean).join(" · "), late ? "due late" : closed ? "due closed" : "due"];
 }

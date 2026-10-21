@@ -52,10 +52,10 @@ test("rows show priority and due date, overdue until ticked done", async ({ page
   await expect(rowOf(page, "Numbat today").locator(".due")).toHaveText("low · due today");
   await expect(rowOf(page, "Numbat none").locator(".due")).toHaveText("medium");
   const done = rowOf(page, "Numbat done").locator(".due");
-  await expect(done).toHaveText(/^due /); // done: no longer overdue
-  await expect(done).toHaveClass("due");
+  await expect(done).toHaveText(/^due /); // done: no longer overdue; its date kept, greyed
+  await expect(done).toHaveClass("due closed");
   await rowOf(page, "Numbat late").getByRole("button", { name: "Done: Numbat late" }).click();
-  await expect(late).toHaveClass("due");
+  await expect(late).toHaveClass("due closed");
   await expect(late).toHaveText(/^high · due /);
   await rowOf(page, "Numbat late").getByRole("button", { name: "Done: Numbat late" }).click();
   await expect(late).toHaveClass("due late");

@@ -136,7 +136,7 @@ export async function page(key: string): Promise<Node> {
                   onclick: (e: Event) => void todoEdit(e),
                 },
                 icon("todo"),
-                h("span", { className: said?.[1] ? "late" : "" }, said ? said[0] : "Add due date"),
+                h("span", { className: said?.[1] ?? "" }, said ? said[0] : "Add due date"),
               ),
             )),
       h(
