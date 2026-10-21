@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev185+g24ce4d7dd documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev191+g509785d87 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=79894842"></script>
+    <script src="../_static/documentation_options.js?v=ec66c5c9"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -538,6 +538,11 @@ on a thumbnail removes one: all the photos and the text become one capture and o
 If the photos together are over the server’s upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or <strong>Save separately</strong>, one capture per photo
 with the text and kind on the first.
+Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
+(it suggests the tags already in use), tap a tag’s ✕ to take it off; what is still in the box
+when you save counts too. The page is made with its tags, so search finds it by them at once,
+also when it was saved offline and uploaded later. A photo you tag keeps your tags: Claude adds
+its own only to a photo page with none. Saved separately, every photo’s page gets the tags.
 <strong>Save</strong> returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.</p>
 </section>
@@ -670,7 +675,7 @@ away from the screen’s edges (the phone’s own Back gesture lives there) and 
 text that scrolls sideways, while zoomed in or while selecting text.</p></li>
 <li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
 <strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves.</p></li>
-<li><p>Nothing typed is lost: the composer and <strong>Edit</strong> keep a draft on the phone as you type
+<li><p>Nothing typed is lost (tags too): the composer and <strong>Edit</strong> keep a draft on the phone as you type
 (photos too), so after the phone’s Back button, a reload or a closed app, opening them again
 brings it back (<strong>Discard it</strong> drops it); a page with a kept edit shows <strong>Edit draft</strong>. Back closes the editor, not the app. <strong>Cancel</strong> asks
 before discarding changes. If the page was changed elsewhere since you opened it, the
@@ -743,7 +748,7 @@ place: tap a tag’s ✕ to take it off, type one in the box (it suggests the ta
 use) and press Enter or type a comma to add it, then <strong>Save</strong>; what is still in the box when
 you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
 <code class="docutils literal notranslate"><span class="pre">#</span></code>. <strong>Edit</strong> (also a list row swiped right) has the same tags box, under the title, and
-saves them with the text. Changing tags is not a new revision and does not move the page up
+saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
 the list. <strong>Tags</strong> (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
 arrow), A to Z or most used first, with a box to filter it.</p></li>
 </ul>

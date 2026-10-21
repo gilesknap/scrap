@@ -35,6 +35,11 @@ on a thumbnail removes one: all the photos and the text become one capture and o
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
 with the text and kind on the first.
+Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
+(it suggests the tags already in use), tap a tag's ✕ to take it off; what is still in the box
+when you save counts too. The page is made with its tags, so search finds it by them at once,
+also when it was saved offline and uploaded later. A photo you tag keeps your tags: Claude adds
+its own only to a photo page with none. Saved separately, every photo's page gets the tags.
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
@@ -164,7 +169,7 @@ the link as the capture's URL.
   text that scrolls sideways, while zoomed in or while selecting text.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
-- Nothing typed is lost: the composer and **Edit** keep a draft on the phone as you type
+- Nothing typed is lost (tags too): the composer and **Edit** keep a draft on the phone as you type
   (photos too), so after the phone's Back button, a reload or a closed app, opening them again
   brings it back (**Discard it** drops it); a page with a kept edit shows **Edit draft**. Back closes the editor, not the app. **Cancel** asks
   before discarding changes. If the page was changed elsewhere since you opened it, the
@@ -236,7 +241,7 @@ Tap the drawing to open it full screen:
   use) and press Enter or type a comma to add it, then **Save**; what is still in the box when
   you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
   `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
-  saves them with the text. Changing tags is not a new revision and does not move the page up
+  saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
   the list. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
 
