@@ -1,12 +1,13 @@
-// The composer: a new capture's text, photos and kind, in the editor. A chunk of its own with
+// The composer: a new capture's text, photos, kind and tags, in the editor. A chunk of its own with
 // the editor (loaded when it opens; the service worker keeps it for offline use).
 import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { editor, kindPicker, suggested, toSend } from "./editor";
+import { editor, kindPicker, suggested, tagField, toSend } from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
+import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
 const DRAFT = "new"; // the composer's draft
@@ -15,6 +16,7 @@ interface Draft {
   kind?: string;
   picked?: boolean; // the user chose the kind
   hint?: string; // the kind, in drafts of older builds ("": Note)
+  tags?: string[];
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
 }
 
@@ -27,6 +29,8 @@ export async function compose(picked: File[]) {
   // decides, and the page's editor can change it.
   const kind = kindPicker(kept?.kind ?? (kept?.hint || "note"), kept?.picked ?? !!kept?.hint);
   text.addEventListener("input", () => kind.suggest(suggested(text.value)));
+  // Its tags, as the page's editor has them; photos too (Claude then adds none of its own)
+  const tags = tagField(kept?.tags ?? [], () => ed.keep());
   const thumbs = h("div", { className: "thumbs" });
   // One capture, many photos: add from the camera (one at a time) or the gallery.
   const add = (more: File[]) => {
@@ -70,15 +74,22 @@ export async function compose(picked: File[]) {
   const ed = editor({
     text,
     before: [kind.el],
-    after: [thumbs, adders],
+    after: [tags.el, thumbs, adders],
     key: DRAFT,
-    draft: (): Draft => ({ text: text.value, kind: kind.value(), picked: kind.picked(), files }),
-    dirty: () => !!text.value.trim() || files.length > 0,
+    draft: (): Draft => ({
+      text: text.value,
+      kind: kind.value(),
+      picked: kind.picked(),
+      tags: tags.value(),
+      files,
+    }),
+    dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0,
     restored: !!kept,
     ondiscard: () => {
       text.value = "";
       files.length = 0;
       kind.reset("note");
+      tags.reset([]);
       showThumbs();
     },
     onsave: () => void store(false),
@@ -92,9 +103,14 @@ export async function compose(picked: File[]) {
   const store = async (separately: boolean) => {
     const body = text.value.trim();
     if (!body && !files.length) return text.focus();
+    const tagged = tags.value();
+    // The server's tag limits too: a capture it refuses would sit in the queue, unfixable.
+    const bad = tagProblem(tagged);
+    if (bad) return toast(`${bad} Fix the tags to save.`, "", undefined, 10000);
     const capture: Capture = {
       text: body || undefined,
       kind: files.length ? undefined : toSend(kind.value(), kind.picked(), "note"),
+      tags: tagged.length ? tagged : undefined,
       source: "pwa",
       files: files.map((f) => ({ name: f.name, blob: f })),
     };

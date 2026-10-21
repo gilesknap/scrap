@@ -255,3 +255,94 @@ test("a kept draft brings back only the tags changed in it", async ({ page }) =>
   await expect(editor).toBeHidden();
   expect(await tagsOf(b.page_id)).toEqual(["drafted"]);
 });
+
+// New pages with tags: the composer has the same tags box, sent with the capture
+const composer = (page: import("@playwright/test").Page) => page.locator(".editor");
+async function pageFor(page: import("@playwright/test").Page, word: string) {
+  const find = async () =>
+    (await (await page.request.get(`/api/search?q=${word}`)).json()) as { slug: string }[];
+  await expect.poll(find).toHaveLength(1); // uploaded
+  const [hit] = await find();
+  return (await (await page.request.get(`/api/pages/${hit.slug}`)).json()) as {
+    tags: string[];
+    kind: string;
+  };
+}
+
+test("a new note gets its tags as it is saved", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("Wallaby feeder plans");
+  await composer(page).locator(".kinds").getByText("Todo").click();
+  const box = composer(page).getByRole("combobox", { name: "Add a tag" });
+  await box.fill("#Wallaby Pen");
+  await box.press("Enter"); // a tag, not a save
+  await expect(composer(page)).toBeVisible();
+  await box.fill("wallaby/food,");
+  await box.fill("gone");
+  await box.press("Enter");
+  await composer(page).getByRole("button", { name: "Remove #gone" }).click();
+  await expect(composer(page).getByRole("button", { name: "Remove #wallaby pen" })).toBeVisible();
+  await expect(composer(page).locator("datalist option[value='zephyr/garden']")).toHaveCount(1);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    expect(await page.evaluate(lowContrast, ""), `${colorScheme} composer tags`).toEqual([]);
+  }
+  await box.fill("wallaby/water"); // still in the box when saved: it counts
+  await composer(page).getByRole("button", { name: "Save" }).click();
+  await expect(composer(page)).toBeHidden();
+  const saved = await pageFor(page, "wallaby+feeder");
+  expect(saved.kind).toBe("todo");
+  expect([...saved.tags].sort()).toEqual(["wallaby pen", "wallaby/food", "wallaby/water"]);
+  await page.goto("/search?q=tag%3Awallaby");
+  await expect(hits(page)).toHaveText(["Wallaby feeder plans"]); // indexed at once
+});
+
+test("tags on a photo captured offline go with it when the queue sends it", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await context.setOffline(true);
+  await page.goto("/");
+  const [gallery] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByText("Gallery").click(),
+  ]);
+  await gallery.setFiles({ name: "q.png", mimeType: "image/png", buffer: Buffer.alloc(900, 7) });
+  await page.getByPlaceholder("Caption (optional)").fill("Quoll den offline");
+  const box = composer(page).getByRole("combobox", { name: "Add a tag" });
+  await box.fill("quoll, den");
+  await expect(composer(page).getByRole("button", { name: "Remove #den" })).toBeVisible();
+  await composer(page).getByRole("button", { name: "Save" }).click();
+  await expect(page.locator("#queue")).toHaveText("1 waiting");
+  await page.reload(); // the queued tags survive a reload
+  await expect(page.locator("#queue")).toHaveText("1 waiting");
+  await context.setOffline(false);
+  await expect(page.locator("#queue")).toBeHidden();
+  expect((await pageFor(page, "quoll+den")).tags.sort()).toEqual(["den", "quoll"]);
+});
+
+test("a composer's tags are kept in its draft when the app is killed", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("Bilby burrow survey");
+  const box = composer(page).getByRole("combobox", { name: "Add a tag" });
+  await box.fill("bilby");
+  await box.press("Enter");
+  await box.fill("burrow"); // typed, not yet added: kept too
+  await page.waitForTimeout(800); // the draft is kept a moment after typing
+  await page.reload(); // as if the app was killed
+  await page.getByRole("button", { name: "Note" }).click();
+  await expect(composer(page).getByText("Restored your unsaved draft.")).toBeVisible();
+  await expect(composer(page).getByRole("button", { name: "Remove #bilby" })).toBeVisible();
+  await expect(composer(page).getByRole("button", { name: "Remove #burrow" })).toBeVisible();
+  await composer(page).getByRole("button", { name: "Save" }).click();
+  await expect(composer(page)).toBeHidden();
+  expect((await pageFor(page, "bilby+burrow")).tags.sort()).toEqual(["bilby", "burrow"]);
+  // Saved: the next note starts with no tags
+  await page.getByRole("button", { name: "Note" }).click();
+  await expect(composer(page).locator(".tagchips button")).toHaveCount(0);
+});

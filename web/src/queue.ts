@@ -13,6 +13,7 @@ export interface Capture {
   url?: string;
   kind?: Kind; // chosen in the composer; none: the server decides (a note, or ingest)
   hint?: string; // the kind, as queued by older builds
+  tags?: string[]; // the new page's, as the server cleans them
   source: "pwa" | "share";
   files: { name: string; blob: Blob }[];
 }
@@ -45,10 +46,12 @@ export function newItem(c: Capture, now = Date.now()): Item {
   return { ...c, id: ulid(now), created_at: new Date(now).toISOString(), attempts: 0, next: 0 };
 }
 
-/** One capture per file, the text with the first: for photos too big to send together. */
-export const split = ({ text, url, kind, hint, source, files }: Capture): Capture[] =>
+/** One capture per file, the text with the first: for photos too big to send together.
+ * Each page gets the tags. */
+export const split = ({ text, url, kind, hint, tags, source, files }: Capture): Capture[] =>
   files.map((f, i) => ({
     ...(!i && { text, url, kind, hint }), // the kind goes with the text
+    ...(tags && { tags }),
     source,
     files: [f],
   }));
