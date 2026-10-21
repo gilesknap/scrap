@@ -35,8 +35,8 @@ describe("markdown", () => {
     expect(table).toContain('<td style="text-align:right"><s>d</s></td>');
     expect(table).toMatch(/<\/table><\/div>$/);
     expect(one("- [ ] todo\n- [x] done\n- [y] not a box")).toBe(
-      '<ul>\n<li class="task"><input type="checkbox" disabled> todo</li>\n' +
-        '<li class="task"><input type="checkbox" disabled checked> done</li>\n' +
+      '<ul>\n<li class="task"><label class="taskbox"><input type="checkbox" data-line="0" disabled></label> todo</li>\n' +
+        '<li class="task"><label class="taskbox"><input type="checkbox" data-line="1" disabled checked></label> done</li>\n' +
         "<li>[y] not a box</li>\n</ul>",
     );
     const notes = one("Said[^1].\n\n[^1]: The source.");
@@ -202,8 +202,10 @@ describe("markdown", () => {
     // Text is escaped, so every "<" and '"' left is the renderer's own: check each tag.
     const html = markdown(payload);
     const ALLOWED =
-      /^(p|br|h[1-6]|strong|em|s|code|pre|ul|ol|li|blockquote|hr|a|img|div|table|thead|tbody|tr|th|td|input|sup|section)$/;
-    const ATTRS = ["href", "target", "rel", "src", "alt", "loading", "data-sha", "id", "class"];
+      /^(p|br|h[1-6]|strong|em|s|code|pre|ul|ol|li|blockquote|hr|a|img|div|table|thead|tbody|tr|th|td|input|label|sup|section)$/;
+    const ATTRS = [
+      ...["href", "target", "rel", "src", "alt", "loading", "data-sha", "data-line", "id", "class"],
+    ];
     for (const [, name, attrs] of html.matchAll(/<\/?([^\s>/]+)([^>]*)>/g)) {
       expect(name).toMatch(ALLOWED);
       const pairs = [...attrs.matchAll(/ ([a-z-]+)(?:="([^"]*)")?/g)];
@@ -213,6 +215,7 @@ describe("markdown", () => {
         if (attr === "href") expect(value).toMatch(/^(https?:\/\/|mailto:|\/p\/[a-z0-9-]+$|#)/);
         if (attr === "src") expect(value).toMatch(/^\/api\/blobs\/[0-9a-f]{64}/);
         if (attr === "data-sha") expect(value).toMatch(/^[0-9a-f]{64}$/);
+        if (attr === "data-line") expect(value).toMatch(/^\d+$/);
         if (attr === "style") expect(value).toMatch(/^text-align:(left|right|center)$/);
         if (attr === "type") expect(value).toBe("checkbox");
         if (attr === "class") expect(value).not.toMatch(/[<>"]/); // escaped

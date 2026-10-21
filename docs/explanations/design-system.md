@@ -122,7 +122,7 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Empty state | `.empty` (`empty()` in ui.ts) | icon in a `--sunk` circle, a sentence, one action |
 | Photo viewer | `.viewer` | `--viewer`; close top right, count pill top centre, tools on an `--overlay` scrim |
 | Icons | `icons.ts` | 24 px strokes (1.8), currentColor, `aria-hidden` |
-| Markdown | `.md` (page text, Preview) | headings `--t-lg`/`--t-md`; code and a table's head on `--sunk`; a table in a `.table` box with `--line` hairlines that scrolls sideways on its own (the page never does); task boxes in `--accent`; strikethrough, quotes and footnotes in `--ink-2`; a Mermaid `.diagram` in its dark or neutral theme, following the system's |
+| Markdown | `.md` (page text, Preview) | headings `--t-lg`/`--t-md`; code and a table's head on `--sunk`; a table in a `.table` box with `--line` hairlines that scrolls sideways on its own (the page never does); task boxes in `--accent`, in a `.taskbox` label with a 44 px target, the items spaced (7 px each side) so no two targets overlap; on a page they tick in place (`tasks.ts`: each box's `data-line` is its item's line in the text, from markdown-it's map), off while offline and in Preview; strikethrough, quotes and footnotes in `--ink-2`; a Mermaid `.diagram` in its dark or neutral theme, following the system's |
 
 ## States
 
