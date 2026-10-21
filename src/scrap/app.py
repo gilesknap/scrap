@@ -100,6 +100,17 @@ class PageEdit(BaseModel):
         Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
     ) = None
     tags: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None  # all of them
+    # A todo's (null clears one): sent or not tells apart, see todo()
+    due: Annotated[str, Field(max_length=10)] | None = None  # YYYY-MM-DD
+    priority: Annotated[str, Field(max_length=10)] | None = None  # high, medium, low
+
+    def todo(self) -> dict[str, str | None]:
+        """The due date and priority sent, null too (it clears one)."""
+        return {
+            k: getattr(self, k)
+            for k in ("due", "priority")
+            if k in self.model_fields_set
+        }
 
 
 def author(request: Request) -> str:
@@ -306,13 +317,13 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     @app.patch("/api/pages/{key}")
     def edit(key: str, edit: PageEdit, request: Request) -> dict[str, Any]:
         """Change title and/or body (409 if base_rev is not the current revision),
-        and/or the kind, fields and tags."""
+        and/or the kind, fields, tags, and a todo's due date and priority."""
         if edit.base_rev is None and (edit.title, edit.body) != (None, None):
             raise InvalidError("base_rev is needed to change the title or body")
         who = author(request)
         return store.update_page(
             key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
-            edit.tags,
+            edit.tags, edit.todo(),
         )  # fmt: skip
 
     @app.delete("/api/pages/{key}", status_code=204)

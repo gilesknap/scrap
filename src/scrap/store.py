@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import IO, Any
 
 from .markdown import plain
-from .query import CONTROL, Query, bound, parse
+from .query import CONTROL, PRIORITIES, Query, bound, day, parse
 
 __all__ = [
     "Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError",
@@ -83,6 +83,9 @@ SORT_SQL = {
     "created": "p.created_at",
     "title": "p.title COLLATE NOCASE",  # ASCII letters only: SQLite has no ICU here
 }
+TODO = ("due", "priority")  # a todo's own columns
+# Priorities as an imported todo may have them (Thoth's Urgent: the highest there is)
+PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
@@ -187,6 +190,46 @@ def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
         if new not in out:
             out.append(new)
     return out
+
+
+def check_todo(name: str, value: Any) -> str | None:
+    """A due date (YYYY-MM-DD) or priority (high, medium, low) as given, checked; None
+    clears it."""
+    if value is None:
+        return None
+    if name == "due":
+        if not isinstance(value, str) or day(value) is None:
+            raise InvalidError("due must be a date, YYYY-MM-DD")
+        return value
+    if value not in PRIORITIES:
+        raise InvalidError(f"priority must be one of {PRIORITIES}")
+    return value
+
+
+def todo_columns(
+    kind: str, fields: dict[str, Any]
+) -> tuple[dict[str, str | None], dict[str, Any]]:
+    """A todo's due and priority, out of fields it was imported with (Thoth's due_date
+    and priority: kept in fields if not a date or a priority), and the other fields."""
+    out: dict[str, str | None] = dict.fromkeys(TODO)
+    if kind != "todo":
+        return out, fields
+    rest = dict(fields)
+    if isinstance(when := rest.get("due"), str) and day(when):
+        out["due"] = rest.pop("due")
+    rank = rest.get("priority")
+    rank = PRIORITY_NAMES.get(rank, rank) if isinstance(rank, str) else None
+    if rank in PRIORITIES:
+        out["priority"] = rank
+        rest.pop("priority")
+    return out, rest
+
+
+def todo_only(page: dict[str, Any]) -> dict[str, Any]:
+    """A page (or a list's row) with its due and priority if it is a todo, else None."""
+    if page.get("kind") != "todo":
+        page.update(dict.fromkeys(TODO))
+    return page
 
 
 def slug_base(title: str) -> str:
@@ -317,7 +360,20 @@ def index_all(conn: sqlite3.Connection) -> None:
         index_page(conn, page_id)
 
 
-AFTER = {3: index_all, 4: index_all}  # migration number -> its Python step
+def move_todo_fields(conn: sqlite3.Connection) -> None:
+    """Each todo's due and priority fields (as imported from Thoth) into its columns."""
+    for page_id, fields in conn.execute(
+        "SELECT id, fields FROM page WHERE kind = 'todo'"
+    ).fetchall():
+        todo, rest = todo_columns("todo", json.loads(fields))
+        if any(todo.values()):
+            conn.execute(
+                "UPDATE page SET due = ?, priority = ?, fields = ? WHERE id = ?",
+                (todo["due"], todo["priority"], json.dumps(rest), page_id),
+            )
+
+
+AFTER = {3: index_all, 4: index_all, 5: move_todo_fields}  # migration -> Python step
 
 
 def tag_counts(rows: list[Any]) -> dict[str, int]:
@@ -400,6 +456,9 @@ class Store:
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
         kind = kind or hint
+        todo = {k: check_todo(k, _text(data, k)) for k in TODO}
+        if kind != "todo" and any(todo.values()):
+            raise InvalidError("due and priority are for todos")
         if not url and text and BARE_URL.fullmatch(text):
             url, text = text, None  # a link shared as text
         if mimes:
@@ -413,6 +472,7 @@ class Store:
         return {
             "id": cid, "kind": what, "text": text, "url": url, "source": source,
             "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),
+            **todo,
             "title": title or when.strftime("%Y-%m-%d %H:%M"),
             "body": "\n\n".join(x for x in (url, text) if x),
         }  # fmt: skip
@@ -444,9 +504,11 @@ class Store:
             page_id = new_ulid()
             conn.execute(
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " created_at, updated_at, due, priority)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (page_id, self._slug(conn, title), title, body, kind or "note",
-                 int(bool(kind)), json.dumps(c["fields"]), stamp, stamp),
+                 int(bool(kind)), json.dumps(c["fields"]), stamp, stamp,
+                 c.get("due"), c.get("priority")),
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
@@ -497,11 +559,14 @@ class Store:
                 [(sha, mime, size, stamp) for sha, mime, size, _ in blobs],
             )
             page_id = new_ulid()
+            todo, fields = todo_columns(p["kind"], p["fields"])
             conn.execute(
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)",
+                " created_at, updated_at, due, priority)"
+                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)",
                 (page_id, p["slug"], p["title"], p["body"], p["kind"],
-                 json.dumps(p["fields"]), p["created_at"], p["updated_at"]),
+                 json.dumps(fields), p["created_at"], p["updated_at"], todo["due"],
+                 todo["priority"]),
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
@@ -587,13 +652,13 @@ class Store:
             rows = _rows(
                 conn,
                 "SELECT id, slug, title, kind, kind_fixed, fields, created_at,"
-                f" updated_at, {THUMB} AS thumb"
+                f" updated_at, due, priority, {THUMB} AS thumb"
                 " FROM page p WHERE deleted_at IS NULL"
                 " AND coalesce(?, kind) = kind"
                 " ORDER BY updated_at DESC, id DESC LIMIT ?",
                 kind, limit,
             )  # fmt: skip
-        return [{**r, "fields": json.loads(r["fields"])} for r in rows]
+        return [todo_only({**r, "fields": json.loads(r["fields"])}) for r in rows]
 
     def page(self, key: str) -> dict[str, Any]:
         """A page with its current revision and its captures and their blobs."""
@@ -626,8 +691,8 @@ class Store:
         del page["deleted_at"]
         fields = json.loads(page["fields"])
         removed = sorted(self.removed(conn, page["id"], page["body"]))
-        return {**page, "fields": fields, "tags": tags, "captures": captures,
-                "removed": removed}  # fmt: skip
+        return todo_only({**page, "fields": fields, "tags": tags, "captures": captures,
+                          "removed": removed})  # fmt: skip
 
     def removed(self, conn: sqlite3.Connection, page_id: str, body: str) -> set[str]:
         """The files an earlier revision of a page's text referred to and its text no
@@ -711,17 +776,22 @@ class Store:
         kind: str | None = None,
         fields: dict[str, Value | None] | None = None,
         tags: list[str] | None = None,
+        todo: dict[str, str | None] | None = None,
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
         and/or its kind (the user's choice, which ingest then keeps), fields and tags
-        (all of them: these replace the page's)."""
+        (all of them: these replace the page's); and/or a todo's due date and priority
+        (those given; None clears one)."""
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
         tags = None if tags is None else clean_tags(tags)
+        todo = {k: check_todo(k, v) for k, v in (todo or {}).items() if k in TODO}
         with self.connect() as conn, transaction(conn):
             page = self._page_row(conn, key)
             if kind is not None or fields:
                 self._set_kind(conn, page, kind, fields or {})
+            if todo:  # as status: not a revision, nor a change to updated_at
+                self._set_todo(conn, page["id"], kind or page["kind"], todo)
             if tags is not None:  # not a revision, nor a change to updated_at
                 conn.execute("DELETE FROM tag WHERE page_id = ?", (page["id"],))
                 conn.executemany(
@@ -792,6 +862,19 @@ class Store:
              json.dumps(fields), page["id"]),
         )  # fmt: skip
 
+    def _set_todo(
+        self,
+        conn: sqlite3.Connection,
+        page_id: str,
+        kind: str,
+        todo: dict[str, str | None],
+    ) -> None:
+        """Set (or clear, None) a todo's due date and/or priority, checked already."""
+        if kind != "todo" and any(v is not None for v in todo.values()):
+            raise InvalidError("due and priority are for todos")
+        sets = ", ".join(f"{k} = ?" for k in todo)  # names from TODO only
+        conn.execute(f"UPDATE page SET {sets} WHERE id = ?", (*todo.values(), page_id))
+
     def delete_page(self, key: str, undo: bool = False) -> None:
         """Move a page to the trash (or back); captures and files stay until a purge."""
         with self.connect() as conn:
@@ -804,11 +887,21 @@ class Store:
             raise NotFoundError(key)
 
     def append(
-        self, key: str, cid: str, text: str, author: str, tags: list[str], most: int
+        self,
+        key: str,
+        cid: str,
+        text: str,
+        author: str,
+        tags: list[str],
+        most: int,
+        todo: dict[str, str | None] | None = None,
     ) -> tuple[dict[str, str], bool]:
         """Add text (a capture with id cid, source mcp) to the end of a page Claude
-        wrote, and these tags; a retry with the same cid changes nothing. The page's
-        body is then at most most bytes. Returns its reference and whether it is new."""
+        wrote, and these tags, and set its due date and priority (a todo's; those
+        given, None clearing one); a retry with the same cid changes nothing. The
+        page's body is then at most most bytes. Returns its reference and whether it
+        is new."""
+        todo = {k: check_todo(k, v) for k, v in (todo or {}).items() if k in TODO}
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -819,20 +912,23 @@ class Store:
             page = self._page_row(conn, key)
             if not self.by_claude(conn, page["id"]):
                 raise InvalidError("only a page written over MCP can be appended to")
+            if todo:
+                self._set_todo(conn, page["id"], page["kind"], todo)
             body = "\n\n".join(x for x in (page["body"].rstrip(), text) if x)
             if len(body.encode()) > most:
                 raise InvalidError(f"the page would be over {most} bytes")
-            conn.execute(
-                "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
-                (body, stamp, page["id"]),
-            )
-            conn.execute(
-                "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
-                (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
-            )
-            conn.execute(
+            if text:  # none: only its due date or priority changed (no revision)
+                conn.execute(
+                    "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
+                    (body, stamp, page["id"]),
+                )
+                conn.execute(
+                    "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
+                    (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
+                )
+            conn.execute(  # the retry key, even with no text
                 "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
-                (cid, text, MCP, author, stamp, stamp, page["id"]),
+                (cid, text or None, MCP, author, stamp, stamp, page["id"]),
             )
             conn.executemany(
                 "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
@@ -929,7 +1025,7 @@ class Store:
                 every = " AND ".join(q.fts(t) for t in q.positive)
                 tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
                 rows = conn.execute(
-                    "SELECT p.id, p.slug, p.title, p.kind, p.fields,"
+                    "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
                     " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet"
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
@@ -941,7 +1037,8 @@ class Store:
                 )  # fmt: skip
             else:
                 rows = conn.execute(
-                    "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.body AS snippet"
+                    "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
+                    " p.body AS snippet"
                     f" FROM page p WHERE {where}"
                     f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
                     (*args, limit, offset),
@@ -961,6 +1058,7 @@ class Store:
                 hits[row["id"]] |= {"updated_at": row[1], "thumb": row[2]}
         for hit in hits.values():  # HTML-safe, with matches in <mark>
             hit["fields"] = json.loads(hit["fields"])
+            todo_only(hit)
             if not q.positive:  # no match to show: its summary, else its start
                 summary = hit["fields"].get("summary")
                 text = summary if isinstance(summary, str) else unlink(hit["snippet"])

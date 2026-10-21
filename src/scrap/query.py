@@ -7,13 +7,17 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-__all__ = ["Term", "Filter", "Query", "parse", "bound", "KEYS", "SORTS"]
+__all__ = [
+    "Term", "Filter", "Query", "parse", "bound", "day", "KEYS", "SORTS", "PRIORITIES",
+]  # fmt: skip
 
 KEYS = ("kind", "tag", "is", "after", "before", "date", "has", "image", "sort")
 # sort:K orders the results by K, the way it goes by default (True: highest first);
 # -sort:K the other way. The store maps each to SQL: a new one (due, priority) slots in
 # as a name here and a column there.
 SORTS = {"updated": True, "created": True, "title": False}
+# A todo's priorities, highest first (the page.priority column's CHECK has them too)
+PRIORITIES = ("high", "medium", "low")
 DAYS = {"d": 1, "w": 7, "m": 30, "y": 365}  # after:2w, before:1y
 MAX_AGO = 100  # 100y at most
 END = "~"  # after every ISO 8601 timestamp, as text
@@ -142,3 +146,13 @@ def bound(key: str, value: str, now: datetime | None = None) -> str | None:
         return None
     ago = (now or datetime.now(UTC)) - timedelta(days=int(count) * DAYS[unit])
     return ago.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def day(value: str) -> date | None:
+    """A calendar day as YYYY-MM-DD (a due date's form), else None."""
+    if len(value) != 10 or value[4] != "-" or value[7] != "-":
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
