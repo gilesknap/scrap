@@ -22,6 +22,7 @@ from .store import (
     CROCKFORD,
     KIND_NAMES,
     KINDS,
+    MAX_PAGE,
     MCP,
     WIKI_LINK,
     InvalidError,
@@ -39,7 +40,6 @@ __all__ = ["server", "security", "public_urls"]
 AUTHOR = "claude"  # page_rev and capture author of what is written over MCP
 MAX_TITLE = 200  # characters
 MAX_BODY = 200_000  # bytes of UTF-8, per write
-MAX_PAGE = 1_000_000  # bytes, a page appended to
 MAX_TAGS = 20
 MAX_ORIGIN = 200
 MAX_KEY = 128

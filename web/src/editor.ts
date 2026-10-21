@@ -20,6 +20,16 @@ export { same, tagField } from "./tagedit";
 export { todoField, todoStart } from "./todoedit";
 export { confirmRemoval } from "./unembed";
 
+const MAX_PAGE = 1_000_000; // bytes of UTF-8: a page's text at most (the server's store.MAX_PAGE)
+
+/** Why text can't be saved as a page's (over 1 MB), said before sending it; else null. */
+export function tooLong(text: string) {
+  const n = new TextEncoder().encode(text).length;
+  return n > MAX_PAGE
+    ? `Not saved: the text is ${(n / 1e6).toFixed(2)} MB, and a page holds at most 1 MB`
+    : null;
+}
+
 /** The kind control: a segmented radio group. suggest() picks a kind until the user picks
  * one (picked: they did, e.g. in a restored draft). */
 export function kindPicker(initial: string, picked = false) {

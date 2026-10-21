@@ -199,6 +199,8 @@ the link as the capture's URL.
   before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.
+- A page's text holds at most 1 MB (about a million letters). Save says so before sending a
+  longer one, and keeps it in the editor (and the composer) for you to shorten or split.
 - **Delete** moves the page to the trash, with **Undo** for a few seconds, and goes back to the
   list or search it was opened from (else to every page, newest first).
 
