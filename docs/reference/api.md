@@ -34,7 +34,7 @@ in front. The author of a capture or edit is the `Tailscale-User-Login` header, 
 | `GET /api/blobs/{sha256}/preview?size=2048` | A JPEG of a photo (HEIC too), turned upright and without its EXIF, at most `size` (`480` or `2048`) pixels a side. Made on first request and kept in `cache/previews/` under the data folder, which is never backed up and can be deleted at any time. Made one at a time, shrunk as it is decoded, within a memory budget that fits a 1 GB container: `422` if the file is not an image Pillow can read or would need more memory than that to decode (roughly over 50 megapixels for HEIC, 80 for PNG; JPEG is decoded shrunk and fits at any size), `503` with `Retry-After` if the decoder stays busy for 20 s. The colour profile is kept |
 | `POST /mcp` | The MCP server (Streamable HTTP, stateless, JSON replies) for Claude Code sessions: see [](mcp.md). `421` if the `Host` header is not loopback or a `SCRAP_PUBLIC_URL` host, `403` for another `Origin`, `413` over 2 MB |
 | `POST /share` | The PWA's share target, for when its service worker did not take the share (which it normally queues itself): saves the multipart `title`, `text`, `url` and `files` as a capture with a server-minted id, then `303` to `/` |
-| `GET /`, `/recent`, `/search`, `/tags`, `/p/{slug}` | The PWA (`index.html`); its other files are served from the root too. `503` with build instructions if it was not built; see [](../how-to/use-the-pwa.md) |
+| `GET /`, `/recent`, `/search`, `/tags`, `/todos`, `/p/{slug}` | The PWA (`index.html`); its other files are served from the root too. `503` with build instructions if it was not built; see [](../how-to/use-the-pwa.md) |
 
 ## CLI
 

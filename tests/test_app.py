@@ -462,7 +462,7 @@ def shell(tmp_path, monkeypatch):
     return TestClient(create_app(tmp_path / "data"))
 
 
-@pytest.mark.parametrize("path", ["/", "/recent", "/search", "/p/some-slug"])
+@pytest.mark.parametrize("path", ["/", "/recent", "/search", "/todos", "/p/some-slug"])
 def test_app_routes_serve_the_pwa(shell, path):
     response = shell.get(path)
     assert response.status_code == 200

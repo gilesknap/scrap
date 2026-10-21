@@ -4,6 +4,7 @@ import { learnLimit } from "./api";
 import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { debugPanel } from "./debug";
+import { pageRow } from "./lists";
 import { page } from "./page";
 import { search } from "./search";
 import { whenSlow } from "./slow";
@@ -11,25 +12,31 @@ import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
+const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
   [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
+  [/^\/todos$/, () => todos()],
   [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
 ];
 
-/** /recent (?kind=todo, ?kind=consume) as the search screen's address; another kind= is
- * ignored. */
+/** /recent (?kind=consume) as the search screen's address, ?kind=todo as the Todos screen's;
+ * another kind= is ignored. */
 function recent() {
   const kind = new URLSearchParams(location.search).get("kind");
   const name = KIND_ROW.find(([, , , api]) => api === kind)?.[1];
   history.replaceState(
     null,
     "",
-    name ? `/search?q=${encodeURIComponent(`kind:${name}`)}` : "/search",
+    name === "todo"
+      ? "/todos"
+      : name
+        ? `/search?q=${encodeURIComponent(`kind:${name}`)}`
+        : "/search",
   );
-  return search();
+  return name === "todo" ? todos() : search();
 }
 
 const view = document.getElementById("view") as HTMLElement;

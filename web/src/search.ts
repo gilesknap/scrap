@@ -42,8 +42,10 @@ export async function search(): Promise<Node> {
       type: "radio",
       name: "kind",
       value: v,
-      // A click, not a change: tapping the one that is on clears it
-      onclick: () => apply((now) => withKind(now, v)),
+      // A click, not a change: tapping the one that is on clears it. Todos alone: the Todos
+      // screen (Now), not a search
+      onclick: () =>
+        withKind(input.value, v) === "kind:todo" ? go("/todos") : apply((now) => withKind(now, v)),
     });
     return [radio, h("label", {}, radio, label)] as const;
   });

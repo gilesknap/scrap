@@ -1711,3 +1711,53 @@ div.orig .save {
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
 }
+
+/* ---- Todos: Now / Upcoming / All, a ranked list in groups ---- */
+.todos .count {
+  margin: 0 0 var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.todos section + section,
+.todos section + .donefold {
+  margin-top: var(--s-4);
+}
+.todos h2.label {
+  margin-top: var(--s-2);
+}
+/* A todo's row leads with its due date and priority, then when it was last edited */
+.todos .sub .due {
+  order: -1;
+}
+.donefold {
+  margin-top: var(--s-4);
+}
+.donefold summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  list-style: none;
+}
+.donefold summary::-webkit-details-marker {
+  display: none;
+}
+/* A chevron: points right when folded, down when open */
+.donefold summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 3px var(--s-1);
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: -45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.donefold[open] summary::before {
+  rotate: 45deg;
+}

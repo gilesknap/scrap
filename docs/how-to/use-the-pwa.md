@@ -82,13 +82,15 @@ the link as the capture's URL.
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. (There is no separate Recent screen any more: the empty box is it.)
 - Under the search box, a fixed row of kinds: **All**, **Notes**, **Todos**, **Reads**,
-  **Boards**, **Docs**. One tap shows only that kind (it writes `kind:todo` into the query), a
+  **Boards**, **Docs**. One tap shows only that kind (it writes `kind:read` into the query), a
   second tap on it (or **All**) shows every kind again. A kind alone still lists newest first.
+  **Todos** with nothing else asked opens the Todos screen (below); with words or filters in
+  the box it narrows the search to todos (`kind:todo`), as before.
 - Whenever anything is chosen or typed, a **Clear** chip starts the row of chips below: one tap
   goes back to every page, newest first.
 - The query and its filters are in the address (`/search?q=...`), so a reload keeps them, and
   Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
-  `/recent` links open this screen (`/recent?kind=todo` with Todos on).
+  `/recent` links open this screen (`/recent?kind=todo` the Todos screen).
 - Every row, a page's tags, its `[[links]]` and the pager's ‹ › are ordinary links with their own
   address, so you can open one in a new tab: on a phone, long-press it and choose *Open in new
   tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
@@ -108,11 +110,16 @@ the link as the capture's URL.
   keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
   nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
   for `due:` searches.
-- On the Todos screen (**Todos** in the kind row), chips **Today**, **Overdue** and
-  **Upcoming** are saved views: todos due today, before today or after it, not done or
-  cancelled, soonest first (`due:<today -is:done -is:cancelled sort:due`, say). Tap the one
-  that is on to go back to every todo. Its **Sort** menu adds **Due soonest**, **Due latest**
-  and **Priority**.
+- The **Todos** screen (`/todos`) opens on **Now**: the todos not done or cancelled, what to
+  do first at the top, in groups: **Overdue** (oldest due date first), **Today**, **High
+  priority** (no due date), then **Later** (by priority, then due date, then last edited). Each
+  row starts with its priority and due date. Done and cancelled todos are folded away at the
+  end (**Done**, tap to open). A switch at the top picks the list instead: **Upcoming** (due
+  after today, soonest first) or **All** (every todo, last edited first). Each list sets its
+  own order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
+  Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
+  **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
+  `priority:` and `sort:due` still search and order todos.
 - Swipe a row of the list, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
   seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
