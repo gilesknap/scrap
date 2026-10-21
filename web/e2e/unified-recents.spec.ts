@@ -1,4 +1,5 @@
-// The last searches (searches.ts): under the empty box, on this phone only.
+// The last searches (searches.ts): under the empty box, on this phone only. Runs after
+// smoke.spec.ts (alphabetical), which wants an empty store.
 import { expect, type Page, test } from "@playwright/test";
 
 const ulid = () => {
