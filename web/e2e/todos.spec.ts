@@ -87,8 +87,9 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await page.goto("/todos");
   await page.getByText("Upcoming", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=upcoming$/);
-  await expect.poll(() => quolls(page)).toEqual(["Quoll later medium", "Quoll later high"]);
-  await expect(page.locator(".todos .count")).toHaveText(/ due after today$/);
+  // Due from tomorrow to a week away: not "Quoll later high", due in 10 days
+  await expect.poll(() => quolls(page)).toEqual(["Quoll later medium"]);
+  await expect(page.locator(".todos .count")).toHaveText(/ due in the next 7 days$/);
   await expect(page.getByRole("combobox", { name: "Sort" })).toHaveCount(0); // the view's order
   await page.getByText("All", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=all$/);
@@ -156,4 +157,21 @@ test("the Todos tab: one tap to Now, with a count of the todos due", async ({ pa
   await expect(page.locator(".todos")).toBeVisible();
   await expect(badge).toBeHidden();
   await expect(tab).toHaveAccessibleName("Todos");
+});
+
+test("switching Now, Upcoming and All replaces the entry: Back leaves Todos", async ({ page }) => {
+  await page.goto("/");
+  await page
+    .locator("nav")
+    .getByRole("link", { name: /^Todos/ })
+    .click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await page.getByText("Upcoming", { exact: true }).click();
+  await page.getByText("All", { exact: true }).click();
+  await page.getByText("Now", { exact: true }).click();
+  await page.getByText("All", { exact: true }).click();
+  await expect(page).toHaveURL(/\/todos\?view=all$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/); // off Todos at once, not through each view
+  await expect(page.getByRole("button", { name: "Camera" })).toBeVisible();
 });

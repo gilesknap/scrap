@@ -2,7 +2,8 @@
 // end: Filters (with how many are on), then the results' top tags, each with a count (tap one
 // to add tag:). Above the list, how many pages were found and each filter that is on, as a
 // chip (tap to take it out), so nothing chosen is hidden. Filters opens a bottom sheet: the
-// order, a time range, Work or Personal, a todo search's due views and Browse tags. All of it
+// order, a time range, Work or Personal and Browse tags (a todo's due date is searched by
+// typing due:, or on the Todos screen). All of it
 // only edits the query's text (tag:tech, is:personal), so it can be typed too. In the app
 // shell, so Filters opens at once.
 import { api } from "./api";
@@ -112,14 +113,6 @@ const TODO_SORTS = [
   ["-sort:due", "Due latest"],
   ["sort:priority", "Priority"],
 ];
-// A todo search's views (#104): [label, what each adds]. The ones not done or cancelled,
-// soonest first. Tapped again, the view is cleared.
-const OPEN = ["-is:done", "-is:cancelled", "sort:due"];
-const VIEWS: [string, string[]][] = [
-  ["Today", ["due:today", ...OPEN]],
-  ["Overdue", ["due:<today", ...OPEN]],
-  ["Upcoming", ["due:>today", ...OPEN]],
-];
 // Time ranges: [label, token value, what it says]
 const RANGES = [
   ["1w", "1w", "the past week"],
@@ -215,7 +208,7 @@ function sheet(q: string, f: Facets, apply: (edit: Edit) => void) {
   dlg.showModal();
 }
 
-/** The sheet's sections for a query: Sort, When, Work or personal, Due (todos), Tags. */
+/** The sheet's sections for a query: Sort, When, Work or personal, Tags. */
 function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () => void) {
   const toggle = (label: string, t: string, n = -1, others: string[] = []) => {
     const on = has(q, t);
@@ -306,20 +299,6 @@ function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () =>
     (personal > 0 || has(q, "is:personal")) &&
       toggle("Personal", "is:personal", personal, ["is:work"]),
   ];
-  // A todo search's views, the one on pressed (tapped again: cleared)
-  const on = VIEWS.find(([, ts]) => ts.every((t) => has(q, t)));
-  const views = VIEWS.map(([label, ts]) => {
-    const b = chip(label, -1, () =>
-      set((now) => {
-        let next = (on ?? ["", []])[1].reduce(removing, now);
-        if (on?.[0] !== label) next = ts.reduce(adding, next);
-        return next;
-      }),
-    );
-    b.setAttribute("aria-pressed", String(on?.[0] === label));
-    b.dataset.k = label;
-    return b;
-  });
   const tags = h("a", { className: "button facet", href: "/tags" }, icon("tag"), "Browse tags");
   tags.onclick = (e) => {
     e.preventDefault();
@@ -335,7 +314,6 @@ function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () =>
       panel,
     ),
     sides.some(Boolean) && group("Work or personal", ...sides),
-    todos && group("Due", ...views),
     group("Tags", tags),
   ].filter((s): s is HTMLElement => !!s);
 }
