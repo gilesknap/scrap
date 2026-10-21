@@ -104,8 +104,8 @@ the link as the capture's URL.
   tap it to take that filter out. So the row's start never moves, and nothing chosen is hidden.
 - **Filters** opens a sheet from the bottom of the screen: **Sort**, **When** (**1w**, **1m**,
   **1y**, **Dates…** with a From and a To, and **By created date** once a range is on),
-  **Work** or **Personal** (with counts), for a search of todos **Due** (**Today**, **Overdue**,
-  **Upcoming**), and **Browse tags**. Each tap changes the search at once (the list behind
+  **Work** or **Personal** (with counts), and **Browse tags** (for todos due today, overdue or
+  soon, use the Todos screen, or type `due:` in the box). Each tap changes the search at once (the list behind
   follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
   **Clear filters** takes every filter off and keeps the words; **Done**, Back, Escape or a tap
   above the sheet closes it.
