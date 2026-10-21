@@ -474,6 +474,10 @@ class Store:
             what = "url" if url else "note"
         if what == "note" and not text:
             raise InvalidError("empty capture")
+        tags = data.get("tags") or []
+        if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
+            raise InvalidError("tags must be a list of strings")
+        tags = clean_tags(tags)  # as an edit's
         title = text.splitlines()[0][:200] if text else url
         return {
             "id": cid, "kind": what, "text": text, "url": url, "source": source,
@@ -481,6 +485,7 @@ class Store:
             **todo,
             "title": title or when.strftime("%Y-%m-%d %H:%M"),
             "body": "\n\n".join(x for x in (url, text) if x),
+            "tags": tags,
         }  # fmt: skip
 
     def capture(
@@ -490,11 +495,12 @@ class Store:
         author: str,
         tags: list[str] | None = None,
     ) -> tuple[dict[str, str], bool]:
-        """Save a prepared capture as a new page, with these tags. Returns its
-        reference and whether it is new. blobs are (sha256, mime, size, filename),
-        already in files/.
+        """Save a prepared capture as a new page, with these tags (else the
+        capture's own, if any). Returns its reference and whether it is new. blobs
+        are (sha256, mime, size, filename), already in files/.
         """
         cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
+        tags = c.get("tags") if tags is None else tags
         body = "\n\n".join(x for x in (body, *embeds(blobs, body)) if x)
         stamp = now()
         with self.connect() as conn, transaction(conn):
