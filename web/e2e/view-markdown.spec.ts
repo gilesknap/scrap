@@ -191,3 +191,36 @@ test("a task box ticks in place: that item, saved at once; never over a newer ed
   await page.locator(".editor").getByRole("button", { name: "Preview" }).click();
   await expect(page.locator(".editor .preview li.task input").first()).toBeDisabled();
 });
+
+test("a figure's Download stays whole beside a long file name, at 360 and 412 px", async ({
+  page,
+}) => {
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Long name photo");
+  const name = "IMG_20261021_103455_garden_fence_left_side_from_the_shed.png";
+  form.append("file", new Blob([new Uint8Array(png(300, 200))], { type: "image/png" }), name);
+  const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
+  for (const width of [360, 412]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/p/${ref.slug}`);
+    const save = page.locator(".page figure .save").first();
+    await expect(save).toHaveText("Download");
+    // The overflow audit for figure controls: one line, inside the screen, a 20 px icon
+    const got = await save.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const text = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
+      const range = document.createRange();
+      if (text) range.selectNodeContents(text);
+      const tops = new Set([...range.getClientRects()].map((c) => Math.round(c.top)));
+      const icon = el.querySelector(".i")?.getBoundingClientRect();
+      return { lines: tops.size, right: r.right, height: Math.round(r.height), icon: icon?.width };
+    });
+    expect(got.right).toBeLessThanOrEqual(width);
+    expect(got.height).toBeGreaterThanOrEqual(44);
+    expect(got.height).toBeLessThanOrEqual(48);
+    expect(got.icon).toBe(20);
+    expect(got.lines, `Download on one line at ${width} px`).toBe(1);
+    await expect(page.locator(".page figure figcaption span").first()).toHaveText(name);
+  }
+});

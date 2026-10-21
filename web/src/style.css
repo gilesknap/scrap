@@ -1155,10 +1155,16 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A figure's Download (an <a>, not a .button) and Ask Claude: whole words beside a file name
+   of any length. The page text's overflow-wrap: anywhere let a long name squeeze "Download"
+   to one letter wide, broken over three lines; the icon is a button's 20, not 24 */
 .save {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--s-1);
+  white-space: nowrap;
+  overflow-wrap: normal;
   text-decoration: none;
   font-weight: 500;
   min-height: var(--tap);
@@ -1168,6 +1174,10 @@ mark {
   background: none;
   color: var(--ink-2);
   font-size: var(--t-sm);
+}
+.save .i {
+  width: 20px;
+  height: 20px;
 }
 div.orig {
   display: flex;
