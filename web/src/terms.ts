@@ -31,6 +31,54 @@ export function removing(q: string, t: string): string {
   return `${q.slice(0, i).trimEnd()} ${q.slice(i + t.length).trimStart()}`.trim();
 }
 
+/** Where the query's orders stand ([start, end) of sort:due, -SORT:created, sort:"a b"),
+ * read the way the server reads a query (scrap/query.py parse): a quoted phrase is text,
+ * the key is any case, - or ! negates. */
+function sortSpans(q: string): [number, number][] {
+  const s = q;
+  const n = s.length;
+  // a space, or a control character (the server reads those as spaces)
+  const gap = (c: string) => c < " " || c === "\x7f" || isSpace(c);
+  const spans: [number, number][] = [];
+  let i = 0;
+  while (i < n) {
+    if (gap(s[i])) {
+      i++;
+      continue;
+    }
+    const start = i;
+    if ("-!".includes(s[i])) i++;
+    if (s[i] === '"') {
+      // a phrase, to the next quote (or the end)
+      const end = s.indexOf('"', i + 1);
+      i = end < 0 ? n : end + 1;
+      continue;
+    }
+    let j = i;
+    while (j < n && !gap(s[j]) && s[j] !== '"') j++;
+    const word = s.slice(i, j);
+    const colon = word.indexOf(":");
+    if (colon >= 0 && word.slice(0, colon).toLowerCase() === "sort") {
+      if (colon === word.length - 1 && s[j] === '"') {
+        const end = s.indexOf('"', j + 1);
+        j = end < 0 ? n : end + 1;
+      }
+      spans.push([start, j]);
+    }
+    i = j;
+  }
+  return spans;
+}
+
+/** The orders a query has, as typed. */
+export const sortsIn = (q: string) => sortSpans(q).map(([a, b]) => q.slice(a, b));
+
+/** The query without its orders, its spaces tidied (a phrase's own spaces kept). */
+export const unsorted = (q: string) =>
+  sortSpans(q)
+    .reduceRight((rest, [a, b]) => `${rest.slice(0, a).trimEnd()} ${rest.slice(b).trimStart()}`, q)
+    .trim();
+
 /** A date picker's value as after:/before: take it (YYYY-MM-DD, years 1 to 9999), or ""
  * (a typed year past 9999 is clamped to 9999-12-31). */
 export function day(v: string): string {

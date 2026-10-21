@@ -47,6 +47,7 @@ h2.label {
 /* ---- Buttons: secondary by default; .primary, .ghost, .danger ---- */
 button,
 input,
+select,
 textarea {
   font: inherit;
   color: inherit;
@@ -378,6 +379,9 @@ nav a[aria-current] .i {
 .list li > a:active {
   background: var(--sunk);
 }
+.list li > a:focus-visible {
+  outline-offset: -2px; /* inside the card, which clips what is outside it */
+}
 .list img,
 .noimg {
   flex: none;
@@ -551,13 +555,16 @@ nav a[aria-current] .i {
 }
 .rowbar {
   display: flex;
+  flex-wrap: wrap; /* a second line rather than a label broken over two */
   gap: var(--s-2);
   margin-top: var(--s-2);
 }
 .rowbar button {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: var(--tap);
+  padding: 0 var(--s-3);
   font-size: var(--t-sm);
+  white-space: nowrap;
 }
 .snip {
   display: -webkit-box; /* a search hit's snippet, under its date: two lines at most */
@@ -727,6 +734,7 @@ mark {
   white-space: nowrap;
 }
 .facet small {
+  line-height: calc(var(--t-sm) * var(--lh)); /* the label's: on its baseline, not raised */
   color: var(--ink-2);
   font-size: var(--t-xs);
 }
@@ -1097,10 +1105,16 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A figure's Download (an <a>, not a .button) and Ask Claude: whole words beside a file name
+   of any length. The page text's overflow-wrap: anywhere let a long name squeeze "Download"
+   to one letter wide, broken over three lines; the icon is a button's 20, not 24 */
 .save {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--s-1);
+  white-space: nowrap;
+  overflow-wrap: normal;
   text-decoration: none;
   font-weight: 500;
   min-height: var(--tap);
@@ -1110,6 +1124,10 @@ mark {
   background: none;
   color: var(--ink-2);
   font-size: var(--t-sm);
+}
+.save .i {
+  width: 20px;
+  height: 20px;
 }
 div.orig {
   display: flex;
@@ -1140,11 +1158,11 @@ div.orig .save {
   gap: var(--s-1);
 }
 .tools > * {
-  flex: 1 1 0; /* equal shares of the width, whatever the labels */
+  flex: 1 1 auto; /* shares of the width by label, so a long word (Download) is never cut */
   flex-direction: column;
   gap: 2px;
   min-height: 60px;
-  padding: var(--s-1);
+  padding: var(--s-1) 2px;
   border: none;
   background: transparent;
   font-size: var(--t-xs);
@@ -1156,8 +1174,9 @@ div.orig .save {
 .page > .tools {
   position: sticky;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  gap: 0;
   margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
-  padding: var(--s-1) var(--s-3);
+  padding: var(--s-1) var(--s-2);
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
@@ -1727,6 +1746,7 @@ div.orig .save {
 /* A todo's priority and due date (#104), on its row and its page; overdue in --danger */
 .list .due {
   color: var(--ink-2);
+  white-space: normal; /* when it is due matters more than one line: never cut */
 }
 .list .due.late,
 .todoline .late {
@@ -1734,16 +1754,18 @@ div.orig .save {
   font-weight: 600;
 }
 .todoline {
-  margin: 0 0 var(--s-2);
+  margin: calc(-1 * var(--s-2)) 0 0; /* under the tag line, in its rhythm: 32 px drawn in 48 */
 }
 .todoline > button {
-  min-height: 40px;
   gap: 6px;
   padding: 0 var(--s-3);
+  border: 8px solid transparent; /* like Tags: a 32 px pill drawn in a 48 px target */
+  border-inline-width: 0;
   border-radius: var(--r-pill);
   box-shadow: inset 0 0 0 1px var(--line-strong);
-  background: var(--surface);
+  background: var(--surface) padding-box;
   font-size: var(--t-sm);
+  white-space: nowrap;
 }
 .todoline .i {
   width: 16px;
@@ -1797,6 +1819,11 @@ div.orig .save {
 /* A todo's row leads with its due date and priority, then when it was last edited */
 .todos .sub .due {
   order: -1;
+  flex-basis: 100%; /* its own line, whole: the date it was edited goes under it */
+}
+.todos .noimg,
+.todos .list em.todo {
+  display: none; /* every row here is a todo: the room goes to its title */
 }
 .donefold {
   margin-top: var(--s-4);
