@@ -678,6 +678,52 @@ mark {
   padding-inline-start: 46px;
   border-radius: var(--r-pill);
 }
+/* Recent searches, under the empty box while it has focus: "Recent" and Clear all, then the
+   last ten as one list group, each a row that runs it again (start-aligned, cut with … on one
+   line) and a 48 px ✕ that forgets it */
+.recents-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: calc(-1 * var(--s-2));
+}
+.recents-top h2.label {
+  margin: 0;
+}
+.recents-top button.link {
+  margin: 0 calc(-1 * var(--s-3)) 0 0;
+}
+.list.recents li {
+  display: flex;
+  align-items: center;
+}
+.list.recents .again {
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+}
+.list.recents .again span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list.recents .again .i {
+  flex: none;
+  color: var(--ink-2);
+}
+.list.recents .again:active {
+  background: var(--sunk);
+}
+.list.recents .forget {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
 /* The box's ✕ (the search screen's: one tap back to every page); the browser's own is hidden */
 .field-search .clear {
   position: absolute;

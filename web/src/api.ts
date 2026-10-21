@@ -160,15 +160,27 @@ export const blobUrl = (sha: string) => `/api/blobs/${sha}`;
 export const previewUrl = (sha: string, size: 480 | 2048) =>
   `/api/blobs/${sha}/preview?size=${size}`;
 
+/** This device's storage, which never throws: with no value, read key; with one, set it
+ * (null removes it). null on any error: a private tab or blocked storage keeps nothing, and the
+ * app works without it. Every use of localStorage goes through here. */
+export function kept(key: string, value?: string | null): string | null {
+  try {
+    if (value === undefined) return localStorage.getItem(key);
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {}
+  return null;
+}
+
 const LIMIT = "scrap.max_upload_bytes";
 
 /** The server's upload limit as last seen (0 if never), so the check works offline. */
-export const uploadLimit = () => Number(localStorage.getItem(LIMIT)) || 0;
+export const uploadLimit = () => Number(kept(LIMIT)) || 0;
 
 export async function learnLimit() {
   try {
     const { max_upload_bytes } = await (await fetch("/healthz")).json();
-    if (max_upload_bytes) localStorage.setItem(LIMIT, String(max_upload_bytes));
+    if (max_upload_bytes) kept(LIMIT, String(max_upload_bytes));
   } catch {} // offline: keep the last one
 }
 

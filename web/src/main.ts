@@ -1,6 +1,6 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
-import { api, learnLimit } from "./api";
+import { api, kept, learnLimit } from "./api";
 import { back, view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
@@ -192,7 +192,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
-if (localStorage.getItem(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
+if (kept(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();
 flush();

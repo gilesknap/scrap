@@ -36,6 +36,18 @@ export async function search(): Promise<Node> {
     "aria-label": "Search",
   });
   const pending = h("div");
+  // Recent searches under the empty box (searches.ts, a chunk of its own); a search is kept
+  // when it is run: Enter, opening a result, or the same query left 3 s with a result
+  const recents = h("div");
+  const later = import("./searches").then(
+    (m) => m.attach(input, recents, (q) => apply(() => q)),
+    () => null, // offline before it was kept: no recents, search as before
+  );
+  const remember = () => {
+    const query = input.value.trim();
+    if (query) void later.then((r) => r?.remember(query));
+  };
+  let settle: ReturnType<typeof setTimeout>;
   const results = h("div");
   const chips = h("div");
   // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
@@ -68,6 +80,7 @@ export async function search(): Promise<Node> {
   view.signal.addEventListener("abort", () => {
     clearTimeout(timer);
     clearTimeout(saving);
+    clearTimeout(settle);
     abort.abort();
   });
   // Where the list is scrolled to rides in its history entry, for Back
@@ -106,9 +119,12 @@ export async function search(): Promise<Node> {
         if (had) (el.querySelector(".filter") as HTMLElement).focus();
       })
       .catch(() => signal.aborted || chips.replaceChildren());
+    clearTimeout(settle);
     const shown = await list(query, signal);
     if (signal.aborted) return;
     results.replaceChildren(shown);
+    // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
+    if (!first && query && results.querySelector(".hits a")) settle = setTimeout(remember, 3000);
     if (scroll) {
       const y = scroll;
       scroll = 0;
@@ -203,8 +219,10 @@ export async function search(): Promise<Node> {
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
     const first = results.querySelector("a");
+    if (e.key === "Enter") remember();
     if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
   };
+  results.addEventListener("click", (e) => (e.target as Element).closest("a") && remember());
   const first = run(true);
   // The list: shown once here (main.ts says Loading if it is slow), so Back lands on it as it
   // was. No keyboard until the box is tapped.
@@ -213,6 +231,7 @@ export async function search(): Promise<Node> {
     "section",
     { className: "search" },
     h("div", { className: "field-search" }, icon("search"), input, clear),
+    recents,
     kinds,
     chips,
     pending,

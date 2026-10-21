@@ -93,6 +93,11 @@ the link as the capture's URL.
   nothing in the search box it lists every page newest first, with a thumbnail of the first
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. (There is no separate Recent screen any more: the empty box is it.)
+- Tap the empty search box for **Recent**: your last ten searches, newest first, filters and
+  all (`kind:todo tag:home`). Tap one to run it again, its **✕** to forget it, or **Clear all**.
+  A search is kept once it is run: Enter, opening a result, or leaving it a few seconds with
+  results; not as you type. They are kept on this phone only, never sent to scrap; in a
+  private tab, or with site storage blocked, there are none and search works as before.
 - Under the search box, a fixed row of kinds: **All**, **Notes**, **Todos**, **Reads**,
   **Boards**, **Docs**. One tap shows only that kind (it writes `kind:read` into the query), a
   second tap on it (or **All**) shows every kind again. A kind alone still lists newest first.
