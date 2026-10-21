@@ -108,8 +108,10 @@ export async function compose(picked: File[], as?: string) {
   showThumbs();
   const ed = editor({
     text,
-    before: [kind.el],
-    after: [todoLine.el, tagLine.el, thumbs, adders],
+    // As in a page's editor: the kind, then its due date and tags, each folded to a line, then
+    // the text; the photos and more under it
+    before: [kind.el, todoLine.el, tagLine.el],
+    after: [thumbs, adders],
     key: DRAFT,
     draft: (): Draft => ({
       text: text.value,

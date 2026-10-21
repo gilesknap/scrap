@@ -39,10 +39,8 @@ export function fold(name: string, body: HTMLElement, says: () => string, glyph:
     body,
   );
   for (const type of ["input", "change", "click"]) body.addEventListener(type, refresh);
-  el.addEventListener("toggle", () => {
-    refresh();
-    if (el.open) body.querySelector<HTMLElement>("input:not([type=date]), select")?.focus();
-  });
+  // Opened, nothing takes focus: no keyboard until a field is tapped (the chips come first)
+  el.addEventListener("toggle", refresh);
   refresh();
   return { el, refresh };
 }
