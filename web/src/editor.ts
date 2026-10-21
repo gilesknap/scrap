@@ -15,7 +15,8 @@ import { icon } from "./icons";
 import { KINDS } from "./kinds";
 import { h, previewer, saveKey, toast } from "./ui";
 
-export { suggested, toSend } from "./kinds";
+export { suggested } from "./boxes";
+export { toSend } from "./kinds";
 export { same, tagField } from "./tagedit";
 export { todoField, todoStart } from "./todoedit";
 export { confirmRemoval } from "./unembed";

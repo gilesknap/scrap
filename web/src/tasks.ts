@@ -5,11 +5,9 @@
 // words twice, or a box in code, can't be mistaken. Page edits need the server, so the
 // boxes are off while offline. A chunk of its own, loaded for a page that has boxes.
 import { ApiError, api, type Page } from "./api";
+import { ITEM } from "./render";
 import { why } from "./swipe";
 import { toast } from "./ui";
-
-// A list item's start: quote markers, then a bullet or number, then its task marker
-const ITEM = /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\]/;
 
 /** text with the task on line (0-based) ticked (or not), or null if that line holds no task
  * marker in the other state (the text changed since it was drawn). */

@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { suggested as withBoxes } from "../src/boxes";
 import { KINDS, suggested, toSend } from "../src/kinds";
 
 it("suggests Read for a link on its own, else Note", () => {
@@ -29,4 +30,12 @@ it("offers five kinds with short labels and full names", () => {
     ["whiteboard", "Board", "Whiteboard"],
     ["document", "Doc", "Document"],
   ]);
+});
+
+it("suggests Todo for text with task boxes, as saving would file it", () => {
+  expect(withBoxes("Packing\n\n- [ ] socks")).toBe("todo");
+  expect(withBoxes("> 1. [x] done")).toBe("todo");
+  expect(withBoxes("[ ] not a list item")).toBe("note");
+  expect(withBoxes("- \\[ ] escaped")).toBe("note");
+  expect(withBoxes("https://example.com")).toBe("consume");
 });

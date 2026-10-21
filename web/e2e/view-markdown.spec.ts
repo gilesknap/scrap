@@ -188,14 +188,29 @@ test("a task box ticks in place: that item, saved at once; never over a newer ed
   const boxes = page.locator(".page .md li.task input");
   await expect(boxes).toHaveCount(3); // not the one in code
   await expect(boxes.first()).toBeEnabled();
-  // A 44 px target: a tap beside the box still reaches it
+  // Each box is named by its item's text
+  await expect(page.getByRole("checkbox", { name: "passport" })).toBeChecked();
+  // A 48 px target: a tap beside the box still reaches it, and that box, not its neighbour's,
+  // right up to the edge of its target (the items are spaced so that no two meet)
   const at = await boxes.nth(1).boundingBox();
   if (!at) throw new Error("no box");
-  const hit = await page.evaluate(
-    ([x, y]) => document.elementFromPoint(x, y)?.closest(".taskbox") !== null,
-    [at.x + at.width / 2 + 15, at.y + at.height / 2 + 15],
-  );
-  expect(hit).toBe(true);
+  const [x, y] = [at.x + at.width / 2, at.y + at.height / 2];
+  for (const [dx, dy] of [
+    [15, 15],
+    [0, -23],
+    [0, 23],
+  ]) {
+    const hit = await page.evaluate(
+      ([px, py]) =>
+        document
+          .elementFromPoint(px, py)
+          ?.closest(".taskbox")
+          ?.querySelector("input")
+          ?.getAttribute("data-line"),
+      [x + dx, y + dy],
+    );
+    expect(hit).toBe(await boxes.nth(1).getAttribute("data-line"));
+  }
   // The second "socks": that one only, saved with no editor
   await boxes.nth(1).click();
   await expect

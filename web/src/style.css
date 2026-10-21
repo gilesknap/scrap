@@ -1066,10 +1066,10 @@ mark {
 .md li.task {
   list-style: none;
 }
-/* A task's box, in the bullet's place; on a page it ticks (tasks.ts): a 44 px target, the
-   items spaced so that no two targets overlap */
+/* A task's box, in the bullet's place; on a page it ticks (tasks.ts): a --tap target, the
+   items spaced (a 49 px pitch on the body's 27.2 px line) so that no two targets overlap */
 .md li.task {
-  padding-block: 7px;
+  padding-block: 11px;
 }
 .md li + li.task,
 .md li.task + li {
@@ -1084,8 +1084,8 @@ mark {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 44px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   translate: -50% -50%;
 }
 .md li.task input {

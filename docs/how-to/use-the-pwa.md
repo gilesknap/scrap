@@ -135,9 +135,11 @@ the link as the capture's URL.
   for `due:` searches.
 - **Task lists drive a todo.** A note with task boxes (`- [ ]`) becomes a todo when it is saved,
   unless you chose Note for it (in the composer or the editor; it is never done to a Read, Board
-  or Doc). Its row and page say how many are ticked (*2 of 5*), and its tick box on rows shows a
-  bar while only some are. Ticking the last box (on the page, or in the editor) marks it done;
-  unticking one on a done todo opens it again. **Done** by hand ticks no box, and a
+  or Doc). The kind picker shows what saving will file: **Todo** once the text has a box (done,
+  if every box is ticked), until you pick a kind; tap **Note** to keep it a note. Its row and
+  page say how many are ticked (*2 of 5*), and its tick box on rows shows a bar while only some
+  are. Ticking the last box (on the page, or in the editor) marks it done; unticking one, or
+  adding a new unticked one, on a done todo opens it again. **Done** by hand ticks no box, and a
   cancelled todo is left as it is.
 - **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
   tags and pick a **Snooze until** date (**No snooze** wakes it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
