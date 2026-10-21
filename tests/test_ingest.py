@@ -406,7 +406,34 @@ def test_user_fields_win(store, conn):
         conn.execute("INSERT INTO tag VALUES (?, 'mine')", (ref["page_id"],))
     run_one(store, Fake(BOARD))
     page = store.page(ref["page_id"])
-    assert (page["title"], page["kind"], page["tags"]) == ("My board", "todo", ["mine"])
+    # The user's tags and Claude's, merged on its first reading
+    assert (page["title"], page["kind"]) == ("My board", "todo")
+    assert page["tags"] == ["design", "mine", "queues"]
+
+
+def test_a_later_reading_does_not_bring_back_a_tag_taken_off(store, conn):
+    ref = photo(store, [jpeg()], text="My board")
+    with transaction(conn):
+        conn.execute("INSERT INTO tag VALUES (?, 'mine')", (ref["page_id"],))
+    run_one(store, Fake(BOARD))
+    store.update_page(ref["page_id"], None, None, None, "me", tags=["mine"])
+    ingest.reprocess(store, ref["capture_id"], None, False)
+    run_one(store, Fake(BOARD))
+    assert store.page(ref["page_id"])["tags"] == ["mine"]
+
+
+def test_claudes_tags_fill_up_to_the_page_limit_only(store, conn):
+    ref = photo(store, [jpeg()], text="Tagged a lot")
+    mine = [f"mine {n}" for n in range(60)]
+    store.update_page(ref["page_id"], None, None, None, "me", tags=mine)
+    many = {**BOARD, "tags": [f"claude-{n}" for n in range(10)]}
+    run_one(store, Fake(many))
+    tags = store.page(ref["page_id"])["tags"]
+    assert len(tags) == 64  # MAX_TAGS: the user's all kept, Claude's fill the rest
+    assert set(mine) <= set(tags)
+    assert set(tags) - set(mine) == {f"claude-{n}" for n in range(4)}
+    # So the page's tags can still be saved as they are
+    store.update_page(ref["page_id"], None, None, None, "me", tags=tags)
 
 
 def test_only_the_first_photo_sets_the_title(store, conn):

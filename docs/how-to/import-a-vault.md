@@ -32,6 +32,8 @@ no model unless you ask it to.
 
 4. Optionally, `--ingest` also queues every imported image for Claude, as a photo capture would
    be (they run once `SCRAP_INGEST=on`). Off by default: Thoth pages already describe their images.
+   Claude's first reading of a page's first image adds its tags (up to 10) to the page's imported
+   ones, so the vault's tags no longer stand alone.
 
 ## What is imported
 

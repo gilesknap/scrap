@@ -189,6 +189,72 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   expect(await page.evaluate(lowContrast, ""), "tag editor").toEqual([]);
 });
 
+test("the most used tags are offered one tap each, on a page and in the composer", async ({
+  page,
+}) => {
+  const id = "01E2ETAGTP01".padEnd(26, "0");
+  const made = await page.request.post("/api/captures", { data: { id, text: "Top tags here" } });
+  const { slug, page_id } = await made.json();
+  // [tag, pages under it, pages with that very tag]
+  const tags = async () =>
+    (await (await page.request.get("/api/tags")).json()) as [string, number, number][];
+  // Children enough that their parent, which no page has, has more pages under it than any
+  // tag has: ranked by that count, it would be offered first
+  const most = Math.max(...(await tags()).map((r) => r[1]));
+  const kids: string[] = [];
+  for (let i = 0; i <= most; i++) {
+    const r = await page.request.post("/api/captures", {
+      data: { id: `01E2ETAGTK${String(i).padStart(2, "0")}`.padEnd(26, "0"), text: `Kid ${i}` },
+    });
+    const kid = (await r.json()).page_id as string;
+    await page.request.patch(`/api/pages/${kid}`, { data: { tags: [`zzparent/k${i}`] } });
+    kids.push(kid);
+  }
+  /** The most used tags not on the page, as the chips should offer them. */
+  const expected = async (on: string[]) => {
+    return (await tags())
+      .filter((r) => r[2] > 0)
+      .sort((a, b) => b[2] - a[2])
+      .map(([t]) => t)
+      .filter((t) => !on.includes(t))
+      .slice(0, 6)
+      .map((t) => `#${t}`);
+  };
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Add tags" }).click();
+  const top = page.getByRole("group", { name: "Most used tags" });
+  const want = await expected([]);
+  expect(want).toHaveLength(6);
+  await expect(top.getByRole("button")).toHaveText(want);
+  expect(want).not.toContain("#zzparent"); // a parent no page was given
+  expect((await tags()).find((r) => r[0] === "zzparent")?.[1]).toBe(most + 1);
+  // A tap adds it (no typing): a chip to remove, and it leaves the offer
+  const first = want[0];
+  await top.getByRole("button", { name: `Add ${first}`, exact: true }).click();
+  await expect(page.getByRole("button", { name: `Remove ${first}`, exact: true })).toBeVisible();
+  await expect(top.getByRole("button")).toHaveText(await expected([first.slice(1)]));
+  await expect(top.getByRole("button").first()).toBeFocused(); // the chip now in its place
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".page h1 + .tags").getByRole("link")).toHaveText([first]);
+  const saved = await (await page.request.get(`/api/pages/${page_id}`)).json();
+  expect(saved.tags).toEqual([first.slice(1)]);
+  // Off again: the other tests count that tag's pages
+  await page.request.patch(`/api/pages/${page_id}`, { data: { tags: [] } });
+  // The composer offers them too
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  const offered = page.locator(".editor").getByRole("group", { name: "Most used tags" });
+  await expect(offered.getByRole("button")).toHaveText(await expected([]));
+  // A double tap adds one tag, not the one that slid under the finger too
+  await offered.getByRole("button").nth(1).dblclick();
+  await expect(page.locator(".editor .tagchips .facet")).toHaveCount(1);
+  await expect(offered.getByRole("button")).toHaveCount(6);
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  for (const kid of kids) await page.request.delete(`/api/pages/${kid}`); // for the other tests
+});
+
 test("Sort writes sort: into the query, and the results follow it", async ({ page }) => {
   await page.goto("/search?q=zephyr");
   await filters(page);

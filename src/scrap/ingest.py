@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from . import claude, preview, sanitise
-from .store import ENQUEUE, NotFoundError, Store, now, transaction
+from .store import ENQUEUE, MAX_TAGS, NotFoundError, Store, now, transaction
 
 __all__ = ["Worker", "claim", "enabled", "pause", "recover", "resume", "charge"]
 
@@ -476,7 +476,11 @@ class Worker:
         out: dict[str, Any],
         stamp: str,
     ) -> None:
-        """Title, tags and kind from a capture's first photo; the user's win."""
+        """Title, tags and kind from a capture's first photo; the user's win. Claude's
+        tags join the user's on its first reading of the photo (tagging a photo in the
+        composer keeps both); a later reading (Reprocess) adds them only to a page with
+        none, so a tag the user took off since does not come back. The page keeps at
+        most MAX_TAGS: Claude's fill what the user's leave."""
         page_id = conn.execute(
             "SELECT page_id FROM capture WHERE id = ?", (cid,)
         ).fetchone()[0]
@@ -493,12 +497,24 @@ class Worker:
             ).rowcount
         else:
             changed = 0
-        if not conn.execute(
-            "SELECT 1 FROM tag WHERE page_id = ?", (page_id,)
-        ).fetchone():
+        first_read = (
+            conn.execute(
+                "SELECT count(*) FROM derived WHERE capture_id = ?"
+                " AND source_sha256 = ? AND kind = 'description'",
+                (cid, photo),
+            ).fetchone()[0]
+            == 1  # the version just put
+        )
+        have = {
+            r[0]
+            for r in conn.execute("SELECT tag FROM tag WHERE page_id = ?", (page_id,))
+        }
+        if first_read or not have:  # at most MAX_TAGS in all: the user's first
+            room = max(0, MAX_TAGS - len(have))
+            fresh = [t for t in out["tags"] if t not in have][:room]
             changed += conn.executemany(
                 "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
-                [(page_id, tag) for tag in out["tags"]],
+                [(page_id, tag) for tag in fresh],
             ).rowcount
         if changed:  # a new title or tags: search sees them
             self.store.reindex(conn, page_id)

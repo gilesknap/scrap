@@ -157,7 +157,9 @@ tool returns that run with its image.
   title at its `base_rev` as unchanged, so the PWA, which always sends the title it loaded,
   never undoes the model's. The PWA should still send `title` only when edited (issue #13), but
   the server does not depend on it. The slug never changes (the PWA uses the id).
-- **Tags** fill an empty tag list on the first success (0002 adds `tag`).
+- **Tags** join the page's own on the first reading of its first photo, the user's first: Claude's
+  fill what the user's leave of the page's 64 (0002 adds `tag`). A later reading (Reprocess)
+  adds them only to a page with none, so a tag the user took off stays off.
 - **Kind** changes only while it is `note` and not fixed: whiteboard and diagram become
   `whiteboard`, document becomes `document`. The mapping is one table in code.
 
@@ -238,8 +240,9 @@ base version (409 if stale) as a `human` version whose labels become `text`; **H
 A scene that breaks these gets a 422, and the editor keeps its state.
 
 **Prompt injection.** The image is data: no tools, no network, output schema-checked and
-sanitised. It can change only its page's versions, a provisional title, empty tags and an
-unfixed `note` kind.
+sanitised. It can change only its page's versions, a provisional title, its tags (adding up to 10
+on the first reading, alongside the user's, which it cannot remove; none on a later one unless
+the page has none) and an unfixed `note` kind.
 
 ## Spend and outage control
 
