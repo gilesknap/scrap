@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { adding, day, has, kindsIn, listing, removing, token, tree, withKind } from "../src/terms";
+import {
+  adding,
+  day,
+  has,
+  kindsIn,
+  listing,
+  removing,
+  sortsIn,
+  token,
+  tree,
+  withKind,
+} from "../src/terms";
 
 it("writes a filter, quoting a value with spaces", () => {
   expect(token("tag", "tech/epics")).toBe("tag:tech/epics");
@@ -20,6 +31,14 @@ it("removes a whole token and tidies the spaces", () => {
   expect(removing("garden", "tag:x")).toBe("garden");
   expect(removing("a", "")).toBe("a");
   expect(has('a tag:"b c"', 'tag:"b c"')).toBe(true);
+});
+
+it("finds the orders a query has, to replace them all", () => {
+  expect(sortsIn("zephyr kind:todo -sort:created")).toEqual(["-sort:created"]);
+  expect(sortsIn("sort:due a -sort:title")).toEqual(["sort:due", "-sort:title"]);
+  expect(sortsIn("resort:x mysort:y")).toEqual([]);
+  const q = "zephyr -sort:created kind:todo sort:due";
+  expect(sortsIn(q).reduce(removing, q)).toBe("zephyr kind:todo");
 });
 
 it("makes a tree of tags, parents first", () => {

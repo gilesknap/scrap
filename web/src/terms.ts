@@ -31,6 +31,10 @@ export function removing(q: string, t: string): string {
   return `${q.slice(0, i).trimEnd()} ${q.slice(i + t.length).trimStart()}`.trim();
 }
 
+/** The orders a query has (sort:due, -sort:created), as typed. */
+export const sortsIn = (q: string) =>
+  q.split(/\s+/).filter((t) => t.startsWith("sort:") || t.startsWith("-sort:"));
+
 /** A date picker's value as after:/before: take it (YYYY-MM-DD, years 1 to 9999), or ""
  * (a typed year past 9999 is clamped to 9999-12-31). */
 export function day(v: string): string {

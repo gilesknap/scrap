@@ -9,7 +9,7 @@
 import { api } from "./api";
 import { back, go, view } from "./app";
 import { icon } from "./icons";
-import { adding, day, has, kindsIn, removing, token } from "./terms";
+import { adding, day, has, kindsIn, removing, sortsIn, token } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -207,8 +207,7 @@ function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () =>
     );
   // Sort: a native menu (the phone's own picker), writing sort: into the query
   const todos = kindsIn(q).length === 1 && kindsIn(q)[0][1] === "todo";
-  const sorts = f.active.filter((a) => a.key === "sort");
-  const last = sorts[sorts.length - 1];
+  const last = f.active.filter((a) => a.key === "sort").at(-1);
   const words = q.split(/\s+/).some((w) => w && !"-!".includes(w[0]) && !w.includes(":"));
   const sort = h(
     "select",
@@ -216,8 +215,10 @@ function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () =>
       className: "button facet sort",
       "aria-label": "Sort",
       onchange: () =>
+        // The orders in the query as it is now, not as this menu was drawn: two picks
+        // before the sheet is drawn again must not leave the first one behind
         set((now) => {
-          const rest = sorts.reduce((s, a) => removing(s, a.token), now);
+          const rest = sortsIn(now).reduce(removing, now);
           return sort.value ? adding(rest, sort.value) : rest;
         }),
     },
