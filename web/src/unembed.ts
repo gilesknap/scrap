@@ -1,7 +1,8 @@
 // Save's warning when an edit deletes the embed of a stored image: the page shows its images
 // only where its text embeds them, so the image goes from the page with its line. Part of the
-// editor's chunk. The file itself (and what Claude made of it) is kept while anything still
-// uses it: another page, or this page's capture (see scrap gc).
+// editor's chunk. A photo of this page's own that no other page uses goes from its capture
+// too, with what Claude made of it (the server's Store._unlink), so the nightly scrap gc
+// deletes the file; one another page uses is kept.
 import { ApiError, api, type Page } from "./api";
 
 // A file's address in text, as the server's store.body_refs reads it: any mention counts
@@ -9,6 +10,9 @@ const ADDRESS = /\/api\/blobs\/([0-9a-f]{64})/g;
 
 /** The stored files a page's text refers to, by SHA-256. */
 export const blobRefs = (text: string) => new Set([...text.matchAll(ADDRESS)].map((m) => m[1]));
+
+/** Whether a file is one of the page's own photos (a capture's), not another page's. */
+const own = (sha: string, p: Page) => p.captures.some((c) => c.blobs.some((b) => b.sha256 === sha));
 
 /** What to call a file in the warning: its name, else its embed's alt text, else its start. */
 function nameOf(sha: string, p: Page, text: string) {
@@ -23,6 +27,7 @@ function nameOf(sha: string, p: Page, text: string) {
 export async function removalWarning(p: Page, before: string, after: string) {
   const kept = blobRefs(after);
   const gone = [...blobRefs(before)].filter((sha) => !kept.has(sha));
+  let deleted = false; // a photo of its own the nightly cleanup will delete
   const lines = await Promise.all(
     gone.map(async (sha) => {
       const name = nameOf(sha, p, before);
@@ -30,9 +35,10 @@ export async function removalWarning(p: Page, before: string, after: string) {
         const { pages } = await api<{ pages: number }>(
           `blobs/${sha}/uses?page=${encodeURIComponent(p.id)}`,
         );
-        return pages
-          ? `• ${name}: still shown on ${pages} other page${pages === 1 ? "" : "s"}`
-          : `• ${name}: no longer shown on any page`;
+        if (pages) return `• ${name}: still shown on ${pages} other page${pages === 1 ? "" : "s"}`;
+        if (!own(sha, p)) return `• ${name}: no longer shown on any page`;
+        deleted = true;
+        return `• ${name}: no longer shown on any page, so the nightly cleanup deletes it, with what Claude made of it`;
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) return null; // not a file we hold
         return `• ${name}: no longer shown here (other pages may still show it)`; // offline: can't tell
@@ -46,7 +52,9 @@ export async function removalWarning(p: Page, before: string, after: string) {
     `Saving removes ${n === 1 ? "an image" : `${n} images`} from this page, because you deleted ${n === 1 ? "its line" : "their lines"}:`,
     ...shown,
     "",
-    "This doesn't delete the stored file: a photo stays with its capture, and scrap gc deletes a file only once nothing uses it.",
+    deleted
+      ? "A deleted photo can't be brought back once the cleanup has run."
+      : "A file another page still shows is kept.",
     "",
     "Save anyway? Cancel to keep editing.",
   ].join("\n");

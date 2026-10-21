@@ -8,6 +8,7 @@ import pytest
 
 from scrap import gc
 from scrap.__main__ import main
+from scrap.backup import export
 from scrap.store import Store, body_refs, new_ulid, now
 
 DAY = 24 * 3600
@@ -70,11 +71,12 @@ def test_a_file_mentioned_only_in_code_or_odd_markdown_is_kept(client, store):
     """body_refs is not the Markdown parser: an address in code, a full URL, an HTML
     comment or broken Markdown still keeps its file, as gc deletes what it misses."""
     ref, _ = photo(client)
+    own = client.get(f"/api/pages/{ref['page_id']}").json()["body"]  # its photo's embed
     shas = [put(store, f"mention {n}".encode()) for n in range(7)]
     orphan = put(store, b"orphan")
     a = [f"/api/blobs/{sha}" for sha in shas]
-    body = (
-        f"```\n![]({a[0]}/preview?size=2048)\n```\n\n"
+    body = own + (
+        f"\n\n```\n![]({a[0]}/preview?size=2048)\n```\n\n"
         f"    indented {a[1]}\n\n"
         f"inline `{a[2]}?download=1`\n\n"
         f"https://scrap.example{a[3]}/preview?size=480\n\n"
@@ -120,12 +122,20 @@ def test_every_kind_of_reference_keeps_a_file(client, store):
     trashed, _ = photo(client, b"other", "Trashed")
     client.patch(
         f"/api/pages/{trashed['page_id']}",
-        json={"base_rev": 1, "body": f"![](/api/blobs/{in_trash}/preview?size=2048)"},
+        json={
+            "base_rev": 1,
+            "body": client.get(f"/api/pages/{trashed['page_id']}").json()["body"]
+            + f"\n![](/api/blobs/{in_trash}/preview?size=2048)",
+        },
     ).raise_for_status()
     client.delete(f"/api/pages/{trashed['page_id']}").raise_for_status()
     client.patch(
         f"/api/pages/{ref['page_id']}",
-        json={"base_rev": 1, "body": f"see [this](/api/blobs/{in_body}?download=1)"},
+        json={
+            "base_rev": 1,  # its own photo's embed kept: a save without it unlinks it
+            "body": client.get(f"/api/pages/{ref['page_id']}").json()["body"]
+            + f"\nsee [this](/api/blobs/{in_body}?download=1)",
+        },
     ).raise_for_status()
     cid, stamp = ref["capture_id"], now()
     with store.connect() as conn:
@@ -311,9 +321,129 @@ def test_removing_an_embed_hides_the_photo_and_counts_other_pages(client, store)
     rows = {p["id"]: p for p in client.get("/api/pages").json()}
     assert rows[ref["page_id"]]["thumb"] is None
     assert client.get(f"/api/blobs/{'d' * 64}/uses?page=x").status_code == 404
-    # Still the capture's: gc keeps it (and its Claude results) while it has a capture
+    # A page in the trash still shows it: this page's capture keeps it (and its Claude
+    # results), so bringing that page back loses nothing
     age_all(store)
     assert sha not in gc.collect(store, delete=True).shas
+    with store.connect() as conn:
+        assert conn.execute(
+            "SELECT 1 FROM capture_blob WHERE sha256 = ?", (sha,)
+        ).fetchone()
+
+
+def results(store, cid, sha, sent):
+    """What Claude made of a photo, as ingest leaves it: a run, its derived text (and
+    search chunk) and its job."""
+    stamp = now()
+    with store.connect() as conn:
+        run = conn.execute(
+            "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
+            " prompt_version, sent_sha256, request, started_at)"
+            " VALUES (?, ?, 'ingest', 'm', 'v', ?, '{}', ?)",
+            (cid, sha, sent, stamp),
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO derived (capture_id, source_sha256, kind, version, producer,"
+            " run_id, text, created_at) VALUES (?, ?, 'ocr', 1, 'm', ?, ?, ?)",
+            (cid, sha, run, "zebrafinch", stamp),
+        )
+        conn.execute(
+            "INSERT INTO job (kind, capture_id, source_sha256, state, run_after,"
+            " created_at, updated_at) VALUES ('ingest', ?, ?, 'done', ?, ?, ?)",
+            (cid, sha, stamp, stamp, stamp),
+        )
+
+
+def refs(store, sha):
+    """The rows that keep a file (gc's columns), counted by table."""
+    found: dict[str, int] = {}
+    with store.connect() as conn:
+        for sql in gc.COLUMNS:
+            table = sql.split()[3]
+            n = [row[0] for row in conn.execute(sql)].count(sha)
+            if n:
+                found[table] = found.get(table, 0) + n
+    return found
+
+
+def test_saving_without_its_last_embed_unlinks_the_photo_for_gc(
+    client, store, tmp_path
+):
+    """Deleting the embed of the page's own photo and saving takes the photo off its
+    capture, with what Claude made of it, so gc deletes the file and the JPEG sent."""
+    ref, sha = photo(client)
+    sent = put(store, b"the jpeg sent to claude")
+    results(store, ref["capture_id"], sha, sent)
+    assert client.get("/api/search", params={"q": "zebrafinch"}).json()
+    assert set(refs(store, sha)) == {"capture_blob", "derived", "job", "model_run"}
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert f"/api/blobs/{sha}" in page["body"]
+    edited = client.patch(
+        f"/api/pages/{ref['page_id']}", json={"base_rev": 1, "body": "A photo, gone"}
+    ).json()
+    assert edited["captures"][0]["blobs"] == []
+    assert refs(store, sha) == {} and refs(store, sent) == {}
+    assert client.get("/api/search", params={"q": "zebrafinch"}).json() == []
+    # The page's download no longer carries it: plain Markdown, not a zip
+    download = client.get(f"/api/pages/{ref['page_id']}/download")
+    assert download.headers["content-type"].startswith("text/markdown")
+    assert sha not in download.text
+    export(store, tmp_path / "export")  # nor does scrap export: no copy of its bytes
+    exported = [f for f in (tmp_path / "export").rglob("*") if f.is_file()]
+    assert exported and all(f.read_bytes() != b"photo bytes" for f in exported)
+    age_all(store)
+    assert set(gc.collect(store, delete=True).shas) == {sha, sent}
+    assert not store.blob_path(sha).exists() and not store.blob_path(sent).exists()
+
+
+def test_saving_keeps_a_photo_another_page_uses(client, store):
+    """Another page's text (live or in the trash) or its own capture of the same bytes
+    keeps the photo with this page's capture, untouched."""
+    for how in ("embed", "trash", "capture"):
+        ref, sha = photo(client, f"bytes {how}".encode())
+        results(store, ref["capture_id"], sha, put(store, f"sent {how}".encode()))
+        if how == "capture":
+            photo(client, f"bytes {how}".encode(), "The same photo")
+        else:
+            other, _ = photo(client, f"other {how}".encode(), "Other")
+            client.patch(
+                f"/api/pages/{other['page_id']}",
+                json={
+                    "base_rev": 1,
+                    "body": f"![](/api/blobs/{sha}/preview?size=2048)",
+                },
+            ).raise_for_status()
+            if how == "trash":
+                client.delete(f"/api/pages/{other['page_id']}").raise_for_status()
+        client.patch(
+            f"/api/pages/{ref['page_id']}", json={"base_rev": 1, "body": "No photo"}
+        ).raise_for_status()
+        kept = refs(store, sha)
+        assert set(kept) == {"capture_blob", "derived", "job", "model_run"}, how
+        assert kept["capture_blob"] == 1 + (how == "capture"), how  # theirs too
+
+
+def test_saving_leaves_another_pages_photo_and_unchanged_embeds_alone(client, store):
+    """Only the page's own photos whose embed went: one embedded from another page, or
+    one still embedded, or a save of other text, keeps every link."""
+    ref, sha = photo(client, b"mine")
+    other, theirs = photo(client, b"theirs", "Other")
+    body = client.get(f"/api/pages/{ref['page_id']}").json()["body"]
+    client.patch(
+        f"/api/pages/{ref['page_id']}",
+        json={
+            "base_rev": 1,
+            "body": f"{body}\n![](/api/blobs/{theirs}/preview?size=2048)",
+        },
+    ).raise_for_status()
+    client.patch(
+        f"/api/pages/{ref['page_id']}", json={"base_rev": 2, "body": f"{body}\nmore"}
+    ).raise_for_status()
+    assert refs(store, sha)["capture_blob"] == refs(store, theirs)["capture_blob"] == 1
+    client.patch(  # only a title: the body as it was
+        f"/api/pages/{ref['page_id']}", json={"base_rev": 3, "title": "Renamed"}
+    ).raise_for_status()
+    assert refs(store, sha)["capture_blob"] == 1
 
 
 @pytest.mark.parametrize("delete", [False, True])

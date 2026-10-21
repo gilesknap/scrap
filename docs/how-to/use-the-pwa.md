@@ -153,10 +153,11 @@ the link as the capture's URL.
   progress (waiting, reading, paused) and then what it read, described and drew. Below the text
   are the files it doesn't show, such as PDFs, as links with a **Download**.
 - Deleting a photo's line removes the photo from the page. **Save** warns first, naming each
-  photo whose line went: *no longer shown on any page*, or *still shown on N other pages*. This
-  doesn't delete the stored file. **Cancel** goes back to the editor with your text as it was (undo brings the
-  line back); **OK** saves. The file and what Claude made of it are kept while anything still
-  uses it; the nightly `scrap gc` deletes files nothing uses.
+  photo whose line went: *still shown on N other pages* (it is kept), or *no longer shown on any
+  page*. A photo of the page's own that no other page uses is then deleted, with what Claude
+  read, described and drew from it, by the nightly cleanup (`scrap gc`), and the page's
+  **Download** no longer includes it. **Cancel** goes back to the editor with your text as it was
+  (undo brings the line back); **OK** saves.
 - Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
   drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
   **Download** and **Share** are along the bottom and the cross at the top right closes it, as
