@@ -70,7 +70,7 @@ that way (480 px JPEGs, so a few hundred kB each).
   matched together with its target (a new page, or the page appended to, by id or slug), so
   reusing one for another page writes there rather than being taken for a retry.
 - **Limits.** `title` 1 to 200 characters (whitespace collapsed); `body` at most 200 kB of UTF-8
-  per call, and a page appended to at most 1 MB; at most 20 tags, each 1 to 64 characters once
+  per call, and a page appended to at most 1 MB (any page's most, #62); at most 20 tags, each 1 to 64 characters once
   normalised as imported tags are (one space between words, no leading `#`, lower case;
   `a/b` nests); `kind` one of `note`, `todo`, `read`, `board`, `doc`; `status` (`open`,
   `in_progress`, `done`, `cancelled`) only for a todo or a read. Text must be valid Unicode with

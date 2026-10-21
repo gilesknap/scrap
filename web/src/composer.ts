@@ -4,7 +4,7 @@ import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { editor, kindPicker, suggested, tagField, todoField, toSend } from "./editor";
+import { editor, kindPicker, suggested, tagField, todoField, tooLong, toSend } from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
 import { blobImg, clearToasts, h, toast } from "./ui";
@@ -117,6 +117,8 @@ export async function compose(picked: File[], as?: string) {
   const store = async (separately: boolean) => {
     const body = text.value.trim();
     if (!body && !files.length) return text.focus();
+    const long = tooLong(body);
+    if (long) return toast(long, "", undefined, 8000); // kept in the composer to shorten
     const tagged = tags.value();
     const capture: Capture = {
       text: body || undefined,

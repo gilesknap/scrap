@@ -11,6 +11,7 @@ import {
   suggested,
   tagField,
   todoField,
+  tooLong,
   toSend,
 } from "./editor";
 import { h, toast } from "./ui";
@@ -61,6 +62,8 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   showTodo();
   const conflict = h("div");
   const save = async () => {
+    const long = tooLong(text.value);
+    if (long) return toast(long, "", undefined, 8000); // still editing, as it was
     if (!(await confirmRemoval(p, over, text.value))) return; // still editing, as it was
     try {
       const saved = await api<Page>(`pages/${p.id}`, {

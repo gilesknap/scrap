@@ -97,6 +97,7 @@ MCP = "mcp"  # the source of a page Claude wrote, over MCP
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
 MAX_TAG = 64  # characters, as the tag table's CHECK has it
+MAX_PAGE = 1_000_000  # bytes of UTF-8: a page's text, however it is written (#62)
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
 # job_one_active makes a repeat add nothing.
@@ -146,6 +147,17 @@ def upload_limit() -> int:
         raise SystemExit(
             f"SCRAP_MAX_UPLOAD_MB must be a number, not {value!r}"
         ) from None
+
+
+def check_page(body: str) -> str:
+    """body, if it is within MAX_PAGE bytes of UTF-8; else InvalidError, saying so."""
+    size = len(body.encode())
+    if size > MAX_PAGE:
+        raise InvalidError(
+            f"page text is {size / 1e6:.2f} MB:"
+            f" a page holds at most {MAX_PAGE / 1e6:g} MB"
+        )
+    return body
 
 
 def unlink(text: str) -> str:
@@ -484,7 +496,7 @@ class Store:
             "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),
             **todo,
             "title": title or when.strftime("%Y-%m-%d %H:%M"),
-            "body": "\n\n".join(x for x in (url, text) if x),
+            "body": check_page("\n\n".join(x for x in (url, text) if x)),
             "tags": tags,
         }  # fmt: skip
 
@@ -501,7 +513,7 @@ class Store:
         """
         cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
         tags = c.get("tags") if tags is None else tags
-        body = "\n\n".join(x for x in (body, *embeds(blobs, body)) if x)
+        body = check_page("\n\n".join(x for x in (body, *embeds(blobs, body)) if x))
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -825,7 +837,7 @@ class Store:
             ):
                 title = None  # unchanged since base_rev: keep a newer (model) title
             new_title = page["title"] if title is None else " ".join(title.split())
-            new_body: str = page["body"] if body is None else lines(body)
+            new_body: str = page["body"] if body is None else check_page(lines(body))
             if not new_title:
                 raise InvalidError("title must not be empty")
             if (new_title, new_body) != (page["title"], page["body"]):

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from . import claude, preview, sanitise
-from .store import ENQUEUE, NotFoundError, Store, now, transaction
+from .store import ENQUEUE, MAX_PAGE, NotFoundError, Store, now, transaction
 
 __all__ = ["Worker", "claim", "enabled", "pause", "recover", "resume", "charge"]
 
@@ -205,7 +205,9 @@ def put_derived(
             "producer": producer,
             "run": run_id,
             "author": author,
-            "text": text or None,
+            # Within a page's most (its text is indexed with the page); a model's answer
+            # is far shorter (MAX_TOKENS), so this only guards against the unexpected
+            "text": text.encode()[:MAX_PAGE].decode(errors="ignore") if text else None,
             "data": None if data is None else json.dumps(data),
             "superseded": None if current else stamp,
             "now": stamp,
