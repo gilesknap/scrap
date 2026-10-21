@@ -12,16 +12,16 @@ It uses the vocabulary of [the PWA's design system](design-system.md) (hero, pri
 disagree on something below, this page records what Giles approved; update the design system as
 each piece lands.
 
-Screenshots of every state described here were taken on the branch and are kept on Giles's
-machine, not in the repository: `~/design-brief/BRIEF.md` (the original brief) and
-`~/design-brief/polish/` (`before/`, `after/`, `pairs/` for the first polish round, then
-`round2/`, `round3/`). Ask Giles for any you need; file names are given in each section.
+Screenshots of every state described here (light and dark, 360 and 412 px) were taken on the
+branch. They are on Giles's machine, not in the repository, and you cannot reach them: ask
+Giles to attach the ones you need. Each section names the screens it has.
 
 ## Constraints for every change
 
 - **App shell budget.** The app shell (the JavaScript every screen loads) may be at most
-  16 kB gzipped (`web/scripts/size.mjs`, checked in CI). On `main` at `d1ab3c6` it is
-  **16302 of 16384 bytes** (`cd web && npm run build && npm run size`): 82 bytes are left.
+  16 kB gzipped (`web/scripts/size.mjs`, checked in CI). At the time of writing (`main` at
+  `a0ce9e4`) it is **16300 of 16384 bytes**: 84 bytes are left. Every merge moves it, so
+  re-measure before you start (`cd web && npm run build && npm run size`).
   Anything bigger than a few lines goes in a lazy chunk (as `todos.ts`, `todoedit.ts`,
   `pager.ts` and the editor already are), and a change to a shell module should pay for itself.
   On the branch, items 1 to 4 were built mostly inside lazy chunks for this reason; each section
@@ -35,8 +35,11 @@ machine, not in the repository: `~/design-brief/BRIEF.md` (the original brief) a
   that needs the server shows the calm offline state (`problem()` in `ui.ts`); controls that
   need the server say so rather than failing silently. A new feature must not blank the app when
   storage or the network is missing.
-- **One modal.** The search screen's Filters sheet (`dialog.sheet`) is the only modal of our own.
-  Menus are light-dismiss popovers (the share menu); forms open in place.
+- **One sheet.** The search screen's Filters sheet (`dialog.sheet`, opened with `showModal()` in
+  `refine.ts`) is the only native modal `<dialog>` and the only bottom sheet. The photo viewer
+  (`web/src/viewer.ts`) and the drawing layer (`web/src/board/viewer.ts`) are full-screen
+  `role="dialog"` `aria-modal="true"` layers. Menus are light-dismiss popovers (the share menu);
+  forms open in place. Don't add another modal or sheet.
 - **The query is the source of truth** for any list: a view must survive Back, a reload and a
   shared link.
 - **Small pull requests, each reviewed.** One change per pull request, branched from `main`, with
@@ -79,7 +82,7 @@ wider; Download is in Share's menu", and the existing Done/Reopen test), `web/te
 ("offers Mark done from any status but done, Reopen from done or cancelled").
 
 **Commits.** `525c08e`, `0867e8f` on `design-polish` (the same as `9948f29`, `96a8987` on
-`split-mark-done`). Screens: `round3/01-todo-page-mark-done-partial-*.png`,
+`split-mark-done`). Screens (ask Giles): `round3/01-todo-page-mark-done-partial-*.png`,
 `round3/02-share-menu-download-*.png`, `round3/03-cancelled-mark-done-reopen-*.png`.
 
 ## 2. Recent searches under the empty search box
@@ -122,7 +125,7 @@ last searches: run again, forget one, clear all", "search works the same when th
 nothing"). The spec's name sorts it after `smoke.spec.ts` on purpose: smoke wants an empty store.
 
 **Commits.** `e1e33a2`, `df2592e`, `6950156` (start-aligned rows) on `design-polish`; the same as
-`28d9a45`, `d006c75`, `34d7fc0` on `split-recents`. Screen: `round3/05-recent-searches-*.png`.
+`28d9a45`, `d006c75`, `34d7fc0` on `split-recents`. Screen (ask Giles): `round3/05-recent-searches-*.png`.
 
 ## 3. Due chips, and a done todo keeps its date greyed
 
@@ -156,7 +159,7 @@ priority and due date, overdue only while it is not done"). Check the greyed dat
 contrast tests: `--ink-3` is for captions, so confirm it passes AA where it lands.
 
 **Commits.** `502010e`, `47ae059` on `design-polish` (`3b223ea`, `456b8bd` on
-`split-todo-fields`). Screens: `round2/05-todo-form-due-snooze-*.png`,
+`split-todo-fields`). Screens (ask Giles): `round2/05-todo-form-due-snooze-*.png`,
 `round2/02-todos-all-snoozed-done-grey-*.png`.
 
 ## 4. The Todos screen: New todo, Done moves on, the composer's due and priority, Snooze's line
@@ -176,7 +179,7 @@ open the next one, and the todo form wrapped awkwardly once Snooze joined it.
   the new todo appears. The Todos screen itself needs the server (offline it shows the calm
   offline state, so no button); if a refetch fails the list stays as it was. If
   the composer chunk can't load, a toast says "Can't open the composer: reload scrap and try
-  again". (The branch's `use-the-pwa.md` still says "bottom right": that line is stale.)
+  again". Write "bottom left" in `use-the-pwa.md` when it lands.
 - **Done moves on.** Mark done on a todo opened from a Todos list steps to the next todo in that
   list (it slides in as a pager step; the pager reads "3 of 9 · Todos · Now") and shows a toast
   "Done: <title>. Next todo, 3 of 9" with **Undo** for 6 s. Undo sets the old status back and
@@ -212,11 +215,12 @@ pager's text is now a button).
 (composer due and priority), `5595474` (New todo to the left, Snooze's line), and the Todos
 screen's wording in `236c208` (Upcoming's count "N due in the next 7 days", empty "Nothing due in
 the next 7 days."). On `split-todos-screen`: `ce9f412`, `21bb985`, `6cbbaa7`, `fc4db46`.
-Screens: `round2/01-todos-now-newtodo-*.png`, `round2/03-composer-new-todo-*.png`,
+Screens (ask Giles): `round2/01-todos-now-newtodo-*.png`, `round2/03-composer-new-todo-*.png`,
 `round2/07-done-moves-on-light.png`, `round2/05-todo-form-due-snooze-*.png`.
 
-**Depends on** the snooze data (below) for the Snooze line, and on item 1 for the Mark done
-button that moves on.
+**Depends on** item 1 for the Mark done button that moves on, and on the snooze data (below)
+for the Snooze line. Snooze is **not on `main` yet**: build New todo, Done moves on and the
+composer's due and priority now, and the Snooze line only once snooze lands.
 
 ## Decided, but not in this handover's scope
 
@@ -235,10 +239,34 @@ build on them once they are on `main`.
 - **Back leaves Todos:** switching Now, Upcoming and All replaces the history entry rather than
   adding one.
 - **Save separately gives every page the kind**, as well as the tags.
-- Also on the pull request stack: the Filters sheet drops a todo search's Today, Overdue and
-  Upcoming (the Todos screen owns them); the six most used tags as one-tap chips under Add a tag;
-  Claude's tags join the user's on a photo's first reading; saving without a photo's last embed
-  unlinks it so gc can reclaim it.
+- **Filters sheet without due views:** a todo search's Today, Overdue and Upcoming leave the
+  Filters sheet (the Todos screen owns them); typed `due:` still works.
 
-Later canary work after `6950156` (a calmer edit pane, tag chips ranked by direct use) is not
-part of this handover.
+Already on `main` (#121, #123), so build on them as they are: the six most used tags as one-tap
+chips under Add a tag, ranked by the pages given exactly that tag (`5e8dff8`), and Claude's tags
+joining the user's on a photo's first reading.
+
+**Don't build:** Save unlinking a photo whose last embed is deleted. It was dropped; instead gc
+will gather orphaned assets into one page per month (#124).
+
+## Later work on the branch, after `6950156`
+
+`design-polish` has two more commits Giles tried on the canary after this page's items. Neither
+is on `main` as written.
+
+- **A calmer edit pane** (`86a7ce9`): **UX, for Design.** In the editor and the composer the
+  text box keeps at least 60 % of the visible height (a `--vv-h` property that follows the visual
+  viewport), however many tags, and the fields scroll as one. The tags, and a todo's due date and
+  priority, fold into one summary line each that says what they hold ("Tags 15 · #work
+  #garden…", "Due 24 Oct · high"); a tap opens them in place (a native `<details>`, a `fold()`
+  helper in the editor chunk). Save is the top bar's one fill, with Cancel and Preview as text
+  buttons; the title sits on a rule instead of in a second box; the composer's Camera and Gallery
+  are text buttons. Shell unchanged. Its e2e (`web/e2e/tags.spec.ts`) checks the text keeps at
+  least 40 % of the visible height with 15 tags and a simulated keyboard, at 360 and 412 px.
+  It changes how items 3 and 4's due field is reached in the editor and composer, so build it
+  after them or together. Screens (ask Giles): `round4/`.
+- **Top tags by direct use** (`e5df617`): the **behaviour** (ranking by direct count, never
+  offering a parent used only through its children) is on `main` as `5e8dff8`. Its remaining
+  **UX, for Design**: a long top-tag chip is cut at its start ("…/raised-beds", `max-width`
+  11rem, the ellipsis first) so the leaf that tells tags apart shows, with the whole tag as its
+  `title` and accessible name.
