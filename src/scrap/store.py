@@ -255,6 +255,9 @@ def todo_only(page: dict[str, Any]) -> dict[str, Any]:
     return page
 
 
+HEADING = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")  # an ATX heading's marker
+
+
 def slug_base(title: str) -> str:
     """A slug made from a title, before any suffix that makes it unique."""
     ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore")
@@ -535,7 +538,9 @@ class Store:
         if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
             raise InvalidError("tags must be a list of strings")
         tags = clean_tags(tags)  # as an edit's
-        title = text.splitlines()[0][:200] if text else url
+        # Its first line, without a Markdown heading's #s ("# Trip notes" is titled Trip notes)
+        first = text.splitlines()[0] if text else ""
+        title = (HEADING.sub("", first).strip() or first)[:200] if text else url
         return {
             "id": cid, "kind": what, "text": text, "url": url, "source": source,
             "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),

@@ -700,6 +700,7 @@ mark {
 .list.recents .again {
   flex: 1;
   justify-content: flex-start;
+  text-align: start;
   min-width: 0;
   border: none;
   border-radius: 0;
@@ -1963,6 +1964,17 @@ div.orig .save {
   color: var(--ink-2);
   white-space: normal; /* when it is due matters more than one line: never cut */
 }
+/* A done or cancelled todo's or Read's page says so first in its meta line, as its row does */
+.meta .state {
+  margin-inline-end: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--t-xs);
+  font-style: normal;
+  font-weight: 600;
+}
 .list .due.late,
 .todoline .late {
   color: var(--danger);
@@ -2073,6 +2085,11 @@ div.orig .save {
 .todos .sub .due {
   order: -1;
   flex-basis: 100%; /* its own line, whole: the date it was edited goes under it */
+}
+/* Now and Upcoming: what to do and when, not when it was last edited (All, last edited first,
+   keeps the date) */
+.todos [data-view]:not([data-view="all"]) .sub > small:not([class]) {
+  display: none;
 }
 .todos .noimg,
 .todos .list em.todo {

@@ -9,7 +9,7 @@ import { renderer, unembedded } from "./md";
 import { closed, dueOf, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
-import { bodyView, download, h, pageLink, share, toast, when } from "./ui";
+import { bodyView, download, h, pageLink, share, toast, whenShort } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
 
@@ -34,6 +34,17 @@ const busy = (p: Page) =>
 const ingestOf = (p: Page) => JSON.stringify(p.captures.map((c) => c.blobs.map((b) => b.ingest)));
 
 const JSON_TYPE = { "Content-Type": "application/json" };
+
+/** The text as the page shows it: its first line left blank when it only says the title
+ * again (a short todo's text, or a "# Heading" that became the title), so it isn't said
+ * twice. Blank, not cut: task boxes are found by their line (tasks.ts), so lines keep their
+ * numbers. */
+export function untitled(body: string, title: string): string {
+  const end = body.indexOf("\n");
+  const first = end < 0 ? body : body.slice(0, end);
+  const said = first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/, "").trim();
+  return said && said === title.trim() ? body.slice(first.length) : body;
+}
 
 export async function page(key: string): Promise<Node> {
   const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
@@ -93,7 +104,7 @@ export async function page(key: string): Promise<Node> {
   const show = (p: Page) => {
     shown = p;
     schedule(p);
-    const body = bodyView(p.body, false);
+    const body = bodyView(untitled(p.body, p.title), false);
     // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
     if (body.querySelector("[data-line]"))
       import("./tasks").then(
@@ -150,8 +161,11 @@ export async function page(key: string): Promise<Node> {
       h(
         "p",
         { className: "meta" },
-        `Created ${when(p.created_at)}`,
-        p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
+        // A todo or a Read that is done (or cancelled) says so first, as its row's chip does
+        ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`) &&
+          h("em", { className: "state" }, `${statusOf(p.kind, p.fields)}`),
+        `Created ${whenShort(p.created_at)}`,
+        p.updated_at !== p.created_at && ` · edited ${whenShort(p.updated_at)}`,
         // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
         p.captures[0]?.source === "mcp" &&
           h(
