@@ -184,8 +184,11 @@ the link as the capture's URL.
 - Page text is shown as Markdown, as GitHub writes it: headings, **bold**, *italic*,
   ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
   `https://` addresses (a `www.` address without `https://` stays plain text), tables
-  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes you tick by
-  editing the text) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
+  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes: tap one on the
+  page to tick it, or untick it, and that item's line in the text is saved at once, with no
+  editor; the same words twice still tick the right one, and a box in code is no box. If the
+  page was changed elsewhere meanwhile, it is shown as it is now, and the tap is not saved: tap
+  again. Offline, and in **Preview**, the boxes don't tick) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
   page (in a table cell write `[[slug\|label]]`: a bare `|` starts the next cell). A
   ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram (flowcharts,
   sequence diagrams and the rest); offline, or if it has a mistake, it shows as code. A link to

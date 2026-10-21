@@ -87,14 +87,17 @@ function tidy(state: StateCore) {
   });
 }
 
-/** A list item that starts [ ] or [x]: a box, ticked or not (it can't be ticked here). */
+/** A list item that starts [ ] or [x]: a box, ticked or not, disabled here; data-line is
+ * its item's first line in the source, so a page can tick it there (tasks.ts), and a label
+ * around it gives it a 44 px target. */
 function task(t: Token, item: Token, state: StateCore) {
   const first = t.children?.[0];
   const m = first?.type === "text" && /^\[([ xX])\](?: |$)/.exec(first.content);
   if (!first || !m) return;
   first.content = first.content.slice(m[0].length);
   const box = new state.Token("html_inline", "", 0);
-  box.content = `<input type="checkbox" disabled${m[1] === " " ? "" : " checked"}> `;
+  const line = item.map ? ` data-line="${item.map[0]}"` : "";
+  box.content = `<label class="taskbox"><input type="checkbox"${line} disabled${m[1] === " " ? "" : " checked"}></label> `;
   t.children?.unshift(box);
   item.attrJoin("class", "task");
 }

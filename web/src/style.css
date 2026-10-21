@@ -1051,12 +1051,39 @@ mark {
 .md li.task {
   list-style: none;
 }
+/* A task's box, in the bullet's place; on a page it ticks (tasks.ts): a 44 px target, the
+   items spaced so that no two targets overlap */
+.md li.task {
+  padding-block: 7px;
+}
+.md li + li.task,
+.md li.task + li {
+  margin-top: 0;
+}
+.md li.task .taskbox {
+  position: relative;
+  margin-inline: calc(-1em - var(--s-1)) var(--s-1);
+}
+.md li.task .taskbox::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  translate: -50% -50%;
+}
 .md li.task input {
+  position: relative;
+  z-index: 1; /* over its own target: a tap on the box is the box's */
   width: 1em;
   height: 1em;
-  margin: 0 var(--s-1) 0 calc(-1em - var(--s-1));
+  margin: 0;
   vertical-align: -0.125em;
   accent-color: var(--accent);
+}
+.md li.task input:enabled {
+  cursor: pointer;
 }
 .md s {
   color: var(--ink-2);
