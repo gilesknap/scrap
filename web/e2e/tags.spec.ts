@@ -47,10 +47,13 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   const sheet = await filters(page);
   await sheet.getByRole("button", { name: "Personal 1" }).click();
   await expect(hits(page)).toHaveText(["Zephyr fence repair"]);
-  await sheet.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Remove tag:zephyr/garden" }).click();
+  // Done, then a tap at once, before the step back has landed: the tap's query is the address
+  await page.evaluate(() => {
+    (document.querySelector(".sheet .primary") as HTMLElement).click();
+    (document.querySelector('[aria-label="Remove tag:zephyr/garden"]') as HTMLElement).click();
+  });
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr fence is:personal");
-  await expect(page).toHaveURL(/\/search\?q=zephyr%20fence%20is%3Apersonal$/); // the tap's query
+  await expect(page).toHaveURL(/\/search\?q=zephyr%20fence%20is%3Apersonal$/);
   await expect(hits(page)).toHaveCount(1);
   await page.getByRole("searchbox").fill("zephyr -fence");
   await expect(hits(page)).toHaveText(["Zephyr shed plans"]);
@@ -199,9 +202,12 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
     "Zephyr fence paint",
     "Zephyr fence book",
   ]);
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.evaluate(() => {
+    (document.querySelector(".sheet .primary") as HTMLElement).click();
+    const kinds = [...document.querySelectorAll(".kindrow label")] as HTMLElement[];
+    kinds.find((l) => l.textContent === "Todos")?.click(); // at once, as above
+  });
   await expect(page.getByRole("button", { name: "Remove -sort:title" })).toBeVisible(); // on show
-  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title kind:todo");
   await expect(page).toHaveURL(/\/search\?q=zephyr%20-sort%3Atitle%20kind%3Atodo$/);
   await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
