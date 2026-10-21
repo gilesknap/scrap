@@ -7,7 +7,8 @@
 import { ApiError, api } from "../api";
 import { drafts } from "../db";
 import type { Target } from "../drawing";
-import { h, saveBlob, toast, when } from "../ui";
+import { saveBlob } from "../sharing";
+import { h, toast, when } from "../ui";
 import { elementsOf, board as mount } from "./board";
 import { type Drawing, madeBy, scenePayload, type Version } from "./frame";
 
