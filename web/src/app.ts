@@ -27,6 +27,9 @@ export const plain = (e: MouseEvent) =>
 /** Show the current view again (main.ts renders on popstate). */
 export const rerender = () => window.dispatchEvent(new PopStateEvent("popstate"));
 
+/** While set (the Filters sheet is open), Back runs it instead of showing a view (main.ts). */
+export const back: { take: (() => void) | null } = { take: null };
+
 /** Aborted when the view changes: views pass it to their event listeners. */
 export const view = { signal: new AbortController().signal };
 

@@ -1,7 +1,7 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
 import { api, learnLimit } from "./api";
-import { view as current, go, markNav, plain, queue } from "./app";
+import { back, view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
@@ -103,7 +103,12 @@ document.addEventListener("click", (e) => {
   }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
-window.addEventListener("popstate", () => void render());
+window.addEventListener("popstate", () => {
+  const take = back.take; // Back closes the sheet open, rather than leaving the screen
+  back.take = null;
+  if (take) take();
+  else void render();
+});
 
 // Header badge: what is waiting to upload; tap to retry now.
 const badge = document.getElementById("queue") as HTMLButtonElement;

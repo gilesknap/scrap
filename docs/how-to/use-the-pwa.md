@@ -89,8 +89,19 @@ the link as the capture's URL.
   second tap on it (or **All**) shows every kind again. A kind alone still lists newest first.
   **Todos** with nothing else asked opens the Todos screen, as the Todos tab does; with words or filters in
   the box it narrows the search to todos (`kind:todo`), as before.
-- Whenever anything is chosen or typed, a **Clear** chip starts the row of chips below: one tap
-  goes back to every page, newest first.
+- Whenever anything is chosen or typed, the search box has a **✕** at its end: one tap goes
+  back to every page, newest first (the keyboard stays down).
+- Under the kind row, a short row: **Filters** first (with how many filters are on), then the
+  results' top tags with their counts, which scroll sideways; tap one to narrow the search.
+  Above the list, how many pages were found and each filter that is on as a chip with a ✕:
+  tap it to take that filter out. So the row's start never moves, and nothing chosen is hidden.
+- **Filters** opens a sheet from the bottom of the screen: **Sort**, **When** (**1w**, **1m**,
+  **1y**, **Dates…** with a From and a To, and **By created date** once a range is on),
+  **Work** or **Personal** (with counts), for a search of todos **Due** (**Today**, **Overdue**,
+  **Upcoming**), and **Browse tags**. Each tap changes the search at once (the list behind
+  follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
+  **Clear filters** takes every filter off and keeps the words; **Done**, Back, Escape or a tap
+  above the sheet closes it.
 - The query and its filters are in the address (`/search?q=...`), so a reload keeps them, and
   Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
   `/recent` links open this screen (`/recent?kind=todo` the Todos screen).
@@ -225,20 +236,19 @@ Tap the drawing to open it full screen:
   search screen. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
 - **Search** searches titles, tags, summaries and text as you type (each word as the start of a
-  word: `vsc` finds `vscode`); a title or tag match ranks first. Under the results, chips say how many pages were found and what they have in common
-  (Work or Personal and their top tags, each with a count; kinds are the fixed row above): tap one to narrow the
-  search, tap a chip of the query's own filters to take it out. The chips only write the query,
+  word: `vsc` finds `vscode`); a title or tag match ranks first. Above the results, how many pages were found and the filters on; the row
+  under the kinds and the Filters sheet narrow it (Work or Personal and the top tags, each with
+  a count; kinds are the fixed row). The chips only write the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
   too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
   `due:2026-11-01` (also `<=`, `>=`), `due:none`, `priority:high` (`medium`, `low`, `none`), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
   for when it was made), `sort:title` (A to Z; also `sort:created`, newest first,
-  `sort:updated`, and a todo's `sort:due`, soonest first, and `sort:priority`, high first; `-sort:` turns one round: `-sort:created` is oldest first). The chip row
-  also has **Tags** (browse them), **Sort** (a menu: **Best match** or **Last edited**,
-  **First edited**, **Newest**, **Oldest**, **Title A–Z**, **Title Z–A**; it writes the
-  `sort:` for you, and works with nothing typed too, on every page), **1w**, **1m**, **1y**
-  and **Dates…** (pick a From and a To).
+  `sort:updated`, and a todo's `sort:due`, soonest first, and `sort:priority`, high first; `-sort:` turns one round: `-sort:created` is oldest first). The Filters
+  sheet's **Sort** is a menu (**Best match** or **Last edited**, **First edited**, **Newest**,
+  **Oldest**, **Title A–Z**, **Title Z–A**, and for todos **Due soonest**, **Due latest** and
+  **Priority**) that writes the `sort:` for you, and works with nothing typed too.
   Filters alone list their pages, newest first.
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
   tap one to search for it. **Tags** (or **Add tags**), first in that line, edits them in
@@ -247,7 +257,7 @@ Tap the drawing to open it full screen:
   you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
   `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
   saves them with the text. Changing tags is not a new revision and does not move the page up
-  the list. **Tags** (the first chip under the search box) lists every tag with how many pages have it, as a tree (open a parent with its
+  the list. **Browse tags** (in the Filters sheet) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
 
 ## Licences of the Markdown libraries
