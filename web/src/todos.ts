@@ -3,7 +3,7 @@
 // folded away at the end), Upcoming (due after today) or All (last edited first). The address
 // says which (/todos, /todos?view=upcoming, /todos?view=all), so Back and a reload come back
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
-import { api, type Summary } from "./api";
+import { api, type Hit } from "./api";
 import { view } from "./app";
 import type { pageRow } from "./lists";
 import { isOpen, now, upcoming } from "./now";
@@ -16,7 +16,10 @@ const MODES = [
   ["upcoming", "Upcoming"],
   ["all", "All"],
 ] as const;
-const LIMIT = 500; // the API's most: every todo, for one person's store
+const LIMIT = 500; // the API's most: the done ones, last edited first
+const PAGE = 100; // search's most per request
+const OPEN = encodeURIComponent("kind:todo -is:done -is:cancelled");
+type Todo = Omit<Hit, "snippet">;
 
 const modeOf = () => {
   const v = new URLSearchParams(location.search).get("view");
@@ -26,10 +29,29 @@ const modeOf = () => {
 /** row: lists.ts's pageRow, passed in (main.ts) so this chunk imports nothing from lists.ts:
  * that would split the app shell into more, less compressible chunks. */
 export async function todos(row: typeof pageRow): Promise<Node> {
-  let list: Summary[];
+  let list: Todo[];
   try {
     if (!navigator.onLine) throw new TypeError("offline");
-    list = await api<Summary[]>(`pages?limit=${LIMIT}&kind=todo`, { signal: view.signal });
+    const { signal } = view;
+    // Every open todo (searched, 100 at a time), however long ago it was edited; the done
+    // and cancelled ones only from the last LIMIT edited, for the fold and All
+    const open = async () => {
+      const got: Hit[] = [];
+      for (let n = PAGE; n === PAGE; ) {
+        const q = `q=${OPEN}&limit=${PAGE}&offset=${got.length}`;
+        const more = await api<Hit[]>(`search?${q}`, { signal });
+        got.push(...more);
+        n = more.length;
+      }
+      return got;
+    };
+    const [opened, recent] = await Promise.all([
+      open(),
+      api<Todo[]>(`pages?limit=${LIMIT}&kind=todo`, { signal }),
+    ]);
+    list = [...opened, ...recent.filter((p) => !isOpen(p))].sort((a, b) =>
+      b.updated_at.localeCompare(a.updated_at),
+    );
   } catch (e) {
     return problem(e);
   }
@@ -53,7 +75,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     const [m, name] = modeOf();
     for (const l of radios) (l.firstChild as HTMLInputElement).checked = l.textContent === name;
     const day = today();
-    const groups: [string, Summary[]][] =
+    const groups: [string, Todo[]][] =
       m === "now" ? now(list, day) : [["", m === "all" ? list : upcoming(list, day)]];
     const shown = groups.flatMap(([, ts]) => ts);
     const slugs = shown.map((p) => p.slug);

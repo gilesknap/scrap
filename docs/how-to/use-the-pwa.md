@@ -83,7 +83,7 @@ the link as the capture's URL.
 ## View, edit, search
 
 - The nav has three tabs, **Capture**, **Todos** and **Search**. **Todos** opens the Todos
-  screen on **Now** (below); its badge counts the open todos due today or overdue (none: no
+  screen on **Now** (below); its badge counts the open todos due today or overdue, by your phone's day (none: no
   badge), and is counted again when the app opens or comes back and after a tick or an edit.
   **Search** opens the list screen for everything else: with
   nothing in the search box it lists every page newest first, with a thumbnail of the first
@@ -133,8 +133,8 @@ the link as the capture's URL.
   do first at the top, in groups: **Overdue** (oldest due date first), **Today**, **High
   priority** (no due date), then **Later** (by priority, then due date, then last edited). Each
   row starts with its priority and due date. Done and cancelled todos are folded away at the
-  end (**Done**, tap to open). A switch at the top picks the list instead: **Upcoming** (due
-  after today, soonest first) or **All** (every todo, last edited first). Each list sets its
+  end (**Done**, tap to open; those among the 500 todos last edited). A switch at the top picks the list instead: **Upcoming** (due
+  after today, soonest first) or **All** (every open todo and those done ones, last edited first). Each list sets its
   own order: there is no Sort here. The address says which list (`/todos?view=upcoming`), so
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
   **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
