@@ -301,7 +301,8 @@ def test_removing_an_embed_hides_the_photo_and_counts_other_pages(client, store)
     assert page["removed"] == []
     assert client.get("/api/pages").json()[0]["thumb"] == sha
     assert client.get(f"/api/blobs/{sha}/uses?page={ref['page_id']}").json() == {
-        "pages": 0
+        "pages": 0,
+        "trashed": 0,
     }
     other, _ = photo(client, b"other", "Other page")
     client.patch(
@@ -309,10 +310,12 @@ def test_removing_an_embed_hides_the_photo_and_counts_other_pages(client, store)
         json={"base_rev": 1, "body": f"![](/api/blobs/{sha}/preview?size=2048)"},
     ).raise_for_status()
     uses = client.get(f"/api/blobs/{sha}/uses?page={ref['page_id']}").json()
-    assert uses == {"pages": 1}
+    assert uses == {"pages": 1, "trashed": 0}
     client.delete(f"/api/pages/{other['page_id']}").raise_for_status()  # the trash
+    # Counted apart, as Save's unlink counts it: it keeps the file
     assert client.get(f"/api/blobs/{sha}/uses?page={ref['page_id']}").json() == {
-        "pages": 0
+        "pages": 0,
+        "trashed": 1,
     }
     edited = client.patch(
         f"/api/pages/{ref['page_id']}", json={"base_rev": 1, "body": "A photo"}

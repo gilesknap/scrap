@@ -30,6 +30,13 @@ __all__ = [
 BlobRef = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
+# Page p uses a file (args: its SHA-256, twice): its text has the address, or one of its
+# captures holds it. Save's warning (blob_uses) and its unlink (_unlink) ask the same.
+USES = (
+    "(instr(p.body, '/api/blobs/' || ?) OR EXISTS (SELECT 1 FROM capture c"
+    " JOIN capture_blob cb ON cb.capture_id = c.id"
+    " WHERE c.page_id = p.id AND cb.sha256 = ?))"
+)
 BARE_URL = re.compile(r"https?://\S+")
 # Ranking: bm25 weights of a page's title, tags, summary and text (chunk_fts's columns)
 WEIGHTS = "10.0, 5.0, 3.0, 1.0"
@@ -720,22 +727,23 @@ class Store:
             earlier |= body_refs(text)
         return earlier - body_refs(body)
 
-    def blob_uses(self, sha: str, page: str) -> int:
-        """How many pages other than page (an id) show a stored file, by its embed or
-        as a file of their own; the trash left out. NotFoundError if not stored."""
+    def blob_uses(self, sha: str, page: str) -> tuple[int, int]:
+        """How many pages other than page (an id) use a stored file, by its address in
+        their text or as a file of their own: (outside the trash, in it). A use in the
+        trash keeps the file too (see _unlink). NotFoundError if not stored."""
         if not SHA256.fullmatch(sha):
             raise NotFoundError(sha)
         with self.connect() as conn:
             stored = "SELECT 1 FROM blob WHERE sha256 = ?"
             if not conn.execute(stored, (sha,)).fetchone():
                 raise NotFoundError(sha)
-            return conn.execute(
-                "SELECT count(*) FROM page p WHERE p.deleted_at IS NULL AND p.id <> ?"
-                " AND (instr(p.body, '/api/blobs/' || ?) OR EXISTS (SELECT 1 FROM"
-                " capture c JOIN capture_blob cb ON cb.capture_id = c.id"
-                " WHERE c.page_id = p.id AND cb.sha256 = ?))",
+            live, trashed = conn.execute(
+                "SELECT count(*) FILTER (WHERE p.deleted_at IS NULL),"
+                " count(*) FILTER (WHERE p.deleted_at IS NOT NULL) FROM page p"
+                f" WHERE p.id <> ? AND {USES}",
                 (page, sha, sha),
-            ).fetchone()[0]
+            ).fetchone()
+            return live, trashed
 
     def _ingest(
         self, conn: sqlite3.Connection, cid: str, sha: str
@@ -848,19 +856,18 @@ class Store:
             return self.page_in(conn, page["id"])
 
     def _unlink(self, conn: sqlite3.Connection, page_id: str, gone: set[str]) -> None:
-        """An edit deleted the last embed of each file in gone: those that are a photo
-        of this page's own captures, and that no other page uses (by its text, the
-        trash's too, or a capture of its own), lose this page's links to them: the
-        capture's file and what Claude made of it (derived rows and their search
-        chunks, jobs, model runs and the JPEG they sent). Nothing then refers to the
-        file, so scrap gc deletes it. Old revisions are not references (see gc.py)."""
+        """An edit deleted the last mention of each file in gone (an embed or a link):
+        those that are a file of this page's own captures (a photo, a PDF, any type),
+        and that no other page uses (by its text, the trash's too, or a capture of its
+        own), lose this page's links to them: the capture's file and everything derived
+        from it (Claude's text, description and drawing, a drawing the user made on it
+        too, their search chunks, jobs, model runs and the JPEG they sent). Nothing then
+        refers to the file, so scrap gc deletes it. Old revisions are not references
+        (see gc.py)."""
         for sha in gone:
             others = conn.execute(
-                "SELECT 1 FROM page p WHERE p.id <> :page AND (instr(p.body,"
-                " '/api/blobs/' || :sha) OR EXISTS (SELECT 1 FROM capture c JOIN"
-                " capture_blob cb ON cb.capture_id = c.id WHERE c.page_id = p.id AND"
-                " cb.sha256 = :sha)) LIMIT 1",
-                {"page": page_id, "sha": sha},
+                f"SELECT 1 FROM page p WHERE p.id <> ? AND {USES} LIMIT 1",
+                (page_id, sha, sha),
             ).fetchone()
             if others:
                 continue

@@ -20,14 +20,15 @@ const page = {
   ],
 } as unknown as Page;
 
-// The server: how many other pages show each file (absent: not a stored file)
-function serve(uses: Record<string, number>) {
+// The server: how many other pages show each file (absent: not a stored file), and how many
+// in the trash have it
+function serve(uses: Record<string, number>, trashed: Record<string, number> = {}) {
   const calls: string[] = [];
   vi.stubGlobal("fetch", async (url: string) => {
     calls.push(url);
     const sha = url.match(/blobs\/([0-9a-f]{64})\/uses\?page=P1$/)?.[1] ?? "";
     return sha in uses
-      ? new Response(JSON.stringify({ pages: uses[sha] }))
+      ? new Response(JSON.stringify({ pages: uses[sha], trashed: trashed[sha] ?? 0 }))
       : new Response("{}", { status: 404 });
   });
   return calls;
@@ -54,9 +55,9 @@ it("names the image whose line went", async () => {
   expect(w).toContain("Saving removes an image from this page, because you deleted its line:");
   // Its own photo, shown nowhere else: the nightly cleanup deletes it
   expect(w).toContain(
-    "• IMG_1.jpg: no longer shown on any page, so the nightly cleanup deletes it, with what Claude made of it",
+    "• IMG_1.jpg: no longer shown on any page, so the nightly cleanup deletes the file, with what Claude read, described and drew from it, and any drawing you made on it",
   );
-  expect(w).toContain("A deleted photo can't be brought back once the cleanup has run.");
+  expect(w).toContain("A deleted file can't be brought back once the cleanup has run.");
   expect(w).not.toContain(B.slice(0, 8));
 });
 
@@ -78,15 +79,41 @@ it("says a shared image stays on the other pages", async () => {
   expect(w).not.toContain("cleanup");
 });
 
+it("says a file a page in the trash has is kept, as the server keeps it", async () => {
+  serve({ [A]: 0 }, { [A]: 1 });
+  const w = await removalWarning(page, embed(A), "");
+  expect(w).toContain(
+    "• IMG_1.jpg: no longer shown on any page; kept, as a page in the trash has it",
+  );
+  expect(w).toContain("A file another page still shows is kept.");
+  expect(w).not.toContain("cleanup");
+});
+
 it("leaves out a file the server doesn't hold, and hedges when offline", async () => {
   serve({ [A]: 0 });
   expect(await removalWarning(page, embed(C), "")).toBeNull();
   vi.stubGlobal("fetch", async () => {
     throw new TypeError("offline");
   });
-  expect(await removalWarning(page, embed(A), "")).toContain(
-    "• IMG_1.jpg: no longer shown here (other pages may still show it)",
+  expect(await removalWarning(page, embed(C), "")).toContain(
+    `• image ${C.slice(0, 8)}: no longer shown here (other pages may still show it)`,
   );
+});
+
+it("warns that its own file may be deleted when the check fails", async () => {
+  for (const fail of [
+    async () => {
+      throw new TypeError("offline");
+    },
+    async () => new Response("oops", { status: 502 }),
+  ]) {
+    vi.stubGlobal("fetch", fail);
+    const w = await removalWarning(page, embed(A), "");
+    expect(w).toContain(
+      "• IMG_1.jpg: no longer shown here; unless another page has it, the nightly cleanup deletes the file",
+    );
+    expect(w).toContain("A deleted file can't be brought back once the cleanup has run.");
+  }
 });
 
 it("asks, and only when something goes", async () => {
