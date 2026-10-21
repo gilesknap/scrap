@@ -189,6 +189,51 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   expect(await page.evaluate(lowContrast, ""), "tag editor").toEqual([]);
 });
 
+test("the most used tags are offered one tap each, on a page and in the composer", async ({
+  page,
+}) => {
+  const id = "01E2ETAGTP01".padEnd(26, "0");
+  const made = await page.request.post("/api/captures", { data: { id, text: "Top tags here" } });
+  const { slug, page_id } = await made.json();
+  /** The most used tags not on the page, as the chips should offer them. */
+  const expected = async (on: string[]) => {
+    const all = (await (await page.request.get("/api/tags")).json()) as [string, number][];
+    return [...all]
+      .sort((a, b) => b[1] - a[1])
+      .map(([t]) => t)
+      .filter((t) => !on.includes(t))
+      .slice(0, 6)
+      .map((t) => `#${t}`);
+  };
+  await page.goto(`/p/${slug}`);
+  await page.getByRole("button", { name: "Add tags" }).click();
+  const top = page.getByRole("group", { name: "Most used tags" });
+  const want = await expected([]);
+  expect(want).toHaveLength(6);
+  await expect(top.getByRole("button")).toHaveText(want);
+  // A tap adds it (no typing): a chip to remove, and it leaves the offer
+  const first = want[0];
+  await top.getByRole("button", { name: `Add ${first}`, exact: true }).click();
+  await expect(page.getByRole("button", { name: `Remove ${first}`, exact: true })).toBeVisible();
+  await expect(top.getByRole("button")).toHaveText(await expected([first.slice(1)]));
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".page h1 + .tags").getByRole("link")).toHaveText([first]);
+  const saved = await (await page.request.get(`/api/pages/${page_id}`)).json();
+  expect(saved.tags).toEqual([first.slice(1)]);
+  // Off again: the other tests count that tag's pages
+  await page.request.patch(`/api/pages/${page_id}`, { data: { tags: [] } });
+  // The composer offers them too
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  const offered = page.locator(".editor").getByRole("group", { name: "Most used tags" });
+  await expect(offered.getByRole("button")).toHaveText(await expected([]));
+  await offered.getByRole("button").nth(1).click();
+  await expect(page.locator(".editor .tagchips .facet")).toHaveCount(1);
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+});
+
 test("Sort writes sort: into the query, and the results follow it", async ({ page }) => {
   await page.goto("/search?q=zephyr");
   await filters(page);
