@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const OUT = new URL("../../src/scrap/static/", import.meta.url).pathname;
-const BUDGET = 15 * 1024; // the shell's JavaScript, gzipped (12.1 kB without drawings, 14.1 with)
+const BUDGET = 16 * 1024; // the shell's JavaScript, gzipped (15 kB until 2026-10-21, raised a
+// little for the search screen's Filters sheet; the Todos screen is a lazy chunk)
 
 const gz = (file) => gzipSync(readFileSync(join(OUT, file))).length;
 const kb = (n) => `${(n / 1024).toFixed(1)} kB`;
@@ -48,7 +49,7 @@ const viewerCss = assets
 
 console.log(`app shell:      ${kb(shellJs)} JS + ${kb(shellCss)} CSS (budget ${kb(BUDGET)} JS)`);
 // The composer and editor: lazy, but kept by the service worker for offline use
-const offline = assets.filter((f) => /^(composer|editor)-[\w-]+\.js$/.test(f));
+const offline = assets.filter((f) => /^(composer|editor|pageedit)-[\w-]+\.js$/.test(f));
 const offlineJs = offline.reduce((n, f) => n + gz(`assets/${f}`), 0);
 console.log(`editor:         ${kb(offlineJs)} JS, loaded when the composer or editor opens`);
 // The Markdown renderer: lazy, kept by the service worker; Mermaid only for a diagram

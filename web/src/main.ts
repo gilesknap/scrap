@@ -1,35 +1,43 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
-import { learnLimit } from "./api";
-import { view as current, go, markNav, plain, queue } from "./app";
+import { api, learnLimit } from "./api";
+import { back, view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
-import { debugPanel } from "./debug";
+import { KEY } from "./debug";
+import { pageRow } from "./lists";
 import { page } from "./page";
 import { search } from "./search";
 import { whenSlow } from "./slow";
+import { today } from "./status";
 import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
+const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
   [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
+  [/^\/todos$/, () => todos()],
   [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
 ];
 
-/** /recent (?kind=todo, ?kind=consume) as the search screen's address; another kind= is
- * ignored. */
+/** /recent (?kind=consume) as the search screen's address, ?kind=todo as the Todos screen's;
+ * another kind= is ignored. */
 function recent() {
   const kind = new URLSearchParams(location.search).get("kind");
   const name = KIND_ROW.find(([, , , api]) => api === kind)?.[1];
   history.replaceState(
     null,
     "",
-    name ? `/search?q=${encodeURIComponent(`kind:${name}`)}` : "/search",
+    name === "todo"
+      ? "/todos"
+      : name
+        ? `/search?q=${encodeURIComponent(`kind:${name}`)}`
+        : "/search",
   );
-  return search();
+  return name === "todo" ? todos() : search();
 }
 
 const view = document.getElementById("view") as HTMLElement;
@@ -96,7 +104,22 @@ document.addEventListener("click", (e) => {
   }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
-window.addEventListener("popstate", () => void render());
+window.addEventListener("popstate", (e) => {
+  if (!e.isTrusted) return void render(); // go() and rerender(): this entry, drawn
+  back.landed();
+  const take = back.take; // Back closes the sheet open, rather than leaving the screen
+  back.take = null;
+  if (take) take();
+  else if (history.state?.sheet) {
+    back.take = render; // a closed sheet's entry (Forward, say): stepped over
+    back.pop();
+  } else void render();
+});
+// A sheet's entry from before a reload (or the phone discarding the app) is a plain one now:
+// stepping over it could leave this document, with no popstate to end the step
+if (history.state?.sheet) history.replaceState(null, "");
+// Back from bfcache after such a step: it never landed here
+window.addEventListener("pageshow", (e) => e.persisted && back.landed());
 
 // Header badge: what is waiting to upload; tap to retry now.
 const badge = document.getElementById("queue") as HTMLButtonElement;
@@ -112,11 +135,35 @@ async function showQueue() {
   document.dispatchEvent(new Event("queuechange"));
 }
 badge.onclick = () => void queue.retry();
-queue.onchange = () => void showQueue();
+queue.onchange = () => {
+  void showQueue();
+  dueSoon(); // a capture uploaded may be a todo due today
+};
+
+// The Todos tab's badge: how many open todos are due today or overdue (one count from the
+// server), refreshed when the app opens or comes back, and after a change (a tick, an edit).
+const tab = document.querySelector('nav a[href="/todos"]') as HTMLAnchorElement;
+const dueN = tab.querySelector("b") as HTMLElement;
+// Today as this device has it, as the Todos screen does (the server's day may differ)
+const due = () => encodeURIComponent(`kind:todo due:<=${today()} -is:done -is:cancelled`);
+let dueTimer: ReturnType<typeof setTimeout>;
+function dueSoon() {
+  clearTimeout(dueTimer);
+  dueTimer = setTimeout(async () => {
+    try {
+      const { total } = await api<{ total: number }>(`search/facets?q=${due()}`);
+      dueN.textContent = String(total);
+      dueN.hidden = !total;
+      tab.ariaLabel = total ? `Todos, ${total} due` : null;
+    } catch {} // offline: as it was
+  }, 300);
+}
+addEventListener("scrap:wrote", dueSoon);
 
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
   void queue.nudge(); // now, not when its backoff says: the user is here
+  dueSoon();
   void learnLimit(); // the server's upload limit, kept for offline checks
 };
 window.addEventListener("online", flush);
@@ -144,7 +191,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
-debugPanel();
+if (localStorage.getItem(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();
 flush();

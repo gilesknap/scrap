@@ -23,11 +23,20 @@ test.beforeAll(() => {
 const hits = (page: import("@playwright/test").Page) => page.locator(".hits li a strong");
 const refine = (page: import("@playwright/test").Page) =>
   page.getByRole("group", { name: "Refine" });
+/** Open the Filters sheet. */
+async function filters(page: import("@playwright/test").Page) {
+  await refine(page)
+    .getByRole("button", { name: /^Filters/ })
+    .click();
+  const sheet = page.getByRole("dialog", { name: "Filters" });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
 
 test("refine chips narrow a search and come off again", async ({ page }) => {
   await page.goto("/search?q=zephyr+fence");
   await expect(hits(page)).toHaveCount(3);
-  await expect(refine(page).getByText("3 pages")).toBeVisible();
+  await expect(page.locator(".found").getByText("3 pages")).toBeVisible();
   await expect(page.getByRole("searchbox")).not.toBeFocused(); // no keyboard over the chips
   const chip = refine(page).getByRole("button", { name: "#zephyr/garden 2" });
   const box = await chip.boundingBox();
@@ -35,10 +44,16 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   await chip.click();
   await expect(page).toHaveURL(/q=zephyr%20fence%20tag%3Azephyr%2Fgarden$/);
   await expect(hits(page)).toHaveCount(2);
-  await refine(page).getByRole("button", { name: "Personal 1" }).click();
+  const sheet = await filters(page);
+  await sheet.getByRole("button", { name: "Personal 1" }).click();
   await expect(hits(page)).toHaveText(["Zephyr fence repair"]);
-  await refine(page).getByRole("button", { name: "Remove tag:zephyr/garden" }).click();
+  // Done, then a tap at once, before the step back has landed: the tap's query is the address
+  await page.evaluate(() => {
+    (document.querySelector(".sheet .primary") as HTMLElement).click();
+    (document.querySelector('[aria-label="Remove tag:zephyr/garden"]') as HTMLElement).click();
+  });
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr fence is:personal");
+  await expect(page).toHaveURL(/\/search\?q=zephyr%20fence%20is%3Apersonal$/);
   await expect(hits(page)).toHaveCount(1);
   await page.getByRole("searchbox").fill("zephyr -fence");
   await expect(hits(page)).toHaveText(["Zephyr shed plans"]);
@@ -63,7 +78,7 @@ test("a page's tag searches for it, children too", async ({ page }) => {
 
 test("browse tags as a tree, then search one", async ({ page }) => {
   await page.goto("/search");
-  await refine(page).getByRole("link", { name: "Tags" }).click();
+  await (await filters(page)).getByRole("link", { name: "Browse tags" }).click();
   await expect(page).toHaveURL(/\/tags$/);
   const tree = page.locator(".tagtree");
   await expect(tree.getByRole("link", { name: "#zephyr 4" })).toBeVisible();
@@ -84,6 +99,11 @@ test("the new views meet AA contrast, in both themes", async ({ page }) => {
     await page.goto("/search?q=zephyr+tag%3Azephyr");
     await expect(refine(page)).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} refine`).toEqual([]);
+    const sheet = await filters(page);
+    await sheet.getByRole("button", { name: "Dates…" }).click();
+    expect(await page.evaluate(lowContrast, ""), `${colorScheme} filters`).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
     await page.goto(`/p/${slugs[0]}`);
     await page.locator(".page .tags a").first().waitFor();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page tags`).toEqual([]);
@@ -95,27 +115,41 @@ test("the new views meet AA contrast, in both themes", async ({ page }) => {
 
 test("a time range, from a preset or dates, by edit or creation date", async ({ page }) => {
   await page.goto("/search");
-  await expect(refine(page).getByRole("link", { name: "Tags" })).toBeVisible(); // no query yet
+  await expect(refine(page).getByRole("button", { name: "Filters" })).toBeVisible(); // no query yet
   const box = await page.getByRole("searchbox").boundingBox();
   expect(box?.width).toBeGreaterThan(300); // the whole width: nothing beside it
   await page.getByRole("searchbox").fill("zephyr");
-  await refine(page).getByRole("button", { name: "Edited in the past week" }).click();
+  await expect(hits(page)).toHaveCount(4);
+  let sheet = await filters(page);
+  await sheet.getByRole("button", { name: "Edited in the past week" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr after:1w");
+  await expect(sheet.getByRole("button", { name: "Edited in the past week" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await sheet.getByRole("button", { name: "Edited in the past month" }).click(); // one at a time
+  await expect(page.getByRole("searchbox")).toHaveValue("zephyr after:1m");
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
   await expect(page.getByText("No matches")).toBeVisible(); // made in January 2026
-  await refine(page).getByRole("button", { name: "Remove after:1w" }).click();
-  await refine(page).getByRole("button", { name: "Dates…" }).click();
-  await page.getByLabel("From", { exact: true }).fill("2026-01-02");
-  await page.getByLabel("To", { exact: true }).fill("2026-01-03");
-  await page.getByRole("button", { name: "Apply" }).click();
+  await page.getByRole("button", { name: "Remove after:1m" }).click();
+  sheet = await filters(page);
+  await sheet.getByRole("button", { name: "Dates…" }).click();
+  await sheet.getByLabel("From", { exact: true }).fill("2026-01-02");
+  await sheet.getByLabel("To", { exact: true }).fill("2026-01-03");
+  await sheet.getByRole("button", { name: "Apply" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue(
     "zephyr after:2026-01-02 before:2026-01-03",
   );
   await expect(hits(page)).toHaveCount(2);
-  await refine(page).getByRole("button", { name: "By created date" }).click();
+  await sheet.getByRole("button", { name: "By created date" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue(/ date:created$/);
   await expect(hits(page)).toHaveCount(2);
-  await refine(page).getByRole("link", { name: "Tags" }).click();
+  await sheet.getByRole("link", { name: "Browse tags" }).click();
   await expect(page).toHaveURL(/\/tags$/);
+  await expect(sheet).toBeHidden();
+  await page.goBack(); // the search, as the sheet left it (its entry gone)
+  await expect(page.getByRole("searchbox")).toHaveValue(/ date:created$/);
 });
 
 test("tags are edited on the page, and in the editor (a row's swipe opens it)", async ({
@@ -157,7 +191,8 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
 
 test("Sort writes sort: into the query, and the results follow it", async ({ page }) => {
   await page.goto("/search?q=zephyr");
-  const sort = refine(page).getByRole("combobox", { name: "Sort" });
+  await filters(page);
+  const sort = page.getByRole("combobox", { name: "Sort" });
   await expect(sort).toHaveValue(""); // Best match
   await sort.selectOption({ label: "Title Z–A" });
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title");
@@ -167,10 +202,16 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
     "Zephyr fence paint",
     "Zephyr fence book",
   ]);
-  await expect(refine(page).getByRole("button", { name: /sort:/ })).toHaveCount(0); // no chip
-  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
+  await page.evaluate(() => {
+    (document.querySelector(".sheet .primary") as HTMLElement).click();
+    const kinds = [...document.querySelectorAll(".kindrow label")] as HTMLElement[];
+    kinds.find((l) => l.textContent === "Todos")?.click(); // at once, as above
+  });
+  await expect(page.getByRole("button", { name: "Remove -sort:title" })).toBeVisible(); // on show
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr -sort:title kind:todo");
+  await expect(page).toHaveURL(/\/search\?q=zephyr%20-sort%3Atitle%20kind%3Atodo$/);
   await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
+  await filters(page);
   await sort.selectOption({ label: "Oldest" });
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:todo -sort:created");
   await expect(hits(page)).toHaveText(["Zephyr fence repair", "Zephyr fence paint"]);
@@ -178,8 +219,11 @@ test("Sort writes sort: into the query, and the results follow it", async ({ pag
   await expect(page.getByRole("searchbox")).toHaveValue("zephyr kind:todo");
   // With nothing typed: every page, in that order
   await page.goto("/search");
-  await refine(page).getByRole("combobox", { name: "Sort" }).selectOption({ label: "Title A–Z" });
+  await (await filters(page)).getByRole("combobox", { name: "Sort" }).selectOption({
+    label: "Title A–Z",
+  });
   await expect(page.getByRole("searchbox")).toHaveValue("sort:title");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(hits(page).first()).toBeVisible();
   const titles = await hits(page).allTextContents();
   expect(titles.length).toBeGreaterThan(4);
@@ -270,6 +314,7 @@ async function pageFor(page: import("@playwright/test").Page, word: string) {
 }
 
 test("a new note gets its tags as it is saved", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // no transition caught midway below
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Wallaby feeder plans");
@@ -285,7 +330,7 @@ test("a new note gets its tags as it is saved", async ({ page }) => {
   await expect(composer(page).getByRole("button", { name: "Remove #wallaby pen" })).toBeVisible();
   await expect(composer(page).locator("datalist option[value='zephyr/garden']")).toHaveCount(1);
   for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await page.emulateMedia({ colorScheme });
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} composer tags`).toEqual([]);
   }
   await box.fill("wallaby/water"); // still in the box when saved: it counts

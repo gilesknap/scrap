@@ -1,13 +1,15 @@
-// The one list screen: with an empty box, every page newest first (what is still waiting to
+// The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
-// and <mark>s, never HTML). Under the box, a fixed row of kinds (one tap sets or clears
-// kind:), then chips that scroll (a lazy chunk): Clear, the tags, a time range, and what
-// refines the results. All of it is the query's text, kept in the address (/search?q=...),
-// so Back, a reload and a deleted page come back to the same list, scrolled where it was.
+// and <mark>s, never HTML). The box's ✕ clears it. Under it, a fixed row of kinds (one tap
+// sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's row: Filters
+// and the results' top tags, and above the list their count and the filters on. All of it is
+// the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
+// come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
-import { go, markNav, view } from "./app";
+import { address, go, markNav, view } from "./app";
 import { icon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
+import { refine } from "./refine";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
@@ -42,8 +44,10 @@ export async function search(): Promise<Node> {
       type: "radio",
       name: "kind",
       value: v,
-      // A click, not a change: tapping the one that is on clears it
-      onclick: () => apply((now) => withKind(now, v)),
+      // A click, not a change: tapping the one that is on clears it. Todos alone: the Todos
+      // screen (Now), not a search
+      onclick: () =>
+        withKind(input.value, v) === "kind:todo" ? go("/todos") : apply((now) => withKind(now, v)),
     });
     return [radio, h("label", {}, radio, label)] as const;
   });
@@ -84,17 +88,23 @@ export async function search(): Promise<Node> {
     if (!first) {
       limit = PAGE; // a new query: from the top
       scroll = 0;
-      history.replaceState(null, "", query ? `/search?q=${encodeURIComponent(query)}` : "/search");
+      address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
     markNav();
     showKinds(query);
     abort.abort();
     abort = new AbortController();
     const { signal } = abort;
-    // The chips: Clear, tags and dates even before a query, then what refines its results
-    import("./refine")
-      .then((m) => m.refine(query, signal, apply))
-      .then((el) => signal.aborted || chips.replaceChildren(el))
+    clear.hidden = !input.value;
+    // Filters even before a query, then what refines its results
+    refine(query, signal, apply)
+      .then((el) => {
+        if (signal.aborted) return;
+        // Focus on Filters (the sheet just closed) stays on it, drawn again
+        const had = document.activeElement?.matches(".refine .filter");
+        chips.replaceChildren(el);
+        if (had) (el.querySelector(".filter") as HTMLElement).focus();
+      })
       .catch(() => signal.aborted || chips.replaceChildren());
     const shown = await list(query, signal);
     if (signal.aborted) return;
@@ -171,7 +181,22 @@ export async function search(): Promise<Node> {
     input.value = edit(input.value); // as it is now: the chips may be a keystroke behind
     void run();
   };
+  // The box's ✕: one tap back to every page, newest first (no keyboard, unless by key)
+  const clear = h(
+    "button",
+    {
+      type: "button",
+      className: "clear",
+      "aria-label": "Clear search",
+      onclick: (e: MouseEvent) => {
+        apply(() => "");
+        if (!e.detail) input.focus();
+      },
+    },
+    icon("close"),
+  );
   input.oninput = () => {
+    clear.hidden = !input.value;
     clearTimeout(timer);
     timer = setTimeout(run, 250);
   };
@@ -187,7 +212,7 @@ export async function search(): Promise<Node> {
   const root = h(
     "section",
     { className: "search" },
-    h("label", { className: "field-search" }, icon("search"), input),
+    h("div", { className: "field-search" }, icon("search"), input, clear),
     kinds,
     chips,
     pending,
