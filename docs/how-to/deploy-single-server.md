@@ -270,8 +270,13 @@ The same pattern runs any other `scrap` command (for example `scrap export`) aga
 (scrap-gc)=
 ## Deleting unused files (scrap gc)
 
-Deleting a page only moves it to the trash, and deleting an image's line from a page's text keeps
-its file, so files nothing uses build up. `scrap gc` finds them: a file is in use while a page's
+Deleting a page only moves it to the trash, and an image another page still uses stays when its
+line is deleted, so files nothing uses build up. Saving an edit that deletes the last line showing
+one of the page's own photos, where no other page (in the trash or not) shows or holds it, takes
+the photo off its capture together with what Claude made of it (its text, description, drawing,
+ingest jobs and model runs, and the JPEG sent to Claude): nothing then uses the file, and the next
+run deletes it. A page's **Download** and `scrap export` then leave it out too. `scrap gc` finds
+such files: a file is in use while a page's
 text refers to it (pages in the trash too, so they can be brought back), or a capture, a Claude
 result or ingest job, or a model run (the photo, or the JPEG it sent) does. Files younger than
 `--grace-hours` (default 24) are kept whatever refers to them, since an upload records its files

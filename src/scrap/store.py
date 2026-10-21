@@ -839,7 +839,34 @@ class Store:
                     (page["id"], page["rev"] + 1, new_title, new_body, author, stamp),
                 )
                 self.reindex(conn, page["id"])
+                self._unlink(
+                    conn, page["id"], body_refs(page["body"]) - body_refs(new_body)
+                )
             return self.page_in(conn, page["id"])
+
+    def _unlink(self, conn: sqlite3.Connection, page_id: str, gone: set[str]) -> None:
+        """An edit deleted the last embed of each file in gone: those that are a photo
+        of this page's own captures, and that no other page uses (by its text, the
+        trash's too, or a capture of its own), lose this page's links to them: the
+        capture's file and what Claude made of it (derived rows and their search
+        chunks, jobs, model runs and the JPEG they sent). Nothing then refers to the
+        file, so scrap gc deletes it. Old revisions are not references (see gc.py)."""
+        for sha in gone:
+            others = conn.execute(
+                "SELECT 1 FROM page p WHERE p.id <> :page AND (instr(p.body,"
+                " '/api/blobs/' || :sha) OR EXISTS (SELECT 1 FROM capture c JOIN"
+                " capture_blob cb ON cb.capture_id = c.id WHERE c.page_id = p.id AND"
+                " cb.sha256 = :sha)) LIMIT 1",
+                {"page": page_id, "sha": sha},
+            ).fetchone()
+            if others:
+                continue
+            ours = "capture_id IN (SELECT id FROM capture WHERE page_id = ?)"
+            for table in ("derived", "model_run", "job", "capture_blob"):
+                column = "sha256" if table == "capture_blob" else "source_sha256"
+                conn.execute(  # names from the lists above only
+                    f"DELETE FROM {table} WHERE {ours} AND {column} = ?", (page_id, sha)
+                )
 
     def _set_kind(
         self,

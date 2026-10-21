@@ -58,7 +58,9 @@ test("deleting an image's line warns on Save; Cancel keeps editing, Undo, OK sav
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => d.seen.length).toBe(1);
   expect(d.seen[0]).toContain("Saving removes an image from this page");
-  expect(d.seen[0]).toContain("• whiteboard.png: no longer shown on any page");
+  expect(d.seen[0]).toContain(
+    "• whiteboard.png: no longer shown on any page, so the nightly cleanup deletes it",
+  );
   await expect(page.locator(".editor")).toBeVisible();
   expect(await body.inputValue()).toBe(edited);
   expect((await (await page.request.get(`/api/pages/${ref.page_id}`)).json()).rev).toBe(1);
@@ -94,7 +96,26 @@ test("deleting an image's line warns on Save; Cancel keeps editing, Undo, OK sav
   const after = await (await page.request.get(`/api/pages/${ref.page_id}`)).json();
   expect(after.body).not.toContain(sha);
   expect(after.removed).toEqual([sha]);
+  expect(after.captures[0].blobs).toHaveLength(1); // another page shows it: kept
   await expect(page.getByText("whiteboard.png")).toHaveCount(0);
+  await expect(page.locator(".page figure, .originals .orig")).toHaveCount(0);
+});
+
+test("saving without a photo's line no other page shows unlinks it for the cleanup", async ({
+  page,
+}) => {
+  const ref = await photoPage(page, "Lone photo", 123);
+  const d = dialogs(page);
+  d.answer(true);
+  await page.goto(`/p/${ref.slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await deleteLastLine(page);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  expect(d.seen[0]).toContain("the nightly cleanup deletes it, with what Claude made of it");
+  expect(d.seen[0]).toContain("A deleted photo can't be brought back once the cleanup has run.");
+  const after = await (await page.request.get(`/api/pages/${ref.page_id}`)).json();
+  expect(after.captures[0].blobs).toEqual([]); // nothing keeps it now: scrap gc deletes it
   await expect(page.locator(".page figure, .originals .orig")).toHaveCount(0);
 });
 

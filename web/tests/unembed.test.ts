@@ -52,7 +52,11 @@ it("names the image whose line went", async () => {
   serve({ [A]: 0, [B]: 0 });
   const w = await removalWarning(page, `x\n\n${embed(A)}\n${embed(B)}`, `x\n\n${embed(B)}`);
   expect(w).toContain("Saving removes an image from this page, because you deleted its line:");
-  expect(w).toContain("• IMG_1.jpg: no longer shown on any page");
+  // Its own photo, shown nowhere else: the nightly cleanup deletes it
+  expect(w).toContain(
+    "• IMG_1.jpg: no longer shown on any page, so the nightly cleanup deletes it, with what Claude made of it",
+  );
+  expect(w).toContain("A deleted photo can't be brought back once the cleanup has run.");
   expect(w).not.toContain(B.slice(0, 8));
 });
 
@@ -61,7 +65,8 @@ it("counts each image and falls back to its alt text, then its start", async () 
   const w = await removalWarning(page, `${embed(A)}\n${embed(B, "whiteboard")}\n${embed(C)}`, "");
   expect(w).toContain("Saving removes 3 images from this page, because you deleted their lines:");
   expect(w).toContain("• whiteboard: no longer shown on any page");
-  expect(w).toContain(`• image ${C.slice(0, 8)}: no longer shown on any page`);
+  // Not one of its own (another page's file): not this page's to delete
+  expect(w).toContain(`• image ${C.slice(0, 8)}: no longer shown on any page\n`);
 });
 
 it("says a shared image stays on the other pages", async () => {
@@ -69,6 +74,8 @@ it("says a shared image stays on the other pages", async () => {
   const w = await removalWarning(page, `${embed(A)}\n${embed(B)}`, "");
   expect(w).toContain("• IMG_1.jpg: still shown on 2 other pages");
   expect(w).toContain(`• image ${B.slice(0, 8)}: still shown on 1 other page`);
+  expect(w).toContain("A file another page still shows is kept.");
+  expect(w).not.toContain("cleanup");
 });
 
 it("leaves out a file the server doesn't hold, and hedges when offline", async () => {
