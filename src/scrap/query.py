@@ -1,23 +1,32 @@
 """The search box's syntax (#84): words, "phrases", -word or !word (NOT), the filters
-kind:, tag:, is:, after:, before:, date:, has: and image:, and sort:. One pass over
-the text (the only regular expressions match one character), so no input can make
-parsing take more than linear time."""
+kind:, tag:, is:, after:, before:, date:, has:, image:, due: and priority:, and sort:.
+One pass over the text (the only regular expressions match one character), so no input
+can make parsing take more than linear time."""
 
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
 __all__ = [
-    "Term", "Filter", "Query", "parse", "bound", "day", "KEYS", "SORTS", "PRIORITIES",
+    "Term", "Filter", "Query", "parse", "bound", "due", "KEYS", "SORTS", "PRIORITIES",
 ]  # fmt: skip
 
-KEYS = ("kind", "tag", "is", "after", "before", "date", "has", "image", "sort")
+KEYS = (
+    "kind", "tag", "is", "after", "before", "date", "has", "image", "due", "priority",
+    "sort",
+)  # fmt: skip
 # sort:K orders the results by K, the way it goes by default (True: highest first);
-# -sort:K the other way. The store maps each to SQL: a new one (due, priority) slots in
-# as a name here and a column there.
-SORTS = {"updated": True, "created": True, "title": False}
+# -sort:K the other way. The store maps each to SQL (store.SORT_SQL): a new one slots in
+# as a name here and a column there. due: soonest first; priority: high first; pages
+# with none (and pages that are not todos) come last either way.
+SORTS = {
+    "updated": True, "created": True, "title": False, "due": False, "priority": True,
+}  # fmt: skip
 # A todo's priorities, highest first (the page.priority column's CHECK has them too)
 PRIORITIES = ("high", "medium", "low")
+# due:D compares a todo's due day with D: a date, or one of these days from today
+DAYS_FROM_TODAY = {"yesterday": -1, "today": 0, "tomorrow": 1}
+COMPARE = ("<=", ">=", "<", ">", "=")  # longest first
 DAYS = {"d": 1, "w": 7, "m": 30, "y": 365}  # after:2w, before:1y
 MAX_AGO = 100  # 100y at most
 END = "~"  # after every ISO 8601 timestamp, as text
@@ -156,3 +165,19 @@ def day(value: str) -> date | None:
         return date.fromisoformat(value)
     except ValueError:
         return None
+
+
+def due(value: str, today: date | None = None) -> tuple[str, str | None] | None:
+    """What due:value asks of a todo's due day: (an operator, a YYYY-MM-DD day), or
+    ("none", None) for due:none (no due date). The value is an optional <, <=, >, >=
+    or =, then a date, or today, tomorrow or yesterday as the server's own calendar has
+    them (its local time zone, TZ): due:<today is overdue. None if it is neither."""
+    if value == "none":
+        return "none", None
+    op = next((c for c in COMPARE if value.startswith(c)), "=")
+    rest = value[len(op) :] if value.startswith(op) else value
+    if rest in DAYS_FROM_TODAY:
+        when = (today or date.today()) + timedelta(days=DAYS_FROM_TODAY[rest])
+        return op, when.isoformat()
+    when = day(rest)
+    return (op, when.isoformat()) if when else None

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import IO, Any
 
 from .markdown import plain
-from .query import CONTROL, PRIORITIES, Query, bound, day, parse
+from .query import CONTROL, PRIORITIES, Query, bound, day, due, parse
 
 __all__ = [
     "Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError",
@@ -82,8 +82,14 @@ SORT_SQL = {
     "updated": "p.updated_at",
     "created": "p.created_at",
     "title": "p.title COLLATE NOCASE",  # ASCII letters only: SQLite has no ICU here
+    # A todo's: other kinds keep theirs (see the migration) but have none here
+    "due": "CASE WHEN p.kind = 'todo' THEN p.due END",
+    "priority": "CASE WHEN p.kind = 'todo' THEN CASE p.priority"
+    " WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 END END",
 }
 TODO = ("due", "priority")  # a todo's own columns
+TODO_SQL = "p.kind = 'todo' AND "  # a filter on them: only a todo's count
+RANK = "coalesce(p.priority, 'none')"  # priority:none finds a todo with none
 # Priorities as an imported todo may have them (Thoth's Urgent: the highest there is)
 PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
@@ -1010,12 +1016,12 @@ class Store:
             return []
         where, args = self._where(q)
         # sort: first, then the default order (a page's chunks share its sort key, so
-        # its best chunk still comes first)
+        # its best chunk still comes first). Pages with no due date or priority last.
         order = ""
         if q.sort:
             key, desc = q.sort
             way = "DESC" if desc else "ASC"
-            order = f"{SORT_SQL[key]} {way}, p.id {way}, "
+            order = f"{SORT_SQL[key]} {way} NULLS LAST, p.id {way}, "
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
@@ -1137,6 +1143,10 @@ class Store:
         if kinds:  # a page has one kind: two kinds mean either
             sql.append("p.kind IN (SELECT value FROM json_each(?))")
             args.append(json.dumps(kinds))
+        priorities = [f.value for f in q.filters if f.key == "priority" and not f.neg]
+        if priorities:  # one each, as kinds: priority:high priority:medium is either
+            sql.append(f"{TODO_SQL}{RANK} IN (SELECT value FROM json_each(?))")
+            args.append(json.dumps([PRIORITY_NAMES.get(v, v) for v in priorities]))
         dated = "created_at" if ("date", "created") in [
             (f.key, f.value) for f in q.filters if not f.neg
         ] else "updated_at"  # fmt: skip
@@ -1172,6 +1182,20 @@ class Store:
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")
             elif f.key == "sort":  # an order, not a condition: see search()
+                continue
+            elif f.key == "due":  # a todo's: due:<today, due:2026-11-01, due:none
+                asked = due(f.value)
+                if asked is None:  # not a day: nothing (and with -, everything)
+                    sql.append(f"{no}0")
+                elif asked[0] == "none":
+                    sql.append(f"{no}coalesce({TODO_SQL}p.due IS NULL, 0)")
+                else:  # the operator is one of query.COMPARE's
+                    sql.append(f"{no}coalesce({TODO_SQL}p.due {asked[0]} ?, 0)")
+                    args.append(asked[1])
+            elif f.key == "priority" and f.neg:  # priority:none: a todo with none
+                sql.append(f"NOT ({TODO_SQL}{RANK} = ?)")
+                args.append(PRIORITY_NAMES.get(f.value, f.value))
+            elif f.key == "priority":  # see above: either of them
                 continue
             elif f.key == "is":  # a status: is:done, is:open...
                 status = "coalesce(json_extract(p.fields, '$.status'), '')"
