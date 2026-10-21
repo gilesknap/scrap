@@ -329,7 +329,7 @@ def test_edit_tags_replaces_them_all(client, note):
     hits = client.get("/api/search", params={"q": "tag:diy"}).json()
     assert [h["id"] for h in hits] == [page["id"]]
     assert client.get("/api/search", params={"q": "tools"}).json()  # indexed
-    assert client.get("/api/tags").json() == [["diy", 1], ["garden tools", 1]]
+    assert client.get("/api/tags").json() == [["diy", 1, 1], ["garden tools", 1, 1]]
     cleared = client.patch(url, json={"tags": []}).json()
     assert cleared["tags"] == []
     assert client.get("/api/search", params={"q": "tag:diy"}).json() == []
@@ -368,7 +368,7 @@ def test_capture_with_tags_is_tagged_and_indexed_at_once(client):
     assert [h["id"] for h in hits] == [ref["page_id"]]
     again = client.post("/api/captures", json={**data, "tags": ["other"]})
     assert again.status_code == 200  # a retry: the first one's tags stay
-    assert client.get("/api/tags").json() == [["diy", 1], ["garden tools", 1]]
+    assert client.get("/api/tags").json() == [["diy", 1, 1], ["garden tools", 1, 1]]
 
 
 def test_capture_tags_in_multipart_one_field_each(client):

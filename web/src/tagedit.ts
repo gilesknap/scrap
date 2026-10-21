@@ -3,7 +3,8 @@
 // suggestion picked adds what is typed; what is still in the box when saving counts too. The
 // server cleans tags as the importer does (lower case, no leading #), so this does the same
 // for what it shows. Under the box, the most used tags not on it yet, one tap each (from the
-// same /api/tags answer: nothing more is fetched). A chunk of its own: the page's Tags
+// same /api/tags answer: nothing more is fetched), counted by the pages given that very tag:
+// not a/b's parent a, which the answer adds and counts over a's children. A chunk of its own: the page's Tags
 // button and the editor load it.
 import { api } from "./api";
 import { icon } from "./icons";
@@ -30,14 +31,14 @@ const TOP = 6; // most used tags offered
 export function tagField(initial: string[], onchange: () => void = () => {}) {
   let tags = [...initial];
   const list = h("datalist", { id: `tags-${++n}` });
-  let used: string[] = []; // every tag, most used first
+  let used: string[] = []; // the tags pages were given, most used first
   const top = h("div", {
     className: "toptags",
     role: "group",
     "aria-label": "Most used tags",
     hidden: true, // until they come (never offline)
   });
-  const drawTop = () => {
+  const drawTop = (focus = -1) => {
     top.replaceChildren(
       ...used
         .filter((t) => !tags.includes(t))
@@ -49,9 +50,10 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
               type: "button",
               className: "facet",
               "aria-label": `Add #${t}`,
-              onclick: () => {
+              onclick: (e: Event) => {
                 tags.push(t);
-                draw();
+                const at = [...top.children].indexOf(e.currentTarget as Element);
+                draw(top.contains(document.activeElement) ? at : -1);
                 onchange();
               },
             },
@@ -60,11 +62,18 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
         ),
     );
     top.hidden = !top.childElementCount;
+    // The tapped chip is gone: focus the one now in its place (else the last), or the box
+    if (focus >= 0)
+      (((top.children[focus] ?? top.lastElementChild) as HTMLElement | null) ?? input).focus();
   };
-  api<[string, number][]>("tags")
+  // [tag, pages under it, pages with that very tag]
+  api<[string, number, number][]>("tags")
     .then((all) => {
       list.replaceChildren(...all.map(([t]) => h("option", { value: t })));
-      used = [...all].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+      used = all
+        .filter((r) => r[2] > 0)
+        .sort((a, b) => b[2] - a[2])
+        .map(([t]) => t);
       drawTop();
     })
     .catch(() => {}); // offline: no suggestions, typing still works
@@ -79,8 +88,8 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
   });
   input.setAttribute("list", list.id);
   const chips = h("span", { className: "tagchips" });
-  const draw = () => {
-    drawTop();
+  const draw = (focus = -1) => {
+    drawTop(focus);
     chips.replaceChildren(
       ...tags.map((t) =>
         h(

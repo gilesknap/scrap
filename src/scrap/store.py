@@ -11,6 +11,7 @@ import sqlite3
 import tempfile
 import time
 import unicodedata
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
@@ -1155,13 +1156,15 @@ class Store:
 
     def tags(self) -> list[list[Any]]:
         """Every tag on a page (not in the trash), a/b's parent a too, with how many
-        pages have it (a: those with a or a/anything), in order."""
+        pages have it (a: those with a or a/anything) and how many have that very tag
+        (0 for a parent nobody gave a page), in order."""
         with self.connect() as conn:
             rows = conn.execute(
                 "SELECT page_id, tag FROM tag JOIN page p ON p.id = tag.page_id"
                 " WHERE p.deleted_at IS NULL"
             ).fetchall()
-        return [[t, n] for t, n in sorted(tag_counts(rows).items())]
+        own = Counter(tag for _, tag in rows)
+        return [[t, n, own[t]] for t, n in sorted(tag_counts(rows).items())]
 
     def _where(self, q: Query) -> tuple[str, list[Any]]:
         """SQL conditions on page p for a query's words and filters, and their args."""
