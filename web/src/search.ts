@@ -98,7 +98,13 @@ export async function search(): Promise<Node> {
     clear.hidden = !input.value;
     // Filters even before a query, then what refines its results
     refine(query, signal, apply)
-      .then((el) => signal.aborted || chips.replaceChildren(el))
+      .then((el) => {
+        if (signal.aborted) return;
+        // Drawn again under focus (Filters, as the sheet closes): focus stays on Filters
+        const had = chips.querySelector(".filter") === document.activeElement;
+        chips.replaceChildren(el);
+        if (had) el.querySelector<HTMLElement>(".filter")?.focus();
+      })
       .catch(() => signal.aborted || chips.replaceChildren());
     const shown = await list(query, signal);
     if (signal.aborted) return;
