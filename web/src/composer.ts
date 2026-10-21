@@ -29,7 +29,7 @@ export async function compose(picked: File[]) {
   // decides, and the page's editor can change it.
   const kind = kindPicker(kept?.kind ?? (kept?.hint || "note"), kept?.picked ?? !!kept?.hint);
   text.addEventListener("input", () => kind.suggest(suggested(text.value)));
-  // Its tags, as the page's editor has them; photos too (Claude then adds none of its own)
+  // Its tags, as the page's editor has them; photos too (Claude's join them on its first reading)
   const tags = tagField(kept?.tags ?? [], () => ed.keep());
   const thumbs = h("div", { className: "thumbs" });
   // One capture, many photos: add from the camera (one at a time) or the gallery.
