@@ -2080,7 +2080,7 @@ div.orig .save {
   color: var(--ink-2);
   white-space: normal; /* when it is due matters more than one line: never cut */
 }
-/* A done or cancelled todo's or Read's page says so first in its meta line, as its row does */
+/* A page's kind (and status, if it has one) leads its meta line: "Todo · done", "Note" */
 .meta .state {
   margin-inline-end: var(--s-2);
   padding: 1px var(--s-2);
@@ -2207,8 +2207,7 @@ div.orig .save {
 .todos [data-view]:not([data-view="all"]) .sub > small:not([class]) {
   display: none;
 }
-.todos .noimg,
-.todos .list em.todo {
+.todos .noimg {
   display: none; /* every row here is a todo: the room goes to its title */
 }
 .donefold {
