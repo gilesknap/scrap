@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { chipOf, dueOf, partly, snoozed, statusOf, ticks, today } from "../src/status";
 
-it("gives todos and Reads a status, open if they have none, and nothing else one", () => {
+it("gives todos and Laters a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
   expect(statusOf("consume", { subtype: "read", status: "done" })).toBe("done");
   expect(statusOf("todo", {})).toBe("open");
@@ -25,7 +25,7 @@ it("chips a row with a status that ends it, else its kind", () => {
   expect(chipOf("todo", { status: "in_progress" })).toBe("todo");
   expect(chipOf("todo", { status: "done" })).toBe("done");
   expect(chipOf("consume", { status: "cancelled" })).toBe("cancelled");
-  expect(chipOf("consume", {})).toBe("read");
+  expect(chipOf("consume", {})).toBe("later");
   expect(chipOf("note", { status: "done" })).toBe("");
 });
 

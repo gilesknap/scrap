@@ -129,7 +129,9 @@ def test_filters(store):
     read = page(store, "Fence book", kind="consume", tags=["books", "home/garden/diy"])
     assert set(slugs(store, "fence")) == {todo, done, read}
     assert slugs(store, "kind:todo") == [done, todo]  # filters alone: newest first
-    assert set(slugs(store, "fence kind:read")) == {read}  # the PWA's name for it
+    assert set(slugs(store, "fence kind:later")) == {read}  # the PWA's name for it
+    assert set(slugs(store, "fence kind:read")) == {read}  # its old name still works
+    assert set(slugs(store, "fence kind:LATER")) == {read}  # in any case
     assert set(slugs(store, "fence kind:read kind:todo")) == {todo, done, read}
     assert set(slugs(store, "fence -kind:todo")) == {read}
     assert set(slugs(store, "tag:home")) == {todo, done, read}  # and its children
