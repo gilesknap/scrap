@@ -1,4 +1,4 @@
-// The status todos and Reads carry (open, in_progress, done or cancelled) and what ticks them
+// The status todos and Laters carry (open, in_progress, done or cancelled) and what ticks them
 // off: on a page (page.ts) and its list row (rows.ts). No DOM here (the unit tests run it); not
 // in kinds.ts, which the app shell would then carry whole.
 

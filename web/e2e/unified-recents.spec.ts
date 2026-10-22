@@ -52,7 +52,9 @@ test("the empty box shows the last searches: run again, forget one, clear all", 
   await expect(page.locator(".hits li a strong")).toHaveText(["Recent wombat"]);
   // Left 3 s with a result, it is kept again: to the top
   await expect
-    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("scrap.searches") ?? "[]")))
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("scrap.searches") ?? "[]")), {
+      timeout: 10_000, // it settles after 3 s
+    })
     .toEqual(["wombat", "echidna"]);
 
   // ✕ forgets one, Clear all the rest; focus stays in the box

@@ -165,7 +165,7 @@ test("the kind row keeps focus as arrow keys move through it; any case of kind:"
   await expect(row.getByRole("radio", { name: "Later" })).toBeChecked();
 });
 
-test("the kind row: an icon over each word, all six in one row from 320 px", async ({ page }) => {
+test("the kind row: each kind's own icon over its word, at 320 px too", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/search");
   const row = page.getByRole("radiogroup", { name: "Kind" });
