@@ -1,7 +1,6 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
-// and <mark>s, never HTML). The box's ✕ clears it, and its slider opens Filters (the kind among
-// them). Formerly a fixed row of kinds (one tap
+// and <mark>s, never HTML). The box's ✕ clears it. Under it, a fixed row of kinds (one tap
 // sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's: the filters on
 // as a row of chips, and the Filters panel, opened by the slider at the box's end. Filters
 // and the results' top tags, and above the list their count and the filters on. All of it is
@@ -13,7 +12,7 @@ import { icon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
-import { kindsIn, listing } from "./terms";
+import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
 import { empty, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
@@ -51,14 +50,38 @@ export async function search(): Promise<Node> {
   let settle: ReturnType<typeof setTimeout>;
   const results = h("div");
   const chips = h("div");
+  const found = h("div"); // how many were found: over the list, under the kinds
   // Filters: a slider at the box's end (how many are on, in a dot); refine.ts, a chunk of its
-  // own, fills it and opens its panel under the box
+  // own, fills it and opens its panel under the kinds
   const filters = h(
     "button",
     { type: "button", className: "ffield", "aria-label": "Filters" },
     icon("filter"),
   );
   const refining = import("./refine");
+  // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
+  const radios = [["All", ""] as const, ...KIND_ROW].map(([label, v]) => {
+    const radio = h("input", {
+      type: "radio",
+      name: "kind",
+      value: v,
+      // A click, not a change: tapping the one that is on clears it. Todos alone: the Todos
+      // screen (Now), not a search
+      onclick: () =>
+        withKind(input.value, v) === "kind:todo" ? go("/todos") : apply((now) => withKind(now, v)),
+    });
+    return [radio, h("label", {}, radio, label)] as const;
+  });
+  const kinds = h(
+    "div",
+    { className: "chips kindrow", role: "radiogroup", "aria-label": "Kind" },
+    ...radios.map(([, label]) => label),
+  );
+  const showKinds = (query: string) => {
+    const on = kindsIn(query);
+    const value = on.length === 1 ? on[0][1] : on.length ? null : "";
+    for (const [radio] of radios) radio.checked = radio.value === value;
+  };
   let timer: ReturnType<typeof setTimeout>;
   let saving: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
@@ -90,6 +113,7 @@ export async function search(): Promise<Node> {
       address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
     markNav();
+    showKinds(query);
     abort.abort();
     abort = new AbortController();
     const { signal } = abort;
@@ -99,6 +123,7 @@ export async function search(): Promise<Node> {
       .then((m) => m.refine(query, signal, apply, filters))
       .then((el) => {
         if (signal.aborted) return;
+        found.replaceChildren(el.querySelector(".found") ?? "");
         chips.replaceChildren(el); // (refine puts focus back on the control it was on)
       })
       .catch(() => signal.aborted || chips.replaceChildren());
@@ -216,6 +241,8 @@ export async function search(): Promise<Node> {
     h("div", { className: "field-search" }, icon("search"), input, clear, filters),
     recents,
     chips, // the filters on, and the panel, under the box whose slider opens it
+    kinds, // always here, under any filters
+    found,
     pending,
     results,
     build(),

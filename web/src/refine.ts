@@ -9,7 +9,7 @@
 // chunk of its own (search.ts loads it with the screen; the service worker keeps it offline).
 import { api } from "./api";
 import { icon } from "./icons";
-import { adding, day, has, KIND_ROW, kindsIn, removing, token, unsorted, withKind } from "./terms";
+import { adding, day, has, KIND_ROW, kindsIn, removing, token, unsorted } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -39,8 +39,8 @@ const NONE: Facets = {
 };
 const facets = (q: string, signal?: AbortSignal) =>
   q ? api<Facets>(`search/facets?q=${encodeURIComponent(q)}`, { signal }) : Promise.resolve(NONE);
-/** The query's filters (its kind too: it is one of them now, in the panel). */
-const filtersOf = (f: Facets) => f.active;
+/** The query's filters, but the kind row's kind (not a "not" one: -kind:todo). */
+const filtersOf = (f: Facets) => f.active.filter((a) => a.key !== "kind" || a.neg);
 const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
 
 let open = false; // the panel, open or folded: kept while the app is (the next search too)
@@ -335,18 +335,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     : null;
   clear?.setAttribute("data-k", "clear");
 
-  // Kind: one tap each, a second clears it (two kinds asked: either)
-  const kinds = KIND_ROW.map(([label, name]) => {
-    const on = kindsIn(q).some(([, n]) => n === name);
-    // No count: with a kind chosen, every other would say 0, which reads as "none of those"
-    const b = chip(label, -1, () => apply((now) => withKind(now, on ? "" : name)));
-    b.setAttribute("aria-pressed", String(on));
-    b.dataset.k = `kind:${name}`;
-    return b;
-  });
-
   return [
-    row("Kind", ...kinds),
     tags,
     row("Order", ...orders),
     row(
