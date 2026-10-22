@@ -6,10 +6,10 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { renderer, unembedded } from "./md";
-import { dueOf, statusOf, ticks } from "./status";
+import { closed, dueOf, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
-import { bodyView, download, h, pageLink, share, toast, when } from "./ui";
+import { bodyView, download, h, pageLink, share, toast, whenShort } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
 
@@ -34,6 +34,17 @@ const busy = (p: Page) =>
 const ingestOf = (p: Page) => JSON.stringify(p.captures.map((c) => c.blobs.map((b) => b.ingest)));
 
 const JSON_TYPE = { "Content-Type": "application/json" };
+
+/** The text as the page shows it: its first line left blank when it only says the title
+ * again (a short todo's text, or a "# Heading" that became the title), so it isn't said
+ * twice. Blank, not cut: task boxes are found by their line (tasks.ts), so lines keep their
+ * numbers. */
+export function untitled(body: string, title: string): string {
+  const end = body.indexOf("\n");
+  const first = end < 0 ? body : body.slice(0, end);
+  const said = first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/, "").trim();
+  return said && said === title.trim() ? body.slice(first.length) : body;
+}
 
 export async function page(key: string): Promise<Node> {
   const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
@@ -93,7 +104,7 @@ export async function page(key: string): Promise<Node> {
   const show = (p: Page) => {
     shown = p;
     schedule(p);
-    const body = bodyView(p.body, false);
+    const body = bodyView(untitled(p.body, p.title), false);
     // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
     if (body.querySelector("[data-line]"))
       import("./tasks").then(
@@ -103,6 +114,8 @@ export async function page(key: string): Promise<Node> {
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     const typing = !!tagForm?.contains(document.activeElement);
     const said = dueOf(p);
+    const saved = download(`/api/pages/${p.id}/download`); // the page as a file
+    const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
@@ -127,8 +140,9 @@ export async function page(key: string): Promise<Node> {
             h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
           ),
         ),
-      // A todo's due date and priority: tapped, changed in place
-      p.kind !== "todo"
+      // A todo's due date and priority: tapped, changed in place (a closed one with none
+      // offers no "Add due date": Reopen it first)
+      p.kind !== "todo" || (!said && closed(p))
         ? ""
         : (todoForm ??
             h(
@@ -141,15 +155,18 @@ export async function page(key: string): Promise<Node> {
                   title: "Due date and priority",
                   onclick: (e: Event) => void todoEdit(e),
                 },
-                icon("todo"),
-                h("span", { className: said?.[1] ? "late" : "" }, said ? said[0] : "Add due date"),
+                icon("due"),
+                h("span", { className: said?.[1] ?? "" }, said ? said[0] : "Add due date"),
               ),
             )),
       h(
         "p",
         { className: "meta" },
-        `Created ${when(p.created_at)}`,
-        p.updated_at !== p.created_at && ` · edited ${when(p.updated_at)}`,
+        // A todo or a Later that is done (or cancelled) says so first, as its row's chip does
+        ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`) &&
+          h("em", { className: "state" }, `${statusOf(p.kind, p.fields)}`),
+        `Created ${whenShort(p.created_at)}`,
+        p.updated_at !== p.created_at && ` · edited ${whenShort(p.updated_at)}`,
         // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
         p.captures[0]?.source === "mcp" &&
           h(
@@ -167,19 +184,30 @@ export async function page(key: string): Promise<Node> {
       h(
         "div",
         { className: "bar tools" },
-        editButton(p),
-        // A todo or a Read: Done, Reopen (done or cancelled), or both (cancelled)
+        // A todo or a Later leads with Mark done (the page's hero), Reopen when done, or both
+        // when cancelled
         ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(
             "button",
-            { onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement) },
-            icon(to === "done" ? "todo" : "retry"),
+            {
+              className: to === "done" ? "primary" : "",
+              onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement),
+            },
+            icon(to === "done" ? "done" : "retry"),
             label,
           ),
         ),
-        download(`/api/pages/${p.id}/download`),
-        // Its link, or its text as typed (no link to scrap in it)
-        share(() => ({ title: p.title, text: unembedded(p.body) }), pageLink(p.slug)),
+        editButton(p),
+        // Its link, its text as typed (no link to scrap in it), or the page as a file; where
+        // the phone can't share, Download in Share's place, and where it can share but has no
+        // menu (no Popover API), Download beside Share
+        share(
+          () => ({ title: p.title, text: unembedded(p.body) }),
+          pageLink(p.slug),
+          undefined,
+          menus ? saved : undefined,
+        ) ?? saved,
+        !menus && "share" in navigator && saved,
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );
@@ -259,10 +287,14 @@ export async function page(key: string): Promise<Node> {
   // Ticked off (or not): its status only, no new revision
   const tick = (p: Page, to: string, b: HTMLButtonElement) => {
     b.disabled = true;
-    setStatus(p.id, to).then(show, (err) => {
-      b.disabled = false;
-      toast(`Not changed: ${why(err)}`);
-    });
+    // Mark done on a todo from the Todos screen: on to the next one (pager.ts), else shown here
+    setStatus(p.id, to).then(
+      (q) => (to === "done" && pager?.done(q, statusOf(p.kind, p.fields) ?? "open")) || show(q),
+      (err) => {
+        b.disabled = false;
+        toast(`Not changed: ${why(err)}`);
+      },
+    );
   };
 
   function editButton(p: Page) {

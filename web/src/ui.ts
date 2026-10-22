@@ -134,169 +134,52 @@ export function saveKey(e: KeyboardEvent) {
   }
 }
 
-const mb = (n: number) =>
-  n < 2 ** 20 ? `${Math.ceil(n / 1024)} kB` : `${(n / 2 ** 20).toFixed(1)} MB`;
+// Share and Download are drawn here, in the app shell; what they do is in sharing.ts, a chunk
+// loaded on the first tap.
+const sharing = () => import("./sharing");
+const later = (job: (m: typeof import("./sharing")) => unknown) =>
+  void sharing().then(job, () => toast("Can't do that offline: reload scrap and try again"));
 
-/** The file name in a Content-Disposition header, if any. */
-export function dispositionName(cd: string): string | undefined {
-  const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
-  return star ? decodeURIComponent(star[1]) : cd.match(/filename="([^"]*)"/)?.[1];
-}
-
-/** Fetch a file from the server, named as given, else as the server names it. */
-async function fetchFile(href: string, name?: string): Promise<File> {
-  const r = await fetch(href).catch(() => {
-    throw new Error("can't reach the server");
-  });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail ?? `HTTP ${r.status}`);
-  const blob = await r.blob();
-  name ??= dispositionName(r.headers.get("Content-Disposition") ?? "") ?? "download";
-  return new File([blob], name, { type: blob.type });
-}
-
-/** Run a job behind el, which says it is busy meanwhile and ignores taps; a failure says why. */
-function busy(el: HTMLElement, what: string, job: () => Promise<void>) {
-  return async (e: Event) => {
-    e.preventDefault();
-    if (el.getAttribute("aria-busy") === "true") return;
-    const label = [...el.childNodes];
-    el.setAttribute("aria-busy", "true");
-    el.replaceChildren(...label.filter((n) => n.nodeType !== Node.TEXT_NODE), "Preparing…");
-    try {
-      await job();
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return; // the share sheet was closed
-      toast(`${what} failed: ${(err as Error).message}`, "", undefined, 8000);
-    } finally {
-      el.removeAttribute("aria-busy");
-      el.replaceChildren(...label);
-    }
-  };
-}
-
-/** A Download link that fetches the file itself, so it can show it is busy and say when
- * the file is saved or why not (a plain download link gives no sign on Android). */
+/** A Download link that fetches the file itself (sharing.ts), so it can say it is busy and
+ * when the file is saved or why not. */
 export function download(href: string, className = "button"): HTMLAnchorElement {
   const a = h("a", { href, className, download: "" }, icon("download"), "Download");
-  a.onclick = busy(a, "Download", async () => {
-    const file = await fetchFile(href);
-    saveBlob(file, file.name);
-  });
+  a.onclick = (e) => {
+    e.preventDefault();
+    later((m) => m.download(a, href));
+  };
   return a;
-}
-
-/** Save a Blob made on the phone (or fetched) as a file, and say so. */
-export function saveBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  h("a", { href: url, download: name }).click();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000); // the save may still be reading it
-  toast(`Downloaded ${name} (${mb(blob.size)})`);
 }
 
 /** A page's own address, e.g. to share as a link. */
 export const pageLink = (slug: string, origin = location.origin) =>
   `${origin}/p/${encodeURIComponent(slug)}`;
 
-/** Where a menu of this width goes: just above its button, kept on the screen. */
-export function menuSpot(button: DOMRect, width: number, screenW: number, screenH: number) {
-  const gap = 8;
-  const left = Math.min(button.left + (button.width - width) / 2, screenW - width - gap);
-  return { left: Math.round(Math.max(left, gap)), bottom: Math.round(screenH - button.top + gap) };
-}
-
 /** A Share button to send text, or a file from the server, to another app; none where
  * the phone can't share. Given the page's link, Share first asks which: **Link** (the
- * address, nothing fetched) or the content (`content`: its icon and word). Each choice is a
- * tap of its own, so it calls the share sheet within that tap. */
+ * address, nothing fetched) or the content (`content`: its icon and word), then `more` (a
+ * page's Download) if given. */
 export function share(
   what: () => { title: string; text?: string; file?: string[] },
   link?: string,
   content: [Icon, string] = ["note", "Text"],
+  more?: HTMLElement,
 ) {
   if (!navigator.share) return null;
   const b = h("button", { type: "button" }, icon("share"), "Share");
-  const send = (data: ShareData) =>
-    navigator.share(data).catch((err: Error) => {
-      if (err.name !== "AbortError") toast(`Share failed: ${err.message}`, "", undefined, 8000);
-    });
-  const shareContent = busy(b, "Share", async () => {
-    const { title, text, file } = what();
-    if (!file) return navigator.share({ title, text });
-    const [href, name, type] = file;
-    if (!canShareFile(name, type)) return toast("Sharing files is not supported here");
-    const files = [await fetchFile(href, name)];
-    try {
-      await navigator.share({ title, files });
-    } catch (err) {
-      // A slow download outlasts the tap (Chrome allows ~5 s): share it on a fresh one.
-      if ((err as Error).name !== "NotAllowedError") throw err;
-      toast("Photo ready", "Share", () => void send({ title, files }), 30_000);
-    }
-  });
-  const menu = h("div", { className: "share-menu", popover: "auto" });
-  if (!link || !menu.showPopover) {
-    b.onclick = shareContent; // nothing to choose, or no menu on this browser
-    return b;
-  }
-  const pick = (glyph: Icon, label: string, go: (e: Event) => void) =>
-    h(
-      "button",
-      {
-        type: "button",
-        onclick: (e: Event) => {
-          menu.hidePopover();
-          go(e);
-        },
+  // The first tap loads sharing.ts, which takes the button's taps from then on
+  const first = (e: MouseEvent) => {
+    b.onclick = null; // a second tap meanwhile: nothing twice
+    void sharing().then(
+      (m) => m.attach(b, { what, link, content, more })(e),
+      () => {
+        b.onclick = first;
+        toast("Can't do that offline: reload scrap and try again");
       },
-      icon(glyph),
-      label,
     );
-  menu.append(
-    pick("link", "Link", () => void send({ title: what().title, url: link })),
-    pick(...content, shareContent),
-  );
-  b.setAttribute("aria-expanded", "false"); // a disclosure of two buttons, not a menu role
-  const isOpen = () => menu.matches(":popover-open");
-  menu.addEventListener("beforetoggle", (e) => {
-    b.setAttribute("aria-expanded", String((e as ToggleEvent).newState === "open"));
-  });
-  menu.addEventListener("toggle", () => {
-    if (!isOpen()) menu.remove();
-  });
-  // A tap on Share while the menu is open closes it, even where that tap's light dismiss
-  // closes it first (a browser without a popover's source): so ask at the touch, not the click
-  let wasOpen = false;
-  b.onpointerdown = () => {
-    wasOpen = isOpen();
   };
-  b.onclick = (e) => {
-    // Only a tap carries what its own touch saw (a key's click has detail 0), so a touch
-    // dragged off the button can't leave a stale answer for the next key
-    const open = (e.detail > 0 && wasOpen) || isOpen();
-    wasOpen = false;
-    if (b.getAttribute("aria-busy") === "true") return;
-    if (open) {
-      if (isOpen()) menu.hidePopover();
-      return;
-    }
-    // Inside a modal dialog (the photo viewer), or assistive tech treats it as hidden
-    (b.closest('[aria-modal="true"]') ?? document.body).append(menu);
-    // The button as its source, so a tap on it toggles the menu rather than dismissing it
-    (menu.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b });
-    const spot = menuSpot(b.getBoundingClientRect(), menu.offsetWidth, innerWidth, innerHeight);
-    menu.style.left = `${spot.left}px`;
-    menu.style.bottom = `${spot.bottom}px`;
-  };
+  b.onclick = first;
   return b;
-}
-
-/** Whether this phone can share a file like this, asked before downloading it. */
-function canShareFile(name: string, type: string) {
-  try {
-    return !!navigator.canShare?.({ files: [new File([], name, { type })] });
-  } catch {
-    return false;
-  }
 }
 
 /** Page text as Markdown (safe HTML from render.ts), or as typed with links made clickable:

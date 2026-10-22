@@ -4,7 +4,18 @@ import { uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
-import { editor, kindPicker, suggested, tagField, tooLong, toSend } from "./editor";
+import {
+  editor,
+  fold,
+  kindPicker,
+  suggested,
+  tagField,
+  tagsSay,
+  todoField,
+  todoSays,
+  tooLong,
+  toSend,
+} from "./editor";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
 import { tagProblem } from "./tagedit";
@@ -17,20 +28,44 @@ interface Draft {
   picked?: boolean; // the user chose the kind
   hint?: string; // the kind, in drafts of older builds ("": Note)
   tags?: string[];
+  todo?: { due: string | null; priority: string | null }; // while the kind is Todo
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
 }
 
-export async function compose(picked: File[]) {
+/** What the text box asks for, by kind. */
+const ASK: Record<string, string> = { todo: "What needs doing?", consume: "Link or title" };
+
+/** as: a kind chosen before it opens (the Todos screen's New todo), over a draft's. */
+export async function compose(picked: File[], as?: string) {
   // An unsaved draft comes back, with any photos just picked added to it.
   const kept = await drafts.get<Draft>(DRAFT).catch(() => undefined);
   const files = [...(kept?.files ?? []), ...picked];
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
-  // The kind: Note unless chosen (a bare URL suggests Read). Photos have none: ingest
+  // The kind: Note unless chosen (a bare URL suggests Later). Photos have none: ingest
   // decides, and the page's editor can change it.
-  const kind = kindPicker(kept?.kind ?? (kept?.hint || "note"), kept?.picked ?? !!kept?.hint);
-  text.addEventListener("input", () => kind.suggest(suggested(text.value)));
+  const kind = kindPicker(
+    as ?? kept?.kind ?? (kept?.hint || "note"),
+    !!as || (kept?.picked ?? !!kept?.hint),
+  );
+  text.addEventListener("input", () => {
+    kind.suggest(suggested(text.value));
+    showTodo(); // a suggested kind (a link: Later) asks for it in its own words
+  });
   // Its tags, as the page's editor has them; photos too (Claude's join them on its first reading)
   const tags = tagField(kept?.tags ?? [], () => ed.keep());
+  // A todo's due date (Today, Tomorrow, Next week or a date) and priority, as on its page:
+  // shown while the kind is Todo (photos have no kind here, so none with them)
+  const todo = todoField(kept?.todo?.due ?? null, kept?.todo?.priority ?? null);
+  // Folded into a line each, under the text: the text stays the hero
+  const tagLine = fold("Tags", tags.el, () => tagsSay(tags.value()), "tag");
+  const todoLine = fold("Due", todo.el, () => todoSays(todo.value()), "due");
+  const showTodo = () => {
+    todoLine.el.hidden = kind.value() !== "todo" || files.length > 0;
+    text.placeholder = files.length ? "Caption (optional)" : (ASK[kind.value()] ?? "Note or link");
+  };
+  kind.el.addEventListener("change", showTodo);
+  const todoNow = () => (todoLine.el.hidden ? null : todo.value());
+  const dated = () => !!todoNow()?.due || !!todoNow()?.priority;
   const thumbs = h("div", { className: "thumbs" });
   // One capture, many photos: add from the camera (one at a time) or the gallery.
   const add = (more: File[]) => {
@@ -40,7 +75,7 @@ export async function compose(picked: File[]) {
   };
   const showThumbs = () => {
     kind.el.hidden = files.length > 0;
-    text.placeholder = files.length ? "Caption (optional)" : "Note or link";
+    showTodo();
     thumbs.replaceChildren(
       ...files.map((f, i) =>
         h(
@@ -73,24 +108,30 @@ export async function compose(picked: File[]) {
   showThumbs();
   const ed = editor({
     text,
-    before: [kind.el],
-    after: [tags.el, thumbs, adders],
+    // As in a page's editor: the kind, then its due date and tags, each folded to a line, then
+    // the text; the photos and more under it
+    before: [kind.el, todoLine.el, tagLine.el],
+    after: [thumbs, adders],
     key: DRAFT,
     draft: (): Draft => ({
       text: text.value,
       kind: kind.value(),
       picked: kind.picked(),
       tags: tags.value(),
+      ...(dated() && { todo: todo.value() }),
       files,
     }),
-    dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0,
+    dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0 || dated(),
     restored: !!kept,
     ondiscard: () => {
       text.value = "";
       files.length = 0;
       kind.reset("note");
       tags.reset([]);
+      todo.reset(null, null);
       showThumbs();
+      tagLine.refresh();
+      todoLine.refresh();
     },
     onsave: () => void store(false),
   });
@@ -113,6 +154,8 @@ export async function compose(picked: File[]) {
       text: body || undefined,
       kind: files.length ? undefined : toSend(kind.value(), kind.picked(), "note"),
       tags: tagged.length ? tagged : undefined,
+      due: todoNow()?.due ?? undefined,
+      priority: todoNow()?.priority ?? undefined,
       source: "pwa",
       files: files.map((f) => ({ name: f.name, blob: f })),
     };

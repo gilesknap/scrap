@@ -129,7 +129,9 @@ def test_filters(store):
     read = page(store, "Fence book", kind="consume", tags=["books", "home/garden/diy"])
     assert set(slugs(store, "fence")) == {todo, done, read}
     assert slugs(store, "kind:todo") == [done, todo]  # filters alone: newest first
-    assert set(slugs(store, "fence kind:read")) == {read}  # the PWA's name for it
+    assert set(slugs(store, "fence kind:later")) == {read}  # the PWA's name for it
+    assert set(slugs(store, "fence kind:read")) == {read}  # its old name still works
+    assert set(slugs(store, "fence kind:LATER")) == {read}  # in any case
     assert set(slugs(store, "fence kind:read kind:todo")) == {todo, done, read}
     assert set(slugs(store, "fence -kind:todo")) == {read}
     assert set(slugs(store, "tag:home")) == {todo, done, read}  # and its children
@@ -169,6 +171,23 @@ def test_facets(store):
     assert store.facets("")["total"] == 0
     one = store.facets("fence one")
     assert one["total"] == 1 and ["diy", 1] in one["tags"]  # a single hit: its tags
+
+
+def test_facets_top_tags(tmp_path):
+    """top: how many tags facets gives (12 by default, at most 1000)."""
+    client = TestClient(create_app(tmp_path))
+    store = Store(tmp_path)
+    for i in range(15):  # each tag on one page of the 16, so each narrows the search
+        page(store, f"Wallaby {i}", tags=[f"t{i:02d}"])
+    page(store, "Wallaby plain")
+    get = lambda **p: client.get("/api/search/facets", params={"q": "wallaby", **p})  # noqa: E731
+    assert len(store.facets("wallaby")["tags"]) == 12
+    assert len(get().json()["tags"]) == 12
+    assert len(get(top=3).json()["tags"]) == 3
+    assert len(get(top=1000).json()["tags"]) == 15
+    assert len(get(top=1).json()["tags"]) == 1
+    for bad in (0, 1001, -1):
+        assert get(top=bad).status_code == 422
 
 
 def test_tags_lists_live_pages_only(tmp_path):

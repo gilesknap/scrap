@@ -1,6 +1,7 @@
 // The one list screen (Recent merged into Search): an empty box lists every page newest first,
 // the kind row and Clear, and the query in the address, so Back and a delete come back to it.
 import { expect, type Page, test } from "@playwright/test";
+import { filtersButton } from "./panel";
 
 const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -48,14 +49,21 @@ test("Clear resets text, kind and filters to the newest-first list", async ({ pa
   await page.goto(`/search?q=${encodeURIComponent(`clear kind:todo after:1w`)}`);
   await expect(page.locator(".kindrow").getByRole("radio", { name: "Todos" })).toBeChecked();
   await expect(page.locator(".hits li", { hasText: `Clear me ${tag}` })).toBeVisible();
-  // The box's ✕, inside it at its end, a 48 px target
+  // The box's ✕, inside it at its end, just before the Filters slider; each a 48 px target
   const clear = page.getByRole("button", { name: "Clear search" });
-  const [field, x] = [await page.getByRole("searchbox").boundingBox(), await clear.boundingBox()];
+  const filters = filtersButton(page);
+  const [field, x, f] = [
+    await page.locator(".field-search").boundingBox(),
+    await clear.boundingBox(),
+    await filters.boundingBox(),
+  ];
   expect(x?.height).toBeGreaterThanOrEqual(44);
+  expect(f?.height).toBeGreaterThanOrEqual(44);
+  expect(Math.abs((x?.x ?? 0) + (x?.width ?? 0) - (f?.x ?? 0))).toBeLessThan(2);
   expect(
-    Math.abs((x?.x ?? 0) + (x?.width ?? 0) - ((field?.x ?? 0) + (field?.width ?? 0))),
+    Math.abs((f?.x ?? 0) + (f?.width ?? 0) - ((field?.x ?? 0) + (field?.width ?? 0))),
   ).toBeLessThan(2);
-  await expect(page.locator(".refine > :first-child")).toHaveAccessibleName(/^Filters, 1 on$/); // the row's start
+  await expect(filters).toHaveAccessibleName("Filters, 1 on"); // after:1w; the kind is the row's
   await clear.click();
   await expect(page).toHaveURL(/\/search$/);
   await expect(page.getByRole("searchbox")).toHaveValue("");
@@ -143,13 +151,48 @@ test("the kind row keeps focus as arrow keys move through it; any case of kind:"
   await expect(row.getByRole("radio", { name: "Todos" })).toBeChecked(); // kind:Todo
   await row.getByRole("radio", { name: "Todos" }).focus();
   await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("searchbox")).toHaveValue("kind:read");
-  await expect(row.getByRole("radio", { name: "Reads" })).toBeFocused();
+  await expect(page.getByRole("searchbox")).toHaveValue("kind:later");
+  await expect(row.getByRole("radio", { name: "Later" })).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("searchbox")).toHaveValue("kind:board");
   await expect(row.getByRole("radio", { name: "Boards" })).toBeFocused();
   await page.goto("/recent?kind=bogus"); // an unknown kind: ignored
   await expect(page).toHaveURL(/\/search$/);
   await page.goto("/recent?kind=consume");
-  await expect(page).toHaveURL(/\/search\?q=kind%3Aread$/);
+  await expect(page).toHaveURL(/\/search\?q=kind%3Alater$/);
+  // The old name still works, typed or in a link
+  await page.goto("/search?q=kind%3Aread");
+  await expect(row.getByRole("radio", { name: "Later" })).toBeChecked();
+});
+
+test("the kind row: each kind's own icon over its word, at 320 px too", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/search");
+  const row = page.getByRole("radiogroup", { name: "Kind" });
+  const labels = row.locator("label");
+  await expect(labels).toHaveText(["All", "Notes", "Todos", "Later", "Boards", "Docs"]);
+  await expect(row.locator("label > svg.i")).toHaveCount(6);
+  // Each kind's own icon, as the editor's kinds have them (All: a grid of tiles)
+  const glyphs = await labels.evaluateAll((ls) =>
+    ls.map((l) => l.querySelector("svg")?.innerHTML ?? ""),
+  );
+  expect(new Set(glyphs).size).toBe(6);
+  // The icon over its word (one row of them is checked in view.spec.ts)
+  const over = await labels.evaluateAll((ls) =>
+    ls.map((l) => {
+      const icon = (l.querySelector("svg") as SVGElement).getBoundingClientRect();
+      const word = document.createRange();
+      word.selectNodeContents(l.lastChild as Node);
+      return icon.bottom <= word.getBoundingClientRect().top + 1;
+    }),
+  );
+  expect(over).toEqual([true, true, true, true, true, true]);
+  // Shown with a query and filters too, under the filters on
+  await page.goto("/search?q=x%20after%3A1w");
+  await expect(row).toBeVisible();
+  const [on, kinds] = [
+    await page.getByRole("group", { name: "Filters on" }).boundingBox(),
+    await row.boundingBox(),
+  ];
+  expect((on?.y ?? 0) + (on?.height ?? 0)).toBeLessThanOrEqual(kinds?.y ?? 0);
 });

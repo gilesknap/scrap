@@ -6,11 +6,14 @@ import { drafts } from "./db";
 import {
   confirmRemoval,
   editor,
+  fold,
   kindPicker,
   same,
   suggested,
   tagField,
+  tagsSay,
   todoField,
+  todoSays,
   todoStart,
   tooLong,
   toSend,
@@ -34,7 +37,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   // since, saving it shows the conflict rather than overwriting.
   const key = `page:${p.id}`;
   const kept = await drafts.get<Draft>(key).catch(() => undefined);
-  // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
+  // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Later),
   // as in the composer, until the user picks one; a draft's kind only if the user picked it
   const unfiled = !p.kind_fixed && p.kind === "note";
   const was = unfiled ? suggested(p.body) : p.kind;
@@ -59,7 +62,10 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     const t = todoNow();
     return !!t && (t.due !== (p.due ?? null) || t.priority !== (p.priority ?? null));
   };
-  const showTodo = () => (todo.el.hidden = kind.value() !== "todo");
+  // Folded into a line each, under the title: the text stays the hero
+  const tagLine = fold("Tags", tags.el, () => tagsSay(tags.value()), "tag");
+  const todoLine = fold("Due", todo.el, () => todoSays(todo.value()), "due");
+  const showTodo = () => (todoLine.el.hidden = kind.value() !== "todo");
   kind.el.addEventListener("change", showTodo);
   showTodo();
   const conflict = h("div");
@@ -124,7 +130,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   };
   const ed = editor({
     text,
-    before: [kind.el, title, tags.el, todo.el],
+    before: [kind.el, title, tagLine.el, todoLine.el],
     after: [conflict],
     key,
     draft: (): Draft => ({
@@ -152,6 +158,8 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
       tagsFrom = p.tags;
       todo.reset(p.due ?? null, p.priority ?? null);
       showTodo();
+      tagLine.refresh();
+      todoLine.refresh();
       base = p.rev;
       over = p.body;
     },

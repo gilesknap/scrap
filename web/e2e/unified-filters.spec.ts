@@ -1,8 +1,11 @@
 // Runs after smoke.spec.ts, which wants an empty store (files run in name order).
-// The search screen's Filters: a short row (Filters, with how many are on, then the top
-// tags), the count and the filters on above the list, and the Filters sheet: a modal at the
-// bottom that edits the query at once, closed by Done, Escape, Back or a tap outside.
+// The search screen's Filters (refine.ts): a slider at the box's end (with how many are on),
+// the filters on as chips under the box, the count over the list, and the Filters panel that
+// opens in place: Tags (offering only tags of the results), Order and When, each tap editing
+// the query at once, and Clear filters.
 import { expect, type Page, test } from "@playwright/test";
+import { lowContrast } from "./contrast";
+import { filters, filtersButton } from "./panel";
 
 let n = 0;
 async function note(page: Page, text: string, tags: string[]) {
@@ -17,88 +20,150 @@ test.beforeAll(async ({ request }) => {
   await note(page, "Potoroo one", ["marsupial"]);
   await note(page, "Potoroo two", ["marsupial", "hop"]);
   await note(page, "Potoroo three", []);
+  await note(page, "Bettong elsewhere", ["hopper"]); // a tag in use, on no potoroo
 });
 
 const hits = (page: Page) => page.locator(".hits li a strong");
-const row = (page: Page) => page.getByRole("group", { name: "Refine" });
-const filtersChip = (page: Page) => row(page).getByRole("button", { name: /^Filters/ });
-const sheet = (page: Page) => page.getByRole("dialog", { name: "Filters" });
+const filtersOn = (page: Page) => page.getByRole("group", { name: "Filters on" });
+/** The tags the panel offers, as their chips say them ("#hop1": the tag and its count). */
+const offers = (page: Page) =>
+  page.getByRole("group", { name: "Tags" }).locator("[data-k^='tag:']");
 
-test("the row starts with Filters alone, then tags; the count and filters sit above the list", async ({
+test("Filters is a slider in the box; what is on shows as chips under it", async ({ page }) => {
+  await page.goto("/search?q=potoroo");
+  await expect(hits(page)).toHaveCount(3);
+  await expect(page.locator(".found")).toHaveText("3 pages");
+  await expect(filtersOn(page)).toHaveCount(0); // none on: no row
+  const button = filtersButton(page);
+  await expect(button).toHaveAccessibleName("Filters");
+  await expect(button).toHaveAttribute("aria-controls", "fpanel");
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#fpanel")).toBeHidden();
+  expect((await button.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const panel = await filters(page);
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  // In place: under the box, over the kind row and the list
+  const [field, open, kinds] = await Promise.all([
+    page.locator(".field-search").boundingBox(),
+    panel.boundingBox(),
+    page.getByRole("radiogroup", { name: "Kind" }).boundingBox(),
+  ]);
+  expect(open?.y ?? 0).toBeGreaterThan(field?.y ?? 0);
+  expect((open?.y ?? 0) + (open?.height ?? 0)).toBeLessThanOrEqual(kinds?.y ?? 0);
+  // Every control a 44 px target
+  for (const b of await panel.locator("button:visible, a:visible, input:visible").all())
+    expect(
+      Math.round((await b.boundingBox())?.height ?? 0),
+      await b.evaluate((el) => el.outerHTML.slice(0, 80)),
+    ).toBeGreaterThanOrEqual(44);
+  // A tag chosen: on as a chip under the box, counted on the slider; the panel stays open
+  await offers(page).filter({ hasText: "#marsupial" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue("potoroo tag:marsupial");
+  await expect(hits(page)).toHaveCount(2);
+  await expect(page.locator(".found")).toHaveText("2 pages");
+  await expect(button).toHaveAccessibleName("Filters, 1 on");
+  await expect(button.locator("b")).toHaveText("1");
+  await expect(panel).toBeVisible();
+  const on = filtersOn(page).getByRole("button", { name: "Remove #marsupial" });
+  await expect(on).toHaveText("#marsupial");
+  expect((await on.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  // Folded: the panel goes, the chips stay
+  await button.click();
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#fpanel")).toBeHidden();
+  await expect(on).toBeVisible();
+  await on.click();
+  await expect(hits(page)).toHaveCount(3);
+  await expect(button).toHaveAccessibleName("Filters");
+  await expect(filtersOn(page)).toHaveCount(0);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await filters(page);
+    await page.locator("#fpanel").getByRole("button", { name: "Edited in the past year" }).click();
+    await expect(filtersOn(page)).toBeVisible();
+    expect(await page.evaluate(lowContrast, ""), `${colorScheme} panel`).toEqual([]);
+    await filtersOn(page).getByRole("button").click();
+    await expect(filtersOn(page)).toHaveCount(0);
+  }
+});
+
+test("Tags offers only tags that narrow the results; typed, those of the results", async ({
   page,
 }) => {
   await page.goto("/search?q=potoroo");
   await expect(hits(page)).toHaveCount(3);
-  await expect(row(page).locator(":scope > *")).toHaveText(["Filters", /^#marsupial/, /^#hop/]);
-  await expect(page.locator(".found")).toHaveText("3 pages");
-  await row(page).getByRole("button", { name: "#marsupial 2" }).click();
+  const panel = await filters(page);
+  // The results' top tags, with how many of them have each; not a tag of no result
+  await expect(offers(page)).toHaveText(["#marsupial2", "#hop1"]);
+  await expect(panel.getByRole("link", { name: "All tags" })).toBeVisible();
+  await offers(page).filter({ hasText: "#marsupial" }).click();
+  // Now from these two: #hop narrows them, #marsupial (on every one) does not
   await expect(hits(page)).toHaveCount(2);
-  // The filter on: a chip above the list, and a count on Filters; the row's start stays put
-  await expect(filtersChip(page)).toHaveAccessibleName("Filters, 1 on");
-  await expect(filtersChip(page).locator("b")).toHaveText("1");
-  await expect(row(page).locator(":scope > :first-child")).toHaveAccessibleName("Filters, 1 on");
-  const on = page.locator(".found").getByRole("button", { name: "Remove tag:marsupial" });
-  await expect(on).toBeVisible();
-  expect((await on.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-  expect((await filtersChip(page).boundingBox())?.height).toBeGreaterThanOrEqual(44);
-  await on.click();
-  await expect(hits(page)).toHaveCount(3);
-  await expect(filtersChip(page)).toHaveAccessibleName("Filters");
+  await expect(offers(page)).toHaveText(["#hop1"]);
+  // Typed: the tags of the results that match (#hopper is in use, on no potoroo)
+  const box = panel.getByRole("textbox", { name: "Add a tag filter" });
+  await box.fill("ho");
+  await expect(offers(page)).toHaveText(["#hop1"]);
+  await expect(panel.getByRole("link", { name: "All tags" })).toHaveCount(0);
+  await box.fill("hopp");
+  await expect(offers(page)).toHaveCount(0);
+  await expect(panel.locator(".none")).toHaveText("No tag in these results has “hopp”");
+  // Enter takes the first offer
+  await box.fill("ho");
+  await expect(offers(page)).toHaveText(["#hop1"]);
+  await box.press("Enter");
+  await expect(page.getByRole("searchbox")).toHaveValue("potoroo tag:marsupial tag:hop");
+  await expect(hits(page)).toHaveText(["Potoroo two"]);
+  await expect(panel.getByRole("textbox", { name: "Add a tag filter" })).toHaveValue("");
+  await expect(panel.locator(".none")).toHaveText("No tag narrows these results");
+  // Before any search: the most used tags of all
+  await page.goto("/search");
+  await filters(page);
+  await expect(offers(page).filter({ hasText: "#marsupial" })).toBeVisible();
 });
 
-test("the sheet: opens at the bottom, applies at once, Clear filters, Done", async ({ page }) => {
+test("When, Order and Clear filters: each a tap, applied at once", async ({ page }) => {
   await page.goto("/search?q=potoroo");
   await expect(hits(page)).toHaveCount(3);
-  await filtersChip(page).click();
-  const s = sheet(page);
-  await expect(s).toBeVisible();
-  await expect(filtersChip(page)).toHaveAttribute("aria-haspopup", "dialog");
-  // At the bottom of the screen, its title focused (inside it, not behind it)
-  const box = await s.boundingBox();
-  const vh = page.viewportSize()?.height ?? 0;
-  expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBeGreaterThanOrEqual(vh - 1);
-  await expect(s.getByRole("heading", { name: "Filters" })).toBeFocused();
-  await expect(s).toContainText("3 pages");
-  // Every control a 44 px target (rounded: still sliding up, a box can be 43.99997 px)
-  for (const b of await s.locator("button:visible, a:visible, select:visible").all())
-    expect(
-      Math.round((await b.boundingBox())?.height ?? 0),
-      await b.innerText(),
-    ).toBeGreaterThanOrEqual(44);
-  await s.getByRole("combobox", { name: "Sort" }).selectOption({ label: "Title A–Z" });
+  const panel = await filters(page);
+  await expect(panel.getByRole("button", { name: "Clear filters" })).toHaveCount(0); // none on
+  const order = panel.getByRole("group", { name: "Order" });
+  await order.getByRole("button", { name: "A–Z" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo sort:title");
   await expect(hits(page)).toHaveText(["Potoroo one", "Potoroo three", "Potoroo two"]);
-  await s.getByRole("button", { name: "Edited in the past year" }).click();
+  await panel.getByRole("button", { name: "Edited in the past year" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo sort:title after:1y");
   await expect(page).toHaveURL(/q=potoroo%20sort%3Atitle%20after%3A1y$/);
-  await expect(s).toBeVisible(); // still open: more to choose
-  // Focus stays on the control tapped, though the sheet was drawn again
-  await expect(s.getByRole("button", { name: "Edited in the past year" })).toBeFocused();
-  await s.getByRole("button", { name: "Clear filters" }).click();
+  // Focus stays on the control tapped, though the panel was drawn again
+  await expect(panel.getByRole("button", { name: "Edited in the past year" })).toBeFocused();
+  await expect(panel.getByRole("button", { name: "Edited in the past year" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(filtersOn(page).getByRole("button")).toHaveText(["A–Z", "past year"]);
+  await panel.getByRole("button", { name: "Clear filters" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo"); // the words stay
-  await expect(s.getByRole("button", { name: "Clear filters" })).toBeHidden(); // none left
-  await s.getByRole("button", { name: "Edited in the past week" }).click();
-  await s.getByRole("button", { name: "Done" }).click();
-  await expect(s).toBeHidden();
-  await expect(filtersChip(page)).toBeFocused(); // back where it was
-  await expect(filtersChip(page)).toHaveAccessibleName("Filters, 1 on");
-  await expect(page.getByRole("button", { name: "Remove after:1w" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Clear filters" })).toHaveCount(0); // none left
+  await expect(filtersOn(page)).toHaveCount(0);
+  // Clear keeps the kind (the kind row's own) and the words
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Notes").click();
+  await panel.getByRole("button", { name: "Edited in the past week" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue("potoroo kind:note after:1w");
+  await panel.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByRole("searchbox")).toHaveValue("potoroo kind:note");
 });
 
-test("Sort replaces the order: a typed Sort:due, and two picks in a row", async ({ page }) => {
-  // The server reads the key in any case: a typed Sort:due is an order the menu replaces
+test("Order replaces the order: a typed Sort:due, and two picks in a row", async ({ page }) => {
+  // The server reads the key in any case: a typed Sort:due is an order Order replaces
   await page.goto("/search?q=potoroo%20Sort:due");
   await expect(hits(page)).toHaveCount(3);
-  await filtersChip(page).click();
-  const menu = sheet(page).getByRole("combobox", { name: "Sort" });
-  await menu.selectOption({ label: "Oldest" });
+  const order = (await filters(page)).getByRole("group", { name: "Order" });
+  await order.getByRole("button", { name: "Oldest" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo -sort:created");
-  // Two picks before the sheet is drawn again: the second replaces the first
-  await menu.evaluate((el: HTMLSelectElement) => {
-    for (const v of ["sort:title", "sort:created"]) {
-      el.value = v;
-      el.dispatchEvent(new Event("change"));
-    }
+  // Two picks before the panel is drawn again: the second replaces the first
+  await page.evaluate(() => {
+    for (const k of ["sort:sort:title", "sort:sort:created"])
+      (document.querySelector(`#fpanel [data-k="${k}"]`) as HTMLElement).click();
   });
   const box = page.getByRole("searchbox");
   await expect(box).toHaveValue("potoroo sort:created");
@@ -107,106 +172,21 @@ test("Sort replaces the order: a typed Sort:due, and two picks in a row", async 
   await expect(hits(page)).toHaveText(["Potoroo three", "Potoroo two", "Potoroo one"]);
 });
 
-test("Escape, Back and a tap outside close it; Back then leaves the screen", async ({ page }) => {
+test("the panel takes no history entry: Back leaves the screen", async ({ page }) => {
   await page.goto("/");
   await page.goto("/search?q=potoroo");
   await expect(hits(page)).toHaveCount(3);
-  // Escape
-  await filtersChip(page).click();
-  await expect(sheet(page)).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(sheet(page)).toBeHidden();
-  await expect(filtersChip(page)).toBeFocused();
-  await expect(page).toHaveURL(/\/search\?q=potoroo$/);
-  // Back: closes it, keeps what it chose, and the screen stays
-  await filtersChip(page).click();
-  await sheet(page).getByRole("button", { name: "Edited in the past year" }).click();
-  await expect(page.getByRole("searchbox")).toHaveValue("potoroo after:1y");
-  await page.goBack();
-  await expect(sheet(page)).toBeHidden();
+  const panel = await filters(page);
+  await panel.getByRole("button", { name: "Edited in the past year" }).click();
   await expect(page).toHaveURL(/\/search\?q=potoroo%20after%3A1y$/);
-  await expect(page.getByRole("searchbox")).toHaveValue("potoroo after:1y");
-  await expect(hits(page)).toHaveCount(3);
-  await expect(filtersChip(page)).toBeFocused();
-  // A tap outside it, on the dimmed list
-  await filtersChip(page).click();
-  await expect(sheet(page)).toBeVisible();
-  await page.mouse.click(200, 60);
-  await expect(sheet(page)).toBeHidden();
-  // Back now: off the screen, as before (no stray entries left)
-  await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
-});
-
-test("a tap just as the sheet closes is not undone by its step back", async ({ page }) => {
-  await page.goto("/");
-  await page.goto("/search?q=potoroo");
-  await expect(hits(page)).toHaveCount(3);
-  await filtersChip(page).click();
-  await expect(sheet(page)).toBeVisible();
-  // Done and a row tapped in the same moment, before the sheet's history.back() lands
-  const title = await page.evaluate(() => {
-    (document.querySelector(".sheet .primary") as HTMLElement).click();
-    const a = document.querySelector(".hits li a") as HTMLAnchorElement;
-    a.click();
-    return a.querySelector("strong")?.textContent;
-  });
-  await expect(page).toHaveURL(/\/p\//);
+  // A row tapped with the panel open opens it; Back comes back to the search as it was
+  const title = await hits(page).first().textContent();
+  await hits(page).first().click();
   await expect(page.locator(".page h1")).toHaveText(title ?? "");
-  // Back: the search screen once (no stray entry), then where it came from
   await page.goBack();
-  await expect(page).toHaveURL(/\/search\?q=potoroo$/);
-  await expect(hits(page)).toHaveCount(3);
-  await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
-});
-
-test("closed and opened again at once, it stays open; Forward steps over its old entry", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await page.goto("/search?q=potoroo");
-  await expect(hits(page)).toHaveCount(3);
-  await filtersChip(page).click();
-  await expect(sheet(page)).toBeVisible();
-  await page.evaluate(() => {
-    (document.querySelector(".sheet .primary") as HTMLElement).click();
-    const chip = document.querySelector(".refine .filter") as HTMLElement;
-    chip.click();
-    chip.click(); // a double tap while the step back is on its way: still one sheet
-  });
-  await expect(sheet(page)).toBeVisible();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBe(1);
-  await expect(sheet(page)).toBeVisible(); // the first close's step back did not close it
-  await expect(page.locator("dialog.sheet")).toHaveCount(1);
-  // Something changed in it: its entry stays marked
-  await sheet(page).getByRole("button", { name: "Edited in the past year" }).click();
+  await expect(page).toHaveURL(/\/search\?q=potoroo%20after%3A1y$/);
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo after:1y");
-  await sheet(page).getByRole("button", { name: "Done" }).click();
-  await expect(sheet(page)).toBeHidden();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
-  await expect(page).toHaveURL(/\/search\?q=potoroo%20after%3A1y$/);
-  // Forward: onto the closed sheet's entry, which is stepped over, back to the list
-  await page.goForward();
-  await expect.poll(() => page.evaluate(() => history.state?.sheet)).toBeUndefined();
-  await expect(sheet(page)).toBeHidden();
-  await expect(page).toHaveURL(/\/search\?q=potoroo%20after%3A1y$/);
   await expect(hits(page)).toHaveCount(3);
-  await page.goBack(); // no copy of the list left behind
+  await page.goBack();
   await expect(page).toHaveURL(/\/$/);
-});
-
-test("the rest of the page is inert while it is open; Tab stays inside", async ({ page }) => {
-  await page.goto("/search?q=potoroo");
-  await expect(hits(page)).toHaveCount(3);
-  await filtersChip(page).click();
-  await expect(sheet(page)).toBeVisible();
-  for (let i = 0; i < 12; i++) {
-    await page.keyboard.press("Tab");
-    const inside = await page.evaluate(
-      () => !!document.activeElement?.closest("dialog") || document.activeElement === document.body,
-    );
-    expect(inside).toBe(true);
-  }
-  await expect(page.getByRole("searchbox")).not.toBeFocused();
 });

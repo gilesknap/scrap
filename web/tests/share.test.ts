@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { shareable } from "../src/api";
-import { dispositionName, menuSpot, pageLink } from "../src/ui";
+import { dispositionName, menuSpot } from "../src/sharing";
+import { pageLink } from "../src/ui";
 
 const SHA = "ab".repeat(32);
 const file = (mime: string, size = 1000, filename: string | null = "IMG_1.jpg") => ({

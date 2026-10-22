@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { chipOf, dueOf, partly, snoozed, statusOf, ticks, today } from "../src/status";
 
-it("gives todos and Reads a status, open if they have none, and nothing else one", () => {
+it("gives todos and Laters a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
   expect(statusOf("consume", { subtype: "read", status: "done" })).toBe("done");
   expect(statusOf("todo", {})).toBe("open");
@@ -9,12 +9,12 @@ it("gives todos and Reads a status, open if they have none, and nothing else one
   expect(statusOf("whiteboard", undefined)).toBeNull();
 });
 
-it("offers Done from any status but done, Reopen from done or cancelled", () => {
-  expect(ticks("open")).toEqual([["Done", "done"]]);
-  expect(ticks("in_progress")).toEqual([["Done", "done"]]);
+it("offers Mark done from any status but done, Reopen from done or cancelled", () => {
+  expect(ticks("open")).toEqual([["Mark done", "done"]]);
+  expect(ticks("in_progress")).toEqual([["Mark done", "done"]]);
   expect(ticks("done")).toEqual([["Reopen", "open"]]);
   expect(ticks("cancelled")).toEqual([
-    ["Done", "done"],
+    ["Mark done", "done"],
     ["Reopen", "open"],
   ]);
   expect(ticks(null)).toEqual([]);
@@ -25,7 +25,7 @@ it("chips a row with a status that ends it, else its kind", () => {
   expect(chipOf("todo", { status: "in_progress" })).toBe("todo");
   expect(chipOf("todo", { status: "done" })).toBe("done");
   expect(chipOf("consume", { status: "cancelled" })).toBe("cancelled");
-  expect(chipOf("consume", {})).toBe("read");
+  expect(chipOf("consume", {})).toBe("later");
   expect(chipOf("note", { status: "done" })).toBe("");
 });
 
@@ -44,13 +44,18 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   });
   expect(dueOf(todo(null), now)).toBeNull();
   expect(dueOf({ ...todo("2026-10-01"), kind: "note" }, now)).toBeNull();
-  expect(dueOf(todo(null, "high"), now)).toEqual(["high", false]);
-  expect(dueOf(todo("2026-10-21", "low"), now)).toEqual(["low · due today", false]);
+  expect(dueOf(todo(null, "high"), now)).toEqual(["high", "due"]);
+  expect(dueOf(todo("2026-10-21", "low"), now)).toEqual(["low · due today", "due"]);
   const [late, overdue] = dueOf(todo("2026-10-20"), now) ?? [];
-  expect([late?.startsWith("overdue "), overdue]).toEqual([true, true]);
+  expect([late?.startsWith("overdue "), overdue]).toEqual([true, "due late"]);
   expect(late).toMatch(/20/);
-  expect(dueOf(todo("2026-10-20", null, "done"), now)?.[1]).toBe(false);
-  expect(dueOf(todo("2026-10-20", null, "cancelled"), now)?.[0]).toMatch(/^due /);
+  // Done or cancelled: greyed, its date kept and said as a date, never today or overdue
+  expect(dueOf(todo("2026-10-20", null, "done"), now)?.[1]).toBe("due closed");
+  expect(dueOf(todo("2026-10-20", null, "cancelled"), now)?.[0]).toMatch(/^due \D*\d/);
+  expect(dueOf(todo("2026-10-21", "high", "done"), now)).toEqual([
+    `high · due ${new Date("2026-10-21T12:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}`,
+    "due closed",
+  ]);
   expect(dueOf(todo("2027-01-02"), now)?.[0]).toMatch(/2027/); // another year: said
   // Snoozed: said after the rest, until its day (and not once done)
   const nap = { ...todo("2026-10-30", "low"), snoozed_until: "2026-10-25" };

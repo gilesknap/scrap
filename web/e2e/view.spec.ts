@@ -229,8 +229,10 @@ test("the editor follows the visual viewport when only that moves", async ({ pag
   await page.getByRole("button", { name: "Note" }).click();
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
-  await page.mouse.move(100, 300);
-  await page.mouse.wheel(0, 400); // pans the zoomed visual viewport down
+  // Over the top bar, which doesn't scroll (the fields under it may: their own scroll is not
+  // the viewport's), the wheel pans the zoomed visual viewport down
+  await page.mouse.move(100, 20);
+  await page.mouse.wheel(0, 400);
   const seen = () =>
     page.evaluate(() => {
       const vv = window.visualViewport as VisualViewport;
@@ -310,7 +312,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.locator(".kinds").getByText("Todo").click();
-  await page.getByPlaceholder("Note or link").fill("half a thought");
+  await page.getByPlaceholder("What needs doing?").fill("half a thought");
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.locator(".editor").getByRole("button", { name: "Gallery" }).click(),
@@ -736,14 +738,14 @@ test("at the largest text size the Camera button is on the first screen", async 
   }
 });
 
-test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind row filters", async ({
+test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind row filters", async ({
   page,
 }) => {
   const link = await note(page, "https://example.com/kinds");
   await note(page, "Kinds: an unfiled note");
   await page.goto(`/p/${link}`);
   await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // a bare URL
+  await expect(page.getByRole("radio", { name: "Later" })).toBeChecked(); // a bare URL
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator(".editor")).toBeHidden();
   const api = async () => (await page.request.get(`/api/pages/${link}`)).json();
@@ -761,7 +763,7 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind ro
   }
   await page.locator(".kinds").getByText("Todo").click();
   await page.getByRole("button", { name: "Save" }).click();
-  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Mark done" }).click();
   await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
   expect(await api()).toMatchObject({ kind: "todo", kind_fixed: 1, fields: { status: "done" } });
 
@@ -773,11 +775,12 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind ro
   await expect(kinds.getByRole("radio", { name: "Todos" })).toBeChecked();
   await kinds.getByText("All").click();
   await expect(page).toHaveURL(/\/search$/);
-  await kinds.getByText("Todos").click(); // nothing else asked: the Todos screen
-  await expect(page).toHaveURL(/\/todos$/);
-  await page.goBack();
+  await kinds.getByText("Todos").click(); // in place, as the other kinds: not the Todos screen
+  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
+  await expect(kinds.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await kinds.getByText("All").click();
   await expect(page).toHaveURL(/\/search$/);
-  await expect(kinds.getByRole("radio", { name: "All" })).toBeChecked(); // drawn again first
+  await expect(kinds.getByRole("radio", { name: "All" })).toBeChecked();
   await expect(
     page.locator(".list li").filter({ hasText: "an unfiled note" }).first(),
   ).toBeVisible();
@@ -821,18 +824,18 @@ test("kinds: chosen in the editor, a link suggests Read, todos tick, the kind ro
     await new Promise((ok) => setTimeout(ok, 1500));
     await route.continue();
   });
-  await kinds.getByText("Reads").click();
+  await kinds.getByText("Later").click();
   await kinds.getByText("All").click();
   await page.waitForTimeout(2500);
   await expect(page).toHaveURL(/\/search$/);
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
 });
 
-test("a Note chosen for a link is kept, not made Read later", async ({ page }) => {
+test("a Note chosen for a link is kept, not made Later", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("https://example.com/kept-note");
-  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // suggested
+  await expect(page.getByRole("radio", { name: "Later" })).toBeChecked(); // suggested
   await page.locator(".kinds").getByText("Note").click();
   await page.getByRole("button", { name: "Save" }).click();
   const kept = async () => {
@@ -845,7 +848,7 @@ test("a Note chosen for a link is kept, not made Read later", async ({ page }) =
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
 
-  // An untouched draft with a link restored later still gets Read suggested
+  // An untouched draft with a link restored later still gets Later suggested
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("not a link yet");
@@ -853,14 +856,14 @@ test("a Note chosen for a link is kept, not made Read later", async ({ page }) =
   await page.reload();
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("https://example.com/later");
-  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Later" })).toBeChecked();
 });
 
 test("a draft keeps only a kind the user picked, not one suggested", async ({ page }) => {
   const slug = await note(page, "https://example.com/draft-kind");
   await page.goto(`/p/${slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked(); // suggested only
+  await expect(page.getByRole("radio", { name: "Later" })).toBeChecked(); // suggested only
   await page.getByLabel("Title").fill("A link to read");
   await page.waitForTimeout(600); // kept as a draft
   await page.goBack(); // closes the editor, keeping the draft
@@ -879,7 +882,7 @@ test("a draft keeps only a kind the user picked, not one suggested", async ({ pa
   const other = await note(page, "https://example.com/commented");
   await page.goto(`/p/${other}`);
   await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.getByRole("radio", { name: "Read" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Later" })).toBeChecked();
   await page.getByLabel("Body").fill("https://example.com/commented\n\nmy own thoughts");
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
 });

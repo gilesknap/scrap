@@ -1,6 +1,6 @@
 // List rows that follow the finger: swiped right, a row opens its page in the editor; swiped
 // left, deletes it (with Undo). What letting go would do shows behind it. The page has the
-// same Edit and Delete, for those who never swipe. A todo's or a Read's row also has a tick.
+// same Edit and Delete, for those who never swipe. A todo's or a Later's row also has a tick.
 // A chunk of its own, loaded with a list (which needs the server anyway).
 import { setStatus } from "./api";
 import { go, rerender } from "./app";
@@ -94,7 +94,7 @@ export function swipeRow(li: HTMLLIElement, p: RowPage) {
   return li;
 }
 
-/** A todo's or a Read's tick, beside its row (not in its link: tapping it opens nothing):
+/** A todo's or a Later's tick, beside its row (not in its link: tapping it opens nothing):
  * pressed when done; pressing it sets done, or open again. The chip follows. */
 function tickBox(li: HTMLLIElement, p: RowPage) {
   let status = statusOf(p.kind, p.fields);
@@ -111,12 +111,12 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
     b.title = some ? `${some} ticked` : "";
     const chip = li.querySelector("em");
     if (chip) chip.textContent = chipOf(p.kind, { status });
-    // A todo's due date: overdue no longer once done
+    // A todo's due date: greyed, and overdue no longer, once done
     const due = li.querySelector(".due");
     const said = dueOf({ ...p, fields: { status } });
     if (due && said) {
       due.textContent = said[0];
-      due.className = said[1] ? "due late" : "due";
+      due.className = said[1];
     }
   };
   let busy = false; // taps meanwhile are ignored (not disabled: that would drop its focus)

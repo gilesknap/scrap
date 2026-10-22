@@ -678,11 +678,59 @@ mark {
   padding-inline-start: 46px;
   border-radius: var(--r-pill);
 }
+/* Recent searches, under the empty box while it has focus: "Recent" and Clear all, then the
+   last ten as one list group, each a row that runs it again (start-aligned, cut with … on one
+   line) and a 48 px ✕ that forgets it */
+.recents-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: calc(-1 * var(--s-2));
+}
+.recents-top h2.label {
+  margin: 0;
+}
+.recents-top button.link {
+  margin: 0 calc(-1 * var(--s-3)) 0 0;
+}
+.list.recents li {
+  display: flex;
+  align-items: center;
+}
+.list.recents .again {
+  flex: 1;
+  justify-content: flex-start;
+  text-align: start;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+}
+.list.recents .again span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list.recents .again .i {
+  flex: none;
+  color: var(--ink-2);
+}
+.list.recents .again:active {
+  background: var(--sunk);
+}
+.list.recents .forget {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
 /* The box's ✕ (the search screen's: one tap back to every page); the browser's own is hidden */
 .field-search .clear {
   position: absolute;
-  inset-inline-end: 0;
-  top: 0;
+  inset-inline-end: var(--tap); /* beside Filters, at the box's end */
+  top: 50%; /* centred on the box, whatever its height */
+  translate: 0 -50%;
   width: var(--tap);
   height: var(--tap);
   padding: 0;
@@ -695,33 +743,142 @@ mark {
   display: none;
 }
 .field-search:has(.clear) input {
-  padding-inline-end: var(--tap);
+  padding-inline-end: calc(2 * var(--tap));
 }
 .field-search input::-webkit-search-cancel-button {
   appearance: none;
 }
 
 /* Refine chips: one row that scrolls sideways, the query's own filters first */
+/* Filters: a slider at the search box's end, beside its ✕ (how many are on, in a dot); the
+   filters on are a row of their own under the kinds, scrolling sideways; the panel opens under
+   that, in place, over the results, which stay in view and follow each tap */
+.field-search .ffield {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--tap);
+  padding: 0;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+}
+.field-search .ffield[aria-expanded="true"] {
+  color: var(--accent-ink);
+  background: var(--sunk);
+}
+.ffield b {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.7rem;
+  line-height: 18px;
+  text-align: center;
+}
 .refine {
+  margin: 0 0 var(--s-3);
+}
+.fon {
   display: flex;
-  align-items: center;
   gap: var(--s-2);
-  margin: 0 calc(-1 * var(--s-4)) var(--s-3);
+  margin-inline: calc(-1 * var(--s-4)); /* the screen's width, scrolling to its edges */
   padding: 2px var(--s-4);
   overflow-x: auto;
   scrollbar-width: none;
 }
-/* Filters, first and always alone at the row's start: with how many are on */
-.facet.filter b {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--on-accent);
+.fpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  padding: var(--s-1) 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.fpanel[hidden] {
+  display: none;
+}
+/* A row: its label, then its chips on one line that scrolls sideways (never a wall of chips) */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-inline-start: var(--s-3);
+}
+.flabel {
+  flex: none;
+  width: 4.2em;
+  color: var(--ink-2);
   font-size: var(--t-xs);
-  line-height: 20px;
-  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.frow .opts,
+.frow.ftags > .opts {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: var(--s-2);
+  padding: 2px var(--s-3) 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fpanel .facet[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+/* Tags: those on and the box on one line, what it offers on the next (under the box) */
+.frow.ftags {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: var(--s-2);
+}
+.frow.ftags > .flabel {
+  line-height: 44px; /* level with the first line of chips and the box */
+}
+
+.frow.ftags .tagline {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-inline-end: var(--s-3);
+}
+.frow.ftags .tagline input {
+  flex: 1;
+  min-width: 8rem;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+}
+.frow.ftags > .opts {
+  flex-basis: 100%;
+  padding-inline-start: calc(4.2em + var(--s-2));
+}
+.fpanel .opts .none {
+  align-self: center;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.fpanel .range {
+  margin: 0;
+  padding-inline: calc(4.2em + var(--s-2) + var(--s-3)) var(--s-3);
+}
+.fpanel > button.link {
+  align-self: flex-start;
+  margin: 0 0 0 var(--s-3);
 }
 /* Above the list: how many were found, then each filter on (tap to take it out); wraps */
 .found {
@@ -731,8 +888,7 @@ mark {
   gap: var(--s-2);
   margin-bottom: var(--s-3);
 }
-.found .count,
-.sheet .count {
+.found .count {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
@@ -925,11 +1081,20 @@ mark {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.pager span {
+/* Where it is in the list; tapped, back to it (a ghost button, underlined as a link) */
+.pager .up {
   flex: 1;
+  display: block;
   min-width: 0;
+  padding: 0 var(--s-1);
   overflow: hidden;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
   text-align: center;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 0.25em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1066,11 +1231,8 @@ mark {
 .md li.task {
   list-style: none;
 }
-/* A task's box, in the bullet's place; on a page it ticks (tasks.ts): a --tap target, the
-   items spaced (a 49 px pitch on the body's 27.2 px line) so that no two targets overlap */
-.md li.task {
-  padding-block: 11px;
-}
+/* A task's box, in the bullet's place, the list as tight as a bulleted one. On a page it
+   ticks (tasks.ts): its target is --tap wide and one line high, so no two overlap */
 .md li + li.task,
 .md li.task + li {
   margin-top: 0;
@@ -1085,7 +1247,7 @@ mark {
   left: 50%;
   top: 50%;
   width: var(--tap);
-  height: var(--tap);
+  height: calc(var(--lh) * 1em);
   translate: -50% -50%;
 }
 .md li.task input {
@@ -1229,6 +1391,7 @@ div.orig .save {
 }
 .page > .tools {
   position: sticky;
+  z-index: 2; /* over the page text scrolling under it, task boxes (z-index 1) too */
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   gap: 0;
   margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
@@ -1236,7 +1399,16 @@ div.orig .save {
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
-/* Share's choice (a popover just above it, placed by ui.ts): Link, or the content */
+/* A todo's or a Read's Mark done: the page's hero, filled and wider than the other tools */
+.tools > .primary {
+  flex: 1.6 1 auto;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--t-sm);
+}
+/* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
+   page Download (a link drawn as its rows are) */
 .share-menu {
   position: fixed;
   inset: auto;
@@ -1253,7 +1425,7 @@ div.orig .save {
   display: flex;
   flex-direction: column;
 }
-.share-menu button {
+.share-menu :is(button, .button) {
   justify-content: flex-start;
   border: none;
   background: transparent;
@@ -1404,16 +1576,110 @@ div.orig .save {
   padding: var(--s-3) max(env(safe-area-inset-right), var(--s-4)) var(--s-3)
     max(env(safe-area-inset-left), var(--s-4));
 }
+/* The text is the hero: at least 60 % of what is visible (the keyboard's room taken off:
+   --vv-h follows the visual viewport), however many tags or dates; the fields scroll */
 .fields > textarea,
 .fields > .preview {
-  flex: 1 1 auto;
-  min-height: 5rem;
+  flex: 1 0 auto;
+  min-height: calc(var(--vv-h, 100dvh) * 0.6);
   resize: none;
   overflow-y: auto;
 }
+/* The title: big and bold, on a line rather than in a second box */
 .fields > input {
+  padding-inline: 0;
+  border-color: transparent;
+  border-bottom-color: var(--line-strong);
+  border-radius: 0;
+  background: transparent;
   font-size: var(--t-lg);
   font-weight: 600;
+}
+/* The composer's Camera and Gallery (more photos: now and then): text buttons, not boxes */
+.fields > .bar .add {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+/* Cancel and Preview: text buttons beside Save, the bar's one fill */
+.editor > .bar > button:not(.primary) {
+  border-color: transparent;
+  background: transparent;
+}
+/* Just above the keyboard, the editor's keys: Checkbox (the line becomes a task). Not while
+   the text is previewed */
+.editor > .keys {
+  flex: none;
+  display: flex;
+  gap: var(--s-2);
+  padding: 0 max(env(safe-area-inset-right), var(--s-2)) env(safe-area-inset-bottom)
+    max(env(safe-area-inset-left), var(--s-2));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.editor > .keys button {
+  gap: var(--s-1);
+  padding: 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.editor:has(> .fields > textarea[hidden]) > .keys {
+  display: none;
+}
+/* A fold (editor.ts fold): tags or a todo's dates as one line saying what they hold; tapped,
+   the controls open under it */
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  list-style: none;
+  cursor: pointer;
+}
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+.fold > summary .i {
+  width: 18px;
+  height: 18px;
+}
+.fold > summary b {
+  flex: none;
+  color: var(--ink);
+  font-weight: 600;
+}
+.fold > summary .says {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fold > summary::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: var(--s-1) 3px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: 45deg; /* down: opens */
+  transition: rotate var(--d-1) var(--ease);
+}
+.fold[open] > summary::after {
+  rotate: -135deg;
+}
+.fold[open] > summary {
+  color: var(--ink);
+}
+.fold > :not(summary) {
+  padding-bottom: var(--s-2);
+}
+.fields > .fold + .fold,
+.fields > .fold:has(+ .fold) {
+  margin-block: calc(-1 * var(--s-2)) 0; /* two folds read as one group */
 }
 .preview {
   padding: var(--s-3);
@@ -1451,11 +1717,20 @@ div.orig .save {
   margin-bottom: var(--s-3); /* Tags: by name, by count */
 }
 .kindrow {
-  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Reads, Boards, Docs */
+  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Later, Boards, Docs */
 }
+/* The search screen's kinds: each its icon over its word, so six fit the row from 320 px */
 .kindrow label {
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  padding: 0;
+  padding: 5px 0 4px;
+  font-size: var(--t-xs);
+}
+.chips.kindrow .i {
+  display: block; /* also on a small phone: over the word, it takes no width */
+  width: 18px;
+  height: 18px;
 }
 @media (max-width: 379px) {
   .kindrow {
@@ -1604,10 +1879,10 @@ div.orig .save {
 .viewer .button:active {
   background: color-mix(in srgb, var(--on-overlay) 14%, transparent);
 }
-.viewer .share-menu button {
+.viewer .share-menu :is(button, .button) {
   color: var(--ink); /* the menu is a light surface, not the dark viewer */
 }
-.viewer .share-menu button:active {
+.viewer .share-menu :is(button, .button):active {
   background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .viewer .tools b {
@@ -1804,10 +2079,26 @@ div.orig .save {
   color: var(--ink-2);
   white-space: normal; /* when it is due matters more than one line: never cut */
 }
+/* A done or cancelled todo's or Read's page says so first in its meta line, as its row does */
+.meta .state {
+  margin-inline-end: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--t-xs);
+  font-style: normal;
+  font-weight: 600;
+}
 .list .due.late,
 .todoline .late {
   color: var(--danger);
   font-weight: 600;
+}
+/* Done or cancelled: its due date kept, greyed */
+.list .due.closed,
+.todoline .closed {
+  color: var(--ink-3);
 }
 .todoline {
   margin: calc(-1 * var(--s-2)) 0 0; /* under the tag line, in its rhythm: 32 px drawn in 48 */
@@ -1858,6 +2149,19 @@ div.orig .save {
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
 }
+/* Due soon: Today, Tomorrow, Next week, on a line of their own under the date; the one set is
+   pressed, as in the Filters panel */
+.todoedit .soon {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: var(--s-2);
+}
+.todoedit .facet[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
 /* Snooze starts a line of its own, under the priority */
 .todoedit .break {
   flex-basis: 100%;
@@ -1877,10 +2181,30 @@ div.orig .save {
 .todos h2.label {
   margin-top: var(--s-2);
 }
+/* New todo: the screen's one hero, a pill under the thumb above the nav, over the list's end;
+   at the start, so it covers titles rather than the rows' ticks */
+.todos {
+  display: flex;
+  flex-direction: column;
+}
+.todos .newtodo {
+  position: sticky;
+  z-index: 2;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-3));
+  align-self: flex-start;
+  margin-top: var(--s-3);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-2);
+}
 /* A todo's row leads with its due date and priority, then when it was last edited */
 .todos .sub .due {
   order: -1;
   flex-basis: 100%; /* its own line, whole: the date it was edited goes under it */
+}
+/* Now and Upcoming: what to do and when, not when it was last edited (All, last edited first,
+   keeps the date) */
+.todos [data-view]:not([data-view="all"]) .sub > small:not([class]) {
+  display: none;
 }
 .todos .noimg,
 .todos .list em.todo {
@@ -1917,92 +2241,4 @@ div.orig .save {
 }
 .donefold[open] summary::before {
   rotate: 45deg;
-}
-
-/* ---- The Filters sheet: a modal dialog at the bottom, under the thumb ---- */
-.sheet {
-  inset: auto 0 0;
-  width: 100%;
-  max-width: 40rem;
-  max-height: 85dvh;
-  margin: 0 auto;
-  padding: 0;
-  border: none;
-  border-radius: var(--r-lg) var(--r-lg) 0 0;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow-2);
-}
-.sheet[open] {
-  animation: sheet-up var(--d-3) var(--ease);
-}
-@keyframes sheet-up {
-  from {
-    translate: 0 100%;
-  }
-}
-.sheet::backdrop {
-  background: var(--overlay);
-}
-.sheet > div {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-4);
-  padding: var(--s-4) var(--s-4) 0;
-}
-.sheet-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-3);
-}
-.sheet h2 {
-  margin: 0;
-  font-size: var(--t-lg);
-}
-.sheet h2:focus {
-  outline: none; /* focused on opening, for screen readers; not a control */
-}
-.sheet-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-4);
-}
-.sheet h3 {
-  margin: 0 0 var(--s-2);
-  color: var(--ink-2);
-  font-size: var(--t-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.sheet .opts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-}
-.sheet .facet[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--accent-soft);
-  font-weight: 600;
-}
-.sheet .range {
-  flex-basis: 100%;
-  margin: 0;
-}
-.sheet-bar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  gap: var(--s-2);
-  margin: 0 calc(-1 * var(--s-4));
-  padding: var(--s-2) var(--s-4) calc(var(--s-2) + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-}
-.sheet-bar button {
-  flex: 1;
-}
-.sheet-bar .ghost[hidden] {
-  display: none;
 }

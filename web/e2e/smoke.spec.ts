@@ -6,6 +6,10 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Buy oat milk\nfrom the corner shop");
   await page.getByRole("button", { name: "Save" }).click();
+  // Uploaded (the badge may not have shown yet, and Search lists what waits too)
+  await expect
+    .poll(async () => (await (await page.request.get("/api/pages")).json()).length)
+    .toBe(1);
   await expect(page.locator("#queue")).toBeHidden();
 
   await page.getByRole("link", { name: "Search", exact: true }).click();
@@ -24,7 +28,7 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click(); // the composer, kept offline
   await page.locator(".kinds").getByText("Todo").click();
-  await page.getByPlaceholder("Note or link").fill("Ring the plumber");
+  await page.getByPlaceholder("What needs doing?").fill("Ring the plumber");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator("#queue")).toHaveText("1 waiting");
   await page.reload(); // the queue survives a reload

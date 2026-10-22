@@ -134,7 +134,7 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   const cdp = await page.context().newCDPSession(page);
   await page.goto("/recent");
   // Each step: wait until the new page is drawn (its pager listening), not just its address
-  const at = (n: number) => expect(page.locator(".pager span")).toHaveText(new RegExp(`^${n} of `));
+  const at = (n: number) => expect(page.locator(".pager .up")).toHaveText(new RegExp(`^${n} of `));
   await rowOf(page, c).locator("a").click();
   await at(1);
   await expect(page.getByRole("link", { name: "Previous" })).toHaveAttribute(

@@ -77,7 +77,12 @@ IMAGE_KIND = (
     " WHERE c.page_id = p.id AND d.kind = 'description' AND d.superseded_at IS NULL"
     " AND json_extract(d.data, '$.kind') = ?)"
 )
-KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
+KIND_NAMES = {
+    "later": "consume",
+    "read": "consume",
+    "board": "whiteboard",
+    "doc": "document",
+}
 # What each sort: orders a page p by (query.SORTS has its default direction)
 SORT_SQL = {
     "updated": "p.updated_at",
@@ -253,6 +258,9 @@ def todo_only(page: dict[str, Any]) -> dict[str, Any]:
     if "task_total" in page:
         page["tasks"] = {"done": page.pop("task_done"), "total": page.pop("task_total")}
     return page
+
+
+HEADING = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")  # an ATX heading's marker
 
 
 def slug_base(title: str) -> str:
@@ -535,7 +543,9 @@ class Store:
         if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
             raise InvalidError("tags must be a list of strings")
         tags = clean_tags(tags)  # as an edit's
-        title = text.splitlines()[0][:200] if text else url
+        # Its first line without a heading's #s ("# Trip notes" is titled Trip notes)
+        first = text.splitlines()[0] if text else ""
+        title = (HEADING.sub("", first).strip() or first)[:200] if text else url
         return {
             "id": cid, "kind": what, "text": text, "url": url, "source": source,
             "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),

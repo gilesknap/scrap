@@ -106,14 +106,14 @@ export function tree(list: [string, number][]): TagNode[] {
   return top;
 }
 
-// ---- the search screen's kind row: All, Notes, Todos, Reads, Boards, Docs
+// ---- the search screen's kind row: All, Notes, Todos, Later, Boards, Docs
 
 /** [label, the kind: it sets, every kind: value meaning it (what the server takes), the API's
  * kind] */
 export const KIND_ROW: [string, string, string[], string][] = [
   ["Notes", "note", ["note"], "note"],
   ["Todos", "todo", ["todo"], "todo"],
-  ["Reads", "read", ["read", "consume"], "consume"],
+  ["Later", "later", ["later", "read", "consume"], "consume"],
   ["Boards", "board", ["board", "whiteboard"], "whiteboard"],
   ["Docs", "doc", ["doc", "document"], "document"],
 ];

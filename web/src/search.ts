@@ -1,15 +1,14 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
-// and <mark>s, never HTML). The box's ✕ clears it. Under it, a fixed row of kinds (one tap
-// sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's row: Filters
-// and the results' top tags, and above the list their count and the filters on. All of it is
+// and <mark>s, never HTML). The box's ✕ clears it. Under it, refine.ts's: the filters on as a
+// row of chips, and the Filters panel, opened by the slider at the box's end; then a fixed row
+// of kinds (one tap sets or clears kind:, Todos too), and above the list the count. All of it is
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
 import { address, go, markNav, view } from "./app";
-import { icon } from "./icons";
+import { icon, kindIcon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
-import { refine } from "./refine";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
@@ -36,20 +35,40 @@ export async function search(): Promise<Node> {
     "aria-label": "Search",
   });
   const pending = h("div");
+  // Recent searches under the empty box (searches.ts, a chunk of its own); a search is kept
+  // when it is run: Enter, opening a result, or the same query left 3 s with a result
+  const recents = h("div");
+  const later = import("./searches").then(
+    (m) => m.attach(input, recents, (q) => apply(() => q)),
+    () => null, // offline before it was kept: no recents, search as before
+  );
+  const remember = (query = input.value.trim()) => {
+    if (query) void later.then((r) => r?.remember(query));
+  };
+  let settle: ReturnType<typeof setTimeout>;
   const results = h("div");
   const chips = h("div");
+  const found = h("div"); // how many were found: over the list, under the kinds
+  // Filters: a slider at the box's end (how many are on, in a dot); refine.ts, a chunk of its
+  // own, fills it and opens its panel under the kinds
+  const filters = h(
+    "button",
+    { type: "button", className: "ffield", "aria-label": "Filters" },
+    icon("filter"),
+  );
+  const refining = import("./refine");
   // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
-  const radios = [["All", ""] as const, ...KIND_ROW].map(([label, v]) => {
+  const radios = [["All", "", [], ""] as const, ...KIND_ROW].map(([label, v, , apiKind]) => {
     const radio = h("input", {
       type: "radio",
       name: "kind",
       value: v,
-      // A click, not a change: tapping the one that is on clears it. Todos alone: the Todos
-      // screen (Now), not a search
-      onclick: () =>
-        withKind(input.value, v) === "kind:todo" ? go("/todos") : apply((now) => withKind(now, v)),
+      // A click, not a change: tapping the one that is on clears it. Todos filter as the
+      // others do (the Todos screen is the nav bar's)
+      onclick: () => apply((now) => withKind(now, v)),
     });
-    return [radio, h("label", {}, radio, label)] as const;
+    // Each kind with its icon, as the editor's kinds have them (All: every kind's tiles)
+    return [radio, h("label", {}, radio, icon(v ? kindIcon(apiKind) : "all"), label)] as const;
   });
   const kinds = h(
     "div",
@@ -68,6 +87,7 @@ export async function search(): Promise<Node> {
   view.signal.addEventListener("abort", () => {
     clearTimeout(timer);
     clearTimeout(saving);
+    clearTimeout(settle);
     abort.abort();
   });
   // Where the list is scrolled to rides in its history entry, for Back
@@ -97,18 +117,21 @@ export async function search(): Promise<Node> {
     const { signal } = abort;
     clear.hidden = !input.value;
     // Filters even before a query, then what refines its results
-    refine(query, signal, apply)
+    refining
+      .then((m) => m.refine(query, signal, apply, filters))
       .then((el) => {
         if (signal.aborted) return;
-        // Focus on Filters (the sheet just closed) stays on it, drawn again
-        const had = document.activeElement?.matches(".refine .filter");
-        chips.replaceChildren(el);
-        if (had) (el.querySelector(".filter") as HTMLElement).focus();
+        found.replaceChildren(el.querySelector(".found") ?? "");
+        chips.replaceChildren(el); // (refine puts focus back on the control it was on)
       })
       .catch(() => signal.aborted || chips.replaceChildren());
+    clearTimeout(settle);
     const shown = await list(query, signal);
     if (signal.aborted) return;
     results.replaceChildren(shown);
+    // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
+    if (!first && query && results.querySelector(".hits a"))
+      settle = setTimeout(() => remember(query), 3000); // the query that ran, not what is typed since
     if (scroll) {
       const y = scroll;
       scroll = 0;
@@ -196,6 +219,7 @@ export async function search(): Promise<Node> {
     icon("close"),
   );
   input.oninput = () => {
+    clearTimeout(settle); // typed on: not settled
     clear.hidden = !input.value;
     clearTimeout(timer);
     timer = setTimeout(run, 250);
@@ -203,8 +227,10 @@ export async function search(): Promise<Node> {
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
     const first = results.querySelector("a");
+    if (e.key === "Enter") remember();
     if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
   };
+  results.addEventListener("click", (e) => (e.target as Element).closest("a") && remember());
   const first = run(true);
   // The list: shown once here (main.ts says Loading if it is slow), so Back lands on it as it
   // was. No keyboard until the box is tapped.
@@ -212,9 +238,11 @@ export async function search(): Promise<Node> {
   const root = h(
     "section",
     { className: "search" },
-    h("div", { className: "field-search" }, icon("search"), input, clear),
-    kinds,
-    chips,
+    h("div", { className: "field-search" }, icon("search"), input, clear, filters),
+    recents,
+    chips, // the filters on, and the panel, under the box whose slider opens it
+    kinds, // always here, under any filters
+    found,
     pending,
     results,
     build(),

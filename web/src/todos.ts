@@ -5,16 +5,19 @@
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
 import { api, type Hit } from "./api";
 import { view } from "./app";
+import { icon } from "./icons";
 import type { pageRow } from "./lists";
 import { isOpen, now, toDo, upcoming } from "./now";
 import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
-import { empty, h, problem } from "./ui";
+import { empty, h, problem, toast } from "./ui";
 
+// Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
+// All search's All
 const MODES = [
-  ["now", "Now"],
-  ["upcoming", "Upcoming"],
-  ["all", "All"],
+  ["now", "Now", "now"],
+  ["upcoming", "Upcoming", "due"],
+  ["all", "All", "all"],
 ] as const;
 const LIMIT = 500; // the API's most: the done ones, last edited first
 const PAGE = 100; // search's most per request
@@ -29,10 +32,9 @@ const modeOf = () => {
 /** row: lists.ts's pageRow, passed in (main.ts) so this chunk imports nothing from lists.ts:
  * that would split the app shell into more, less compressible chunks. */
 export async function todos(row: typeof pageRow): Promise<Node> {
-  let list: Todo[];
-  try {
+  const { signal } = view;
+  const fetchAll = async () => {
     if (!navigator.onLine) throw new TypeError("offline");
-    const { signal } = view;
     // Every open todo (searched, 100 at a time), however long ago it was edited; the done
     // and cancelled ones only from the last LIMIT edited, for the fold and All
     const open = async () => {
@@ -51,16 +53,36 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     ]);
     // by id: an edit between two pages shifts the list, so a todo can come twice
     const seen = new Set<string>();
-    list = [...opened, ...recent.filter((p) => !isOpen(p))]
+    return [...opened, ...recent.filter((p) => !isOpen(p))]
       .filter((p) => !seen.has(p.id) && !!seen.add(p.id))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  };
+  let list: Todo[];
+  try {
+    list = await fetchAll();
   } catch (e) {
     return problem(e);
   }
+  // A todo saved meanwhile (New todo, below): the list again once its upload is done. Each
+  // change asks again; only the newest answer is drawn (an older one may land last)
+  let asked = 0;
+  document.addEventListener(
+    "queuechange",
+    async () => {
+      const mine = ++asked;
+      try {
+        const got = await fetchAll();
+        if (mine !== asked) return; // a newer ask is on its way
+        list = got;
+        draw();
+      } catch {} // offline, or the server unreachable: the list as it was
+    },
+    { signal },
+  );
   const keep = () => history.replaceState({ ...history.state, scroll: scrollY }, "");
   const body = h("div");
   const count = h("p", { className: "count" });
-  const radios = MODES.map(([m, label]) => {
+  const radios = MODES.map(([m, label, glyph]) => {
     const radio = h("input", {
       type: "radio",
       name: "todoview",
@@ -70,11 +92,12 @@ export async function todos(row: typeof pageRow): Promise<Node> {
         draw();
       },
     });
-    return h("label", {}, radio, label);
+    return h("label", {}, radio, icon(glyph), label);
   });
 
   function draw() {
     const [m, name] = modeOf();
+    body.dataset.view = m; // Now and Upcoming leave out when each was edited: All keeps it
     for (const l of radios) (l.firstChild as HTMLInputElement).checked = l.textContent === name;
     const day = today();
     const groups: [string, Todo[]][] =
@@ -128,17 +151,28 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   draw();
   const y = history.state?.scroll;
   if (y) requestAnimationFrame(() => scrollTo(0, y));
+  // New todo: the composer with Todo chosen; saved, it closes back onto this list
+  const add = h(
+    "button",
+    {
+      type: "button",
+      className: "primary newtodo",
+      onclick: () =>
+        import("./composer").then(
+          (m) => m.compose([], "todo"),
+          () => toast("Can't open the composer: reload scrap and try again"),
+        ),
+    },
+    icon("add"),
+    "New todo",
+  );
   const root = h(
     "section",
     { className: "todos" },
     h("div", { className: "chips kindrow", role: "radiogroup", "aria-label": "Show" }, ...radios),
     count,
     body,
-    h(
-      "a",
-      { className: "button ghost more", href: `/search?q=${encodeURIComponent("kind:todo")}` },
-      "Search todos",
-    ),
+    add,
   );
   // Leaving by a tap or a swipe: where the list is, for Back
   root.addEventListener("pointerdown", keep, { capture: true });

@@ -12,9 +12,10 @@ design into another tool and back.
   near-black and cream at night, and a single amber (a sticky note: scrap's mark). Amber means
   "the thing to press" or "this one is selected"; red means only "destructive" or "failed".
   No blue-greys, no second accent.
-- **One hero per screen.** Composer and editor: Save, the one amber fill. Capture: no hero; its
+- **One hero per screen.** Composer and editor: Save, the one amber fill. Todos: New todo. Capture: no hero; its
   three actions (Camera, Gallery, Note) are equal tiles, since none is more likely than the
-  others. Page: its toolbar. Everything else steps down: secondary (outlined surface), then
+  others. Page: a todo's or a Later's **Mark done**, the toolbar's one fill; a page with no
+  status has none. Everything else steps down: secondary (outlined surface), then
   ghost (text only).
 - **Under the thumb.** Capture actions, the page toolbar and the nav sit at the bottom; Cancel,
   Preview and Save sit in the editor's top bar because the keyboard owns the bottom.
@@ -25,8 +26,8 @@ design into another tool and back.
 - **Dark is designed, not inverted.** Surfaces get lighter as they come forward; amber is a step
   lighter; toasts stay dark slabs in both themes.
 - **Every gesture has a button.** Swipes are shortcuts, never the only way: a row's Edit and
-  Delete are also on its page (and a row's tick is a button of its own, with Done and Reopen
-  on the page too), the page's swipe is also its ‹ › pager and the arrow keys.
+  Delete are also on its page (and a row's tick is a button of its own, with Mark done and
+  Reopen on the page too), the page's swipe is also its ‹ › pager and the arrow keys.
   Gestures start away from the screen's edges, which belong to the phone's Back gesture.
 - **Motion confirms, never decorates.** 90-260 ms, eased out; none under reduced motion.
 
@@ -89,8 +90,8 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Button, ghost | `.ghost`, `button.link` | no fill (Cancel, Discard it, the pager's ‹ ›) |
 | Button, danger | `.danger` | red label, never filled |
 | Tile | `.tile` | icon over a short label on `--sunk`, 72 high; the capture actions Camera, Gallery and Note, three equal columns |
-| Toolbar | `.tools` | icon-over-label tiles sharing the width by their labels (`flex: 1 1 auto`), so no word is cut: Edit draft, Done, Reopen, Download, Share and Delete all fit whole from 360 px; page actions (sticky above the nav), viewer tools |
-| Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Read, Board, Doc: short labels so all five fit one row from 320 px, with the full names Whiteboard and Document as the radios' accessible names and titles) the search screen's fixed kind row (`.kindrow`: All, Notes, Todos, Reads, Boards, Docs; one tap sets or clears `kind:`) and the Tags screen's order (`.filters`); selected = raised surface, amber icon |
+| Toolbar | `.tools` | icon-over-label tiles sharing the width by their labels (`flex: 1 1 auto`), so no word is cut; page actions (sticky above the nav, over the page text: `z-index` 2), viewer tools. A page's order: **Mark done** (a todo or a Later not done: `.primary`, `--accent` fill, `--on-accent` label at `--t-sm`, `--r-md` corners, wider at `flex: 1.6 1 auto`, the check icon), **Reopen** (done or cancelled; plain, the retry icon; a cancelled one has both), **Edit** (or Edit draft), **Share**, **Delete** (danger); Download is in Share's menu, or in Share's place where the browser can't share. Four fit whole at 360 px, a cancelled todo's five at 320 |
+| Segmented control | `.chips` (radio group) | the editor's kind (`.kinds`: Note, Todo, Later, Board, Doc: short labels so all five fit one row from 320 px, with the full names Whiteboard and Document as the radios' accessible names and titles), the search screen's kind row (`.kindrow`: All, Notes, Todos, Later, Boards, Docs, each its kind's 18 px icon over its word, All a grid of four tiles, so all six fit one row from 320 px; always shown, under the filters on; one tap sets or clears `kind:`, Todos included: it filters in place like the others), the Todos screen's **Now** (a clock), **Upcoming** (the due calendar) and **All** (the grid), drawn as the kind row, and the Tags screen's order (`.filters`); selected = raised surface, amber icon |
 | Top bar | `header` | wordmark with the scrap mark; the queue badge on the right |
 | Badge | `.badge`, `.badge.failed` | pill with a status dot: amber waiting, red failed |
 | Bottom nav | `nav` | three tabs, Capture, Todos, Search: icon over label; active item gets an amber-soft pill and ink label (`aria-current`) |
@@ -99,31 +100,33 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | List row | `.list li` | 48 thumbnail or kind icon, title, date and kind chip (`em`, classed by its word); actions under it (`.rowbar`: whole words, the bar wraps to a second line rather than breaking a label such as Split and retry); a focused row draws its ring inside the card |
 | Swipe row | `.list li.swipe`, `.row-under` | follows the finger; behind it Edit on `--accent-soft` (right) or Delete on `--danger-soft` (left); past the threshold the icon grows (Edit turns `--accent`) and letting go does it |
 | Fold | `.claude-text` (`details`) | hairline above, a chevron before the heading: right folded, down open |
-| Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›; the page follows a sideways swipe and slides off to the next |
-| Kind chip | `.list em` | amber-soft pill: "todo", "read", or the status that ends one: "done", "cancelled" |
-| Due line | `.list .due`, `.todoline`, `.todoedit` | a todo's priority and due date in words ("high · due 3 Nov") after its chip, `--ink-2`; overdue (`.late`: due before today, not done or cancelled) says "overdue" in `--danger`, semibold: the word carries it, never colour alone. On its page, a pill button under the tags opens `.todoedit` in place: a native date input, **No date** (ghost) and a native priority `select`, then Cancel and Save; the editor shows the same while the kind is Todo. The page's form adds, on a line of its own, **Snooze until** (a native date input and **No snooze**, ghost); a snoozed todo's line ends "· snoozed till 3 Nov" and it is out of Now, Upcoming and the nav count until that day. The due line wraps rather than being cut (when it is due outranks one tidy line); the page's pill is drawn like the Tags pill, 32 px inside a 48 px target |
-| Refine row | `.refine` | under the kind row, one line that scrolls sideways: **Filters** always first and alone at its start (a `.facet.filter` with a slider icon and, when filters are on, their number in a 20 px `--accent` pill with `--on-accent` digits; its name says "Filters, 2 on"), then the results' top tags as `.facet` chips with counts. Nothing is added at the start as filters are chosen |
-| Found line | `.found` | above the list: the count ("104 pages", `--ink-2`), then each filter on as a `.facet.on` chip with a ✕ (`aria-label` "Remove tag:x"), wrapping rather than scrolling, so what is chosen is always in view |
-| Filters sheet | `dialog.sheet` | a bottom sheet (below) holding what used to crowd the row: **Sort**, **When** (1w, 1m, 1y, Dates…, By created date), **Work or personal**, **Browse tags** (a todo's due views live on the Todos screen; `due:` still searches when typed); sections under small uppercase `h3`s in `--ink-2`, options as `.facet` chips that wrap, a chosen one `aria-pressed` on `--accent-soft`, semibold (a chip's count, `small`, shares the label's line height so it sits on its baseline rather than raised); a sticky bar under the thumb: **Clear filters** (ghost) and **Done** (primary, the sheet's one hero) |
-| Todos screen | `.todos` | the segmented control again (**Now**, **Upcoming**: due from tomorrow to 7 days away, **All**: each sets its own order, so no Sort), the count in `--ink-2`, then Now's groups under `h2.label` headings ("Overdue · 3", "Today", "High priority", "Later"), each its own `.list`; rows lead with the due line (CSS `order`) on a line of its own, then the edit date; no kind icon and no "todo" chip (every row is one, so the room goes to the title), while "done" and "cancelled" chips stay |
+| Pager | `.pager` | a page opened from a list: ‹ "3 of 23 · Recent" ›, its middle a button back to the list (`.pager .up`, `--ink-2`, underlined dotted in `--line-strong`, "3 of 23: back to Recent"); the page follows a sideways swipe and slides off to the next. From the Todos screen, Mark done steps on to the next todo with a toast "Done: <title>. Next todo, 3 of 9" and **Undo** (6 s); on the last, "Done: that was the last in the list" and **Back to list** |
+| Kind chip | `.list em` | amber-soft pill: "todo", "later", or the status that ends one: "done", "cancelled" |
+| Due line | `.list .due`, `.todoline`, `.todoedit` | a todo's priority and due date in words ("high · due 3 Nov") after its chip, `--ink-2`; overdue (`.late`: due before today, not done or cancelled) says "overdue" in `--danger`, semibold: the word carries it, never colour alone; done or cancelled (`.closed`) keeps its due date in `--ink-3`, said as a date ("due 3 Nov"), never "today" or "overdue". On its page, a pill button under the tags (the calendar icon) opens `.todoedit` in place: a native date input and **No date** (ghost), then on a line of their own (`.soon`, a group "Due soon") **Today**, **Tomorrow** and **Next week** (seven days on, the phone's calendar) as `.facet` chips, the one matching the date set `aria-pressed` on `--accent-soft`, semibold, as in the Filters panel, then a native priority `select`, then Cancel and Save; a closed todo with none shows no pill (no "Add due date": Reopen it first); the editor shows the same while the kind is Todo. The page's form adds, on a line of its own, **Snooze until** (a native date input and **No snooze**, ghost, then **Tomorrow** and **Next week** chips in a group "Snooze for"); a snoozed todo's line ends "· snoozed till 3 Nov" and it is out of Now, Upcoming and the nav count until that day. The due line wraps rather than being cut (when it is due outranks one tidy line); the page's pill is drawn like the Tags pill, 32 px inside a 48 px target |
+| Filters button | `.field-search .ffield` | a 48 px slider icon (filter) at the search field's end, `--ink-2`; while the panel is open (`aria-expanded`), `--accent-ink` on `--sunk`. With filters on, their number in an 18 px `--accent` pill with `--on-accent` digits on its corner; its name says "Filters, 2 on" |
+| Filters on | `.refine .fon` | under the search field, each filter on (not the kind row's kind) as a `.facet.on` chip with a ✕ (`aria-label` "Remove #home"), saying it in words ("#home", "past month", "A–Z", "Written by Claude"), in one row that scrolls sideways to the screen's edges; no filters, no row |
+| Filters panel | `.fpanel` | opens in place under the filters on (below), a `--surface` card with a `--line` hairline and `--r-lg` corners. Rows (`.frow`, a group each), a small uppercase `.flabel` in `--ink-2` then `.facet` chips on one line that scrolls sideways (never a wall of chips): **Tags** (`.ftags`: a pill field "Add a tag", then on the next line the tags it offers: with nothing typed, the current results' top tags with their counts (the 12 the search's facets give), and **All tags**; as typed, the results' tags that match (all of them, `search/facets?top=1000`, asked for only then; before any search, every tag in use); none, a line saying why), **Order** (the default first: Best match with words typed, else Last edited; then Newest, Oldest, Last edited with words typed, A–Z, and for `kind:todo` Due soonest and Priority) and **When** (1w, 1m, 1y, Dates…, and By created date once a range is on; Dates… opens From and To date inputs, applied as picked); a chosen chip `aria-pressed` on `--accent-soft`, semibold (a chip's count, `small`, shares the label's line height so it sits on its baseline rather than raised); then **Clear filters** (`button.link`) while any are on. Each row is scrolled so its chosen chip shows. `refine.ts`, a chunk of its own, kept offline by the service worker |
+| Found line | `.found` | over the list, under the kind row: how many pages were found ("104 pages", `--ink-2`) |
+| Todos screen | `.todos` | the segmented control again, as the kind row (**Now**, a clock; **Upcoming**, the due calendar: due from tomorrow to 7 days away; **All**, the grid: each sets its own order, so no Sort), the count in `--ink-2`, then Now's groups under `h2.label` headings ("Overdue · 3", "Today", "High priority", "Later"), each its own `.list`; rows lead with the due line (CSS `order`) on a line of its own, then the edit date; no kind icon and no "todo" chip (every row is one, so the room goes to the title), while "done" and "cancelled" chips stay. **New todo** (`.newtodo`), the screen's one hero (amber, a pill with `--shadow-2`, the plus icon), sticks above the nav at the bottom left (it covers titles there, not the rows' ticks), under the thumb however long the list: it opens the composer with Todo chosen (kept even if the text is a link), which closes back onto the list; the list fetches again as the upload queue changes, so the new todo joins it |
 | Done fold | `.donefold` (`details`) | Now's done and cancelled todos, folded at the end: a 48 px summary in `--ink-2` with the chevron of `.claude-text` |
-| Row tick | `.list .tick` | a todo's or a Read's row: a 48 px toggle (`aria-pressed`, `aria-label` "Done: title") at its end, beside the row's link rather than in it, so tapping it opens nothing; an empty box in `--ink-2`, ticked in `--accent-ink` when done, a bar across it (`aria-pressed="mixed"`, `--accent-ink`) while only some of the page's task boxes are ticked, its row saying "2 of 5"; it slides with the row, and a drag that starts on it swipes the row |
+| Row tick | `.list .tick` | a todo's or a Later's row: a 48 px toggle (`aria-pressed`, `aria-label` "Done: title") at its end, beside the row's link rather than in it, so tapping it opens nothing; an empty box in `--ink-2`, ticked in `--accent-ink` when done, a bar across it (`aria-pressed="mixed"`, `--accent-ink`) while only some of the page's task boxes are ticked, its row saying "2 of 5"; it slides with the row, and a drag that starts on it swipes the row |
 | Figure caption | `.orig figcaption`, `.save` | under a page's photo: its file name in `--ink-3` (cut with … when long), then **Download** and **Ask Claude** as `.save` text buttons in `--ink-2`, a 20 px icon, whole words (`flex: none`, `nowrap`: the page text's `overflow-wrap: anywhere` must not break them), 48 high |
 | Thumbnail | `.list img`, `.thumbs img`, `.originals img` | fixed size or 4:3 frame reserved before load, shimmering `--sunk` placeholder |
 | Photo strip | `.thumbs` | 84 squares, remove button with a 48 target |
 | Field | `input`, `textarea` | surface, strong edge, 2 px accent-ink focus ring |
 | Search field | `.field-search` | pill with a search icon; on the search screen a ✕ (`.clear`, a 48 px ghost button, "Clear search") at its end while it has text, in place of the browser's own |
-| Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save |
-| Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, or the content (**Text** on a page, **Photo** in the viewer), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it |
-| Sort menu | `select.facet.sort` | in the Filters sheet: a native `select` drawn as a chip (the phone's own picker opens), choosing the query's `sort:`; selects take the app's face like every control (`font: inherit`) |
+| Recent searches | `.recents-top`, `.list.recents` | under the search field while it is empty and focused (gone once it has text, or loses focus): an `h2.label` "Recent" with **Clear all** (`button.link`) at its end, then up to 10 past searches as one `.list` group (`role="group"`, "Recent searches"), newest first: a search icon and the query as typed, start-aligned and cut with … on one line, then a 48 px ghost ✕ ("Remove <query>"). A tap on the list keeps the field focused until the choice is made; a choice runs it and the keyboard goes. No history: no block at all. On this device only (`scrap.searches`, through `kept()` in `api.ts`, the one guard every `localStorage` use goes through: with storage blocked it keeps nothing and never throws) |
+| Editor sheet | `.editor` | full screen over the keyboard; top bar Cancel / Preview / Save. Just above the keyboard, a row of keys (`.keys`, on `--bg` under a `--line` hairline, gone in Preview): **Checkbox** (a ghost button, an empty box icon drawn in `editor.ts`), which makes the line, or each line selected, a task (`- [ ] `; a bullet or number keeps its marker), or plain items again if they all are tasks already; a tap keeps the keyboard up. In the text, Enter continues a bullet, numbered or task list, GitHub-style, and Enter on an empty item ends it (`listedit.ts`) |
+| Editor fold | `.fold` (`details`) | in the composer and editor, the rarely changed parts folded to one 48 px line each above the text, so the text stays the hero: **Tags** (the tag icon, "3 · #work #garden…") and, while the kind is Todo, **Due** (the calendar, "24 Oct · high"); the name in `--ink`, semibold, what it holds in `--ink-2`, cut with …, a chevron at its end (down folded, up open); tapped, the controls open in place under it and nothing takes focus. Two folds read as one group |
+| Share menu | `.share-menu` | Share's choice, a popover just above it: **Link**, the content (**Text** on a page, **Photo** in the viewer) and on a page **Download** (a link drawn as the rows are; tapping it closes the menu), ghost rows on `--surface` with `--shadow-2`; a tap elsewhere, Back or Share again closes it. What Share and Download do is a chunk of its own (`sharing.ts`), loaded on the first tap |
 | Tag line | `.tags` | a page's tags under its title, `--sunk` pills that each search for their tag, in one line that scrolls; first an outlined **Tags** pill (tag icon) that edits them |
-| Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field that suggests the tags in use (a native `datalist`), then the six most used tags not on it yet as `.facet` chips with a dashed `--line-strong` edge (offered, where the chosen are filled), one tap each, in a line that scrolls (`.toptags`, a group "Most used tags", from the same `/api/tags` answer as the suggestions); on a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the editor, under the title; in the composer, under the text (above the photos) |
+| Tag editor | `.tagedit`, `.tagform` | the tags as `.facet.on` chips that wrap, each with a ✕ to take it off, then a field, then one row of up to six `.facet` chips with a dashed `--line-strong` edge (offered, where the chosen are filled), one tap each, in a line that scrolls (`.toptags`): with nothing typed, the most used tags not on it yet (a group "Most used tags"); as you type, the tags in use that match, those starting with it first (a group "Matching tags"), and a tap on one replaces what was typed. Our own row, not a native `datalist`, whose menu covers the keyboard on a phone; all from one `/api/tags` answer. On a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the composer and editor, inside the Tags fold |
 | Toast | `.toast` | dark slab above what is under the thumb, amber text action |
 | Banner | `.conflict`, `.restored` | danger-soft with a red edge; accent-soft info line |
 | Empty state | `.empty` (`empty()` in ui.ts) | icon in a `--sunk` circle, a sentence, one action |
 | Photo viewer | `.viewer` | `--viewer`; close top right, count pill top centre, tools on an `--overlay` scrim |
 | Icons | `icons.ts` | 24 px strokes (1.8), currentColor, `aria-hidden` |
-| Markdown | `.md` (page text, Preview) | headings `--t-lg`/`--t-md`; code and a table's head on `--sunk`; a table in a `.table` box with `--line` hairlines that scrolls sideways on its own (the page never does); task boxes in `--accent`, in a `.taskbox` label with a `--tap` (48 px) target, the items spaced (11 px each side: a 49 px pitch on a 27.2 px line) so no two targets overlap; each box is named by its item's text (`aria-label`); on a page they tick in place (`tasks.ts`: each box's `data-line` is its item's line in the text, from markdown-it's map), off while offline and in Preview; strikethrough, quotes and footnotes in `--ink-2`; a Mermaid `.diagram` in its dark or neutral theme, following the system's |
+| Markdown | `.md` (page text, Preview) | headings `--t-lg`/`--t-md`; code and a table's head on `--sunk`; a table in a `.table` box with `--line` hairlines that scrolls sideways on its own (the page never does); task boxes in `--accent`, in the bullet's place, the list as tight as a bulleted one; each box in a `.taskbox` label with a target `--tap` (48 px) wide and one line high, so no two overlap; each box is named by its item's text (`aria-label`); on a page they tick in place (`tasks.ts`: each box's `data-line` is its item's line in the text, from markdown-it's map), off while offline and in Preview; strikethrough, quotes and footnotes in `--ink-2`; a Mermaid `.diagram` in its dark or neutral theme, following the system's |
 
 ## States
 
@@ -138,27 +141,28 @@ viewer); `--ease` `cubic-bezier(0.2, 0.8, 0.2, 1)`. Under `prefers-reduced-motio
 | Failed | `--danger` text in words, a `--danger-soft` badge; never colour alone |
 | Overdue | a todo's due line in `--danger`, semibold, saying "overdue" (AA on `--bg`, `--surface` and `--sunk` in both themes, as `--danger` is checked); back to `--ink-2` once done |
 
-## The Filters sheet: our one modal
+## The Filters panel: in place, not a modal
 
 The refine row kept gaining controls at its left end (Clear, Tags, Sort, the count, then every
 filter chosen), pushing what you came for off the screen. Those controls are used now and then,
-not on every search, so they moved behind one **Filters** chip into a sheet; the row keeps only
-Filters and the tags. A popover (like the share menu) is too small for five groups of options
-and would open far from the thumb; a new screen would hide the list the choices change. So the
-sheet is a native `<dialog>` opened with `showModal()`, which makes the rest of the page inert
-(focus stays inside, screen readers see only it), with the platform's own Escape handling:
+not on every search, so they moved behind one **Filters** button. For a while it opened a bottom
+sheet (a modal `<dialog>`), but a sheet hides the list its choices change, needs its own Back
+handling (a history entry of its own, stepped over on Forward) and costs a tap to close after
+every few taps. So the filters open in place instead:
 
-- At the bottom of the screen, full width (at most 40rem), `--surface` with `--r-lg` top
-  corners and `--shadow-2`, at most 85 % of the screen high (it scrolls inside); its bar of
-  Clear filters and Done is sticky at the bottom, above the safe area. It slides up over
-  `--d-3` (none under reduced motion); the page behind is dimmed with `--overlay`.
-- It opens with focus on its title (`aria-labelledby`); Done, Escape, Back (it pushes a history
-  entry of its own, so Back closes it rather than leaving the screen) or a tap on the dimmed
-  page closes it, and focus returns to the Filters chip.
-- A tap in it changes the query at once and the list behind follows, so it is never a form to
-  submit and never holds state the address doesn't: Back after closing it, a reload or a shared
-  link show the same list. A control keeps its focus as the sheet is drawn again.
-- It is in the app shell, not a lazy chunk, so it opens without a wait.
+- **Filters** is a slider icon at the end of the search field, where the thumb already is; the
+  number of filters on rides on it. A tap opens or folds the panel (`aria-expanded`,
+  `aria-controls`); it stays open or folded while the app is open, the next search too.
+- The panel opens under the search field and the filters on, above the kind row and the
+  list, so each tap in it shows its effect at once. A row per kind of choice (Tags, Order,
+  When), each one line that scrolls sideways, keeps it short: never a wall of chips.
+- What is on is always in view, panel open or not: a row of chips under the field, each with
+  a ✕. The kind row stays under it, always shown.
+- A tap changes the query at once, so the panel is never a form to submit and never holds
+  state the address doesn't: Back, a reload or a shared link show the same list. A control
+  keeps its focus as the panel is drawn again.
+- It is `refine.ts`, a chunk of its own loaded with the search screen and kept offline by the
+  service worker, so the app shell stays small.
 
 ## Layout and breakpoints
 
@@ -189,10 +193,11 @@ badge get a `ButtonText` edge.
 
 Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 18 in the
 segmented control, 16 on a photo's remove button, 52 (in a circle) in empty states.
-Icons: camera, image, note, todo (check in a square; Done, and a row's tick, which hides the
-check until done), later (bookmark), board (a whiteboard on
+Icons: camera, image, note, todo (check in a square; a row's tick, which hides the check until
+done), done (a check alone: Mark done, so a box always means a tick you can see), add (a plus: New todo), due (a calendar: a todo's due pill, the Due fold, Upcoming), now (a
+clock: Now), all (four tiles: All, on the kind row and the Todos screen), later (bookmark: Later), board (a whiteboard on
 its stand), link, file, download,
-share, edit, trash, search, filter (two sliders: the Filters chip), close, back, next, fit, retry (also Reopen), offline; the nav's plus, check box and magnifier are
+share, edit, trash, search, filter (two sliders: the Filters chip), close, back, next, fit, retry (also Reopen), offline; the editor's Checkbox key draws its own empty box; the nav's plus, check box and magnifier are
 inline in `index.html`. The app icon (`web/public/icon.svg`, PNGs by `npm run icons`) is the
 paper scrap on amber; the header mark is the same scrap in amber.
 
@@ -202,9 +207,8 @@ paper scrap on amber; the header mark is the same scrap in amber.
 - No colour outside `tokens.css` (the debug panel aside), and no second accent; no gradients
   except the viewer's scrim. High-contrast mode uses the system's colour keywords.
 - No colour as the only signal: selection also raises, failure also says so in words.
-- One modal of our own, and only one: the search screen's **Filters** sheet (below). Otherwise
-  no modal dialogs (the browser's `confirm()` stays for destructive questions); the share menu
-  is a light-dismiss popover, not a modal.
+- No modal dialogs of our own: the Filters panel opens in place (above), the browser's
+  `confirm()` stays for destructive questions, and the share menu is a light-dismiss popover.
 - No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.
 - No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
   extend their hit area with an invisible `::after`), no text under 12.75 px, no text pair
