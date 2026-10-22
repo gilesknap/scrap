@@ -2,6 +2,7 @@
 // ones folded away), Upcoming and All, the switch in the address, and its rows' tick.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { openFold } from "./panel";
 
 /** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
 const day = (n: number) => {
@@ -85,6 +86,10 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   page,
 }) => {
   await page.goto("/todos");
+  // Each with its icon over its word, as the search screen's kinds
+  const show = page.getByRole("radiogroup", { name: "Show" });
+  await expect(show.locator("label")).toHaveText(["Now", "Upcoming", "All"]);
+  await expect(show.locator("label > svg.i")).toHaveCount(3);
   await page.getByText("Upcoming", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=upcoming$/);
   // Due from tomorrow to a week away: not "Quoll later high", due in 10 days
@@ -107,10 +112,19 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await expect(page.getByRole("radio", { name: "Upcoming" })).toBeChecked();
   await page.getByText("Now", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos$/);
-  // Search todos: the search screen, as before
-  await page.getByRole("link", { name: "Search todos" }).click();
-  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
+  // No Search todos link: the search screen's Todos kind filters in place, as the others do
+  await expect(page.getByRole("link", { name: "Search todos" })).toHaveCount(0);
+  await page.goto("/search");
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
+  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/); // not the Todos screen
   await expect(page.getByRole("searchbox")).toHaveValue("kind:todo");
+  await expect(page.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await expect(page.locator(".list li em").first()).toBeVisible();
+  for (const chip of await page.locator(".list li em").allTextContents())
+    expect(["todo", "done", "cancelled"]).toContain(chip); // todos only
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click(); // off again
+  await expect(page.getByRole("searchbox")).toHaveValue("");
+  await expect(page).toHaveURL(/\/search$/);
 });
 
 test("the Todos screen meets AA contrast, in both themes", async ({ page }) => {
@@ -262,10 +276,12 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
   const text = editor.locator("textarea");
   await expect(text).toHaveAttribute("placeholder", "What needs doing?");
-  // A link would suggest Read: the kind was chosen, so it stays Todo
+  // A link would suggest Later: the kind was chosen, so it stays Todo
   await text.fill("Quokka new todo https://example.com/x");
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
-  // Its due date and priority, as on a todo's page (the same fields)
+  // Its due date and priority, as on a todo's page (the same fields), folded until opened
+  await expect(editor.getByRole("button", { name: "Tomorrow" })).toBeHidden();
+  await openFold(editor, "Due");
   await editor.getByRole("button", { name: "Tomorrow" }).click();
   await expect(editor.getByLabel("Due", { exact: true })).toHaveValue(day(1));
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("high");
@@ -289,27 +305,27 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   page,
 }) => {
   // The two oldest overdue: first in Now
-  const a = await todo(page, "Wombat first", { due: day(-40) });
-  const b = await todo(page, "Wombat second", { due: day(-39) });
+  const a = await todo(page, "Dunnart first", { due: day(-40) });
+  const b = await todo(page, "Dunnart second", { due: day(-39) });
   const tools = page.locator(".page .tools");
   await page.goto("/todos");
-  await page.locator(".list a", { hasText: "Wombat first" }).click();
-  await expect(page.locator(".page h1")).toHaveText("Wombat first");
+  await page.locator(".list a", { hasText: "Dunnart first" }).click();
+  await expect(page.locator(".page h1")).toHaveText("Dunnart first");
   const where = page.locator(".pager .up");
   await expect(where).toHaveText(/^1 of \d+ · Todos · Now$/);
   await tools.getByRole("button", { name: "Mark done" }).click();
   // On to the next, saying so
   await expect(page).toHaveURL(`/p/${b.slug}`);
-  await expect(page.locator(".page h1")).toHaveText("Wombat second");
+  await expect(page.locator(".page h1")).toHaveText("Dunnart second");
   await expect(where).toHaveText(/^2 of \d+ · Todos · Now$/);
-  await expect(page.locator(".toast")).toContainText("Done: Wombat first. Next todo, 2 of");
+  await expect(page.locator(".toast")).toContainText("Done: Dunnart first. Next todo, 2 of");
   expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
     "done",
   );
   // Undo: open again, and back on it
   await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
   await expect(page).toHaveURL(`/p/${a.slug}`);
-  await expect(page.locator(".page h1")).toHaveText("Wombat first");
+  await expect(page.locator(".page h1")).toHaveText("Dunnart first");
   expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
     "open",
   );
@@ -319,8 +335,8 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   await expect(page).toHaveURL(/\/todos$/);
   await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
   // From elsewhere (a search), Mark done stays on the page
-  await page.goto("/search?q=wombat+second");
-  await page.locator(".hits a", { hasText: "Wombat second" }).click();
+  await page.goto("/search?q=dunnart+second");
+  await page.locator(".hits a", { hasText: "Dunnart second" }).click();
   await tools.getByRole("button", { name: "Mark done" }).click();
   await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
   await expect(page).toHaveURL(`/p/${b.slug}`);

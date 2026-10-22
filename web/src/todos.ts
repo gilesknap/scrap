@@ -66,12 +66,17 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   } catch (e) {
     return problem(e);
   }
-  // A todo saved meanwhile (New todo, in the top bar): the list again once its upload is done
+  // A todo saved meanwhile (New todo, in the top bar): the list again once its upload is done.
+  // Each change asks again; only the newest answer is drawn (an older one may land last)
+  let asked = 0;
   document.addEventListener(
     "queuechange",
     async () => {
+      const mine = ++asked;
       try {
-        list = await fetchAll();
+        const got = await fetchAll();
+        if (mine !== asked) return; // a newer ask is on its way
+        list = got;
         draw();
       } catch {} // offline, or the server unreachable: the list as it was
     },

@@ -52,7 +52,9 @@ test("the empty box shows the last searches: run again, forget one, clear all", 
   await expect(page.locator(".hits li a strong")).toHaveText(["Recent wombat"]);
   // Left 3 s with a result, it is kept again: to the top
   await expect
-    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("scrap.searches") ?? "[]")))
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("scrap.searches") ?? "[]")), {
+      timeout: 10_000, // it settles after 3 s
+    })
     .toEqual(["wombat", "echidna"]);
 
   // ✕ forgets one, Clear all the rest; focus stays in the box
@@ -67,7 +69,7 @@ test("the empty box shows the last searches: run again, forget one, clear all", 
 });
 
 test("search works the same when the phone keeps nothing", async ({ page }) => {
-  await make(page, "Recent quokka");
+  await make(page, "Recent bandicoot");
   await page.addInitScript(() => {
     const no = () => {
       throw new DOMException("blocked", "SecurityError");
@@ -79,8 +81,8 @@ test("search works the same when the phone keeps nothing", async ({ page }) => {
   await page.goto("/search");
   const box = page.getByRole("searchbox");
   await expect(box).toBeVisible(); // not a blank screen
-  await box.fill("quokka");
-  await expect(page.locator(".hits li a strong")).toHaveText(["Recent quokka"]);
+  await box.fill("bandicoot");
+  await expect(page.locator(".hits li a strong")).toHaveText(["Recent bandicoot"]);
   await box.press("Enter");
   await expect(page).toHaveURL(/\/p\//);
   await page.goto("/search");

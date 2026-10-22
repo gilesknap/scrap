@@ -173,4 +173,11 @@ test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's
   await menu.getByRole("link", { name: "Download" }).click();
   await expect(menu).toHaveCount(0);
   expect((await saved).suggestedFilename()).toMatch(/\.md$/);
+
+  // A share sheet but no menu (no Popover API): Download beside Share, not lost
+  await page.addInitScript(() => {
+    delete (HTMLElement.prototype as Partial<HTMLElement>).showPopover; // as on an older browser
+  });
+  await page.goto(`/p/${slug}`);
+  await expect.poll(names).toEqual(["Mark done", "Edit", "Share", "Download", "Delete"]);
 });

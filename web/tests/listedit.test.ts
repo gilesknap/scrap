@@ -47,6 +47,9 @@ describe("Enter on a list", () => {
     expect(press("- milk\n- |")).toBe("- milk\n|");
     expect(press("- [ ] tent\n- [ ] |")).toBe("- [ ] tent\n|");
     expect(press("1. one\n2. |")).toBe("1. one\n|");
+    // In a quote: the quote stays, the caret after it, not before the >
+    expect(press("> - milk\n> - |")).toBe("> - milk\n> |");
+    expect(press("> > 1. one\n> > 2. |")).toBe("> > 1. one\n> > |");
   });
   it("leaves plain text, code and a caret before the marker alone", () => {
     expect(press("just text|")).toBeNull();
@@ -58,6 +61,11 @@ describe("Enter on a list", () => {
   it("knows a fenced block's end by its own fence", () => {
     expect(inCode("~~~\n```\n- x", 10)).toBe(true);
     expect(inCode("````\n```\n````\n- x", 15)).toBe(false);
+    // A closing fence has nothing after it: ```js inside a block is its text
+    expect(inCode("```\n```js\n- x", 11)).toBe(true);
+    expect(inCode("```\ncode\n```  \n- x", 15)).toBe(false);
+    // Indented fences count (a fence in a list item)
+    expect(inCode("- a\n  ```\n  - x", 13)).toBe(true);
   });
 });
 

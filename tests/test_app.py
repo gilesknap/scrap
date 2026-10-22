@@ -702,3 +702,15 @@ def test_search_hits_carry_the_same_thumbnail(client, note):
         assert hits[photo["id"]]["thumb"] == photo["thumb"] is not None, q
         assert hits[photo["id"]]["updated_at"] == photo["updated_at"], q
         assert hits[plain["id"]]["thumb"] is None, q
+
+
+def test_a_heading_as_the_first_line_titles_a_capture_without_its_marks(client, note):
+    """`# Trip notes` is titled Trip notes; the text keeps its heading as typed."""
+    title = lambda ref: client.get(f"/api/pages/{ref['page_id']}").json()["title"]  # noqa: E731
+    ref = note("# Trip notes\nday one")
+    assert title(ref) == "Trip notes"
+    body = client.get(f"/api/pages/{ref['page_id']}").json()["body"]
+    assert body.startswith("# Trip notes")
+    assert title(note("   ### Deep heading  \nx")) == "Deep heading"
+    assert title(note("#hashtag first\nx")) == "#hashtag first"  # no space: no heading
+    assert title(note("#\nx")) == "#"  # nothing but the marks: kept

@@ -77,7 +77,12 @@ IMAGE_KIND = (
     " WHERE c.page_id = p.id AND d.kind = 'description' AND d.superseded_at IS NULL"
     " AND json_extract(d.data, '$.kind') = ?)"
 )
-KIND_NAMES = {"later": "consume", "read": "consume", "board": "whiteboard", "doc": "document"}
+KIND_NAMES = {
+    "later": "consume",
+    "read": "consume",
+    "board": "whiteboard",
+    "doc": "document",
+}
 # What each sort: orders a page p by (query.SORTS has its default direction)
 SORT_SQL = {
     "updated": "p.updated_at",
@@ -538,7 +543,7 @@ class Store:
         if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
             raise InvalidError("tags must be a list of strings")
         tags = clean_tags(tags)  # as an edit's
-        # Its first line, without a Markdown heading's #s ("# Trip notes" is titled Trip notes)
+        # Its first line without a heading's #s ("# Trip notes" is titled Trip notes)
         first = text.splitlines()[0] if text else ""
         title = (HEADING.sub("", first).strip() or first)[:200] if text else url
         return {

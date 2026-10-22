@@ -1,9 +1,9 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
-// and <mark>s, never HTML). The box's ✕ clears it. Under it, a fixed row of kinds (one tap
-// sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's: the filters on
-// as a row of chips led by the results' count, and the Filters panel, opened by the slider at
-// the box's end (none on: the count is over the list, under the kinds). All of it is
+// and <mark>s, never HTML). The box's ✕ clears it. Under it, refine.ts's: the filters on as a
+// row of chips led by the results' count, and the Filters panel, opened by the slider at the
+// box's end; then a fixed row of kinds (one tap sets or clears kind:, Todos too), and with no
+// filters on, the count on a short line over the list. All of it is
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
@@ -43,8 +43,7 @@ export async function search(): Promise<Node> {
     (m) => m.attach(input, recents, (q) => apply(() => q)),
     () => null, // offline before it was kept: no recents, search as before
   );
-  const remember = () => {
-    const query = input.value.trim();
+  const remember = (query = input.value.trim()) => {
     if (query) void later.then((r) => r?.remember(query));
   };
   let settle: ReturnType<typeof setTimeout>;
@@ -132,7 +131,8 @@ export async function search(): Promise<Node> {
     if (signal.aborted) return;
     results.replaceChildren(shown);
     // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
-    if (!first && query && results.querySelector(".hits a")) settle = setTimeout(remember, 3000);
+    if (!first && query && results.querySelector(".hits a"))
+      settle = setTimeout(() => remember(query), 3000); // the query that ran, not what is typed since
     if (scroll) {
       const y = scroll;
       scroll = 0;
@@ -220,6 +220,7 @@ export async function search(): Promise<Node> {
     icon("close"),
   );
   input.oninput = () => {
+    clearTimeout(settle); // typed on: not settled
     clear.hidden = !input.value;
     clearTimeout(timer);
     timer = setTimeout(run, 250);

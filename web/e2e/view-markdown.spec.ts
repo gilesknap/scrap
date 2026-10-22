@@ -190,15 +190,19 @@ test("a task box ticks in place: that item, saved at once; never over a newer ed
   await expect(boxes.first()).toBeEnabled();
   // Each box is named by its item's text
   await expect(page.getByRole("checkbox", { name: "passport" })).toBeChecked();
-  // A 48 px target: a tap beside the box still reaches it, and that box, not its neighbour's,
-  // right up to the edge of its target (the items are spaced so that no two meet)
+  // A tight list, as a bulleted one: one line from box to box
   const at = await boxes.nth(1).boundingBox();
-  if (!at) throw new Error("no box");
+  const below = await boxes.nth(2).boundingBox();
+  if (!at || !below) throw new Error("no box");
+  expect(below.y - at.y).toBeLessThan(32);
+  // A target 48 px wide and a line high: a tap beside the box still reaches it, and that box,
+  // not its neighbour's (no two targets meet)
   const [x, y] = [at.x + at.width / 2, at.y + at.height / 2];
   for (const [dx, dy] of [
-    [15, 15],
-    [0, -23],
-    [0, 23],
+    [20, 0],
+    [-20, 0],
+    [15, 10],
+    [0, -10],
   ]) {
     const hit = await page.evaluate(
       ([px, py]) =>

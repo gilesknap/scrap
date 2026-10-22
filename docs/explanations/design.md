@@ -250,9 +250,9 @@ rewrites the user's words or fits them to templates.
   are stored and shown (set by an import, richer controls later).
 - **Choosing a kind.** The capture buttons (camera, gallery, note) only choose the input; the
   kind is chosen in the PWA's editor, for a new capture or an existing page, from Note
-  (default), Todo, Read (`consume`), Whiteboard and Document (`memory` and `reference` are not
+  (default), Todo, Later (`consume`), Whiteboard and Document (`memory` and `reference` are not
   offered until wanted; a hard-coded list until real use asks for configurable kinds). A bare
-  URL pre-selects Read; photos skip the choice (ingest classifies them; the user can change it).
+  URL pre-selects Later; photos skip the choice (ingest classifies them; the user can change it).
   The capture's `kind` field or `PATCH /api/pages/{id}` sets it.
 - **A kind the user changes** (PWA edit, `PATCH`) **keeps every field** the page has (a summary,
   a due date, an imported status: a stray tap on a chip must lose nothing) and adds the new
@@ -285,8 +285,8 @@ rewrites the user's words or fits them to templates.
   now `consume`. Only regenerating the summary re-fetches it, for example after a change to
   `reference`.
 - **Views.** One list screen (Search; `/recent` redirects to it): an empty box lists every page
-  newest first, a fixed kind row (All, Notes, Todos, Reads, Boards, Docs) sets or clears `kind:`,
-  and the query rides in the address (`/search?q=...`). A todo's page has a Done/Reopen tick
+  newest first, a fixed kind row (All, Notes, Todos, Later, Boards, Docs) sets or clears `kind:`,
+  and the query rides in the address (`/search?q=...`). A todo's page has Mark done and Reopen,
   setting `fields.status`. No Inbox: `kind_fixed` is only for the user-wins rule.
 
 ## Phone quick capture

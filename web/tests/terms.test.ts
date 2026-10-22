@@ -87,8 +87,9 @@ describe("the kind row", () => {
   it("sets a kind with one tap, and clears it with another", () => {
     expect(withKind("", "todo")).toBe("kind:todo");
     expect(withKind("kind:todo", "todo")).toBe("");
-    expect(withKind("milk kind:todo", "read")).toBe("milk kind:read");
-    expect(withKind("kind:consume tag:x", "read")).toBe("tag:x"); // what the server takes too
+    expect(withKind("milk kind:todo", "later")).toBe("milk kind:later");
+    expect(withKind("kind:consume tag:x", "later")).toBe("tag:x"); // what the server takes too
+    expect(withKind("kind:read tag:x", "later")).toBe("tag:x"); // the old name too
   });
   it("All clears every kind but a not one", () => {
     expect(withKind("kind:todo kind:note -kind:doc x", "")).toBe("-kind:doc x");
@@ -97,6 +98,7 @@ describe("the kind row", () => {
   it("lists newest first for nothing or a kind alone, else searches", () => {
     expect(listing("")).toBe("");
     expect(listing("kind:board")).toBe("kind=whiteboard");
+    expect(listing("kind:later")).toBe("kind=consume");
     expect(listing("kind:read")).toBe("kind=consume");
     expect(listing("kind:todo kind:read")).toBeNull();
     expect(listing("kind:todo milk")).toBeNull();
@@ -106,7 +108,8 @@ describe("the kind row", () => {
 
 it("knows the kind row's kinds in any case, as the server does", () => {
   expect(kindsIn("kind:Todo garden").map(([, v]) => v)).toEqual(["todo"]);
-  expect(kindsIn("KIND:CONSUME").map(([, v]) => v)).toEqual(["read"]);
+  expect(kindsIn("KIND:CONSUME").map(([, v]) => v)).toEqual(["later"]);
+  expect(kindsIn("kind:Read").map(([, v]) => v)).toEqual(["later"]);
   expect(withKind("garden kind:Todo", "note")).toBe("garden kind:note");
   expect(withKind("kind:TODO", "todo")).toBe(""); // tapping the one that is on clears it
   expect(listing("Kind:Todo")).toBe("kind=todo");
