@@ -207,6 +207,19 @@ header {
   margin: 0;
   font-size: var(--t-lg);
 }
+/* The Todos screen's New todo, at the right: the queue badge, when up, beside it */
+#queue {
+  margin-inline-start: auto;
+}
+#new {
+  width: var(--tap);
+  padding: 0;
+  margin-inline: var(--s-1) calc(-1 * var(--s-3)); /* its plus on the gutter's line */
+}
+#new .i {
+  width: 24px;
+  height: 24px;
+}
 .badge {
   position: relative;
   min-height: 36px;
@@ -2319,21 +2332,6 @@ div.orig .save {
 }
 .todos h2.label {
   margin-top: var(--s-2);
-}
-/* New todo: the screen's one hero, a pill under the thumb above the nav, over the list's end;
-   at the start, so it covers titles rather than the rows' ticks */
-.todos {
-  display: flex;
-  flex-direction: column;
-}
-.todos .newtodo {
-  position: sticky;
-  z-index: 2;
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-3));
-  align-self: flex-start;
-  margin-top: var(--s-3);
-  border-radius: var(--r-pill);
-  box-shadow: var(--shadow-2);
 }
 /* A todo's row: what to do and when, not when it was last edited (two lines, not three). Its
    priority and due date lead the line, a done or cancelled chip after them */

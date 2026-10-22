@@ -1,4 +1,5 @@
-// The app shell: a tiny router, the top bar (Back, the queue badge) and service worker updates.
+// The app shell: a tiny router, the top bar (Back, the queue badge, New todo) and service
+// worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
 import { back, view as current, go, markNav, plain, queue } from "./app";
@@ -14,6 +15,14 @@ import { KIND_ROW } from "./terms";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
+const add = document.getElementById("new") as HTMLButtonElement;
+// The Todos screen's New todo: the composer (a chunk of its own) with Todo chosen; saved, it
+// closes back onto the list
+add.onclick = () =>
+  import("./composer").then(
+    (m) => m.compose([], "todo"),
+    () => toast("Can't open the composer: reload scrap and try again"),
+  );
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
@@ -77,6 +86,7 @@ async function render() {
   where.hidden = !sub;
   where.textContent = sub;
   document.body.classList.toggle("paged", sub === ""); // its toolbar is the bottom bar: no nav
+  if (path !== "/todos") add.hidden = true; // shown with the Todos list, once it is drawn
   for (const [re, fn] of routes) {
     const m = path.match(re);
     if (!m) continue;
@@ -103,6 +113,7 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
+    add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
     placeToasts(); // e.g. one placed for the view before
     return;
   }
