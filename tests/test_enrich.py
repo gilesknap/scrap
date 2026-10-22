@@ -313,6 +313,49 @@ def test_a_stale_tag_editor_keeps_a_tag_claude_added_meanwhile(store):
     assert page["tags"] == ["mine", "wood"] and page["model_tags"] == []
 
 
+def model_tags(store, page_id):
+    with closing(connect(store.db)) as conn:
+        return [tuple(r) for r in conn.execute(
+            "SELECT tag, state FROM model_tag WHERE page_id = ? ORDER BY tag",
+            (page_id,),
+        )]  # fmt: skip
+
+
+def test_a_claude_tag_taken_off_over_mcp_stays_off(store):
+    ref = capture(store, "a note about sheds", tags=["mine"])
+    run_all(worker(store, Fake(answer(["shed"]))))
+    store.edit_meta([ref["page_id"]], "claude", "mcp", remove=["shed"])
+    enrich.ask(store, ref["page_id"])
+    run_all(worker(store, Fake(answer(["shed"]))))
+    assert store.page(ref["page_id"])["tags"] == ["mine"]
+    assert model_tags(store, ref["page_id"]) == [("shed", "off")]
+
+
+def test_a_renamed_claude_tag_is_the_users_and_the_old_name_stays_off(store):
+    ref = capture(store, "a note about sheds")
+    run_all(worker(store, Fake(answer(["shed"]))))
+    store.rename_tag("shed", "hut", "claude", "mcp")
+    enrich.ask(store, ref["page_id"])
+    run_all(worker(store, Fake(answer(["shed", "hut"]))))
+    page = store.page(ref["page_id"])
+    assert page["tags"] == ["hut"] and page["model_tags"] == []
+    assert model_tags(store, ref["page_id"]) == [("shed", "off")]
+
+
+def test_a_revert_follows_the_user_wins_rules(store):
+    ref = capture(store, "a note about sheds")
+    run_all(worker(store, Fake(answer(["shed"]))))
+    removed = store.edit_meta([ref["page_id"]], "me", "web", remove=["shed"])
+    revision = removed["pages"][0]["revision"]
+    enrich.ask(store, ref["page_id"])
+    run_all(worker(store, Fake(answer(["shed"]))))
+    assert store.page(ref["page_id"])["tags"] == []  # taken off: not added back
+    store.revert_meta(revision, "me", "web")  # put back: the user's from now on
+    page = store.page(ref["page_id"])
+    assert page["tags"] == ["shed"] and page["model_tags"] == []
+    assert model_tags(store, ref["page_id"]) == []
+
+
 def test_a_full_page_keeps_claude_tags_it_has_no_room_for_on(store):
     ref = capture(store, "a note about sheds")
     run_all(worker(store, Fake(answer(["shed"]))))  # added while the editor was open

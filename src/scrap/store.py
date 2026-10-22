@@ -1562,6 +1562,7 @@ class Store:
             conn.executemany(
                 "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in after.tags]
             )
+            self._model_tags(conn, page_id, after.tags)  # as a PWA tag save
             self.reindex(conn, page_id)
         revision = self._record_meta(
             conn, page_id, author, source, before, after, added, reverts, batch
