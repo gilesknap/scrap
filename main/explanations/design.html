@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev254+g130d9e1c8 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev286+g68a1a9c07 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=af3f8868"></script>
+    <script src="../_static/documentation_options.js?v=94caae38"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -761,9 +761,9 @@ recurring tasks, sub-tasks and projects (that is a task app).</p></li>
 are stored and shown (set by an import, richer controls later).</p></li>
 <li><p><strong>Choosing a kind.</strong> The capture buttons (camera, gallery, note) only choose the input; the
 kind is chosen in the PWA’s editor, for a new capture or an existing page, from Note
-(default), Todo, Read (<code class="docutils literal notranslate"><span class="pre">consume</span></code>), Whiteboard and Document (<code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code> are not
+(default), Todo, Later (<code class="docutils literal notranslate"><span class="pre">consume</span></code>), Whiteboard and Document (<code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code> are not
 offered until wanted; a hard-coded list until real use asks for configurable kinds). A bare
-URL pre-selects Read; photos skip the choice (ingest classifies them; the user can change it).
+URL pre-selects Later; photos skip the choice (ingest classifies them; the user can change it).
 The capture’s <code class="docutils literal notranslate"><span class="pre">kind</span></code> field or <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{id}</span></code> sets it.</p></li>
 <li><p><strong>A kind the user changes</strong> (PWA edit, <code class="docutils literal notranslate"><span class="pre">PATCH</span></code>) <strong>keeps every field</strong> the page has (a summary,
 a due date, an imported status: a stray tap on a chip must lose nothing) and adds the new
@@ -795,8 +795,8 @@ insert first, then writes the summary row, then deletes the <code class="docutil
 now <code class="docutils literal notranslate"><span class="pre">consume</span></code>. Only regenerating the summary re-fetches it, for example after a change to
 <code class="docutils literal notranslate"><span class="pre">reference</span></code>.</p></li>
 <li><p><strong>Views.</strong> One list screen (Search; <code class="docutils literal notranslate"><span class="pre">/recent</span></code> redirects to it): an empty box lists every page
-newest first, a fixed kind row (All, Notes, Todos, Reads, Boards, Docs) sets or clears <code class="docutils literal notranslate"><span class="pre">kind:</span></code>,
-and the query rides in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>). A todo’s page has a Done/Reopen tick
+newest first, a fixed kind row (All, Notes, Todos, Later, Boards, Docs) sets or clears <code class="docutils literal notranslate"><span class="pre">kind:</span></code>,
+and the query rides in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>). A todo’s page has Mark done and Reopen,
 setting <code class="docutils literal notranslate"><span class="pre">fields.status</span></code>. No Inbox: <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> is only for the user-wins rule.</p></li>
 </ul>
 </section>

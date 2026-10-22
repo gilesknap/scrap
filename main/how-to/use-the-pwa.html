@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev254+g130d9e1c8 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.1.dev286+g68a1a9c07 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=af3f8868"></script>
+    <script src="../_static/documentation_options.js?v=94caae38"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -527,20 +527,25 @@ trying it out on the server itself.</p></li>
 </div>
 <p>The buttons say how you capture, not what the page is. Its <strong>kind</strong> is chosen in the composer
 (and changed later in the page’s editor) with the row of chips above the text: <strong>Note</strong> (the
-default), <strong>Todo</strong>, <strong>Read</strong> (to read later), <strong>Board</strong> (a whiteboard) or <strong>Doc</strong> (a document). A link on its own
-picks <strong>Read</strong> for you until you pick something else. Photos skip the choice: Claude reads them
+default), <strong>Todo</strong>, <strong>Later</strong> (to read, watch or listen to later), <strong>Board</strong> (a whiteboard) or <strong>Doc</strong> (a document). A link on its own
+picks <strong>Later</strong> for you until you pick something else. Photos skip the choice: Claude reads them
 and makes a whiteboard or document a page of that kind, and you can change it after. A kind
 you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
 already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
-changing it back gives the page as it was.</p>
+changing it back gives the page as it was. While the kind is <strong>Todo</strong> (and there are no
+photos), the composer also has the todo’s <strong>Due</strong> date (<strong>Today</strong>, <strong>Tomorrow</strong>, <strong>Next week</strong>
+or a date) and <strong>Priority</strong>, as on its page; the text box asks <em>What needs doing?</em>. The due
+date and the tags are each folded into one line above the text (<strong>Due</strong> <em>24 Oct · high</em>,
+<strong>Tags</strong> <em>2 · #home #garden</em>), so the text stays in front: tap the line to open it, and again to
+fold it.</p>
 <p>In the composer, <strong>Camera</strong> and <strong>Gallery</strong> add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server’s upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or <strong>Save separately</strong>, one capture per photo
 with the text on the first.
-Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
-(it suggests the tags already in use), or tap one of your most used tags, offered under the
-box; tap a tag’s ✕ to take it off; what is still in the box
+The <strong>Tags</strong> line opens a tags box that works as on a page (below): type a tag and press Enter
+or a comma, or tap one of the tags offered in a row under the box (your most used tags, or as
+you type, the tags in use that match); tap a tag’s ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude’s
 join them when it first reads the photo (a later Reprocess adds its tags only to a page with
@@ -599,24 +604,32 @@ after a tick or an edit. <strong>Search</strong> opens the list screen for every
 nothing in the search box it lists every page newest first, with a thumbnail of the first
 photo (<strong>Show more</strong> at the end for older ones). The keyboard only comes up when you tap the
 box. (There is no separate Recent screen any more: the empty box is it.)</p></li>
-<li><p>Under the search box, a fixed row of kinds: <strong>All</strong>, <strong>Notes</strong>, <strong>Todos</strong>, <strong>Reads</strong>,
-<strong>Boards</strong>, <strong>Docs</strong>. One tap shows only that kind (it writes <code class="docutils literal notranslate"><span class="pre">kind:read</span></code> into the query), a
-second tap on it (or <strong>All</strong>) shows every kind again. A kind alone still lists newest first.
-<strong>Todos</strong> with nothing else asked opens the Todos screen, as the Todos tab does; with words or filters in
-the box it narrows the search to todos (<code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>), as before.</p></li>
+<li><p>Tap the empty search box for <strong>Recent</strong>: your last ten searches, newest first, filters and
+all (<code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">tag:home</span></code>). Tap one to run it again, its <strong>✕</strong> to forget it, or <strong>Clear all</strong>.
+A search is kept once it is run: Enter, opening a result, or leaving it a few seconds with
+results; not as you type. They are kept on this phone only, never sent to scrap; in a
+private tab, or with site storage blocked, there are none and search works as before.</p></li>
+<li><p>Under the search box (and any filters on), a row of kinds, always shown, each an icon over
+its word: <strong>All</strong>, <strong>Notes</strong>, <strong>Todos</strong>, <strong>Later</strong>, <strong>Boards</strong>, <strong>Docs</strong>. One tap shows only
+that kind (it writes <code class="docutils literal notranslate"><span class="pre">kind:later</span></code> into the query), a second tap on it (or <strong>All</strong>) shows
+every kind again. A kind alone still lists newest first. <strong>Todos</strong> works as the others do: it
+narrows the list to todos (<code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>) in place; the Todos tab is the Todos screen.</p></li>
 <li><p>Whenever anything is chosen or typed, the search box has a <strong>✕</strong> at its end: one tap goes
 back to every page, newest first (the keyboard stays down).</p></li>
-<li><p>Under the kind row, a short row: <strong>Filters</strong> first (with how many filters are on), then the
-results’ top tags with their counts, which scroll sideways; tap one to narrow the search.
-Above the list, how many pages were found and each filter that is on as a chip with a ✕:
-tap it to take that filter out. So the row’s start never moves, and nothing chosen is hidden.</p></li>
-<li><p><strong>Filters</strong> opens a sheet from the bottom of the screen: <strong>Sort</strong>, <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>,
-<strong>1y</strong>, <strong>Dates…</strong> with a From and a To, and <strong>By created date</strong> once a range is on),
-<strong>Work</strong> or <strong>Personal</strong> (with counts), and <strong>Browse tags</strong> (for todos due today, overdue or
-soon, use the Todos screen, or type <code class="docutils literal notranslate"><span class="pre">due:</span></code> in the box). Each tap changes the search at once (the list behind
-follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
-<strong>Clear filters</strong> takes every filter off and keeps the words; <strong>Done</strong>, Back, Escape or a tap
-above the sheet closes it.</p></li>
+<li><p><strong>Filters</strong> is the slider button at the end of the search box; with filters on, it shows how
+many. Each filter that is on is a chip with a ✕ in a row under the box (<em>#home</em>, <em>past
+month</em>, <em>A–Z</em>): tap it to take that filter out. So nothing chosen is hidden. Over the list,
+how many pages were found.</p></li>
+<li><p>Tap <strong>Filters</strong> to open its panel in place, under the box, and tap it again to fold it (it
+stays as you left it for the next search). Its rows: <strong>Tags</strong> (type in its box for the tags
+in use that match, or with nothing typed tap one of the results’ top tags, with their counts:
+only tags that narrow what was found are offered; <strong>All tags</strong> opens the tags screen),
+<strong>Order</strong> (<strong>Best match</strong> or <strong>Last edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>A–Z</strong>, and for todos
+<strong>Due soonest</strong> and <strong>Priority</strong>) and <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>, <strong>Dates…</strong> with a
+From and a To, and <strong>By created date</strong> once a range is on). Each row scrolls sideways. Each
+tap changes the search at once, and the list under it follows; a chosen one is shown pressed
+and a second tap takes it off. <strong>Clear filters</strong> takes every filter off and keeps the words.
+For todos due today, overdue or soon, use the Todos screen, or type <code class="docutils literal notranslate"><span class="pre">due:</span></code> in the box.</p></li>
 <li><p>The query and its filters are in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>), so a reload keeps them, and
 Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
 <code class="docutils literal notranslate"><span class="pre">/recent</span></code> links open this screen (<code class="docutils literal notranslate"><span class="pre">/recent?kind=todo</span></code> the Todos screen).</p></li>
@@ -625,17 +638,19 @@ address, so you can open one in a new tab: on a phone, long-press it and choose 
 tab</em> (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
 Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
 wasn’t opened from a list. A plain tap opens it in place, as before.</p></li>
-<li><p>Todos and Read pages carry a status (open, in progress, done or cancelled). The page’s
-toolbar has <strong>Done</strong> unless it is done, and <strong>Reopen</strong> if it is done or cancelled (a
-cancelled one has both). In the list, the capture screen’s list and search results, their
+<li><p>Todos and Later pages carry a status (open, in progress, done or cancelled). The page’s
+toolbar starts with <strong>Mark done</strong> (the filled button) unless it is done, and <strong>Reopen</strong> if it
+is done or cancelled (a cancelled one has both), then <strong>Edit</strong>, <strong>Share</strong> and <strong>Delete</strong>. In the list, the capture screen’s list and search results, their
 rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
 open it again; the row stays where it is and its chip says <em>done</em> (or <em>cancelled</em>). Ticking
 it or changing a kind doesn’t move the page up the list.</p></li>
 <li><p>A todo may have a <strong>due date</strong> and a <strong>priority</strong> (high, medium or low). Its page shows them
-in a line under its tags (<em>high · due 3 Nov</em>, or <strong>Add due date</strong>): tap it to pick a date
-(<strong>No date</strong> clears it) and a priority, then <strong>Save</strong>. <strong>Edit</strong> has the same two under the
+in a line under its tags (<em>high · due 3 Nov</em>, or <strong>Add due date</strong>): tap it to pick a date,
+or set one in a tap with <strong>Today</strong>, <strong>Tomorrow</strong> or <strong>Next week</strong> (<strong>No date</strong> clears it),
+and a priority, then <strong>Save</strong>. <strong>Edit</strong> has the same two under the
 tags while the kind is Todo. A todo’s row in a list says them too; one due before today and
-not done says <em>overdue</em> in red, until ticked off. They are a todo’s only: a page made a note
+not done says <em>overdue</em> in red, until ticked off. Once done or cancelled it keeps its due
+date, greyed. They are a todo’s only: a page made a note
 keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
 nor moves the page up the list. Today is your phone’s day on rows and pages, and the server’s
 for <code class="docutils literal notranslate"><span class="pre">due:</span></code> searches.</p></li>
@@ -643,14 +658,15 @@ for <code class="docutils literal notranslate"><span class="pre">due:</span></co
 (done, if every box is ticked), unless its kind was chosen: the server files it, and the
 composer and editor don’t suggest a kind for boxes (the kind picker still shows <strong>Note</strong>, and
 leaving it so is no choice). To keep such a page a note, <strong>Edit</strong> it and pick <strong>Note</strong>: a kind
-picked by hand is kept. A Read, Board or Doc never changes. Boxes in code (a fenced or
+picked by hand is kept. A Later, Board or Doc never changes. Boxes in code (a fenced or
 indented block) don’t count. Its row and page say how many are ticked (<em>2 of 5</em>), and its
 tick box on rows shows a bar while only some are. Ticking the last box (on the page, or in
 the editor) marks it done. While every box is ticked, unticking one or adding a new unticked
-one opens a done todo again; otherwise a todo marked <strong>Done</strong> by hand stays done. <strong>Done</strong> by
-hand ticks no box, and a cancelled todo is left as it is.</p></li>
+one opens a done todo again; otherwise a todo marked done by hand stays done. <strong>Mark done</strong>
+ticks no box, and a cancelled todo is left as it is.</p></li>
 <li><p><strong>Snooze</strong> a todo to put it out of the way until a day: on its page, tap the line under its
-tags and pick a <strong>Snooze until</strong> date (<strong>No snooze</strong> wakes it), then <strong>Save</strong>. Until that day it is out of <strong>Now</strong> and <strong>Upcoming</strong> and the Todos
+tags and pick a <strong>Snooze until</strong> date, or <strong>Tomorrow</strong> or <strong>Next week</strong> (<strong>No snooze</strong> wakes
+it), then <strong>Save</strong>. Until that day it is out of <strong>Now</strong> and <strong>Upcoming</strong> and the Todos
 tab’s count (Now’s count says how many are snoozed); <strong>All</strong> shows it, marked <em>snoozed till 3
 Nov</em>, and <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> finds them. On its day it comes back by itself.</p></li>
 <li><p>The <strong>Todos</strong> screen (<code class="docutils literal notranslate"><span class="pre">/todos</span></code>, the Todos tab) opens on <strong>Now</strong>: the todos not done or
@@ -658,14 +674,21 @@ cancelled, what to do first at the top, in groups: <strong>Overdue</strong> (old
 <strong>Today</strong>, <strong>High priority</strong> (no due date), then <strong>Later</strong> (by priority, then due date, then
 last edited). Each row starts with its priority and due date. Done and cancelled todos are
 folded away at the end (<strong>Done</strong>, tap to open; those among the 500 todos last edited). A
-switch at the top picks the list instead: <strong>Upcoming</strong> (due from tomorrow to a week away,
-soonest first) or <strong>All</strong> (every open todo and those done ones, last edited first). Each list
+switch at the top, an icon over each word like the search screen’s kinds (<strong>Now</strong> a clock),
+picks the list instead: <strong>Upcoming</strong> (a calendar: due from tomorrow to a week away, soonest
+first) or <strong>All</strong> (every open todo and those done ones, last edited first). Each list
 sets its own order: there is no Sort here. The address says which list
 (<code class="docutils literal notranslate"><span class="pre">/todos?view=upcoming</span></code>; switching changes it in place, so Back leaves Todos rather than
 stepping through the lists), so
 Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
-<strong>Search todos</strong>, at the end, opens the search screen on <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>, where <code class="docutils literal notranslate"><span class="pre">due:</span></code>,
-<code class="docutils literal notranslate"><span class="pre">priority:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> still search and order todos.</p></li>
+To search todos, use <strong>Todos</strong> in the search screen’s kind row (<code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>), where <code class="docutils literal notranslate"><span class="pre">due:</span></code>,
+<code class="docutils literal notranslate"><span class="pre">priority:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> still search and order them.</p></li>
+<li><p><strong>New todo</strong>, at the bottom left of the Todos screen, opens the composer on <strong>Todo</strong>; save,
+and you are back on the list with the new todo in it once it has uploaded.</p></li>
+<li><p>Opened from the Todos screen, <strong>Mark done</strong> moves on to the next todo in that list (the pager
+says <em>3 of 9 · Todos · Now</em>) with <strong>Undo</strong> for a few seconds; on the last one it stays, and
+offers <strong>Back to list</strong>. Tap <em>3 of 9 · Todos · Now</em> to go back to the list at any time.
+Opened from anywhere else, Mark done stays on the page.</p></li>
 <li><p>Swipe a row of the list, the capture screen’s list or search results: to the <strong>right</strong> to
 edit it (the page opens in its editor), to the <strong>left</strong> to delete it (with <strong>Undo</strong> for a few
 seconds). The row follows your finger with <em>Edit</em> or <em>Delete</em> showing behind it; past a third
@@ -690,13 +713,13 @@ does the phone’s Back button. <strong>Share</strong> asks <strong>Link</strong
 address of the photo’s page; <strong>Photo</strong> sends the photo to another app: the original, or a
 JPEG of it if it is a HEIC or over 20 MB. If a big photo takes longer to download than the
 phone allows, a <strong>Photo ready</strong> message offers <strong>Share</strong> again.</p></li>
-<li><p><strong>Download</strong> on a page saves it as Markdown, or as a zip of the Markdown and its files when it
-has any; its photos are in the zip and its text points at them there. <strong>Share</strong> asks
-<strong>Link</strong> or <strong>Text</strong>: <strong>Link</strong> sends the page’s address (such as
-<code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/shopping-list</span></code>), which opens the page for anyone who can reach your
-scrap; <strong>Text</strong> sends its title and text, as typed but without the lines that only show a
-photo (no link to scrap in it). Tap <strong>Share</strong> again, or anywhere else, to close the choice.
-Share appears only where the browser can share.</p></li>
+<li><p><strong>Share</strong> on a page asks <strong>Link</strong>, <strong>Text</strong> or <strong>Download</strong>: <strong>Link</strong> sends the page’s
+address (such as <code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/shopping-list</span></code>), which opens the page for anyone who
+can reach your scrap; <strong>Text</strong> sends its title and text, as typed but without the lines that
+only show a photo (no link to scrap in it); <strong>Download</strong> saves it as Markdown, or as a zip of
+the Markdown and its files when it has any (its photos are in the zip and its text points at
+them there). Tap <strong>Share</strong> again, or anywhere else, to close the choice. Where the browser
+can’t share, there is no Share and <strong>Download</strong> is in the toolbar in its place.</p></li>
 <li><p>Page text is shown as Markdown, as GitHub writes it: headings, <strong>bold</strong>, <em>italic</em>,
 ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
 <code class="docutils literal notranslate"><span class="pre">https://</span></code> addresses (a <code class="docutils literal notranslate"><span class="pre">www.</span></code> address without <code class="docutils literal notranslate"><span class="pre">https://</span></code> stays plain text), tables
@@ -719,7 +742,12 @@ drag settles back, and at the first or last it only gives a little and says so. 
 away from the screen’s edges (the phone’s own Back gesture lives there) and are ignored on
 text that scrolls sideways, while zoomed in or while selecting text.</p></li>
 <li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
-<strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves.</p></li>
+<strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
+tags and a todo’s due date are folded into a line each under the title, as in the composer.</p></li>
+<li><p>Writing lists in the composer or editor: Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task
+(<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next item, and Enter on an empty item ends the list. <strong>Checkbox</strong>,
+just above the keyboard, makes the line (or the lines selected) a task, or plain items
+again if they all are. On a page, a task list sits as tight as a bulleted one.</p></li>
 <li><p>Nothing typed is lost (tags too): the composer and <strong>Edit</strong> keep a draft on the phone as you type
 (photos too), so after the phone’s Back button, a reload or a closed app, opening them again
 brings it back (<strong>Discard it</strong> drops it); a page with a kept edit shows <strong>Edit draft</strong>. Back closes the editor, not the app. <strong>Cancel</strong> asks
@@ -775,28 +803,26 @@ search screen. Its fonts are served by scrap itself, never
 from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.</p></li>
 <li><p><strong>Search</strong> searches titles, tags, summaries and text as you type (each word as the start of a
 word: <code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>); a title or tag match ranks first. Above the results, how many pages were found and the filters on; the row
-under the kinds and the Filters sheet narrow it (Work or Personal and the top tags, each with
-a count; kinds are the fixed row). The chips only write the query,
+of kinds and the Filters panel narrow it (its tags with a count each). The chips only write
+the query,
 which you can also type: <code class="docutils literal notranslate"><span class="pre">-word</span></code> or <code class="docutils literal notranslate"><span class="pre">!word</span></code> (without it), <code class="docutils literal notranslate"><span class="pre">&quot;a</span> <span class="pre">phrase&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> (or
-<code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>…), <code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>
+<code class="docutils literal notranslate"><span class="pre">kind:later</span></code>, also <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>…), <code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>
 too), <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code> (a page not marked personal), <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> (pages Claude wrote over MCP, which show a <em>Written by Claude</em> badge), <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> (todos snoozed till later), <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with a photo), <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for), <code class="docutils literal notranslate"><span class="pre">is:done</span></code> (any status), a todo’s <code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> (overdue), <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>,
 <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code> (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code>, <code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>), <code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or
 <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code> (last edited; dates are UTC days, both ends included; add <code class="docutils literal notranslate"><span class="pre">date:created</span></code>
 for when it was made), <code class="docutils literal notranslate"><span class="pre">sort:title</span></code> (A to Z; also <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, newest first,
 <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, and a todo’s <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, soonest first, and <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code>, high first; <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> turns one round: <code class="docutils literal notranslate"><span class="pre">-sort:created</span></code> is oldest first). The Filters
-sheet’s <strong>Sort</strong> is a menu (<strong>Best match</strong> or <strong>Last edited</strong>, <strong>First edited</strong>, <strong>Newest</strong>,
-<strong>Oldest</strong>, <strong>Title A–Z</strong>, <strong>Title Z–A</strong>, and for todos <strong>Due soonest</strong>, <strong>Due latest</strong> and
-<strong>Priority</strong>) that writes the <code class="docutils literal notranslate"><span class="pre">sort:</span></code> for you, and works with nothing typed too.
+panel’s <strong>Order</strong> writes the commonest <code class="docutils literal notranslate"><span class="pre">sort:</span></code> for you, and works with nothing typed too.
 Filters alone list their pages, newest first.</p></li>
 <li><p>A page shows its <strong>tags</strong> in one line under its title, most used first (swipe it for more):
 tap one to search for it. <strong>Tags</strong> (or <strong>Add tags</strong>), first in that line, edits them in
-place: tap a tag’s ✕ to take it off, type one in the box (it suggests the tags already in
-use) and press Enter or type a comma to add it, or tap one of the six most used tags offered
-under the box, then <strong>Save</strong>; what is still in the box when
+place: tap a tag’s ✕ to take it off, type one in the box and press Enter or type a comma to
+add it, or tap one of the tags offered in a row under the box (the six most used, or as you
+type, the tags in use that match: a tap adds it in place of what you typed), then <strong>Save</strong>; what is still in the box when
 you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
-<code class="docutils literal notranslate"><span class="pre">#</span></code>. <strong>Edit</strong> (also a list row swiped right) has the same tags box, under the title, and
-saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
-the list. <strong>Browse tags</strong> (in the Filters sheet) lists every tag with how many pages have it, as a tree (open a parent with its
+<code class="docutils literal notranslate"><span class="pre">#</span></code>. <strong>Edit</strong> (also a list row swiped right) has the same tags box, in its <strong>Tags</strong> line
+under the title, and saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
+the list. <strong>All tags</strong> (in the Filters panel, under Tags) lists every tag with how many pages have it, as a tree (open a parent with its
 arrow), A to Z or most used first, with a box to filter it.</p></li>
 </ul>
 </section>
