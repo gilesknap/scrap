@@ -10,7 +10,7 @@ import type { pageRow } from "./lists";
 import { isOpen, now, toDo, upcoming } from "./now";
 import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
-import { empty, h, problem, toast } from "./ui";
+import { empty, h, problem } from "./ui";
 
 // Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
 // All search's All
@@ -63,7 +63,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   } catch (e) {
     return problem(e);
   }
-  // A todo saved meanwhile (New todo, below): the list again once its upload is done
+  // A todo saved meanwhile (New todo, in the top bar): the list again once its upload is done
   document.addEventListener(
     "queuechange",
     async () => {
@@ -145,28 +145,12 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   draw();
   const y = history.state?.scroll;
   if (y) requestAnimationFrame(() => scrollTo(0, y));
-  // New todo: the composer with Todo chosen; saved, it closes back onto this list
-  const add = h(
-    "button",
-    {
-      type: "button",
-      className: "primary newtodo",
-      onclick: () =>
-        import("./composer").then(
-          (m) => m.compose([], "todo"),
-          () => toast("Can't open the composer: reload scrap and try again"),
-        ),
-    },
-    icon("add"),
-    "New todo",
-  );
   const root = h(
     "section",
     { className: "todos" },
     h("div", { className: "chips kindrow", role: "radiogroup", "aria-label": "Show" }, ...radios),
     count,
     body,
-    add,
   );
   // Leaving by a tap or a swipe: where the list is, for Back
   root.addEventListener("pointerdown", keep, { capture: true });
