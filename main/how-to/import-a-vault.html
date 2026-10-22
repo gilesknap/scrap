@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import a Thoth vault &#8212; scrap 0.1.dev362+gb7dfc241b documentation</title>
+    <title>Import a Thoth vault &#8212; scrap 0.1.dev366+g3f8303443 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=75ee98cf"></script>
+    <script src="../_static/documentation_options.js?v=94c05354"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -548,7 +548,7 @@ file first so <code class="docutils literal notranslate"><span class="pre">SCRAP
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>scrap
 <span class="nb">set</span><span class="w"> </span>-a<span class="p">;</span><span class="w"> </span>.<span class="w"> </span>~/.config/scrap/env<span class="p">;</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>+a
 podman<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--userns<span class="o">=</span>keep-id:uid<span class="o">=</span><span class="m">10001</span>,gid<span class="o">=</span><span class="m">10001</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$SCRAP_DATA</span><span class="s2">:/data"</span><span class="w"> </span>-v<span class="w"> </span>~/vault-copy:/vault:ro<span class="w"> </span>-e<span class="w"> </span><span class="nv">SCRAP_DATA_DIR</span><span class="o">=</span>/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$SCRAP_DATA</span><span class="s2">:/data:z"</span><span class="w"> </span>-v<span class="w"> </span>~/vault-copy:/vault:ro,z<span class="w"> </span>-e<span class="w"> </span><span class="nv">SCRAP_DATA_DIR</span><span class="o">=</span>/data<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span><span class="s2">"</span><span class="nv">$SCRAP_IMAGE</span><span class="s2">"</span><span class="w"> </span>import<span class="w"> </span>--dry-run<span class="w"> </span>/vault
 </pre></div>
 </div>

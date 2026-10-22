@@ -32,6 +32,9 @@ and process** can do the same through the port: keep that for single-purpose ser
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
   units use `--userns=keep-id:uid=,gid=`, `--sdnotify=conmon` and `--cgroups=split`, and have
   been run with podman 5.x; older versions are untested.
+- cgroups v2 (the default on current distributions) for the memory and process limits. On a
+  cgroups v1 host (RHEL 8, for example) scrap still runs, without `--cgroups=split`, but podman
+  then ignores `--memory` and `--pids-limit`: the container has no memory cap.
 - `git` and `curl`.
 - [Tailscale](https://tailscale.com/download) on the server, logged in to your tailnet, with
   [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) and MagicDNS enabled for the
@@ -167,7 +170,8 @@ there today is cut off, and prints a note. To move to the socket:
 2. As an admin, point the existing Serve entry at the socket (the same `--https` port, so the
    address, `SCRAP_PUBLIC_URL` and installed PWAs stay the same):
    `sudo tailscale serve --bg --https=8446 unix:/run/user/<uid>/scrap/scrap.sock`
-3. `./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446`
+3. As the `scrap` user again (`smoke.sh` reads the caller's `~/.config/scrap/env`):
+   `./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446`
 
 Between steps 1 and 2 scrap is unreachable from the tailnet; the PWA keeps captures in its
 offline queue and sends them once it is back.
@@ -192,9 +196,9 @@ SCRAP_PUBLIC_URL=https://<host>.<tailnet>.ts.net:8446
 ```
 
 The generated file also has a commented `SCRAP_VISION_MODEL` line; leave it alone to use the
-default. It has no `TZ` or `SCRAP_PUBLIC_URL` line: add them yourself. With ingest on, the
-container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS to fetch saved
-links.
+default. It lists `SCRAP_PUBLIC_URL` and `TZ` commented out: uncomment and set them. With
+ingest on, the container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS
+to fetch saved links.
 
 Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see
 {ref}`scrap-publish`), with the scheme and, unless it is 443, the port; several addresses can be comma separated.
@@ -271,7 +275,9 @@ systemctl --user list-timers
 ```
 
 `smoke.sh` calls `/healthz` on the socket (or the local port) and should print
-`{"status":"ok",...}`. Logs:
+`{"status":"ok",...}`. Run it as the `scrap` user, in that user's login session: it reads the
+caller's `~/.config/scrap/env`, so run by anyone else it falls back to TCP port 8790 and fails on
+a socket install. Logs:
 `journalctl --user -u scrap`. `list-timers` should show `scrap-backup.timer`,
 `scrap-gc.timer` and `scrap-enrich-related.timer`; one that is missing was skipped because the
 image lacks its command (see {ref}`scrap-install-script`).
@@ -501,7 +507,7 @@ the directory anything but a run's `YYYYMMDDTHHMMSSZ` form, for example `pre-imp
 ```
 set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 --network=none \
-    -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:z" -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" backup /backups/pre-import
 ```
 
@@ -577,7 +583,7 @@ systemctl --user stop scrap
 set -a; . ~/.config/scrap/env; set +a
 ls "$SCRAP_BACKUPS"
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:z" -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" restore /backups/<timestamp> --force
 systemctl --user start scrap
 ```
@@ -632,7 +638,7 @@ what it would delete now, without deleting:
 ```
 set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    --network=none -v "$SCRAP_DATA:/data" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
+    --network=none -v "$SCRAP_DATA:/data:z" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
 journalctl --user -u scrap-gc   # what the nightly runs deleted
 ```
 
@@ -760,7 +766,9 @@ folder is removed when it stops), or the Serve target names another path or user
 
 **Permission denied writing `/data`.** The data directory must be owned by the `scrap` user and
 the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do this). On
-SELinux systems (Fedora, RHEL) also add `:Z` to the `--volume` options.
+SELinux systems (Fedora, RHEL) the folder must also be relabelled, which the `:z` on every
+volume does. Keep it lowercase if you write your own `podman run`: `:Z` makes the label private
+to one container, locking the backup and gc containers out of `SCRAP_DATA`.
 
 **The access log shows every client as the server's own address** (`SCRAP_LISTEN=tcp`).
 Rootless podman's network (pasta, the default from podman 5.0) forwards connections so that
