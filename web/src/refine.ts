@@ -2,7 +2,7 @@
 // ("Filters · #home · past month"); tapped, it opens in place, over the results rather than in
 // a sheet, so each tap shows its effect at once and a few taps in a row cost nothing. Inside:
 // Tags (those on, each with a ✕, then a box that offers the tags in use as you type, or the
-// results' top tags with their counts), Order, When, and Work or personal, each a row of chips.
+// results' top tags with their counts), Order and When, each a row of chips.
 // Above the list, how many pages were found and each filter that is on, as a chip (tap to take
 // it out), so nothing chosen is hidden. All of it only edits the query's text (tag:tech,
 // is:personal), so it can be typed too, and Back, a reload or a link keep it. In the app
@@ -67,6 +67,9 @@ const RANGES = [
   ["1y", "1y", "the past year"],
 ];
 
+// is: values in words: the rest are statuses, said as they are ("done", "in progress")
+const IS: Record<string, string> = { claude: "Written by Claude", snoozed: "snoozed" };
+
 /** A filter on, as a chip says it: "#home", "past month", "A–Z", "personal". */
 function label(a: Facets["active"][number]) {
   const not = a.neg ? "not " : "";
@@ -78,7 +81,7 @@ function label(a: Facets["active"][number]) {
   }
   if (a.key === "after" && /^\d+[dwmy]$/.test(a.value))
     return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
-  if (a.key === "is") return `${not}${a.value}`;
+  if (a.key === "is") return `${not}${IS[a.value] ?? a.value.replace("_", " ")}`;
   if (a.key === "kind") {
     const k = KIND_ROW.find(([, , names]) => names.includes(a.value.toLowerCase()));
     if (k) return `${not}${k[0]}`;
@@ -153,7 +156,7 @@ export async function refine(
   );
 }
 
-/** The panel's rows: Tags, Order, When, Work or personal. */
+/** The panel's rows: Tags, Order, When. */
 function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] {
   const toggle = (label: string, t: string, n = -1, others: string[] = []) => {
     const on = has(q, t);
@@ -319,12 +322,6 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   from.onchange = to.onchange = setDates; // applied as picked: no Apply to find
   range.append(h("label", {}, "From", from), h("label", {}, "To", to));
 
-  const { work, personal } = f.personal;
-  const sides = [
-    (work > 0 || has(q, "is:work")) && toggle("Work", "is:work", work, ["is:personal"]),
-    (personal > 0 || has(q, "is:personal")) &&
-      toggle("Personal", "is:personal", personal, ["is:work"]),
-  ];
   const clear = filtersOf(f).length
     ? Object.assign(h("button", { type: "button", className: "link" }, "Clear filters"), {
         onclick: () => {
@@ -345,7 +342,6 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       (ranged.length > 0 || created) && toggle("By created date", "date:created"),
     ),
     range,
-    sides.some(Boolean) ? row("Area", ...sides) : (null as unknown as HTMLElement),
     clear as HTMLElement,
   ].filter(Boolean);
 }
