@@ -150,16 +150,17 @@ function lines(
   return { from, to, insert, start: map(start), end: map(end) };
 }
 
-/** A numbered item's number at lead width w, after the lines before: one past the nearest
- * number at w above it (in the same list: past items nested deeper, or blank lines), else 1. */
-function number(before: string[], w: number): number {
+/** A numbered item's number at lead width w, after the lines before, and its delimiter: one
+ * past the nearest number at w above it (in the same list: past items nested deeper, or blank
+ * lines), with that one's . or ) (another starts a new list), else 1 and own (its own, or .). */
+function number(before: string[], w: number, own = "."): string {
   for (let i = before.length - 1; i >= 0; i--) {
     if (!before[i].trim()) continue;
     const l = parse(before[i]);
     if (l.width > w) continue;
-    return l.width === w && l.m?.[3] ? Number(l.m[3]) + 1 : 1;
+    return l.width === w && l.m?.[3] ? `${Number(l.m[3]) + 1}${l.m[4]}` : `1${own}`;
   }
-  return 1;
+  return `1${own}`;
 }
 
 /** The nearest line above that isn't blank and isn't nested deeper than w. */
@@ -206,7 +207,7 @@ export function numbered(text: string, start: number, end: number): Change {
       const at = l.width;
       if (off) return l.m ? [at, marked(l.m) - at, l.m[6] ? "- " : ""] : null;
       if (ls.length > 1 && !l.text.trim()) return null;
-      const n = `${number(before, at)}${l.m?.[4] ?? "."} `;
+      const n = `${number(before, at, l.m?.[4])} `;
       return [at, l.m ? marked(l.m) - at : 0, n];
     };
   });
@@ -229,7 +230,7 @@ export function indent(text: string, start: number, end: number): Change {
       const step = up?.m && up.width === w ? marked(up.m) - w : l.m ? marked(l.m) - w : 2;
       const pad = " ".repeat(step);
       if (!l.m?.[3]) return [w, 0, pad];
-      return [w, l.m[3].length + 1, `${pad}${number(before, w + step)}${l.m[4]}`];
+      return [w, l.m[3].length + 1, `${pad}${number(before, w + step, l.m[4])}`];
     };
   });
 }
@@ -256,7 +257,7 @@ export function outdent(text: string, start: number, end: number): Change {
         else to = w - Math.min(room, l.m ? marked(l.m) - w : 2);
       }
       if (code || !l.m?.[3]) return [to, w - to, ""];
-      return [to, w - to + l.m[3].length + 1, `${number(before, to)}${l.m[4]}`];
+      return [to, w - to + l.m[3].length + 1, number(before, to, l.m[4])];
     };
   });
 }

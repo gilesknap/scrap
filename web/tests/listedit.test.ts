@@ -124,6 +124,9 @@ describe("the Numbered key", () => {
     expect(key(numbered, "1. a\n|b")).toBe("1. a\n2. |b");
     expect(key(numbered, "- x|")).toBe("1. x|"); // a bullet's marker gives way
     expect(key(numbered, "- [ ] t|")).toBe("1. [ ] t|"); // a task keeps its box
+    // On from the number above with its delimiter: another would start a new list
+    expect(key(numbered, "1) a\n|b")).toBe("1) a\n2) |b");
+    expect(key(numbered, "«1) a\nb\nc»")).toBe("«1) a\n2) b\n3) c»");
   });
   it("numbers lines 1, 2, 3 in order at each indent", () => {
     expect(key(numbered, "«a\nb\nc»")).toBe("«1. a\n2. b\n3. c»");
@@ -161,6 +164,8 @@ describe("the Indent and Outdent keys", () => {
     expect(key(outdent, "1. a\n   1. b\n   2. c|")).toBe("1. a\n   1. b\n2. c|");
     expect(key(outdent, "«- a\n  - b\n  - c»")).toBe("«- a\n- b\n- c»");
     expect(key(outdent, "1. a\n«   1. b\n   2. c»")).toBe("1. a\n«2. b\n3. c»");
+    expect(key(outdent, "1) a\n   1. b|")).toBe("1) a\n2) b|"); // the list's delimiter
+    expect(key(indent, "1) a\n   1) b\n2) c|")).toBe("1) a\n   1) b\n   2) c|");
   });
   it("outdent never past a line's start, nor into a quote's marker", () => {
     expect(key(outdent, "- a|")).toBe("- a|");
