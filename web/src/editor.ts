@@ -67,9 +67,9 @@ const box = () => {
   return t.content.firstChild as SVGSVGElement;
 };
 
-/** The text box's embeds of stored files as tokens (embeds.ts), with a chip each under it:
- * a thumbnail and its name; tapped, its token is selected (to cut and paste elsewhere), and
- * its ✕ takes the token out. value() is the text as Markdown, the embeds put back: read the
+/** The text box's embeds of stored files as tokens (embeds.ts), with a chip each in a row
+ * (chips: the editor's foot, under its fields): a thumbnail and its name; tapped, its token is
+ * selected (to cut and paste elsewhere), and its ✕ takes the token out. value() is the text as Markdown, the embeds put back: read the
  * text through it, never text.value. */
 export function embedded(text: HTMLTextAreaElement) {
   // A preview that won't come (not a photo the server can draw, offline): the file icon
@@ -208,6 +208,7 @@ export function editor(o: {
   read?: () => string; // the text as Markdown (embedded()'s value), if not the box's own
   before?: Node[];
   after?: Node[];
+  foot?: Node; // under the fields, above the keys: always in sight, however long the text
   key: string; // what this is a draft of
   draft: () => object; // the fields, to keep
   dirty: () => boolean; // changed since opened
@@ -334,6 +335,7 @@ export function editor(o: {
       preview.pane,
       ...(o.after ?? []),
     ),
+    o.foot ?? "",
     keys,
   );
   track(); // right for the first frame

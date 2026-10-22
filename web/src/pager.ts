@@ -1,8 +1,8 @@
 // A page opened from a list (Recent, search results): where it is in it, and the previous
 // and next by its ‹ ›, a swipe or the arrow keys. A chunk of its own, loaded only for such a
-// page. Each step replaces the page's history entry, so Back still goes back to the list, as
-// does a tap on where it is ("3 of 8 · Todos · Now"). Mark done on a todo opened from the
-// Todos screen moves on to the next one in that list.
+// page. Between them, where it is ("3 of 8 · Todos · Now"), a label. Each step replaces the
+// page's history entry, so the top bar's Back still goes back to the list. Mark done on a todo
+// opened from the Todos screen moves on to the next one in that list.
 import { type Page, setStatus } from "./api";
 import { go, plain } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";
@@ -56,17 +56,8 @@ export function pager(
     "div",
     { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
     link(-1, "Previous", at.prev),
-    // Where it is; tapped, back to the list (the entry before: steps replace this one)
-    h(
-      "button",
-      {
-        type: "button",
-        className: "up",
-        "aria-label": `${at.i + 1} of ${at.n}: back to ${trail.label}`,
-        onclick: () => history.back(),
-      },
-      `${at.i + 1} of ${at.n} · ${trail.label}`,
-    ),
+    // Where it is: a label (the top bar's Back goes back to the list)
+    h("span", { className: "at" }, `${at.i + 1} of ${at.n} · ${trail.label}`),
     link(1, "Next", at.next),
   );
   /** Marked done (p as saved; was: its status before): from the Todos screen, on to the next

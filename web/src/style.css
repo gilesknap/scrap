@@ -1116,20 +1116,13 @@ mark {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-/* Where it is in the list; tapped, back to it (a ghost button, underlined as a link) */
-.pager .up {
+/* Where it is in the list: a label, muted, between the ‹ › */
+.pager .at {
   flex: 1;
-  display: block;
   min-width: 0;
   padding: 0 var(--s-1);
   overflow: hidden;
-  border: none;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
   text-align: center;
-  text-decoration: underline dotted var(--line-strong);
-  text-underline-offset: 0.25em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1908,18 +1901,25 @@ div.orig .save {
 .bar .add {
   flex: 1;
 }
-/* The page editor's embeds (editor.ts embedded()): a chip each under the text, for the token
-   that stands for it there. Not while the text is previewed */
-.embeds {
+/* The page editor's embeds (editor.ts embedded()): a chip each for the token that stands for
+   it in the text, on one line under the fields that scrolls sideways, never taller. Its own
+   item in the editor's column, so it stays in sight above the keys while the fields scroll.
+   Not while the text is previewed */
+.editor > .embeds {
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
   gap: var(--s-2);
+  padding: var(--s-2) max(env(safe-area-inset-right), var(--s-4)) var(--s-2)
+    max(env(safe-area-inset-left), var(--s-4));
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .embeds:empty,
-.fields > textarea[hidden] ~ .embeds {
+.editor:has(> .fields > textarea[hidden]) > .embeds {
   display: none;
 }
 .embed {
+  flex: none;
   display: flex;
   align-items: center;
   max-width: 100%;
