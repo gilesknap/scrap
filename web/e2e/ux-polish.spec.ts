@@ -47,6 +47,20 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   await expect(back(page)).toBeHidden();
   await expect(page.locator("nav")).toBeVisible();
 
+  // Tapped while the page still loads, Back still knows it for a todo's
+  let first = true;
+  await page.route(`**/api/pages/${todo.slug}`, async (r) => {
+    if (!first) return r.continue();
+    first = false;
+    await new Promise((ok) => setTimeout(ok, 5000)); // the page's own fetch: slow
+    await r.continue().catch(() => {});
+  });
+  await page.goto(`/p/${todo.slug}`);
+  await expect(page.getByRole("status")).toHaveText("Loading…", { timeout: 3000 });
+  await back(page).click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await page.unroute(`**/api/pages/${todo.slug}`);
+
   // Any other page's parent is Capture
   await page.goto(`/p/${note.slug}`);
   await back(page).click();
@@ -199,6 +213,28 @@ test("a kept draft is a row over Capture's tiles: Back keeps it, Note starts afr
   const toast = page.locator(".toast", { hasText: "in place of the older one" });
   await toast.getByRole("button", { name: "Undo" }).click();
   await expect(resume).toBeVisible();
+
+  // A fresh note is kept as typed, under a key of its own: an app killed mid-capture (no
+  // Back) finds it on the next open, in the older draft's place, with Undo
+  await page.getByRole("button", { name: "Note" }).click();
+  await text.fill("Quokka killed");
+  await page.waitForTimeout(800); // the draft is kept a moment after typing
+  await page.reload(); // as if the app was killed
+  await expect(row.getByRole("button", { name: "Draft: Quokka killed" })).toBeVisible();
+  await page
+    .locator(".toast", { hasText: "Recovered your unsaved capture, in place of the older draft" })
+    .getByRole("button", { name: "Undo" })
+    .click();
+  await expect(resume).toBeVisible();
+  // Saved, a fresh note leaves the kept draft as it was, and nothing to recover
+  await page.getByRole("button", { name: "Note" }).click();
+  await text.fill("Quokka saved");
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  await page.reload();
+  await expect(resume).toBeVisible();
+  await expect(page.locator(".toast", { hasText: "Recovered" })).toHaveCount(0);
 
   // ✕ discards it, with Undo
   await row.getByRole("button", { name: "Discard draft" }).click();

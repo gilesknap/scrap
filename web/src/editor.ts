@@ -248,9 +248,6 @@ export function editor(o: {
   draft: () => object; // the fields, to keep
   dirty: () => boolean; // changed since opened
   restored: boolean; // the fields came from a draft
-  // Another draft is kept under key (a fresh composer's, see composer.ts): this one is kept
-  // only when the editor is left by Back with changes, in its place, and never dropped
-  hold?: boolean;
   left?: () => void; // left by Back with changes (kept as the draft): say so, if not as here
   ondiscard: () => void; // put the fields back as they were
   onsave: () => void;
@@ -288,10 +285,10 @@ export function editor(o: {
   const opener = document.activeElement as HTMLElement | null;
   let timer = 0;
   let finished = false; // saved or discarded: no more drafts
-  const drop = () => (o.hold ? undefined : drafts.del(o.key).catch(() => {}));
-  const keep = (leaving = false) => {
+  const drop = () => drafts.del(o.key).catch(() => {});
+  const keep = () => {
     clearTimeout(timer);
-    if (finished || (o.hold && !leaving)) return;
+    if (finished) return;
     if (!o.dirty()) return void drop();
     // Storage full or refused: the editor itself still has it all
     drafts.put(o.key, { ...o.draft(), at: Date.now() }).catch(() => {});
@@ -313,7 +310,7 @@ export function editor(o: {
   const onpop = (e: PopStateEvent) => {
     e.stopImmediatePropagation();
     const kept = !closing && o.dirty();
-    if (!closing) keep(true);
+    if (!closing) keep();
     teardown();
     if (kept) (o.left ?? (() => toast("Kept as a draft")))(); // placed for the page under it
   };

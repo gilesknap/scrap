@@ -82,4 +82,26 @@ export const drafts = {
   get: <T>(key: string) => run<T | undefined>("readonly", (s) => s.get(key), "drafts"),
   put: (key: string, value: unknown) => run("readwrite", (s) => s.put(value, key), "drafts"),
   del: (key: string) => run("readwrite", (s) => s.delete(key), "drafts"),
+  /** In one transaction: the draft under from, if there is one, takes to's place. Gives it and
+   * the one it replaced (undefined: none). */
+  move: <T>(from: string, to: string) => {
+    let out: [T | undefined, T | undefined] = [undefined, undefined];
+    return run(
+      "readwrite",
+      (s) => {
+        const a = s.get(from);
+        a.onsuccess = () => {
+          if (a.result === undefined) return;
+          const b = s.get(to);
+          b.onsuccess = () => {
+            out = [a.result, b.result];
+            s.put(a.result, to);
+            s.delete(from);
+          };
+        };
+        return undefined;
+      },
+      "drafts",
+    ).then(() => out);
+  },
 };

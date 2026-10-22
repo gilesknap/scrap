@@ -3,6 +3,7 @@
 import { view } from "./app";
 import type { Draft } from "./composer";
 import { drafts } from "./db";
+import { DRAFT, recover } from "./fresh";
 import { icon, kindIcon } from "./icons";
 import { pageList, pendingList } from "./lists";
 import { h, toast } from "./ui";
@@ -66,7 +67,7 @@ export async function capture(): Promise<Node> {
   // drop it. Read from IndexedDB here, so the composer's chunk loads only when it opens.
   const row = h("div", { className: "draft", hidden: true });
   const draw = async () => {
-    const d = await drafts.get<Draft>("new").catch(() => undefined);
+    const d = await drafts.get<Draft>(DRAFT).catch(() => undefined);
     row.hidden = !d;
     if (!d) return;
     const line = d.text
@@ -75,9 +76,9 @@ export async function capture(): Promise<Node> {
       .replace(/^[-*#>\s]*(\[.\]\s*)?/, "");
     const n = d.files.length;
     const discard = async () => {
-      await drafts.del("new").catch(() => {});
+      await drafts.del(DRAFT).catch(() => {});
       await draw();
-      toast("Draft discarded", "Undo", () => void drafts.put("new", d).then(draw, () => {}));
+      toast("Draft discarded", "Undo", () => void drafts.put(DRAFT, d).then(draw, () => {}));
     };
     row.replaceChildren(
       h(
@@ -94,6 +95,8 @@ export async function capture(): Promise<Node> {
     );
   };
   document.addEventListener("draftchange", draw, { signal: view.signal });
+  // A fresh capture the app was closed or killed on (no Back): the kept draft now
+  if (!document.body.classList.contains("editing")) await recover();
   await draw();
   actions.prepend(row);
   root.append(h("h2", { className: "label" }, "Latest"), pending, actions);

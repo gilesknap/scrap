@@ -55,7 +55,10 @@ Leave the composer with the phone's Back and what you typed is kept as a **draft
 the buttons (its kind's icon, *Draft:* and its first line). Tap it to carry on, or its **✕** to
 discard it (with **Undo**). The buttons (and **New todo**) always start a fresh capture: left by
 Back with something in it, the fresh one takes the older draft's place, and **Undo** in the
-message puts the older one back. There is one kept draft at a time.
+message puts the older one back. There is one kept draft at a time. The fresh one is kept on
+the phone as you type too, so if the app is closed or killed before you save it (a phone short
+of memory may do that after the camera), it is the draft the next time you open scrap, again
+with **Undo** for the older one.
 
 ## Share into scrap
 
