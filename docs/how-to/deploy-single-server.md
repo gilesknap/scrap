@@ -217,8 +217,50 @@ editing:
 With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
 Related pages come from a nightly pass, `scrap-enrich-related.timer` (about 03:41, run in the
 scrap container), which `install.sh` enables. It keeps to the same daily budget and stops (and
-the service fails) at a queue pause; while ingest is off or no key is set it says so and
-succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it would do.
+the service fails) at a queue pause; while ingest is off or no key (or seat token) is set it says
+so and succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it
+would do.
+
+#### On a Claude seat, with no API key
+
+On a Team or Enterprise seat, ingest can run through Claude Code instead
+([ADR 0021](../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)). First
+check with your organisation's Claude admin that unattended use of your seat is allowed. Calls
+count against your seat's usage limits, shared with your own use of Claude; when a limit is hit,
+ingest pauses until it resets.
+
+1. On your own machine, run `claude setup-token` and copy the token it prints. It is a
+   long-lived credential for your **whole seat**, with no spend cap: anyone holding it can use
+   your seat until it expires or you revoke it.
+2. Build the image with the CLI added, from the clone, on top of the scrap image:
+
+   ```
+   podman build -f Dockerfile.claude --build-arg BASE=localhost/scrap:dev \
+       -t localhost/scrap-claude:dev .
+   ```
+
+   and set `SCRAP_IMAGE=localhost/scrap-claude:dev` in `~/.config/scrap/env`. It is about 240 MB
+   larger. Rebuild it whenever you rebuild the scrap image.
+3. In `ingest.env`, instead of `ANTHROPIC_API_KEY`:
+
+   ```
+   SCRAP_INGEST=on
+   SCRAP_LLM_BACKEND=cli
+   CLAUDE_CODE_OAUTH_TOKEN=<your token>
+   ```
+
+   Take the same care as with an API key, and more: mode 600, never in the repo or a log, and
+   `podman inspect scrap` shows it.
+
+   The CLI takes about 250 MB of memory while it runs, so raise `SCRAP_MEMORY_MAX` in
+   `~/.config/scrap/env` too, e.g. to `1.5g`.
+4. Re-run `./deploy/install.sh`, which restarts scrap on the new image. Without the token or the
+   binary, ingest pauses with a login problem and the log says which is missing.
+
+`SCRAP_BUDGET_DAY_USD` still applies, to what the calls would cost at API prices (as Claude Code
+reports it), not to anything you are charged. Tagging and summarising notes and links, *Ask
+Claude* and the nightly related pages run on the seat too, each a call against its limits; set
+`SCRAP_ENRICH=off` to keep the seat to photos.
 
 ## First run
 

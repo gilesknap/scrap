@@ -19,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from . import claude, preview, sanitise
+from . import claude, claude_cli, preview, sanitise
 from .store import (
     ENQUEUE,
     MAX_PAGE,
@@ -270,6 +270,13 @@ class Worker:
             recover(conn, now())
             with transaction(conn):
                 self.enricher.recover(conn, now())
+            problem = claude_cli.unavailable()  # cli without its token or binary
+            if problem:
+                log.error("ingest paused: %s", problem)
+                with transaction(conn):
+                    announce = pause(conn, None, "auth", now())
+                if announce:
+                    notify("auth")
         self._thread.start()
 
     def alive(self) -> bool:
@@ -363,6 +370,7 @@ class Worker:
         system, version = claude.prompt()
         messages = claude.photo_messages(sent, width, height)
         request = {
+            "backend": claude.backend(),
             "model": model,
             "max_tokens": claude.MAX_TOKENS,
             "effort": claude.EFFORT,
@@ -630,6 +638,7 @@ def once(path: Path, save: Path | None = None) -> dict[str, Any]:
         fd = os.open(save, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     model = claude.model_name()
     summary: dict[str, Any] = {
+        "backend": claude.backend(),
         "model": model,
         "prompt_version": version,
         "sent": [width, height, len(jpeg)],

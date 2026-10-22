@@ -104,6 +104,11 @@ elif [ ! -e "$conf/ingest.env" ]; then
 #SCRAP_VISION_MODEL=claude-opus-5-5
 #SCRAP_BUDGET_DAY_USD=3
 
+# On a Claude seat instead of an API key: a token from `claude setup-token`
+# (it can use your whole seat), and SCRAP_IMAGE built from Dockerfile.claude.
+#SCRAP_LLM_BACKEND=cli
+#CLAUDE_CODE_OAUTH_TOKEN=
+
 # Where a pause (budget, credit, auth, outage) is announced, e.g. an ntfy
 # topic URL. Without it a pause goes unnoticed until you open scrap.
 #SCRAP_NOTIFY_URL=

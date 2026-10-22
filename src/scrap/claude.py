@@ -140,9 +140,10 @@ def _retry_after(error: anthropic.APIStatusError) -> float | None:
 def redact(text: str) -> str:
     """Error text with anything like an API key (or the key itself) removed: an
     error a proxy echoes back could hold the request headers."""
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if key:
-        text = text.replace(key, "[key]")
+    for name in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
+        key = os.environ.get(name)
+        if key:
+            text = text.replace(key, "[key]")
     return KEYLIKE.sub("[key]", text)
 
 
@@ -230,6 +231,12 @@ def complete(
     max_tokens: int = MAX_TOKENS,
 ) -> Completion:
     """Call Claude once and return its JSON output; raise CallError on any failure."""
+    if backend() != "api":  # claude -p on a seat token (ADR 0021)
+        from . import claude_cli
+
+        return claude_cli.complete(
+            model, system, messages, schema, blob, effort, max_tokens
+        )
     try:
         response = client().messages.create(
             model=model,
@@ -267,6 +274,8 @@ def complete(
 
 def cost_microusd(model: str, usage: dict[str, Any]) -> int:
     """What a call cost, in millionths of a dollar, from its usage and PRICES."""
+    if "total_cost_usd" in usage:  # the CLI's own (notional on a seat)
+        return math.ceil(usage["total_cost_usd"] * 1e6)
     price_in, price_out, write, read = PRICES.get(model, DEAREST)
     total = (
         (usage.get("input_tokens") or 0) * price_in
@@ -275,6 +284,11 @@ def cost_microusd(model: str, usage: dict[str, Any]) -> int:
         + (usage.get("cache_read_input_tokens") or 0) * read
     )
     return math.ceil(total)  # tokens x $/Mtok = micro-dollars
+
+
+def backend() -> str:
+    """SCRAP_LLM_BACKEND: api (the Messages API, the default) or cli (claude -p)."""
+    return os.environ.get("SCRAP_LLM_BACKEND", "api").strip().lower() or "api"
 
 
 def model_name() -> str:
