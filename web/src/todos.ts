@@ -127,7 +127,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       "Nothing due in the next 7 days.",
       "No todos yet.",
     ];
-    if (!n) lists.push(empty("todo", none[MODES.findIndex(([k]) => k === m)]));
+    if (!n) lists.push(empty("tick", none[MODES.findIndex(([k]) => k === m)]));
     // Now: the done and cancelled ones, folded away at the end, last edited first
     const done = list.filter((p) => !isOpen(p));
     if (m === "now" && done.length) {

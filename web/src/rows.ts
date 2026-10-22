@@ -102,7 +102,7 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
   const b = h(
     "button",
     { type: "button", className: "tick", "aria-label": `Done: ${p.title}` },
-    icon("todo"),
+    icon("tick"),
   );
   const show = () => {
     // Done; else some of its task boxes ticked: partly ("mixed", a bar in the box)
