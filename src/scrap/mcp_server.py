@@ -63,6 +63,15 @@ change is a revision (the revisions tool) that revert undoes. Try a bulk change 
 dry_run first."""
 
 Limit = Annotated[int, Field(ge=1, le=50)]
+Batch = Annotated[
+    str | None, Field(max_length=MAX_KEY, description="A batch id (bulk change)")
+]
+DryRun = Annotated[
+    bool, Field(description="Only say which pages would change, and how")
+]
+BulkLimit = Annotated[
+    int, Field(ge=1, le=MAX_BULK, description="Refuse a change to more pages")
+]
 
 
 def public_urls() -> list[str]:
@@ -381,10 +390,10 @@ def server(store: Store) -> MCPServer:
             "created": new,  # False: a retry with the same key, nothing added
         }
 
-    def changes(found: list[dict[str, Any]], dry_run: bool) -> dict[str, Any]:
-        pages = [{**c, "url": link(c["slug"])} for c in found]
+    def changes(found: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+        pages = [{**c, "url": link(c["slug"])} for c in found["pages"]]
         return {
-            "dry_run": dry_run, "matched": len(pages),
+            "dry_run": dry_run, "batch": found["batch"], "matched": len(pages),
             "changed": sum(c["changed"] for c in pages), "pages": pages,
         }  # fmt: skip
 
@@ -410,24 +419,23 @@ def server(store: Store) -> MCPServer:
             list[str] | None,
             Field(max_length=MAX_TAGS, description="Replace all of its tags"),
         ] = None,
-        dry_run: Annotated[
-            bool, Field(description="Only say which pages would change, and how")
-        ] = False,
-        limit: Annotated[
-            int,
-            Field(ge=1, le=MAX_BULK, description="Refuse a query finding more pages"),
-        ] = 50,
+        dry_run: DryRun = False,
+        limit: BulkLimit = 50,
     ) -> dict[str, Any]:
         """Change the kind and/or tags of pages, any page, the user's own too: the
         pages named, or every page a search query finds (refused if it finds more than
-        limit). Tags: add_tags and remove_tags (exact: removing a leaves a/b), or
-        set_tags to replace them all. Nothing else changes: not the title, the text or
-        when it was last updated. Each page changed is a revision (several quick
-        changes fold into one) that revert undoes. All or nothing. Try dry_run first
-        for a bulk change. Returns each page's kind and tags before and after, and its
-        revision."""
-        if bool(pages) == (query is not None):
+        limit). A kind given is fixed (ingest and task boxes no longer change it), as
+        when the user picks one, and adds that kind's default fields it lacks. Tags:
+        add_tags and remove_tags (exact: removing a leaves a/b), or set_tags to
+        replace them all. Nothing else changes: not the title, the text or when it
+        was last updated. Each page changed is a revision that revert undoes; quick
+        changes to one named page fold into one. A query or several pages is a batch:
+        its revisions share the returned batch id, and revert(batch=...) undoes them
+        all at once. All or nothing. Try dry_run first for a bulk change."""
+        if pages and query is not None:
             raise ToolError("give pages or a query, not both")
+        if not pages and query is None:
+            raise ToolError("give pages or a query")
         if kind is None and not (add_tags or remove_tags) and set_tags is None:
             raise ToolError("nothing to change: give a kind or tags")
         if kind is not None and kind not in WRITE_KINDS and kind not in KINDS:
@@ -446,6 +454,7 @@ def server(store: Store) -> MCPServer:
             store.edit_meta, keys, AUTHOR, MCP, kind,
             tag_list(add_tags, "a tag"), tag_list(remove_tags, "a tag"),
             None if set_tags is None else tag_list(set_tags, "a tag"), dry_run,
+            batch=query is not None or len(set(pages)) > 1,
         )  # fmt: skip
         return changes(found, dry_run)
 
@@ -453,34 +462,51 @@ def server(store: Store) -> MCPServer:
     def rename_tag(
         old: Annotated[str, Field(max_length=200)],
         new: Annotated[str, Field(max_length=200)],
-        dry_run: Annotated[
-            bool, Field(description="Only say which pages would change, and how")
+        merge: Annotated[
+            bool,
+            Field(description="Allow renaming into a tag in use, merging the two"),
         ] = False,
+        dry_run: DryRun = False,
+        limit: BulkLimit = 50,
     ) -> dict[str, Any]:
         """Rename a tag on every page that has it, and the tags under it (old/x
-        becomes new/x); renaming into a tag in use merges the two. Each page changed
-        is a revision that revert undoes. Returns each page's tags before and after."""
+        becomes new/x), as one batch (revert(batch=...) undoes it). Refused: more than
+        limit pages, a new name under the old one (a to a/b), and a new name already
+        in use unless merge (renaming back cannot separate merged tags: only reverting
+        the batch can). Returns each page's tags before and after."""
         found = checked(
-            store.rename_tag, text(old, "old"), text(new, "new"), AUTHOR, MCP, dry_run
-        )
+            store.rename_tag, text(old, "old"), text(new, "new"), AUTHOR, MCP,
+            dry_run, limit, merge,
+        )  # fmt: skip
         return changes(found, dry_run)
 
     @mcp.tool()
     def revisions(
-        page: str,
+        page: Annotated[str | None, Field(description="Id or slug")] = None,
+        batch: Batch = None,
         limit: Limit = 20,
         text_rev: Annotated[
             int | None,
             Field(ge=1, description="Also return this text revision's title and body"),
         ] = None,
     ) -> dict[str, Any]:
-        """A page's history, newest first. meta: each change to its kind and tags
-        (id, author: claude or the user's login, source: mcp or web, kind and tags
-        before and after, tags added and removed, reverts: the revision a revert
-        undid, created_at and updated_at: the last change folded in); revert(id)
-        undoes one. text: its title and body revisions (rev, title, author, when,
-        bytes), which no tool reverts; text_rev returns one's text, the user's data."""
-        found = checked(store.revisions, text(page, "page"), limit)
+        """A page's history, newest first; or a batch's revisions (of every page),
+        or both (that page's in that batch). meta: each change to kind and tags (id,
+        slug, author: claude or the user's login, source: mcp or web, kind, fixed and
+        tags before and after, tags added and removed, fields_added: a new kind's
+        defaults, reverts: the revision a revert undid, batch_id, created_at,
+        updated_at: the last change folded in); revert(revision=id) undoes one,
+        revert(batch=id) a batch. text: the page's title and body revisions (rev,
+        title, author, when, bytes), which no tool reverts; text_rev returns one's
+        text, the user's data."""
+        if page is None and batch is None:
+            raise ToolError("give a page or a batch")
+        key = text(page, "page") if page is not None else None
+        found = checked(store.revisions, key, limit, batch)
+        for row in found["meta"]:
+            row["url"] = link(row["slug"]) if row["slug"] else None
+        if key is None:
+            return found
         out = {**found, "url": link(found["slug"])}
         if text_rev is not None:
             out["text_revision"] = checked(store.text_revision, found["id"], text_rev)
@@ -488,15 +514,31 @@ def server(store: Store) -> MCPServer:
 
     @mcp.tool()
     def revert(
-        revision: Annotated[int, Field(ge=1, description="A meta revision's id")],
+        revision: Annotated[
+            int | None, Field(ge=1, description="A meta revision's id")
+        ] = None,
+        batch: Batch = None,
         dry_run: Annotated[
             bool, Field(description="Only say what would change")
         ] = False,
     ) -> dict[str, Any]:
-        """Undo a change to a page's kind and tags: give it back the kind and tags it
-        had just before that revision (undoing any later ones too). The revert is a
-        new revision, so it can itself be reverted: nothing is lost. Never changes
-        the page's text."""
+        """Undo a change to kinds and tags. revision: give its page back the whole
+        kind and tag snapshot it had just before that revision (whether its kind was
+        fixed too), so undoing any later changes as well, including those nothing
+        recorded (tags or a kind ingest gave it, a todo its task boxes made of a
+        note), and take off the default fields its kind change added, unless changed
+        since. batch: undo every revision of a bulk change at once; refused, changing
+        nothing, if any of its pages' kind or tags changed since (conflicts: revert
+        those one by one); pages in the trash are skipped. A revert is a new revision
+        (a batch revert a new batch), so it can itself be reverted: nothing is lost.
+        Never changes text. dry_run shows what it would do: use it first."""
+        if (revision is None) == (batch is None):
+            raise ToolError("give a revision or a batch")
+        if batch is not None:
+            found = checked(store.revert_batch, text(batch, "batch"), AUTHOR, MCP,
+                            dry_run)  # fmt: skip
+            pages = [{**c, "url": link(c["slug"])} for c in found["pages"]]
+            return {**found, "pages": pages, "dry_run": dry_run}
         found = checked(store.revert_meta, revision, AUTHOR, MCP, dry_run)
         return {**found, "url": link(found["slug"]), "dry_run": dry_run}
 

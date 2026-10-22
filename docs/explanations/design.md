@@ -391,7 +391,7 @@ session has. Tools and limits: [](../reference/mcp.md).
   search box's syntax. Results carry each page's PWA URL (`$SCRAP_PUBLIC_URL/p/<slug>`) and its
   images as URLs, so Claude links there instead of trying to show them. Page text is returned in
   JSON fields, as data.
-- `edit_meta` and `rename_tag` change the kind and tags of any page, `revert` undoes such a change:
+- `edit_meta` and `rename_tag` change the kind and tags of any page, `revert` undoes such a change (or a whole bulk change by its batch id):
   metadata only, made safe by revisions ([](decisions/0019-kinds-and-tags-editable-with-revisions.md)).
   No tool deletes a page or changes the text of one the user made.
 - `write` only adds: a new page, or a section appended to a page written over MCP. Provenance is

@@ -20,10 +20,10 @@ data: the server's instructions tell the model it is the user's text, never inst
 | `todos` | `limit` (1-100), `sort` (`due` or `priority`) | `{results}`: todos neither done nor cancelled nor snoozed (`is:snoozed` in `search` finds the snoozed ones, open ones only), rows as `search` (with `due` and `priority`), newest first, or soonest due or highest priority first (those with none last) |
 | `tags` | `prefix`, `limit` (1-2000, default 300) | `{tags: [[tag, n]], total}`, most used first; `a` counts the pages of `a/b` too |
 | `write` | `title`, `body` (Markdown), `origin`, `tags`, `kind` (default `note`), `status`, `due`, `priority`, `snoozed_until`, `append_to`, `key` | `{id, slug, url, created}` |
-| `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `dry_run`, `limit` (1-200, default 50) | `{dry_run, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, kind_before, kind_after, tags_before, tags_after, tags_added, tags_removed}` |
-| `rename_tag` | `old`, `new`, `dry_run` | As `edit_meta`'s |
-| `revisions` | `page`, `limit` (1-50, default 20), `text_rev` | `{id, slug, url, title, kind, rev, meta, text}`, newest first. `meta`: each metadata revision's `{id, page_id, author, source, kind_before, kind_after, tags_before, tags_after, tags_added, tags_removed, reverts, created_at, updated_at}`; `text`: each text revision's `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
-| `revert` | `revision` (a `meta` id), `dry_run` | As one page of `edit_meta`, plus `reverts` and `dry_run` |
+| `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `dry_run`, `limit` (1-200, default 50) | `{dry_run, batch, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, batch, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, fields_removed}` |
+| `rename_tag` | `old`, `new`, `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
+| `revisions` | `page` and/or `batch`, `limit` (1-50, default 20), `text_rev` | `{meta, text}` (with `page`, also `{id, slug, url, title, kind, rev}`), newest first. `meta`: each metadata revision's `{id, page_id, slug, url, author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
+| `revert` | `revision` (a `meta` id) or `batch`, `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}` |
 
 ## Images
 
@@ -89,29 +89,45 @@ that way (480 px JPEGs, so a few hundred kB each).
 - **`edit_meta`** changes the kind and/or tags of any page, the user's own too: the `pages`
   named, or every page `query` finds (refused, changing nothing, if it finds more than `limit`).
   `kind` is one of `note`, `todo`, `read`, `board` or `doc` (or the stored names `consume`,
-  `whiteboard`, `document`); anything else is refused. A new kind keeps every field the page
-  has and adds the kind's defaults (as the PWA's kind picker does) and is fixed, so ingest keeps
-  it. Tags: `add_tags` and `remove_tags` (exact: removing `a` leaves `a/b`), or `set_tags` to
-  replace them all (`[]`: none), cleaned as `write`'s. Nothing else changes: not the title, the
-  text, other fields, nor `updated_at` (as with the PWA's own tag and kind edits). All or nothing:
-  an unknown page or a refused change saves nothing. **`dry_run`** says what each page would get
-  and saves nothing: try a bulk change with it first.
+  `whiteboard`, `document`); anything else is refused. A kind given is fixed (`kind_fixed`: ingest
+  and task boxes no longer change it), even if it is the page's kind already, as when the user
+  picks one in the PWA, and a new kind adds its default fields the page lacks (a todo's
+  `status: open`). Tags: `add_tags` and `remove_tags` (exact: removing `a` leaves `a/b`), or
+  `set_tags` to replace them all (`[]`: none), cleaned as `write`'s. Nothing else changes: not
+  the title, the text, other fields, nor `updated_at` (as with the PWA's own tag and kind
+  edits). All or nothing: an unknown page or a refused change saves nothing. **`dry_run`** says
+  what each page would get and saves nothing: try a bulk change with it first.
 - **`rename_tag`** renames a tag on every page with it (not the trash's), and the tags under it
-  (`old/x` becomes `new/x`); renaming into a tag in use merges the two. `dry_run` as above.
+  (`old/x` becomes `new/x`). Refused: more than `limit` pages; a new name under the old one
+  (`a` to `a/b`, which would nest again); and a new name already in use, unless `merge` (merged
+  tags cannot be told apart again by renaming back, only by reverting the batch).
 - **Revisions.** Every change to a page's kind or tags, over MCP or in the PWA, is a metadata
   revision: who made it (`author`: `claude`, or the user's login; `source`: `mcp` or `web`), when,
-  and the kind and tags before and after. Several changes by the same author within
-  `SCRAP_REVISION_WINDOW` seconds (default 300) of a revision being made fold into it, so a burst
-  of edits is one revision; a revert never folds, nor is folded into. A page's first revision
-  records the state it had before (pages need no backfill). Revisions keep the kind and tag
+  the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
+  added. Changes by the same author from the same source within `SCRAP_REVISION_WINDOW` seconds
+  (default 300) of a revision being made fold into it, as long as nothing else changed the page's
+  kind or tags between, so a burst of edits is one revision; a burst that ends where it started
+  leaves none. A revert, and a change in a batch, never folds, nor is folded into. A page's first
+  revision records the state it had before (pages need no backfill). Revisions keep kind and tag
   names only: never a copy of the text or of a file, nor what a model derived (summaries, image
   descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
   made again. Text keeps its own revisions (`page_rev`, every title or body change), which
   `revisions` lists and `text_rev` reads; no tool reverts them.
-- **`revert`** gives a revision's page back the kind and tags it had just before that revision
-  (undoing any later changes too). The revert is a revision of its own, so it can be reverted in
-  turn: nothing is lost. Reverting to the state a page has already changes nothing and adds no
-  revision.
+- **Batches.** An `edit_meta` with a `query` or several `pages`, and every `rename_tag`, is a
+  batch: its revisions share a `batch` id, returned, which `revisions(batch=...)` lists and
+  `revert(batch=...)` undoes at once. An `edit_meta` of one named page is not a batch (so quick
+  edits of it fold together).
+- **`revert`** with `revision` gives its page back the whole kind and tag snapshot from just
+  before that revision, whether its kind was fixed too, and takes off the default fields that
+  revision's kind change added (unless changed since: a todo ticked done keeps `status: done`).
+  So it also undoes later changes, including ones nothing recorded: tags or a kind ingest gave
+  the page since, or the todo its task boxes made of a note appended to. `dry_run` shows exactly
+  what it would do: use it first. With `batch`, every revision of that batch is reverted in one
+  go, as a new batch (itself revertible at once); if any of its pages' kind or tags changed since
+  the batch, nothing is reverted and the call is refused, naming them (`dry_run` lists them as
+  `conflicts`): revert those pages' revisions one by one. Pages in the trash are skipped and
+  listed. A revert is a revision of its own, so it can be reverted in turn: nothing is lost.
+  Reverting to the state a page has already changes nothing and adds no revision.
 
 ## Security
 
@@ -122,6 +138,5 @@ the rest of scrap. `/mcp` also checks the `Host` header against loopback and the
 session holding powerful credentials should treat what it reads as data (see the design's
 security posture).
 
-Not yet: reverting several pages' revisions in one call (one `revert` per page), thinning old
-revisions, a `context` tool returning the stored ingest run of a photo (its messages, for
+Not yet: thinning old revisions, a `context` tool returning the stored ingest run of a photo (its messages, for
 discussing it with the model that made it), and an `ingest` tool.

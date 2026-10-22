@@ -67,7 +67,7 @@ def test_edit_meta_adds_removes_and_sets_tags(store):
 
 def test_an_edit_that_changes_nothing_is_no_revision(store):
     ref = human(store, "x", tags=["t"])
-    out = ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["t"], kind="note")
+    out = ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["t"])
     assert out["changed"] == 0 and out["pages"][0]["revision"] is None
     assert meta(store, ref["slug"]) == []
 
@@ -86,7 +86,7 @@ def test_edit_meta_refuses_bad_requests(store):
     assert "not both" in refused(
         store, "edit_meta", pages=[ref["slug"]], query="x", kind="todo"
     )
-    assert "not both" in refused(store, "edit_meta", kind="todo")
+    assert "give pages or a query" in refused(store, "edit_meta", kind="todo")
     assert store.page(ref["page_id"])["kind"] == "note"
 
 
@@ -129,10 +129,11 @@ def test_rename_tag_renames_nested_tags_and_merges(store):
     a = human(store, "a", tags=["proj", "proj/x", "keep"])
     b = human(store, "b", tags=["project", "proj"])
     c = human(store, "c", tags=["projx"])
-    dry = ok(store, "rename_tag", old="proj", new="project", dry_run=True)
+    assert "merge" in refused(store, "rename_tag", old="proj", new="project")
+    dry = ok(store, "rename_tag", old="proj", new="project", merge=True, dry_run=True)
     assert dry["changed"] == 2 and store.page(a["slug"])["tags"] != []
     assert sorted(store.page(a["slug"])["tags"]) == ["keep", "proj", "proj/x"]
-    ok(store, "rename_tag", old="proj", new="Project")
+    ok(store, "rename_tag", old="proj", new="Project", merge=True)
     assert sorted(store.page(a["slug"])["tags"]) == ["keep", "project", "project/x"]
     assert store.page(b["slug"])["tags"] == ["project"]  # merged
     assert store.page(c["slug"])["tags"] == ["projx"]  # another tag
@@ -197,10 +198,10 @@ def test_a_change_made_elsewhere_between_is_not_folded_over(store):
     """Coalescing only extends a revision whose after is the page's state: a change
     nobody recorded between (ingest's tags) keeps the two apart."""
     ref = human(store, "x")
-    first = store.edit_meta([ref["slug"]], "claude", "mcp", add=["a"])[0]
+    first = store.edit_meta([ref["slug"]], "claude", "mcp", add=["a"])["pages"][0]
     with closing(connect(store.db)) as conn:
         conn.execute("INSERT INTO tag VALUES (?, 'by-ingest')", (ref["page_id"],))
-    second = store.edit_meta([ref["slug"]], "claude", "mcp", add=["b"])[0]
+    second = store.edit_meta([ref["slug"]], "claude", "mcp", add=["b"])["pages"][0]
     assert second["revision"] != first["revision"]
 
 
@@ -254,13 +255,20 @@ def test_web_tag_and_kind_edits_are_revisions_too(tmp_path):
     headers = {"Tailscale-User-Login": "giles@example.com"}
     url = f"/api/pages/{ref['page_id']}"
     before = client.get(url).json()
-    client.patch(url, json={"tags": ["a"], "kind": "todo"}, headers=headers)
-    client.patch(url, json={"tags": ["a"]}, headers=headers)  # the same: no change
+    edit = client.patch(url, json={"tags": ["a"], "kind": "todo"}, headers=headers)
+    assert edit.status_code == 200
+    same = client.patch(url, json={"tags": ["a"]}, headers=headers)  # no change
+    assert same.status_code == 200
+    stale = {"base_rev": 9, "body": "y", "tags": ["b"]}
+    assert client.patch(url, json=stale, headers=headers).status_code == 409
     [rev] = store.revisions(ref["slug"])["meta"]
     assert (rev["author"], rev["source"]) == ("giles@example.com", "web")
     assert (rev["kind_before"], rev["kind_after"]) == ("note", "todo")
+    assert (rev["fixed_before"], rev["fixed_after"]) == (False, True)
+    assert rev["fields_added"] == {"status": "open"}
     after = client.get(url).json()
     assert after["updated_at"] == before["updated_at"]  # as before this change
+    assert after["tags"] == ["a"]  # the stale edit saved nothing, nor a revision
 
 
 def test_append_records_the_tags_it_adds(store):
@@ -322,3 +330,128 @@ def test_a_new_page_has_no_metadata_revision(store):
     ref = human(store, "x", tags=["a"], kind="todo")
     assert store.revisions(ref["slug"])["meta"] == []
     assert [r["rev"] for r in store.revisions(ref["slug"])["text"]] == [1]
+
+
+def fixed(store, key):
+    p = store.page(key)
+    return p["kind"], p["kind_fixed"], p["fields"]
+
+
+def test_revert_unpins_the_kind_and_takes_off_its_defaults(store):
+    ref = human(store, "x")  # a note nobody filed: unfixed
+    assert fixed(store, ref["slug"]) == ("note", 0, {})
+    rev = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")["pages"][0]
+    assert rev["fields_added"] == {"status": "open"} and rev["fixed_after"]
+    assert fixed(store, ref["slug"]) == ("todo", 1, {"status": "open"})
+    out = ok(store, "revert", revision=rev["revision"])
+    assert out["fields_removed"] == {"status": "open"} and not out["fixed_after"]
+    assert fixed(store, ref["slug"]) == ("note", 0, {})
+    # a box makes it a todo again by itself: it follows its text as before
+    store.update_page(ref["slug"], 1, None, "- [ ] a", "me")
+    assert store.page(ref["slug"])["kind"] == "todo"
+
+
+def test_revert_keeps_a_default_field_changed_since(store):
+    ref = human(store, "x")
+    rev = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")["pages"][0]
+    store.update_page(ref["slug"], None, None, None, "me", fields={"status": "done"})
+    ok(store, "revert", revision=rev["revision"])
+    assert fixed(store, ref["slug"]) == ("note", 0, {"status": "done"})
+
+
+def test_edit_meta_with_the_current_kind_fixes_it(store):
+    """As the PWA's PATCH with a kind: chosen, so ingest and task boxes keep it."""
+    ref = human(store, "x")
+    out = ok(store, "edit_meta", pages=[ref["slug"]], kind="note")["pages"][0]
+    assert out["changed"] and out["revision"]
+    assert (out["fixed_before"], out["fixed_after"]) == (False, True)
+    assert fixed(store, ref["slug"]) == ("note", 1, {})
+    store.update_page(ref["slug"], 1, None, "- [ ] a", "me")
+    assert store.page(ref["slug"])["kind"] == "note"
+
+
+def test_a_burst_that_changes_nothing_leaves_no_revision(store):
+    ref = human(store, "x")
+    ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["a"])
+    out = ok(store, "edit_meta", pages=[ref["slug"]], remove_tags=["a"])
+    assert out["pages"][0]["revision"] is None
+    assert meta(store, ref["slug"]) == []
+
+
+def test_reverting_a_coalesced_revision_undoes_the_whole_burst(store):
+    ref = human(store, "x", tags=["mine"])
+    ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["a"])
+    ok(store, "edit_meta", pages=[ref["slug"]], kind="doc", remove_tags=["mine"])
+    [rev] = meta(store, ref["slug"])
+    ok(store, "revert", revision=rev["id"])
+    assert fixed(store, ref["slug"]) == ("note", 0, {})
+    assert store.page(ref["slug"])["tags"] == ["mine"]
+
+
+def test_rename_tag_guards(store):
+    human(store, "a", tags=["a"])
+    human(store, "b", tags=["a/x"])
+    assert "nest" in refused(store, "rename_tag", old="a", new="a/b")
+    assert "more than 1" in refused(store, "rename_tag", old="a", new="z", limit=1)
+    assert "is in use" in refused(store, "rename_tag", old="a/x", new="a")
+    out = ok(store, "rename_tag", old="a", new="z")
+    assert out["changed"] == 2 and out["batch"]
+
+
+def test_a_bulk_edit_is_one_batch_revert_undoes_at_once(store):
+    refs = [human(store, f"Board {n}", tags=["meeting"]) for n in range(3)]
+    out = ok(store, "edit_meta", query="tag:meeting", kind="board", add_tags=["wb"])
+    batch = out["batch"]
+    assert batch and all(p["batch"] == batch for p in out["pages"])
+    listed = ok(store, "revisions", batch=batch)["meta"]
+    assert len(listed) == 3 and {r["batch_id"] for r in listed} == {batch}
+    assert {r["slug"] for r in listed} == {r["slug"] for r in refs}
+    assert len(ok(store, "revisions", page=refs[0]["slug"], batch=batch)["meta"]) == 1
+    dry = ok(store, "revert", batch=batch, dry_run=True)
+    assert dry["batch"] is None and len(dry["pages"]) == 3 and not dry["conflicts"]
+    assert {store.page(r["slug"])["kind"] for r in refs} == {"whiteboard"}  # unsaved
+    undo = ok(store, "revert", batch=batch)
+    assert undo["batch"] and undo["batch"] != batch and undo["reverts_batch"] == batch
+    for r in refs:
+        assert fixed(store, r["slug"]) == ("note", 0, {})
+        assert store.page(r["slug"])["tags"] == ["meeting"]
+    # and the batch revert, as a whole
+    ok(store, "revert", batch=undo["batch"])
+    assert {store.page(r["slug"])["kind"] for r in refs} == {"whiteboard"}
+
+
+def test_bulk_edits_never_coalesce(store):
+    ref = human(store, "x")
+    one = ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["a"])  # single
+    two = ok(store, "edit_meta", query="tag:a", add_tags=["b"])  # a batch of one
+    assert two["batch"] and one["batch"] is None
+    three = ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["c"])
+    ids = [x["pages"][0]["revision"] for x in (one, two, three)]
+    assert len(set(ids)) == 3  # nothing folds into or out of the batch's revision
+    # a batch of one, changed since (c): refused, never clobbered
+    assert "changed since" in refused(store, "revert", batch=two["batch"])
+    assert store.page(ref["slug"])["tags"] == ["a", "b", "c"]
+
+
+def test_batch_revert_refuses_a_page_changed_since(store):
+    refs = [human(store, f"P {n}", tags=["t"]) for n in range(2)]
+    batch = ok(store, "edit_meta", query="tag:t", add_tags=["u"])["batch"]
+    ok(store, "edit_meta", pages=[refs[0]["slug"]], add_tags=["later"])
+    dry = ok(store, "revert", batch=batch, dry_run=True)
+    assert [c["slug"] for c in dry["conflicts"]] == [refs[0]["slug"]]
+    error = refused(store, "revert", batch=batch)
+    assert refs[0]["slug"] in error and "nothing was reverted" in error
+    assert store.page(refs[1]["slug"])["tags"] == ["t", "u"]  # untouched
+    assert sorted(store.page(refs[0]["slug"])["tags"]) == ["later", "t", "u"]
+
+
+def test_batch_revert_skips_a_trashed_page_and_unknown_batches(store):
+    refs = [human(store, f"P {n}", tags=["t"]) for n in range(2)]
+    batch = ok(store, "edit_meta", query="tag:t", kind="doc")["batch"]
+    store.delete_page(refs[0]["slug"])
+    out = ok(store, "revert", batch=batch)
+    assert [s["id"] for s in out["skipped"]] == [refs[0]["page_id"]]
+    assert store.page(refs[1]["slug"])["kind"] == "note"
+    assert "no such page" in refused(store, "revert", batch="NOPE")
+    assert "a revision or a batch" in refused(store, "revert")
+    assert "a revision or a batch" in refused(store, "revert", revision=1, batch="x")

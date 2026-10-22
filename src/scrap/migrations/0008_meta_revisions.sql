@@ -5,6 +5,9 @@
 -- still runs with user_version set back to 7 (it never reads it), and migrating again later
 -- is harmless. No backfill: a page's first change records the state it had before. Table:
 --   page_meta_rev  id, page_id, author, source ('web' or 'mcp'), kind_before, kind_after,
---                  tags_before, tags_after (JSON arrays, sorted), reverts (the revision a
---                  revert undid, else NULL), created_at, updated_at (the last edit folded in)
+--                  fixed_before, fixed_after (kind_fixed), tags_before, tags_after (JSON
+--                  arrays, sorted), fields_added (a new kind's defaults), reverts (the
+--                  revision a revert undid, else NULL), batch_id (shared by a bulk
+--                  change's revisions, else NULL), created_at, updated_at (the last edit
+--                  folded in); indexed by page, reverts and batch_id
 SELECT 1;
