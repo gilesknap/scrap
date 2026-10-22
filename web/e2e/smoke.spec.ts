@@ -370,12 +370,13 @@ test("a slow view says Loading at once, and a newer tap wins", async ({ page }) 
     .click();
   await expect(page.getByRole("status")).toHaveText("Loading…", { timeout: 3000 });
   await expect(page.locator(".capture")).toHaveCount(0); // not the old view, as if stuck
-  await page.getByRole("link", { name: "Search", exact: true }).click();
-  await expect(page.getByRole("searchbox")).toBeVisible();
-  hold = false; // the page's answer comes late: it must not cover Search
+  await page.locator("#back").click(); // a page has no nav: the top bar's Back
+  await expect(page.locator(".capture")).toBeVisible();
+  hold = false; // the page's answer comes late: it must not cover Capture
   await page.waitForResponse(`**/api/pages/${slug}`);
   await page.waitForTimeout(300);
-  await expect(page.getByRole("searchbox")).toBeVisible();
+  await expect(page.locator(".capture")).toBeVisible();
+  await expect(page.locator("#view > .page")).toHaveCount(0);
   await expect(page.getByText("Loading…")).toHaveCount(0);
 });
 

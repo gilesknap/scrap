@@ -131,8 +131,8 @@ export async function todos(row: typeof pageRow): Promise<Node> {
         `${n} ${n === 1 ? "todo" : "todos"}`,
       ][MODES.findIndex(([k]) => k === m)],
     );
-    // Now's snoozed ones, a link to a search of them: the server's is:snoozed counts done ones
-    // too (#131), so not those, as here; soonest due first (there is no sort by waking day)
+    // Now's snoozed ones, a link to a search of them (the server's is:snoozed finds open ones
+    // only, as here); soonest due first (there is no sort by waking day)
     if (m === "now" && asleep)
       count.append(
         " · ",

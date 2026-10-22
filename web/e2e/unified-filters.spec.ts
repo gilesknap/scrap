@@ -60,7 +60,18 @@ test("Filters is a slider in the box; what is on shows as chips under it", async
   await offers(page).filter({ hasText: "#marsupial" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("potoroo tag:marsupial");
   await expect(hits(page)).toHaveCount(2);
-  await expect(page.locator(".found")).toHaveText("2 pages");
+  // The count leads the chips' row (one line for both), not a line of its own
+  await expect(filtersOn(page).locator(".count")).toHaveText("2 pages");
+  await expect(page.locator(".found")).toHaveCount(0);
+  const [count, chip] = await Promise.all([
+    filtersOn(page).locator(".count").boundingBox(),
+    filtersOn(page).getByRole("button", { name: "Remove #marsupial" }).boundingBox(),
+  ]);
+  expect(
+    Math.abs(
+      (count?.y ?? 0) + (count?.height ?? 0) / 2 - ((chip?.y ?? 0) + (chip?.height ?? 0) / 2),
+    ),
+  ).toBeLessThan(4);
   await expect(button).toHaveAccessibleName("Filters, 1 on");
   await expect(button.locator("b")).toHaveText("1");
   await expect(panel).toBeVisible();
@@ -76,6 +87,7 @@ test("Filters is a slider in the box; what is on shows as chips under it", async
   await expect(hits(page)).toHaveCount(3);
   await expect(button).toHaveAccessibleName("Filters");
   await expect(filtersOn(page)).toHaveCount(0);
+  await expect(page.locator(".found")).toHaveText("3 pages"); // over the list again
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
     await filters(page);

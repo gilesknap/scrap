@@ -134,7 +134,7 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   const cdp = await page.context().newCDPSession(page);
   await page.goto("/recent");
   // Each step: wait until the new page is drawn (its pager listening), not just its address
-  const at = (n: number) => expect(page.locator(".pager .up")).toHaveText(new RegExp(`^${n} of `));
+  const at = (n: number) => expect(page.locator(".pager .at")).toHaveText(new RegExp(`^${n} of `));
   await rowOf(page, c).locator("a").click();
   await at(1);
   await expect(page.getByRole("link", { name: "Previous" })).toHaveAttribute(
@@ -158,6 +158,10 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   await page.reload(); // no slide again on a reload
   await at(2);
   await expect(page.locator("#view > .page")).not.toHaveClass(/from-/);
+  await page.locator("#back").click(); // the top bar's Back: the list, as the phone's Back
+  await expect(page).toHaveURL("/search");
+  await page.goForward();
+  await at(2);
   await page.goBack();
   await expect(page).toHaveURL("/search");
 });
@@ -187,9 +191,9 @@ test("a swipe's step never replaces where the nav went meanwhile", async ({ page
   await expect(page.locator(".pager")).toBeVisible();
   await page.clock.install(); // the slide-off's wait only passes when told to
   await drag(cdp, 500, 330, 100, 4, 8);
-  await page.locator("nav a", { hasText: "Search" }).click(); // within the slide-off
+  await page.locator("#back").click(); // within the slide-off (a page has no nav)
   await page.clock.runFor(1000);
   await expect(page).toHaveURL(/\/search/);
-  await page.goBack();
+  await page.goForward();
   await expect(page).toHaveURL(`/p/${c}`);
 });

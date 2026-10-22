@@ -48,7 +48,7 @@ test("Now ranks open todos: overdue, today, high priority, then the rest", async
     /^Overdue · \d+$/,
     /^Today · \d+$/,
     /^High priority · \d+$/,
-    /^Later · \d+$/,
+    /^Open · \d+$/,
   ]);
   await expect
     .poll(() => quolls(page))
@@ -79,7 +79,7 @@ test("Now ranks open todos: overdue, today, high priority, then the rest", async
   await row.getByRole("button", { name: "Done: Quoll today low" }).click();
   await expect(row.locator("em")).toHaveText("done");
   await row.getByRole("button", { name: "Done: Quoll today low" }).click();
-  await expect(row.locator("em")).toHaveText("todo");
+  await expect(row.locator("em")).toHaveCount(0); // open: no chip, its icon says todo
 });
 
 test("the Now / Upcoming / All switch is in the address; Back and reload keep it", async ({
@@ -101,6 +101,10 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   const all = await quolls(page, ".todos ul li");
   expect(all[0]).toBe("Quoll done"); // last edited first, done ones too
   expect(all).toHaveLength(9);
+  // Two lines on every tab: what to do and when, never when it was last edited
+  const edited = page.locator(".todos .list li .sub > small:not([class])");
+  expect(await edited.count()).toBeGreaterThan(0);
+  for (const s of await edited.all()) await expect(s).toBeHidden();
   await page.reload();
   await expect(page.getByRole("radio", { name: "All" })).toBeChecked();
   // A page opened from the list steps through it, and Back comes back to the same view
@@ -216,8 +220,14 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   );
   expect(await counted()).toBe(false); // the Todos tab's count leaves it out
   await page.goto("/todos");
-  await expect(page.locator(".todos .count")).toContainText("snoozed (in All)");
+  // "1 snoozed" links to a search of them (open ones only: is:snoozed skips done ones)
+  const asleep = page.locator(".todos .count a");
+  await expect(asleep).toHaveText(/^\d+ snoozed$/);
   await expect(inNow()).toHaveCount(0);
+  await asleep.click();
+  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo(%20|\+)is%3Asnoozed(%20|\+)sort%3Adue$/);
+  await expect(page.locator(".hits li", { hasText: "Bilby snooze me" })).toBeVisible();
+  await page.goto("/todos");
   await page.getByText("All", { exact: true }).click();
   const row = page.locator(".list li", { hasText: "Bilby snooze me" });
   await expect(row.locator(".due")).toHaveText(/^high · overdue .* · snoozed till /);
@@ -267,9 +277,20 @@ test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the la
 });
 
 test("New todo opens the composer on Todo, and the saved todo joins the list", async ({ page }) => {
+  // A + in the top bar, on the Todos screen only
+  const add = page.locator("header #new");
+  const other = await page.request.post("/api/captures", {
+    data: { id: "01E2ETNEWT0D0".padEnd(26, "0"), text: "Quokka elsewhere" },
+  });
+  const { slug } = await other.json();
+  for (const elsewhere of ["/", "/search", `/p/${slug}`, "/tags"]) {
+    await page.goto(elsewhere);
+    await expect(page.locator("#view > *")).toBeVisible();
+    await expect(add).toBeHidden();
+  }
   await page.goto("/todos?view=all");
-  const add = page.getByRole("button", { name: "New todo" });
-  await expect(add).toBeInViewport(); // under the thumb, however long the list
+  await expect(add).toHaveAccessibleName("New todo");
+  await expect(add).toBeInViewport(); // in the top bar, however long the list
   expect((await add.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await add.click();
   const editor = page.locator(".editor");
@@ -311,7 +332,7 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   await page.goto("/todos");
   await page.locator(".list a", { hasText: "Dunnart first" }).click();
   await expect(page.locator(".page h1")).toHaveText("Dunnart first");
-  const where = page.locator(".pager .up");
+  const where = page.locator(".pager .at"); // a label: Back is in the top bar
   await expect(where).toHaveText(/^1 of \d+ · Todos · Now$/);
   await tools.getByRole("button", { name: "Mark done" }).click();
   // On to the next, saying so
@@ -329,9 +350,8 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
     "open",
   );
-  // Where it is, tapped: back to the list (as Back does)
-  await expect(where).toHaveAccessibleName(/^1 of \d+: back to Todos · Now$/);
-  await where.click();
+  // The top bar's Back: back to the list
+  await page.locator("#back").click();
   await expect(page).toHaveURL(/\/todos$/);
   await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
   // From elsewhere (a search), Mark done stays on the page
