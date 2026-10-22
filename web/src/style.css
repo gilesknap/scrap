@@ -2381,3 +2381,15 @@ div.orig .save {
 .sheet-bar .ghost[hidden] {
   display: none;
 }
+
+/* A wide window (a laptop, a tablet on its side): one centred column of about 720px, the
+   background still to the edges, so lines stay readable and bars don't spread out. Phones are
+   narrower than this, so it never applies there. */
+@media (min-width: 760px) {
+  header,
+  main,
+  nav,
+  .editor {
+    padding-inline: calc((100% - 720px) / 2);
+  }
+}
