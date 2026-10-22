@@ -1169,14 +1169,15 @@ class Store:
             if todo:  # as status: not a revision, nor a change to updated_at
                 self._set_todo(conn, page["id"], kind or page["kind"], todo)
             if tags is not None:  # not a revision, nor a change to updated_at
+                spare: list[str] = []  # Claude's, kept but past MAX_TAGS: not retired
                 if shown is not None:  # Claude's tags added after the editor opened
                     tags += self._model_tags_since(conn, page["id"], shown + tags)
-                    tags = tags[:MAX_TAGS]
+                    tags, spare = tags[:MAX_TAGS], tags[MAX_TAGS:]
                 conn.execute("DELETE FROM tag WHERE page_id = ?", (page["id"],))
                 conn.executemany(
                     "INSERT INTO tag VALUES (?, ?)", [(page["id"], t) for t in tags]
                 )
-                self._model_tags(conn, page["id"], tags)
+                self._model_tags(conn, page["id"], tags, spare)
             if tags is not None or (fields and "summary" in fields):  # indexed
                 self.reindex(conn, page["id"])
             if kind is not None or tags is not None:  # before text: see _record_meta
@@ -1244,14 +1245,19 @@ class Store:
         )]  # fmt: skip
 
     def _model_tags(
-        self, conn: sqlite3.Connection, page_id: str, tags: list[str]
+        self,
+        conn: sqlite3.Connection,
+        page_id: str,
+        tags: list[str],
+        spare: list[str] | None = None,
     ) -> None:
         """After the user set a page's tags: a tag of Claude's they took off is 'off'
-        (Claude never adds it back); one they put back is theirs from now on."""
+        (Claude never adds it back), one in spare (not taken off, just no room) is
+        not; one they put back is theirs from now on."""
         conn.execute(
             "UPDATE model_tag SET state = 'off' WHERE page_id = ? AND state = 'on'"
             " AND tag NOT IN (SELECT value FROM json_each(?))",
-            (page_id, json.dumps(tags)),
+            (page_id, json.dumps([*tags, *(spare or [])])),
         )
         conn.execute(
             "DELETE FROM model_tag WHERE page_id = ? AND state = 'off'"

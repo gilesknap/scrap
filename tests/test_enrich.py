@@ -313,6 +313,35 @@ def test_a_stale_tag_editor_keeps_a_tag_claude_added_meanwhile(store):
     assert page["tags"] == ["mine", "wood"] and page["model_tags"] == []
 
 
+def test_a_full_page_keeps_claude_tags_it_has_no_room_for_on(store):
+    ref = capture(store, "a note about sheds")
+    run_all(worker(store, Fake(answer(["shed"]))))  # added while the editor was open
+    full = [f"t{i}" for i in range(64)]
+    store.update_page(ref["page_id"], None, None, None, "me", tags=full,
+                      tags_shown=[])  # fmt: skip
+    page = store.page(ref["page_id"])
+    assert len(page["tags"]) == 64 and "shed" not in page["tags"]
+    with closing(connect(store.db)) as conn:  # no room, but not taken off: still on
+        assert [tuple(r) for r in conn.execute("SELECT tag, state FROM model_tag")] == [
+            ("shed", "on")
+        ]
+
+
+def test_the_api_takes_the_tags_the_editor_was_shown(tmp_path):
+    client = TestClient(create_app(tmp_path / "data"))
+    data = {"id": new_ulid(), "text": "a note about sheds"}
+    page_id = client.post("/api/captures", json=data).json()["page_id"]
+    store = Store(tmp_path / "data")
+    run_all(worker(store, Fake(answer(["shed"]))))  # Claude adds shed meanwhile
+    url = f"/api/pages/{page_id}"
+    kept = client.patch(url, json={"tags": ["wood"], "tags_shown": []}).json()
+    assert kept["tags"] == ["shed", "wood"] and kept["model_tags"] == ["shed"]
+    taken = client.patch(url, json={"tags": ["wood"], "tags_shown": kept["tags"]})
+    assert taken.json()["tags"] == ["wood"] and taken.json()["model_tags"] == []
+    many = {"tags": [], "tags_shown": [f"t{i}" for i in range(65)]}
+    assert client.patch(url, json=many).status_code == 422
+
+
 def test_a_save_reads_again_but_adds_no_tags(store):
     ref = capture(store, "a note")
     run_all(worker(store, Fake(answer(["one"]))))
