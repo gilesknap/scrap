@@ -1,9 +1,8 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
-// and <mark>s, never HTML). The box's ✕ clears it. Under it, a fixed row of kinds (one tap
-// sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's: the filters on
-// as a row of chips, and the Filters panel, opened by the slider at the box's end. Filters
-// and the results' top tags, and above the list their count and the filters on. All of it is
+// and <mark>s, never HTML). The box's ✕ clears it. Under it, refine.ts's: the filters on as a
+// row of chips, and the Filters panel, opened by the slider at the box's end; then a fixed row
+// of kinds (one tap sets or clears kind:, Todos too), and above the list the count. All of it is
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";

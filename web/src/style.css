@@ -1717,7 +1717,7 @@ div.orig .save {
   margin-bottom: var(--s-3); /* Tags: by name, by count */
 }
 .kindrow {
-  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Reads, Boards, Docs */
+  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Later, Boards, Docs */
 }
 /* The search screen's kinds: each its icon over its word, so six fit the row from 320 px */
 .kindrow label {

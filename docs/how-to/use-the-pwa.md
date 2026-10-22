@@ -23,23 +23,26 @@ Installing is what puts scrap in the Android **share sheet**.
 
 The buttons say how you capture, not what the page is. Its **kind** is chosen in the composer
 (and changed later in the page's editor) with the row of chips above the text: **Note** (the
-default), **Todo**, **Read** (to read later), **Board** (a whiteboard) or **Doc** (a document). A link on its own
-picks **Read** for you until you pick something else. Photos skip the choice: Claude reads them
+default), **Todo**, **Later** (to read, watch or listen to later), **Board** (a whiteboard) or **Doc** (a document). A link on its own
+picks **Later** for you until you pick something else. Photos skip the choice: Claude reads them
 and makes a whiteboard or document a page of that kind, and you can change it after. A kind
 you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
 already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
 changing it back gives the page as it was. While the kind is **Todo** (and there are no
 photos), the composer also has the todo's **Due** date (**Today**, **Tomorrow**, **Next week**
-or a date) and **Priority**, as on its page; the text box asks *What needs doing?*.
+or a date) and **Priority**, as on its page; the text box asks *What needs doing?*. The due
+date and the tags are each folded into one line above the text (**Due** *24 Oct · high*,
+**Tags** *2 · #home #garden*), so the text stays in front: tap the line to open it, and again to
+fold it.
 
 In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
 on a thumbnail removes one: all the photos and the text become one capture and one page.
 If the photos together are over the server's upload limit (it tells the app, which remembers
 it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
 with the text on the first.
-Under the text, a tags box works as on a page (below): type a tag and press Enter or a comma
-(it suggests the tags already in use), or tap one of your most used tags, offered under the
-box; tap a tag's ✕ to take it off; what is still in the box
+The **Tags** line opens a tags box that works as on a page (below): type a tag and press Enter
+or a comma, or tap one of the tags offered in a row under the box (your most used tags, or as
+you type, the tags in use that match); tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude's
 join them when it first reads the photo (a later Reprocess adds its tags only to a page with
@@ -100,24 +103,27 @@ the link as the capture's URL.
   A search is kept once it is run: Enter, opening a result, or leaving it a few seconds with
   results; not as you type. They are kept on this phone only, never sent to scrap; in a
   private tab, or with site storage blocked, there are none and search works as before.
-- Under the search box, a fixed row of kinds: **All**, **Notes**, **Todos**, **Reads**,
-  **Boards**, **Docs**. One tap shows only that kind (it writes `kind:read` into the query), a
-  second tap on it (or **All**) shows every kind again. A kind alone still lists newest first.
-  **Todos** with nothing else asked opens the Todos screen, as the Todos tab does; with words or filters in
-  the box it narrows the search to todos (`kind:todo`), as before.
+- Under the search box (and any filters on), a row of kinds, always shown, each an icon over
+  its word: **All**, **Notes**, **Todos**, **Later**, **Boards**, **Docs**. One tap shows only
+  that kind (it writes `kind:later` into the query), a second tap on it (or **All**) shows
+  every kind again. A kind alone still lists newest first. **Todos** works as the others do: it
+  narrows the list to todos (`kind:todo`) in place; the Todos tab is the Todos screen.
 - Whenever anything is chosen or typed, the search box has a **✕** at its end: one tap goes
   back to every page, newest first (the keyboard stays down).
-- Under the kind row, a short row: **Filters** first (with how many filters are on), then the
-  results' top tags with their counts, which scroll sideways; tap one to narrow the search.
-  Above the list, how many pages were found and each filter that is on as a chip with a ✕:
-  tap it to take that filter out. So the row's start never moves, and nothing chosen is hidden.
-- **Filters** opens a sheet from the bottom of the screen: **Sort**, **When** (**1w**, **1m**,
-  **1y**, **Dates…** with a From and a To, and **By created date** once a range is on),
-  **Work** or **Personal** (with counts), and **Browse tags** (for todos due today, overdue or
-  soon, use the Todos screen, or type `due:` in the box). Each tap changes the search at once (the list behind
-  follows, the sheet stays open); a chosen one is shown pressed and a second tap takes it off.
-  **Clear filters** takes every filter off and keeps the words; **Done**, Back, Escape or a tap
-  above the sheet closes it.
+- **Filters** is the slider button at the end of the search box; with filters on, it shows how
+  many. Each filter that is on is a chip with a ✕ in a row under the box (*#home*, *past
+  month*, *A–Z*): tap it to take that filter out. So nothing chosen is hidden. Over the list,
+  how many pages were found.
+- Tap **Filters** to open its panel in place, under the box, and tap it again to fold it (it
+  stays as you left it for the next search). Its rows: **Tags** (type in its box for the tags
+  in use that match, or with nothing typed tap one of the results' top tags, with their counts:
+  only tags that narrow what was found are offered; **All tags** opens the tags screen),
+  **Order** (**Best match** or **Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos
+  **Due soonest** and **Priority**) and **When** (**1w**, **1m**, **1y**, **Dates…** with a
+  From and a To, and **By created date** once a range is on). Each row scrolls sideways. Each
+  tap changes the search at once, and the list under it follows; a chosen one is shown pressed
+  and a second tap takes it off. **Clear filters** takes every filter off and keeps the words.
+  For todos due today, overdue or soon, use the Todos screen, or type `due:` in the box.
 - The query and its filters are in the address (`/search?q=...`), so a reload keeps them, and
   Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
   `/recent` links open this screen (`/recent?kind=todo` the Todos screen).
@@ -126,7 +132,7 @@ the link as the capture's URL.
   tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
   Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
   wasn't opened from a list. A plain tap opens it in place, as before.
-- Todos and Read pages carry a status (open, in progress, done or cancelled). The page's
+- Todos and Later pages carry a status (open, in progress, done or cancelled). The page's
   toolbar starts with **Mark done** (the filled button) unless it is done, and **Reopen** if it
   is done or cancelled (a cancelled one has both), then **Edit**, **Share** and **Delete**. In the list, the capture screen's list and search results, their
   rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
@@ -146,7 +152,7 @@ the link as the capture's URL.
   (done, if every box is ticked), unless its kind was chosen: the server files it, and the
   composer and editor don't suggest a kind for boxes (the kind picker still shows **Note**, and
   leaving it so is no choice). To keep such a page a note, **Edit** it and pick **Note**: a kind
-  picked by hand is kept. A Read, Board or Doc never changes. Boxes in code (a fenced or
+  picked by hand is kept. A Later, Board or Doc never changes. Boxes in code (a fenced or
   indented block) don't count. Its row and page say how many are ticked (*2 of 5*), and its
   tick box on rows shows a bar while only some are. Ticking the last box (on the page, or in
   the editor) marks it done. While every box is ticked, unticking one or adding a new unticked
@@ -162,14 +168,15 @@ the link as the capture's URL.
   **Today**, **High priority** (no due date), then **Later** (by priority, then due date, then
   last edited). Each row starts with its priority and due date. Done and cancelled todos are
   folded away at the end (**Done**, tap to open; those among the 500 todos last edited). A
-  switch at the top picks the list instead: **Upcoming** (due from tomorrow to a week away,
-  soonest first) or **All** (every open todo and those done ones, last edited first). Each list
+  switch at the top, an icon over each word like the search screen's kinds (**Now** a clock),
+  picks the list instead: **Upcoming** (a calendar: due from tomorrow to a week away, soonest
+  first) or **All** (every open todo and those done ones, last edited first). Each list
   sets its own order: there is no Sort here. The address says which list
   (`/todos?view=upcoming`; switching changes it in place, so Back leaves Todos rather than
   stepping through the lists), so
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
-  **Search todos**, at the end, opens the search screen on `kind:todo`, where `due:`,
-  `priority:` and `sort:due` still search and order todos.
+  To search todos, use **Todos** in the search screen's kind row (`kind:todo`), where `due:`,
+  `priority:` and `sort:due` still search and order them.
 - **New todo**, at the bottom left of the Todos screen, opens the composer on **Todo**; save,
   and you are back on the list with the new todo in it once it has uploaded.
 - Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the pager
@@ -229,7 +236,12 @@ the link as the capture's URL.
   away from the screen's edges (the phone's own Back gesture lives there) and are ignored on
   text that scrolls sideways, while zoomed in or while selecting text.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
-  **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves.
+  **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
+  tags and a todo's due date are folded into a line each under the title, as in the composer.
+- Writing lists in the composer or editor: Enter on a bullet (`- `), numbered (`1. `) or task
+  (`- [ ] `) line starts the next item, and Enter on an empty item ends the list. **Checkbox**,
+  just above the keyboard, makes the line (or the lines selected) a task, or plain items
+  again if they all are. On a page, a task list sits as tight as a bulleted one.
 - Nothing typed is lost (tags too): the composer and **Edit** keep a draft on the phone as you type
   (photos too), so after the phone's Back button, a reload or a closed app, opening them again
   brings it back (**Discard it** drops it); a page with a kept edit shows **Edit draft**. Back closes the editor, not the app. **Cancel** asks
@@ -284,28 +296,26 @@ Tap the drawing to open it full screen:
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
 - **Search** searches titles, tags, summaries and text as you type (each word as the start of a
   word: `vsc` finds `vscode`); a title or tag match ranks first. Above the results, how many pages were found and the filters on; the row
-  under the kinds and the Filters sheet narrow it (Work or Personal and the top tags, each with
-  a count; kinds are the fixed row). The chips only write the query,
+  of kinds and the Filters panel narrow it (its tags with a count each). The chips only write
+  the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
-  `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
+  `kind:later`, also `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
   too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `is:snoozed` (todos snoozed till later), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
   `due:2026-11-01` (also `<=`, `>=`), `due:none`, `priority:high` (`medium`, `low`, `none`), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
   for when it was made), `sort:title` (A to Z; also `sort:created`, newest first,
   `sort:updated`, and a todo's `sort:due`, soonest first, and `sort:priority`, high first; `-sort:` turns one round: `-sort:created` is oldest first). The Filters
-  sheet's **Sort** is a menu (**Best match** or **Last edited**, **First edited**, **Newest**,
-  **Oldest**, **Title A–Z**, **Title Z–A**, and for todos **Due soonest**, **Due latest** and
-  **Priority**) that writes the `sort:` for you, and works with nothing typed too.
+  panel's **Order** writes the commonest `sort:` for you, and works with nothing typed too.
   Filters alone list their pages, newest first.
 - A page shows its **tags** in one line under its title, most used first (swipe it for more):
   tap one to search for it. **Tags** (or **Add tags**), first in that line, edits them in
-  place: tap a tag's ✕ to take it off, type one in the box (it suggests the tags already in
-  use) and press Enter or type a comma to add it, or tap one of the six most used tags offered
-  under the box, then **Save**; what is still in the box when
+  place: tap a tag's ✕ to take it off, type one in the box and press Enter or type a comma to
+  add it, or tap one of the tags offered in a row under the box (the six most used, or as you
+  type, the tags in use that match: a tap adds it in place of what you typed), then **Save**; what is still in the box when
   you save counts too. Tags are kept as the importer keeps them: lower case, without a leading
-  `#`. **Edit** (also a list row swiped right) has the same tags box, under the title, and
-  saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
-  the list. **Browse tags** (in the Filters sheet) lists every tag with how many pages have it, as a tree (open a parent with its
+  `#`. **Edit** (also a list row swiped right) has the same tags box, in its **Tags** line
+  under the title, and saves them with the text; the composer has it too, for a new page. Changing tags is not a new revision and does not move the page up
+  the list. **All tags** (in the Filters panel, under Tags) lists every tag with how many pages have it, as a tree (open a parent with its
   arrow), A to Z or most used first, with a box to filter it.
 
 ## Licences of the Markdown libraries
