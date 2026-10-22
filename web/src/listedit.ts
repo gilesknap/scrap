@@ -244,12 +244,15 @@ export function outdent(text: string, start: number, end: number): Change {
     const old = ls.map((l) => l.text);
     return (l, before, i) => {
       const w = l.width;
-      const room = w - l.quote.length; // the indent's own width (not the quotes')
+      // The indent's own width: not the quotes', nor the one space after a quote's ">" (the
+      // quote's own, as CommonMark reads it: taking it, "> a" became ">a")
+      const sep = l.quote && /^[ \t]/.test(l.text.slice(l.quote.length)) ? 1 : 0;
+      const room = w - l.quote.length - sep;
       if (!room) return null;
       let to = w - Math.min(room, 2);
       if (!code) {
         const up = above([...before.slice(0, before.length - i), ...old.slice(0, i)], w - 1);
-        if (up && up.width >= l.quote.length) to = up.width;
+        if (up && up.width >= l.quote.length + sep) to = up.width;
         else to = w - Math.min(room, l.m ? marked(l.m) - w : 2);
       }
       if (code || !l.m?.[3]) return [to, w - to, ""];

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { type Change, checkbox, enter, inCode } from "../src/listedit";
+import {
+  bullet,
+  type Change,
+  checkbox,
+  enter,
+  inCode,
+  indent,
+  numbered,
+  outdent,
+} from "../src/listedit";
 
 /** The text after a change, with | at the caret (or «..» around a selection). */
 function after(text: string, c: Change | null) {
@@ -15,18 +24,19 @@ const press = (s: string) => {
   const text = s.replace("|", "");
   return after(text, enter(text, at, at));
 };
-/** Checkbox over the selection «..» (or at |) in text. */
-function tick(s: string) {
+/** A key over the selection «..» (or at |) in text. */
+function key(f: typeof checkbox, s: string) {
   const a = s.indexOf("«");
   if (a >= 0) {
     const b = s.indexOf("»") - 1;
     const text = s.replace("«", "").replace("»", "");
-    return after(text, checkbox(text, a, b));
+    return after(text, f(text, a, b));
   }
   const at = s.indexOf("|");
   const text = s.replace("|", "");
-  return after(text, checkbox(text, at, at));
+  return after(text, f(text, at, at));
 }
+const tick = (s: string) => key(checkbox, s);
 
 describe("Enter on a list", () => {
   it("continues bullets, numbers and task boxes, with their indent", () => {
@@ -85,5 +95,105 @@ describe("the Checkbox button", () => {
     expect(tick("x\n«a\n\nb»\ny")).toBe("x\n«- [ ] a\n\n- [ ] b»\ny");
     expect(tick("«- [ ] a\n- [x] b»")).toBe("«- a\n- b»");
     expect(tick("«- [ ] a\nb»")).toBe("«- [ ] a\n- [ ] b»"); // not all tasks: all become one
+  });
+});
+
+describe("the Bullet key", () => {
+  it("makes a line a bullet, a number or a task giving way to it", () => {
+    expect(key(bullet, "milk|")).toBe("- milk|");
+    expect(key(bullet, "|")).toBe("- |"); // an empty line: a new bullet
+    expect(key(bullet, "1. one|")).toBe("- one|");
+    expect(key(bullet, "- [ ] tent|")).toBe("- tent|");
+    expect(key(bullet, "  nested|")).toBe("  - nested|"); // after its indent
+    expect(key(bullet, "> quoted|")).toBe("> - quoted|");
+  });
+  it("makes a bullet a plain line again", () => {
+    expect(key(bullet, "- milk|")).toBe("milk|");
+  });
+  it("does every line selected, a blank one between left alone, and back", () => {
+    expect(key(bullet, "«a\n\nb»")).toBe("«- a\n\n- b»");
+    expect(key(bullet, "«- a\n- b»")).toBe("«a\nb»");
+    expect(key(bullet, "«- a\nb»")).toBe("«- a\n- b»"); // not all bullets: all become one
+  });
+});
+
+describe("the Numbered key", () => {
+  it("numbers a line, on from a number just above", () => {
+    expect(key(numbered, "step|")).toBe("1. step|");
+    expect(key(numbered, "|")).toBe("1. |");
+    expect(key(numbered, "1. a\n|b")).toBe("1. a\n2. |b");
+    expect(key(numbered, "- x|")).toBe("1. x|"); // a bullet's marker gives way
+    expect(key(numbered, "- [ ] t|")).toBe("1. [ ] t|"); // a task keeps its box
+  });
+  it("numbers lines 1, 2, 3 in order at each indent", () => {
+    expect(key(numbered, "«a\nb\nc»")).toBe("«1. a\n2. b\n3. c»");
+    expect(key(numbered, "«a\n  b\n  c\nd»")).toBe("«1. a\n  1. b\n  2. c\n2. d»");
+  });
+  it("makes numbered lines plain again, a task a bulleted task", () => {
+    expect(key(numbered, "«1. a\n2. b»")).toBe("«a\nb»");
+    expect(key(numbered, "«1. [ ] t\n2. u»")).toBe("«- [ ] t\nu»");
+  });
+});
+
+describe("the Indent and Outdent keys", () => {
+  it("nest an item at its parent's text column: 2 under a bullet, 3 under a number", () => {
+    expect(key(indent, "- a\n- b|")).toBe("- a\n  - b|");
+    expect(key(indent, "- a\n- [ ] b|")).toBe("- a\n  - [ ] b|");
+    expect(key(indent, "1. a\n2. b|")).toBe("1. a\n   1. b|"); // renumbered in its new list
+    expect(key(indent, "1. [ ] a\n2. [ ] b|")).toBe("1. [ ] a\n   1. [ ] b|"); // not the box's
+    expect(key(indent, "1. a\n   1. b\n2. c|")).toBe("1. a\n   1. b\n   2. c|");
+    expect(key(indent, "- a\n\n  more\n- b|")).toBe("- a\n\n  more\n  - b|");
+  });
+  it("with no item above, indent by the line's own marker, or 2", () => {
+    expect(key(indent, "- a|")).toBe("  - a|");
+    expect(key(indent, "1. a|")).toBe("   1. a|");
+    expect(key(indent, "plain|")).toBe("  plain|");
+    expect(key(indent, "|")).toBe("  |");
+  });
+  it("indent every line selected, numbering each in its new place", () => {
+    expect(key(indent, "«- a\n- b»")).toBe("«  - a\n  - b»");
+    expect(key(indent, "1. a\n«2. b\n3. c»")).toBe("1. a\n«   1. b\n   2. c»");
+  });
+  it("outdent to the parent's indent, renumbered on from the list it rejoins", () => {
+    expect(key(outdent, "- a\n  - b|")).toBe("- a\n- b|");
+    expect(key(outdent, "1. a\n   1. b|")).toBe("1. a\n2. b|");
+    expect(key(outdent, "1. a\n2. b\n   1. c|")).toBe("1. a\n2. b\n3. c|");
+    expect(key(outdent, "1. a\n   1. b\n   2. c|")).toBe("1. a\n   1. b\n2. c|");
+    expect(key(outdent, "«- a\n  - b\n  - c»")).toBe("«- a\n- b\n- c»");
+    expect(key(outdent, "1. a\n«   1. b\n   2. c»")).toBe("1. a\n«2. b\n3. c»");
+  });
+  it("outdent never past a line's start, nor into a quote's marker", () => {
+    expect(key(outdent, "- a|")).toBe("- a|");
+    expect(key(outdent, "  a|")).toBe("a|");
+    expect(key(outdent, " a|")).toBe("a|");
+    expect(key(outdent, "|")).toBe("|");
+    expect(key(outdent, "> - a|")).toBe("> - a|");
+    expect(key(outdent, "> > - a|")).toBe("> > - a|");
+    expect(key(outdent, "> - a\n>   - b|")).toBe("> - a\n> - b|");
+  });
+  it("round-trip: Outdent undoes Indent", () => {
+    for (const s of [
+      "- a\n- b|",
+      "1. a\n2. b|",
+      "1. a\n2. b\n3. c|",
+      "1. [ ] a\n2. [ ] b|",
+      "- a|",
+      "1. a|",
+      "plain|",
+      "> - a\n> - b|",
+      "> a|",
+    ]) {
+      const once = key(indent, s) as string;
+      expect(key(outdent, once)).toBe(s);
+    }
+  });
+  it("in a code block, move 2 spaces and nothing else", () => {
+    expect(key(indent, "```\nx|")).toBe("```\n  x|");
+    expect(key(indent, "```\n1. a\n2. b|")).toBe("```\n1. a\n  2. b|"); // no renumbering
+    expect(key(outdent, "```\n    x|")).toBe("```\n  x|");
+    expect(key(outdent, "```\n - x|")).toBe("```\n- x|");
+    expect(key(outdent, "```\n   1. b|")).toBe("```\n 1. b|");
+    // After the block's end, lists again
+    expect(key(indent, "```\ncode\n```\n- a\n- b|")).toBe("```\ncode\n```\n- a\n  - b|");
   });
 });
