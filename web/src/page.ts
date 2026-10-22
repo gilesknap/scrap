@@ -7,7 +7,7 @@ import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { KINDS } from "./kinds";
 import { rendered, renderer, unembedded } from "./md";
-import { closed, dueOf, statusOf, ticks } from "./status";
+import { closed, dueOf, pageChip, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
 import { bodyView, download, h, pageLink, share, toast, whenShort } from "./ui";
@@ -21,8 +21,7 @@ const hasFiles = (p: Page) =>
 /** A page's kind and status, as its meta line's chip says them: "Todo · done", "Note". */
 const kindChip = (p: Page) => {
   const label = KINDS.find(([k]) => k === p.kind)?.[1];
-  const s = statusOf(p.kind, p.fields)?.replace("_", " ");
-  return label && h("em", { className: "state" }, s ? `${label} · ${s}` : label);
+  return label && h("em", { className: "state" }, pageChip(label, p.kind, p.fields));
 };
 /** Without that chunk (offline): its files as links, the text's images as they are. */
 const links = (p: Page) =>

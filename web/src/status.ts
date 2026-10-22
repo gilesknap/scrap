@@ -23,6 +23,13 @@ export const chipOf = (kind: string, fields: Fields): string => {
   return s === "done" || s === "cancelled" ? s : "";
 };
 
+/** A page's chip (its row has only the icon): its kind's label, and its status if it has one
+ * ("Todo · in progress", "Later · done", "Note"). */
+export const pageChip = (label: string, kind: string, fields: Fields): string => {
+  const s = statusOf(kind, fields)?.replace("_", " ");
+  return s ? `${label} · ${s}` : label;
+};
+
 // ---- a todo's due date and priority (#104): columns of its page, a todo's only
 
 /** Today on this device, as a due date is written (YYYY-MM-DD). */

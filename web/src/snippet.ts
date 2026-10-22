@@ -18,3 +18,14 @@ export function snippetParts(html: string): { text: string; mark: boolean }[] {
   }
   return parts;
 }
+
+// For comparing words alone: "Review PR #125: page cap" is "review pr 125 page cap"
+const plain = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Whether a search hit's snippet (its text) only says its title again: then it is not shown. */
+export const echoes = (title: string, snip: string) => plain(title).includes(plain(snip));

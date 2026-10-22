@@ -6,6 +6,7 @@ import { setStatus } from "./api";
 import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
+import { echoes } from "./snippet";
 import { chipOf, dueOf, partly, statusOf } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
 import { h, toast } from "./ui";
@@ -16,7 +17,7 @@ export function swipeRow(li: HTMLLIElement, p: RowPage) {
   const { slug, id: key } = p;
   const row = li.querySelector(":scope > a") as HTMLAnchorElement;
   const snip = li.querySelector(".snip"); // a search hit's: gone if it only says the title again
-  if (snip && plain(p.title).includes(plain(snip.textContent ?? ""))) snip.remove();
+  if (snip && echoes(p.title, snip.textContent ?? "")) snip.remove();
   const tick = tickBox(li, p);
   const under = h(
     "div",
@@ -95,14 +96,6 @@ export function swipeRow(li: HTMLLIElement, p: RowPage) {
   );
   return li;
 }
-
-// For comparing words alone: "Review PR #125: page cap" is "review pr 125 page cap"
-const plain = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, "")
-    .replace(/\s+/g, " ")
-    .trim();
 
 /** A todo's or a Later's tick, beside its row (not in its link: tapping it opens nothing):
  * pressed when done; pressing it sets done (a cancelled one, too), or open again. The chip
