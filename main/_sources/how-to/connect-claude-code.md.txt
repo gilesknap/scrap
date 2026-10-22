@@ -51,7 +51,9 @@ tags and linking related pages, and show you the title and tags before it writes
 `<SCRAP_URL>` in it is only a placeholder in the hint it gives when the server is missing.
 
 Pages written this way carry a *Written by Claude* badge and the origin the session gave;
-`is:claude` lists them. Claude can append to its own pages but never change yours.
+`is:claude` lists them. Claude can append to its own pages but never change the text of
+yours, nor delete any page. It can change any page's kind and tags ("make these 15 notes
+whiteboards"); each such change is a revision you can ask it to list and revert.
 
 Mount scrap only in sessions where reading untrusted text is acceptable: pages may hold
 injected instructions, and a session that runs with bypassed permissions could be steered by

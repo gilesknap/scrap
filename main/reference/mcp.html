@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.1.dev335+ga0be3db7f documentation</title>
+    <title>MCP server &#8212; scrap 0.1.dev339+g1054d0b8a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0781167a"></script>
+    <script src="../_static/documentation_options.js?v=a866737e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -531,6 +531,22 @@ data: the server’s instructions tell the model it is the user’s text, never 
 <td><p><code class="docutils literal notranslate"><span class="pre">title</span></code>, <code class="docutils literal notranslate"><span class="pre">body</span></code> (Markdown), <code class="docutils literal notranslate"><span class="pre">origin</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">kind</span></code> (default <code class="docutils literal notranslate"><span class="pre">note</span></code>), <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>, <code class="docutils literal notranslate"><span class="pre">append_to</span></code>, <code class="docutils literal notranslate"><span class="pre">key</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">created}</span></code></p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pages</span></code> (ids or slugs, at most 200) or <code class="docutils literal notranslate"><span class="pre">query</span></code> (a search), <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">add_tags</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_tags</span></code>, <code class="docutils literal notranslate"><span class="pre">set_tags</span></code>, <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-200, default 50)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{dry_run,</span> <span class="pre">batch,</span> <span class="pre">matched,</span> <span class="pre">changed,</span> <span class="pre">pages}</span></code>: each page’s <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">title,</span> <span class="pre">changed,</span> <span class="pre">revision,</span> <span class="pre">batch,</span> <span class="pre">kind_before,</span> <span class="pre">kind_after,</span> <span class="pre">fixed_before,</span> <span class="pre">fixed_after,</span> <span class="pre">tags_before,</span> <span class="pre">tags_after,</span> <span class="pre">tags_added,</span> <span class="pre">tags_removed,</span> <span class="pre">fields_added,</span> <span class="pre">fields_removed}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rename_tag</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">old</span></code>, <code class="docutils literal notranslate"><span class="pre">new</span></code>, <code class="docutils literal notranslate"><span class="pre">merge</span></code>, <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-200, default 50)</p></td>
+<td><p>As <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>’s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">revisions</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">page</span></code> and/or <code class="docutils literal notranslate"><span class="pre">batch</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-200, default 20: a whole batch fits), <code class="docutils literal notranslate"><span class="pre">text_rev</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{meta,</span> <span class="pre">more,</span> <span class="pre">text}</span></code> (<code class="docutils literal notranslate"><span class="pre">more</span></code>: there are more metadata revisions than <code class="docutils literal notranslate"><span class="pre">limit</span></code>) (with <code class="docutils literal notranslate"><span class="pre">page</span></code>, also <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">title,</span> <span class="pre">kind,</span> <span class="pre">rev}</span></code>), newest first. <code class="docutils literal notranslate"><span class="pre">meta</span></code>: each metadata revision’s <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">page_id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">author,</span> <span class="pre">source,</span> <span class="pre">kind_before,</span> <span class="pre">kind_after,</span> <span class="pre">fixed_before,</span> <span class="pre">fixed_after,</span> <span class="pre">tags_before,</span> <span class="pre">tags_after,</span> <span class="pre">tags_added,</span> <span class="pre">tags_removed,</span> <span class="pre">fields_added,</span> <span class="pre">reverts,</span> <span class="pre">batch_id,</span> <span class="pre">created_at,</span> <span class="pre">updated_at}</span></code>; <code class="docutils literal notranslate"><span class="pre">text</span></code>: each text revision of the page, <code class="docutils literal notranslate"><span class="pre">{rev,</span> <span class="pre">title,</span> <span class="pre">author,</span> <span class="pre">created_at,</span> <span class="pre">bytes}</span></code>; with <code class="docutils literal notranslate"><span class="pre">text_rev</span></code>, also <code class="docutils literal notranslate"><span class="pre">text_revision:</span> <span class="pre">{rev,</span> <span class="pre">title,</span> <span class="pre">body,</span> <span class="pre">author,</span> <span class="pre">created_at}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">revert</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">revision</span></code> (a <code class="docutils literal notranslate"><span class="pre">meta</span></code> id) or <code class="docutils literal notranslate"><span class="pre">batch</span></code>, <code class="docutils literal notranslate"><span class="pre">dry_run</span></code></p></td>
+<td><p>For a revision, as one page of <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> plus <code class="docutils literal notranslate"><span class="pre">reverts</span></code>; for a batch, <code class="docutils literal notranslate"><span class="pre">{batch,</span> <span class="pre">reverts_batch,</span> <span class="pre">pages,</span> <span class="pre">skipped,</span> <span class="pre">conflicts,</span> <span class="pre">dry_run}</span></code></p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -566,8 +582,10 @@ that way (480 px JPEGs, so a few hundred kB each).</p>
 <h2>Writing<a class="headerlink" href="#writing" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">write</span></code> makes a new page, or with <code class="docutils literal notranslate"><span class="pre">append_to</span></code> (an id or slug) adds <code class="docutils literal notranslate"><span class="pre">body</span></code> at the end of a page
-written over MCP, as a new revision, and adds its <code class="docutils literal notranslate"><span class="pre">tags</span></code>. It never changes or deletes any other
-page: appending to a page the user made is refused. There is no delete tool.</p></li>
+written over MCP, as a new revision, and adds its <code class="docutils literal notranslate"><span class="pre">tags</span></code>. It never changes the text of any other
+page: appending to a page the user made is refused. No tool deletes a page, or changes the
+title or text of one the user made; <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code> change only kinds
+and tags (below).</p></li>
 <li><p><strong>Due dates and priorities.</strong> A todo may have <code class="docutils literal notranslate"><span class="pre">due</span></code> (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) and <code class="docutils literal notranslate"><span class="pre">priority</span></code> (<code class="docutils literal notranslate"><span class="pre">high</span></code>,
 <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>), and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>: hidden from what to do now, and from
 <code class="docutils literal notranslate"><span class="pre">todos</span></code>, until that day); on another kind they are refused, as <code class="docutils literal notranslate"><span class="pre">status</span></code> is on a note. With
@@ -592,6 +610,58 @@ no NUL (a lone surrogate is refused). A request over 2 MB is <code class="docuti
 tool error with the reason; nothing is saved.</p></li>
 </ul>
 </section>
+<section id="kinds-and-tags">
+<h2>Kinds and tags<a class="headerlink" href="#kinds-and-tags" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code></strong> changes the kind and/or tags of any page, the user’s own too: the <code class="docutils literal notranslate"><span class="pre">pages</span></code>
+named, or every page <code class="docutils literal notranslate"><span class="pre">query</span></code> finds (refused, changing nothing, if it finds more than <code class="docutils literal notranslate"><span class="pre">limit</span></code>).
+<code class="docutils literal notranslate"><span class="pre">kind</span></code> is one of <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code> or <code class="docutils literal notranslate"><span class="pre">doc</span></code> (or the stored names <code class="docutils literal notranslate"><span class="pre">consume</span></code>,
+<code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code>); anything else is refused. A kind given is fixed (<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>: ingest
+and task boxes no longer change it), even if it is the page’s kind already, as when the user
+picks one in the PWA, and a new kind adds its default fields the page lacks (a todo’s
+<code class="docutils literal notranslate"><span class="pre">status:</span> <span class="pre">open</span></code>). Tags: <code class="docutils literal notranslate"><span class="pre">add_tags</span></code> and <code class="docutils literal notranslate"><span class="pre">remove_tags</span></code> (exact: removing <code class="docutils literal notranslate"><span class="pre">a</span></code> leaves <code class="docutils literal notranslate"><span class="pre">a/b</span></code>), or
+<code class="docutils literal notranslate"><span class="pre">set_tags</span></code> to replace them all (<code class="docutils literal notranslate"><span class="pre">[]</span></code>: none), cleaned as <code class="docutils literal notranslate"><span class="pre">write</span></code>’s. Nothing else changes: not
+the title, the text, other fields, nor <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> (as with the PWA’s own tag and kind
+edits). All or nothing: an unknown page or a refused change saves nothing. <strong><code class="docutils literal notranslate"><span class="pre">dry_run</span></code></strong> says
+what each page would get and saves nothing: try a bulk change with it first.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">rename_tag</span></code></strong> renames a tag on every page with it (not the trash’s), and the tags under it
+(<code class="docutils literal notranslate"><span class="pre">old/x</span></code> becomes <code class="docutils literal notranslate"><span class="pre">new/x</span></code>). Refused: more than <code class="docutils literal notranslate"><span class="pre">limit</span></code> pages; a new name under the old one
+(<code class="docutils literal notranslate"><span class="pre">a</span></code> to <code class="docutils literal notranslate"><span class="pre">a/b</span></code>, which would nest again); and a new name already in use, unless <code class="docutils literal notranslate"><span class="pre">merge</span></code> (merged
+tags cannot be told apart again by renaming back, only by reverting the batch). In use counts
+pages in the trash too, unlike the rest of the tool: restoring one would otherwise merge the
+two unasked.</p></li>
+<li><p><strong>Revisions.</strong> Every change to a page’s kind or tags, over MCP or in the PWA, is a metadata
+revision: who made it (<code class="docutils literal notranslate"><span class="pre">author</span></code>: <code class="docutils literal notranslate"><span class="pre">claude</span></code>, or the user’s login; <code class="docutils literal notranslate"><span class="pre">source</span></code>: <code class="docutils literal notranslate"><span class="pre">mcp</span></code> or <code class="docutils literal notranslate"><span class="pre">web</span></code>), when,
+the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
+added. Changes by the same author from the same source within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds
+(default 300) of a revision being made fold into it, as long as nothing else changed the page’s
+kind or tags between, so a burst of edits is one revision; a burst that ends where it started
+leaves none. A revert, and a change in a batch, never folds, nor is folded into. A page’s first
+revision records the state it had before (pages need no backfill). Revisions keep kind and tag
+names only: never a copy of the text or of a file, nor what a model derived (summaries, image
+descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
+made again. Text keeps its own revisions (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, every title or body change), which
+<code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists and <code class="docutils literal notranslate"><span class="pre">text_rev</span></code> reads; no tool reverts them.</p></li>
+<li><p><strong>Batches.</strong> An <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> with a <code class="docutils literal notranslate"><span class="pre">query</span></code> or several distinct <code class="docutils literal notranslate"><span class="pre">pages</span></code> (a slug and the id of
+one page are one page), and every <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code>, is a
+batch: its revisions share a <code class="docutils literal notranslate"><span class="pre">batch</span></code> id, returned, which <code class="docutils literal notranslate"><span class="pre">revisions(batch=...)</span></code> lists and
+<code class="docutils literal notranslate"><span class="pre">revert(batch=...)</span></code> undoes at once. An <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> of one named page is not a batch (so quick
+edits of it fold together).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">revert</span></code></strong> with <code class="docutils literal notranslate"><span class="pre">revision</span></code> gives its page back the whole kind and tag snapshot from just
+before that revision, whether its kind was fixed too, and takes off the default fields that
+revision’s kind change added (unless changed since: a todo ticked done keeps <code class="docutils literal notranslate"><span class="pre">status:</span> <span class="pre">done</span></code>).
+So it also undoes later changes, including ones nothing recorded: tags or a kind ingest gave
+the page since, or the todo its task boxes made of a note appended to. <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> shows exactly
+what it would do: use it first. With <code class="docutils literal notranslate"><span class="pre">batch</span></code>, every revision of that batch is reverted in one
+go, as a new batch (itself revertible at once); if any of its pages’ kind or tags changed since
+the batch, nothing is reverted and the call is refused, naming them (<code class="docutils literal notranslate"><span class="pre">dry_run</span></code> lists them as
+<code class="docutils literal notranslate"><span class="pre">conflicts</span></code>): revert those pages’ revisions one by one. Pages in the trash are skipped and
+listed. A revert is a revision of its own, so it can be reverted in turn: nothing is lost.
+Reverting to the state a page has already changes nothing and adds no revision. Revision ids
+are never used again, even for a dropped burst: an unknown one is <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">such</span> <span class="pre">revision</span> <span class="pre">N</span></code>, an
+unknown batch <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">such</span> <span class="pre">batch</span> <span class="pre">B</span></code>.</p></li>
+</ul>
+</section>
 <section id="security">
 <h2>Security<a class="headerlink" href="#security" title="Link to this heading">#</a></h2>
 <p>The service has no login: it is reachable only over the tailnet, through Tailscale Serve, like
@@ -600,7 +670,7 @@ the rest of scrap. <code class="docutils literal notranslate"><span class="pre">
 (<code class="docutils literal notranslate"><span class="pre">403</span></code>), so a web page cannot reach it by DNS rebinding. Pages may hold injected text, so a
 session holding powerful credentials should treat what it reads as data (see the design’s
 security posture).</p>
-<p>Not yet: a <code class="docutils literal notranslate"><span class="pre">context</span></code> tool returning the stored ingest run of a photo (its messages, for
+<p>Not yet: thinning old revisions, a <code class="docutils literal notranslate"><span class="pre">context</span></code> tool returning the stored ingest run of a photo (its messages, for
 discussing it with the model that made it), and an <code class="docutils literal notranslate"><span class="pre">ingest</span></code> tool.</p>
 </section>
 </section>
@@ -655,6 +725,7 @@ discussing it with the model that made it), and an <code class="docutils literal
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tools">Tools</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#images">Images</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing">Writing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kinds-and-tags">Kinds and tags</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#security">Security</a></li>
 </ul>
   </nav></div>
