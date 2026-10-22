@@ -15,7 +15,17 @@ import { drafts } from "./db";
 import { expand, found, tokenise } from "./embeds";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
-import { checkbox, edit, lists } from "./listedit";
+import {
+  bullet,
+  type Change,
+  checkbox,
+  edit,
+  inCode,
+  indent,
+  lists,
+  numbered,
+  outdent,
+} from "./listedit";
 import { h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, toSend } from "./kinds";
@@ -59,13 +69,38 @@ export function todoSays(v: { due: string | null; priority: string | null }) {
   return [day, v.priority].filter(Boolean).join(" · ") || "none";
 }
 
-/** An empty check box, drawn here: the Checkbox key's icon (not in the shell's icons). */
-const box = () => {
+/** The editor keys' icons, drawn here (not in the shell's icons): a task's empty box, a
+ * bulleted and a numbered list, and lines moved in and out. */
+const KEY_ICONS = {
+  task: '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/>',
+  bullet:
+    '<circle cx="5" cy="6.5" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="5" cy="17.5" r="1.2"/><path d="M9.5 6.5h10m-10 5.5h10m-10 5.5h10"/>',
+  numbered: '<path d="M4 4.5h1.5V9M4 9h3M4 14.5h3l-3 4h3M10.5 6.5h9m-9 5.5h9m-9 5.5h9"/>',
+  indent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M4 9.5l3 2.5-3 2.5"/>',
+  outdent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M7 9.5 4 12l3 2.5"/>',
+};
+const keyIcon = (name: keyof typeof KEY_ICONS) => {
   const t = document.createElement("template");
-  t.innerHTML =
-    '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/></svg>';
+  t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${KEY_ICONS[name]}</svg>`;
   return t.content.firstChild as SVGSVGElement;
 };
+
+/** The editor's keys, above the keyboard: [icon, label, aria-label, the change, whether it
+ * applies in a code block (only Indent and Outdent: spaces)]. */
+type Key = [
+  keyof typeof KEY_ICONS,
+  string,
+  string,
+  (text: string, start: number, end: number) => Change,
+  boolean,
+];
+const KEYS: Key[] = [
+  ["task", "Task", "Task: make the line a task", checkbox, false],
+  ["bullet", "Bullet", "Bullet: make the line a bullet", bullet, false],
+  ["numbered", "Number", "Number: make the line a numbered item", numbered, false],
+  ["indent", "Indent", "Indent the line", indent, true],
+  ["outdent", "Outdent", "Outdent the line", outdent, true],
+];
 
 /** The text box's embeds of stored files as tokens (embeds.ts), with a chip each in a row
  * (chips: the editor's foot, under its fields): a thumbnail and its name; tapped, its token is
@@ -223,25 +258,29 @@ export function editor(o: {
   o.text.dir = "auto"; // right-to-left text lays out as such
   lists(o.text); // Enter continues a list (listedit.ts)
   const preview = previewer(o.text, o.read);
-  // Just above the keyboard (the layer is the visual viewport's height): the Checkbox key,
-  // which turns the line (or the lines selected) into tasks. A tap keeps the keyboard up.
+  // Just above the keyboard (the layer is the visual viewport's height): the keys that make
+  // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
+  // it. In a code block the list keys do nothing. A tap keeps the keyboard up.
   const keys = h(
     "div",
     { className: "keys", onpointerdown: (e: Event) => e.preventDefault() },
-    h(
-      "button",
-      {
-        type: "button",
-        className: "ghost",
-        "aria-label": "Checkbox: make the line a task",
-        onclick: () => {
-          const t = o.text;
-          t.focus();
-          edit(t, checkbox(t.value, t.selectionStart, t.selectionEnd));
+    ...KEYS.map(([glyph, label, name, change, code]) =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: "ghost",
+          "aria-label": name,
+          onclick: () => {
+            const t = o.text;
+            t.focus();
+            if (!code && inCode(t.value, t.selectionStart)) return;
+            edit(t, change(t.value, t.selectionStart, t.selectionEnd));
+          },
         },
-      },
-      box(),
-      "Checkbox",
+        keyIcon(glyph),
+        h("span", {}, label),
+      ),
     ),
   );
   const save = h("button", { type: "submit", className: "primary" }, "Save");
