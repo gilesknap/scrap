@@ -217,8 +217,9 @@ editing:
 With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
 Related pages come from a nightly pass, `scrap-enrich-related.timer` (about 03:41, run in the
 scrap container), which `install.sh` enables. It keeps to the same daily budget and stops (and
-the service fails) at a queue pause; while ingest is off or no key is set it says so and
-succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it would do.
+the service fails) at a queue pause; while ingest is off or no key (or seat token) is set it says
+so and succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it
+would do.
 
 #### On a Claude seat, with no API key
 
@@ -257,7 +258,9 @@ ingest pauses until it resets.
    binary, ingest pauses with a login problem and the log says which is missing.
 
 `SCRAP_BUDGET_DAY_USD` still applies, to what the calls would cost at API prices (as Claude Code
-reports it), not to anything you are charged.
+reports it), not to anything you are charged. Tagging and summarising notes and links, *Ask
+Claude* and the nightly related pages run on the seat too, each a call against its limits; set
+`SCRAP_ENRICH=off` to keep the seat to photos.
 
 ## First run
 

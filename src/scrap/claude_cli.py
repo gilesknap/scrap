@@ -1,10 +1,11 @@
-"""The Claude call through Claude Code on a seat: `claude -p`, no tools, one image.
+"""The Claude call through Claude Code on a seat: `claude -p`, no tools, one user turn.
 
 SCRAP_LLM_BACKEND=cli sends claude.complete() here (ADR 0019). The CLI is an agent
 harness, so every call locks it down: no tools, no MCP servers, no settings or
 CLAUDE.md, a throwaway HOME and working directory, its own retries off, and only the
-environment it needs. The image goes in as a content block on stdin (stream-json),
-so no Read tool is needed; structured output comes back in the result message.
+environment it needs. The user turn (a photo's image block, or an enrich call's text)
+goes in on stdin (stream-json), so no Read tool is needed; structured output comes
+back in the result message.
 Failures map onto the queue's classes as the API's do (see claude.classify).
 """
 
@@ -28,7 +29,7 @@ from .claude import (
     redact,
 )
 
-__all__ = ["classify", "command", "complete", "unavailable"]
+__all__ = ["classify", "command", "complete", "configured", "unavailable"]
 
 BINARY = "claude"  # found on PATH (the -claude image installs it)
 TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"  # from `claude setup-token`; never logged
@@ -51,9 +52,8 @@ LOCKED = {
     "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
     "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
     "CLAUDE_CODE_MAX_RETRIES": "0",  # the queue does all retrying
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": str(MAX_TOKENS),
     "API_TIMEOUT_MS": str(int(TIMEOUT * 1000)),
-    "DISABLE_PROMPT_CACHING": "1",  # each photo is seen once: a cache write is waste
+    "DISABLE_PROMPT_CACHING": "1",  # each input is seen once: a cache write is waste
 }
 # Seconds for the whole process: two requests (the CLI makes a second if the model
 # does not call StructuredOutput) and start-up
@@ -81,6 +81,12 @@ def binary() -> str | None:
     return shutil.which(BINARY)
 
 
+def configured() -> bool:
+    """Whether the configured backend has its credential (the API key, or the seat
+    token for cli)."""
+    return bool(os.environ.get(TOKEN if backend() == "cli" else "ANTHROPIC_API_KEY"))
+
+
 def unavailable() -> str | None:
     """Why ingest cannot run on the configured backend, or None if it can."""
     chosen = backend()
@@ -95,7 +101,9 @@ def unavailable() -> str | None:
     return None
 
 
-def command(path: str, model: str, system: str, schema: dict) -> list[str]:
+def command(
+    path: str, model: str, system: str, schema: dict, effort: str = EFFORT
+) -> list[str]:
     """The argv for one locked-down call; the prompt and image go on stdin."""
     return [
         path,
@@ -117,7 +125,7 @@ def command(path: str, model: str, system: str, schema: dict) -> list[str]:
         "--model",
         model,
         "--effort",
-        EFFORT,
+        effort,
         "--system-prompt",  # in place of Claude Code's own (it still adds a preamble)
         system,
         "--json-schema",
@@ -125,9 +133,10 @@ def command(path: str, model: str, system: str, schema: dict) -> list[str]:
     ]
 
 
-def environment(home: str) -> dict[str, str]:
+def environment(home: str, max_tokens: int = MAX_TOKENS) -> dict[str, str]:
     env = {name: os.environ[name] for name in PASS if name in os.environ}
     env.update(LOCKED, HOME=home, TMPDIR=home, CLAUDE_CONFIG_DIR=f"{home}/.claude")
+    env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
     env[TOKEN] = os.environ.get(TOKEN, "")
     return env
 
@@ -239,8 +248,15 @@ def parse(lines: list[str], model: str, missing: str = "") -> Completion:
         served_model=served or next(iter(result.get("modelUsage") or {}), model),
         stop_reason=result.get("stop_reason"),
     )
-    if isinstance(result.get("total_cost_usd"), int | float):
-        done.usage["total_cost_usd"] = result["total_cost_usd"]  # notional: ADR 0019
+    # The CLI's own cost (notional on a seat: ADR 0019), but only when it knows the
+    # model's list price: for one it does not (2.1.281: Haiku and Sonnet 5.5) it
+    # guesses, and scrap's PRICES apply instead
+    priced = all(
+        isinstance(u, dict) and u.get("costBasis") in (None, "list")
+        for u in (result.get("modelUsage") or {}).values()
+    )
+    if priced and isinstance(result.get("total_cost_usd"), int | float):
+        done.usage["total_cost_usd"] = result["total_cost_usd"]
     overage = limit is not None and bool(limit.get("isUsingOverage"))
     if result.get("is_error") or error or overage:
         kind, said = error or (None, "")
@@ -261,7 +277,13 @@ def parse(lines: list[str], model: str, missing: str = "") -> Completion:
 
 
 def complete(
-    model: str, system: str, messages: list[dict], schema: dict, blob: Any
+    model: str,
+    system: str,
+    messages: list[dict],
+    schema: dict,
+    blob: Any,
+    effort: str = EFFORT,
+    max_tokens: int = MAX_TOKENS,
 ) -> Completion:
     """claude.complete() through `claude -p`, never retried by scrap: one claim is
     one CLI run, which is one request, or two if the CLI has to ask again for the
@@ -275,13 +297,13 @@ def complete(
     ) as home:
         try:
             proc = subprocess.Popen(
-                command(path, model, system, schema),
+                command(path, model, system, schema, effort),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=home,
-                env=environment(home),
+                env=environment(home, max_tokens),
                 start_new_session=True,  # so a kill takes any children with it
             )
         except OSError as error:

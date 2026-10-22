@@ -519,6 +519,7 @@ class Enricher:
             "purpose": "enrich", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
             "effort": effort, "system": system, "messages": stored, "schema": SCHEMA,
             "fetch": got and {"url": got.url, "chars": len(got.text)} or failed,
+            "backend": claude.backend(),
         }  # fmt: skip
         with self.store.connect() as conn, transaction(conn):
             run_id = conn.execute(
@@ -728,6 +729,7 @@ def relate(
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
         "effort": effort, "system": system, "messages": messages,
         "schema": RELATED_SCHEMA, "candidates": [p["id"] for p in pages],
+        "backend": claude.backend(),
     }  # fmt: skip
     with store.connect() as conn, transaction(conn):
         run_id = conn.execute(

@@ -126,8 +126,11 @@ none a union: `width`, `height`, `text`, `fontSize`, `label`, `labelFontSize`, `
 ### On a Claude seat (`SCRAP_LLM_BACKEND=cli`)
 
 For a Team or Enterprise seat with no API key ([ADR 0019](decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)).
-`complete()` hands the call to `claude_cli.py`, which runs `claude -p` once per photo and
-returns the same `Completion`; everything after the call is shared.
+`complete()` hands the call to `claude_cli.py`, which runs `claude -p` once per call and
+returns the same `Completion`; everything after the call is shared. That is every Claude call:
+photos, and text enrichment (tags, summary, *Ask Claude*, the nightly related pass), whose text
+turn goes in the same way with the text model's `--effort` and `max_tokens`
+(`CLAUDE_CODE_MAX_OUTPUT_TOKENS`). Nothing in scrap needs a tool: links are fetched by scrap.
 
 - **Auth:** `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, in `ingest.env`. Without it, or
   without the `claude` binary, the worker pauses at start (`auth`) and logs why.
@@ -147,7 +150,9 @@ returns the same `Completion`; everything after the call is shared.
   server, or that has no `init` message, is discarded and pauses ingest (`auth`).
 - **Output:** the result's `structured_output`; the stored content blocks are the
   `StructuredOutput` tool call, `usage` is the CLI's with its `total_cost_usd`, which is the
-  run's `cost_microusd` and so counts towards the daily budget (a notional figure on a seat). A
+  run's `cost_microusd` and so counts towards the daily budget (a notional figure on a seat);
+  for a model the CLI has no list price for (`costBasis` not `list`: Haiku and Sonnet 5.5 on
+  2.1.281), scrap's `PRICES` cost the usage instead. A
   run killed at the deadline keeps the usage of the requests it got answers to.
 - **Errors:** the CLI's error kind and status map onto the classes below. A run is failed if any
   request in it failed, even if the CLI went on to report a success (as it does after the API
@@ -433,8 +438,8 @@ so it cannot name a page that is not there.
   queue as the worker does); other failures are counted and it goes on. Exit status 1 when
   stopped. On a single server, `deploy/scrap-enrich-related.{service,timer}` run it nightly
   (03:41) in the service's container, and `install.sh` enables the timer if the image has the
-  command. While ingest or enrich is off, or no key is set, the command prints a note and exits
-  0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
+  command. While ingest or enrich is off, or no key (or, with `SCRAP_LLM_BACKEND=cli`, no seat
+  token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
 - **Both ways.** A page's Related merges its picks, pages that picked it, and pages linking here
   with `[[slug]]` (marked "links here"), each once, at most 8. So a new page that picks an older
   one shows on the older one too, without a call for the older page.

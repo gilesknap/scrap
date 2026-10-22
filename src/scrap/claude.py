@@ -234,7 +234,9 @@ def complete(
     if backend() != "api":  # claude -p on a seat token (ADR 0019)
         from . import claude_cli
 
-        return claude_cli.complete(model, system, messages, schema, blob)
+        return claude_cli.complete(
+            model, system, messages, schema, blob, effort, max_tokens
+        )
     try:
         response = client().messages.create(
             model=model,

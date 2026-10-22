@@ -32,6 +32,14 @@ re-encodes a JPEG over about 500 KB, at the same size in pixels; and it drops th
 - `SCRAP_LLM_BACKEND=api|cli`, default `api`. `cli` sends `complete()` to `claude_cli.py`, which
   returns the same `Completion`, so the schema check, sanitiser, `put_derived` and `model_run`
   rows are shared. The run's `request` records the backend.
+- **Every Claude call takes it, photos and text.** Text enrichment (tags and summary on capture,
+  save, backfill and *Ask Claude*; related pages on *Ask* and in the nightly `scrap enrich
+  --related`) is the same shape of call: one user turn, a schema, no tools, here text only, on
+  the text model and effort with its own `max_tokens`, which the CLI gets as `--model`,
+  `--effort` and `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. Links are fetched by scrap (`fetch.py`), not by
+  the model, so no tool is needed. So everything Claude does in scrap works on a seat, through the
+  same lock-down, error classes and pauses; `enrich_run.request` records the backend too, and
+  `scrap enrich --related` counts the seat token as the credential.
 - **Credential.** `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, in the mode-600
   `ingest.env`. It is passed to the CLI in its environment, never on the command line, and is
   redacted from error text like the API key. Ingest with `cli` but no token or no `claude`
@@ -66,7 +74,10 @@ re-encodes a JPEG over about 500 KB, at the same size in pixels; and it drops th
   answer is not stored; the photo is sent again after *Resume*.
 - **Budget.** `SCRAP_BUDGET_DAY_USD` counts the CLI's own `total_cost_usd`: what the call would
   cost at API prices, not a charge to anyone. It keeps runaway use in check against the seat's
-  limits with no new setting. Prompt caching is off (each photo is sent once).
+  limits with no new setting. But only for a model the CLI knows the list price of
+  (`modelUsage[…].costBasis` is `list`): 2.1.281 does not know Haiku or Sonnet 5.5 and guesses
+  $2/$10 per million tokens, 20 times Haiku's, so for those scrap's own `PRICES` cost the usage,
+  as on the API. Prompt caching is off (each input is sent once).
 - **Image.** The CLI is not in the main image. `Dockerfile.claude` builds `FROM` it and adds only
   the CLI's native binary (no Node), pinned and checked against the release's SHA-256: about
   240 MB more. `SCRAP_IMAGE` names that image when `SCRAP_LLM_BACKEND=cli`.
@@ -77,7 +88,9 @@ re-encodes a JPEG over about 500 KB, at the same size in pixels; and it drops th
   until it expires or is revoked. Keep `ingest.env` mode 600 and out of the repo. `podman
   inspect scrap` shows it in plain text, as it does the API key.
 - Calls draw on the same usage limits as the user's own Claude use. A limit hit pauses ingest
-  until the reset, and heavy ingest can bring the user's interactive limit closer.
+  (photos and text enrichment, which share the queue) until the reset, and heavy ingest can
+  bring the user's interactive limit closer. Text enrichment adds a call per note or link saved,
+  and the nightly related pass one per changed page; `SCRAP_ENRICH=off` keeps a seat to photos.
 - Users must check their organisation's policy (ask its Claude admin) before using a seat
   unattended; the docs say so.
 - The CLI's request is not the API backend's request, so a CLI run is not a replay of an API

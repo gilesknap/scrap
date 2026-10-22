@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from scrap import claude, claude_cli, ingest, preview
+from scrap import claude, claude_cli, enrich, ingest, preview
 from scrap.store import Store, connect, new_ulid
 
 TOKEN = "sk-ant-oat01-not-a-real-token"
@@ -442,3 +442,95 @@ def test_a_failed_run_stores_no_token(cli, tmp_path, caplog, monkeypatch, token)
         rows += [tuple(r) for r in conn.execute("SELECT * FROM job")]
     assert token not in json.dumps(rows, default=str) and token not in caplog.text
     assert ingest.status(store)["reason"] == "auth"
+
+
+# Text enrichment (enrich.py) on a seat: tags, summary, Ask Claude and related pages
+# are the same shape of call (one user turn, a schema, no tools) with text only
+TAGGED = {"tags": ["garden"], "summary": "A larch shed, planned.", "title": ""}
+TEXT_MODEL_SERVED = "claude-haiku-5-5"
+
+
+def text_run(out, basis="unknown"):
+    """A text call's events; the CLI does not know Haiku 5.5's price (2.1.281)."""
+    use = [{"type": "tool_use", "name": "StructuredOutput", "input": out}]
+    usage = {basis and TEXT_MODEL_SERVED: {"costBasis": basis, "costUSD": 0.0178}}
+    return [
+        INIT,
+        assistant(use, TEXT_MODEL_SERVED),
+        result(
+            structured_output=out,
+            usage={"input_tokens": 1000, "output_tokens": 100},
+            total_cost_usd=0.0178,
+            modelUsage=usage,
+        ),
+    ]
+
+
+def test_a_text_call_passes_its_effort_and_max_tokens(cli):
+    cli(text_run(TAGGED))
+    system, _ = claude.prompt("enrich", enrich.SCHEMA)
+    messages = [{"role": "user", "content": [{"type": "text", "text": "a note"}]}]
+    model, effort = claude.text_model()
+    done = claude.complete(
+        model, system, messages, enrich.SCHEMA, None,
+        effort=effort, max_tokens=claude.TEXT_MAX_TOKENS,
+    )  # fmt: skip
+    assert done.output == TAGGED and done.served_model == TEXT_MODEL_SERVED
+    seen = cli.seen()
+    argv = seen["argv"]
+    assert argv[argv.index("--model") + 1] == claude.TEXT_MODEL
+    assert argv[argv.index("--effort") + 1] == "low"
+    assert seen["env"]["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] == str(claude.TEXT_MAX_TOKENS)
+    assert json.loads(seen["stdin"])["message"]["content"] == messages[0]["content"]
+    # the CLI's guess at an unknown price is not used: scrap's PRICES are
+    assert "total_cost_usd" not in done.usage
+    assert claude.cost_microusd(done.served_model, done.usage) == 150
+
+
+def test_a_known_price_is_the_clis_own(cli):
+    cli(text_run(TAGGED, basis="list"))
+    messages = [{"role": "user", "content": [{"type": "text", "text": "a note"}]}]
+    done = claude.complete(TEXT_MODEL_SERVED, "s", messages, enrich.SCHEMA, None)
+    assert done.usage["total_cost_usd"] == 0.0178
+
+
+def test_enrichment_runs_on_the_worker(cli, tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "0")
+    store = Store(tmp_path / "data")
+    store.migrate()
+    c = store.prepare({"id": new_ulid(), "text": "Plans for the shed " * 20}, [])
+    ref = store.capture(c, [], "me")[0]
+    cli(text_run(TAGGED))
+    worker = ingest.Worker(store)
+    assert worker.step() is True  # no photo: the text page
+    page = store.page(ref["page_id"])
+    assert page["tags"] == ["garden"] and page["enrich"]["state"] == "done"
+    with closing(connect(store.db)) as conn:
+        run = conn.execute("SELECT * FROM enrich_run").fetchone()
+    assert run["status"] == "ok" and run["cost_microusd"] == 150
+    assert json.loads(run["request"])["backend"] == "cli"
+    # the related pass (nightly, and on Ask) on the same backend
+    cli(text_run({"related": []}))
+    counts = enrich.related_pass(store)
+    assert (counts["done"], counts["stopped"]) == (1, None)
+    # a failed lock-down stops it and pauses the queue, as on the worker
+    enrich.ask(store, ref["page_id"])
+    unlocked = {**INIT, "tools": ["StructuredOutput", "Bash"]}
+    cli([unlocked, *text_run({"related": []})[1:]])
+    counts = enrich.related_pass(store, every=True)
+    assert counts["stopped"] == "auth" and ingest.status(store)["reason"] == "auth"
+
+
+def test_the_related_pass_command_runs_with_a_seat_token(
+    cli, tmp_path, capsys, monkeypatch
+):
+    from scrap.__main__ import main
+
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    monkeypatch.delenv("ANTHROPIC_API_KEY")  # the seat token is the credential
+    main(["enrich", "--related", "--dry-run", "--data-dir", str(tmp_path)])
+    assert "would pick related pages" in capsys.readouterr().out
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN")
+    main(["enrich", "--related", "--data-dir", str(tmp_path)])
+    assert "enrichment is off" in capsys.readouterr().out
