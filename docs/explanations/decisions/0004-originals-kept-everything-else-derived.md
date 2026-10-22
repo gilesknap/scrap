@@ -4,7 +4,8 @@ Date: 2026-10-19 (derived versions: 2026-10-19/20, migration 0002)
 
 ## Status
 
-Accepted
+Accepted. Partly superseded by [](0019-kinds-and-tags-editable-with-revisions.md): changes to a
+page's kind and tags are now revisioned too (see the decision below).
 
 ## Context
 
@@ -16,7 +17,10 @@ own words must never be lost to a model's idea of tidiness.
 Data falls into three tiers:
 
 1. **Source of truth:** `capture` (what arrived), `blob` (its bytes) and `page` (what you read and
-   edit). A page keeps a revision per title or body change (`page_rev`; tags are not revisioned).
+   edit). A page keeps a revision per title or body change (`page_rev`). Originally tags were not
+   revisioned; since migration 8 a change to its kind or tags is a row of `page_meta_rev`, and
+   changes by the same author and source within `SCRAP_REVISION_WINDOW` seconds (default 300) fold
+   into one.
 2. **Derived, stored because remaking costs an LLM call:** OCR, descriptions, drawings, summaries.
    The first design overwrote one row per kind on regeneration; migration 0002, which created
    `derived`, made them **append-only versions** instead (one current row per capture/photo/kind via a partial unique index and a trigger that
@@ -28,7 +32,9 @@ Data falls into three tiers:
 
 **The user wins.** Model output may set a title, tags or a kind only while the user has not chosen
 one (`kind_fixed`, an unchanged rev 1 title, an empty tag list). A model can change only its own
-page's versions.
+page's versions. (Tags have since become a merge: photo ingest and text enrichment add their tags
+to the user's, marked in `model_tag`, and never add back one the user took off; see
+[](0009-claude-ingest-via-messages-api.md) and [](0020-text-enrichment.md).)
 
 Deleting a page is a **soft delete** (`deleted_at`, undelete); nothing is purged yet, so every query
 that follows jobs or links must check it.

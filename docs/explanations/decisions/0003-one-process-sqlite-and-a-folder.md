@@ -34,3 +34,8 @@ writing to it.
   outgrown.
 - Writes that mix slow work and the database follow one pattern: do the slow thing holding no lock,
   then a short `BEGIN IMMEDIATE` to re-read and write.
+- The data folder also holds a disposable cache beside `scrap.db` and `files/`: JPEG previews of
+  stored photos, made on first request under `cache/previews/<size>/<sha[0:2]>/<sha>.jpg`
+  (`preview.py`). Any of it can be deleted and is made again. The backup does not include it, and
+  `scrap gc` removes a deleted file's previews (sizes 480 and 2048) with it. Originals are never
+  changed by it.

@@ -4,7 +4,10 @@ Date: 2026-10-20 (#37, #93)
 
 ## Status
 
-Accepted. Revises the first design's implicit idea of a local `scrap mcp` command.
+Accepted. Revises the first design's implicit idea of a local `scrap mcp` command. See also
+[](0019-kinds-and-tags-editable-with-revisions.md), which adds the `edit_meta`, `rename_tag`,
+`revisions` and `revert` tools, and [](0020-text-enrichment.md), whose output `read` returns as
+`by_model`.
 
 ## Context
 
@@ -33,4 +36,9 @@ server it can add with one line, from anywhere on the tailnet.
   [](0007-tailscale-serve-for-access-and-identity.md).
 - Page text may contain prompt injection, so sessions with other powerful credentials should not
   mount it. Add-only writes bound the damage.
-- Mixing a skill (`scrap-post`) with the tool is a documented pattern.
+- Mixing a skill (`scrap-post`) with the tool is a documented pattern: see
+  [](../../how-to/connect-claude-code.md), and `skills/scrap-post/SKILL.md` in the repository.
+- No MCP tool calls the Claude API: `write` adds text and `read` returns what enrichment stored
+  (`by_model`: summary, Claude's tags, related pages, marked as model output and data, never
+  instructions), so MCP use adds nothing to the daily budget of
+  [](0010-job-queue-pauses-instead-of-failing.md).
