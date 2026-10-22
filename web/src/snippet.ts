@@ -27,5 +27,9 @@ const plain = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** Whether a search hit's snippet (its text) only says its title again: then it is not shown. */
-export const echoes = (title: string, snip: string) => plain(title).includes(plain(snip));
+/** Whether a search hit's snippet (its text) only says its title again, whole words of it in
+ * order: then it is not shown. (A fragment of a word, "eat" of "Great", says something else.) */
+export const echoes = (title: string, snip: string) => {
+  const said = plain(snip);
+  return !said || ` ${plain(title)} `.includes(` ${said} `);
+};

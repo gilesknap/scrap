@@ -32,4 +32,8 @@ it("knows a snippet that only says its title again, by its words alone", () => {
   expect(echoes("Café list", "café")).toBe(true); // letters of any script count
   expect(echoes("Buy milk", "buy milk and eggs")).toBe(false); // says more
   expect(echoes("Buy milk", "eggs")).toBe(false);
+  // Whole words only: a fragment of a title's word is not the title again
+  expect(echoes("Great expectations", "eat")).toBe(false);
+  expect(echoes("Great expectations", "great exp")).toBe(false);
+  expect(echoes("Great expectations", "")).toBe(true); // nothing to show either
 });
