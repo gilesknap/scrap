@@ -119,7 +119,9 @@ export function photoPanel(o: {
   const button = (label: string, onclick: () => void) =>
     h("button", { type: "button", onclick }, label);
   if (i.state === "failed") actions.append(button("Retry", () => void reprocess(false)));
-  else if (i.state === "done") actions.append(button("Reprocess", ask));
+  // Reprocess is rarely wanted: a quiet text button at the row's end, not a full one
+  else if (i.state === "done")
+    actions.append(h("button", { type: "button", className: "link", onclick: ask }, "Reprocess"));
   else if (i.state === "paused") {
     const resume = async () => {
       try {
