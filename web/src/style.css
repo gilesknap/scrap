@@ -1843,7 +1843,7 @@ div.orig .save {
   margin-bottom: var(--s-3); /* Tags: by name, by count */
 }
 .kindrow {
-  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Reads, Boards, Docs */
+  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Later, Boards, Docs */
 }
 /* The search screen's kinds: each its icon over its word, so six fit the row from 320 px */
 .kindrow label {
@@ -1870,8 +1870,19 @@ div.orig .save {
   width: 100%;
   margin-top: var(--s-3);
 }
+/* The editor's kind picker: the icon over the word, as the kind rows, so every kind bar
+   shows its icons, also on a small phone */
 .kinds label {
-  gap: 4px; /* five kinds in one row */
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 0 4px;
+  font-size: var(--t-xs);
+}
+.chips.kinds .i {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 @media (max-width: 379px) {
   .chips .i {
