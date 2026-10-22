@@ -5,7 +5,10 @@ const PATHS = {
   image:
     '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
   note: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4M9 12h7M9 16h5"/>',
-  todo: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  // The Todo kind: a checklist (not a ticked box, which beside a row's tick box reads as done)
+  todo: '<path d="m3.5 6.5 2 2 4-4.5M12.5 6.5h8M4.5 12h2m6 0h8m-16 5.5h2m6 0h8"/>',
+  // A tick box: a todo's or a Later's done control, and the Todos screen
+  tick: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   all: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
   now: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
   add: '<path d="M12 5v14M5 12h14"/>',
