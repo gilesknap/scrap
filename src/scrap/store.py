@@ -1969,6 +1969,8 @@ class Store:
         )
         self._body(conn, page["id"], boxes_before(page))
         self.reindex(conn, page["id"])
+        if enrich_on():  # read again once the edits stop, as for the PWA's saves
+            queue_enrich(conn, page["id"], "save", debounce())
         return rev, folded
 
     def edited_by_claude(self, page_id: str) -> bool:

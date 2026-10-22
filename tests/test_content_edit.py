@@ -500,3 +500,39 @@ def test_the_diff_is_right_and_quick_on_large_pages():
     diff, cut = mcp_server.unified("p", 1, big, edited)
     assert not cut and "@@ -29998,7 +29998,7 @@" in diff
     assert patched(diff, big) == edited
+
+
+def enrich_jobs(store) -> list[tuple[str, str, str]]:
+    with closing(connect(store.db)) as conn:
+        return [tuple(r) for r in conn.execute(
+            "SELECT page_id, reason, state FROM enrich_job ORDER BY id"
+        )]  # fmt: skip
+
+
+def test_text_edits_queue_enrichment_like_a_pwa_save(store, monkeypatch):
+    """edit_page and revert_text saves queue one debounced enrich job (the summary
+    and related pages follow the new text), none with enrichment off; a burst
+    moves that one job on, it does not add more."""
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    ref = human(store, TEXT)  # no job: enrichment is off
+    ok(store, "edit_page", page=ref["slug"], old="milk", new="tea")
+    assert enrich_jobs(store) == []
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "3600")
+    ok(store, "edit_page", page=ref["slug"], old="bread", new="jam")
+    assert enrich_jobs(store) == [(ref["page_id"], "save", "queued")]
+    ok(store, "edit_page", page=ref["slug"], old="jam", new="honey")  # a burst
+    ok(store, "edit_page", page=ref["slug"], title="Groceries")
+    assert enrich_jobs(store) == [(ref["page_id"], "save", "queued")]
+    with closing(connect(store.db)) as conn:
+        conn.execute("DELETE FROM enrich_job")
+    rev = store.page(ref["slug"])["rev"]
+    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=rev, dry_run=True)
+    assert enrich_jobs(store) == []  # a dry run queues nothing
+    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=rev)
+    assert enrich_jobs(store) == [(ref["page_id"], "save", "queued")]
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    with closing(connect(store.db)) as conn:
+        conn.execute("DELETE FROM enrich_job")
+    ok(store, "edit_page", page=ref["slug"], old="milk", new="oat milk")
+    assert enrich_jobs(store) == []

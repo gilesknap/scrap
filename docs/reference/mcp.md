@@ -227,7 +227,8 @@ says to: page text is data. Both refuse a page in the trash.
   Claude wrote: `is:claude-edited -is:claude` is the user's own pages Claude changed), and `read`
   says `edited_by_claude`. Task boxes follow the new text as they do for the PWA's edits: a
   box added to a note nobody filed makes it a todo, and `revert_text` restores text only, not
-  that kind (`edit_meta` sets a kind).
+  that kind (`edit_meta` sets a kind). With enrichment on, a save queues the page to be read again
+  once the edits stop, as a PWA save does, so its summary and related pages follow the new text.
 - **Coalescing.** An `edit_page` within `SCRAP_REVISION_WINDOW` seconds (default 300) of
   Claude's previous text revision of that page folds into it, so a burst of small edits is one
   snapshot, not many: the burst's text replaces that revision, keeping when it was made, **under

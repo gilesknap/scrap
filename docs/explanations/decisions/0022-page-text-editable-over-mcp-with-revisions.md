@@ -60,6 +60,8 @@ edits can be made as visible and as undoable as the kind and tag edits of ADR 19
 - No bulk text edit: each `edit_page` is one page, so batches stay metadata-only. A batch of
   text edits (a search's pages, with a batch id and a batch `revert_text`) would need text
   revisions to record a batch, i.e. a migration; left until it is wanted.
+- An `edit_page` or `revert_text` save queues the page's debounced enrichment, as a PWA save
+  does ([](0020-text-enrichment.md)), so its summary and related pages follow the new text.
 - No migration: `page_rev` is used as it is.
 
 ## Consequences
