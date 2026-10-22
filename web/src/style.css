@@ -1722,22 +1722,32 @@ div.orig .save {
   border-color: transparent;
   background: transparent;
 }
-/* Just above the keyboard, the editor's keys: Checkbox (the line becomes a task). Not while
-   the text is previewed */
+/* Just above the keyboard, the editor's keys: Task, Bullet, Number, Indent, Outdent (the
+   line becomes a task, a bullet or a numbered item, or moves in or out). One line of equal
+   keys, an icon over a word; narrower than any phone, icons alone (they have aria-labels).
+   Not while the text is previewed */
 .editor > .keys {
   flex: none;
   display: flex;
-  gap: var(--s-2);
   padding: 0 max(env(safe-area-inset-right), var(--s-2)) env(safe-area-inset-bottom)
     max(env(safe-area-inset-left), var(--s-2));
   border-top: 1px solid var(--line);
   background: var(--bg);
 }
 .editor > .keys button {
-  gap: var(--s-1);
-  padding: 0 var(--s-3);
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   color: var(--ink-2);
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+@media (max-width: 299px) {
+  .editor > .keys button > span {
+    display: none;
+  }
 }
 .editor:has(> .fields > textarea[hidden]) > .keys {
   display: none;
