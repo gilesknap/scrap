@@ -25,7 +25,7 @@ test("a todo's row ticks off in place: no page opens, no swipe; keys too", async
   const row = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${slug}"]`) });
   const tick = row.getByRole("button", { name: `Done: ${title}` });
   await expect(tick).toHaveAttribute("aria-pressed", "false");
-  await expect(row.locator("em")).toHaveText("todo");
+  await expect(row.locator("em")).toHaveCount(0); // open: no chip (its icon says todo)
 
   await tick.tap(); // a finger
   await expect(tick).toHaveAttribute("aria-pressed", "true");
@@ -63,7 +63,7 @@ test("a todo's row ticks off in place: no page opens, no swipe; keys too", async
   await expect(tick).toBeFocused();
   await page.keyboard.press("Space");
   await expect(tick).toHaveAttribute("aria-pressed", "false");
-  await expect(row.locator("em")).toHaveText("todo");
+  await expect(row.locator("em")).toHaveCount(0);
   expect(await statusOf(page, id)).toBe("open");
   await page.keyboard.press("Enter");
   await expect(tick).toHaveAttribute("aria-pressed", "true");
@@ -81,6 +81,7 @@ test("ticks on Read rows and search results; none on notes", async ({ page }) =>
   await page.goto("/recent");
   const row = page.locator(".list li").filter({ hasText: title });
   await expect(row.locator("em")).toHaveText("cancelled");
+  await expect(row).toHaveClass(/\bcancelled\b/); // struck, a grey dash in its box
   const tick = row.getByRole("button", { name: `Done: ${title}` });
   await expect(tick).toHaveAttribute("aria-pressed", "false");
   await expect(
@@ -98,9 +99,7 @@ test("ticks on Read rows and search results; none on notes", async ({ page }) =>
   await expect(page).toHaveURL(/\/search/);
 });
 
-test("a page offers Mark done from any status but done, Reopen from done or cancelled", async ({
-  page,
-}) => {
+test("a page offers Mark done while open, only Reopen once done or cancelled", async ({ page }) => {
   const tools = page.locator(".page > .tools");
   const offered = () =>
     tools.getByRole("button", { name: /^(Mark done|Reopen)$/ }).allTextContents();
@@ -114,8 +113,9 @@ test("a page offers Mark done from any status but done, Reopen from done or canc
 
   const [, gone, goneId] = await make(page, "todo", "cancelled");
   await page.goto(`/p/${gone}`);
-  await expect.poll(offered).toEqual(["Mark done", "Reopen"]);
-  await page.setViewportSize({ width: 320, height: 700 }); // five tools still fit
+  await expect.poll(offered).toEqual(["Reopen"]); // a cancelled one looks closed
+  await expect(page.locator(".page .meta em.state")).toHaveText("Todo · cancelled");
+  await page.setViewportSize({ width: 320, height: 700 }); // its tools still fit
   await page.screenshot({ path: test.info().outputPath("cancelled-320.png") });
   await tools.getByRole("button", { name: "Reopen" }).click();
   await expect.poll(offered).toEqual(["Mark done"]);

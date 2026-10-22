@@ -8,18 +8,26 @@ type Fields = Record<string, unknown> | undefined;
 export const statusOf = (kind: string, fields: Fields): string | null =>
   kind === "todo" || kind === "consume" ? String(fields?.status ?? "open") : null;
 
-/** What its page offers, [label, the status it sets]: Mark done from any status but done,
- * Reopen from done or cancelled (a cancelled one has both); nothing without a status. */
-export const ticks = (status: string | null): [string, string][] => [
-  ...(status === null || status === "done" ? [] : [["Mark done", "done"] as [string, string]]),
-  ...(status === "done" || status === "cancelled" ? [["Reopen", "open"] as [string, string]] : []),
-];
+/** What its page offers, [label, the status it sets]: Reopen once done or cancelled, else
+ * Mark done; nothing without a status. */
+export const ticks = (status: string | null): [string, string][] =>
+  status === null
+    ? []
+    : status === "done" || status === "cancelled"
+      ? [["Reopen", "open"]]
+      : [["Mark done", "done"]];
 
-const CHIP: Record<string, string> = { todo: "todo", consume: "later" };
-/** A list row's chip: a status that ends it (done, cancelled), else its kind (todo, read). */
+/** A list row's chip: only a status that ends it (done, cancelled); its icon says its kind. */
 export const chipOf = (kind: string, fields: Fields): string => {
   const s = statusOf(kind, fields);
-  return s === "done" || s === "cancelled" ? s : (CHIP[kind] ?? "");
+  return s === "done" || s === "cancelled" ? s : "";
+};
+
+/** A page's chip (its row has only the icon): its kind's label, and its status if it has one
+ * ("Todo · in progress", "Later · done", "Note"). */
+export const pageChip = (label: string, kind: string, fields: Fields): string => {
+  const s = statusOf(kind, fields)?.replace("_", " ");
+  return s ? `${label} · ${s}` : label;
 };
 
 // ---- a todo's due date and priority (#104): columns of its page, a todo's only

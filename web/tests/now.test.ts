@@ -36,14 +36,14 @@ it("ranks open todos: overdue oldest first, today, high with no date, then the r
     ["Today", ["today high", "today low"]],
     ["High priority", ["high no date, newer", "high no date, older"]],
     [
-      "Later",
+      "Open",
       ["rest high later", "in progress", "rest medium no date", "rest low soon", "rest none"],
     ],
   ]);
 });
 
 it("leaves out empty groups", () => {
-  expect(titles(now([todo("only", null, null)], T))).toEqual([["Later", ["only"]]]);
+  expect(titles(now([todo("only", null, null)], T))).toEqual([["Open", ["only"]]]);
   expect(now([todo("done", T, "high", "done")], T)).toEqual([]);
 });
 

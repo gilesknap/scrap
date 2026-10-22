@@ -6,6 +6,7 @@ import { drafts } from "./db";
 import {
   confirmRemoval,
   editor,
+  embedded,
   fold,
   kindPicker,
   same,
@@ -47,7 +48,10 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   let over = p.body; // the text a save replaces: its deleted embeds are warned about
   const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
   const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
-  if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(text.value)));
+  // Its images and files as short tokens, with a chip each under it: body() is the Markdown
+  const embeds = embedded(text);
+  const body = embeds.value;
+  if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(body())));
   // Tags: a draft's only if they were changed in it (not, say, tags Claude or another
   // device set since); and sent only if changed from those it started from
   const ours = kept?.tags && !same(kept.tags, kept.tagsFrom ?? p.tags) ? kept : null;
@@ -70,9 +74,9 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   showTodo();
   const conflict = h("div");
   const save = async () => {
-    const long = tooLong(text.value);
+    const long = tooLong(body());
     if (long) return toast(long, "", undefined, 8000); // still editing, as it was
-    if (!(await confirmRemoval(p, over, text.value))) return; // still editing, as it was
+    if (!(await confirmRemoval(p, over, body()))) return; // still editing, as it was
     try {
       const saved = await api<Page>(`pages/${p.id}`, {
         method: "PATCH",
@@ -80,7 +84,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
         // The title only if changed: ingest may rename a provisional title meanwhile
         body: JSON.stringify({
           base_rev: base,
-          body: text.value,
+          body: body(),
           ...(title.value !== p.title && { title: title.value }),
           kind: toSend(kind.value(), kind.picked(), p.kind),
           ...(retagged() && { tags: tags.value() }),
@@ -130,12 +134,14 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   };
   const ed = editor({
     text,
+    read: body,
     before: [kind.el, title, tagLine.el, todoLine.el],
     after: [conflict],
+    foot: embeds.chips,
     key,
     draft: (): Draft => ({
       title: title.value,
-      text: text.value,
+      text: body(),
       kind: kind.value(),
       picked: kind.picked(),
       tags: tags.value(),
@@ -145,14 +151,14 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     }),
     dirty: () =>
       title.value !== p.title ||
-      text.value !== p.body ||
+      body() !== p.body ||
       kind.value() !== was ||
       retagged() ||
       redated(),
     restored: !!kept,
     ondiscard: () => {
       title.value = p.title;
-      text.value = p.body;
+      embeds.set(p.body);
       kind.reset(was);
       tags.reset(p.tags);
       tagsFrom = p.tags;

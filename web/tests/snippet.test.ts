@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { snippetParts } from "../src/snippet";
+import { echoes, snippetParts } from "../src/snippet";
 
 it("splits marks from escaped text", () => {
   expect(snippetParts("buy <mark>milk</mark> &amp; eggs")).toEqual([
@@ -23,4 +23,17 @@ it("unescapes markup to text, never to tags", () => {
 it("leaves anything else as literal text", () => {
   // Even unescaped tags (which the API never sends) stay text: the caller makes text nodes.
   expect(snippetParts("<b>x</b> &amp;lt;")).toEqual([{ text: "<b>x</b> &lt;", mark: false }]);
+});
+
+it("knows a snippet that only says its title again, by its words alone", () => {
+  expect(echoes("Review PR #125: page cap", "review PR 125 — page cap")).toBe(true);
+  expect(echoes("Review PR #125: page cap", "page cap")).toBe(true); // part of the title
+  expect(echoes("Buy milk", "BUY MILK!")).toBe(true);
+  expect(echoes("Café list", "café")).toBe(true); // letters of any script count
+  expect(echoes("Buy milk", "buy milk and eggs")).toBe(false); // says more
+  expect(echoes("Buy milk", "eggs")).toBe(false);
+  // Whole words only: a fragment of a title's word is not the title again
+  expect(echoes("Great expectations", "eat")).toBe(false);
+  expect(echoes("Great expectations", "great exp")).toBe(false);
+  expect(echoes("Great expectations", "")).toBe(true); // nothing to show either
 });

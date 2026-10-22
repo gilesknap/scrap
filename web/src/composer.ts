@@ -16,13 +16,13 @@ import {
   tooLong,
   toSend,
 } from "./editor";
+import { DRAFT, FRESH, promote, recover } from "./fresh";
 import { icon } from "./icons";
 import { type Capture, split } from "./queue";
 import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
-const DRAFT = "new"; // the composer's draft
-interface Draft {
+export interface Draft {
   text: string;
   kind?: string;
   picked?: boolean; // the user chose the kind
@@ -35,10 +35,17 @@ interface Draft {
 /** What the text box asks for, by kind. */
 const ASK: Record<string, string> = { todo: "What needs doing?", consume: "Link or title" };
 
-/** as: a kind chosen before it opens (the Todos screen's New todo), over a draft's. */
-export async function compose(picked: File[], as?: string) {
-  // An unsaved draft comes back, with any photos just picked added to it.
-  const kept = await drafts.get<Draft>(DRAFT).catch(() => undefined);
+/** as: a kind chosen before it opens (the Todos screen's New todo). resume: open the kept
+ * draft (Capture's draft row); otherwise a fresh capture (the tiles, New todo). */
+export async function compose(picked: File[], as?: string, resume = false) {
+  // A fresh capture left behind by a killed app first becomes the kept draft (fresh.ts)
+  await recover();
+  // The kept draft comes back only when asked for: a tile always starts afresh.
+  const stored = await drafts.get<Draft>(DRAFT).catch(() => undefined);
+  const kept = resume ? stored : undefined;
+  // A fresh one beside a kept draft is saved under a key of its own, and takes the kept one's
+  // place only if left by Back with something in it (Undo puts the older one back)
+  const hold = !resume && !!stored;
   const files = [...(kept?.files ?? []), ...picked];
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
   // The kind: Note unless chosen (a bare URL suggests Later). Photos have none: ingest
@@ -112,7 +119,7 @@ export async function compose(picked: File[], as?: string) {
     // the text; the photos and more under it
     before: [kind.el, todoLine.el, tagLine.el],
     after: [thumbs, adders],
-    key: DRAFT,
+    key: hold ? FRESH : DRAFT,
     draft: (): Draft => ({
       text: text.value,
       kind: kind.value(),
@@ -123,6 +130,14 @@ export async function compose(picked: File[], as?: string) {
     }),
     dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0 || dated(),
     restored: !!kept,
+    left: () => {
+      // Its row is on Capture: elsewhere (Todos), say where
+      const where = location.pathname === "/" ? "" : ": it's on Capture";
+      if (!hold) return toast(`Kept as a draft${where}`);
+      void promote((older) =>
+        older ? `Kept as a draft, in place of the older one${where}` : `Kept as a draft${where}`,
+      );
+    },
     ondiscard: () => {
       text.value = "";
       files.length = 0;
@@ -181,7 +196,9 @@ export async function compose(picked: File[], as?: string) {
       );
     }
     await close();
-    toast(navigator.onLine ? "Saved" : "Saved on the phone: uploads when online");
+    // Offline, Capture's waiting row says it; elsewhere (Todos) only this does
+    if (navigator.onLine) toast("Saved");
+    else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
   };
   if (!files.length) text.focus();
 }

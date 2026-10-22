@@ -1,14 +1,17 @@
 // Home screen: the capture actions (Camera, Gallery, Note: how, not what kind; the kind is
-// chosen in the composer), and what is still waiting to upload.
+// chosen in the composer), a kept draft over them, and what is still waiting to upload.
 import { view } from "./app";
-import { icon } from "./icons";
+import type { Draft } from "./composer";
+import { drafts } from "./db";
+import { DRAFT, recover } from "./fresh";
+import { icon, kindIcon } from "./icons";
 import { pageList, pendingList } from "./lists";
 import { h, toast } from "./ui";
 
 // The composer is a chunk of its own (composer.ts), with the editor
-const compose = (files: File[]) =>
+const compose = (files: File[], resume?: boolean) =>
   import("./composer").then(
-    (m) => m.compose(files),
+    (m) => m.compose(files, undefined, resume),
     () => toast("Can't open the composer: reload scrap and try again"),
   );
 
@@ -36,9 +39,15 @@ export async function capture(): Promise<Node> {
   }
   const root = h("section", { className: "capture" });
   const pending = h("div", { className: "strip" });
-  const refresh = async () =>
-    pending.replaceChildren(await pendingList(), await pageList(4, "", "Latest"));
+  // Offline, the waiting rows (and the header's badge) say so: one quiet line, no card
+  const latest = () =>
+    navigator.onLine
+      ? pageList(4, "", "Latest")
+      : h("p", { className: "offline" }, "Offline: showing what's on this phone");
+  const refresh = async () => pending.replaceChildren(await pendingList(), await latest());
   document.addEventListener("queuechange", refresh, { signal: view.signal });
+  // Back online with nothing waiting, no upload redraws it: no Retry needed
+  addEventListener("online", refresh, { signal: view.signal });
   await refresh();
 
   // The capture actions, equal tiles under the thumb
@@ -54,6 +63,42 @@ export async function capture(): Promise<Node> {
       "Note",
     ),
   );
+  // The composer's kept draft (left by Back), one line over the tiles: tap to carry on, ✕ to
+  // drop it. Read from IndexedDB here, so the composer's chunk loads only when it opens.
+  const row = h("div", { className: "draft", hidden: true });
+  const draw = async () => {
+    const d = await drafts.get<Draft>(DRAFT).catch(() => undefined);
+    row.hidden = !d;
+    if (!d) return;
+    const line = d.text
+      .trim()
+      .split("\n")[0]
+      .replace(/^[-*#>\s]*(\[.\]\s*)?/, "");
+    const n = d.files.length;
+    const discard = async () => {
+      await drafts.del(DRAFT).catch(() => {});
+      await draw();
+      toast("Draft discarded", "Undo", () => void drafts.put(DRAFT, d).then(draw, () => {}));
+    };
+    row.replaceChildren(
+      h(
+        "button",
+        { type: "button", onclick: () => void compose([], true) },
+        icon(n ? "image" : kindIcon(d.kind ?? d.hint)),
+        h("span", {}, "Draft: ", line || (n ? `${n} photo${n > 1 ? "s" : ""}` : "Untitled")),
+      ),
+      h(
+        "button",
+        { type: "button", "aria-label": "Discard draft", onclick: () => void discard() },
+        icon("close"),
+      ),
+    );
+  };
+  document.addEventListener("draftchange", draw, { signal: view.signal });
+  // A fresh capture the app was closed or killed on (no Back): the kept draft now
+  if (!document.body.classList.contains("editing")) await recover();
+  await draw();
+  actions.prepend(row);
   root.append(h("h2", { className: "label" }, "Latest"), pending, actions);
   return root;
 }

@@ -10,10 +10,22 @@
 //
 // It is a chunk of its own, with the composer (composer.ts): the service worker keeps it for
 // offline use, but screens that never edit don't load it.
+import { previewUrl } from "./api";
 import { drafts } from "./db";
+import { expand, found, tokenise } from "./embeds";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
-import { checkbox, edit, lists } from "./listedit";
+import {
+  bullet,
+  type Change,
+  checkbox,
+  edit,
+  inCode,
+  indent,
+  lists,
+  numbered,
+  outdent,
+} from "./listedit";
 import { h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, toSend } from "./kinds";
@@ -57,13 +69,99 @@ export function todoSays(v: { due: string | null; priority: string | null }) {
   return [day, v.priority].filter(Boolean).join(" · ") || "none";
 }
 
-/** An empty check box, drawn here: the Checkbox key's icon (not in the shell's icons). */
-const box = () => {
+/** The editor keys' icons, drawn here (not in the shell's icons): a task's empty box, a
+ * bulleted and a numbered list, and lines moved in and out. */
+const KEY_ICONS = {
+  task: '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/>',
+  bullet:
+    '<circle cx="5" cy="6.5" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="5" cy="17.5" r="1.2"/><path d="M9.5 6.5h10m-10 5.5h10m-10 5.5h10"/>',
+  numbered: '<path d="M4 4.5h1.5V9M4 9h3M4 14.5h3l-3 4h3M10.5 6.5h9m-9 5.5h9m-9 5.5h9"/>',
+  indent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M4 9.5l3 2.5-3 2.5"/>',
+  outdent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M7 9.5 4 12l3 2.5"/>',
+};
+const keyIcon = (name: keyof typeof KEY_ICONS) => {
   const t = document.createElement("template");
-  t.innerHTML =
-    '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/></svg>';
+  t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${KEY_ICONS[name]}</svg>`;
   return t.content.firstChild as SVGSVGElement;
 };
+
+/** The editor's keys, above the keyboard: [icon, label, aria-label, the change, whether it
+ * applies in a code block (only Indent and Outdent: spaces)]. */
+type Key = [
+  keyof typeof KEY_ICONS,
+  string,
+  string,
+  (text: string, start: number, end: number) => Change,
+  boolean,
+];
+const KEYS: Key[] = [
+  ["task", "Task", "Task: make the line a task", checkbox, false],
+  ["bullet", "Bullet", "Bullet: make the line a bullet", bullet, false],
+  ["numbered", "Number", "Number: make the line a numbered item", numbered, false],
+  ["indent", "Indent", "Indent the line", indent, true],
+  ["outdent", "Outdent", "Outdent the line", outdent, true],
+];
+
+/** The text box's embeds of stored files as tokens (embeds.ts), with a chip each in a row
+ * (chips: the editor's foot, under its fields): a thumbnail and its name; tapped, its token is
+ * selected (to cut and paste elsewhere), and its ✕ takes the token out. value() is the text as Markdown, the embeds put back: read the
+ * text through it, never text.value. */
+export function embedded(text: HTMLTextAreaElement) {
+  // A preview that won't come (not a photo the server can draw, offline): the file icon
+  const thumb = (sha: string) => {
+    const img = h("img", { src: previewUrl(sha, 480), alt: "" });
+    img.onerror = () => img.replaceWith(icon("file"));
+    return img;
+  };
+  let embeds: ReturnType<typeof tokenise>["embeds"] = [];
+  // A tap keeps the keyboard as it is, as the editor's keys do
+  const chips = h("div", { className: "embeds", onpointerdown: (e: Event) => e.preventDefault() });
+  const show = () => {
+    chips.replaceChildren(
+      ...found(text.value, embeds).map(({ embed: e, at }) => {
+        const what = `${e.image ? "image" : "file"} ${e.n}`;
+        const span = { from: at, to: at + e.token.length };
+        const pick = () => {
+          text.focus();
+          text.setSelectionRange(span.from, span.to);
+        };
+        const remove = () => {
+          // A token on a line of its own takes its line with it
+          const v = text.value;
+          let { from, to } = span;
+          if ((from === 0 || v[from - 1] === "\n") && (to === v.length || v[to] === "\n")) {
+            if (to < v.length) to++;
+            else if (from > 0) from--;
+          }
+          text.focus();
+          edit(text, { from, to, insert: "", start: from, end: from });
+        };
+        return h(
+          "span",
+          { className: "embed" },
+          h(
+            "button",
+            { type: "button", className: "pick", title: e.token, onclick: pick },
+            e.image ? thumb(e.sha) : icon("file"),
+            h("span", { dir: "auto" }, e.label),
+          ),
+          h(
+            "button",
+            { type: "button", className: "ghost", "aria-label": `Remove ${what}`, onclick: remove },
+            icon("close"),
+          ),
+        );
+      }),
+    );
+  };
+  const set = (body: string) => {
+    ({ text: text.value, embeds } = tokenise(body));
+    show();
+  };
+  text.addEventListener("input", show);
+  set(text.value);
+  return { chips, value: () => expand(text.value, embeds), set };
+}
 
 /** Why text can't be saved as a page's (over 1 MB), said before sending it; else null. */
 export function tooLong(text: string) {
@@ -142,37 +240,44 @@ export interface Editor {
 
 export function editor(o: {
   text: HTMLTextAreaElement;
+  read?: () => string; // the text as Markdown (embedded()'s value), if not the box's own
   before?: Node[];
   after?: Node[];
+  foot?: Node; // under the fields, above the keys: always in sight, however long the text
   key: string; // what this is a draft of
   draft: () => object; // the fields, to keep
   dirty: () => boolean; // changed since opened
   restored: boolean; // the fields came from a draft
+  left?: () => void; // left by Back with changes (kept as the draft): say so, if not as here
   ondiscard: () => void; // put the fields back as they were
   onsave: () => void;
 }): Editor {
   o.text.dir = "auto"; // right-to-left text lays out as such
   lists(o.text); // Enter continues a list (listedit.ts)
-  const preview = previewer(o.text);
-  // Just above the keyboard (the layer is the visual viewport's height): the Checkbox key,
-  // which turns the line (or the lines selected) into tasks. A tap keeps the keyboard up.
+  const preview = previewer(o.text, o.read);
+  // Just above the keyboard (the layer is the visual viewport's height): the keys that make
+  // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
+  // it. In a code block the list keys do nothing. A tap keeps the keyboard up.
   const keys = h(
     "div",
     { className: "keys", onpointerdown: (e: Event) => e.preventDefault() },
-    h(
-      "button",
-      {
-        type: "button",
-        className: "ghost",
-        "aria-label": "Checkbox: make the line a task",
-        onclick: () => {
-          const t = o.text;
-          t.focus();
-          edit(t, checkbox(t.value, t.selectionStart, t.selectionEnd));
+    ...KEYS.map(([glyph, label, name, change, code]) =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: "ghost",
+          "aria-label": name,
+          onclick: () => {
+            const t = o.text;
+            t.focus();
+            if (!code && inCode(t.value, t.selectionStart)) return;
+            edit(t, change(t.value, t.selectionStart, t.selectionEnd));
+          },
         },
-      },
-      box(),
-      "Checkbox",
+        keyIcon(glyph),
+        h("span", {}, label),
+      ),
     ),
   );
   const save = h("button", { type: "submit", className: "primary" }, "Save");
@@ -196,6 +301,8 @@ export function editor(o: {
     for (const el of behind) el.inert = false;
     document.body.classList.remove("editing");
     opener?.focus({ preventScroll: true });
+    // Its draft may have changed (kept, dropped): e.g. Capture's draft row draws it again
+    document.dispatchEvent(new Event("draftchange"));
     closing?.();
   };
   // Closing pops the editor's history entry. The phone's Back pops it too: that keeps the
@@ -205,7 +312,7 @@ export function editor(o: {
     const kept = !closing && o.dirty();
     if (!closing) keep();
     teardown();
-    if (kept) toast("Kept as a draft: open it again to carry on"); // placed for the page under it
+    if (kept) (o.left ?? (() => toast("Kept as a draft")))(); // placed for the page under it
   };
   const done = () =>
     new Promise<void>((ok) => {
@@ -270,6 +377,7 @@ export function editor(o: {
       preview.pane,
       ...(o.after ?? []),
     ),
+    o.foot ?? "",
     keys,
   );
   track(); // right for the first frame

@@ -1,8 +1,9 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
 // and <mark>s, never HTML). The box's ✕ clears it. Under it, refine.ts's: the filters on as a
-// row of chips, and the Filters panel, opened by the slider at the box's end; then a fixed row
-// of kinds (one tap sets or clears kind:, Todos too), and above the list the count. All of it is
+// row of chips led by the results' count, and the Filters panel, opened by the slider at the
+// box's end; then a fixed row of kinds (one tap sets or clears kind:, Todos too), and with no
+// filters on, the count on a short line over the list. All of it is
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
@@ -48,7 +49,7 @@ export async function search(): Promise<Node> {
   let settle: ReturnType<typeof setTimeout>;
   const results = h("div");
   const chips = h("div");
-  const found = h("div"); // how many were found: over the list, under the kinds
+  const found = h("div"); // how many were found, no filters on: over the list, under the kinds
   // Filters: a slider at the box's end (how many are on, in a dot); refine.ts, a chunk of its
   // own, fills it and opens its panel under the kinds
   const filters = h(

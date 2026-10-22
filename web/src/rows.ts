@@ -6,6 +6,7 @@ import { setStatus } from "./api";
 import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
+import { echoes } from "./snippet";
 import { chipOf, dueOf, partly, statusOf } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
 import { h, toast } from "./ui";
@@ -15,6 +16,8 @@ import { h, toast } from "./ui";
 export function swipeRow(li: HTMLLIElement, p: RowPage) {
   const { slug, id: key } = p;
   const row = li.querySelector(":scope > a") as HTMLAnchorElement;
+  const snip = li.querySelector(".snip"); // a search hit's: gone if it only says the title again
+  if (snip && echoes(p.title, snip.textContent ?? "")) snip.remove();
   const tick = tickBox(li, p);
   const under = h(
     "div",
@@ -95,22 +98,27 @@ export function swipeRow(li: HTMLLIElement, p: RowPage) {
 }
 
 /** A todo's or a Later's tick, beside its row (not in its link: tapping it opens nothing):
- * pressed when done; pressing it sets done, or open again. The chip follows. */
+ * pressed when done; pressing it sets done (a cancelled one, too), or open again. The chip
+ * follows. */
 function tickBox(li: HTMLLIElement, p: RowPage) {
   let status = statusOf(p.kind, p.fields);
   if (status === null) return null;
   const b = h(
     "button",
     { type: "button", className: "tick", "aria-label": `Done: ${p.title}` },
-    icon("todo"),
+    icon("tick"),
   );
   const show = () => {
     // Done; else some of its task boxes ticked: partly ("mixed", a bar in the box)
     const some = status !== "cancelled" && partly(p);
     b.setAttribute("aria-pressed", status === "done" ? "true" : some ? "mixed" : "false");
     b.title = some ? `${some} ticked` : "";
-    const chip = li.querySelector("em");
-    if (chip) chip.textContent = chipOf(p.kind, { status });
+    li.classList.toggle("cancelled", status === "cancelled"); // struck, a grey dash in its box
+    // Its chip comes with done or cancelled and goes when open again (an open row has none);
+    // after the edit date, and so (the Todos screen hides that) after the due date
+    const ends = chipOf(p.kind, { status });
+    li.querySelector(".sub em")?.remove();
+    if (ends) li.querySelector(".sub > small")?.after(h("em", { className: ends }, ends));
     // A todo's due date: greyed, and overdue no longer, once done
     const due = li.querySelector(".due");
     const said = dueOf({ ...p, fields: { status } });

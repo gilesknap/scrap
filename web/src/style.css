@@ -5,6 +5,18 @@
 :root {
   font: 17px / var(--lh) var(--font);
 }
+/* iPhone: the root follows the phone's text size (Larger Text too), which only reaches a page
+   through the system body font; at the default setting it is 17 px. The shorthand also sets the
+   face and line height: ours again. Only where the callout exists (iOS, not a Mac, where the body
+   font is 13 px); main.ts keeps it from going under 17 px (the smaller settings). */
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  :root {
+    /* biome-ignore lint/a11y/useGenericFontNames: a system font keyword; the family is set next */
+    font: -apple-system-body;
+    font-family: var(--font);
+    line-height: var(--lh);
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -192,6 +204,34 @@ header {
   stroke-linejoin: round;
   rotate: -6deg;
 }
+/* A page's and Tags' Back, in the wordmark's place; Tags' title beside it */
+#back {
+  width: var(--tap);
+  padding: 0;
+  margin-inline-start: calc(-1 * var(--s-3)); /* its arrow on the gutter's line */
+}
+#back .i {
+  width: 24px;
+  height: 24px;
+}
+#where {
+  flex: 1;
+  margin: 0;
+  font-size: var(--t-lg);
+}
+/* The Todos screen's New todo, at the right: the queue badge, when up, beside it */
+#queue {
+  margin-inline-start: auto;
+}
+#new {
+  width: var(--tap);
+  padding: 0;
+  margin-inline: var(--s-1) calc(-1 * var(--s-3)); /* its plus on the gutter's line */
+}
+#new .i {
+  width: 24px;
+  height: 24px;
+}
 .badge {
   position: relative;
   min-height: 36px;
@@ -231,6 +271,13 @@ main {
   padding: var(--s-4) max(env(safe-area-inset-right), var(--s-4))
     calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-4))
     max(env(safe-area-inset-left), var(--s-4));
+}
+/* A page is a drill-down: its toolbar is the only bottom bar, where the nav would be */
+.paged nav {
+  display: none;
+}
+.paged main {
+  padding-bottom: var(--s-4);
 }
 #view {
   overflow-x: clip; /* a page swiped sideways never widens the screen; sticky still works */
@@ -314,6 +361,12 @@ nav a[aria-current] .i {
 .strip {
   flex: 1;
 }
+.strip .offline {
+  margin: var(--s-2) 0 0;
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  text-align: center;
+}
 /* The capture actions: equal tiles, no hero (amber is for Save) */
 .actions {
   position: sticky; /* stays under the thumb however long the list above */
@@ -344,6 +397,33 @@ nav a[aria-current] .i {
 }
 .tile:active {
   background: var(--accent-soft);
+}
+/* A kept draft: one quiet line over the tiles, the whole width; ✕ at its end */
+.draft {
+  grid-column: 1 / -1;
+  display: flex;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+}
+.draft button {
+  border: none;
+  background: transparent;
+  padding: 0 var(--s-3);
+}
+.draft button:first-child {
+  flex: 1;
+  justify-content: flex-start;
+}
+.draft span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.draft button:last-child {
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
 }
 .tile .i {
   width: 24px;
@@ -533,7 +613,13 @@ nav a[aria-current] .i {
 .tick[aria-pressed="mixed"] {
   color: var(--accent-ink);
 }
-.tick[aria-pressed="mixed"]::after {
+/* Cancelled: closed but not done, so its title struck and a grey dash in its box */
+.list li.cancelled strong {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.tick[aria-pressed="mixed"]::after,
+.cancelled > .tick::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -858,7 +944,7 @@ mark {
 }
 .frow.ftags .tagline input {
   flex: 1;
-  min-width: 8rem;
+  min-width: min(8rem, 100%); /* never wider than the panel at a large text size */
   min-height: 44px;
   border-radius: var(--r-pill);
 }
@@ -880,20 +966,21 @@ mark {
   align-self: flex-start;
   margin: 0 0 0 var(--s-3);
 }
-/* Above the list: how many were found, then each filter on (tap to take it out); wraps */
+/* Above the list, no filters on: how many were found, in a tight line that takes some of the
+   kinds' margin (with filters on, the count leads their row: .fon) */
 .found {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-  margin-bottom: var(--s-3);
+  margin: calc(-1 * var(--s-1)) 0 var(--s-1);
+  font-size: var(--t-sm);
+  line-height: 1.25; /* the line costs under 20 px */
 }
-.found .count {
+:is(.found, .fon) .count {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.found .facet {
-  max-width: 100%;
+.fon .count {
+  flex: none;
+  align-self: center;
+  white-space: nowrap;
 }
 .facet {
   flex: none;
@@ -1081,20 +1168,13 @@ mark {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-/* Where it is in the list; tapped, back to it (a ghost button, underlined as a link) */
-.pager .up {
+/* Where it is in the list: a label, muted, between the ‹ › */
+.pager .at {
   flex: 1;
-  display: block;
   min-width: 0;
   padding: 0 var(--s-1);
   overflow: hidden;
-  border: none;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
   text-align: center;
-  text-decoration: underline dotted var(--line-strong);
-  text-underline-offset: 0.25em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1157,6 +1237,14 @@ mark {
   margin: var(--s-5) 0 var(--s-2);
   font-size: var(--t-lg);
   line-height: var(--lh-tight);
+}
+/* A step between each level, all under the page title (--t-xl), so a page's sections show */
+.md h1 {
+  font-size: 1.3125rem;
+}
+.md h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
 }
 .md :is(h4, h5, h6) {
   font-size: var(--t-md);
@@ -1369,6 +1457,45 @@ div.orig .save {
 .file .i {
   color: var(--ink-2);
 }
+/* A Later page's link on its own line (render.ts cards()): a file card, its site over its
+   path, each cut to one line, and Open, a button's look, at its end */
+.md > .linkcard {
+  margin: var(--s-4) 0;
+  line-height: var(--lh-tight);
+}
+.md > .linkcard:first-child {
+  margin-top: 0;
+}
+.linkcard .words {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.linkcard :is(.site, .path) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.linkcard .site {
+  font-weight: 600;
+}
+.linkcard .path {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.linkcard .button {
+  flex: none;
+  overflow-wrap: normal;
+}
+.linkcard .button .i {
+  color: inherit;
+}
+.linkcard:active .button {
+  transform: scale(0.97);
+  background-color: var(--sunk);
+}
 
 /* Toolbars: equal icon-over-label tiles (the page's actions, the viewer's tools) */
 .tools {
@@ -1392,10 +1519,10 @@ div.orig .save {
 .page > .tools {
   position: sticky;
   z-index: 2; /* over the page text scrolling under it, task boxes (z-index 1) too */
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  bottom: 0;
   gap: 0;
   margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
-  padding: var(--s-1) var(--s-2);
+  padding: var(--s-1) var(--s-2) calc(var(--s-1) + env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
@@ -1606,22 +1733,32 @@ div.orig .save {
   border-color: transparent;
   background: transparent;
 }
-/* Just above the keyboard, the editor's keys: Checkbox (the line becomes a task). Not while
-   the text is previewed */
+/* Just above the keyboard, the editor's keys: Task, Bullet, Number, Indent, Outdent (the
+   line becomes a task, a bullet or a numbered item, or moves in or out). One line of equal
+   keys, an icon over a word; narrower than any phone, icons alone (they have aria-labels).
+   Not while the text is previewed */
 .editor > .keys {
   flex: none;
   display: flex;
-  gap: var(--s-2);
   padding: 0 max(env(safe-area-inset-right), var(--s-2)) env(safe-area-inset-bottom)
     max(env(safe-area-inset-left), var(--s-2));
   border-top: 1px solid var(--line);
   background: var(--bg);
 }
 .editor > .keys button {
-  gap: var(--s-1);
-  padding: 0 var(--s-3);
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   color: var(--ink-2);
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+@media (max-width: 299px) {
+  .editor > .keys button > span {
+    display: none;
+  }
 }
 .editor:has(> .fields > textarea[hidden]) > .keys {
   display: none;
@@ -1690,6 +1827,7 @@ div.orig .save {
 /* Segmented control: a page's kind, in the editor */
 .chips {
   display: flex;
+  flex-wrap: wrap; /* at a large text size, a second line rather than words over each other */
   padding: 3px;
   border-radius: var(--r-md);
   background: var(--sunk);
@@ -1701,6 +1839,7 @@ div.orig .save {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: min-content; /* equal shares while the words fit, else the row wraps */
   min-height: 42px;
   border-radius: 10px;
   color: var(--ink-2);
@@ -1723,7 +1862,6 @@ div.orig .save {
 .kindrow label {
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
   padding: 5px 0 4px;
   font-size: var(--t-xs);
 }
@@ -1744,8 +1882,19 @@ div.orig .save {
   width: 100%;
   margin-top: var(--s-3);
 }
+/* The editor's kind picker: the icon over the word, as the kind rows, so every kind bar
+   shows its icons, also on a small phone */
 .kinds label {
-  gap: 4px; /* five kinds in one row */
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 0 4px;
+  font-size: var(--t-xs);
+}
+.chips.kinds .i {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 @media (max-width: 379px) {
   .chips .i {
@@ -1825,6 +1974,70 @@ div.orig .save {
 }
 .bar .add {
   flex: 1;
+}
+/* The page editor's embeds (editor.ts embedded()): a chip each for the token that stands for
+   it in the text, on one line under the fields that scrolls sideways, never taller. Its own
+   item in the editor's column, so it stays in sight above the keys while the fields scroll.
+   Not while the text is previewed */
+.editor > .embeds {
+  flex: none;
+  display: flex;
+  gap: var(--s-2);
+  padding: var(--s-2) max(env(safe-area-inset-right), var(--s-4)) var(--s-2)
+    max(env(safe-area-inset-left), var(--s-4));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.embeds:empty,
+.editor:has(> .fields > textarea[hidden]) > .embeds {
+  display: none;
+}
+.embed {
+  flex: none;
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+}
+.embed button {
+  min-height: var(--tap);
+  border: none;
+  background: transparent;
+}
+.embed .pick {
+  min-width: 0;
+  padding: 0 0 0 var(--s-1);
+  font-size: var(--t-sm);
+}
+.embed .pick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.embed img,
+.embed .pick .i {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.embed .pick .i {
+  padding: 8px;
+  color: var(--ink-2);
+}
+.embed .ghost {
+  flex: none;
+  width: 40px;
+  padding: 0;
+  color: var(--ink-2);
+}
+.embed .ghost .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
 }
 
 /* ---- Photo viewer ---- */
@@ -2079,7 +2292,7 @@ div.orig .save {
   color: var(--ink-2);
   white-space: normal; /* when it is due matters more than one line: never cut */
 }
-/* A done or cancelled todo's or Read's page says so first in its meta line, as its row does */
+/* A page's kind (and status, if it has one) leads its meta line: "Todo · done", "Note" */
 .meta .state {
   margin-inline-end: var(--s-2);
   padding: 1px var(--s-2);
@@ -2181,33 +2394,15 @@ div.orig .save {
 .todos h2.label {
   margin-top: var(--s-2);
 }
-/* New todo: the screen's one hero, a pill under the thumb above the nav, over the list's end;
-   at the start, so it covers titles rather than the rows' ticks */
-.todos {
-  display: flex;
-  flex-direction: column;
-}
-.todos .newtodo {
-  position: sticky;
-  z-index: 2;
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-3));
-  align-self: flex-start;
-  margin-top: var(--s-3);
-  border-radius: var(--r-pill);
-  box-shadow: var(--shadow-2);
-}
-/* A todo's row leads with its due date and priority, then when it was last edited */
-.todos .sub .due {
-  order: -1;
-  flex-basis: 100%; /* its own line, whole: the date it was edited goes under it */
-}
-/* Now and Upcoming: what to do and when, not when it was last edited (All, last edited first,
-   keeps the date) */
-.todos [data-view]:not([data-view="all"]) .sub > small:not([class]) {
+/* A todo's row: what to do and when, not when it was last edited (two lines, not three). Its
+   priority and due date lead the line, a done or cancelled chip after them */
+.todos .sub > small:not([class]) {
   display: none;
 }
-.todos .noimg,
-.todos .list em.todo {
+.todos .sub .due {
+  order: -1;
+}
+.todos .noimg {
   display: none; /* every row here is a todo: the room goes to its title */
 }
 .donefold {
@@ -2241,4 +2436,16 @@ div.orig .save {
 }
 .donefold[open] summary::before {
   rotate: 45deg;
+}
+
+/* A wide window (a laptop, a tablet on its side): one centred column of about 720px, the
+   background still to the edges, so lines stay readable and bars don't spread out. Phones are
+   narrower than this, so it never applies there. */
+@media (min-width: 760px) {
+  header,
+  main,
+  nav,
+  .editor {
+    padding-inline: calc((100% - 720px) / 2);
+  }
 }

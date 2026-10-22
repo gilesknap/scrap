@@ -29,7 +29,8 @@
   --shadow: 0 1px 2px rgb(40 30 10 / 8%), 0 2px 8px rgb(40 30 10 / 6%);
   --shadow-2: 0 4px 12px rgb(40 30 10 / 14%), 0 12px 32px rgb(40 30 10 / 12%);
 
-  /* Type: the system UI face; sizes off a 17 px root. */
+  /* Type: the system UI face; sizes off the root: 17 px, or iPhone's text size if larger
+     (style.css). */
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --t-xs: 0.75rem; /* 12.75: labels under icons, chips */
@@ -56,7 +57,7 @@
   --r-pill: 999px;
   --tap: 48px; /* the smallest touch target */
   --bar-h: 56px; /* top bars */
-  --nav-h: 64px; /* bottom nav */
+  --nav-h: max(64px, 1.125rem + 44px); /* bottom nav: taller when its labels are */
 
   /* Motion: short, eased out; none at all when the phone asks for reduced motion. */
   --d-1: 90ms; /* press feedback */

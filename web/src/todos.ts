@@ -10,7 +10,10 @@ import type { pageRow } from "./lists";
 import { isOpen, now, toDo, upcoming } from "./now";
 import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
-import { empty, h, problem, toast } from "./ui";
+import { empty, h, problem } from "./ui";
+
+// The snoozed todos, as the search screen has them (the count of them links there)
+const SNOOZED = "kind:todo is:snoozed sort:due";
 
 // Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
 // All search's All
@@ -63,8 +66,8 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   } catch (e) {
     return problem(e);
   }
-  // A todo saved meanwhile (New todo, below): the list again once its upload is done. Each
-  // change asks again; only the newest answer is drawn (an older one may land last)
+  // A todo saved meanwhile (New todo, in the top bar): the list again once its upload is done.
+  // Each change asks again; only the newest answer is drawn (an older one may land last)
   let asked = 0;
   document.addEventListener(
     "queuechange",
@@ -97,7 +100,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
 
   function draw() {
     const [m, name] = modeOf();
-    body.dataset.view = m; // Now and Upcoming leave out when each was edited: All keeps it
     for (const l of radios) (l.firstChild as HTMLInputElement).checked = l.textContent === name;
     const day = today();
     const groups: [string, Todo[]][] =
@@ -122,17 +124,33 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     });
     const n = shown.length;
     const asleep = list.filter((t) => isOpen(t) && !toDo(t, day)).length;
-    count.textContent = [
-      `${n} open ${n === 1 ? "todo" : "todos"}${asleep ? ` · ${asleep} snoozed (in All)` : ""}`,
-      `${n} due in the next 7 days`,
-      `${n} ${n === 1 ? "todo" : "todos"}`,
-    ][MODES.findIndex(([k]) => k === m)];
+    count.replaceChildren(
+      [
+        `${n} open ${n === 1 ? "todo" : "todos"}`,
+        `${n} due in the next 7 days`,
+        `${n} ${n === 1 ? "todo" : "todos"}`,
+      ][MODES.findIndex(([k]) => k === m)],
+    );
+    // Now's snoozed ones, a link to a search of them (the server's is:snoozed finds open ones
+    // only, as here); soonest due first (there is no sort by waking day)
+    if (m === "now" && asleep)
+      count.append(
+        " · ",
+        h(
+          "a",
+          {
+            href: `/search?q=${encodeURIComponent(SNOOZED)}`,
+            "aria-label": `${asleep} snoozed: show them`,
+          },
+          `${asleep} snoozed`,
+        ),
+      );
     const none = [
       "Nothing to do: every todo is done.",
       "Nothing due in the next 7 days.",
       "No todos yet.",
     ];
-    if (!n) lists.push(empty("todo", none[MODES.findIndex(([k]) => k === m)]));
+    if (!n) lists.push(empty("tick", none[MODES.findIndex(([k]) => k === m)]));
     // Now: the done and cancelled ones, folded away at the end, last edited first
     const done = list.filter((p) => !isOpen(p));
     if (m === "now" && done.length) {
@@ -151,28 +169,12 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   draw();
   const y = history.state?.scroll;
   if (y) requestAnimationFrame(() => scrollTo(0, y));
-  // New todo: the composer with Todo chosen; saved, it closes back onto this list
-  const add = h(
-    "button",
-    {
-      type: "button",
-      className: "primary newtodo",
-      onclick: () =>
-        import("./composer").then(
-          (m) => m.compose([], "todo"),
-          () => toast("Can't open the composer: reload scrap and try again"),
-        ),
-    },
-    icon("add"),
-    "New todo",
-  );
   const root = h(
     "section",
     { className: "todos" },
     h("div", { className: "chips kindrow", role: "radiogroup", "aria-label": "Show" }, ...radios),
     count,
     body,
-    add,
   );
   // Leaving by a tap or a swipe: where the list is, for Back
   root.addEventListener("pointerdown", keep, { capture: true });

@@ -93,7 +93,7 @@ export async function tags(): Promise<HTMLElement> {
           checked: key === by,
           onchange: () => {
             by = key;
-            history.replaceState(null, "", key ? "/tags?sort=n" : "/tags");
+            history.replaceState(history.state, "", key ? "/tags?sort=n" : "/tags");
             draw();
           },
         }),

@@ -3,6 +3,12 @@
 // protocol, as a finger would make them.
 import { type CDPSession, expect, type Locator, type Page, test } from "@playwright/test";
 
+// The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
+// has no Back of its own; tests here use it, so they run as one
+test.beforeEach(({ context }) =>
+  context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true })),
+);
+
 const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
@@ -134,7 +140,7 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   const cdp = await page.context().newCDPSession(page);
   await page.goto("/recent");
   // Each step: wait until the new page is drawn (its pager listening), not just its address
-  const at = (n: number) => expect(page.locator(".pager .up")).toHaveText(new RegExp(`^${n} of `));
+  const at = (n: number) => expect(page.locator(".pager .at")).toHaveText(new RegExp(`^${n} of `));
   await rowOf(page, c).locator("a").click();
   await at(1);
   await expect(page.getByRole("link", { name: "Previous" })).toHaveAttribute(
@@ -158,6 +164,10 @@ test("a page from Recent steps through it: pager, swipe and keys; Back is the li
   await page.reload(); // no slide again on a reload
   await at(2);
   await expect(page.locator("#view > .page")).not.toHaveClass(/from-/);
+  await page.locator("#back").click(); // the top bar's Back: the list, as the phone's Back
+  await expect(page).toHaveURL("/search");
+  await page.goForward();
+  await at(2);
   await page.goBack();
   await expect(page).toHaveURL("/search");
 });
@@ -187,9 +197,9 @@ test("a swipe's step never replaces where the nav went meanwhile", async ({ page
   await expect(page.locator(".pager")).toBeVisible();
   await page.clock.install(); // the slide-off's wait only passes when told to
   await drag(cdp, 500, 330, 100, 4, 8);
-  await page.locator("nav a", { hasText: "Search" }).click(); // within the slide-off
+  await page.locator("#back").click(); // within the slide-off (a page has no nav)
   await page.clock.runFor(1000);
   await expect(page).toHaveURL(/\/search/);
-  await page.goBack();
+  await page.goForward();
   await expect(page).toHaveURL(`/p/${c}`);
 });

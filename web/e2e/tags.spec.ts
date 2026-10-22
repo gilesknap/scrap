@@ -469,7 +469,7 @@ test("a composer's tags are kept in its draft when the app is killed", async ({ 
   await box.fill("burrow"); // typed, not yet added: kept too
   await page.waitForTimeout(800); // the draft is kept a moment after typing
   await page.reload(); // as if the app was killed
-  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByRole("button", { name: "Draft: Bilby burrow survey" }).click(); // its row
   await expect(composer(page).getByText("Restored your unsaved draft.")).toBeVisible();
   await openTags(composer(page));
   await expect(composer(page).getByRole("button", { name: "Remove #bilby" })).toBeVisible();

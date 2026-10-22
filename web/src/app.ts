@@ -14,14 +14,18 @@ export const queue = new Queue(
 /** Navigate inside the app; main.ts renders on popstate. The state rides in the history
  * entry (e.g. the list a page was opened from). */
 export function go(path: string, replace = false, state: object | null = null) {
-  history[replace ? "replaceState" : "pushState"](state, "", path);
+  // Marked as pushed by the app, so the top bar's Back knows an entry of the app's is behind
+  // it (main.ts); a replace keeps the mark
+  const at = replace ? history.state?.at : 1;
+  history[replace ? "replaceState" : "pushState"]({ ...state, at }, "", path);
   window.scrollTo(0, 0);
   rerender();
 }
 
-/** Write the current entry's address (a new query, say). */
+/** Write the current entry's address (a new query, say), keeping go()'s mark on it (the top
+ * bar's Back reads it). */
 export function address(path: string) {
-  history.replaceState(null, "", path);
+  history.replaceState({ at: history.state?.at }, "", path);
 }
 
 /** A plain click (or tap) the app may route itself: not one meant for a new tab or window

@@ -18,3 +18,18 @@ export function snippetParts(html: string): { text: string; mark: boolean }[] {
   }
   return parts;
 }
+
+// For comparing words alone: "Review PR #125: page cap" is "review pr 125 page cap"
+const plain = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Whether a search hit's snippet (its text) only says its title again, whole words of it in
+ * order: then it is not shown. (A fragment of a word, "eat" of "Great", says something else.) */
+export const echoes = (title: string, snip: string) => {
+  const said = plain(snip);
+  return !said || ` ${plain(title)} `.includes(` ${said} `);
+};

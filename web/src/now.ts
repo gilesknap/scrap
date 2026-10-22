@@ -29,14 +29,14 @@ const by =
 export const toDo = (t: Todo, today: string) => isOpen(t) && !snoozed(t, today);
 
 /** Now: the open todos (not snoozed) in groups, each in its order: Overdue (oldest due first), Today, High
- * priority with no date, then Later (by priority, then due, then last edited). Empty groups
+ * priority with no date, then the rest, Open (by priority, then due, then last edited). Empty groups
  * are left out. */
 export function now<T extends Todo>(list: T[], today: string): [string, T[]][] {
   const groups: [string, T[]][] = [
     ["Overdue", []],
     ["Today", []],
     ["High priority", []],
-    ["Later", []],
+    ["Open", []], // not "Later": that is a kind
   ];
   for (const t of list.filter((t) => toDo(t, today))) {
     const late = t.due && t.due < today;

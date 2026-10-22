@@ -50,11 +50,14 @@ test("deleting an image's line warns on Save; Cancel keeps editing, Undo, OK sav
   await expect(page.locator(".originals, .page figure").first()).toBeAttached();
   await page.getByRole("button", { name: "Edit" }).click();
   const body = page.getByLabel("Body");
+  // The editor shows the image as a short token (embeds.ts), not its Markdown
+  const shown = before.body.replace(/!\[[^\]]*\]\(\/api\/blobs\/[0-9a-f]{64}[^)]*\)/, "⟦image 1⟧");
+  await expect(body).toHaveValue(shown);
 
   // Cancel: the editor stays open with the text as edited, nothing saved
   await deleteLastLine(page);
   const edited = await body.inputValue();
-  expect(edited).not.toContain(sha);
+  expect(edited).not.toContain("⟦image 1⟧");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => d.seen.length).toBe(1);
   expect(d.seen[0]).toContain("Saving removes an image from this page");
@@ -66,7 +69,7 @@ test("deleting an image's line warns on Save; Cancel keeps editing, Undo, OK sav
   // Undo brings the line back: Save then asks nothing
   await body.press("Control+z");
   await body.press("Control+z");
-  await expect(body).toHaveValue(before.body);
+  await expect(body).toHaveValue(shown);
   await body.press("End");
   await body.pressSequentially(" ok");
   await page.getByRole("button", { name: "Save" }).click();

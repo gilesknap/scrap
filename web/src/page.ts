@@ -5,8 +5,9 @@ import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
-import { renderer, unembedded } from "./md";
-import { closed, dueOf, statusOf, ticks } from "./status";
+import { KINDS } from "./kinds";
+import { rendered, renderer, unembedded } from "./md";
+import { closed, dueOf, pageChip, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
 import { bodyView, download, h, pageLink, share, toast, whenShort } from "./ui";
@@ -17,6 +18,11 @@ const POLL = 10_000; // while Claude has a photo of this page
 type Figures = typeof import("./figure");
 const hasFiles = (p: Page) =>
   p.captures.some((c) => c.blobs.length) || p.body.includes("](/api/blobs/");
+/** A page's kind and status, as its meta line's chip says them: "Todo · done", "Note". */
+const kindChip = (p: Page) => {
+  const label = KINDS.find(([k]) => k === p.kind)?.[1];
+  return label && h("em", { className: "state" }, pageChip(label, p.kind, p.fields));
+};
 /** Without that chunk (offline): its files as links, the text's images as they are. */
 const links = (p: Page) =>
   p.captures.flatMap((c) =>
@@ -103,8 +109,10 @@ export async function page(key: string): Promise<Node> {
   let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
   const show = (p: Page) => {
     shown = p;
+    root.dataset.kind = p.kind; // for the top bar's Back: a todo's parent is the Todos screen
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);
+    if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card
     // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
     if (body.querySelector("[data-line]"))
       import("./tasks").then(
@@ -162,9 +170,8 @@ export async function page(key: string): Promise<Node> {
       h(
         "p",
         { className: "meta" },
-        // A todo or a Later that is done (or cancelled) says so first, as its row's chip does
-        ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`) &&
-          h("em", { className: "state" }, `${statusOf(p.kind, p.fields)}`),
+        // What it is, first (its row has only the icon): its kind, and its status if it has one
+        kindChip(p),
         `Created ${whenShort(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${whenShort(p.updated_at)}`,
         // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
@@ -184,8 +191,8 @@ export async function page(key: string): Promise<Node> {
       h(
         "div",
         { className: "bar tools" },
-        // A todo or a Later leads with Mark done (the page's hero), Reopen when done, or both
-        // when cancelled
+        // A todo or a Later leads with Mark done (the page's hero), or Reopen once done or
+        // cancelled
         ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(
             "button",

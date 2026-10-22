@@ -5,7 +5,10 @@ const PATHS = {
   image:
     '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
   note: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4M9 12h7M9 16h5"/>',
-  todo: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  // The Todo kind: a checklist (not a ticked box, which beside a row's tick box reads as done)
+  todo: '<path d="m3.5 6.5 2 2 4-4.5M12.5 6.5h8M4.5 12h2m6 0h8m-16 5.5h2m6 0h8"/>',
+  // A tick box: a todo's or a Later's done control, and the Todos screen
+  tick: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   all: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
   now: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
   add: '<path d="M12 5v14M5 12h14"/>',
@@ -26,6 +29,8 @@ const PATHS = {
   offline:
     '<path d="M7 18.5h10a4 4 0 0 0 .6-8A6 6 0 0 0 6.3 9.6 4.5 4.5 0 0 0 7 18.5zM4 4l16 16"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  // Opens elsewhere (a Later page's link card): an arrow out of a box
+  open: '<path d="M13.5 4.5h6v6M19.5 4.5 11 13M17.5 14v5.5h-13v-13H10"/>',
   file: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4"/>',
   filter:
     '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',

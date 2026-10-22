@@ -320,7 +320,8 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await chooser.setFiles({ name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) });
   await page.waitForTimeout(600); // the draft is kept 0.4 s after typing stops
   await page.reload(); // as if the app was killed
-  await page.getByRole("button", { name: "Note" }).click();
+  // Kept: a row over Capture's tiles, which resumes it
+  await page.getByRole("button", { name: "Draft: half a thought" }).click();
   await expect(page.getByText("Restored your unsaved draft.")).toBeVisible();
   await expect(page.getByPlaceholder("Caption (optional)")).toHaveValue("half a thought");
   await expect(page.locator(".thumb img")).toHaveCount(1);
@@ -336,6 +337,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
   await page.getByRole("button", { name: "Cancel" }).click(); // nothing to lose: no question
   await expect(page.locator(".editor")).toBeHidden();
+  await expect(page.locator(".capture .draft")).toBeHidden(); // no draft left
   await page.getByRole("button", { name: "Note" }).click();
   await expect(page.getByText("Restored your unsaved draft.")).toBeHidden();
   await expect(page.getByPlaceholder("Note or link")).toHaveValue("");
