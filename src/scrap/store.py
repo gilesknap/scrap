@@ -12,7 +12,7 @@ import tempfile
 import time
 import unicodedata
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, date, datetime
 from importlib.resources import files as package_files
@@ -100,6 +100,10 @@ RANK = "coalesce(p.priority, 'none')"  # priority:none finds a todo with none
 PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
+# The author of what Claude writes over MCP: of its captures, and of its text revisions
+# (page_rev). Only MCP writes as it: the PWA's author is a Tailscale login (an address,
+# with an @) or "tagged", so a text revision by CLAUDE is one made over MCP.
+CLAUDE = "claude"
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
 MAX_TAG = 64  # characters, as the tag table's CHECK has it
@@ -1871,6 +1875,121 @@ class Store:
             raise NotFoundError(f"revision {rev} of {key}")
         return dict(row)
 
+    def edit_text(
+        self,
+        key: str,
+        author: str,
+        change: Callable[[sqlite3.Connection, sqlite3.Row], tuple[str, str]],
+        base_rev: int | None = None,
+        dry_run: bool = False,
+        fold: bool = True,
+    ) -> dict[str, Any]:
+        """Change the title and/or body of a page (not one in the trash) as a new
+        text revision by author: change(conn, page) gives its new title and body
+        from the current ones (raising InvalidError to refuse). Refused
+        (ConflictError) if base_rev is given and is not the page's current rev.
+        Nothing is written if they are what the page has, nor with dry_run. Returns
+        the page's id, slug, rev_before and rev (the new one, or rev_before), the
+        title and body before and after, changed, and folded (the revision a burst
+        folded into this one, else None). With fold, see _put_text."""
+        with self.connect() as conn, transaction(conn):
+            page = self._page_row(conn, key)
+            if base_rev is not None and base_rev != page["rev"]:
+                raise ConflictError(page["rev"])
+            title, body = change(conn, page)
+            if not title.strip():
+                raise InvalidError("title must not be empty")
+            body = check_page(lines(body))
+            changed = (title, body) != (page["title"], page["body"])
+            rev, folded = page["rev"], None
+            if changed and not dry_run:
+                rev, folded = self._put_text(conn, page, title, body, author, fold)
+            return {
+                "id": page["id"], "slug": page["slug"], "rev_before": page["rev"],
+                "rev": rev, "changed": changed, "folded": folded,
+                "title_before": page["title"], "title": title,
+                "body_before": page["body"], "body": body,
+            }  # fmt: skip
+
+    def _put_text(
+        self,
+        conn: sqlite3.Connection,
+        page: sqlite3.Row,
+        title: str,
+        body: str,
+        author: str,
+        fold: bool,
+    ) -> tuple[int, int | None]:
+        """Write a page's new title and body as text revision rev + 1, returning it
+        and the revision folded into it (else None).
+
+        Coalescing (fold): if the page's latest text revision is by the same author,
+        is not its first, was made within self.window seconds, and does not hold the
+        body of an earlier revision (a revert's, which is never folded into, whatever
+        its title), the
+        burst's text replaces it: that revision goes and this one keeps its
+        created_at. The number still moves on (rev + 1, never a number used before),
+        since rev is the PWA's edit token: an editor holding the folded revision
+        gets a conflict (409), never a silent overwrite. A burst leaves a gap in the
+        numbers."""
+        stamp = now()
+        created, folded = stamp, None
+        last = conn.execute(
+            "SELECT rev, author, created_at FROM page_rev"
+            " WHERE page_id = ? AND rev = ?",
+            (page["id"], page["rev"]),
+        ).fetchone()
+        if (
+            fold
+            and last is not None
+            and last["rev"] > 1
+            and last["author"] == author
+            and 0 <= seconds_between(last["created_at"], stamp) < self.window
+            and not conn.execute(
+                "SELECT 1 FROM page_rev r JOIN page_rev l"
+                " ON l.page_id = r.page_id AND l.rev = ?"
+                " WHERE r.page_id = ? AND r.rev < l.rev"
+                " AND r.body = l.body LIMIT 1",
+                (last["rev"], page["id"]),
+            ).fetchone()
+        ):
+            conn.execute(
+                "DELETE FROM page_rev WHERE page_id = ? AND rev = ?",
+                (page["id"], last["rev"]),
+            )
+            created, folded = last["created_at"], last["rev"]
+        rev = page["rev"] + 1
+        conn.execute(
+            "UPDATE page SET title = ?, body = ?, updated_at = ? WHERE id = ?",
+            (title, body, stamp, page["id"]),
+        )
+        conn.execute(
+            "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
+            (page["id"], rev, title, body, author, created),
+        )
+        self._body(conn, page["id"], boxes_before(page))
+        self.reindex(conn, page["id"])
+        return rev, folded
+
+    def edited_by_claude(self, page_id: str) -> bool:
+        """Whether Claude changed a page's text over MCP after it was made (is:
+        claude-edited): a text revision of its, after the first."""
+        with self.connect() as conn:
+            return bool(conn.execute(
+                "SELECT 1 FROM page_rev WHERE page_id = ? AND rev > 1 AND author = ?",
+                (page_id, CLAUDE),
+            ).fetchone())  # fmt: skip
+
+    def text_at(self, conn: sqlite3.Connection, page_id: str, rev: int) -> sqlite3.Row:
+        """A page's text revision rev (title, body), or NotFoundError."""
+        row = conn.execute(
+            "SELECT rev, title, body FROM page_rev WHERE page_id = ? AND rev = ?",
+            (page_id, rev),
+        ).fetchone()
+        if row is None:
+            raise NotFoundError(f"revision {rev} of {page_id}")
+        return row
+
     def tags_of(self, ids: list[str]) -> dict[str, list[str]]:
         """Each page's tags, most used first: for list rows, which lack them."""
         out: dict[str, list[str]] = {page_id: [] for page_id in ids}
@@ -2105,6 +2224,14 @@ class Store:
                     " AND c.source = ?)"
                 )
                 args.append(MCP)
+            elif f.key == "is" and f.value == "claude-edited":  # text changed by MCP
+                # a text revision by Claude after the first: an edit_page, a
+                # revert_text, or an append to a page Claude wrote
+                sql.append(
+                    f"{no}EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = p.id"
+                    " AND r.rev > 1 AND r.author = ?)"
+                )
+                args.append(CLAUDE)
             elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
                 # An open one: a done or cancelled one's snooze hides nothing (#131)
                 sql.append(
