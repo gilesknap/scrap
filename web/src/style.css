@@ -750,75 +750,75 @@ mark {
 }
 
 /* Refine chips: one row that scrolls sideways, the query's own filters first */
-/* Filters: one line saying what is on; tapped, the panel opens in place over the results,
-   which stay in view under it and follow each tap */
-.filters {
+/* Filters, then the filters on as chips on one line that scrolls sideways; Filters opens the
+   panel in place under them, over the results, which stay in view and follow each tap */
+.refine {
   margin: 0 0 var(--s-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
 }
-.filters > summary {
+.fbar {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  min-height: var(--tap);
-  padding: 0 var(--s-3);
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-  list-style: none;
-  cursor: pointer;
 }
-.filters > summary::-webkit-details-marker {
-  display: none;
-}
-.filters > summary b {
+.ftoggle {
   flex: none;
-  color: var(--ink);
-  font-weight: 600;
+}
+.ftoggle::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-inline-start: 2px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+  translate: 0 -2px;
+  transition: rotate var(--d-1) var(--ease);
+}
+.ftoggle[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  background: var(--sunk);
+}
+.ftoggle[aria-expanded="true"]::after {
+  rotate: -135deg;
+  translate: 0 1px;
 }
 /* How many are on, in an amber dot */
-.filters > summary i {
-  flex: none;
+.ftoggle b {
   min-width: 20px;
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
-  font: 600 var(--t-xs) / 20px var(--font);
+  font-size: var(--t-xs);
+  line-height: 20px;
   text-align: center;
 }
-.filters > summary .says {
+.fon {
+  display: flex;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: var(--s-2);
+  margin-inline-end: calc(-1 * var(--s-4)); /* scrolls out to the screen's edge */
+  padding: 2px var(--s-4) 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.filters > summary::after {
-  content: "";
-  flex: none;
-  width: 7px;
-  height: 7px;
-  margin-inline: var(--s-1) 3px;
-  border: solid currentColor;
-  border-width: 0 2px 2px 0;
-  rotate: 45deg;
-  transition: rotate var(--d-1) var(--ease);
-}
-.filters[open] > summary::after {
-  rotate: -135deg;
-}
-.filters[open] > summary .says {
-  visibility: hidden; /* open: the rows say it */
+.fon:empty {
+  display: none;
 }
 .fpanel {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
+  margin-top: var(--s-2);
   padding: 0 0 var(--s-3);
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.fpanel[hidden] {
+  display: none;
 }
 /* A row: its label, then its chips on one line that scrolls sideways (never a wall of chips) */
 .frow {
@@ -860,10 +860,7 @@ mark {
 .frow.ftags > .flabel {
   line-height: 44px; /* level with the first line of chips and the box */
 }
-/* Open, the panel shows the filters on: the line above the list keeps only the count */
-.filters[open] + .found .facet {
-  display: none;
-}
+
 .frow.ftags .tagline {
   display: flex;
   flex: 1;

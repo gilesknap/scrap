@@ -119,21 +119,27 @@ function reveal(ta: HTMLTextAreaElement) {
     visibility: "hidden",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",
-    width: `${ta.clientWidth}px`,
+    // As wide as the box (its border too, as box-sizing counts it): its lines wrap where the
+    // box's do. Narrower, every wrap came early, and the caret was found lines too low.
+    width: `${ta.getBoundingClientRect().width}px`,
   });
-  copy.textContent = `${ta.value.slice(0, ta.selectionEnd)}\u200b`;
+  const mark = document.createElement("span");
+  mark.textContent = "\u200b";
+  copy.append(ta.value.slice(0, ta.selectionEnd), mark);
   document.body.append(copy);
-  const bottom = copy.scrollHeight;
+  const bottom = mark.offsetTop + mark.offsetHeight; // the caret line's foot, in the box
   copy.remove();
+  const pad = Number.parseFloat(cs.paddingBottom) || 0;
   const line = Number.parseFloat(cs.lineHeight) || 24;
-  if (bottom > ta.scrollTop + ta.clientHeight) ta.scrollTop = bottom - ta.clientHeight + line / 2;
-  else if (bottom - line < ta.scrollTop) ta.scrollTop = Math.max(0, bottom - line * 2);
+  // Only as far as it takes to show the caret's line: never further
+  if (bottom > ta.scrollTop + ta.clientHeight - pad) ta.scrollTop = bottom - ta.clientHeight + pad;
+  else if (bottom - line < ta.scrollTop) ta.scrollTop = Math.max(0, bottom - line);
   // And the box itself in the fields' view (it may be taller than what the keyboard leaves)
   const fields = ta.closest(".fields");
   if (fields) {
     const caret = ta.getBoundingClientRect().top + bottom - ta.scrollTop;
-    const view = fields.getBoundingClientRect();
-    if (caret > view.bottom) fields.scrollTop += caret - view.bottom + line;
+    const over = caret - fields.getBoundingClientRect().bottom;
+    if (over > 0) fields.scrollTop += over + pad;
   }
 }
 

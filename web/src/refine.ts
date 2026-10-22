@@ -66,24 +66,19 @@ const RANGES = [
   ["1y", "1y", "the past year"],
 ];
 
-/** What the folded line says is on: "#home · past month · A–Z", or none. */
-function says(f: Facets) {
-  const words = filtersOf(f).map((a) => {
-    const not = a.neg ? "not " : "";
-    if (a.key === "tag") return `${not}#${a.value}`;
-    if (a.key === "sort") {
-      const t = `${a.neg ? "-" : ""}sort:${a.value}`;
-      return (
-        [...SORTS, ...TODO_SORTS, ["-sort:updated", "First edited"]].find(([k]) => k === t)?.[1] ??
-        t
-      );
-    }
-    if (a.key === "after" && /^\d+[dwmy]$/.test(a.value))
-      return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
-    if (a.key === "is") return `${not}${a.value}`;
-    return a.token;
-  });
-  return words.join(" · ") || "none";
+/** A filter on, as a chip says it: "#home", "past month", "A–Z", "personal". */
+function label(a: Facets["active"][number]) {
+  const not = a.neg ? "not " : "";
+  if (a.key === "tag") return `${not}#${a.value}`;
+  if (a.key === "sort") {
+    const t = `${a.neg ? "-" : ""}sort:${a.value}`;
+    const named = [...SORTS, ...TODO_SORTS, ["-sort:updated", "First edited"]];
+    return named.find(([k]) => k === t)?.[1] ?? t;
+  }
+  if (a.key === "after" && /^\d+[dwmy]$/.test(a.value))
+    return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
+  if (a.key === "is") return `${not}${a.value}`;
+  return a.token;
 }
 
 /** Filters, and the line above the list, for a query. apply edits the query in the box and
@@ -95,29 +90,51 @@ export async function refine(
 ): Promise<HTMLElement> {
   // Where focus is now, to put it back on the same control once drawn again
   const was = document.activeElement as HTMLElement | null;
-  const k = was?.closest(".fpanel") ? was.dataset.k : was?.matches(".filters > summary") && "top";
+  const k = was?.closest(".refine") ? was.dataset.k : null;
   const f = await facets(q, signal);
   const on = filtersOf(f);
-  const panel = h("div", { className: "fpanel" }, ...rows(q, f, apply));
-  const fold = h(
-    "details",
-    { className: "filters", open },
-    h(
-      "summary",
-      { "aria-label": on.length ? `Filters, ${on.length} on: ${says(f)}` : "Filters" },
-      icon("filter"),
-      h("b", {}, "Filters"),
-      on.length > 0 && h("i", {}, String(on.length)),
-      h("span", { className: "says" }, says(f)),
-    ),
+  const panel = h(
+    "div",
+    { className: "fpanel", id: "fpanel", hidden: !open },
+    ...rows(q, f, apply),
+  );
+  // Filters (how many are on), then the filters on as chips, one line that scrolls sideways:
+  // each says what it is ("#home", "past month") and a tap takes it off. Filters opens the
+  // panel under them, in place
+  const toggle = h(
+    "button",
+    {
+      type: "button",
+      className: "facet ftoggle",
+      "aria-expanded": String(open),
+      "aria-controls": "fpanel",
+      "aria-label": on.length ? `Filters, ${on.length} on` : "Filters",
+      onclick: () => {
+        open = !open;
+        panel.hidden = !open;
+        toggle.setAttribute("aria-expanded", String(open));
+      },
+    },
+    icon("filter"),
+    "Filters",
+    on.length > 0 && h("b", {}, String(on.length)),
+  );
+  toggle.dataset.k = "toggle";
+  const chips = on.map((a) => {
+    const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
+    b.setAttribute("aria-label", `Remove ${label(a)}`);
+    b.dataset.k = `off:${a.token}`;
+    return b;
+  });
+  const bar = h(
+    "div",
+    { className: "refine", role: "group", "aria-label": "Filters" },
+    h("div", { className: "fbar" }, toggle, h("div", { className: "fon" }, ...chips)),
     panel,
   );
-  fold.addEventListener("toggle", () => {
-    open = fold.open;
-  });
   // Each row scrolled so what is chosen in it shows (an order off to the right, say)
   requestAnimationFrame(() => {
-    for (const b of fold.querySelectorAll<HTMLElement>('.opts [aria-pressed="true"]')) {
+    for (const b of panel.querySelectorAll<HTMLElement>('.opts [aria-pressed="true"]')) {
       const row = b.parentElement as HTMLElement;
       if (b.offsetLeft + b.offsetWidth > row.scrollLeft + row.clientWidth)
         row.scrollLeft = b.offsetLeft + b.offsetWidth - row.clientWidth + 16;
@@ -126,27 +143,16 @@ export async function refine(
   if (k)
     requestAnimationFrame(() => {
       const el =
-        k === "top"
-          ? fold.querySelector<HTMLElement>("summary")
-          : fold.querySelector<HTMLElement>(`[data-k="${CSS.escape(k)}"]`);
+        bar.querySelector<HTMLElement>(`[data-k="${CSS.escape(k)}"]`) ??
+        (k.startsWith("off:") ? toggle : null); // a chip taken off: Filters, beside it
       el?.focus({ preventScroll: true });
       if (el instanceof HTMLInputElement) el.setSelectionRange(el.value.length, el.value.length);
     });
   return h(
     "div",
     {},
-    fold,
-    q &&
-      h(
-        "div",
-        { className: "found" },
-        h("span", { className: "count" }, pages(f.total)),
-        ...on.map((a) => {
-          const b = chip(a.token, null, () => apply((now) => removing(now, a.token)), true);
-          b.setAttribute("aria-label", `Remove ${a.token}`);
-          return b;
-        }),
-      ),
+    bar,
+    q && h("p", { className: "found" }, h("span", { className: "count" }, pages(f.total))),
   );
 }
 
@@ -234,17 +240,11 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     else if (want) addTag(want); // a tag typed whole: searched as typed
   };
   void offer();
-  const on = asked.map((t) => {
-    const b = chip(`#${t}`, null, () => apply((now) => removing(now, token("tag", t))), true);
-    b.setAttribute("aria-label", `Remove #${t}`);
-    b.dataset.k = `on:${t}`;
-    return b;
-  });
   const tags = h(
     "div",
     { className: "frow ftags", role: "group", "aria-label": "Tags" },
     h("span", { className: "flabel" }, "Tags"),
-    h("div", { className: "tagline" }, ...on, box),
+    h("div", { className: "tagline" }, box),
     offers,
   );
 
