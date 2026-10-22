@@ -51,6 +51,12 @@ version of the app, goes on every page too).
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
 
+Leave the composer with the phone's Back and what you typed is kept as a **draft**: a row over
+the buttons (its kind's icon, *Draft:* and its first line). Tap it to carry on, or its **✕** to
+discard it (with **Undo**). The buttons (and **New todo**) always start a fresh capture: left by
+Back with something in it, the fresh one takes the older draft's place, and **Undo** in the
+message puts the older one back. There is one kept draft at a time.
+
 ## Share into scrap
 
 From any Android app, **Share**, then **scrap**. Links, text, photos and other files are queued
@@ -66,6 +72,10 @@ the link as the capture's URL.
   closing the app and restarting the phone.
 - The header badge shows what is on the phone: **2 waiting**, **1 failed**. Tap it to retry
   everything now. Waiting items are also listed at the top of the capture and search screens.
+  Offline, the capture screen shows the badge, the waiting rows and one quiet line, *Offline:
+  showing what's on this phone*, in place of the newest pages: no error card, no Retry, no
+  message on Save (the waiting row says it). When the phone is back online the newest pages
+  come back by themselves.
   Opening scrap, coming back to it or coming back online sends what waits at once (another
   tab's upload first, if one is running). A screen still waiting for the server after a moment
   says *Loading…*, and an upload that drops while the phone is online says *connection lost*.
@@ -98,6 +108,13 @@ the link as the capture's URL.
   nothing in the search box it lists every page newest first, with a thumbnail of the first
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. (There is no separate Recent screen any more: the empty box is it.)
+- A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
+  bottom. The top bar has a back arrow in place of the wordmark (**Tags** has it too, with its
+  title). It goes back to where you were in the app, as the phone's Back does; opened from a
+  link or a share, it goes up instead: to the Todos screen for a todo, to Capture for any other
+  page, and to Search from Tags.
+- On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
+  wide.
 - Tap the empty search box for **Recent**: your last ten searches, newest first, filters and
   all (`kind:todo tag:home`). Tap one to run it again, its **✕** to forget it, or **Clear all**.
   A search is kept once it is run: Enter, opening a result, or leaving it a few seconds with
@@ -112,8 +129,8 @@ the link as the capture's URL.
   back to every page, newest first (the keyboard stays down).
 - **Filters** is the slider button at the end of the search box; with filters on, it shows how
   many. Each filter that is on is a chip with a ✕ in a row under the box (*#home*, *past
-  month*, *A–Z*): tap it to take that filter out. So nothing chosen is hidden. Over the list,
-  how many pages were found.
+  month*, *A–Z*): tap it to take that filter out. So nothing chosen is hidden. How many pages
+  were found leads that row (with no filters on, it is a short line over the list).
 - Tap **Filters** to open its panel in place, under the box, and tap it again to fold it (it
   stays as you left it for the next search). Its rows: **Tags** (type in its box for the tags
   in use that match, or with nothing typed tap one of the results' top tags, with their counts:
@@ -132,11 +149,16 @@ the link as the capture's URL.
   tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
   Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
   wasn't opened from a list. A plain tap opens it in place, as before.
+- A row in a list shows a page's kind by its icon (a checklist for a todo, a bookmark for
+  Later); a page says it in a chip at the start of its line under the title, with its status
+  if it has one: *Todo · open*, *Later · done*, *Note*.
 - Todos and Later pages carry a status (open, in progress, done or cancelled). The page's
-  toolbar starts with **Mark done** (the filled button) unless it is done, and **Reopen** if it
-  is done or cancelled (a cancelled one has both), then **Edit**, **Share** and **Delete**. In the list, the capture screen's list and search results, their
+  toolbar starts with **Mark done** (the filled button) while it is open or in progress, or
+  **Reopen** once it is done or cancelled, then **Edit**, **Share** and **Delete**. In the list, the capture screen's list and search results, their
   rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
-  open it again; the row stays where it is and its chip says *done* (or *cancelled*). Ticking
+  open it again; the row stays where it is and gets a *done* chip (an open row has no chip). A
+  cancelled one looks closed: its title struck through and greyed, a dash in its box, a
+  *cancelled* chip; its tick box marks it done. Ticking
   it or changing a kind doesn't move the page up the list.
 - A todo may have a **due date** and a **priority** (high, medium or low). Its page shows them
   in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to pick a date,
@@ -161,12 +183,15 @@ the link as the capture's URL.
 - **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
   tags and pick a **Snooze until** date, or **Tomorrow** or **Next week** (**No snooze** wakes
   it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
-  tab's count (Now's count says how many are snoozed); **All** shows it, marked *snoozed till 3
-  Nov*, and `is:snoozed` finds them. On its day it comes back by itself.
+  tab's count (Now's count says how many are snoozed: tap *1 snoozed* for a search of them,
+  `kind:todo is:snoozed sort:due`); **All** shows it, marked *snoozed till 3 Nov*, and
+  `is:snoozed` finds them (open ones only: a done or cancelled todo's snooze no longer hides
+  anything). On its day it comes back by itself.
 - The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or
   cancelled, what to do first at the top, in groups: **Overdue** (oldest due date first),
-  **Today**, **High priority** (no due date), then **Later** (by priority, then due date, then
-  last edited). Each row starts with its priority and due date. Done and cancelled todos are
+  **Today**, **High priority** (no due date), then **Open** (the rest, by priority, then due
+  date, then last edited). Each row is two lines on every list: its title, then its priority and
+  due date (no edit date). Done and cancelled todos are
   folded away at the end (**Done**, tap to open; those among the 500 todos last edited). A
   switch at the top, an icon over each word like the search screen's kinds (**Now** a clock),
   picks the list instead: **Upcoming** (a calendar: due from tomorrow to a week away, soonest
@@ -177,11 +202,11 @@ the link as the capture's URL.
   Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
   To search todos, use **Todos** in the search screen's kind row (`kind:todo`), where `due:`,
   `priority:` and `sort:due` still search and order them.
-- **New todo**, at the bottom left of the Todos screen, opens the composer on **Todo**; save,
-  and you are back on the list with the new todo in it once it has uploaded.
+- **New todo**, the **+** at the right of the top bar on the Todos screen, opens the composer
+  on **Todo**; save, and you are back on the list with the new todo in it once it has uploaded.
 - Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the pager
   says *3 of 9 · Todos · Now*) with **Undo** for a few seconds; on the last one it stays, and
-  offers **Back to list**. Tap *3 of 9 · Todos · Now* to go back to the list at any time.
+  offers **Back to list**. The top bar's back arrow goes back to the list at any time.
   Opened from anywhere else, Mark done stays on the page.
 - Swipe a row of the list, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
@@ -189,13 +214,17 @@ the link as the capture's URL.
   of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
   it slides back. The page itself has the same Edit and Delete.
 - A photo capture's photos are part of its page's text, one line each (`![](/api/blobs/...)`),
-  in the order taken: edit the text to move or remove them. Claude reading a photo never
+  in the order taken: edit the text to move or remove them. **Edit** shows each of the page's
+  own photos and files as a short token instead, `⟦image 1⟧` or `⟦file 2: scan.pdf⟧`, with a
+  chip for it under the text box (a thumbnail and its name): tap a chip to select its token (to
+  cut and paste it elsewhere), or its **✕** to take it out. Saving puts back the Markdown each
+  token stands for, exactly as it was; a token you delete or change is no photo any more. Claude reading a photo never
   changes the text. The page shows each photo where its line is, as a preview the server makes
   (so iPhone HEIC photos show too), with its file name, a **Download** of the original and
   **Ask Claude**, which sends that photo to Claude; once sent, the photo shows Claude's
   progress (waiting, reading, paused) and then what it read, described and drew. Below the text
   are the files it doesn't show, such as PDFs, as links with a **Download**.
-- Deleting a photo's line removes the photo from the page. **Save** warns first, naming each
+- Deleting a photo's line (its token, in the editor) removes the photo from the page. **Save** warns first, naming each
   photo whose line went: *no longer shown on any page*, or *still shown on N other pages*. This
   doesn't delete the stored file. **Cancel** goes back to the editor with your text as it was (undo brings the
   line back); **OK** saves. The file and what Claude made of it are kept while anything still
@@ -214,7 +243,8 @@ the link as the capture's URL.
   the Markdown and its files when it has any (its photos are in the zip and its text points at
   them there). Tap **Share** again, or anywhere else, to close the choice. Where the browser
   can't share, there is no Share and **Download** is in the toolbar in its place.
-- Page text is shown as Markdown, as GitHub writes it: headings, **bold**, *italic*,
+- Page text is shown as Markdown, as GitHub writes it: headings (each level a size smaller,
+  all under the page's title), **bold**, *italic*,
   ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
   `https://` addresses (a `www.` address without `https://` stays plain text), tables
   (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes: tap one on the
@@ -228,23 +258,30 @@ the link as the capture's URL.
   `#a-heading` scrolls to that heading. HTML is shown as typed, never run; images show only
   when they are this server's own photos; links open only to the web (`https`, `http`,
   `mailto`) or to pages here. A line break stays a line break. A wide table scrolls sideways in
-  its own box. The text is always stored as typed, and **Edit** shows it so.
+  its own box. On a Later page, a link on a line of its own shows as a card: the site, the
+  path in words, and **Open**. The text is always stored as typed, and **Edit** shows it so
+  (but for the photo tokens, above).
 - A page opened from the list or a search shows where it is in that list (*3 of 23 ·
   Recent*): swipe left for the next one and right for the previous one, or use the ‹ › beside
   it (or the arrow keys). The page follows your finger and slides away to the next one; a short
-  drag settles back, and at the first or last it only gives a little and says so. Back returns to the list. Swipes start
+  drag settles back, and at the first or last it only gives a little and says so. Back (the
+  top bar's arrow or the phone's) returns to the list. Swipes start
   away from the screen's edges (the phone's own Back gesture lives there) and are ignored on
   text that scrolls sideways, while zoomed in or while selecting text.
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
   tags and a todo's due date are folded into a line each under the title, as in the composer.
 - Writing lists in the composer or editor: Enter on a bullet (`- `), numbered (`1. `) or task
-  (`- [ ] `) line starts the next item, and Enter on an empty item ends the list. **Checkbox**,
-  just above the keyboard, makes the line (or the lines selected) a task, or plain items
-  again if they all are. On a page, a task list sits as tight as a bulleted one.
+  (`- [ ] `) line starts the next item, and Enter on an empty item ends the list. Just above
+  the keyboard, five keys act on the line (or the lines selected): **Task** makes it a task,
+  **Bullet** a bullet and **Number** a numbered item (1, 2, 3 in order), each a plain line again
+  if they all are already; **Indent** nests it under the item above and **Outdent** moves it
+  back out, renumbering numbered items. In a code block only Indent and Outdent work (two
+  spaces). On a page, a task list sits as tight as a bulleted one.
 - Nothing typed is lost (tags too): the composer and **Edit** keep a draft on the phone as you type
-  (photos too), so after the phone's Back button, a reload or a closed app, opening them again
-  brings it back (**Discard it** drops it); a page with a kept edit shows **Edit draft**. Back closes the editor, not the app. **Cancel** asks
+  (photos too), so after the phone's Back button, a reload or a closed app, it comes back: the
+  composer's as the draft row on the capture screen (above), an edit as **Edit draft** on its
+  page (**Discard it** drops either). Back closes the editor, not the app. **Cancel** asks
   before discarding changes. If the page was changed elsewhere since you opened it, the
   other version is shown under yours: merge what you want into your text and save again (this
   overwrites theirs), or discard yours.
@@ -260,7 +297,8 @@ With Claude ingest on (see [](../explanations/ingest.md)), each photo on a page 
 - Its state: *Waiting for Claude* (or *Claude ingest is off*), *Claude is reading it*, *Read by
   Claude*, *Failed* with the reason and **Retry**, or *Paused* with the reason and **Resume**
   (nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
-  **Reprocess** sends it to Claude again; if you have edited its drawing, it asks first:
+  **Reprocess**, a quiet text button at the end of the *Read by Claude* line, sends it to
+  Claude again; if you have edited its drawing, it asks first:
   **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
 - **Description** and **Text Claude read**, open; tap a heading (its arrow) to fold it away,
   and the phone remembers that for the next page. The text can be selected and copied.
@@ -295,12 +333,13 @@ Tap the drawing to open it full screen:
   search screen. Its fonts are served by scrap itself, never
   from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
 - **Search** searches titles, tags, summaries and text as you type (each word as the start of a
-  word: `vsc` finds `vscode`); a title or tag match ranks first. Above the results, how many pages were found and the filters on; the row
+  word: `vsc` finds `vscode`); a title or tag match ranks first. Each result shows a snippet of
+  the matching text, unless it only says the title again. Above the results, how many pages were found and the filters on; the row
   of kinds and the Filters panel narrow it (its tags with a count each). The chips only write
   the query,
   which you can also type: `-word` or `!word` (without it), `"a phrase"`, `kind:todo` (or
   `kind:later`, also `kind:read`, `kind:board`...), `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics`
-  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `is:snoozed` (todos snoozed till later), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
+  too), `is:personal`, `is:work` (a page not marked personal), `is:claude` (pages Claude wrote over MCP, which show a *Written by Claude* badge), `is:snoozed` (open todos snoozed till later), `has:image` (pages with a photo), `image:photo` or `image:whiteboard` (what Claude took the photo for), `is:done` (any status), a todo's `due:today`, `due:<today` (overdue), `due:>today`,
   `due:2026-11-01` (also `<=`, `>=`), `due:none`, `priority:high` (`medium`, `low`, `none`), `after:1w` or
   `before:2026-03-01` (last edited; dates are UTC days, both ends included; add `date:created`
   for when it was made), `sort:title` (A to Z; also `sort:created`, newest first,
@@ -357,6 +396,10 @@ these limits:
   `POST /api/captures` (see [](../reference/api.md)) can stand in.
 - iOS may evict a home-screen app's storage after weeks of non-use, which would drop anything
   still queued; open it once a connection is back.
+- The app follows the iPhone's text size (**Text Size** in Settings, and **Larger Text** in
+  Accessibility), keeping its own font and line spacing, and never goes below its
+  usual 17 px. At the largest sizes the kind rows wrap rather than clip and the nav grows with
+  its labels; a page's toolbar may wrap **Delete** onto a second row.
 
 ## Build it (developers)
 
