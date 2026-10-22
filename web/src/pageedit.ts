@@ -136,7 +136,8 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     text,
     read: body,
     before: [kind.el, title, tagLine.el, todoLine.el],
-    after: [embeds.chips, conflict],
+    after: [conflict],
+    foot: embeds.chips,
     key,
     draft: (): Draft => ({
       title: title.value,
