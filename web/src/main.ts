@@ -1,7 +1,7 @@
 // The app shell: a tiny router, the queue badge in the header and service worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
-import { back, view as current, go, markNav, plain, queue } from "./app";
+import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
@@ -104,22 +104,7 @@ document.addEventListener("click", (e) => {
   }
   go(a.pathname + a.search, false, trailOf(a)); // from a list: swipe on through it
 });
-window.addEventListener("popstate", (e) => {
-  if (!e.isTrusted) return void render(); // go() and rerender(): this entry, drawn
-  back.landed();
-  const take = back.take; // Back closes the sheet open, rather than leaving the screen
-  back.take = null;
-  if (take) take();
-  else if (history.state?.sheet) {
-    back.take = render; // a closed sheet's entry (Forward, say): stepped over
-    back.pop();
-  } else void render();
-});
-// A sheet's entry from before a reload (or the phone discarding the app) is a plain one now:
-// stepping over it could leave this document, with no popstate to end the step
-if (history.state?.sheet) history.replaceState(null, "");
-// Back from bfcache after such a step: it never landed here
-window.addEventListener("pageshow", (e) => e.persisted && back.landed());
+window.addEventListener("popstate", () => void render());
 
 // Header badge: what is waiting to upload; tap to retry now.
 const badge = document.getElementById("queue") as HTMLButtonElement;
