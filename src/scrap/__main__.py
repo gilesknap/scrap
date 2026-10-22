@@ -92,7 +92,8 @@ def main(args: Sequence[str] | None = None) -> None:
     once = subparsers.add_parser(
         "ingest-once",
         help="Send one image to Claude as ingest would (no database) and print the"
-        " outcome in numbers; needs ANTHROPIC_API_KEY",
+        " outcome in numbers; needs ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN"
+        " with SCRAP_LLM_BACKEND=cli",
     )
     once.add_argument("image", type=Path)
     once.add_argument(
