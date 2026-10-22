@@ -101,6 +101,8 @@ class PageEdit(BaseModel):
         Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
     ) = None
     tags: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None  # all of them
+    # The tags the editor started from: Claude's added since are kept, not retired
+    tags_shown: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None
     # A todo's (null clears one): sent or not tells apart, see todo()
     due: Annotated[str, Field(max_length=10)] | None = None  # YYYY-MM-DD
     priority: Annotated[str, Field(max_length=10)] | None = None  # high, medium, low
@@ -328,7 +330,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         who = author(request)
         return store.update_page(
             key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
-            edit.tags, edit.todo(),
+            edit.tags, edit.todo(), tags_shown=edit.tags_shown,
         )  # fmt: skip
 
     @app.delete("/api/pages/{key}", status_code=204)

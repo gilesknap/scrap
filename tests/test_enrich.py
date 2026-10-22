@@ -295,6 +295,24 @@ def test_the_user_wins_on_tags(store):
     assert store.page(ref["page_id"])["model_tags"] == []
 
 
+def test_a_stale_tag_editor_keeps_a_tag_claude_added_meanwhile(store):
+    ref = capture(store, "a note about sheds", tags=["mine"])
+    shown = store.page(ref["page_id"])["tags"]  # the editor opens: ["mine"]
+    run_all(worker(store, Fake(answer(["shed"]))))  # Claude adds shed meanwhile
+    store.update_page(ref["page_id"], None, None, None, "me", tags=["mine", "wood"],
+                      tags_shown=shown)  # fmt: skip
+    page = store.page(ref["page_id"])
+    assert page["tags"] == ["mine", "shed", "wood"] and page["model_tags"] == ["shed"]
+    # an editor that showed shed and saved without it takes it off for good
+    shown = page["tags"]
+    store.update_page(ref["page_id"], None, None, None, "me", tags=["mine", "wood"],
+                      tags_shown=shown)  # fmt: skip
+    enrich.ask(store, ref["page_id"])
+    run_all(worker(store, Fake(answer(["shed"]))))
+    page = store.page(ref["page_id"])
+    assert page["tags"] == ["mine", "wood"] and page["model_tags"] == []
+
+
 def test_a_save_reads_again_but_adds_no_tags(store):
     ref = capture(store, "a note")
     run_all(worker(store, Fake(answer(["one"]))))

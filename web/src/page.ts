@@ -274,7 +274,8 @@ export async function page(key: string): Promise<Node> {
           api<Page>(`pages/${p.id}`, {
             method: "PATCH",
             headers: JSON_TYPE,
-            body: JSON.stringify({ tags: field.value() }),
+            // What it was shown: a tag Claude adds meanwhile is kept, not taken off
+            body: JSON.stringify({ tags: field.value(), tags_shown: p.tags }),
           }).then(close, (err) => {
             save.disabled = false;
             toast(`Not saved: ${why(err)}`);

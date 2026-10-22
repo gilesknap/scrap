@@ -1147,15 +1147,19 @@ class Store:
         tags: list[str] | None = None,
         todo: dict[str, str | None] | None = None,
         source: str = "web",
+        tags_shown: list[str] | None = None,
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
         and/or its kind (the user's choice, which ingest then keeps), fields and tags
         (all of them: these replace the page's); and/or a todo's due date and priority
         (those given; None clears one). A change of kind or tags is a metadata
-        revision (page_meta_rev) by author from source."""
+        revision (page_meta_rev) by author from source. tags_shown, if given, are the
+        tags the editor started from: a tag Claude added since (not among them) is
+        kept, not retired."""
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
         tags = None if tags is None else clean_tags(tags)
+        shown = None if tags_shown is None else clean_tags(tags_shown)
         todo = {k: check_todo(k, v) for k, v in (todo or {}).items() if k in TODO}
         with self.connect() as conn, transaction(conn):
             page = self._page_row(conn, key)
@@ -1165,6 +1169,9 @@ class Store:
             if todo:  # as status: not a revision, nor a change to updated_at
                 self._set_todo(conn, page["id"], kind or page["kind"], todo)
             if tags is not None:  # not a revision, nor a change to updated_at
+                if shown is not None:  # Claude's tags added after the editor opened
+                    tags += self._model_tags_since(conn, page["id"], shown + tags)
+                    tags = tags[:MAX_TAGS]
                 conn.execute("DELETE FROM tag WHERE page_id = ?", (page["id"],))
                 conn.executemany(
                     "INSERT INTO tag VALUES (?, ?)", [(page["id"], t) for t in tags]
@@ -1223,6 +1230,18 @@ class Store:
                 if enrich_on():  # read again once the edits stop
                     queue_enrich(conn, page["id"], "save", debounce())
             return self.page_in(conn, page["id"])
+
+    def _model_tags_since(
+        self, conn: sqlite3.Connection, page_id: str, known: list[str]
+    ) -> list[str]:
+        """The page's tags from Claude, 'on', that are not in known: added while a tag
+        editor that did not show them was open (so the user has not taken them off)."""
+        return [r[0] for r in conn.execute(
+            "SELECT m.tag FROM model_tag m JOIN tag t USING (page_id, tag)"
+            " WHERE m.page_id = ? AND m.state = 'on'"
+            " AND m.tag NOT IN (SELECT value FROM json_each(?)) ORDER BY t.rowid",
+            (page_id, json.dumps(known)),
+        )]  # fmt: skip
 
     def _model_tags(
         self, conn: sqlite3.Connection, page_id: str, tags: list[str]
