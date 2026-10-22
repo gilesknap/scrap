@@ -170,7 +170,8 @@ there today is cut off, and prints a note. To move to the socket:
 2. As an admin, point the existing Serve entry at the socket (the same `--https` port, so the
    address, `SCRAP_PUBLIC_URL` and installed PWAs stay the same):
    `sudo tailscale serve --bg --https=8446 unix:/run/user/<uid>/scrap/scrap.sock`
-3. `./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446`
+3. As the `scrap` user again (`smoke.sh` reads the caller's `~/.config/scrap/env`):
+   `./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446`
 
 Between steps 1 and 2 scrap is unreachable from the tailnet; the PWA keeps captures in its
 offline queue and sends them once it is back.
@@ -274,7 +275,9 @@ systemctl --user list-timers
 ```
 
 `smoke.sh` calls `/healthz` on the socket (or the local port) and should print
-`{"status":"ok",...}`. Logs:
+`{"status":"ok",...}`. Run it as the `scrap` user, in that user's login session: it reads the
+caller's `~/.config/scrap/env`, so run by anyone else it falls back to TCP port 8790 and fails on
+a socket install. Logs:
 `journalctl --user -u scrap`. `list-timers` should show `scrap-backup.timer`,
 `scrap-gc.timer` and `scrap-enrich-related.timer`; one that is missing was skipped because the
 image lacks its command (see {ref}`scrap-install-script`).
