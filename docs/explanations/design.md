@@ -81,7 +81,8 @@ CREATE TABLE page (
 CREATE INDEX page_by_kind ON page(kind);
 CREATE INDEX page_by_due ON page(due) WHERE due IS NOT NULL;
 
--- Rev 1 is written at creation; every title or body change adds one. Tags are not revisioned.
+-- Rev 1 is written at creation; every title or body change adds one. Kinds and tags have
+-- revisions of their own, page_meta_rev (migration 8, see ADR 19).
 CREATE TABLE page_rev (
     page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
     rev         INTEGER NOT NULL,
@@ -390,12 +391,15 @@ session has. Tools and limits: [](../reference/mcp.md).
   search box's syntax. Results carry each page's PWA URL (`$SCRAP_PUBLIC_URL/p/<slug>`) and its
   images as URLs, so Claude links there instead of trying to show them. Page text is returned in
   JSON fields, as data.
+- `edit_meta` and `rename_tag` change the kind and tags of any page, `revert` undoes such a change:
+  metadata only, made safe by revisions ([](decisions/0019-kinds-and-tags-editable-with-revisions.md)).
+  No tool deletes a page or changes the text of one the user made.
 - `write` only adds: a new page, or a section appended to a page written over MCP. Provenance is
   the capture's source `mcp` (which clients of the HTTP API cannot send), author `claude`, and a
   free-text `fields.origin`; no migration was needed. The PWA shows a badge; `is:claude` filters.
   A client key is hashed into the capture id, the store's existing retry key.
 - Deferred: `ingest` (a URL or text as a capture), a `context` tool for a photo's stored model
-  run, deleting, setting a kind and ticking a todo (PWA actions).
+  run, deleting and ticking a todo (PWA actions).
 
 ## Security posture
 

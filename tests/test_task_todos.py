@@ -156,7 +156,7 @@ def test_migration_7_upgrades_a_version_6_scrap(tmp_path, monkeypatch):
     monkeypatch.setattr(store_module, "migrations", lambda: every)
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(every)
         rows = conn.execute(
             "SELECT id, task_done, task_total, kind FROM page ORDER BY id"
         )

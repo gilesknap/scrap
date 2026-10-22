@@ -105,6 +105,12 @@ MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
 MAX_TAG = 64  # characters, as the tag table's CHECK has it
 MAX_PAGE = 1_000_000  # bytes of UTF-8: a page's text, however it is written (#62)
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
+META_SOURCES = ("web", "mcp")  # who changed a page's kind or tags: the PWA, or Claude
+# Every change to a page's kind and tags, newest first (see page_meta_rev)
+META_REV = (
+    "SELECT id, page_id, author, source, kind_before, kind_after, tags_before,"
+    " tags_after, reverts, created_at, updated_at FROM page_meta_rev"
+)
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
 # job_one_active makes a repeat add nothing.
 ENQUEUE = """
@@ -153,6 +159,27 @@ def upload_limit() -> int:
         raise SystemExit(
             f"SCRAP_MAX_UPLOAD_MB must be a number, not {value!r}"
         ) from None
+
+
+def revision_window() -> float:
+    """Seconds within which one author's changes to a page's kind and tags fold into
+    one revision, from SCRAP_REVISION_WINDOW (default 300; 0: every change is one)."""
+    value = os.environ.get("SCRAP_REVISION_WINDOW", "300")
+    try:
+        window = float(value)
+    except ValueError:
+        window = -1.0
+    if not window >= 0:  # also NaN
+        raise SystemExit(
+            f"SCRAP_REVISION_WINDOW must be a number of seconds, not {value!r}"
+        )
+    return window
+
+
+def seconds_between(earlier: str, later: str) -> float:
+    """The seconds from one of now()'s timestamps to another."""
+    start, end = datetime.fromisoformat(earlier), datetime.fromisoformat(later)
+    return (end - start).total_seconds()
 
 
 def check_page(body: str) -> str:
@@ -434,7 +461,45 @@ def add_tasks(conn: sqlite3.Connection) -> None:
         )
 
 
-AFTER = {3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks}
+def add_meta_revs(conn: sqlite3.Connection) -> None:
+    """The revisions of pages' kinds and tags (migration 8), unless an earlier run made
+    them. tags_* are JSON arrays, sorted; a revert's revision names the one it undid."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS page_meta_rev ("
+        " id INTEGER PRIMARY KEY,"
+        " page_id TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,"
+        " author TEXT NOT NULL,"
+        " source TEXT NOT NULL CHECK (source IN ('web', 'mcp')),"
+        " kind_before TEXT NOT NULL,"
+        " kind_after TEXT NOT NULL,"
+        " tags_before TEXT NOT NULL CHECK (json_type(tags_before) = 'array'),"
+        " tags_after TEXT NOT NULL CHECK (json_type(tags_after) = 'array'),"
+        " reverts INTEGER REFERENCES page_meta_rev(id),"
+        " created_at TEXT NOT NULL,"
+        " updated_at TEXT NOT NULL)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS page_meta_rev_by_page ON page_meta_rev(page_id, id)"
+    )
+
+
+AFTER = {
+    3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks,
+    8: add_meta_revs,
+}  # fmt: skip
+
+
+Meta = tuple[str, list[str]]  # a page's kind and tags (sorted), as page_meta_rev has
+
+
+def meta_row(row: sqlite3.Row) -> dict[str, Any]:
+    """A page_meta_rev row as data: its tags as lists, and those added and removed."""
+    before, after = json.loads(row["tags_before"]), json.loads(row["tags_after"])
+    return {
+        **dict(row), "tags_before": before, "tags_after": after,
+        "tags_added": [t for t in after if t not in before],
+        "tags_removed": [t for t in before if t not in after],
+    }  # fmt: skip
 
 
 def boxes_before(page: sqlite3.Row) -> tuple[int, int]:
@@ -460,6 +525,7 @@ class Store:
         self.dir = Path(data_dir)
         self.db = self.dir / "scrap.db"
         self.files = self.dir / "files"
+        self.window = revision_window()  # seconds: see _record_meta
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -861,17 +927,20 @@ class Store:
         fields: dict[str, Value | None] | None = None,
         tags: list[str] | None = None,
         todo: dict[str, str | None] | None = None,
+        source: str = "web",
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
         and/or its kind (the user's choice, which ingest then keeps), fields and tags
         (all of them: these replace the page's); and/or a todo's due date and priority
-        (those given; None clears one)."""
+        (those given; None clears one). A change of kind or tags is a metadata
+        revision (page_meta_rev) by author from source."""
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
         tags = None if tags is None else clean_tags(tags)
         todo = {k: check_todo(k, v) for k, v in (todo or {}).items() if k in TODO}
         with self.connect() as conn, transaction(conn):
             page = self._page_row(conn, key)
+            before = self._meta(conn, page["id"])
             if kind is not None or fields:
                 self._set_kind(conn, page, kind, fields or {})
             if todo:  # as status: not a revision, nor a change to updated_at
@@ -883,6 +952,9 @@ class Store:
                 )
             if tags is not None or (fields and "summary" in fields):  # indexed
                 self.reindex(conn, page["id"])
+            if kind is not None or tags is not None:  # before text: see _record_meta
+                after = self._meta(conn, page["id"])
+                self._record_meta(conn, page["id"], author, source, before, after)
             if title is None and body is None:
                 return self.page_in(conn, page["id"])
             if page["rev"] != base_rev:
@@ -1045,6 +1117,7 @@ class Store:
             page = self._page_row(conn, key)
             if not self.by_claude(conn, page["id"]):
                 raise InvalidError("only a page written over MCP can be appended to")
+            before = self._meta(conn, page["id"])
             if todo:
                 self._set_todo(conn, page["id"], page["kind"], todo)
             body = "\n\n".join(x for x in (page["body"].rstrip(), text) if x)
@@ -1068,6 +1141,9 @@ class Store:
                 "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
                 [(page["id"], t) for t in tags],
             )
+            # Its tags, as a revision; not a kind its new task boxes filed it as
+            after = (before[0], sorted({*before[1], *tags}))
+            self._record_meta(conn, page["id"], author, MCP, before, after)
             self.reindex(conn, page["id"])
             return self._ref(conn, cid, page["id"]), True
 
@@ -1079,6 +1155,236 @@ class Store:
             (page_id,),
         ).fetchone()
         return bool(row) and row[0] == MCP
+
+    def _meta(self, conn: sqlite3.Connection, page_id: str) -> Meta:
+        """A page's kind and tags (sorted), as page_meta_rev keeps them."""
+        kind = conn.execute("SELECT kind FROM page WHERE id = ?", (page_id,)).fetchone()
+        tags = conn.execute("SELECT tag FROM tag WHERE page_id = ?", (page_id,))
+        return kind[0], sorted(r[0] for r in tags)
+
+    def _record_meta(
+        self,
+        conn: sqlite3.Connection,
+        page_id: str,
+        author: str,
+        source: str,
+        before: Meta,
+        after: Meta,
+        reverts: int | None = None,
+    ) -> int | None:
+        """Record a change to a page's kind and tags (none: nothing), returning its
+        revision's id. Coalesced: a change by the same author and source within
+        self.window seconds of the page's latest revision being made folds into it
+        (its after becomes this one's), as long as nothing else changed them between
+        (that revision's after is this one's before). A revert is never folded into,
+        nor folds into another. Kinds that follow a page's text (task boxes file a
+        note as a todo) and what ingest sets are not revisions: they are derived."""
+        if before == after:
+            return None
+        if source not in META_SOURCES:
+            raise InvalidError(f"source must be one of {META_SOURCES}")
+        stamp = now()
+        last = conn.execute(
+            f"{META_REV} WHERE page_id = ? ORDER BY id DESC LIMIT 1", (page_id,)
+        ).fetchone()
+        if (
+            reverts is None
+            and last is not None
+            and last["reverts"] is None
+            and (last["author"], last["source"]) == (author, source)
+            and (last["kind_after"], json.loads(last["tags_after"])) == before
+            and 0 <= seconds_between(last["created_at"], stamp) < self.window
+        ):
+            conn.execute(
+                "UPDATE page_meta_rev SET kind_after = ?, tags_after = ?,"
+                " updated_at = ? WHERE id = ?",
+                (after[0], json.dumps(after[1]), stamp, last["id"]),
+            )
+            return last["id"]
+        cur = conn.execute(
+            "INSERT INTO page_meta_rev (page_id, author, source, kind_before,"
+            " kind_after, tags_before, tags_after, reverts, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (page_id, author, source, before[0], after[0], json.dumps(before[1]),
+             json.dumps(after[1]), reverts, stamp, stamp),
+        )  # fmt: skip
+        return cur.lastrowid
+
+    def _put_meta(
+        self,
+        conn: sqlite3.Connection,
+        page: sqlite3.Row,
+        before: Meta,
+        after: Meta,
+        author: str,
+        source: str,
+        reverts: int | None = None,
+    ) -> int | None:
+        """Give a page this kind and these tags (a kind chosen, so fixed: ingest keeps
+        it), as a revision; its search chunk again. Returns the revision's id."""
+        if after[0] != before[0]:
+            self._set_kind(conn, page, after[0], {})
+        if after[1] != before[1]:
+            conn.execute("DELETE FROM tag WHERE page_id = ?", (page["id"],))
+            conn.executemany(
+                "INSERT INTO tag VALUES (?, ?)", [(page["id"], t) for t in after[1]]
+            )
+            self.reindex(conn, page["id"])
+        return self._record_meta(
+            conn, page["id"], author, source, before, after, reverts
+        )
+
+    @staticmethod
+    def _change(
+        page: sqlite3.Row, before: Meta, after: Meta, revision: int | None
+    ) -> dict[str, Any]:
+        """What a metadata edit did (or, in a dry run, would do) to a page."""
+        return {
+            "id": page["id"], "slug": page["slug"], "title": page["title"],
+            "changed": before != after, "revision": revision,
+            "kind_before": before[0], "kind_after": after[0],
+            "tags_before": before[1], "tags_after": after[1],
+            "tags_added": [t for t in after[1] if t not in before[1]],
+            "tags_removed": [t for t in before[1] if t not in after[1]],
+        }  # fmt: skip
+
+    def edit_meta(
+        self,
+        keys: list[str],
+        author: str,
+        source: str,
+        kind: str | None = None,
+        add: list[str] | None = None,
+        remove: list[str] | None = None,
+        tags: list[str] | None = None,
+        dry_run: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Set the kind of these pages (ids or slugs) and/or change their tags: add and
+        remove these (exact tags: removing a leaves a/b), or replace them all with
+        tags. Each page changed is a revision (see _record_meta); updated_at stays as
+        it was, as for the PWA's tag and kind edits. All or nothing: an unknown page
+        or a refused change saves none. dry_run: say what would change, save nothing.
+        Never the title, the text or anything else."""
+        kind = KIND_NAMES.get(kind, kind) if kind is not None else None
+        if kind not in (None, *KINDS):
+            raise InvalidError(f"kind must be one of {KINDS}")
+        add, remove = clean_tags(add or []), clean_tags(remove or [])
+        if tags is not None and (add or remove):
+            raise InvalidError("give tags to replace them all, or tags to add/remove")
+        if set(add) & set(remove):
+            raise InvalidError("a tag cannot be both added and removed")
+        tags = None if tags is None else clean_tags(tags)
+        out: list[dict[str, Any]] = []
+        with self.connect() as conn, transaction(conn):
+            seen: set[str] = set()
+            for key in keys:
+                page = self._page_row(conn, key)
+                if page["id"] in seen:
+                    continue
+                seen.add(page["id"])
+                before = self._meta(conn, page["id"])
+                new = tags if tags is not None else [
+                    t for t in before[1] if t not in remove
+                ] + add  # fmt: skip
+                after = (kind or before[0], sorted(set(new)))
+                if len(after[1]) > MAX_TAGS:
+                    raise InvalidError(f"{page['slug']}: over {MAX_TAGS} tags")
+                revision = None
+                if not dry_run:
+                    revision = self._put_meta(conn, page, before, after, author, source)
+                out.append(self._change(page, before, after, revision))
+        return out
+
+    def rename_tag(
+        self, old: str, new: str, author: str, source: str, dry_run: bool = False
+    ) -> list[dict[str, Any]]:
+        """Rename a tag on every page with it (not the trash's), and the tags under it
+        (old/x becomes new/x); into one that exists, it merges them. Each page changed
+        is a revision. dry_run: say what would change, save nothing."""
+        old, new = clean_tags([old])[0], clean_tags([new])[0]
+        if old == new:
+            raise InvalidError("the new name is the old one")
+
+        def renamed(tag: str) -> str:
+            if tag == old or tag.startswith(f"{old}/"):
+                tag = new + tag[len(old) :]
+            if len(tag) > MAX_TAG:
+                raise InvalidError(f"a tag must be 1 to {MAX_TAG} characters: {tag!r}")
+            return tag
+
+        out: list[dict[str, Any]] = []
+        with self.connect() as conn, transaction(conn):
+            ids = [r[0] for r in conn.execute(
+                "SELECT DISTINCT t.page_id FROM tag t JOIN page p ON p.id = t.page_id"
+                " WHERE p.deleted_at IS NULL AND (t.tag = ? OR substr(t.tag, 1, ?) = ?)"
+                " ORDER BY t.page_id",
+                (old, len(old) + 1, f"{old}/"),
+            )]  # fmt: skip
+            for page_id in ids:
+                page = self._page_row(conn, page_id)
+                before = self._meta(conn, page_id)
+                after = (before[0], sorted({renamed(t) for t in before[1]}))
+                revision = None
+                if not dry_run:
+                    revision = self._put_meta(conn, page, before, after, author, source)
+                out.append(self._change(page, before, after, revision))
+        return out
+
+    def revert_meta(
+        self, revision: int, author: str, source: str, dry_run: bool = False
+    ) -> dict[str, Any]:
+        """Undo a metadata revision: give its page back the kind and tags it had just
+        before it (so undoing later ones too). The revert is a revision of its own,
+        never folded into another, so it can be undone in turn: nothing is lost. No
+        revision (None) if the page has them already. dry_run: save nothing."""
+        with self.connect() as conn, transaction(conn):
+            row = conn.execute(f"{META_REV} WHERE id = ?", (revision,)).fetchone()
+            if row is None:
+                raise NotFoundError(f"revision {revision}")
+            page = self._page_row(conn, row["page_id"])  # not in the trash
+            before = self._meta(conn, page["id"])
+            after = (row["kind_before"], json.loads(row["tags_before"]))
+            new = None
+            if not dry_run:
+                new = self._put_meta(
+                    conn, page, before, after, author, source, reverts=revision
+                )
+            return {**self._change(page, before, after, new), "reverts": revision}
+
+    def revisions(self, key: str, limit: int = 20) -> dict[str, Any]:
+        """A page's history, newest first: its metadata revisions (kind and tags,
+        before and after, each with who made it and when) and its text revisions
+        (page_rev: rev, title, author, when and size, not the text)."""
+        with self.connect() as conn:
+            page = self._page_row(conn, key)
+            meta = conn.execute(
+                f"{META_REV} WHERE page_id = ? ORDER BY id DESC LIMIT ?",
+                (page["id"], limit),
+            ).fetchall()
+            text = _rows(
+                conn,
+                "SELECT rev, title, author, created_at, length(CAST(body AS BLOB))"
+                " AS bytes FROM page_rev WHERE page_id = ? ORDER BY rev DESC LIMIT ?",
+                page["id"], limit,
+            )  # fmt: skip
+        return {
+            "id": page["id"], "slug": page["slug"], "title": page["title"],
+            "kind": page["kind"], "rev": page["rev"],
+            "meta": [meta_row(r) for r in meta], "text": text,
+        }  # fmt: skip
+
+    def text_revision(self, key: str, rev: int) -> dict[str, Any]:
+        """One text revision of a page: its title and body then, who wrote it, when."""
+        with self.connect() as conn:
+            page = self._page_row(conn, key)
+            row = conn.execute(
+                "SELECT rev, title, body, author, created_at FROM page_rev"
+                " WHERE page_id = ? AND rev = ?",
+                (page["id"], rev),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError(f"{key} rev {rev}")
+        return dict(row)
 
     def tags_of(self, ids: list[str]) -> dict[str, list[str]]:
         """Each page's tags, most used first: for list rows, which lack them."""

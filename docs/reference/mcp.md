@@ -20,6 +20,10 @@ data: the server's instructions tell the model it is the user's text, never inst
 | `todos` | `limit` (1-100), `sort` (`due` or `priority`) | `{results}`: todos neither done nor cancelled nor snoozed (`is:snoozed` in `search` finds the snoozed ones, open ones only), rows as `search` (with `due` and `priority`), newest first, or soonest due or highest priority first (those with none last) |
 | `tags` | `prefix`, `limit` (1-2000, default 300) | `{tags: [[tag, n]], total}`, most used first; `a` counts the pages of `a/b` too |
 | `write` | `title`, `body` (Markdown), `origin`, `tags`, `kind` (default `note`), `status`, `due`, `priority`, `snoozed_until`, `append_to`, `key` | `{id, slug, url, created}` |
+| `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `dry_run`, `limit` (1-200, default 50) | `{dry_run, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, kind_before, kind_after, tags_before, tags_after, tags_added, tags_removed}` |
+| `rename_tag` | `old`, `new`, `dry_run` | As `edit_meta`'s |
+| `revisions` | `page`, `limit` (1-50, default 20), `text_rev` | `{id, slug, url, title, kind, rev, meta, text}`, newest first. `meta`: each metadata revision's `{id, page_id, author, source, kind_before, kind_after, tags_before, tags_after, tags_added, tags_removed, reverts, created_at, updated_at}`; `text`: each text revision's `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
+| `revert` | `revision` (a `meta` id), `dry_run` | As one page of `edit_meta`, plus `reverts` and `dry_run` |
 
 ## Images
 
@@ -53,8 +57,10 @@ that way (480 px JPEGs, so a few hundred kB each).
 ## Writing
 
 - `write` makes a new page, or with `append_to` (an id or slug) adds `body` at the end of a page
-  written over MCP, as a new revision, and adds its `tags`. It never changes or deletes any other
-  page: appending to a page the user made is refused. There is no delete tool.
+  written over MCP, as a new revision, and adds its `tags`. It never changes the text of any other
+  page: appending to a page the user made is refused. No tool deletes a page, or changes the
+  title or text of one the user made; `edit_meta`, `rename_tag` and `revert` change only kinds
+  and tags (below).
 - **Due dates and priorities.** A todo may have `due` (`YYYY-MM-DD`) and `priority` (`high`,
   `medium`, `low`), and `snoozed_until` (`YYYY-MM-DD`: hidden from what to do now, and from
   `todos`, until that day); on another kind they are refused, as `status` is on a note. With
@@ -78,6 +84,35 @@ that way (480 px JPEGs, so a few hundred kB each).
   no NUL (a lone surrogate is refused). A request over 2 MB is `413`. A refused call is an MCP
   tool error with the reason; nothing is saved.
 
+## Kinds and tags
+
+- **`edit_meta`** changes the kind and/or tags of any page, the user's own too: the `pages`
+  named, or every page `query` finds (refused, changing nothing, if it finds more than `limit`).
+  `kind` is one of `note`, `todo`, `read`, `board` or `doc` (or the stored names `consume`,
+  `whiteboard`, `document`); anything else is refused. A new kind keeps every field the page
+  has and adds the kind's defaults (as the PWA's kind picker does) and is fixed, so ingest keeps
+  it. Tags: `add_tags` and `remove_tags` (exact: removing `a` leaves `a/b`), or `set_tags` to
+  replace them all (`[]`: none), cleaned as `write`'s. Nothing else changes: not the title, the
+  text, other fields, nor `updated_at` (as with the PWA's own tag and kind edits). All or nothing:
+  an unknown page or a refused change saves nothing. **`dry_run`** says what each page would get
+  and saves nothing: try a bulk change with it first.
+- **`rename_tag`** renames a tag on every page with it (not the trash's), and the tags under it
+  (`old/x` becomes `new/x`); renaming into a tag in use merges the two. `dry_run` as above.
+- **Revisions.** Every change to a page's kind or tags, over MCP or in the PWA, is a metadata
+  revision: who made it (`author`: `claude`, or the user's login; `source`: `mcp` or `web`), when,
+  and the kind and tags before and after. Several changes by the same author within
+  `SCRAP_REVISION_WINDOW` seconds (default 300) of a revision being made fold into it, so a burst
+  of edits is one revision; a revert never folds, nor is folded into. A page's first revision
+  records the state it had before (pages need no backfill). Revisions keep the kind and tag
+  names only: never a copy of the text or of a file, nor what a model derived (summaries, image
+  descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
+  made again. Text keeps its own revisions (`page_rev`, every title or body change), which
+  `revisions` lists and `text_rev` reads; no tool reverts them.
+- **`revert`** gives a revision's page back the kind and tags it had just before that revision
+  (undoing any later changes too). The revert is a revision of its own, so it can be reverted in
+  turn: nothing is lost. Reverting to the state a page has already changes nothing and adds no
+  revision.
+
 ## Security
 
 The service has no login: it is reachable only over the tailnet, through Tailscale Serve, like
@@ -87,5 +122,6 @@ the rest of scrap. `/mcp` also checks the `Host` header against loopback and the
 session holding powerful credentials should treat what it reads as data (see the design's
 security posture).
 
-Not yet: a `context` tool returning the stored ingest run of a photo (its messages, for
+Not yet: reverting several pages' revisions in one call (one `revert` per page), thinning old
+revisions, a `context` tool returning the stored ingest run of a photo (its messages, for
 discussing it with the model that made it), and an `ingest` tool.
