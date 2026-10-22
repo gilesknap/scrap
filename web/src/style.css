@@ -729,7 +729,8 @@ mark {
 .field-search .clear {
   position: absolute;
   inset-inline-end: 0;
-  top: 0;
+  top: 50%; /* centred on the box, whatever its height */
+  translate: 0 -50%;
   width: var(--tap);
   height: var(--tap);
   padding: 0;
@@ -1122,11 +1123,8 @@ mark {
 .md li.task {
   list-style: none;
 }
-/* A task's box, in the bullet's place; on a page it ticks (tasks.ts): a --tap target, the
-   items spaced (a 49 px pitch on the body's 27.2 px line) so that no two targets overlap */
-.md li.task {
-  padding-block: 11px;
-}
+/* A task's box, in the bullet's place, the list as tight as a bulleted one. On a page it
+   ticks (tasks.ts): its target is --tap wide and one line high, so no two overlap */
 .md li + li.task,
 .md li.task + li {
   margin-top: 0;
@@ -1141,7 +1139,7 @@ mark {
   left: 50%;
   top: 50%;
   width: var(--tap);
-  height: var(--tap);
+  height: calc(var(--lh) * 1em);
   translate: -50% -50%;
 }
 .md li.task input {

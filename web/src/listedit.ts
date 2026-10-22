@@ -94,6 +94,47 @@ export function edit(ta: HTMLTextAreaElement, c: Change) {
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   }
   ta.setSelectionRange(c.start, c.end);
+  reveal(ta);
+}
+
+/** Scroll ta so its caret's line is in view, as typing does (a change made for the keyboard,
+ * Enter on a list, doesn't: the new item would sit below the screen's edge). Measured on a
+ * hidden copy of the text up to the caret, laid out as the box lays it out. */
+function reveal(ta: HTMLTextAreaElement) {
+  const cs = getComputedStyle(ta);
+  const copy = document.createElement("div");
+  for (const k of [
+    "font",
+    "letterSpacing",
+    "lineHeight",
+    "padding",
+    "border",
+    "boxSizing",
+    "wordSpacing",
+    "tabSize",
+  ] as const)
+    copy.style[k] = cs[k];
+  Object.assign(copy.style, {
+    position: "absolute",
+    visibility: "hidden",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "break-word",
+    width: `${ta.clientWidth}px`,
+  });
+  copy.textContent = `${ta.value.slice(0, ta.selectionEnd)}\u200b`;
+  document.body.append(copy);
+  const bottom = copy.scrollHeight;
+  copy.remove();
+  const line = Number.parseFloat(cs.lineHeight) || 24;
+  if (bottom > ta.scrollTop + ta.clientHeight) ta.scrollTop = bottom - ta.clientHeight + line / 2;
+  else if (bottom - line < ta.scrollTop) ta.scrollTop = Math.max(0, bottom - line * 2);
+  // And the box itself in the fields' view (it may be taller than what the keyboard leaves)
+  const fields = ta.closest(".fields");
+  if (fields) {
+    const caret = ta.getBoundingClientRect().top + bottom - ta.scrollTop;
+    const view = fields.getBoundingClientRect();
+    if (caret > view.bottom) fields.scrollTop += caret - view.bottom + line;
+  }
 }
 
 /** Enter continues lists in ta. Android's keyboards send Enter as an input (keyCode 229, no
