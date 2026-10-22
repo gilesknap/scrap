@@ -314,6 +314,12 @@ nav a[aria-current] .i {
 .strip {
   flex: 1;
 }
+.strip .offline {
+  margin: var(--s-2) 0 0;
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  text-align: center;
+}
 /* The capture actions: equal tiles, no hero (amber is for Save) */
 .actions {
   position: sticky; /* stays under the thumb however long the list above */

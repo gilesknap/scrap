@@ -181,7 +181,9 @@ export async function compose(picked: File[], as?: string) {
       );
     }
     await close();
-    toast(navigator.onLine ? "Saved" : "Saved on the phone: uploads when online");
+    // Offline, Capture's waiting row says it; elsewhere (Todos) only this does
+    if (navigator.onLine) toast("Saved");
+    else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
   };
   if (!files.length) text.focus();
 }
