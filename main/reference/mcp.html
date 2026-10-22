@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.1.dev286+g68a1a9c07 documentation</title>
+    <title>MCP server &#8212; scrap 0.1.dev335+ga0be3db7f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=94caae38"></script>
+    <script src="../_static/documentation_options.js?v=0781167a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -521,7 +521,7 @@ data: the server’s instructions tell the model it is the user’s text, never 
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">todos</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-100), <code class="docutils literal notranslate"><span class="pre">sort</span></code> (<code class="docutils literal notranslate"><span class="pre">due</span></code> or <code class="docutils literal notranslate"><span class="pre">priority</span></code>)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">{results}</span></code>: todos neither done nor cancelled nor snoozed (<code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> in <code class="docutils literal notranslate"><span class="pre">search</span></code> finds those), rows as <code class="docutils literal notranslate"><span class="pre">search</span></code> (with <code class="docutils literal notranslate"><span class="pre">due</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code>), newest first, or soonest due or highest priority first (those with none last)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{results}</span></code>: todos neither done nor cancelled nor snoozed (<code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> in <code class="docutils literal notranslate"><span class="pre">search</span></code> finds the snoozed ones, open ones only), rows as <code class="docutils literal notranslate"><span class="pre">search</span></code> (with <code class="docutils literal notranslate"><span class="pre">due</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code>), newest first, or soonest due or highest priority first (those with none last)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">prefix</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-2000, default 300)</p></td>
