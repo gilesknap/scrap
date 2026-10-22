@@ -77,7 +77,7 @@ IMAGE_KIND = (
     " WHERE c.page_id = p.id AND d.kind = 'description' AND d.superseded_at IS NULL"
     " AND json_extract(d.data, '$.kind') = ?)"
 )
-KIND_NAMES = {"read": "consume", "board": "whiteboard", "doc": "document"}
+KIND_NAMES = {"later": "consume", "read": "consume", "board": "whiteboard", "doc": "document"}
 # What each sort: orders a page p by (query.SORTS has its default direction)
 SORT_SQL = {
     "updated": "p.updated_at",

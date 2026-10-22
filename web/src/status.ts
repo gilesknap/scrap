@@ -4,7 +4,7 @@
 
 type Fields = Record<string, unknown> | undefined;
 
-/** A page's status, if it can be ticked off: a todo's or a Read's ("open" if it has none). */
+/** A page's status, if it can be ticked off: a todo's or a Later's ("open" if it has none). */
 export const statusOf = (kind: string, fields: Fields): string | null =>
   kind === "todo" || kind === "consume" ? String(fields?.status ?? "open") : null;
 
@@ -15,7 +15,7 @@ export const ticks = (status: string | null): [string, string][] => [
   ...(status === "done" || status === "cancelled" ? [["Reopen", "open"] as [string, string]] : []),
 ];
 
-const CHIP: Record<string, string> = { todo: "todo", consume: "read" };
+const CHIP: Record<string, string> = { todo: "todo", consume: "later" };
 /** A list row's chip: a status that ends it (done, cancelled), else its kind (todo, read). */
 export const chipOf = (kind: string, fields: Fields): string => {
   const s = statusOf(kind, fields);

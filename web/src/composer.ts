@@ -41,7 +41,7 @@ export async function compose(picked: File[], as?: string) {
   const kept = await drafts.get<Draft>(DRAFT).catch(() => undefined);
   const files = [...(kept?.files ?? []), ...picked];
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
-  // The kind: Note unless chosen (a bare URL suggests Read). Photos have none: ingest
+  // The kind: Note unless chosen (a bare URL suggests Later). Photos have none: ingest
   // decides, and the page's editor can change it.
   const kind = kindPicker(
     as ?? kept?.kind ?? (kept?.hint || "note"),
@@ -49,7 +49,7 @@ export async function compose(picked: File[], as?: string) {
   );
   text.addEventListener("input", () => {
     kind.suggest(suggested(text.value));
-    showTodo(); // a suggested kind (a link: Read) asks for it in its own words
+    showTodo(); // a suggested kind (a link: Later) asks for it in its own words
   });
   // Its tags, as the page's editor has them; photos too (Claude's join them on its first reading)
   const tags = tagField(kept?.tags ?? [], () => ed.keep());

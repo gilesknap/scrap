@@ -161,7 +161,7 @@ export async function page(key: string): Promise<Node> {
       h(
         "p",
         { className: "meta" },
-        // A todo or a Read that is done (or cancelled) says so first, as its row's chip does
+        // A todo or a Later that is done (or cancelled) says so first, as its row's chip does
         ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`) &&
           h("em", { className: "state" }, `${statusOf(p.kind, p.fields)}`),
         `Created ${whenShort(p.created_at)}`,
@@ -183,7 +183,7 @@ export async function page(key: string): Promise<Node> {
       h(
         "div",
         { className: "bar tools" },
-        // A todo or a Read leads with Mark done (the page's hero), Reopen when done, or both
+        // A todo or a Later leads with Mark done (the page's hero), Reopen when done, or both
         // when cancelled
         ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(

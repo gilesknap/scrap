@@ -12,10 +12,12 @@ import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { empty, h, problem, toast } from "./ui";
 
+// Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
+// All search's All
 const MODES = [
-  ["now", "Now"],
-  ["upcoming", "Upcoming"],
-  ["all", "All"],
+  ["now", "Now", "now"],
+  ["upcoming", "Upcoming", "due"],
+  ["all", "All", "all"],
 ] as const;
 const LIMIT = 500; // the API's most: the done ones, last edited first
 const PAGE = 100; // search's most per request
@@ -75,7 +77,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   const keep = () => history.replaceState({ ...history.state, scroll: scrollY }, "");
   const body = h("div");
   const count = h("p", { className: "count" });
-  const radios = MODES.map(([m, label]) => {
+  const radios = MODES.map(([m, label, glyph]) => {
     const radio = h("input", {
       type: "radio",
       name: "todoview",
@@ -85,7 +87,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
         draw();
       },
     });
-    return h("label", {}, radio, label);
+    return h("label", {}, radio, icon(glyph), label);
   });
 
   function draw() {

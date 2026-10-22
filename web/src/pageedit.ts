@@ -37,7 +37,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   // since, saving it shows the conflict rather than overwriting.
   const key = `page:${p.id}`;
   const kept = await drafts.get<Draft>(key).catch(() => undefined);
-  // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Read),
+  // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Later),
   // as in the composer, until the user picks one; a draft's kind only if the user picked it
   const unfiled = !p.kind_fixed && p.kind === "note";
   const was = unfiled ? suggested(p.body) : p.kind;

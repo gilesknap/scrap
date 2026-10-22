@@ -8,7 +8,7 @@ import type { Kind } from "./queue";
 export const KINDS: [Kind, string, string, Icon][] = [
   ["note", "Note", "Note", "note"],
   ["todo", "Todo", "Todo", "todo"],
-  ["consume", "Read", "Read", "later"],
+  ["consume", "Later", "Later", "later"],
   ["whiteboard", "Board", "Whiteboard", "board"],
   ["document", "Doc", "Document", "file"],
 ];

@@ -7,6 +7,7 @@ const PATHS = {
   note: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4M9 12h7M9 16h5"/>',
   todo: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   all: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  now: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
   add: '<path d="M12 5v14M5 12h14"/>',
   done: '<path d="m5 12.5 4.5 4.5L19 7"/>',
   due: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8.5 3v4m7-4v4"/>',
