@@ -13,8 +13,25 @@ async function make(page: Page, text: string, kind = "note") {
 }
 
 const back = (page: Page) => page.locator("header #back");
+// An iPhone's home-screen app (navigator.standalone): the only place the top bar has Back
+const iphoneApp = (page: Page) =>
+  page
+    .context()
+    .addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true }));
+
+test("elsewhere (Android, a browser) a page keeps the wordmark: no Back in the top bar", async ({
+  page,
+}) => {
+  const note = await make(page, `No arrow ${ulid().slice(-6)}`);
+  await page.goto(`/p/${note.slug}`);
+  await expect(page.locator(".page h1")).toBeVisible();
+  await expect(back(page)).toBeHidden();
+  await expect(page.locator("header .logo")).toBeVisible();
+  await expect(page.locator("nav")).toBeHidden(); // still: the page's toolbar is the bottom bar
+});
 
 test("Back on a page opened cold goes to its parent; from a list, back to it", async ({ page }) => {
+  await iphoneApp(page);
   const tag = ulid().slice(-6);
   const todo = await make(page, `Back todo ${tag}`, "todo");
   const note = await make(page, `Back note ${tag}`);

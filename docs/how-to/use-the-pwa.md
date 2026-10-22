@@ -109,8 +109,9 @@ the link as the capture's URL.
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. (There is no separate Recent screen any more: the empty box is it.)
 - A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
-  bottom. The top bar has a back arrow in place of the wordmark (**Tags** has it too, with its
-  title). It goes back to where you were in the app, as the phone's Back does; opened from a
+  bottom. Use the phone's or the browser's Back. On an iPhone, installed to the home screen
+  (which has no Back of its own), the top bar has a back arrow in place of the wordmark
+  (**Tags** has it too, with its title). It goes back to where you were in the app, as the phone's Back does; opened from a
   link or a share, it goes up instead: to the Todos screen for a todo, to Capture for any other
   page, and to Search from Tags.
 - On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
@@ -206,7 +207,8 @@ the link as the capture's URL.
   on **Todo**; save, and you are back on the list with the new todo in it once it has uploaded.
 - Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the pager
   says *3 of 9 · Todos · Now*) with **Undo** for a few seconds; on the last one it stays, and
-  offers **Back to list**. The top bar's back arrow goes back to the list at any time.
+  offers **Back to list**. Back (the top bar's arrow on an iPhone) goes back to the list at any
+  time.
   Opened from anywhere else, Mark done stays on the page.
 - Swipe a row of the list, the capture screen's list or search results: to the **right** to
   edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few

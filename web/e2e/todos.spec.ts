@@ -4,6 +4,12 @@ import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 import { openFold } from "./panel";
 
+// The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
+// has no Back of its own; tests here use it, so they run as one
+test.beforeEach(({ context }) =>
+  context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true })),
+);
+
 /** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
 const day = (n: number) => {
   const d = new Date();

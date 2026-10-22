@@ -1,6 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 
+// The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
+// has no Back of its own; tests here use it, so they run as one
+test.beforeEach(({ context }) =>
+  context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true })),
+);
+
 test("capture a note, find it, and capture offline", async ({ page, context }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();

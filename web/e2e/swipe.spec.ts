@@ -3,6 +3,12 @@
 // protocol, as a finger would make them.
 import { type CDPSession, expect, type Locator, type Page, test } from "@playwright/test";
 
+// The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
+// has no Back of its own; tests here use it, so they run as one
+test.beforeEach(({ context }) =>
+  context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true })),
+);
+
 const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");

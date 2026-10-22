@@ -53,6 +53,8 @@ const view = document.getElementById("view") as HTMLElement;
 const logo = document.querySelector(".logo") as HTMLElement;
 const up = document.getElementById("back") as HTMLButtonElement;
 const where = document.getElementById("where") as HTMLElement;
+// An iPhone's home-screen app: no Back of its own, so the top bar gives one
+const ios = (navigator as { standalone?: boolean }).standalone === true;
 // Back to the app's entry before this one (go() marks the entries it pushes), else (opened
 // from a link or a share) up to a parent: a todo's is Todos, Tags' is Search, any other
 // page's is Capture
@@ -79,11 +81,13 @@ async function render() {
   clearToasts();
   const path = location.pathname;
   markNav();
-  // A page and Tags are reached from elsewhere: Back in the top bar instead of the wordmark
+  // A page and Tags are reached from elsewhere: Back in the top bar instead of the wordmark,
+  // where nothing else offers one (an iPhone's home-screen app: Android and browsers have Back)
   const sub = path.startsWith("/p/") ? "" : path === "/tags" ? "Tags" : null;
-  logo.hidden = sub !== null;
-  up.hidden = sub === null;
-  where.hidden = !sub;
+  const arrow = sub !== null && ios;
+  logo.hidden = arrow;
+  up.hidden = !arrow;
+  where.hidden = !(arrow && sub);
   where.textContent = sub;
   document.body.classList.toggle("paged", sub === ""); // its toolbar is the bottom bar: no nav
   if (path !== "/todos") add.hidden = true; // shown with the Todos list, once it is drawn
