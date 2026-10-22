@@ -23,6 +23,6 @@ if [ -z "$recent" ]; then
 fi
 podman run --rm --replace --name scrap-gc \
     --userns=keep-id:uid=10001,gid=10001 --network=none \
-    --volume "$SCRAP_DATA:/data" --env SCRAP_DATA_DIR=/data \
+    --volume "$SCRAP_DATA:/data:z" --env SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" gc "$mode" --grace-hours 24
 [ -n "$recent" ] || exit 1

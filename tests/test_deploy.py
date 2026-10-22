@@ -46,6 +46,7 @@ def test_gc_deletes_only_after_a_recent_backup(tmp_path):
     assert result.returncode == 0, result.stderr
     assert args.split()[-4:] == ["gc", "--delete", "--grace-hours", "24"]
     assert "--network=none" in args.split()
+    assert f"{tmp_path / 'a' / 'data'}:/data:z" in args.split()
 
 
 def test_gc_waits_for_a_backup_and_skips_missed_nights():
@@ -55,6 +56,7 @@ def test_gc_waits_for_a_backup_and_skips_missed_nights():
     assert "Persistent=false" in timer.splitlines()
     backup = (DEPLOY / "scrap-backup").read_text()
     assert "--network=none" in backup
+    assert '--volume "$SCRAP_DATA:/data:z"' in backup
 
 
 def test_gc_without_a_recent_backup_only_counts_and_fails(tmp_path):
@@ -95,8 +97,19 @@ def test_socket_mode_publishes_no_port(tmp_path):
     result, args = _run_scrap(tmp_path, SCRAP_LISTEN="socket")
     assert result.returncode == 0, result.stderr
     assert "--publish" not in args
-    assert "/run/user/1000/scrap:/run/scrap" in args
+    assert f"{tmp_path / 'data'}:/data:z" in args
+    assert "/run/user/1000/scrap:/run/scrap:z" in args
     assert args[-3:] == ["serve", "--uds", "/run/scrap/scrap.sock"]
+
+
+def test_cgroups_split_only_on_a_cgroups_v2_host(tmp_path):
+    """Rootless podman on cgroups v1 (RHEL 8) cannot honour --cgroups=split."""
+    result, args = _run_scrap(tmp_path, SCRAP_LISTEN="socket")
+    assert result.returncode == 0, result.stderr
+    v2 = Path("/sys/fs/cgroup/cgroup.controllers").exists()
+    assert ("--cgroups=split" in args) == v2
+    if v2:
+        assert args.index("--cgroups=split") < args.index("localhost/scrap:test")
 
 
 def test_tcp_mode_publishes_only_on_loopback(tmp_path):

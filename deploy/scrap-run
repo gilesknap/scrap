@@ -18,7 +18,7 @@ set -eu
 case ${SCRAP_LISTEN:-tcp} in
 socket)
     : "${RUNTIME_DIRECTORY:?RUNTIME_DIRECTORY is not set (RuntimeDirectory= in the unit)}"
-    set -- --volume "$RUNTIME_DIRECTORY:/run/scrap" \
+    set -- --volume "$RUNTIME_DIRECTORY:/run/scrap:z" \
         "$SCRAP_IMAGE" serve --uds /run/scrap/scrap.sock
     ;;
 tcp)
@@ -30,13 +30,18 @@ tcp)
     exit 1
     ;;
 esac
+# split needs cgroups v2; rootless podman on v1 cannot create cgroups at all
+# (and then ignores --memory and --pids-limit).
+if [ -e /sys/fs/cgroup/cgroup.controllers ]; then
+    set -- --cgroups=split "$@"
+fi
 # The image runs as uid 10001; keep-id maps it to this user so the files
 # under SCRAP_DATA, and the socket, stay owned by this user on the host.
 exec podman run --name scrap --replace --rm -d \
-    --cgroups=split --sdnotify=conmon \
+    --sdnotify=conmon \
     --userns=keep-id:uid=10001,gid=10001 \
     --memory="$SCRAP_MEMORY_MAX" --pids-limit=512 \
-    --volume "$SCRAP_DATA:/data" \
+    --volume "$SCRAP_DATA:/data:z" \
     --env-file "$HOME/.config/scrap/ingest.env" \
     --env SCRAP_DATA_DIR=/data \
     "$@"

@@ -90,7 +90,8 @@ goes to an anonymous volume that is easy to lose; always give the volume a name 
   denied" writing `/data`. With Docker, either run as the directory's owner,
   `--user "$(id -u):$(id -g)"`, or `chown 10001:10001` it. With rootless podman, add
   `--userns=keep-id:uid=10001,gid=10001`, which maps uid 10001 in the container to you. On SELinux
-  systems (Fedora, RHEL) add `:Z` to the volume, for example `-v "$PWD/data:/data:Z"`.
+  systems (Fedora, RHEL) add `:Z` to the volume, for example `-v "$PWD/data:/data:Z"`; use
+  lowercase `:z` instead if other containers (a backup, say) share the folder.
 
 ## Settings
 
