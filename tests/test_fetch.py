@@ -1,6 +1,7 @@
 """Fetching a link for enrich: public addresses only, limits, readable text."""
 
 import gzip
+import os
 import socket
 import ssl
 import threading
@@ -239,5 +240,30 @@ def test_https_connects_to_the_checked_address_and_verifies_the_name(monkeypatch
     assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
     monkeypatch.setattr(context, "wrap_socket", wrap_socket)
     conn.connect()
+    os.close(conn.fd)
     assert calls == {"address": ("93.184.216.34", 443),
                      "server_hostname": "good.example"}  # fmt: skip
+
+
+def test_the_deadline_never_touches_an_fd_number_given_out_again():
+    """http.client may close the socket (end of a Connection: close body) before the
+    fetch is over: a late cut must not shut down whatever gets that fd number next."""
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        port = server.getsockname()[1]
+        conn = fetch._PinnedHttp("good.example", "127.0.0.1", port, timeout=5)
+        deadline = fetch._Deadline(conn, 60)
+        conn.connect()
+        peer, _ = server.accept()
+        number = conn.sock.fileno()
+        conn.sock.close()  # as http.client does
+        a, b = socket.socketpair()
+        try:
+            assert number in (a.fileno(), b.fileno())  # the number is reused
+            deadline.cut()  # the timer firing late
+            a.sendall(b"still open")
+            assert b.recv(20) == b"still open"
+        finally:
+            deadline.close()
+            for s in (a, b, peer):
+                s.close()
+        assert conn.fd is None

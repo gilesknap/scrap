@@ -112,7 +112,7 @@ class _Pinned(http.client.HTTPSConnection):
 
     def connect(self) -> None:
         sock = socket.create_connection((self._ip, self.port), self.timeout)
-        self.fd = sock.fileno()  # for the deadline to cut, the handshake too
+        self.fd = os.dup(sock.fileno())  # the deadline's own (handshake too)
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)  # type: ignore[attr-defined]
 
 
@@ -123,12 +123,16 @@ class _PinnedHttp(http.client.HTTPConnection):
 
     def connect(self) -> None:
         self.sock = socket.create_connection((self._ip, self.port), self.timeout)
-        self.fd = self.sock.fileno()
+        self.fd = os.dup(self.sock.fileno())  # the deadline's own
 
 
 class _Deadline:
     """Cuts a connection's socket at the deadline, wherever it is blocked (connect,
-    TLS handshake, headers or body), so a site dripping bytes cannot hold it."""
+    TLS handshake, headers or body), so a site dripping bytes cannot hold it. It
+    shuts down through conn.fd, the connection's own duplicate of the socket's fd,
+    which only close() closes: http.client may close the socket first (at the end
+    of a Connection: close body), and the timer must never touch an fd number that
+    something else has been given since."""
 
     def __init__(self, conn: http.client.HTTPConnection, left: float):
         self.conn, self.lock, self.done = conn, threading.Lock(), False
@@ -141,21 +145,26 @@ class _Deadline:
             fd = getattr(self.conn, "fd", None)
             if self.done or fd is None:
                 return
-            try:  # a duplicate, so the fd is ours to close; shutdown reaches both
+            try:  # shutdown reaches the socket however many fds it has
                 with socket.socket(fileno=os.dup(fd)) as sock:
                     sock.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
 
     def close(self) -> None:
-        """Before the connection closes (its fd may then be reused)."""
+        """Once the fetch is over: the timer stopped, the duplicate fd closed."""
         self.timer.cancel()
         with self.lock:
             self.done = True
+            fd, self.conn.fd = getattr(self.conn, "fd", None), None  # type: ignore[attr-defined]
+            if fd is not None:
+                os.close(fd)
 
 
 def _limit(conn: http.client.HTTPConnection, until: float) -> None:
-    """The socket's timeout for its next read: what is left, at most 10 s."""
+    """FetchError if the deadline has passed; else the socket's timeout for its next
+    read, what is left at most 10 s, while the connection still holds the socket (it
+    gives it to the response of a Connection: close answer: _Deadline guards that)."""
     left = until - time.monotonic()
     if left <= 0:
         raise FetchError("the site took too long")
@@ -167,7 +176,7 @@ def _read(
     response: http.client.HTTPResponse, conn: http.client.HTTPConnection, until: float
 ) -> bytes:
     """The body, decompressed, at most MAX_BYTES; FetchError past it or the deadline
-    (checked at each read from the socket: read1 never waits for more)."""
+    (checked between reads from the socket: read1 never waits for more)."""
     coding = (response.getheader("Content-Encoding") or "identity").lower()
     if coding not in ("identity", "gzip", "deflate"):
         raise FetchError(f"the page is encoded as {coding[:20]}")
