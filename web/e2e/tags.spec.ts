@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { filters, filtersButton, openFold } from "./panel";
 
 /** A photo whose reading failed (e2e/draw.py): its Retry draws the page again. */
 function failedPhoto(): { slug: string } {
@@ -23,24 +24,7 @@ test.beforeAll(() => {
 type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
 const hits = (page: Page) => page.locator(".hits li a strong");
-/** The slider at the search box's end ("Filters", or "Filters, 2 on"). */
-const filtersButton = (page: Page) =>
-  page.locator(".field-search").getByRole("button", { name: /^Filters/ });
-/** Open the Filters panel, in place under the box (it may be open already). */
-async function filters(page: Page) {
-  const button = filtersButton(page);
-  await expect(button).toHaveAttribute("aria-expanded", /^(true|false)$/); // refine.ts is here
-  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
-  const panel = page.locator("#fpanel");
-  await expect(panel).toBeVisible();
-  return panel;
-}
-/** Open the Tags fold of the composer or editor. */
-async function openTags(scope: Locator) {
-  const summary = scope.locator("details.fold > summary", { hasText: /^Tags/ });
-  if (!(await summary.evaluate((s) => (s.parentElement as HTMLDetailsElement).open)))
-    await summary.click();
-}
+const openTags = (scope: Locator) => openFold(scope, "Tags");
 
 test("refine chips narrow a search and come off again", async ({ page }) => {
   await page.goto("/search?q=zephyr+fence");

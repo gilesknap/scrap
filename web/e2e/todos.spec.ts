@@ -2,6 +2,7 @@
 // ones folded away), Upcoming and All, the switch in the address, and its rows' tick.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { openFold } from "./panel";
 
 /** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
 const day = (n: number) => {
@@ -85,6 +86,10 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   page,
 }) => {
   await page.goto("/todos");
+  // Each with its icon over its word, as the search screen's kinds
+  const show = page.getByRole("radiogroup", { name: "Show" });
+  await expect(show.locator("label")).toHaveText(["Now", "Upcoming", "All"]);
+  await expect(show.locator("label > svg.i")).toHaveCount(3);
   await page.getByText("Upcoming", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=upcoming$/);
   // Due from tomorrow to a week away: not "Quoll later high", due in 10 days
@@ -107,10 +112,19 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await expect(page.getByRole("radio", { name: "Upcoming" })).toBeChecked();
   await page.getByText("Now", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos$/);
-  // Search todos: the search screen, as before
-  await page.getByRole("link", { name: "Search todos" }).click();
-  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
+  // No Search todos link: the search screen's Todos kind filters in place, as the others do
+  await expect(page.getByRole("link", { name: "Search todos" })).toHaveCount(0);
+  await page.goto("/search");
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click();
+  await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/); // not the Todos screen
   await expect(page.getByRole("searchbox")).toHaveValue("kind:todo");
+  await expect(page.getByRole("radio", { name: "Todos" })).toBeChecked();
+  await expect(page.locator(".list li em").first()).toBeVisible();
+  for (const chip of await page.locator(".list li em").allTextContents())
+    expect(["todo", "done", "cancelled"]).toContain(chip); // todos only
+  await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click(); // off again
+  await expect(page.getByRole("searchbox")).toHaveValue("");
+  await expect(page).toHaveURL(/\/search$/);
 });
 
 test("the Todos screen meets AA contrast, in both themes", async ({ page }) => {
@@ -262,10 +276,12 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
   const text = editor.locator("textarea");
   await expect(text).toHaveAttribute("placeholder", "What needs doing?");
-  // A link would suggest Read: the kind was chosen, so it stays Todo
+  // A link would suggest Later: the kind was chosen, so it stays Todo
   await text.fill("Quokka new todo https://example.com/x");
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
-  // Its due date and priority, as on a todo's page (the same fields)
+  // Its due date and priority, as on a todo's page (the same fields), folded until opened
+  await expect(editor.getByRole("button", { name: "Tomorrow" })).toBeHidden();
+  await openFold(editor, "Due");
   await editor.getByRole("button", { name: "Tomorrow" }).click();
   await expect(editor.getByLabel("Due", { exact: true })).toHaveValue(day(1));
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("high");

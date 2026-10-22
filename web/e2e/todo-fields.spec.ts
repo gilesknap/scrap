@@ -2,6 +2,7 @@
 // (overdue in red until done), and a todo search's orders and typed due: searches.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { filters, openFold } from "./panel";
 
 /** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
 const day = (n: number) => {
@@ -24,11 +25,6 @@ const api = async (page: Page, id: string) =>
     due: string | null;
     priority: string | null;
   };
-/** Open the search screen's Filters sheet. */
-async function filters(page: Page) {
-  await page.getByRole("button", { name: /^Filters/ }).click();
-  return page.getByRole("dialog", { name: "Filters" });
-}
 const hits = (page: Page) => page.locator(".hits li a strong");
 const rowOf = (page: Page, title: string) => page.locator(".list li").filter({ hasText: title });
 
@@ -66,16 +62,17 @@ test("a todo search: its orders in Filters, and due: typed (no due views there)"
 }) => {
   await page.goto("/search?q=numbat+kind%3Atodo");
   const box = page.getByRole("searchbox");
-  const sheet = await filters(page);
-  await expect(sheet.getByRole("region", { name: "Due" })).toHaveCount(0); // the Todos screen has them
-  await expect(sheet.getByRole("button", { name: "Overdue" })).toHaveCount(0);
+  const panel = await filters(page);
+  await expect(panel.getByRole("group", { name: "Due" })).toHaveCount(0); // the Todos screen has them
+  await expect(panel.getByRole("button", { name: "Overdue" })).toHaveCount(0);
   // A todo search's own orders
-  const sort = sheet.getByRole("combobox", { name: "Sort" });
+  const order = panel.getByRole("group", { name: "Order" });
   await expect(hits(page)).toHaveCount(5);
-  await sort.selectOption({ label: "Priority" });
+  await order.getByRole("button", { name: "Priority" }).click();
   await expect(box).toHaveValue("numbat kind:todo sort:priority");
   await expect(hits(page).first()).toHaveText("Numbat late");
-  await sort.selectOption({ label: "Due soonest" });
+  await order.getByRole("button", { name: "Due soonest" }).click();
+  await expect(box).toHaveValue("numbat kind:todo sort:due");
   await expect(hits(page)).toHaveText([
     "Numbat late",
     "Numbat done",
@@ -171,6 +168,14 @@ test("the editor sets them while the kind is Todo", async ({ page }) => {
   const editor = page.locator(".editor");
   const due = editor.getByLabel("Due", { exact: true });
   await expect(due).toHaveValue(day(5));
+  // Folded to a line under the title, saying the date; tapped, it opens
+  const fold = await openFold(editor, "Due");
+  const said = await page.evaluate(
+    (d) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }),
+    day(5),
+  );
+  await expect(fold).toContainText(said);
+  await expect(due).toBeVisible();
   await editor.getByRole("radio", { name: "Note" }).check({ force: true });
   await expect(due).toBeHidden();
   await editor.getByRole("radio", { name: "Todo" }).check({ force: true });
