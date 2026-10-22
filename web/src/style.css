@@ -1720,9 +1720,18 @@ div.orig .save {
 .kindrow {
   margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Reads, Boards, Docs */
 }
+/* The search screen's kinds: each its icon over its word, so six fit the row from 320 px */
 .kindrow label {
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  padding: 0;
+  padding: 5px 0 4px;
+  font-size: var(--t-xs);
+}
+.chips.kindrow .i {
+  display: block; /* also on a small phone: over the word, it takes no width */
+  width: 18px;
+  height: 18px;
 }
 @media (max-width: 379px) {
   .kindrow {

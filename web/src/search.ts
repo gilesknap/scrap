@@ -8,7 +8,7 @@
 // come back to the same list, scrolled where it was.
 import { api, type Hit } from "./api";
 import { address, go, markNav, view } from "./app";
-import { icon } from "./icons";
+import { icon, kindIcon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
@@ -60,7 +60,7 @@ export async function search(): Promise<Node> {
   );
   const refining = import("./refine");
   // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
-  const radios = [["All", ""] as const, ...KIND_ROW].map(([label, v]) => {
+  const radios = [["All", "", [], ""] as const, ...KIND_ROW].map(([label, v, , apiKind]) => {
     const radio = h("input", {
       type: "radio",
       name: "kind",
@@ -70,7 +70,8 @@ export async function search(): Promise<Node> {
       onclick: () =>
         withKind(input.value, v) === "kind:todo" ? go("/todos") : apply((now) => withKind(now, v)),
     });
-    return [radio, h("label", {}, radio, label)] as const;
+    // Each kind with its icon, as the editor's kinds have them (All: every kind's tiles)
+    return [radio, h("label", {}, radio, icon(v ? kindIcon(apiKind) : "all"), label)] as const;
   });
   const kinds = h(
     "div",
