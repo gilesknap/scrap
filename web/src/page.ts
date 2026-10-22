@@ -110,6 +110,7 @@ export async function page(key: string): Promise<Node> {
   let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
   const show = (p: Page) => {
     shown = p;
+    root.dataset.kind = p.kind; // for the top bar's Back: a todo's parent is the Todos screen
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);
     if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card

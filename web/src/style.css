@@ -192,6 +192,21 @@ header {
   stroke-linejoin: round;
   rotate: -6deg;
 }
+/* A page's and Tags' Back, in the wordmark's place; Tags' title beside it */
+#back {
+  width: var(--tap);
+  padding: 0;
+  margin-inline-start: calc(-1 * var(--s-3)); /* its arrow on the gutter's line */
+}
+#back .i {
+  width: 24px;
+  height: 24px;
+}
+#where {
+  flex: 1;
+  margin: 0;
+  font-size: var(--t-lg);
+}
 .badge {
   position: relative;
   min-height: 36px;
@@ -231,6 +246,13 @@ main {
   padding: var(--s-4) max(env(safe-area-inset-right), var(--s-4))
     calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-4))
     max(env(safe-area-inset-left), var(--s-4));
+}
+/* A page is a drill-down: its toolbar is the only bottom bar, where the nav would be */
+.paged nav {
+  display: none;
+}
+.paged main {
+  padding-bottom: var(--s-4);
 }
 #view {
   overflow-x: clip; /* a page swiped sideways never widens the screen; sticky still works */
@@ -1452,10 +1474,10 @@ div.orig .save {
 .page > .tools {
   position: sticky;
   z-index: 2; /* over the page text scrolling under it, task boxes (z-index 1) too */
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  bottom: 0;
   gap: 0;
   margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
-  padding: var(--s-1) var(--s-2);
+  padding: var(--s-1) var(--s-2) calc(var(--s-1) + env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: 1px solid var(--line);
 }

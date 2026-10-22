@@ -17,17 +17,21 @@ export function go(path: string, replace = false, state: object | null = null) {
   // A step back of the app's own still on its way (the Filters sheet closed): after it lands,
   // or it would land on this new entry and undo it
   if (back.pending) return void back.pending.then(() => go(path, replace, state));
-  history[replace ? "replaceState" : "pushState"](state, "", path);
+  // Marked as pushed by the app, so the top bar's Back knows an entry of the app's is behind
+  // it (main.ts); a replace keeps the mark
+  const at = replace ? history.state?.at : 1;
+  history[replace ? "replaceState" : "pushState"]({ ...state, at }, "", path);
   window.scrollTo(0, 0);
   rerender();
 }
 
 /** Write the current entry's address (a new query, say), keeping the Filters sheet's mark on
- * its entry. While a step back of the app's own is on its way, on the entry it lands on, after
+ * its entry, and go()'s. While a step back of the app's own is on its way, on the entry it lands on, after
  * the sheet's own write there (so the newest address wins). */
 export function address(path: string) {
   if (back.pending) return void back.pending.then(() => address(path));
-  history.replaceState(history.state?.sheet ? { sheet: 1 } : null, "", path);
+  const { sheet, at } = history.state ?? {};
+  history.replaceState({ sheet, at }, "", path);
 }
 
 /** A plain click (or tap) the app may route itself: not one meant for a new tab or window
