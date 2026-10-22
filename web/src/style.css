@@ -1165,6 +1165,14 @@ mark {
   font-size: var(--t-lg);
   line-height: var(--lh-tight);
 }
+/* A step between each level, all under the page title (--t-xl), so a page's sections show */
+.md h1 {
+  font-size: 1.3125rem;
+}
+.md h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
 .md :is(h4, h5, h6) {
   font-size: var(--t-md);
 }
