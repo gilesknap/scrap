@@ -220,6 +220,42 @@ scrap container), which `install.sh` enables. It keeps to the same daily budget 
 the service fails) at a queue pause; while ingest is off or no key is set it says so and
 succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it would do.
 
+#### On a Claude seat, with no API key
+
+On a Team or Enterprise seat, ingest can run through Claude Code instead
+([ADR 0019](../explanations/decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)). First
+check with your organisation's Claude admin that unattended use of your seat is allowed. Calls
+count against your seat's usage limits, shared with your own use of Claude; when a limit is hit,
+ingest pauses until it resets.
+
+1. On your own machine, run `claude setup-token` and copy the token it prints. It is a
+   long-lived credential for your **whole seat**, with no spend cap: anyone holding it can use
+   your seat until it expires or you revoke it.
+2. Build the image with the CLI added, from the clone, on top of the scrap image:
+
+   ```
+   podman build -f Dockerfile.claude --build-arg BASE=localhost/scrap:dev \
+       -t localhost/scrap-claude:dev .
+   ```
+
+   and set `SCRAP_IMAGE=localhost/scrap-claude:dev` in `~/.config/scrap/env`. It is about 240 MB
+   larger. Rebuild it whenever you rebuild the scrap image.
+3. In `ingest.env`, instead of `ANTHROPIC_API_KEY`:
+
+   ```
+   SCRAP_INGEST=on
+   SCRAP_LLM_BACKEND=cli
+   CLAUDE_CODE_OAUTH_TOKEN=<your token>
+   ```
+
+   Take the same care as with an API key, and more: mode 600, never in the repo or a log, and
+   `podman inspect scrap` shows it.
+4. Re-run `./deploy/install.sh`, which restarts scrap on the new image. Without the token or the
+   binary, ingest pauses with a login problem and the log says which is missing.
+
+`SCRAP_BUDGET_DAY_USD` still applies, to what the calls would cost at API prices (as Claude Code
+reports it), not to anything you are charged.
+
 ## First run
 
 ```

@@ -16,8 +16,8 @@ commands included.
 **Settled:** the Messages API only, on Opus; Reprocess always asks before replacing a human
 drawing; a daily budget of $3 by default.
 
-**Not built:** a `claude -p` backend (it needs a Read tool; `complete()` is the seam), a cheaper
-first-pass model, a monthly budget (the Console spend limit caps it), a circuit breaker and a
+**Not built:** a `claude -p` backend with a Read tool (one without tools, for Claude seats, is
+{ref}`below <on-a-claude-seat>`), a cheaper first-pass model, a monthly budget (the Console spend limit caps it), a circuit breaker and a
 rate-limit class (the budget and **Retry** cover them). Chat and refine are not part of ingest
 yet; the stored runs are kept so they can start from them.
 
@@ -27,7 +27,8 @@ yet; the stored runs are kept so they can start from them.
 Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
 lost: it is sent when the worker starts.
 
-The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set; the worker does not check the key
+The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set (or, on a Claude seat,
+`SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`); the worker does not check the key
 at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
 installed:
 
@@ -119,6 +120,38 @@ none a union: `width`, `height`, `text`, `fontSize`, `label`, `labelFontSize`, `
 `[dx0, dy0, dx1, dy1, ...]`), `start` and `end` (shape ids), `strokeColor` and
 `startArrowhead`. Code makes Excalidraw skeletons of these and the sanitiser enforces bounds.
 `id` is required because, optional, the model leaves out every id and so every arrow.
+
+(on-a-claude-seat)=
+### On a Claude seat (`SCRAP_LLM_BACKEND=cli`)
+
+For a Team or Enterprise seat with no API key ([ADR 0019](decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)).
+`complete()` hands the call to `claude_cli.py`, which runs `claude -p` once per photo and
+returns the same `Completion`; everything after the call is shared.
+
+- **Auth:** `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, in `ingest.env`. Without it, or
+  without the `claude` binary, the worker pauses at start (`auth`) and logs why.
+- **Input:** one stream-json user message on stdin holding the same image block (base64) and size
+  text as the API request; our prompt replaces Claude Code's system prompt.
+- **Lock-down:** `--tools ""`, `--strict-mcp-config` with no servers, `--setting-sources ""`,
+  `--disable-slash-commands`, `--no-session-persistence`, `--model`, `--effort` and `--json-schema`
+  on every call; a throwaway `HOME` and working directory; an environment of `PATH`, the token,
+  proxy and CA settings only; CLI retries off, prompt caching off, 300 s for the process. A run
+  whose start-up message offers any tool but `StructuredOutput`, or any MCP server, is discarded.
+- **Output:** the result's `structured_output`; the stored content blocks are the
+  `StructuredOutput` tool call, `usage` is the CLI's with its `total_cost_usd`, which is the
+  run's `cost_microusd` and so counts towards the daily budget (a notional figure on a seat).
+- **Errors:** the CLI's error kind and status map onto the classes below. A seat's usage limit (a
+  rejected `rate_limit_event`) is an `outage` that waits for its reset (at most an hour at a time).
+
+| CLI error | Class |
+| --- | --- |
+| `authentication_failed`, `oauth_org_not_allowed`, `account_on_hold`, `verification_required`, `model_not_found`; 401, 403, 404 | auth |
+| `billing_error`; 402 | credit |
+| a rejected `rate_limit_event`; `rate_limit`, `overloaded`, `server_error`; 429, 5xx; any other error | outage |
+| a message saying it timed out; the process running over 300 s | timeout |
+| `invalid_request`; 400, 409, 413, 422; a refusal | content |
+| `max_output_tokens`, no structured output, `error_max_structured_output_retries` | invalid |
+| no result at all (a crash), tools offered | internal |
 
 ## Stored context
 
