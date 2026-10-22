@@ -37,13 +37,25 @@ from .store import (
     NotFoundError,
     Store,
     TooLargeError,
+    enrich_on,
     new_ulid,
     upload_limit,
 )
 
 __all__ = ["create_app"]
 
-ERRORS = {NotFoundError: 404, ConflictError: 409, TooLargeError: 413, InvalidError: 422}
+
+class EnrichOffError(Exception):
+    """Claude enrichment is off (it needs SCRAP_INGEST=on, and SCRAP_ENRICH not off)."""
+
+
+ERRORS = {
+    NotFoundError: 404,
+    ConflictError: 409,
+    EnrichOffError: 409,
+    TooLargeError: 413,
+    InvalidError: 422,
+}
 BLOB_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "sandbox",  # an uploaded HTML file cannot run scripts
@@ -347,7 +359,9 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     @app.post("/api/pages/{key}/enrich")
     def enrich_page(key: str) -> dict[str, Any]:
         """Ask Claude to read a page now (tags, summary, related pages; a link is
-        fetched): queued, and the page returned as it is."""
+        fetched): queued, and the page returned as it is; 409 while Claude is off."""
+        if not enrich_on():
+            raise EnrichOffError
         page = enrich.ask(store, key)
         if app.state.worker:
             app.state.worker.wake()

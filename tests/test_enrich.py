@@ -476,6 +476,16 @@ def test_the_api_asks_claude_and_shows_its_state(tmp_path):
     assert client.post("/api/pages/NOPE/enrich").status_code == 404
 
 
+def test_the_api_refuses_to_ask_claude_while_enrichment_is_off(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    client = TestClient(create_app(tmp_path / "data"))
+    data = {"id": new_ulid(), "text": "x"}
+    page_id = client.post("/api/captures", json=data).json()["page_id"]
+    answer = client.post(f"/api/pages/{page_id}/enrich")
+    assert answer.status_code == 409 and "off" in answer.json()["detail"]
+    assert client.get("/api/ingest").json()["enrich"]["jobs"] == {}
+
+
 def test_the_cli_backfills_and_counts_the_related_pass(tmp_path, capsys, monkeypatch):
     from scrap.__main__ import main
 
