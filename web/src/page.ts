@@ -189,8 +189,8 @@ export async function page(key: string): Promise<Node> {
       h(
         "div",
         { className: "bar tools" },
-        // A todo or a Later leads with Mark done (the page's hero), Reopen when done, or both
-        // when cancelled
+        // A todo or a Later leads with Mark done (the page's hero), or Reopen once done or
+        // cancelled
         ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
           h(
             "button",

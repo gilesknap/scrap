@@ -95,7 +95,8 @@ export function swipeRow(li: HTMLLIElement, p: RowPage) {
 }
 
 /** A todo's or a Later's tick, beside its row (not in its link: tapping it opens nothing):
- * pressed when done; pressing it sets done, or open again. The chip follows. */
+ * pressed when done; pressing it sets done (a cancelled one, too), or open again. The chip
+ * follows. */
 function tickBox(li: HTMLLIElement, p: RowPage) {
   let status = statusOf(p.kind, p.fields);
   if (status === null) return null;
@@ -109,6 +110,7 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
     const some = status !== "cancelled" && partly(p);
     b.setAttribute("aria-pressed", status === "done" ? "true" : some ? "mixed" : "false");
     b.title = some ? `${some} ticked` : "";
+    li.classList.toggle("cancelled", status === "cancelled"); // struck, a grey dash in its box
     // Its chip comes with done or cancelled and goes when open again (an open row has none)
     const ends = chipOf(p.kind, { status });
     li.querySelector(".sub em")?.remove();
