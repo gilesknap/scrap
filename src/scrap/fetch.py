@@ -10,14 +10,16 @@ seconds. No cookies, no credentials, no proxy. Only HTML and plain text are read
 
 import http.client
 import ipaddress
+import os
 import re
 import socket
 import ssl
+import threading
 import time
 import zlib
 from dataclasses import dataclass
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import quote, urljoin, urlsplit
 
 __all__ = ["FetchError", "Fetched", "fetch", "readable", "check_url"]
 
@@ -28,6 +30,10 @@ MAX_TEXT = 20_000  # characters of readable text kept
 PORTS = {"http": 80, "https": 443}
 AGENT = "scrap/1 (personal notes; fetches a page its owner saved)"
 TYPES = ("text/html", "application/xhtml+xml", "text/plain")
+# is_global yet not to be fetched: IPv4-compatible (::/96), NAT64 (a translator
+# reaches any IPv4 address) and the old site-local IPv6 range
+DENY = [ipaddress.ip_network(n) for n in ("::/96", "64:ff9b::/96", "fec0::/10")]
+SAFE = "/%:@!$&'()*+,;=~"  # left as they are in a path: %XX is kept, not quoted twice
 
 
 class FetchError(Exception):
@@ -48,6 +54,8 @@ def public(ip: str) -> bool:
     addr = ipaddress.ip_address(ip.split("%")[0])
     if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
         addr = addr.ipv4_mapped
+    if any(addr in net for net in DENY):
+        return False
     return addr.is_global and not addr.is_multicast
 
 
@@ -65,7 +73,19 @@ def check_url(url: str) -> tuple[str, str, int]:
     port = port or PORTS[parts.scheme]
     if port != PORTS[parts.scheme]:
         raise FetchError("only the standard ports are fetched")
-    return parts.scheme, parts.hostname, port
+    try:  # an international name as DNS and the certificate have it
+        host = parts.hostname.encode("idna").decode("ascii")
+    except UnicodeError:
+        raise FetchError("not a valid address") from None
+    return parts.scheme, host, port
+
+
+def target(url: str) -> str:
+    """A URL's path and query as sent: anything not ASCII percent-encoded (UTF-8),
+    %XX already there kept."""
+    parts = urlsplit(url)
+    path = quote(parts.path or "/", safe=SAFE)
+    return path + (f"?{quote(parts.query, safe=SAFE + '?')}" if parts.query else "")
 
 
 def resolve(host: str, port: int, getaddrinfo=socket.getaddrinfo) -> str:
@@ -92,6 +112,7 @@ class _Pinned(http.client.HTTPSConnection):
 
     def connect(self) -> None:
         sock = socket.create_connection((self._ip, self.port), self.timeout)
+        self.fd = sock.fileno()  # for the deadline to cut, the handshake too
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)  # type: ignore[attr-defined]
 
 
@@ -102,10 +123,51 @@ class _PinnedHttp(http.client.HTTPConnection):
 
     def connect(self) -> None:
         self.sock = socket.create_connection((self._ip, self.port), self.timeout)
+        self.fd = self.sock.fileno()
 
 
-def _read(response: http.client.HTTPResponse, until: float) -> bytes:
-    """The body, decompressed, at most MAX_BYTES; FetchError past it or the deadline."""
+class _Deadline:
+    """Cuts a connection's socket at the deadline, wherever it is blocked (connect,
+    TLS handshake, headers or body), so a site dripping bytes cannot hold it."""
+
+    def __init__(self, conn: http.client.HTTPConnection, left: float):
+        self.conn, self.lock, self.done = conn, threading.Lock(), False
+        self.timer = threading.Timer(max(left, 0.0), self.cut)
+        self.timer.daemon = True
+        self.timer.start()
+
+    def cut(self) -> None:
+        with self.lock:
+            fd = getattr(self.conn, "fd", None)
+            if self.done or fd is None:
+                return
+            try:  # a duplicate, so the fd is ours to close; shutdown reaches both
+                with socket.socket(fileno=os.dup(fd)) as sock:
+                    sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def close(self) -> None:
+        """Before the connection closes (its fd may then be reused)."""
+        self.timer.cancel()
+        with self.lock:
+            self.done = True
+
+
+def _limit(conn: http.client.HTTPConnection, until: float) -> None:
+    """The socket's timeout for its next read: what is left, at most 10 s."""
+    left = until - time.monotonic()
+    if left <= 0:
+        raise FetchError("the site took too long")
+    if conn.sock is not None:
+        conn.sock.settimeout(min(10.0, left))
+
+
+def _read(
+    response: http.client.HTTPResponse, conn: http.client.HTTPConnection, until: float
+) -> bytes:
+    """The body, decompressed, at most MAX_BYTES; FetchError past it or the deadline
+    (checked at each read from the socket: read1 never waits for more)."""
     coding = (response.getheader("Content-Encoding") or "identity").lower()
     if coding not in ("identity", "gzip", "deflate"):
         raise FetchError(f"the page is encoded as {coding[:20]}")
@@ -113,15 +175,21 @@ def _read(response: http.client.HTTPResponse, until: float) -> bytes:
     if coding != "identity":
         inflate = zlib.decompressobj(zlib.MAX_WBITS | 32)  # gzip or zlib header
     out = bytearray()
-    while chunk := response.read(64 * 1024):
-        if time.monotonic() > until:
+    while True:
+        _limit(conn, until)
+        chunk = response.read1(64 * 1024)
+        if time.monotonic() > until:  # cut at the deadline: not the end of the page
             raise FetchError("the site took too long")
+        if not chunk:
+            return bytes(out)
         if inflate is not None:
-            chunk = inflate.decompress(chunk, MAX_BYTES + 1 - len(out))
+            try:
+                chunk = inflate.decompress(chunk, MAX_BYTES + 1 - len(out))
+            except zlib.error:
+                raise FetchError("the page could not be decompressed") from None
         out += chunk
         if len(out) > MAX_BYTES:
             raise FetchError("the page is too large")
-    return bytes(out)
 
 
 def get(url: str, getaddrinfo=socket.getaddrinfo) -> tuple[str, str, bytes]:
@@ -135,12 +203,11 @@ def get(url: str, getaddrinfo=socket.getaddrinfo) -> tuple[str, str, bytes]:
             raise FetchError("the site took too long")
         kind = _Pinned if scheme == "https" else _PinnedHttp
         conn = kind(host, ip, port, timeout=min(left, 10.0))
-        parts = urlsplit(url)
-        path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+        deadline = _Deadline(conn, left)
         try:
             conn.request(
                 "GET",
-                path,
+                target(url),
                 headers={
                     "User-Agent": AGENT,
                     "Accept": "text/html,application/xhtml+xml,text/plain;q=0.8",
@@ -148,7 +215,9 @@ def get(url: str, getaddrinfo=socket.getaddrinfo) -> tuple[str, str, bytes]:
                     "Accept-Language": "en",
                 },
             )
+            _limit(conn, until)
             response = conn.getresponse()
+            _limit(conn, until)  # headers cut short at the deadline are not the page's
             if response.status in (301, 302, 303, 307, 308):
                 location = response.getheader("Location")
                 if not location:
@@ -160,13 +229,15 @@ def get(url: str, getaddrinfo=socket.getaddrinfo) -> tuple[str, str, bytes]:
             mime = (response.getheader("Content-Type") or "").lower()
             if mime.split(";")[0].strip() not in TYPES:
                 raise FetchError("not a web page (no readable text)")
-            return url, mime, _read(response, until)
+            return url, mime, _read(response, conn, until)
         except (OSError, http.client.HTTPException) as error:
-            if isinstance(error, TimeoutError | socket.timeout):
+            late = time.monotonic() > until  # cut at the deadline
+            if late or isinstance(error, TimeoutError | socket.timeout):
                 raise FetchError("the site took too long") from None
             why = type(error).__name__
             raise FetchError(f"could not fetch the page ({why})") from None
         finally:
+            deadline.close()
             conn.close()
     raise FetchError("too many redirects")
 

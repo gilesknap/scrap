@@ -475,10 +475,15 @@ to 5 index numbers, so it cannot name a page that is not there.
 
 - http(s) only, standard ports, no login in the address, no proxy, no cookies;
 - every address the name resolves to must be global (no private, loopback, link-local and
-  metadata `169.254.169.254`, CGNAT/tailnet `100.64/10`, ULA, multicast or reserved; IPv4-mapped
-  IPv6 judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to
+  metadata `169.254.169.254`, CGNAT/tailnet `100.64/10`, ULA, multicast or reserved, nor
+  IPv4-compatible `::/96`, NAT64 `64:ff9b::/96` or site-local `fec0::/10`; IPv4-mapped IPv6
+  judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to
   the checked address (TLS still verifies the name), so a second DNS answer cannot swap it;
-- at most 2 MB after decompression (a gzip bomb stops there), 20 s for the whole fetch;
+- at most 2 MB after decompression (a gzip bomb stops there), 20 s for the whole fetch (the
+  socket is cut at the deadline wherever it waits, so a site sending a byte at a time cannot
+  hold the worker); a body that does not decompress is refused;
+- a path or query that is not ASCII is sent percent-encoded (`%XX` already there kept), an
+  international name as IDNA;
 - HTML, XHTML or plain text only; the readable text is the `<article>` (else `<main>`, else
   `<body>`) without scripts, styles, menus, headers, footers and forms, at most 20,000
   characters, with the page's title and description.

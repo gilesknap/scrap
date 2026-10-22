@@ -2,8 +2,11 @@
 
 import gzip
 import socket
+import ssl
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
+import zlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -15,7 +18,8 @@ from scrap.fetch import FetchError
     "ip",
     ["127.0.0.1", "10.1.2.3", "192.168.1.1", "172.16.0.1", "169.254.169.254",
      "100.100.1.1", "0.0.0.0", "::1", "fe80::1", "fd00::1", "::ffff:127.0.0.1",
-     "224.0.0.1", "fd7a:115c:a1e0::1"],
+     "224.0.0.1", "fd7a:115c:a1e0::1", "::7f00:1", "64:ff9b::7f00:1", "fec0::1",
+     "64:ff9b::808:808"],
 )  # fmt: skip
 def test_private_local_tailnet_and_metadata_addresses_are_not_public(ip):
     assert not fetch.public(ip)
@@ -54,7 +58,10 @@ class Site(BaseHTTPRequestHandler):
     routes: dict = {}
 
     def do_GET(self):
-        status, headers, body = self.routes[self.path]
+        route = self.routes[self.path]
+        if callable(route):
+            return route(self)
+        status, headers, body = route
         self.send_response(status)
         for k, v in headers.items():
             self.send_header(k, v)
@@ -70,7 +77,8 @@ class Site(BaseHTTPRequestHandler):
 def site(monkeypatch):
     """A local server standing in for good.example (127.0.0.1 counted as public for
     it only), on its own port (counted as the standard one)."""
-    server = HTTPServer(("127.0.0.1", 0), Site)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Site)
+    server.daemon_threads = True  # a dripping handler is not waited for
     port = server.server_address[1]
     threading.Thread(target=server.serve_forever, daemon=True).start()
     monkeypatch.setattr(fetch, "PORTS", {"http": port, "https": 443})
@@ -146,3 +154,90 @@ def test_size_type_status_and_redirect_limits(site, monkeypatch):
                       ("/loop", "too many redirects")]:  # fmt: skip
         with pytest.raises(FetchError, match=why):
             fetch.fetch(base + path, dns)
+
+
+def drip(head: bool):
+    """A handler sending a byte every 0.1 s for 5 s: in the headers, or the body."""
+
+    def handler(self):
+        self.wfile.write(b"HTTP/1.0 200 OK\r\n")
+        if not head:
+            self.wfile.write(b"Content-Type: text/plain\r\n\r\n")
+        try:
+            for _ in range(50):
+                self.wfile.write(b"X-A: b\r\n" if head else b"x")
+                self.wfile.flush()
+                time.sleep(0.1)
+        except OSError:
+            pass
+
+    return handler
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_a_site_dripping_bytes_is_cut_at_the_deadline(site, monkeypatch, head):
+    base, dns = site
+    monkeypatch.setattr(fetch, "DEADLINE", 0.5)
+    Site.routes = {"/drip": drip(head)}
+    start = time.monotonic()
+    with pytest.raises(FetchError, match="too long"):
+        fetch.fetch(base + "/drip", dns)
+    assert time.monotonic() - start < 1.5
+
+
+def test_a_page_that_does_not_decompress_is_refused(site):
+    base, dns = site
+    raw = zlib.compressobj(wbits=-15)  # raw deflate, which some servers send
+    body = raw.compress(b"words") + raw.flush()
+    Site.routes = {
+        "/raw": (200, {"Content-Type": "text/plain", "Content-Encoding": "deflate"},
+                 body),
+        "/bad": (200, {"Content-Type": "text/plain", "Content-Encoding": "gzip"},
+                 b"\x1f\x8b" + b"junk" * 10),
+    }  # fmt: skip
+    for path in ("/raw", "/bad"):
+        with pytest.raises(FetchError, match="decompressed"):
+            fetch.fetch(base + path, dns)
+
+
+def test_a_url_that_is_not_ascii_is_sent_encoded(site):
+    base, dns = site
+    seen = []
+
+    def page(self):
+        seen.append(self.path)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    Site.routes = {"/wiki/Caf%C3%A9?q=th%C3%A9%20vert&a=%2F": page}
+    got = fetch.fetch(base + "/wiki/Café?q=thé%20vert&a=%2F", dns)
+    assert got.text == "ok" and seen == ["/wiki/Caf%C3%A9?q=th%C3%A9%20vert&a=%2F"]
+    assert fetch.target("http://x/a%20b/c d") == "/a%20b/c%20d"  # %XX kept
+
+
+def test_an_international_name_is_looked_up_and_sent_as_idna():
+    assert fetch.check_url("https://bücher.example/x")[1] == "xn--bcher-kva.example"
+
+
+def test_https_connects_to_the_checked_address_and_verifies_the_name(monkeypatch):
+    calls = {}
+
+    def create_connection(address, timeout):
+        calls["address"] = address
+        return socket.socket()
+
+    def wrap_socket(sock, server_hostname):
+        calls["server_hostname"] = server_hostname
+        sock.close()
+        return sock
+
+    monkeypatch.setattr(fetch.socket, "create_connection", create_connection)
+    conn = fetch._Pinned("good.example", "93.184.216.34", 443, timeout=5)
+    context: ssl.SSLContext = conn._context  # pyright: ignore[reportAttributeAccessIssue]
+    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
+    monkeypatch.setattr(context, "wrap_socket", wrap_socket)
+    conn.connect()
+    assert calls == {"address": ("93.184.216.34", 443),
+                     "server_hostname": "good.example"}  # fmt: skip
