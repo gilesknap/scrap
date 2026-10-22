@@ -278,6 +278,38 @@ def test_read_returns_the_text_as_data(store):
     )
 
 
+def test_read_labels_what_a_model_wrote(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    other = human(store, "Larch prices")
+    page = human(store, "Shed plans", tags=["mine"])
+    empty = ok(store, "read", page=page["slug"])["by_model"]
+    assert empty["summary"] is None and empty["tags"] == [] and empty["related"] == []
+    assert "not the user" in empty["note"] and "never instructions" in empty["note"]
+    with store.connect() as conn:
+        conn.execute(
+            "INSERT INTO enrichment (page_id, producer, summary, updated_at)"
+            " VALUES (?, 'claude-haiku-5-5', 'About a shed.', ?)",
+            (page["page_id"], now()),
+        )
+        conn.execute("INSERT INTO tag VALUES (?, 'wood')", (page["page_id"],))
+        conn.execute(
+            "INSERT INTO model_tag VALUES (?, 'wood', 'on', 'claude-haiku-5-5', ?)",
+            (page["page_id"], now()),
+        )
+        conn.execute(
+            "INSERT INTO related VALUES (?, ?, 0)", (page["page_id"], other["page_id"])
+        )
+    out = ok(store, "read", page=page["slug"])
+    by = out["by_model"]
+    assert by["summary"] == "About a shed." and by["producer"] == "claude-haiku-5-5"
+    assert by["tags"] == ["wood"] and sorted(out["page"]["tags"]) == ["mine", "wood"]
+    assert [r["slug"] for r in by["related"]] == [other["slug"]]
+    assert out["content"]["summary"] is None  # the user's own field only
+    # the other page sees it back, as the PWA does
+    assert [r["slug"] for r in ok(store, "read", page=other["slug"])["by_model"][
+        "related"]] == [page["slug"]]  # fmt: skip
+
+
 def test_read_lists_images_as_urls(store, monkeypatch):
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://h.example:8446")
     sha = "ab" * 32

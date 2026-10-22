@@ -399,7 +399,7 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
         r[0] for r in conn.execute("SELECT tag FROM tag WHERE page_id = ?", (page_id,))
     )
     summary = json.loads(fields).get("summary")
-    summary = summary if isinstance(summary, str) else ""
+    summary = summary if isinstance(summary, str) else model_summary(conn, page_id)
     # The text as words (markdown.py); the others are short, and not Markdown
     parts = (unlink(title), tags, unlink(summary), plain(body))
     clean = [CONTROL.sub(" ", x) for x in parts]
@@ -411,6 +411,66 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
         " VALUES (?, 0, ?, ?, ?, ?)",
         (page_id, *clean),
     )
+
+
+def model_summary(conn: sqlite3.Connection, page_id: str) -> str:
+    """The summary Claude wrote for a page (enrich), else ''. Before migration 9 there
+    is no enrichment table: ''."""
+    try:
+        row = conn.execute(
+            "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return ""
+    return row[0] if row else ""
+
+
+def enrich_on() -> bool:
+    """Whether Claude enriches text pages: with ingest on (SCRAP_INGEST), unless
+    SCRAP_ENRICH is off."""
+    on = ("on", "1", "true", "yes")
+    ingest = os.environ.get("SCRAP_INGEST", "off").lower() in on
+    return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
+
+
+def debounce() -> float:
+    """Seconds an enrich job waits after a save, so a burst of edits makes one call."""
+    try:
+        return max(0.0, float(os.environ.get("SCRAP_ENRICH_DEBOUNCE", "60")))
+    except ValueError:
+        return 60.0
+
+
+def stamp_after(seconds: float) -> str:
+    t = datetime.now(UTC).timestamp() + seconds
+    return (
+        datetime.fromtimestamp(t, UTC)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+
+# One queued enrich job per page: a later trigger moves it (a save later, Ask now), and
+# Ask is remembered (it may add tags to a page Claude has read before)
+ENRICH_ENQUEUE = """
+INSERT INTO enrich_job (page_id, reason, run_after, created_at, updated_at)
+VALUES (:page, :reason, :run_after, :now, :now)
+ON CONFLICT (page_id) WHERE state = 'queued' DO UPDATE SET
+    run_after = excluded.run_after,
+    reason = CASE WHEN reason = 'ask' THEN reason ELSE excluded.reason END,
+    updated_at = excluded.updated_at
+"""
+
+
+def queue_enrich(
+    conn: sqlite3.Connection, page_id: str, reason: str, delay: float = 0.0
+) -> None:
+    """Queue (or move) a page's enrich job, to run in delay seconds."""
+    conn.execute(
+        ENRICH_ENQUEUE,
+        {"page": page_id, "reason": reason, "run_after": stamp_after(delay),
+         "now": now()},
+    )  # fmt: skip
 
 
 def index_all(conn: sqlite3.Connection) -> None:
@@ -495,9 +555,81 @@ def add_meta_revs(conn: sqlite3.Connection) -> None:
         )
 
 
+ENRICH_TABLES = """
+CREATE TABLE IF NOT EXISTS enrich_job (
+    id          INTEGER PRIMARY KEY,
+    page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    reason      TEXT NOT NULL CHECK (reason IN ('capture', 'save', 'ask', 'backfill')),
+    state       TEXT NOT NULL DEFAULT 'queued'
+                  CHECK (state IN ('queued', 'running', 'done', 'dead')),
+    failures    INTEGER NOT NULL DEFAULT 0,
+    run_after   TEXT NOT NULL,
+    last_error  TEXT,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS enrich_job_one_queued ON enrich_job(page_id)
+    WHERE state = 'queued';
+CREATE INDEX IF NOT EXISTS enrich_job_ready ON enrich_job(state, run_after);
+CREATE TABLE IF NOT EXISTS enrich_run (
+    id             INTEGER PRIMARY KEY,
+    page_id        TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    job_id         INTEGER REFERENCES enrich_job(id) ON DELETE SET NULL,
+    model          TEXT NOT NULL,
+    served_model   TEXT,
+    prompt_version TEXT NOT NULL,
+    request        TEXT NOT NULL CHECK (json_valid(request)),
+    response       TEXT CHECK (json_valid(response)),
+    output         TEXT CHECK (json_valid(output)),
+    usage          TEXT CHECK (json_valid(usage)),
+    cost_microusd  INTEGER NOT NULL DEFAULT 0,
+    status         TEXT NOT NULL DEFAULT 'running'
+                     CHECK (status IN ('running', 'ok', 'invalid', 'refused', 'error')),
+    error_class    TEXT,
+    error          TEXT,
+    started_at     TEXT NOT NULL,
+    finished_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS enrich_run_by_started ON enrich_run(started_at);
+CREATE INDEX IF NOT EXISTS enrich_run_by_page ON enrich_run(page_id);
+CREATE TABLE IF NOT EXISTS enrichment (
+    page_id     TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE,
+    run_id      INTEGER REFERENCES enrich_run(id),
+    producer    TEXT NOT NULL,
+    summary     TEXT NOT NULL DEFAULT '',
+    source      TEXT,
+    source_title TEXT,
+    updated_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS model_tag (
+    page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    tag         TEXT NOT NULL,
+    state       TEXT NOT NULL CHECK (state IN ('on', 'off')),
+    producer    TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (page_id, tag)
+);
+CREATE TABLE IF NOT EXISTS related (
+    page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    other_id    TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    rank        INTEGER NOT NULL,
+    PRIMARY KEY (page_id, other_id)
+);
+CREATE INDEX IF NOT EXISTS related_by_other ON related(other_id);
+"""
+
+
+def add_enrich(conn: sqlite3.Connection) -> None:
+    """Enrich's tables (migration 9), unless an earlier run made them."""
+    for statement in ENRICH_TABLES.split(";"):
+        if statement.strip():
+            conn.execute(statement)
+
+
 AFTER = {
     3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks,
     8: add_meta_revs,
+    9: add_enrich,
 }  # fmt: skip
 
 
@@ -703,6 +835,10 @@ class Store:
             self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
+            if enrich_on() and c["kind"] in ("note", "url"):  # a photo has ingest
+                # A link is fetched at once; a note waits, in case it is edited now
+                wait = 0.0 if c["kind"] == "url" else debounce()
+                queue_enrich(conn, page_id, "capture", wait)
             return self._ref(conn, cid, page_id), True
 
     def import_page(
@@ -869,8 +1005,62 @@ class Store:
         del page["deleted_at"]
         fields = json.loads(page["fields"])
         removed = sorted(self.removed(conn, page["id"], page["body"]))
+        extra = self._enriched(conn, page["id"], page["slug"])
         return todo_only({**page, "fields": fields, "tags": tags, "captures": captures,
-                          "removed": removed})  # fmt: skip
+                          "removed": removed, **extra})  # fmt: skip
+
+    def _enriched(
+        self, conn: sqlite3.Connection, page_id: str, slug: str
+    ) -> dict[str, Any]:
+        """What Claude added to a page apart from its text: model_tags (the page's
+        tags Claude added), related (Claude's picks, pages that picked this one, and
+        pages linking here with [[slug]], each once, with via: claude, link or both)
+        and enrich (its job's state and the summary), None if never asked and off."""
+        model_tags = [r[0] for r in conn.execute(
+            "SELECT m.tag FROM model_tag m JOIN tag t USING (page_id, tag)"
+            " WHERE m.page_id = ? AND m.state = 'on'", (page_id,),
+        )]  # fmt: skip
+        picks = _rows(
+            conn,
+            "SELECT p.id, p.slug, p.title, p.kind FROM ("
+            " SELECT other_id AS id, rank FROM related WHERE page_id = :id"
+            " UNION ALL SELECT page_id, rank + 100 FROM related WHERE other_id = :id"
+            ") r JOIN page p ON p.id = r.id WHERE p.deleted_at IS NULL"
+            " GROUP BY p.id ORDER BY min(r.rank) LIMIT 8",
+            page_id,
+        )
+        related = {r["id"]: {**r, "via": "claude"} for r in picks}
+        for b in self._backlinks(conn, slug):
+            if b["id"] in related:
+                related[b["id"]]["via"] = "both"
+            else:
+                related[b["id"]] = {**b, "via": "link"}
+        job = conn.execute(
+            "SELECT state, last_error, reason FROM enrich_job WHERE page_id = ?"
+            " ORDER BY id DESC LIMIT 1",
+            (page_id,),
+        ).fetchone()
+        done = conn.execute(
+            "SELECT summary, producer, source, source_title, updated_at"
+            " FROM enrichment WHERE page_id = ?",
+            (page_id,),
+        ).fetchone()
+        enrich = None
+        if job or done or enrich_on():
+            state = job and {"running": "processing", "dead": "failed"}.get(
+                job["state"], job["state"]
+            )
+            enrich = {
+                "on": enrich_on(),
+                "state": state,  # None: never queued
+                "error": job and job["state"] == "dead" and job["last_error"] or None,
+                "summary": done and done["summary"] or None,
+                "producer": done and done["producer"],
+                "source": done and done["source"],
+                "at": done and done["updated_at"],
+            }
+        return {"model_tags": model_tags, "related": list(related.values()),
+                "enrich": enrich}  # fmt: skip
 
     def removed(self, conn: sqlite3.Connection, page_id: str, body: str) -> set[str]:
         """The files an earlier revision of a page's text referred to and its text no
@@ -978,6 +1168,7 @@ class Store:
                 conn.executemany(
                     "INSERT INTO tag VALUES (?, ?)", [(page["id"], t) for t in tags]
                 )
+                self._model_tags(conn, page["id"], tags)
             if tags is not None or (fields and "summary" in fields):  # indexed
                 self.reindex(conn, page["id"])
             if kind is not None or tags is not None:  # before text: see _record_meta
@@ -1028,7 +1219,25 @@ class Store:
                     status_set=bool(fields and "status" in fields),
                 )
                 self.reindex(conn, page["id"])
+                if enrich_on():  # read again once the edits stop
+                    queue_enrich(conn, page["id"], "save", debounce())
             return self.page_in(conn, page["id"])
+
+    def _model_tags(
+        self, conn: sqlite3.Connection, page_id: str, tags: list[str]
+    ) -> None:
+        """After the user set a page's tags: a tag of Claude's they took off is 'off'
+        (Claude never adds it back); one they put back is theirs from now on."""
+        conn.execute(
+            "UPDATE model_tag SET state = 'off' WHERE page_id = ? AND state = 'on'"
+            " AND tag NOT IN (SELECT value FROM json_each(?))",
+            (page_id, json.dumps(tags)),
+        )
+        conn.execute(
+            "DELETE FROM model_tag WHERE page_id = ? AND state = 'off'"
+            " AND tag IN (SELECT value FROM json_each(?))",
+            (page_id, json.dumps(tags)),
+        )
 
     def _body(
         self,
@@ -1678,14 +1887,19 @@ class Store:
     def backlinks(self, slug: str) -> list[dict[str, str]]:
         """The pages (not in the trash) whose text links to slug with [[slug]]."""
         with self.connect() as conn:
-            rows = _rows(
-                conn,
-                "SELECT id, slug, title FROM page WHERE deleted_at IS NULL"
-                " AND slug <> ? AND (instr(body, '[[' || ? || ']]') > 0"
-                " OR instr(body, '[[' || ? || '|') > 0) ORDER BY updated_at DESC",
-                slug, slug, slug,
-            )  # fmt: skip
-        return rows
+            return [
+                {k: r[k] for k in ("id", "slug", "title")}
+                for r in self._backlinks(conn, slug)
+            ]
+
+    def _backlinks(self, conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
+        return _rows(
+            conn,
+            "SELECT id, slug, title, kind FROM page WHERE deleted_at IS NULL"
+            " AND slug <> ? AND (instr(body, '[[' || ? || ']]') > 0"
+            " OR instr(body, '[[' || ? || '|') > 0) ORDER BY updated_at DESC",
+            slug, slug, slug,
+        )  # fmt: skip
 
     def search(self, query: str, limit: int, offset: int = 0) -> list[dict[str, Any]]:
         """Pages matching a query (see scrap.query): every word somewhere in the page

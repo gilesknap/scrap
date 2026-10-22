@@ -28,7 +28,7 @@ from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, drawing, ingest, mcp_server, preview
+from . import __version__, backup, drawing, enrich, ingest, mcp_server, preview
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
@@ -341,6 +341,15 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """Bring a page back from the trash."""
         store.delete_page(key, undo=True)
         return store.page(key)
+
+    @app.post("/api/pages/{key}/enrich")
+    def enrich_page(key: str) -> dict[str, Any]:
+        """Ask Claude to read a page now (tags, summary, related pages; a link is
+        fetched): queued, and the page returned as it is."""
+        page = enrich.ask(store, key)
+        if app.state.worker:
+            app.state.worker.wake()
+        return page
 
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:

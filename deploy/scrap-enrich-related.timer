@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly scrap related pages, after the backup
+
+[Timer]
+OnCalendar=*-*-* 03:41:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

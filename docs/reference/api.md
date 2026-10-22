@@ -22,7 +22,8 @@ proxy) in front. The author of a capture or edit is the `Tailscale-User-Login` h
 | `GET /api/captures/{id}/photos/{sha256}/drawing/versions` | Every version, newest first, as above without `data`. `producer` is the model, or `human` with its `author`; a restored version has `restored_from` |
 | `PUT /api/captures/{id}/photos/{sha256}/drawing` | `{base_version, scene: {elements, appState?, width?, height?, files?}}`: save an edit as a new current `human` version, its text elements indexed for search. `base_version` is the version it was edited from (`null` if there was none): `409` with the current `version` if that is no longer current. The scene is checked (see [](../explanations/ingest.md)): only rectangle, ellipse, diamond, text, arrow, line and freedraw elements; finite numbers; Excalidraw's colours; `http(s)` links only; nesting at most 32 levels deep; valid Unicode (no lone surrogates); `files` dropped; at most 5 MB as compact JSON, else `422` and nothing is saved. `413` if the request is over 8 MB |
 | `POST /api/captures/{id}/photos/{sha256}/drawing/restore` | `{version, base_version}`: make an old version current again as a new copy (versions never change). `base_version` is the current version as the client last saw it: `409` with the current `version` if it has changed, so a stale history view cannot restore over a newer edit. `404` if there is no such version; `422` unless both are integers from 1 |
-| `GET /api/ingest` | The ingest queue: `{enabled, paused, reason, paused_until, jobs, spent_today_usd}` (`paused_until` is `null` while paused until *Resume*) |
+| `POST /api/pages/{id}/enrich` | *Ask Claude*: queue the page for Claude now (tags, summary, related pages; a saved link is fetched). Returns the page, whose `enrich` says `{on, state, error, summary, ...}`, `model_tags` the tags Claude added, and `related` Claude's related pages merged with backlinks (`via`: `claude`, `link` or `both`) |
+| `GET /api/ingest` | The ingest queue: `{enabled, paused, reason, paused_until, jobs, enrich: {enabled, jobs}, spent_today_usd}` (`paused_until` is `null` while paused until *Resume*; the day's spend counts photos and text pages) |
 | `POST /api/ingest/resume` | End a pause; returns the queue as `GET /api/ingest` |
 | `DELETE /api/pages/{id or slug}` | Move a page to the trash (`204`). Its captures and files are kept |
 | `POST /api/pages/{id or slug}/undelete` | Bring a page back from the trash |
@@ -63,5 +64,8 @@ Every command takes `--data-dir` (default `$SCRAP_DATA_DIR`, else `./data`), whi
 | `SCRAP_INGEST` | `off` | `on` starts the worker that sends photos to Claude (photos are queued either way) |
 | `ANTHROPIC_API_KEY` | | The key for the Claude API; keep it in the service user's mode-600 env file |
 | `SCRAP_VISION_MODEL` | `claude-opus-5-5` | The model photos are sent to |
+| `SCRAP_ENRICH` | `on` | With ingest on, Claude also tags, summarises and links text pages and fetches saved links; `off` keeps it to photos |
+| `SCRAP_TEXT_MODEL`, `SCRAP_TEXT_EFFORT` | `claude-haiku-5-5`, `low` | The model and effort for text pages |
+| `SCRAP_ENRICH_DEBOUNCE` | `60` | Seconds after a note's capture or save before Claude reads it (later saves move it) |
 | `SCRAP_BUDGET_DAY_USD` | `3` | Daily spend, from recorded usage, after which the queue pauses until UTC midnight |
 | `SCRAP_NOTIFY_URL` | unset | If set, the first pause of an episode POSTs one fixed line naming its reason here (an ntfy topic works) |

@@ -20,7 +20,16 @@ from pathlib import Path
 from typing import Any
 
 from . import claude, preview, sanitise
-from .store import ENQUEUE, MAX_PAGE, MAX_TAGS, NotFoundError, Store, now, transaction
+from .store import (
+    ENQUEUE,
+    MAX_PAGE,
+    MAX_TAGS,
+    NotFoundError,
+    Store,
+    enrich_on,
+    now,
+    transaction,
+)
 
 __all__ = ["Worker", "claim", "enabled", "pause", "recover", "resume", "charge"]
 
@@ -173,10 +182,15 @@ def resume(conn: sqlite3.Connection, stamp: str) -> None:
 
 
 def spent_today(conn: sqlite3.Connection, stamp: str) -> int:
-    """Micro-dollars recorded for runs started since UTC midnight."""
+    """Micro-dollars recorded for runs started since UTC midnight: photos' and text
+    enrichment's (one budget)."""
+    day = stamp[:10] + "T00:00:00.000Z"
     return conn.execute(
-        "SELECT coalesce(sum(cost_microusd), 0) FROM model_run WHERE started_at >= ?",
-        (stamp[:10] + "T00:00:00.000Z",),
+        "SELECT (SELECT coalesce(sum(cost_microusd), 0) FROM model_run"
+        "  WHERE started_at >= :day)"
+        " + (SELECT coalesce(sum(cost_microusd), 0) FROM enrich_run"
+        "  WHERE started_at >= :day)",
+        {"day": day},
     ).fetchone()[0]
 
 
@@ -233,17 +247,29 @@ Call = Callable[..., claude.Completion]
 class Worker:
     """The background thread. call is claude.complete (tests pass a fake)."""
 
-    def __init__(self, store: Store, call: Call | None = None):
+    def __init__(
+        self,
+        store: Store,
+        call: Call | None = None,
+        fetcher: Callable[[str], Any] | None = None,
+    ):
+        from .enrich import Enricher  # it builds on this module
+
         self.store = store
         self.call = call or claude.complete
         self.budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
         self.current: int | None = None  # the job in flight
+        # Text pages (enrich.py), when there is no photo to read
+        self.enricher = Enricher(store, self.call, self.budget, fetcher)
+        self.enrich = enrich_on()
         self._wake, self._stop = threading.Event(), threading.Event()
         self._thread = threading.Thread(target=self.run, name="ingest", daemon=True)
 
     def start(self) -> None:
         with self.store.connect() as conn:
             recover(conn, now())
+            with transaction(conn):
+                self.enricher.recover(conn, now())
         self._thread.start()
 
     def alive(self) -> bool:
@@ -257,6 +283,7 @@ class Worker:
         free (its call is abandoned)."""
         self._stop.set()
         self._wake.set()
+        self.enricher.give_back()
         job = self.current
         if job is not None:
             with self.store.connect() as conn, transaction(conn):
@@ -287,7 +314,7 @@ class Worker:
         with self.store.connect() as conn:
             job = claim(conn, now())
         if job is None:
-            return False
+            return self.enrich and self.enricher.step()
         self.current = job["id"]
         try:
             self.process(job)
@@ -462,7 +489,7 @@ class Worker:
                     conn, cid, photo, "excalidraw", producer, stamp, run_id=run_id,
                     data=data, current=not human or bool(options.get("replace_human")),
                 )  # fmt: skip
-            self._page_fields(conn, cid, photo, out, stamp)
+            self._page_fields(conn, cid, photo, out, stamp, producer)
             conn.execute(
                 "UPDATE job SET state = 'done', last_error = NULL, updated_at = ?"
                 " WHERE id = ?",
@@ -477,6 +504,7 @@ class Worker:
         photo: str,
         out: dict[str, Any],
         stamp: str,
+        producer: str = "",
     ) -> None:
         """Title, tags and kind from a capture's first photo; the user's win. Claude's
         tags join the user's on its first reading of the photo (tagging a photo in the
@@ -518,6 +546,11 @@ class Worker:
                 "INSERT INTO tag VALUES (?, ?) ON CONFLICT DO NOTHING",
                 [(page_id, tag) for tag in fresh],
             ).rowcount
+            conn.executemany(  # marked as Claude's (enrich keeps them apart too)
+                "INSERT INTO model_tag VALUES (?, ?, 'on', ?, ?)"
+                " ON CONFLICT DO NOTHING",
+                [(page_id, tag, producer, stamp) for tag in fresh],
+            )
         if changed:  # a new title or tags: search sees them
             self.store.reindex(conn, page_id)
         if out["kind"] in PAGE_KINDS:
@@ -562,6 +595,9 @@ def status(store: Store) -> dict[str, Any]:
     with store.connect() as conn:
         q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
         jobs = dict(conn.execute("SELECT state, count(*) FROM job GROUP BY state"))
+        texts = dict(
+            conn.execute("SELECT state, count(*) FROM enrich_job GROUP BY state")
+        )
         spent = spent_today(conn, now())
     paused = q["paused_until"] is not None and q["paused_until"] > now()
     return {
@@ -570,6 +606,7 @@ def status(store: Store) -> dict[str, Any]:
         "reason": q["reason"] if paused else None,
         "paused_until": None if not paused or q[0] == FAR else q[0],
         "jobs": jobs,
+        "enrich": {"enabled": enrich_on(), "jobs": texts},
         "spent_today_usd": spent / 1e6,
     }
 

@@ -1,0 +1,15 @@
+# Pick related pages for every page changed since its last picks (`scrap enrich
+# --related`), in the running scrap container, which holds the Claude key and settings.
+# It stops at an ingest queue pause and keeps to the same daily budget
+# (SCRAP_BUDGET_DAY_USD). Started by scrap-enrich-related.timer.
+# A template: install.sh does not install it. To use it (needs ingest on):
+#   cp scrap-enrich-related.service scrap-enrich-related.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now scrap-enrich-related.timer
+[Unit]
+Description=scrap related pages (nightly)
+After=scrap.service scrap-backup.service
+Requisite=scrap.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec scrap scrap enrich --related

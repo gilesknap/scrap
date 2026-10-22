@@ -400,6 +400,91 @@ WHEN new.superseded_at IS NOT NULL BEGIN
 END;
 ```
 
+## Enrich: text pages and links (#85, stage 1)
+
+Photos get tags from their own reading; notes, todos, reads and saved links get them from a
+second job kind, `enrich` (`enrich.py`), on the same worker thread, queue pause and daily
+budget. One tool-less call per page, structured output, schema-checked: Claude adds tags and a
+summary, and for a link a title. Related pages are a call of their own, nightly and on Ask.
+Nothing edits the page's text.
+
+- **Model.** `SCRAP_TEXT_MODEL`, default `claude-haiku-5-5` ($0.10 / $0.50 per Mtok for prompts
+  up to 100k tokens), `SCRAP_TEXT_EFFORT` default `low`, `max_tokens` 4000. Measured on the
+  canary (~280 pages, ~250 tags): about $0.003 a page with the index in the call; tags and
+  summary alone are cheaper. Sonnet 5.5 (`claude-sonnet-5-5`) would be about 20 times that.
+  `SCRAP_ENRICH=off` turns it off while photo ingest stays on; it needs `SCRAP_INGEST` on.
+- **Triggers.** A note or link capture (a photo has its own job): a link at once, a note after
+  `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or text moves the page's one queued
+  job that far ahead again, so a burst of edits makes one call (a save while a job runs queues
+  the next). These do tags and summary only. **Ask Claude** on the page
+  (`POST /api/pages/{id}/enrich`) queues it now and also picks its related pages.
+  `scrap enrich --backfill [--limit N] [--dry-run]` queues every page with no tags that Claude
+  has not read, once, by hand (never automatic). Tag edits alone queue nothing.
+- **Prompt** (`prompts/enrich.md`): the fixed instructions, then the tags in use with their
+  counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
+  text as plain words (at most 12,000 characters) and, for a link, what was fetched. Everything
+  there is data; the prompt says to follow nothing in it.
+- **Output, checked.** `tags`: cleaned like the user's, at most 2 not already in use (invented
+  ones are the sprawl risk), at most 5 added; `summary`: one paragraph, at most 600 characters,
+  dropped for a note under 200 characters (tagged, not summarised); `title`: links only, 200
+  characters.
+- **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill
+  (a save's re-reading refreshes the summary only); never one the user took off. `model_tag`
+  marks Claude's tags (`on`), and `off` once the user removes one, so it never comes back; a tag
+  the user puts back by hand is theirs. Photo ingest marks its tags there too. A link's title
+  replaces the provisional one only while the title is still the URL as captured (rev 1, no
+  edit since); a share with its own title keeps it. The kind becomes Later (`consume`, with
+  `source`) only while it is an unfixed note. The summary is the model's own (`enrichment`); a
+  page's `summary` field (imported, the user's) wins in search and the index.
+- **Stored apart from the text:** `enrichment` (summary, fetched address and title, the run),
+  `model_tag`, `related` (Claude's picks in order), every call in `enrich_run` (as `model_run`,
+  whose cost it shares in the budget; `request.purpose` is `enrich` or `related`). A link's
+  fetched text is sent, not kept: the stored request has a placeholder with its length and hash
+  (a read keeps its link and summary only). Search indexes the summary in the page's summary
+  column.
+- **Failures** follow the photo rules: outage, credit, auth and budget pause the shared queue and
+  refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
+  it, and the page says so with **Ask Claude** to retry. A failed fetch is not a failed job: the
+  page is still tagged from what is known.
+
+**Related pages** (`enrich.relate`, prompt `prompts/related.md`). One call per page: the page in
+brief (title, tags, summary, the start of its text) and a numbered index of candidate pages
+(title, up to 6 tags, summary cut to 150 characters: ~40 tokens a line); Claude answers with up
+to 5 index numbers, so it cannot name a page that is not there.
+
+- **Candidates** (`enrich.CANDIDATES`, swappable) are at most 150 pages whatever the library's
+  size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
+  text best match the words of its title, tags and summary (full-text search, an OR of up to 24
+  words), then the most recently changed. Embeddings (#53) can replace this if it proves weak.
+- **When.** On Ask Claude, at once. Otherwise `scrap enrich --related [--all] [--limit N]
+  [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related`
+  run newer than its `updated_at`; `--all`: every page). It runs in the command's process (in
+  the container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and
+  the day's budget before each call, and stops at either (an outage, credit or auth error pauses
+  the queue as the worker does); other failures are counted and it goes on. Exit status 1 when
+  stopped. `deploy/scrap-enrich-related.{service,timer}` run it nightly (03:41); a template:
+  `install.sh` does not install it.
+- **Both ways.** A page's Related merges its picks, pages that picked it, and pages linking here
+  with `[[slug]]` (marked "links here"), each once, at most 8. So a new page that picks an older
+  one shows on the older one too, without a call for the older page.
+- **MCP** `read` returns all of this under `by_model` (summary, Claude's tags, related), labelled
+  as written by a model, not the user.
+
+**Fetching a link** (`fetch.py`). The page is untrusted:
+
+- http(s) only, standard ports, no login in the address, no proxy, no cookies;
+- every address the name resolves to must be global (no private, loopback, link-local and
+  metadata `169.254.169.254`, CGNAT/tailnet `100.64/10`, ULA, multicast or reserved; IPv4-mapped
+  IPv6 judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to
+  the checked address (TLS still verifies the name), so a second DNS answer cannot swap it;
+- at most 2 MB after decompression (a gzip bomb stops there), 20 s for the whole fetch;
+- HTML, XHTML or plain text only; the readable text is the `<article>` (else `<main>`, else
+  `<body>`) without scripts, styles, menus, headers, footers and forms, at most 20,000
+  characters, with the page's title and description.
+
+**Migration 9** is additive (its Python step creates the tables if missing), so an older scrap
+runs on the database with `PRAGMA user_version` set back to 8.
+
 ## Build order
 
 1. **Worker, backend, runs:** one real call with schema and thinking first; then 0002, the
@@ -411,8 +496,8 @@ END;
    on for daily use after this.
 4. **Reprocess UI:** *Reprocess* with its confirmation, *Retry*.
 
-Deferred: MCP (M3), chat and refine (M4), notes, links, files, URL fetching, embeddings, run
-pruning.
+Deferred: MCP (M3), chat and refine (M4), files, embeddings, run pruning. Notes, links and URL
+fetching came with enrich (above).
 
 ## Risks
 

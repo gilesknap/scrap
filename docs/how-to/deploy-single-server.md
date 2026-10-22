@@ -182,6 +182,13 @@ outage) is only visible when you next open scrap. An ntfy topic URL is itself a 
 setting, with its default, is in the [API reference](../reference/api.md). After editing:
 `systemctl --user restart scrap`.
 
+With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
+Related pages come from a nightly pass, which `install.sh` does not install: to have it, copy
+`deploy/scrap-enrich-related.service` and `deploy/scrap-enrich-related.timer` to
+`~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now
+scrap-enrich-related.timer`. It keeps to the same daily budget and stops at a queue pause.
+`podman exec scrap scrap enrich --related --dry-run` says how many pages it would do.
+
 ## First run
 
 ```
