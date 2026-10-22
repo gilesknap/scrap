@@ -24,7 +24,7 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click(); // the composer, kept offline
   await page.locator(".kinds").getByText("Todo").click();
-  await page.getByPlaceholder("Note or link").fill("Ring the plumber");
+  await page.getByPlaceholder("What needs doing?").fill("Ring the plumber");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator("#queue")).toHaveText("1 waiting");
   await page.reload(); // the queue survives a reload
