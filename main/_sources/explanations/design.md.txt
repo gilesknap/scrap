@@ -125,7 +125,8 @@ CREATE TABLE page (
     task_total  INTEGER NOT NULL DEFAULT 0     -- task boxes in all
 );
 
--- Rev 1 is written at creation; every title or body change adds one.
+-- Rev 1 is written at creation; every title or body change adds one (MCP's edit_page
+-- folds a quick burst into one, with a new number: see ADR 22).
 CREATE TABLE page_rev (
     page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
     rev         INTEGER NOT NULL,
@@ -497,8 +498,12 @@ session has. Tools and limits: [](../reference/mcp.md).
 - `edit_meta` and `rename_tag` change the kind and tags of any page, `revisions` lists a page's
   text and metadata revisions (the way to find an id), and `revert` undoes a metadata change (or a
   whole bulk change by its batch id): metadata only, made safe by revisions
-  ([](decisions/0019-kinds-and-tags-editable-with-revisions.md)). No tool deletes a page or changes
-  the text of one the user made.
+  ([](decisions/0019-kinds-and-tags-editable-with-revisions.md)).
+- `edit_page` changes the text of any page narrowly (one passage found exactly once, or the whole
+  body given its current `rev`) and `revert_text` restores an earlier text, each as a new
+  `page_rev` revision by author `claude`, which `is:claude-edited` finds
+  ([](decisions/0022-page-text-editable-over-mcp-with-revisions.md)). `SCRAP_MCP_CONTENT_EDIT=0`
+  turns both off. No tool deletes a page or overwrites a body unconditionally.
 - `write` only adds: a new page, or a section appended to a page written over MCP (`append_to`).
   It can also set `status`, `due`, `priority` and `snoozed_until`. Provenance is the capture's
   source `mcp` (which clients of the HTTP API cannot send), author `claude`, and a free-text

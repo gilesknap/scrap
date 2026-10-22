@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev359+g2e1d769b7 documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev362+gb7dfc241b documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=8333909d"></script>
+    <script src="../_static/documentation_options.js?v=75ee98cf"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -59,7 +59,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Design handover, 2026-10-21 (superseded)" href="design-handover-2026-10-21.html" />
-    <link rel="prev" title="21. Ingest on a Claude seat: claude -p with a long-lived token" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html" />
+    <link rel="prev" title="22. Page text editable over MCP, made safe by text revisions" href="decisions/0022-page-text-editable-over-mcp-with-revisions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
@@ -444,6 +444,7 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0022-page-text-editable-over-mcp-with-revisions.html">22. Page text editable over MCP, made safe by text revisions</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">scrap design</a></li>
@@ -636,7 +637,8 @@ this is the core of it as built:</p>
 <span class="w">    </span><span class="n">task_total</span><span class="w">  </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="w">     </span><span class="c1">-- task boxes in all</span>
 <span class="p">);</span>
 
-<span class="c1">-- Rev 1 is written at creation; every title or body change adds one.</span>
+<span class="c1">-- Rev 1 is written at creation; every title or body change adds one (MCP's edit_page</span>
+<span class="c1">-- folds a quick burst into one, with a new number: see ADR 22).</span>
 <span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">page_rev</span><span class="w"> </span><span class="p">(</span>
 <span class="w">    </span><span class="n">page_id</span><span class="w">     </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">page</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
 <span class="w">    </span><span class="n">rev</span><span class="w">         </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
@@ -1030,8 +1032,12 @@ the pages it found related, labelled as written by a model.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> change the kind and tags of any page, <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists a page’s
 text and metadata revisions (the way to find an id), and <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes a metadata change (or a
 whole bulk change by its batch id): metadata only, made safe by revisions
-(<a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>). No tool deletes a page or changes
-the text of one the user made.</p></li>
+(<a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code> changes the text of any page narrowly (one passage found exactly once, or the whole
+body given its current <code class="docutils literal notranslate"><span class="pre">rev</span></code>) and <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> restores an earlier text, each as a new
+<code class="docutils literal notranslate"><span class="pre">page_rev</span></code> revision by author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, which <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds
+(<a class="reference internal" href="decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">22. Page text editable over MCP, made safe by text revisions</span></a>). <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>
+turns both off. No tool deletes a page or overwrites a body unconditionally.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">write</span></code> only adds: a new page, or a section appended to a page written over MCP (<code class="docutils literal notranslate"><span class="pre">append_to</span></code>).
 It can also set <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>. Provenance is the capture’s
 source <code class="docutils literal notranslate"><span class="pre">mcp</span></code> (which clients of the HTTP API cannot send), author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, and a free-text
@@ -1234,12 +1240,12 @@ source says it does, but this is not yet verified (<a class="reference internal"
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"
+       href="decisions/0022-page-text-editable-over-mcp-with-revisions.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</p>
+        <p class="prev-next-title">22. Page text editable over MCP, made safe by text revisions</p>
       </div>
     </a>
     <a class="right-next"

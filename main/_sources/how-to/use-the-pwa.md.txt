@@ -281,7 +281,8 @@ The chips and panels only write the query, which you can also type:
 - `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics` too).
 - `is:STATUS` for a todo's or Later page's status: `is:open`, `is:in_progress`, `is:done`,
   `is:cancelled`. `is:snoozed` finds open todos snoozed till later. `is:claude` finds pages
-  Claude wrote over MCP, which show a *Written by Claude* badge. `is:personal` and `is:work`
+  Claude wrote over MCP, which show a *Written by Claude* badge, and `is:claude-edited` pages
+  whose text Claude changed over MCP. `is:personal` and `is:work`
   (a page not marked personal) use the page's `personal` flag, which an import sets (see
   [](import-a-vault.md)); the app cannot set it.
 - `has:image` (pages with an image file) and `has:drawing` (pages with a drawing made from a
