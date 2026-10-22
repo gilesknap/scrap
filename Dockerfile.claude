@@ -1,0 +1,31 @@
+# The scrap image plus the Claude Code CLI, for SCRAP_LLM_BACKEND=cli (ADR 0019):
+#
+#   podman build -f Dockerfile.claude --build-arg BASE=localhost/scrap:dev \
+#       -t localhost/scrap-claude:dev .
+#
+# Only the CLI's native binary is added (no Node), pinned and checked against the
+# release manifest's SHA-256. Bump the version and both checksums together, from
+# https://downloads.claude.ai/claude-code-releases/<version>/manifest.json
+ARG BASE=ghcr.io/gilesknap/scrap:latest
+
+FROM ${BASE} AS fetch
+ARG CLAUDE_VERSION=2.1.281
+ARG CLAUDE_SHA256_AMD64=56fe3da88458465fb27d7e9299dddb3fead55750fb9c2de795f233b5eea6dce1
+ARG CLAUDE_SHA256_ARM64=dd27b36438a4fed1670cd29bad2fda6a73b628b6da55443e5c2f647fe6ed328f
+ARG TARGETARCH
+# The runtime image has Python but no curl: fetch with it
+RUN set -eu; \
+    case "${TARGETARCH:-amd64}" in \
+    amd64) platform=linux-x64 sum=$CLAUDE_SHA256_AMD64 ;; \
+    arm64) platform=linux-arm64 sum=$CLAUDE_SHA256_ARM64 ;; \
+    *) echo "no Claude Code build for $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    url=https://downloads.claude.ai/claude-code-releases/$CLAUDE_VERSION/$platform/claude; \
+    python -c 'import sys, urllib.request; urllib.request.urlretrieve(*sys.argv[1:])' \
+    "$url" /tmp/claude; \
+    echo "$sum  /tmp/claude" | sha256sum -c -; \
+    chmod 755 /tmp/claude
+
+FROM ${BASE}
+# Same user (10001), data volume and entrypoint as the base image
+COPY --from=fetch /tmp/claude /usr/local/bin/claude
