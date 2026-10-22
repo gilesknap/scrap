@@ -67,7 +67,7 @@ test("the empty box shows the last searches: run again, forget one, clear all", 
 });
 
 test("search works the same when the phone keeps nothing", async ({ page }) => {
-  await make(page, "Recent quokka");
+  await make(page, "Recent bandicoot");
   await page.addInitScript(() => {
     const no = () => {
       throw new DOMException("blocked", "SecurityError");
@@ -79,8 +79,8 @@ test("search works the same when the phone keeps nothing", async ({ page }) => {
   await page.goto("/search");
   const box = page.getByRole("searchbox");
   await expect(box).toBeVisible(); // not a blank screen
-  await box.fill("quokka");
-  await expect(page.locator(".hits li a strong")).toHaveText(["Recent quokka"]);
+  await box.fill("bandicoot");
+  await expect(page.locator(".hits li a strong")).toHaveText(["Recent bandicoot"]);
   await box.press("Enter");
   await expect(page).toHaveURL(/\/p\//);
   await page.goto("/search");
