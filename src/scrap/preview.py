@@ -20,6 +20,7 @@ from pathlib import Path
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 
+from .claude import backend
 from .store import InvalidError, Store
 
 __all__ = [
@@ -40,6 +41,7 @@ SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 # now), 120 MP JPEG 60 MB.
 DECODE_BUDGET = 400 * 2**20
 CLAUDE_EDGE, CLAUDE_TOKENS = 2048, 4784  # the high-resolution image cap
+CLI_EDGE = 2000  # claude -p rescales a longer edge, so none is sent (ADR 0019)
 WAIT = 20  # seconds a request waits for the decoder before a 503
 Image.MAX_IMAGE_PIXELS = 200_000_000  # Pillow's own bomb check: far past the budget
 register_heif_opener()  # iPhone HEIC photos
@@ -117,8 +119,9 @@ def _make(src: Path, dest: Path, size: int) -> None:
 
 def claude_size(width: int, height: int) -> tuple[int, int]:
     """The largest size, never above width x height, with a long edge of at most
-    CLAUDE_EDGE pixels and at most CLAUDE_TOKENS image tokens (one per 28 x 28 tile)."""
-    long = min(max(width, height), CLAUDE_EDGE)
+    CLAUDE_EDGE pixels (CLI_EDGE on the cli backend) and at most CLAUDE_TOKENS image
+    tokens (one per 28 x 28 tile)."""
+    long = min(max(width, height), CLI_EDGE if backend() == "cli" else CLAUDE_EDGE)
     while True:
         scale = long / max(width, height)
         w, h = max(1, round(width * scale)), max(1, round(height * scale))

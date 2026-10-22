@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from scrap import claude, claude_cli, ingest
+from scrap import claude, claude_cli, ingest, preview
 from scrap.store import Store, connect, new_ulid
 
 TOKEN = "sk-ant-oat01-not-a-real-token"
@@ -24,7 +24,7 @@ OUTPUT = {
     "elements": [],
 }
 # The CLI writes what it saw beside itself (its environment holds none of ours) and
-# replays the stream-json lines in scenario.json
+# replays the stream-json lines in scenario.json (those in "before" ahead of a sleep)
 FAKE = """#!{python}
 import json, os, sys, time
 here = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +32,8 @@ seen = {{"argv": sys.argv[1:], "env": dict(os.environ), "cwd": os.getcwd(),
         "stdin": sys.stdin.read()}}
 json.dump(seen, open(os.path.join(here, "seen.json"), "w"))
 scenario = json.load(open(os.path.join(here, "scenario.json")))
+for line in scenario.get("before", []):
+    print(json.dumps(line), flush=True)
 time.sleep(scenario.get("sleep", 0))
 for line in scenario["lines"]:
     print(line if isinstance(line, str) else json.dumps(line))
@@ -48,9 +50,11 @@ SERVED = "claude-opus-5-5-20261001"
 
 
 def assistant(content, model=SERVED, error=None):
-    event = {"type": "assistant", "message": {"model": model, "content": content}}
-    if error:
-        event["error"] = error
+    usage = {"input_tokens": 6900, "output_tokens": 1}  # as at message_start
+    message = {"id": "msg_1", "model": model, "content": content, "usage": usage}
+    event = {"type": "assistant", "message": message}
+    if error:  # as the real CLI marks a failed request
+        event.update(error=error, is_api_error_message=True)
     return event
 
 
@@ -98,7 +102,9 @@ def cli(tmp_path, monkeypatch):
     fake.write_text(FAKE.format(python=sys.executable))
     fake.chmod(0o755)
     if not os.access(fake, os.X_OK):
-        pytest.skip("the temporary directory is mounted noexec")
+        if os.environ.get("CI"):  # CI must run these, not skip them
+            pytest.fail("the temporary directory is mounted noexec")
+        pytest.skip("the temporary directory is mounted noexec: use --basetemp")
     monkeypatch.setenv("PATH", str(bin_dir))  # never the real claude
     monkeypatch.setenv("SCRAP_LLM_BACKEND", "cli")
     monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", TOKEN)
@@ -146,6 +152,7 @@ def test_every_call_is_locked_down(cli):
         return argv[argv.index(flag) + 1]
 
     assert "--print" in argv and "--strict-mcp-config" in argv
+    assert after("--permission-mode") == "dontAsk"
     assert after("--tools") == "" and after("--setting-sources") == ""
     assert json.loads(after("--mcp-config")) == {"mcpServers": {}}
     assert after("--model") == "claude-opus-5-5" and after("--effort") == "medium"
@@ -181,8 +188,13 @@ def test_every_call_is_locked_down(cli):
         (failure("rate_limit", "rate limited", 429), "outage", None),
         (failure("overloaded", "overloaded", 529), "outage", None),
         (failure("server_error", "API error", 500), "outage", None),
-        (failure("unknown", "Connection error"), "outage", None),
-        (failure("unknown", "Request timed out"), "timeout", None),
+        (  # as the real CLI reports no connection
+            failure("server_error", "API Error: Connection refused (ECONNREFUSED)"),
+            "outage",
+            None,
+        ),
+        (failure("server_error", "Request timed out"), "timeout", None),  # real shape
+        (failure("unknown", "something new"), "internal", None),
         (
             failure("invalid_request", "image could not be processed", 400),
             "content",
@@ -213,12 +225,10 @@ def test_every_call_is_locked_down(cli):
         ([INIT, assistant(TOOL_USE), result(structured_output=["x"])], "invalid", None),
         ([INIT, assistant(TOOL_USE), result(stop_reason="refusal")], "content", None),
         ([INIT, "not json", assistant(TOOL_USE)], "internal", None),
-        (
-            [{**INIT, "tools": ["StructuredOutput", "Bash"]}, *SUCCESS[1:]],
-            "internal",
-            None,
-        ),
-        ([{**INIT, "mcp_servers": [{"name": "x"}]}, *SUCCESS[1:]], "internal", None),
+        # the lock-down failed: pause until Resume, never charge the photo
+        ([{**INIT, "tools": ["StructuredOutput", "Bash"]}, *SUCCESS[1:]], "auth", None),
+        ([{**INIT, "mcp_servers": [{"name": "x"}]}, *SUCCESS[1:]], "auth", None),
+        (SUCCESS[1:], "auth", None),  # no init message: fail closed
     ],
 )
 def test_error_classes(cli, lines, cls, retry_after):
@@ -232,27 +242,117 @@ def test_error_classes(cli, lines, cls, retry_after):
         assert caught.value.retry_after is None
 
 
+def test_the_lock_down_failing_pauses_rather_than_charges(cli, tmp_path):
+    store = Store(tmp_path / "data")
+    store.migrate()
+    photo(store)
+    cli([{**INIT, "tools": ["StructuredOutput", "Bash"]}, *SUCCESS[1:]])
+    ingest.Worker(store).step()
+    status = ingest.status(store)
+    assert status["paused"] and status["reason"] == "auth"
+    assert status["jobs"] == {"queued": 1}
+
+
+# The API rejected the image; the CLI dropped it, asked again without it and
+# reported a success (as Claude Code 2.1.281 does)
+IMAGE_DROPPED = [
+    INIT,
+    assistant(
+        [
+            {
+                "type": "text",
+                "text": "API Error: an image in the conversation could not be"
+                " processed and was removed.",
+            }
+        ],
+        "<synthetic>",
+        "invalid_request",
+    ),
+    assistant(TOOL_USE),
+    {"type": "rate_limit_event", "rate_limit_info": {"status": "allowed"}},
+    result(structured_output=OUTPUT, api_error_status=None),
+]
+
+
+def test_a_success_without_the_image_is_not_stored(cli):
+    cli(IMAGE_DROPPED)
+    with pytest.raises(claude.CallError) as caught:
+        call()
+    assert caught.value.cls == "content" and "could not be processed" in str(
+        caught.value
+    )
+    assert caught.value.completion is not None  # the second request is costed
+    assert caught.value.completion.usage["total_cost_usd"] == 0.0436
+
+
+OVERAGE = [
+    INIT,
+    assistant(TOOL_USE),
+    {
+        "type": "rate_limit_event",
+        "rate_limit_info": {"status": "allowed", "isUsingOverage": True},
+    },
+    result(structured_output=OUTPUT),
+]
+
+
+def test_overage_pauses_until_resume(cli, tmp_path):
+    cli(OVERAGE)
+    with pytest.raises(claude.CallError) as caught:
+        call()
+    assert caught.value.cls == "credit" and caught.value.completion is not None
+    store = Store(tmp_path / "data")
+    store.migrate()
+    photo(store)
+    ingest.Worker(store).step()
+    status = ingest.status(store)
+    assert status["paused"] and status["reason"] == "credit"  # until Resume
+    assert status["jobs"] == {"queued": 1}  # refunded, not charged
+    with closing(connect(store.db)) as conn:
+        run = conn.execute("SELECT * FROM model_run").fetchone()
+    assert (run["error_class"], run["cost_microusd"]) == ("credit", 43600)
+
+
+def test_the_cli_backend_sends_at_most_2000_pixels(monkeypatch):
+    # Claude Code rescales a longer edge and adds its own note on coordinates
+    monkeypatch.setenv("SCRAP_LLM_BACKEND", "cli")
+    assert preview.claude_size(4032, 3024) == (2000, 1500)
+    assert preview.claude_size(800, 600) == (800, 600)
+    monkeypatch.setenv("SCRAP_LLM_BACKEND", "api")
+    assert preview.claude_size(4032, 3024) == (2048, 1536)
+
+
 def test_a_crash_and_a_hung_cli(cli, monkeypatch):
     cli([], stderr="Segmentation fault", exit=139)
     with pytest.raises(claude.CallError) as caught:
         call()
     assert caught.value.cls == "internal" and "exited 139" in str(caught.value)
+    assert caught.value.completion is None
     monkeypatch.setattr(claude_cli, "DEADLINE", 0.5)
-    cli(SUCCESS, sleep=5)
+    cli([], before=[INIT, assistant(TOOL_USE)], sleep=30)
     with pytest.raises(claude.CallError) as caught:
         call()
     assert caught.value.cls == "timeout"
-
-
-def test_the_token_never_appears_in_errors(cli):
-    cli(failure("unknown", f"proxy echoed Bearer {TOKEN}"), stderr=TOKEN)
+    done = caught.value.completion  # the request it made is still costed
+    assert done is not None and done.served_model == SERVED
+    assert done.usage["input_tokens"] == 6900
+    cli(SUCCESS, sleep=30)
     with pytest.raises(claude.CallError) as caught:
         call()
-    assert TOKEN not in str(caught.value)
-    cli([], stderr=f"bad token {TOKEN}", exit=1)
+    assert caught.value.cls == "timeout" and caught.value.completion is None
+
+
+@pytest.mark.parametrize("token", [TOKEN, "opaque-token-without-a-known-prefix"])
+def test_the_token_never_appears_in_errors(cli, monkeypatch, token):
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
+    cli(failure("unknown", f"proxy echoed Bearer {token}"), stderr=token)
     with pytest.raises(claude.CallError) as caught:
         call()
-    assert TOKEN not in str(caught.value) and "[key]" in str(caught.value)
+    assert token not in str(caught.value) and "[key]" in str(caught.value)
+    cli([], stderr=f"bad token {token}", exit=1)
+    with pytest.raises(claude.CallError) as caught:
+        call()
+    assert token not in str(caught.value) and "[key]" in str(caught.value)
 
 
 @pytest.mark.parametrize(
@@ -320,21 +420,25 @@ def test_the_worker_does_not_start_without_its_token(
     with caplog.at_level(logging.ERROR):
         worker.start()
     worker.stop()
+    worker._thread.join(10)
+    assert not worker.alive()
     status = ingest.status(store)
     assert status["paused"] and status["reason"] == "auth"
     assert "needs CLAUDE_CODE_OAUTH_TOKEN" in caplog.text
     assert status["jobs"] == {"queued": 1}  # nothing was claimed
 
 
-def test_a_failed_run_stores_no_token(cli, tmp_path, caplog):
+@pytest.mark.parametrize("token", [TOKEN, "opaque-token-without-a-known-prefix"])
+def test_a_failed_run_stores_no_token(cli, tmp_path, caplog, monkeypatch, token):
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", token)
     store = Store(tmp_path / "data")
     store.migrate()
     photo(store)
-    cli(failure("authentication_failed", f"401 for {TOKEN}", 401))
+    cli(failure("authentication_failed", f"401 for {token}", 401))
     with caplog.at_level(logging.DEBUG):
         ingest.Worker(store).step()
     with closing(connect(store.db)) as conn:
         rows = [tuple(r) for r in conn.execute("SELECT * FROM model_run")]
         rows += [tuple(r) for r in conn.execute("SELECT * FROM job")]
-    assert TOKEN not in json.dumps(rows, default=str) and TOKEN not in caplog.text
+    assert token not in json.dumps(rows, default=str) and token not in caplog.text
     assert ingest.status(store)["reason"] == "auth"

@@ -98,7 +98,8 @@ blocks, the usage and the served model.
 **Image.** Claude never gets the original, but a JPEG made from it by `preview.for_claude`: EXIF
 orientation applied, HEIC converted, quality 85. It is made one decode at a time and within a
 memory budget (400 MiB), so an image too large to decode is refused from its header and charged
-as class `image`. The result has the largest size with a long edge of at most 2048 px and
+as class `image`. The result has the largest size with a long edge of at most 2048 px (2000 px on a
+Claude seat, {ref}`below <on-a-claude-seat>`) and
 ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
 photo is sent as 2048×1536 and a square one as 1932×1932.
 
@@ -130,28 +131,41 @@ returns the same `Completion`; everything after the call is shared.
 
 - **Auth:** `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, in `ingest.env`. Without it, or
   without the `claude` binary, the worker pauses at start (`auth`) and logs why.
-- **Input:** one stream-json user message on stdin holding the same image block (base64) and size
-  text as the API request; our prompt replaces Claude Code's system prompt.
-- **Lock-down:** `--tools ""`, `--strict-mcp-config` with no servers, `--setting-sources ""`,
-  `--disable-slash-commands`, `--no-session-persistence`, `--model`, `--effort` and `--json-schema`
-  on every call; a throwaway `HOME` and working directory; an environment of `PATH`, the token,
-  proxy and CA settings only; CLI retries off, prompt caching off, 300 s for the process. A run
-  whose start-up message offers any tool but `StructuredOutput`, or any MCP server, is discarded.
+- **Input:** one stream-json user message on stdin holding the image block (base64) and size text
+  that scrap records; our prompt in place of Claude Code's system prompt. The photo's long edge
+  is at most 2000 px, not 2048: the CLI rescales anything longer (and adds its own note on
+  scaling coordinates). The CLI is not a pass-through: it re-encodes a JPEG over about 500 KB
+  (same size in pixels), drops the block's `transformations`, prefixes the system prompt, adds a
+  message describing its environment, and may make a second request if the model does not call
+  `StructuredOutput` (see [ADR 0019](decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)).
+- **Lock-down:** `--tools ""`, `--permission-mode dontAsk`, `--strict-mcp-config` with no
+  servers, `--setting-sources ""`, `--disable-slash-commands`, `--no-session-persistence`,
+  `--model`, `--effort` and `--json-schema` on every call; a throwaway `HOME` and working
+  directory; an environment of `PATH`, the token, proxy and CA settings only; CLI retries off,
+  prompt caching off, 540 s for the process and its children (two request timeouts and
+  start-up). A run whose `init` message offers any tool but `StructuredOutput` or any MCP
+  server, or that has no `init` message, is discarded and pauses ingest (`auth`).
 - **Output:** the result's `structured_output`; the stored content blocks are the
   `StructuredOutput` tool call, `usage` is the CLI's with its `total_cost_usd`, which is the
-  run's `cost_microusd` and so counts towards the daily budget (a notional figure on a seat).
-- **Errors:** the CLI's error kind and status map onto the classes below. A seat's usage limit (a
-  rejected `rate_limit_event`) is an `outage` that waits for its reset (at most an hour at a time).
+  run's `cost_microusd` and so counts towards the daily budget (a notional figure on a seat). A
+  run killed at the deadline keeps the usage of the requests it got answers to.
+- **Errors:** the CLI's error kind and status map onto the classes below. A run is failed if any
+  request in it failed, even if the CLI went on to report a success (as it does after the API
+  rejects the image: it drops the image and asks again without it). A seat's usage limit (a
+  rejected `rate_limit_event`) is an `outage` that waits for its reset (at most an hour at a
+  time). Overage (`isUsingOverage`: past the limit, where calls may be billed) is a `credit`
+  pause until *Resume*, so a person checks before more is spent; that run's answer is not
+  stored and the photo is sent again after *Resume*.
 
 | CLI error | Class |
 | --- | --- |
-| `authentication_failed`, `oauth_org_not_allowed`, `account_on_hold`, `verification_required`, `model_not_found`; 401, 403, 404 | auth |
-| `billing_error`; 402 | credit |
-| a rejected `rate_limit_event`; `rate_limit`, `overloaded`, `server_error`; 429, 5xx; any other error | outage |
-| a message saying it timed out; the process running over 300 s | timeout |
-| `invalid_request`; 400, 409, 413, 422; a refusal | content |
+| `authentication_failed`, `oauth_org_not_allowed`, `account_on_hold`, `verification_required`, `model_not_found`; 401, 403, 404; tools or MCP servers offered, or no `init` message | auth |
+| `billing_error`; 402; a `rate_limit_event` with `isUsingOverage` | credit |
+| a message saying it timed out, with no status (the CLI calls it a `server_error`); the process running over 540 s | timeout |
+| a rejected `rate_limit_event`; `rate_limit`, `overloaded`, `server_error` (including no connection); 429, 5xx | outage |
+| `invalid_request` (including an image the API could not process); 400, 409, 413, 422; a refusal | content |
 | `max_output_tokens`, no structured output, `error_max_structured_output_retries` | invalid |
-| no result at all (a crash), tools offered | internal |
+| no result at all (a crash); any other error | internal |
 
 ## Stored context
 

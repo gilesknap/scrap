@@ -11,6 +11,7 @@ Failures map onto the queue's classes as the API's do (see claude.classify).
 import json
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -54,7 +55,9 @@ LOCKED = {
     "API_TIMEOUT_MS": str(int(TIMEOUT * 1000)),
     "DISABLE_PROMPT_CACHING": "1",  # each photo is seen once: a cache write is waste
 }
-DEADLINE = TIMEOUT + 60  # seconds for the whole process: the request plus start-up
+# Seconds for the whole process: two requests (the CLI makes a second if the model
+# does not call StructuredOutput) and start-up
+DEADLINE = 2 * TIMEOUT + 60
 # The CLI's error kinds (on the failed assistant message) by queue class
 AUTH = {
     "authentication_failed",
@@ -63,9 +66,15 @@ AUTH = {
     "verification_required",
     "model_not_found",  # as the API's 404: the model needs fixing, not retrying
 }
-OUTAGE = {"rate_limit", "overloaded", "server_error"}
+OUTAGE = {"rate_limit", "overloaded", "server_error"}  # server_error: no connection too
 # The one tool --json-schema adds; anything else means the lock-down failed
 STRUCTURED = "StructuredOutput"
+USAGE = (
+    "input_tokens",
+    "output_tokens",
+    "cache_creation_input_tokens",
+    "cache_read_input_tokens",
+)
 
 
 def binary() -> str | None:
@@ -96,6 +105,8 @@ def command(path: str, model: str, system: str, schema: dict) -> list[str]:
         "--verbose",  # stream-json output requires it
         "--tools",  # none: the model sees data only
         "",
+        "--permission-mode",  # and any tool use would be refused, not asked about
+        "dontAsk",
         "--strict-mcp-config",  # and no MCP servers
         "--mcp-config",
         '{"mcpServers": {}}',
@@ -107,7 +118,7 @@ def command(path: str, model: str, system: str, schema: dict) -> list[str]:
         model,
         "--effort",
         EFFORT,
-        "--system-prompt",  # replaces Claude Code's own
+        "--system-prompt",  # in place of Claude Code's own (it still adds a preamble)
         system,
         "--json-schema",
         json.dumps(schema),
@@ -134,7 +145,7 @@ def classify(
     kind: str | None, status: int | None, text: str, limit: dict | None = None
 ) -> CallError:
     """The queue's class of a failed CLI call: its error kind, HTTP status and
-    message, and a rejected rate_limit_event (a seat's usage limit), if any."""
+    message, and its rate_limit_event's info (a seat's usage limit), if any."""
     text = redact(text)[:500]
     if limit is not None and limit.get("status") == "rejected":
         resets = limit.get("resetsAt")  # a seat limit is an outage until it resets
@@ -142,24 +153,30 @@ def classify(
             max(0.0, resets - time.time()) if isinstance(resets, int | float) else None
         )
         return CallError("outage", text or "seat usage limit reached", wait)
+    if limit is not None and limit.get("isUsingOverage"):
+        # Past the seat's limit on paid overage: calls may be billed for real, so
+        # only a person restarts them (credit waits for Resume)
+        return CallError("credit", "the seat is past its usage limit, on overage")
     if kind in AUTH or status in (401, 403, 404):
         return CallError("auth", text)
     if kind == "billing_error" or status == 402:
         return CallError("credit", text)
+    # The CLI reports a request timeout as a server_error with no status: test it
+    # first, or every timeout would be a free outage retry and a poison image would
+    # never die (as in claude.classify)
+    low = text.lower()
+    if status is None and ("timed out" in low or "timeout" in low):
+        return CallError("timeout", text)
     if kind in OUTAGE or status == 429 or (status or 0) >= 500:
         return CallError("outage", text)
     if kind == "max_output_tokens":
         return CallError("invalid", text)
     if kind == "invalid_request" or status in (400, 409, 413, 422):
         return CallError("content", text)
-    if "timed out" in text.lower() or "timeout" in text.lower():
-        return CallError("timeout", text)
-    return CallError("outage", text)  # a connection error, or one not yet known
+    return CallError("internal", text)  # one not yet known: charged, as the API's
 
 
-def parse(lines: list[str], model: str, missing: str = "") -> Completion:
-    """The Completion from the CLI's stream-json output; CallError on failure
-    (missing describes a run that gave no result)."""
+def _events(lines: list[str]) -> list[dict]:
     events = []
     for line in lines:
         try:
@@ -168,37 +185,69 @@ def parse(lines: list[str], model: str, missing: str = "") -> Completion:
             continue
         if isinstance(event, dict):
             events.append(event)
-    init = next((e for e in events if e.get("subtype") == "init"), {})
-    if set(init.get("tools") or []) - {STRUCTURED} or init.get("mcp_servers"):
-        raise CallError("internal", "the CLI offered tools: lock-down failed")
-    content, served, kind, limit = [], None, None, None
+    return events
+
+
+def _text(message: dict) -> str:
+    blocks = message.get("content") or []
+    return " ".join(
+        str(b.get("text", "")) for b in blocks if isinstance(b, dict)
+    ).strip()
+
+
+def parse(lines: list[str], model: str, missing: str = "") -> Completion:
+    """The Completion from the CLI's stream-json output; CallError on failure
+    (missing describes a run that gave no result)."""
+    events = _events(lines)
+    init = next((e for e in events if e.get("subtype") == "init"), None)
+    if init is not None:
+        extra = sorted(set(init.get("tools") or []) - {STRUCTURED})
+        if extra or init.get("mcp_servers"):
+            offered = ", ".join(extra) or "MCP servers"
+            raise CallError("auth", f"lock-down failed: the CLI offered {offered}")
+    content, served, error, limit = [], None, None, None
+    usage: dict[str, dict] = {}  # each served message's latest usage, by id
     for event in events:
         if event.get("type") == "assistant":
             message = event.get("message") or {}
-            kind = event.get("error") or kind
+            if error is None and (
+                event.get("error") or event.get("is_api_error_message")
+            ):  # a failed request, even one the CLI went on past
+                error = (event.get("error") or "unknown", _text(message))
             if message.get("model") not in (None, "<synthetic>"):
                 served = message["model"]
                 content.extend(message.get("content") or [])
+                usage[str(message.get("id"))] = message.get("usage") or {}
         elif event.get("type") == "rate_limit_event":
             limit = event.get("rate_limit_info")
     result = next((e for e in reversed(events) if e.get("type") == "result"), None)
-    if result is None:
-        raise CallError("internal", missing or "the CLI gave no result")
-    usage = dict(result.get("usage") or {})
-    if isinstance(result.get("total_cost_usd"), int | float):
-        usage["total_cost_usd"] = result["total_cost_usd"]  # notional: see ADR 0019
+    if result is None:  # a crash or a kill: keep what the requests so far used
+        partial = {k: sum(u.get(k) or 0 for u in usage.values()) for k in USAGE}
+        raise CallError(
+            "internal",
+            missing or "the CLI gave no result",
+            completion=Completion({}, content, partial, served, None)
+            if served
+            else None,
+        )
+    if init is None:  # fail closed: nothing shows the lock-down held
+        raise CallError("auth", "lock-down failed: the CLI sent no init message")
     done = Completion(
         output={},
         content=content,
-        usage=usage,
+        usage=dict(result.get("usage") or {}),
         served_model=served or next(iter(result.get("modelUsage") or {}), model),
         stop_reason=result.get("stop_reason"),
     )
-    text = str(result.get("result") or result.get("errors") or "")
-    if result.get("is_error"):
-        error = classify(kind, result.get("api_error_status"), text, limit)
-        error.completion = done if served else None
-        raise error
+    if isinstance(result.get("total_cost_usd"), int | float):
+        done.usage["total_cost_usd"] = result["total_cost_usd"]  # notional: ADR 0019
+    overage = limit is not None and bool(limit.get("isUsingOverage"))
+    if result.get("is_error") or error or overage:
+        kind, said = error or (None, "")
+        text = said or str(result.get("result") or result.get("errors") or "")
+        failure = classify(kind, result.get("api_error_status"), text, limit)
+        failure.completion = done if served else None
+        raise failure
     if done.stop_reason == "refusal":
         raise CallError("content", "the model refused", completion=done)
     if result.get("subtype") != "success":  # e.g. error_max_structured_output_retries
@@ -214,7 +263,9 @@ def parse(lines: list[str], model: str, missing: str = "") -> Completion:
 def complete(
     model: str, system: str, messages: list[dict], schema: dict, blob: Any
 ) -> Completion:
-    """claude.complete() through `claude -p`: one call, never retried."""
+    """claude.complete() through `claude -p`, never retried by scrap: one claim is
+    one CLI run, which is one request, or two if the CLI has to ask again for the
+    structured output."""
     problem = unavailable()
     if problem:
         raise CallError("auth", problem)  # a setting to fix: pause until Resume
@@ -223,21 +274,41 @@ def complete(
         prefix="scrap-claude-", ignore_cleanup_errors=True
     ) as home:
         try:
-            run = subprocess.run(
+            proc = subprocess.Popen(
                 command(path, model, system, schema),
-                input=stdin(api_messages(messages, blob)),
-                capture_output=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
                 cwd=home,
                 env=environment(home),
-                timeout=DEADLINE,
-                check=False,
+                start_new_session=True,  # so a kill takes any children with it
             )
-        except subprocess.TimeoutExpired:
-            raise CallError("timeout", f"the CLI ran over {DEADLINE:.0f} s") from None
         except OSError as error:
             raise CallError("auth", redact(f"the CLI did not start: {error}")) from None
-    tail = redact(run.stderr.strip())[-300:]
-    return parse(
-        run.stdout.splitlines(), model, f"the CLI exited {run.returncode}: {tail}"
-    )
+        with proc:
+            try:
+                out, err = proc.communicate(
+                    stdin(api_messages(messages, blob)), timeout=DEADLINE
+                )
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                out, _ = proc.communicate()  # what it wrote before the kill
+                return _overran(out.splitlines(), model)
+    tail = redact(err.strip())[-300:]
+    return parse(out.splitlines(), model, f"the CLI exited {proc.returncode}: {tail}")
+
+
+def _overran(lines: list[str], model: str) -> Completion:
+    """A run killed at DEADLINE: its result if it had finished, else a timeout
+    carrying the usage of the requests it made, so their cost is recorded."""
+    try:
+        return parse(lines, model)
+    except CallError as error:
+        if error.cls != "internal":
+            raise
+        over = f"the CLI ran over {DEADLINE:.0f} s"
+        raise CallError("timeout", over, completion=error.completion) from None

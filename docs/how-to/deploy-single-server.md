@@ -250,6 +250,9 @@ ingest pauses until it resets.
 
    Take the same care as with an API key, and more: mode 600, never in the repo or a log, and
    `podman inspect scrap` shows it.
+
+   The CLI takes about 250 MB of memory while it runs, so raise `SCRAP_MEMORY_MAX` in
+   `~/.config/scrap/env` too, e.g. to `1.5g`.
 4. Re-run `./deploy/install.sh`, which restarts scrap on the new image. Without the token or the
    binary, ingest pauses with a login problem and the log says which is missing.
 
