@@ -47,6 +47,25 @@ def test_patch_snoozes_a_todo_and_is_snoozed_finds_it_until_then(client, note):
     )
 
 
+def test_is_snoozed_finds_open_todos_only(client, note):
+    """A done or cancelled todo's snooze hides nothing: is:snoozed skips it (#131)."""
+    for title, status in [
+        ("Nap open", None),
+        ("Nap going", "in_progress"),
+        ("Nap done", "done"),
+        ("Nap dropped", "cancelled"),
+    ]:
+        ref = note(title, kind="todo", snoozed_until=LATER)
+        if status:
+            url = f"/api/pages/{ref['page_id']}"
+            client.patch(url, json={"fields": {"status": status}})
+    assert sorted(search(client, "kind:todo is:snoozed")) == ["Nap going", "Nap open"]
+    assert sorted(search(client, "kind:todo -is:snoozed")) == [
+        "Nap done",
+        "Nap dropped",
+    ]
+
+
 @pytest.mark.parametrize("value", ["2026-02-30", "tomorrow", "2026-11-01T10:00", 3])
 def test_a_bad_snooze_is_refused(client, note, value):
     ref = note("Bad", kind="todo")
