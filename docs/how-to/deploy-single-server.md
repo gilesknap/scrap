@@ -224,7 +224,7 @@ would do.
 #### On a Claude seat, with no API key
 
 On a Team or Enterprise seat, ingest can run through Claude Code instead
-([ADR 0019](../explanations/decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)). First
+([ADR 0021](../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)). First
 check with your organisation's Claude admin that unattended use of your seat is allowed. Calls
 count against your seat's usage limits, shared with your own use of Claude; when a limit is hit,
 ingest pauses until it resets.

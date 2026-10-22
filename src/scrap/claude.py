@@ -231,7 +231,7 @@ def complete(
     max_tokens: int = MAX_TOKENS,
 ) -> Completion:
     """Call Claude once and return its JSON output; raise CallError on any failure."""
-    if backend() != "api":  # claude -p on a seat token (ADR 0019)
+    if backend() != "api":  # claude -p on a seat token (ADR 0021)
         from . import claude_cli
 
         return claude_cli.complete(

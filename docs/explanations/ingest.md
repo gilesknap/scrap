@@ -17,8 +17,9 @@ commands included.
 drawing; a daily budget of $3 by default.
 
 **Not built:** a `claude -p` backend with a Read tool (one without tools, for Claude seats, is
-{ref}`below <on-a-claude-seat>`), a cheaper first-pass model, a monthly budget (the Console spend limit caps it), a circuit breaker and a
-rate-limit class (the budget and **Retry** cover them). Chat and refine are not part of ingest
+{ref}`below <on-a-claude-seat>`), a cheaper first-pass model, a monthly budget (the Console
+spend limit caps it), a circuit breaker and a rate-limit class (the budget and **Retry** cover
+them). Chat and refine are not part of ingest
 yet; the stored runs are kept so they can start from them.
 
 (ingest-enabling)=
@@ -28,7 +29,8 @@ Photos are queued whether or not ingest is on, so nothing captured before you sw
 lost: it is sent when the worker starts.
 
 The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set (or, on a Claude seat,
-`SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`); the worker does not check the key
+`SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`, where a missing
+token or `claude` binary pauses the queue at start); the worker does not check the key
 at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
 installed:
 
@@ -125,7 +127,7 @@ none a union: `width`, `height`, `text`, `fontSize`, `label`, `labelFontSize`, `
 (on-a-claude-seat)=
 ### On a Claude seat (`SCRAP_LLM_BACKEND=cli`)
 
-For a Team or Enterprise seat with no API key ([ADR 0019](decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)).
+For a Team or Enterprise seat with no API key ([ADR 0021](decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)).
 `complete()` hands the call to `claude_cli.py`, which runs `claude -p` once per call and
 returns the same `Completion`; everything after the call is shared. That is every Claude call:
 photos, and text enrichment (tags, summary, *Ask Claude*, the nightly related pass), whose text
@@ -140,7 +142,7 @@ turn goes in the same way with the text model's `--effort` and `max_tokens`
   scaling coordinates). The CLI is not a pass-through: it re-encodes a JPEG over about 500 KB
   (same size in pixels), drops the block's `transformations`, prefixes the system prompt, adds a
   message describing its environment, and may make a second request if the model does not call
-  `StructuredOutput` (see [ADR 0019](decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)).
+  `StructuredOutput` (see [ADR 0021](decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)).
 - **Lock-down:** `--tools ""`, `--permission-mode dontAsk`, `--strict-mcp-config` with no
   servers, `--setting-sources ""`, `--disable-slash-commands`, `--no-session-persistence`,
   `--model`, `--effort` and `--json-schema` on every call; a throwaway `HOME` and working

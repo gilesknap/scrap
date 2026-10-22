@@ -1,6 +1,6 @@
 """The Claude call through Claude Code on a seat: `claude -p`, no tools, one user turn.
 
-SCRAP_LLM_BACKEND=cli sends claude.complete() here (ADR 0019). The CLI is an agent
+SCRAP_LLM_BACKEND=cli sends claude.complete() here (ADR 0021). The CLI is an agent
 harness, so every call locks it down: no tools, no MCP servers, no settings or
 CLAUDE.md, a throwaway HOME and working directory, its own retries off, and only the
 environment it needs. The user turn (a photo's image block, or an enrich call's text)
@@ -248,7 +248,7 @@ def parse(lines: list[str], model: str, missing: str = "") -> Completion:
         served_model=served or next(iter(result.get("modelUsage") or {}), model),
         stop_reason=result.get("stop_reason"),
     )
-    # The CLI's own cost (notional on a seat: ADR 0019), but only when it knows the
+    # The CLI's own cost (notional on a seat: ADR 0021), but only when it knows the
     # model's list price: for one it does not (2.1.281: Haiku and Sonnet 5.5) it
     # guesses, and scrap's PRICES apply instead
     priced = all(

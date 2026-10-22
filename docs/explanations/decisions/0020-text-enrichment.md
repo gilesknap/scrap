@@ -61,6 +61,8 @@ untrusted.
   container (`podman exec scrap scrap enrich --related`), after the backup. `install.sh` enables it
   if the image has the command. With ingest or enrich off, or no API key, the command says so and
   exits 0. The Helm chart has no such job.
+- On a Claude seat with no API key, enrichment runs through `claude -p` instead: see
+  [](0021-ingest-on-a-claude-seat-through-claude-p.md).
 
 ## Consequences
 

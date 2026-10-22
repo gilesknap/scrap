@@ -8,7 +8,7 @@ Accepted. Supersedes the first design's `claude -p` backend, Read tool, and sepa
 `extract`/`redraw`/`summarise` jobs. Extended by [](0020-text-enrichment.md): notes, todos, reads
 and saved links are now also sent to Claude (a small text model, with a link fetched first), so
 "photos only" below describes this ADR's photo ingest, not all use of the API.
-Amended by [](0019-ingest-on-a-claude-seat-through-claude-p.md): a locked-down `claude -p`, with
+Amended by [](0021-ingest-on-a-claude-seat-through-claude-p.md): a locked-down `claude -p`, with
 no tools, is a second backend for a Claude seat.
 
 ## Context

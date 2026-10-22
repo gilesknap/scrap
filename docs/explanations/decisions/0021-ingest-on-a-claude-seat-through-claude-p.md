@@ -1,4 +1,4 @@
-# 19. Ingest on a Claude seat: `claude -p` with a long-lived token
+# 21. Ingest on a Claude seat: `claude -p` with a long-lived token
 
 Date: 2026-10-22
 
@@ -32,8 +32,8 @@ re-encodes a JPEG over about 500 KB, at the same size in pixels; and it drops th
 - `SCRAP_LLM_BACKEND=api|cli`, default `api`. `cli` sends `complete()` to `claude_cli.py`, which
   returns the same `Completion`, so the schema check, sanitiser, `put_derived` and `model_run`
   rows are shared. The run's `request` records the backend.
-- **Every Claude call takes it, photos and text.** Text enrichment (tags and summary on capture,
-  save, backfill and *Ask Claude*; related pages on *Ask* and in the nightly `scrap enrich
+- **Every Claude call takes it, photos and text.** Text enrichment
+  ([](0020-text-enrichment.md): tags and summary on capture, save, backfill and *Ask Claude*; related pages on *Ask* and in the nightly `scrap enrich
   --related`) is the same shape of call: one user turn, a schema, no tools, here text only, on
   the text model and effort with its own `max_tokens`, which the CLI gets as `--model`,
   `--effort` and `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. Links are fetched by scrap (`fetch.py`), not by

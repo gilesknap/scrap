@@ -674,7 +674,7 @@ Larger ideas:
 ## Open questions
 
 - **Headless terms.** Partly settled: `claude setup-token` is Claude Code's own route for
-  headless use, and the seat backend uses it ([ADR 0019](decisions/0019-ingest-on-a-claude-seat-through-claude-p.md)).
+  headless use, and the seat backend uses it ([ADR 0021](decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)).
   Whether an organisation allows a seat to run unattended is its own policy: users check with
   its Claude admin.
 - **Audio transcription** (for voice memos). Local faster-whisper or a hosted API.
