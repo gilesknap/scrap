@@ -92,7 +92,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
 
   function draw() {
     const [m, name] = modeOf();
-    body.dataset.view = m; // Now and Upcoming leave out when each was edited: All keeps it
     for (const l of radios) (l.firstChild as HTMLInputElement).checked = l.textContent === name;
     const day = today();
     const groups: [string, Todo[]][] =

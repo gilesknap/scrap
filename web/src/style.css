@@ -2211,15 +2211,13 @@ div.orig .save {
   border-radius: var(--r-pill);
   box-shadow: var(--shadow-2);
 }
-/* A todo's row leads with its due date and priority, then when it was last edited */
+/* A todo's row: what to do and when, not when it was last edited (two lines, not three). Its
+   priority and due date lead the line, a done or cancelled chip after them */
+.todos .sub > small:not([class]) {
+  display: none;
+}
 .todos .sub .due {
   order: -1;
-  flex-basis: 100%; /* its own line, whole: the date it was edited goes under it */
-}
-/* Now and Upcoming: what to do and when, not when it was last edited (All, last edited first,
-   keeps the date) */
-.todos [data-view]:not([data-view="all"]) .sub > small:not([class]) {
-  display: none;
 }
 .todos .noimg {
   display: none; /* every row here is a todo: the room goes to its title */
