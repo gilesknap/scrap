@@ -32,6 +32,9 @@ and process** can do the same through the port: keep that for single-purpose ser
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
   units use `--userns=keep-id:uid=,gid=`, `--sdnotify=conmon` and `--cgroups=split`, and have
   been run with podman 5.x; older versions are untested.
+- cgroups v2 (the default on current distributions) for the memory and process limits. On a
+  cgroups v1 host (RHEL 8, for example) scrap still runs, without `--cgroups=split`, but podman
+  then ignores `--memory` and `--pids-limit`: the container has no memory cap.
 - `git` and `curl`.
 - [Tailscale](https://tailscale.com/download) on the server, logged in to your tailnet, with
   [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) and MagicDNS enabled for the

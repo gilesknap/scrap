@@ -102,6 +102,16 @@ def test_socket_mode_publishes_no_port(tmp_path):
     assert args[-3:] == ["serve", "--uds", "/run/scrap/scrap.sock"]
 
 
+def test_cgroups_split_only_on_a_cgroups_v2_host(tmp_path):
+    """Rootless podman on cgroups v1 (RHEL 8) cannot honour --cgroups=split."""
+    result, args = _run_scrap(tmp_path, SCRAP_LISTEN="socket")
+    assert result.returncode == 0, result.stderr
+    v2 = Path("/sys/fs/cgroup/cgroup.controllers").exists()
+    assert ("--cgroups=split" in args) == v2
+    if v2:
+        assert args.index("--cgroups=split") < args.index("localhost/scrap:test")
+
+
 def test_tcp_mode_publishes_only_on_loopback(tmp_path):
     for case, settings in (("tcp", {"SCRAP_LISTEN": "tcp"}), ("unset", {})):
         result, args = _run_scrap(tmp_path / case, **settings)
