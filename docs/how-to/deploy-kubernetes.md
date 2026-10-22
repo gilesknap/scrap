@@ -39,6 +39,11 @@ profile.
   recommended one.
 - For ingest: a Claude API key.
 
+```{note}
+No release or image tag exists yet (the chart is version 0.1.0), so for now build and push your
+own image as described next and set `image.tag` to it.
+```
+
 ## Get the image
 
 Releases publish a multi-arch (amd64 and arm64) image to `ghcr.io/gilesknap/scrap`, and the
@@ -47,6 +52,7 @@ and push an image to a registry your cluster can pull from, and point the chart 
 
 ```
 podman build --platform linux/amd64,linux/arm64 --manifest registry.example.com/scrap:dev .
+podman login registry.example.com
 podman manifest push registry.example.com/scrap:dev
 ```
 
@@ -65,6 +71,24 @@ and build only that.
 
 ## Install
 
+A minimal `my-values.yaml` for the recommended setup (the Tailscale operator for access, ingest
+on). It assumes the image from the previous section and the Secret from
+{ref}`k8s-ingest`; drop `image` once a release image exists, and `ingest` to run without Claude:
+
+```yaml
+image:
+  repository: registry.example.com/scrap
+  tag: dev
+ingest:
+  enabled: true
+  existingSecret: scrap-secrets
+ingress:
+  enabled: true
+  className: tailscale
+  tls:
+    - hosts: [scrap]
+```
+
 From a checkout of the repository:
 
 ```
@@ -73,6 +97,10 @@ helm install scrap ./charts/scrap --namespace scrap -f my-values.yaml
 kubectl -n scrap rollout status deploy/scrap
 ```
 
+The commands in this guide assume the release is called `scrap` in the namespace `scrap`. For
+another name, use the chart's fullname instead (`kubectl -n scrap get deploy,cronjob,pvc` lists
+the names, and `helm install` prints them in its notes).
+
 Check it without exposing it anywhere:
 
 ```
@@ -80,29 +108,44 @@ kubectl -n scrap port-forward svc/scrap 8000:80
 curl http://127.0.0.1:8000/healthz
 ```
 
-and open <http://127.0.0.1:8000/> for the PWA. The PWA installs and works offline only over HTTPS
-(or on `localhost`), so use one of the exposures below for a phone.
+and open <http://127.0.0.1:8000/> for the PWA. The PWA needs HTTPS to install on a phone (see
+[](use-the-pwa.md)), so use one of the exposures below for that.
 
 ## Values
 
 Every value is described in
 [`values.yaml`](https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml); unknown
-keys are refused, so a typo fails the install instead of being ignored. The main ones:
+top-level keys, and unknown keys under `image`, `ingest`, `backup`, `persistence` and `ingress`,
+are refused, so a typo there fails the install instead of being ignored. Other groups
+(`service`, `networkPolicy`, `serviceAccount`, `resources` and the security contexts) are not
+checked, so a typo inside them is silently ignored. The main ones:
 
 | Value | Default | Meaning |
 | --- | --- | --- |
 | `image.repository`, `image.tag` | `ghcr.io/gilesknap/scrap`, the chart's `appVersion` | Image to run. |
 | `maxUploadMB` | `50` | `SCRAP_MAX_UPLOAD_MB`: largest capture. Raise a proxy's body limit to match. |
 | `ingest.enabled` | `false` | `SCRAP_INGEST`: send photos to Claude (see {ref}`k8s-ingest`). |
-| `ingest.visionModel`, `ingest.budgetDayUSD` | app defaults | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD`. |
+| `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
-| `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, UTC, `7` | The backup CronJob. |
-| `backup.persistence.size` | `20Gi` | Each run is a full copy: allow about `keep + 1` times the data. |
+| `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
+| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + 1` times the data. |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
 | `ingress.*`, `service.annotations` | off | Exposure, below. |
+| `service.type`, `service.port` | `ClusterIP`, `80` | The Service. |
 | `networkPolicy.enabled`, `.from` | off | Who may connect, below. |
-| `extraEnv`, `extraEnvFrom` | none | Anything else for the container. |
+| `extraEnv`, `extraEnvFrom` | none | Anything else for the container, such as `SCRAP_PUBLIC_URL` (see {ref}`k8s-mcp`) or `SCRAP_ENRICH`. |
 | `nodeSelector`, `tolerations`, `affinity`, `podAnnotations` | none | Scheduling and annotations. |
+| `nameOverride`, `fullnameOverride`, `serviceAccount.*`, `terminationGracePeriodSeconds`, `backup.resources` | see `values.yaml` | Naming, the ServiceAccount, the stop timeout (`30`) and the backup job's resources. |
+
+Leave `service.type` at `ClusterIP`: the chart assumes access goes through the Ingress or a
+port-forward. `LoadBalancer` and `NodePort` open the Service to whatever network the node or load
+balancer is on, and scrap has no login, so use them only on a private network. With `ingress.hosts`
+empty, the Ingress has one rule that matches any host (the Tailscale example below relies on
+this); with hosts set, each gets its own host-specific rule. The
+[`charts/scrap/ci`](https://github.com/gilesknap/scrap/tree/main/charts/scrap/ci) directory holds
+the value sets the chart is tested with (defaults, no backup, existing claims, a generic ingress,
+ingest, long names, and the Tailscale Ingress and Service), which are worked examples to copy
+from.
 
 The settings themselves are in the [API reference](../reference/api.md). The chart sets
 `SCRAP_DATA_DIR=/data`; `SCRAP_WEB_DIR` (for trying out a PWA build) has no value of its own,
@@ -142,6 +185,17 @@ ingest:
   existingSecret: scrap-secrets
   apiKeyKey: ANTHROPIC_API_KEY     # the default
   notifyUrlKey: SCRAP_NOTIFY_URL   # optional
+```
+
+With ingest on, Claude also tags, summarises and links text pages and fetches the links you save
+(`SCRAP_ENRICH`, on by default). That shares the daily budget with photos (`ingest.budgetDayUSD`,
+$3 per UTC day by default), and the pod then makes outbound HTTP and HTTPS requests (ports 80 and
+443) to public sites. To keep Claude to photos, switch it off:
+
+```yaml
+extraEnv:
+  - name: SCRAP_ENRICH
+    value: "off"
 ```
 
 With GitOps, create the Secret with whatever your cluster uses for secrets (Sealed Secrets,
@@ -187,8 +241,8 @@ Tailscale's source the Serve reverse proxy adds the headers to every proxied req
 `addTailscaleIdentityHeaders`), so they are expected to arrive, but this is **not yet verified**
 end to end. To check on your cluster: make a change from a phone or laptop through the Ingress,
 then look at the page's history (or `GET /api/pages/<id>`): your tailnet login should be its
-author, not the fixed fallback author. If it is not, every change is recorded under the fallback
-author; nothing else breaks.
+author, not the fixed fallback author `tagged`. If it is not, every change is recorded as
+`tagged`; nothing else breaks.
 
 Because a pod inside the cluster can send its own `Tailscale-User-Login` header straight to the
 Service, let only the operator's proxies in (they run in the operator's namespace, `tailscale` by
@@ -203,9 +257,10 @@ networkPolicy:
           kubernetes.io/metadata.name: tailscale
 ```
 
-A NetworkPolicy needs a CNI that enforces it (k3s's built-in controller does). Whether kubelet
-probes still get through depends on the CNI; if the pod never becomes ready after turning the
-policy on, check that first.
+A NetworkPolicy needs a CNI that enforces it (k3s's built-in controller does). Check that the
+policy exists (`kubectl -n scrap get networkpolicy`): a misspelt key inside `networkPolicy` is
+not rejected. Whether kubelet probes still get through depends on the CNI; if the pod never
+becomes ready after turning the policy on, check that first.
 
 #### Tailnet ACL: deny tagged devices by default
 
@@ -245,8 +300,29 @@ ingress:
 ```
 
 The annotation names differ for every controller (Traefik uses Middleware objects instead), so
-the chart takes them as plain `ingress.annotations`. Make sure the proxy removes any `Tailscale-User-*` headers sent by clients; changes are then
-recorded under the fixed fallback author. Never expose the Service without authentication.
+the chart takes them as plain `ingress.annotations`. Make sure the proxy removes any
+`Tailscale-User-*` headers sent by clients; changes are then recorded under the fixed fallback
+author `tagged`. Never expose the Service without authentication.
+
+The Ingress sends every path to scrap, so the proxy covers `/mcp` and `/healthz` too. `/mcp` is
+called by Claude Code, not a browser, so a login page in front of it will block it unless the
+proxy exempts that path or the client can pass its check; the tailnet route avoids the problem.
+
+(k8s-mcp)=
+### Claude Code (MCP)
+
+Claude Code sessions talk to scrap's `/mcp` endpoint (see [](connect-claude-code.md) and
+[](../reference/mcp.md)). It answers `421` to any `Host` that is not loopback or listed in
+`SCRAP_PUBLIC_URL`, and the chart has no value for it, so set it through `extraEnv` to the address
+you reach scrap at:
+
+```yaml
+extraEnv:
+  - name: SCRAP_PUBLIC_URL
+    value: https://scrap.<tailnet>.ts.net
+```
+
+The same address makes the page links the MCP tools return absolute.
 
 ### Port-forward
 
@@ -271,8 +347,17 @@ Migrations are **forward only**, and an older scrap refuses a database migrated 
 So `helm rollback` alone does not go back: roll back to the old image *and* restore the
 pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
 the database; its files stay. The one exception is migration 0004 (Markdown-aware search
-text), which changes no schema: to go back past it, stop scrap and run
-`sqlite3 scrap.db 'PRAGMA user_version = 3'` on its data folder instead of restoring.
+text), which changes no schema. If the database is at version 4 (you upgraded from a scrap that
+stopped at migration 3 and no later migration has run), you can go back past it without
+restoring: stop scrap, then run this in a one-off pod like `restore.yaml` below (in place of its
+`args`), with only the data claim mounted and the old image (the image has no `sqlite3` command,
+but has Python):
+
+```yaml
+command: ["python", "-c", "import sqlite3; c = sqlite3.connect('/data/scrap.db'); c.execute('PRAGMA user_version = 3'); c.close()"]
+```
+
+Migrations 0005 and later change the schema: once one has run, restore the backup instead.
 
 ## Backup and restore
 
@@ -283,7 +368,15 @@ refuses anything else), and only real directories named like a run are ever dele
 else on the volume, including symlinks, is left alone. A failed run removes only its own
 directory. `scrap backup` is safe while scrap is serving. The job runs on the same node as the
 scrap pod (pod affinity), because the data volume is `ReadWriteOnce`; while scrap is scaled to
-zero, a run waits and gives up after an hour.
+zero, a run waits and gives up after an hour. Runs never overlap, and one that cannot start
+within an hour of its schedule is skipped. A failed run is retried once and then counted as
+failed; the last 3 successful and the last 3 failed Jobs are kept, so `kubectl logs` still works
+on them.
+
+The CronJob is called `<fullname>-backup`, which is `scrap-backup` for the release used in this
+guide. When the fullname is longer than 45 characters, the chart shortens it and adds a 6-character
+hash, so the name differs: read it from `kubectl -n scrap get cronjob` and use it in place of
+`scrap-backup` in the commands below and under Upgrades.
 
 Backups are on by default because the data is personal and irreplaceable; set
 `backup.enabled: false` if you back up the data volume another way (volume snapshots, Longhorn
@@ -305,7 +398,7 @@ kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":true}}'
 kubectl -n scrap scale deploy/scrap --replicas=0
 kubectl -n scrap wait --for=delete pod -l app.kubernetes.io/name=scrap --timeout=2m
 kubectl -n scrap apply -f restore.yaml
-kubectl -n scrap logs -f pod/scrap-restore
+kubectl -n scrap wait --for=jsonpath='{.status.phase}'=Succeeded pod/scrap-restore --timeout=10m
 kubectl -n scrap delete pod scrap-restore
 kubectl -n scrap scale deploy/scrap --replicas=1
 kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":false}}'
@@ -313,7 +406,8 @@ kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":false}}'
 
 With Argo CD or another GitOps controller, pause its automatic sync first, or it scales scrap
 straight back up. `restore.yaml`, with the run to restore, the image of the scrap version you
-want and, for a non-empty data volume, `--force` (which replaces the whole database; see
+want (the version that wrote the backup, or a newer one: restore refuses a backup from a newer
+scrap) and, for a non-empty data volume, `--force` (which replaces the whole database; see
 `scrap restore --help`):
 
 ```yaml
@@ -323,6 +417,8 @@ metadata:
   name: scrap-restore
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
+  # imagePullSecrets: [{name: my-registry-credentials}]   # if the registry needs a login
   securityContext:
     runAsNonRoot: true
     runAsUser: 10001
@@ -344,7 +440,7 @@ spec:
           drop: [ALL]
       volumeMounts:
         - {name: data, mountPath: /data}
-        - {name: backups, mountPath: /backups}
+        - {name: backups, mountPath: /backups, readOnly: true}
         - {name: tmp, mountPath: /tmp}
   volumes:
     - name: data
@@ -359,16 +455,19 @@ spec:
 
 The claim names are `<fullname>-data` and `<fullname>-backups`, where the fullname is the
 release name if it contains `scrap`, else `<release>-scrap`: `kubectl -n scrap get pvc` shows
-them. The backups claim must be mounted writable: a backup's database is in SQLite's WAL mode,
-and `scrap restore` cannot open it in a read-only directory. The same pod with other arguments
-runs any `scrap` command against the data, for example `["export", "/backups/export"]` (pruning
-only ever deletes directories named like a backup run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
+them. `scrap restore` prints nothing when it works and exits non-zero with a message when it does
+not (`kubectl -n scrap logs pod/scrap-restore`; the `wait` above then times out instead of
+returning). It works on a copy and never writes to the
+backup, so the backups claim can be mounted `readOnly: true`, as above. The same pod with other
+arguments runs any `scrap` command against the data, for example `["export", "/backups/export"]`
+(which does need the claim writable; pruning only ever deletes directories named like a backup
+run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without `--force`, and point `persistence.existingClaim` at it.
 
 ## Health and monitoring
 
-`/healthz` answers 200 with the version while scrap is well. It answers 503 when the ingest
-worker thread has died; the liveness probe then restarts the pod, which is intended (the
+`/healthz` answers 200 with the version while scrap is well. It answers 503 when ingest is on and
+its worker thread has died; the liveness probe then restarts the pod, which is intended (the
 readiness probe takes it out of the Service first). Logs: `kubectl -n scrap logs deploy/scrap`.
 Ingest pauses (budget spent, credit, auth) are reported once per episode to `SCRAP_NOTIFY_URL`
 if set, and are visible at `GET /api/ingest`. The backup CronJob's failed jobs stay listed
@@ -442,11 +541,48 @@ Both claims carry two annotations by default, and keep them if you set your own
 Also use a StorageClass (or set the PV) with the `Retain` reclaim policy: k3s's `local-path`
 defaults to `Delete`, so a deleted claim takes the data with it.
 
+## Uninstall
+
+```
+helm uninstall scrap -n scrap
+```
+
+removes the Deployment, CronJob, Service, ServiceAccount, Ingress and NetworkPolicy, but keeps
+both claims (data and backups), because they are annotated `helm.sh/resource-policy: keep`. The
+namespace and the Secret you created stay too. Installing again with the same release name reuses
+the surviving claims.
+
+To delete the data for good, first copy a final backup off the cluster, then delete the claims:
+
+```
+kubectl -n scrap get pvc
+kubectl -n scrap delete pvc scrap-data scrap-backups
+```
+
+Use the names `get pvc` shows (`<fullname>-data` and `<fullname>-backups`). A claim you supplied
+with `persistence.existingClaim` or `backup.persistence.existingClaim` is not the chart's to
+delete. What happens to the underlying volume depends on the StorageClass reclaim policy: with
+`Delete` (k3s's `local-path`) it goes with the claim, with `Retain` it stays, and you remove the
+PersistentVolume by hand.
+
 ## What the chart does not do
 
 - Run more than one replica, or any high availability: SQLite has a single writer.
 - Create Secrets, take the API key as a value, or log in users.
 - Expose scrap to the internet, or add authentication.
 - Copy backups off the cluster.
-- Restrict egress (ingest needs `api.anthropic.com`; notifications need your notify URL).
+- Restrict egress (ingest needs `api.anthropic.com`, and any public site a saved link points to
+  while `SCRAP_ENRICH` is on; notifications need your notify URL).
+- Run `scrap gc` on a schedule, as the single-server deployment does nightly, so files nothing
+  uses build up on the data volume and in each backup. After a fresh backup, run
+  `kubectl -n scrap exec deploy/scrap -- scrap gc` (a dry run that only counts) and then the same
+  with `--delete` (see {ref}`scrap-gc`).
+- Run the nightly related-pages pass (`scrap-enrich-related` on the single server). Run it by
+  hand with `kubectl -n scrap exec deploy/scrap -- scrap enrich --related`; it is safe while scrap
+  serves, and with ingest or `SCRAP_ENRICH` off it says so and does nothing.
 - Publish a Helm repository or OCI chart: install from a checkout or a Git source.
+
+## Next steps
+
+Open scrap's tailnet address and install the PWA ([](use-the-pwa.md)), then connect Claude Code
+sessions ([](connect-claude-code.md)).

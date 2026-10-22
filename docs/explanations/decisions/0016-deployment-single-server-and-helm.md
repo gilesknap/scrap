@@ -4,7 +4,8 @@ Date: 2026-10-19 (#5, #24)
 
 ## Status
 
-Accepted
+Accepted. Partly superseded by [](0018-unix-socket-for-single-server-installs.md) for the
+single-server listener: new installs listen on a Unix socket and publish no port.
 
 ## Context
 
@@ -17,7 +18,11 @@ listener.
 - One multi-arch (arm64, amd64) container image runs everything; CI builds it and the chart.
 - **Single server:** `deploy/install.sh` installs rootless podman systemd user units for a dedicated
   user: the service, a gated backup timer with safe retention (only run-named directories are ever
-  deleted), and a gc timer. The container publishes only to `127.0.0.1`; Tailscale Serve fronts it.
+  deleted), a gc timer, and (added with [](0020-text-enrichment.md)) a nightly timer for
+  related pages (`scrap-enrich-related`, which runs `scrap enrich --related` in the service's
+  container). As first decided, the container publishes only to `127.0.0.1` and Tailscale Serve
+  fronts it; that is now the `SCRAP_LISTEN=tcp` choice, kept for env files written before 0018,
+  while `SCRAP_LISTEN=socket` (the default of a new env file) publishes no port.
   Docker works but is not the primary path. Updates restart onto a new image and pass ingest
   settings through.
 - **Kubernetes:** a Helm chart with exactly one replica and strategy `Recreate`, a restricted Pod

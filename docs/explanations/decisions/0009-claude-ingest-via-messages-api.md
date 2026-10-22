@@ -5,7 +5,9 @@ Date: 2026-10-19 (design rounds 1-3), built 2026-10-19/20
 ## Status
 
 Accepted. Supersedes the first design's `claude -p` backend, Read tool, and separate
-`extract`/`redraw`/`summarise` jobs.
+`extract`/`redraw`/`summarise` jobs. Extended by [](0020-text-enrichment.md): notes, todos, reads
+and saved links are now also sent to Claude (a small text model, with a link fetched first), so
+"photos only" below describes this ADR's photo ingest, not all use of the API.
 
 ## Context
 
@@ -39,4 +41,8 @@ credentials, with unclear terms for unattended use.
 - Cost is predictable: about $0.03-0.06 a board.
 - One worker thread runs jobs (11-55 s each); no asyncio, no second process.
 - Stored runs cost 10-50 KB each and cannot be deleted while a version uses them.
-- Run pruning, refine/chat (M4) and non-photo ingest are deferred.
+- Run pruning and refine/chat (M4) are deferred. Non-photo ingest was deferred here and is now
+  [](0020-text-enrichment.md).
+- A photo's tags are no longer only for an empty page: they join the user's tags on the first
+  reading of the capture's first photo (a later reading adds them only to a page with none), and
+  are marked in `model_tag` so a tag the user takes off stays off.

@@ -16,9 +16,11 @@ stay tiny: no UI framework, icon library or web font.
 
 - Vanilla TypeScript built by Vite into the Python package (`scrap/static`). React exists only
   inside the lazily loaded Excalidraw chunk.
-- The app shell has a gzipped JavaScript **budget** (15 kB), enforced by `npm run size` in CI. The
-  service worker precaches the shell only; the composer, editor and Markdown renderer are lazy chunks it keeps for
-  offline use, while Excalidraw (~435 kB gzipped), its fonts and Mermaid load only when used.
+- The app shell has a gzipped JavaScript **budget** (16 kB, raised from the original 15 kB), enforced
+  by `npm run size` in CI. The service worker precaches the shell only; the lazy chunks it also
+  keeps for offline use are those in `OFFLINE` in `web/vite.config.ts` (the composer, editor,
+  page editor, Markdown renderer, sharing, search filters and recent searches), while Excalidraw
+  (~405 kB gzipped), its fonts and Mermaid load only when used.
 - The server gzips scripts, styles, pages and JSON, so the gzipped sizes are what crosses the wire.
 - One design system, all tokens in `tokens.css`: paper and ink with a single amber accent, designed
   dark mode, controls under the thumb, every gesture also a button, icons always with words.
