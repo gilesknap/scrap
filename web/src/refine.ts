@@ -9,7 +9,7 @@
 // chunk of its own (search.ts loads it with the screen; the service worker keeps it offline).
 import { api } from "./api";
 import { icon } from "./icons";
-import { adding, day, has, kindsIn, removing, token, unsorted } from "./terms";
+import { adding, day, has, KIND_ROW, kindsIn, removing, token, unsorted, withKind } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -39,13 +39,14 @@ const NONE: Facets = {
 };
 const facets = (q: string, signal?: AbortSignal) =>
   q ? api<Facets>(`search/facets?q=${encodeURIComponent(q)}`, { signal }) : Promise.resolve(NONE);
-/** The query's filters, but the kind row's kind (not a "not" one: -kind:todo). */
-const filtersOf = (f: Facets) => f.active.filter((a) => a.key !== "kind" || a.neg);
+/** The query's filters (its kind too: it is one of them now, in the panel). */
+const filtersOf = (f: Facets) => f.active;
 const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
 
 let open = false; // the panel, open or folded: kept while the app is (the next search too)
 let typed = ""; // what is in its tag box, kept as the panel is drawn again
 let allTags: Promise<[string, number][]> | null = null; // every tag in use, asked once
+let inResults: { q: string; tags: Promise<[string, number][]> } | null = null; // a search's
 
 // Orders: [sort: as typed, label]; "" is the default (best match, or newest edit first)
 const SORTS = [
@@ -78,6 +79,10 @@ function label(a: Facets["active"][number]) {
   if (a.key === "after" && /^\d+[dwmy]$/.test(a.value))
     return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
   if (a.key === "is") return `${not}${a.value}`;
+  if (a.key === "kind") {
+    const k = KIND_ROW.find(([, , names]) => names.includes(a.value.toLowerCase()));
+    if (k) return `${not}${k[0]}`;
+  }
   return a.token;
 }
 
@@ -188,21 +193,35 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   const offer = async () => {
     const want = box.value.trim().replace(/^#+/, "").toLowerCase();
     typed = box.value;
-    allTags ??= api<[string, number, number][]>("tags").then(
-      (all) => all.map(([t, n]) => [t, n] as [string, number]),
-      () => [],
-    );
+    // Only tags that narrow what is found: with a search, those of its results (each on some
+    // of them, not all), with how many; before one, every tag in use
+    let source: Promise<[string, number][]>;
+    if (q) {
+      if (inResults?.q !== q)
+        inResults = {
+          q,
+          tags: api<Facets>(`search/facets?q=${encodeURIComponent(q)}&top=1000`).then(
+            (got) => got.tags,
+            () => f.tags,
+          ),
+        };
+      source = inResults.tags;
+    } else
+      source = allTags ??= api<[string, number, number][]>("tags").then(
+        (all) => all.map(([t, n]) => [t, n] as [string, number]),
+        () => [],
+      );
     let list: [string, number][];
     // Nothing typed: the results' top tags; with no search yet, the most used of all
     if (!want)
-      list = f.tags.length
+      list = q
         ? f.tags
-        : (await allTags)
-            .filter(([t]) => !asked.includes(t) && !t.includes("/"))
+        : (await source)
+            .filter(([t]) => !t.includes("/"))
             .sort((a, b) => b[1] - a[1])
             .slice(0, 8);
     else {
-      const all = (await allTags).filter(([t]) => !asked.includes(t));
+      const all = (await source).filter(([t]) => !asked.includes(t));
       const starts = all.filter(
         ([t]) => t.startsWith(want) || t.split("/").some((p) => p.startsWith(want)),
       );
@@ -212,7 +231,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     if (box.value.trim().replace(/^#+/, "").toLowerCase() !== want) return; // typed on meanwhile
     offers.replaceChildren(
       ...list.map(([t, n]) => {
-        const b = chip(`#${t}`, want ? -1 : n, () => addTag(t));
+        const b = chip(`#${t}`, n, () => addTag(t));
         b.setAttribute("aria-label", `Filter by #${t}`);
         b.dataset.k = `tag:${t}`;
         return b;
@@ -221,6 +240,15 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
         ? []
         : [h("a", { className: "button facet", href: "/tags" }, icon("tag"), "All tags")]),
     );
+    // None to offer: say why, rather than an empty row
+    if (!list.length)
+      offers.prepend(
+        h(
+          "small",
+          { className: "none" },
+          want ? `No tag in these results has “${want}”` : "No tag narrows these results",
+        ),
+      );
   };
   box.oninput = () => void offer();
   box.onkeydown = (e) => {
@@ -307,7 +335,18 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     : null;
   clear?.setAttribute("data-k", "clear");
 
+  // Kind: one tap each, a second clears it (two kinds asked: either)
+  const kinds = KIND_ROW.map(([label, name]) => {
+    const on = kindsIn(q).some(([, n]) => n === name);
+    // No count: with a kind chosen, every other would say 0, which reads as "none of those"
+    const b = chip(label, -1, () => apply((now) => withKind(now, on ? "" : name)));
+    b.setAttribute("aria-pressed", String(on));
+    b.dataset.k = `kind:${name}`;
+    return b;
+  });
+
   return [
+    row("Kind", ...kinds),
     tags,
     row("Order", ...orders),
     row(

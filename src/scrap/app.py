@@ -425,9 +425,9 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return store.search(q, limit, offset)
 
     @app.get("/api/search/facets")
-    def facets(q: str) -> dict[str, Any]:
+    def facets(q: str, top: int = Query(12, ge=1, le=1000)) -> dict[str, Any]:
         """The kinds and top tags of a search's pages, with counts, to narrow it."""
-        return store.facets(q)
+        return store.facets(q, top)
 
     @app.get("/api/tags")
     def tags() -> list[list[Any]]:
