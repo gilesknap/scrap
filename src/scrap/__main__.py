@@ -101,6 +101,30 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Also write the full result, with all the text Claude read from the"
         " image, to this new file (mode 600; an existing file is refused)",
     )
+    enr = subparsers.add_parser(
+        "enrich",
+        parents=[common],
+        help="Queue pages for Claude to tag, summarise and link (the service's worker"
+        " runs them, within the daily budget)",
+    )
+    enr.add_argument(
+        "--backfill",
+        action="store_true",
+        help="Queue every page with no tags that Claude has not read yet",
+    )
+    enr.add_argument(
+        "--related",
+        action="store_true",
+        help="Pick related pages, here and now, for every page changed since its last"
+        " picks (the nightly pass; stops at a queue pause or the day's budget)",
+    )
+    enr.add_argument(
+        "--all", action="store_true", help="With --related: every page, changed or not"
+    )
+    enr.add_argument("--limit", type=int, help="At most this many pages")
+    enr.add_argument(
+        "--dry-run", action="store_true", help="Only count them, queue nothing"
+    )
     parsed = parser.parse_args(args)
 
     if parsed.command == "ingest-once":
@@ -162,6 +186,35 @@ def main(args: Sequence[str] | None = None) -> None:
             if not parsed.dry_run:
                 n = importer.run(store, plan, ingest=parsed.ingest)
                 print(f"imported {n} pages into {store.dir} (--dry-run lists problems)")
+        elif parsed.command == "enrich":
+            from .enrich import backfill, related_pass
+            from .store import enrich_on
+
+            if parsed.backfill == parsed.related:
+                parser.error("enrich: say --backfill or --related")
+            store.migrate()
+            if parsed.related and not (
+                enrich_on() and os.environ.get("ANTHROPIC_API_KEY")
+            ):  # nothing to do, and not a failure (the nightly timer runs anyway)
+                print(
+                    "related pages: Claude enrichment is off (needs SCRAP_INGEST=on"
+                    " and ANTHROPIC_API_KEY; SCRAP_ENRICH not off); nothing done"
+                )
+            elif parsed.related:
+                c = related_pass(store, None, parsed.all, parsed.limit, parsed.dry_run)
+                if parsed.dry_run:
+                    print(f"would pick related pages for {c['pages']} pages")
+                else:
+                    print(f"related pages picked for {c['done']} of {c['pages']} pages,"
+                          f" {c['failed']} failed")  # fmt: skip
+                    if c["stopped"]:
+                        raise SystemExit(
+                            f"stopped: the queue is paused ({c['stopped']})"
+                        )
+            else:
+                n = backfill(store, parsed.limit, parsed.dry_run)
+                verb = "would queue" if parsed.dry_run else "queued"
+                print(f"{verb} {n} untagged pages for Claude")
         elif parsed.command == "backup":
             backup.backup(store, parsed.dir)
         elif parsed.command == "restore":

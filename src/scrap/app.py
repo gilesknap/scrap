@@ -28,7 +28,7 @@ from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, drawing, ingest, mcp_server, preview
+from . import __version__, backup, drawing, enrich, ingest, mcp_server, preview
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
@@ -37,13 +37,25 @@ from .store import (
     NotFoundError,
     Store,
     TooLargeError,
+    enrich_on,
     new_ulid,
     upload_limit,
 )
 
 __all__ = ["create_app"]
 
-ERRORS = {NotFoundError: 404, ConflictError: 409, TooLargeError: 413, InvalidError: 422}
+
+class EnrichOffError(Exception):
+    """Claude enrichment is off (it needs SCRAP_INGEST=on, and SCRAP_ENRICH not off)."""
+
+
+ERRORS = {
+    NotFoundError: 404,
+    ConflictError: 409,
+    EnrichOffError: 409,
+    TooLargeError: 413,
+    InvalidError: 422,
+}
 BLOB_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "sandbox",  # an uploaded HTML file cannot run scripts
@@ -101,6 +113,8 @@ class PageEdit(BaseModel):
         Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
     ) = None
     tags: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None  # all of them
+    # The tags the editor started from: Claude's added since are kept, not retired
+    tags_shown: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None
     # A todo's (null clears one): sent or not tells apart, see todo()
     due: Annotated[str, Field(max_length=10)] | None = None  # YYYY-MM-DD
     priority: Annotated[str, Field(max_length=10)] | None = None  # high, medium, low
@@ -328,7 +342,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         who = author(request)
         return store.update_page(
             key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
-            edit.tags, edit.todo(),
+            edit.tags, edit.todo(), tags_shown=edit.tags_shown,
         )  # fmt: skip
 
     @app.delete("/api/pages/{key}", status_code=204)
@@ -341,6 +355,17 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """Bring a page back from the trash."""
         store.delete_page(key, undo=True)
         return store.page(key)
+
+    @app.post("/api/pages/{key}/enrich")
+    def enrich_page(key: str) -> dict[str, Any]:
+        """Ask Claude to read a page now (tags, summary, related pages; a link is
+        fetched): queued, and the page returned as it is; 409 while Claude is off."""
+        if not enrich_on():
+            raise EnrichOffError
+        page = enrich.ask(store, key)
+        if app.state.worker:
+            app.state.worker.wake()
+        return page
 
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:

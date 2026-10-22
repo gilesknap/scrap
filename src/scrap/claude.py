@@ -21,6 +21,7 @@ import anthropic
 __all__ = [
     "MODEL",
     "SCHEMA",
+    "TEXT_MODEL",
     "CallError",
     "Completion",
     "classify",
@@ -37,7 +38,17 @@ KINDS = ["whiteboard", "handwriting", "diagram", "screenshot", "document", "phot
 ELEMENT_TYPES = ["rectangle", "ellipse", "diamond", "text", "arrow", "line"]
 # Dollars per million tokens: input, output, cache write (5 min), cache read. A model
 # missing here is costed as the dearest, so the budget errs on the safe side.
-PRICES = {"claude-opus-5-5": (4.0, 20.0, 5.0, 0.2)}
+PRICES = {
+    "claude-opus-5-5": (4.0, 20.0, 5.0, 0.2),
+    "claude-sonnet-5-5": (2.0, 10.0, 2.5, 0.2),
+    # Prompts of up to 100k tokens; enrich's are far smaller (a longer one would be
+    # dearer: $0.50 / $2.50)
+    "claude-haiku-5-5": (0.1, 0.5, 0.125, 0.01),
+}
+# Text enrichment (enrich.py): a small model, a little thinking
+TEXT_MODEL = "claude-haiku-5-5"
+TEXT_EFFORT = "low"
+TEXT_MAX_TOKENS = 4000
 DEAREST = (10.0, 50.0, 12.5, 0.25)
 KEYLIKE = re.compile(r"sk-ant-[\w-]+")
 
@@ -86,11 +97,12 @@ logging.getLogger("anthropic").setLevel(logging.WARNING)  # debug logs request b
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-def prompt(name: str = "photo") -> tuple[str, str]:
+def prompt(name: str = "photo", schema: dict | None = None) -> tuple[str, str]:
     """A system prompt from src/scrap/prompts and its version: name@12 hex digits of
-    the SHA-256 of the prompt and the schema."""
+    the SHA-256 of the prompt and the schema (the photo's, unless given)."""
     text = (package_files("scrap") / "prompts" / f"{name}.md").read_text()
-    digest = hashlib.sha256((text + json.dumps(SCHEMA, sort_keys=True)).encode())
+    shape = json.dumps(SCHEMA if schema is None else schema, sort_keys=True)
+    digest = hashlib.sha256((text + shape).encode())
     return text, f"{name}@{digest.hexdigest()[:12]}"
 
 
@@ -209,17 +221,23 @@ def api_messages(messages: list[dict], blob: Any) -> list[dict]:
 
 
 def complete(
-    model: str, system: str, messages: list[dict], schema: dict, blob: Any
+    model: str,
+    system: str,
+    messages: list[dict],
+    schema: dict,
+    blob: Any,
+    effort: str = EFFORT,
+    max_tokens: int = MAX_TOKENS,
 ) -> Completion:
     """Call Claude once and return its JSON output; raise CallError on any failure."""
     try:
         response = client().messages.create(
             model=model,
-            max_tokens=MAX_TOKENS,
+            max_tokens=max_tokens,
             system=system,
             messages=api_messages(messages, blob),  # type: ignore[arg-type]
-            output_config={
-                "effort": EFFORT,
+            output_config={  # type: ignore[arg-type]  effort: a str from settings
+                "effort": effort,
                 "format": {"type": "json_schema", "schema": schema},
             },
         )
@@ -261,3 +279,9 @@ def cost_microusd(model: str, usage: dict[str, Any]) -> int:
 
 def model_name() -> str:
     return os.environ.get("SCRAP_VISION_MODEL") or MODEL
+
+
+def text_model() -> tuple[str, str]:
+    """The model and effort for text enrichment: SCRAP_TEXT_MODEL, SCRAP_TEXT_EFFORT."""
+    model = os.environ.get("SCRAP_TEXT_MODEL") or TEXT_MODEL
+    return model, os.environ.get("SCRAP_TEXT_EFFORT") or TEXT_EFFORT

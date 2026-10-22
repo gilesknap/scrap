@@ -223,8 +223,12 @@ Notes:
   and old links then point at the new page; accepted for one user.
 - **Links.** `[[slug]]` or `[[slug|label]]` in Markdown, parsed into `link` on save. Dangling links
   are allowed; backlinks are a query on `link_by_dst`.
-- **Tags.** Flat, lower-case, `/` allowed. The PWA edits them; `summarise` adds them only on its
-  first success and only to a page with none.
+- **Tags.** Flat, lower-case, `/` allowed. The PWA edits them. Claude's (photo ingest, and
+  enrich for text pages: [](ingest.md)) are marked in `model_tag` and shown dashed; a tag the
+  user takes off is never added back, and Claude never removes one.
+- **Related.** Enrich stores the pages Claude picked as related apart from the text (a nightly
+  pass and Ask Claude, not every save); the page shows them as Related both ways, merged with
+  backlinks.
 
 ### Kinds
 
@@ -264,7 +268,8 @@ rewrites the user's words or fits them to templates.
   `{"subtype":"read","status":"open"}` and `source`, always the capture's own URL (omitted if it has
   none). Either way the page is listed at once, even if `summarise` never succeeds.
 - **The user wins**, as with titles. A kind chosen at capture or in the editor sets
-  `kind_fixed`. `extract` and
+  `kind_fixed`. As built, enrich (#85, [](ingest.md)) files a saved link as Later only while it
+  is an unfixed note, and retitles it only while its title is still the URL. `extract` and
   `summarise` set the kind only while it is still `note` and not fixed. `summarise` writes kind,
   `fields` and tags only on its first success; a regenerated summary replaces just the summary text,
   so a cleared `due` stays cleared. It calls Claude holding no lock, then in one `BEGIN IMMEDIATE`
@@ -418,7 +423,8 @@ session has. Tools and limits: [](../reference/mcp.md).
   share its container, so the call never bypasses permissions and a deny rule covers their
   directory; this confinement is verified when the worker is built. The worst outcome is a wrong
   page, which `page_rev` can undo. URL fetching refuses private and tailnet addresses, re-checked
-  after DNS resolution and after every redirect.
+  after DNS resolution and after every redirect, and connects to the address it checked
+  (`fetch.py`; as built, text calls have no tools at all).
 - **Reading is not acting.** Sessions holding cluster or other powerful credentials should not
   mount the scrap MCP server, since pages may hold injected text.
 

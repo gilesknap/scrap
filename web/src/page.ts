@@ -16,6 +16,8 @@ const POLL = 10_000; // while Claude has a photo of this page
 
 /** The page's images as figures, with what Claude made of them: a chunk of its own. */
 type Figures = typeof import("./figure");
+/** What Claude added to its text (summary, related pages): a chunk of its own. */
+type Enrich = typeof import("./enrich");
 const hasFiles = (p: Page) =>
   p.captures.some((c) => c.blobs.length) || p.body.includes("](/api/blobs/");
 /** A page's kind and status, as its meta line's chip says them: "Todo · done", "Note". */
@@ -76,7 +78,11 @@ export async function page(key: string): Promise<Node> {
       ]);
       await load(fresh);
       if (signal.aborted) return;
-      const changed = ingestOf(fresh) !== ingestOf(shown) || q?.paused !== queue?.paused;
+      const changed =
+        ingestOf(fresh) !== ingestOf(shown) ||
+        q?.paused !== queue?.paused ||
+        JSON.stringify([fresh.enrich, fresh.tags, fresh.title, fresh.kind]) !==
+          JSON.stringify([shown.enrich, shown.tags, shown.title, shown.kind]);
       queue = q;
       if (force || changed) show(fresh);
       else schedule(fresh);
@@ -86,7 +92,8 @@ export async function page(key: string): Promise<Node> {
   };
   const schedule = (p: Page) => {
     clearTimeout(poll);
-    if (busy(p) && queue?.enabled && !queue.paused && !signal.aborted) {
+    const photos = busy(p) && queue?.enabled && !queue.paused;
+    if ((photos || enr?.reading(p)) && !signal.aborted) {
       poll = window.setTimeout(() => {
         if (document.visibilityState === "visible") void refresh(false);
         else schedule(p);
@@ -95,7 +102,10 @@ export async function page(key: string): Promise<Node> {
   };
   // Figures are a chunk of its own, loaded for pages with files or images
   let figs: Figures | null = null;
+  let enr: Enrich | null = null;
   const load = async (p: Page) => {
+    // offline: none of it
+    if (!enr && (p.enrich || p.related?.length)) enr = await import("./enrich").catch(() => null);
     if (!hasFiles(p) || figs) return;
     [figs, queue] = await Promise.all([
       import("./figure").catch(() => null), // offline: the photos still show
@@ -145,7 +155,15 @@ export async function page(key: string): Promise<Node> {
             p.tags.length ? "Tags" : "Add tags",
           ),
           ...p.tags.map((t) =>
-            h("a", { href: `/search?q=${encodeURIComponent(token("tag", t))}` }, `#${t}`),
+            h(
+              "a",
+              {
+                href: `/search?q=${encodeURIComponent(token("tag", t))}`,
+                // Added by Claude: marked, so the user's own stand apart
+                ...(p.model_tags?.includes(t) && { className: "ai", title: "Added by Claude" }),
+              },
+              `#${t}`,
+            ),
           ),
         ),
       // A todo's due date and priority: tapped, changed in place (a closed one with none
@@ -187,6 +205,7 @@ export async function page(key: string): Promise<Node> {
           ),
       ),
       body,
+      enr?.enrichPanel(p, show) ?? "",
       h("div", { className: "originals" }, ...files),
       h(
         "div",
@@ -255,7 +274,8 @@ export async function page(key: string): Promise<Node> {
           api<Page>(`pages/${p.id}`, {
             method: "PATCH",
             headers: JSON_TYPE,
-            body: JSON.stringify({ tags: field.value() }),
+            // What it was shown: a tag Claude adds meanwhile is kept, not taken off
+            body: JSON.stringify({ tags: field.value(), tags_shown: p.tags }),
           }).then(close, (err) => {
             save.disabled = false;
             toast(`Not saved: ${why(err)}`);

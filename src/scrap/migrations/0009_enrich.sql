@@ -1,0 +1,11 @@
+-- Enrich (#85): Claude reads a note, todo or read (and fetches a link) and adds tags, a
+-- summary and related pages, as derived data apart from the page's text. Additive, as 0006:
+-- the Python step (store.AFTER[9], add_enrich) creates its tables only if missing, so an
+-- older scrap still runs with user_version set back to 8 (it never reads them), and
+-- migrating again later is harmless. Tables:
+--   enrich_job   one queued job per page at most (a save while one runs queues the next)
+--   enrich_run   every call, as model_run is for photos; its cost counts in the day's budget
+--   enrichment   a page's current summary (and the fetched link's address and title)
+--   model_tag    the tags Claude added, 'on'; 'off' once the user took one off (never back)
+--   related      the pages Claude picked as related, in its order
+SELECT 1;

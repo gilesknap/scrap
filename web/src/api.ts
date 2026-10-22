@@ -50,6 +50,14 @@ export interface Page extends Summary {
   tags: string[];
   captures: { id: string; url: string | null; source: string; blobs: FileRef[] }[];
   removed?: string[]; // files an earlier revision's text embedded and this one doesn't
+  model_tags?: string[]; // its tags Claude added (enrich.ts)
+  related?: { id: string; slug: string; title: string; kind: string; via: string }[];
+  enrich?: {
+    on: boolean; // Claude reads text pages
+    state: "queued" | "processing" | "done" | "failed" | null;
+    error: string | null;
+    summary: string | null;
+  } | null;
 }
 export interface Hit
   extends Pick<

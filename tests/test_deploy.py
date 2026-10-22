@@ -172,3 +172,22 @@ def test_install_reads_the_env_file_as_systemd_does(tmp_path):
         assert "any local user can reach" not in result.stderr, case
     result, _ = _install(tmp_path / "bare", "SCRAP_IMAGE=x\n")
     assert "port 8790 on 127.0.0.1" in result.stderr  # scrap-run's default port
+
+
+def test_install_copies_and_gates_the_related_timer(tmp_path):
+    result, _ = _install(tmp_path)  # no image: it stops before enabling timers
+    units = tmp_path / "home" / ".config" / "systemd" / "user"
+    for name in ("scrap-enrich-related.service", "scrap-enrich-related.timer"):
+        assert (units / name).read_text() == (DEPLOY / name).read_text()
+    script = (DEPLOY / "install.sh").read_text()
+    assert "enrich --help 2>/dev/null | grep -q -- --related" in script
+    assert "enable --now scrap-enrich-related.timer" in script
+
+
+def test_related_timer_runs_in_the_service_container_once_a_night():
+    service = (DEPLOY / "scrap-enrich-related.service").read_text()
+    timer = (DEPLOY / "scrap-enrich-related.timer").read_text()
+    assert "ExecStart=/usr/bin/podman exec scrap scrap enrich --related" in service
+    assert "Type=oneshot" in service and "Restart=" not in service  # no flapping
+    assert "Requisite=scrap.service" in service
+    assert "OnCalendar=*-*-* 03:41:00" in timer
