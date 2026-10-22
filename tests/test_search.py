@@ -173,6 +173,23 @@ def test_facets(store):
     assert one["total"] == 1 and ["diy", 1] in one["tags"]  # a single hit: its tags
 
 
+def test_facets_top_tags(tmp_path):
+    """top: how many tags facets gives (12 by default, at most 1000)."""
+    client = TestClient(create_app(tmp_path))
+    store = Store(tmp_path)
+    for i in range(15):  # each tag on one page of the 16, so each narrows the search
+        page(store, f"Wallaby {i}", tags=[f"t{i:02d}"])
+    page(store, "Wallaby plain")
+    get = lambda **p: client.get("/api/search/facets", params={"q": "wallaby", **p})  # noqa: E731
+    assert len(store.facets("wallaby")["tags"]) == 12
+    assert len(get().json()["tags"]) == 12
+    assert len(get(top=3).json()["tags"]) == 3
+    assert len(get(top=1000).json()["tags"]) == 15
+    assert len(get(top=1).json()["tags"]) == 1
+    for bad in (0, 1001, -1):
+        assert get(top=bad).status_code == 422
+
+
 def test_tags_lists_live_pages_only(tmp_path):
     client = TestClient(create_app(tmp_path))
     store = Store(tmp_path)
