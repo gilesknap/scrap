@@ -34,5 +34,7 @@ a per-device identity.
 
 - Zero auth code, but also no defence against another local workload on the same host.
 - The MCP endpoint is protected exactly like the rest: by the tailnet.
-- Under Kubernetes the Tailscale operator's ingress must pass identity headers through (documented
-  as the recommended route).
+- Under Kubernetes the Tailscale operator's ingress is the recommended route, and it is expected
+  to set the identity headers as Serve does, but this has not been verified end to end: without
+  them every change is recorded as author `tagged` and nothing else breaks. The Kubernetes
+  how-to ([](../../how-to/deploy-kubernetes.md)) says how to check on a cluster.

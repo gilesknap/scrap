@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Run in a container &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>Run in a container &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -491,17 +491,125 @@
                   
   <section id="run-in-a-container">
 <h1>Run in a container<a class="headerlink" href="#run-in-a-container" title="Link to this heading">#</a></h1>
-<p>Pre-built containers with scrap and its dependencies already
-installed are available on <a class="reference external" href="https://ghcr.io/gilesknap/scrap">Github Container Registry</a>.</p>
-<section id="starting-the-container">
-<h2>Starting the container<a class="headerlink" href="#starting-the-container" title="Link to this heading">#</a></h2>
-<p>To pull the container from github container registry and run:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run ghcr.io/gilesknap/scrap:latest --version
+<p>Try scrap, or run it by hand, from the container image: scrap and its dependencies are already
+installed. This page is a quickstart with Docker or podman. For a real, persistent install
+(a service that restarts, daily backups, Tailscale), follow <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>; on
+Kubernetes, see <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>v0 of scrap has <strong>no login</strong>. Anyone who can reach it can read and change everything. Publish
+the port on loopback only (<code class="docutils literal notranslate"><span class="pre">127.0.0.1:8000:8000</span></code>, as below, not <code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">8000:8000</span></code>, which opens it to
+every network the host is on), and put Tailscale Serve or an authenticating reverse proxy in front
+of it for anything beyond this machine. Read <a class="reference internal" href="deploy-single-server.html#scrap-access"><span class="std std-ref">Access and identity</span></a> first.</p>
+</div>
+<section id="get-the-image">
+<h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
+<p>Images are published to GHCR (<a class="reference external" href="https://ghcr.io/gilesknap/scrap"><code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code></a>) only
+when a release tag is pushed, for linux/amd64 and linux/arm64. The tags are the release versions
+(see the <a class="reference external" href="https://github.com/gilesknap/scrap/releases">releases</a>), and <code class="docutils literal notranslate"><span class="pre">latest</span></code>, which follows the
+newest release. Every tag moves <code class="docutils literal notranslate"><span class="pre">latest</span></code>, pre-releases included, so pin an exact version for
+anything you keep running.</p>
+<p>Until a release is published, build the image yourself:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">scrap</span>
+<span class="n">docker</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>       <span class="c1"># or: podman build -t localhost/scrap:dev .</span>
 </pre></div>
 </div>
-<p>To get a released version, use a numbered release instead of <code class="docutils literal notranslate"><span class="pre">latest</span></code>.</p>
-<p>To run scrap as a service on one machine, see <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>; on Kubernetes,
-see <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
+<p>Build from a git clone, not a bare source archive: the version string that <code class="docutils literal notranslate"><span class="pre">--version</span></code> reports is
+derived from git. Node is not needed on the host, because the PWA is built inside the image build,
+but the first build downloads Node, Python and the npm and uv dependencies, so it takes a while.
+The published multi-arch image comes from this same Dockerfile. Leave <code class="docutils literal notranslate"><span class="pre">--target</span></code> alone: the
+<code class="docutils literal notranslate"><span class="pre">developer</span></code> target is the devcontainer image, not the one to run; the default final stage is the
+runtime image.</p>
+<p>Once releases exist you can instead pull one, and use its name in place of <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code>
+below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Check the image runs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<p>It prints the version string and exits.</p>
+</section>
+<section id="run-the-service">
+<h2>Run the service<a class="headerlink" href="#run-the-service" title="Link to this heading">#</a></h2>
+<p>The image’s entrypoint is <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, so everything after the image name is a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> subcommand
+(<code class="docutils literal notranslate"><span class="pre">serve</span></code>, <code class="docutils literal notranslate"><span class="pre">backup</span></code>, <code class="docutils literal notranslate"><span class="pre">restore</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span></code>, <code class="docutils literal notranslate"><span class="pre">import</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest-once</span></code>; see the
+<a class="reference internal" href="../reference/api.html"><span class="std std-doc">CLI reference</span></a>). With no arguments it runs <code class="docutils literal notranslate"><span class="pre">--version</span></code>. To run the service:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">-</span><span class="n">p</span> <span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="p">:</span><span class="mi">8000</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> \
+    <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="n">serve</span> <span class="o">--</span><span class="n">host</span> <span class="mf">0.0.0.0</span> <span class="o">--</span><span class="n">port</span> <span class="mi">8000</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">--host</span> <span class="pre">0.0.0.0</span></code> is needed because <code class="docutils literal notranslate"><span class="pre">serve</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>, which inside a container is
+unreachable from the published port. The container is the network boundary here: it is the
+<code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">127.0.0.1:...</span></code> that keeps scrap off the host’s other interfaces. As an alternative to a port,
+<code class="docutils literal notranslate"><span class="pre">serve</span> <span class="pre">--uds</span> <span class="pre">PATH</span></code> listens only on a Unix socket (not with <code class="docutils literal notranslate"><span class="pre">--host</span></code> or <code class="docutils literal notranslate"><span class="pre">--port</span></code>); that is what the
+single-server install uses.</p>
+<p>Check it works, from the host (the image has no <code class="docutils literal notranslate"><span class="pre">curl</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">healthz</span>
+</pre></div>
+</div>
+<p>It answers <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,&quot;version&quot;:...,&quot;max_upload_bytes&quot;:...}</span></code>. Open <a class="reference external" href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>
+for the PWA (see <a class="reference internal" href="use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>). The PWA needs a secure context, and a loopback address
+counts as one; to reach scrap by any other hostname it must be served over HTTPS. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (see
+<a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>) answers only loopback hosts and those in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, with
+<code class="docutils literal notranslate"><span class="pre">421</span></code> for any other <code class="docutils literal notranslate"><span class="pre">Host</span></code>.</p>
+</section>
+<section id="keep-the-data">
+<h2>Keep the data<a class="headerlink" href="#keep-the-data" title="Link to this heading">#</a></h2>
+<p>The image keeps everything (the database and the files) in <code class="docutils literal notranslate"><span class="pre">/data</span></code>, declared as a volume and set
+by <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR=/data</span></code>, and runs as an unprivileged user, uid 10001. Without <code class="docutils literal notranslate"><span class="pre">-v</span></code> the data
+goes to an anonymous volume that is easy to lose; always give the volume a name or a path.</p>
+<ul class="simple">
+<li><p><strong>A named volume</strong> (<code class="docutils literal notranslate"><span class="pre">-v</span> <span class="pre">scrap-data:/data</span></code>) works as it is.</p></li>
+<li><p><strong>A host directory</strong> must be writable by uid 10001, otherwise scrap fails with “Permission
+denied” writing <code class="docutils literal notranslate"><span class="pre">/data</span></code>. With Docker, either run as the directory’s owner,
+<code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">&quot;$(id</span> <span class="pre">-u):$(id</span> <span class="pre">-g)&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">chown</span> <span class="pre">10001:10001</span></code> it. With rootless podman, add
+<code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code>, which maps uid 10001 in the container to you. On SELinux
+systems (Fedora, RHEL) add <code class="docutils literal notranslate"><span class="pre">:Z</span></code> to the volume, for example <code class="docutils literal notranslate"><span class="pre">-v</span> <span class="pre">&quot;$PWD/data:/data:Z&quot;</span></code>.</p></li>
+</ul>
+</section>
+<section id="settings">
+<h2>Settings<a class="headerlink" href="#settings" title="Link to this heading">#</a></h2>
+<p>Settings are environment variables. Pass them with <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">NAME=value</span></code>, or put them in a file and pass
+<code class="docutils literal notranslate"><span class="pre">--env-file</span></code>, as plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines without quotes (podman takes the rest of the line
+literally). For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
+<span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
+<span class="n">SCRAP_BUDGET_DAY_USD</span><span class="o">=</span><span class="mi">3</span>
+<span class="n">SCRAP_NOTIFY_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">ntfy</span><span class="o">.</span><span class="n">sh</span><span class="o">/&lt;</span><span class="n">your</span> <span class="n">private</span> <span class="n">topic</span><span class="o">&gt;</span>
+<span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">your</span> <span class="n">address</span><span class="o">&gt;</span>
+<span class="n">TZ</span><span class="o">=</span><span class="n">Europe</span><span class="o">/</span><span class="n">London</span>
+</pre></div>
+</div>
+<p>Ingest (Claude reading photos, tagging notes) is off until <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> and an
+<code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> are set. Set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone: without it the server runs on UTC and
+<code class="docutils literal notranslate"><span class="pre">due:today</span></code> follows the wrong day around midnight (the image carries the time zone database and
+the CA certificates that Claude and notification calls need). Every setting, with its default, is
+in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>.</p>
+<p>Keep the env file mode 600 and out of any repository. The key shows in plain text in
+<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">inspect</span></code> and <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span></code> for the container, so do not paste their output anywhere it
+would be logged.</p>
+</section>
+<section id="run-one-off-commands">
+<h2>Run one-off commands<a class="headerlink" href="#run-one-off-commands" title="Link to this heading">#</a></h2>
+<p>The other subcommands run the same way, as a throwaway container on the same data. For example, a
+backup into a second named volume (use the same <code class="docutils literal notranslate"><span class="pre">--user</span></code> or <code class="docutils literal notranslate"><span class="pre">--userns</span></code> options as above if you
+use host directories instead):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="p">:</span><span class="o">/</span><span class="n">backup</span> \
+    <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backup</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">backup</span></code> is safe while the service runs. <code class="docutils literal notranslate"><span class="pre">restore</span></code> into a non-empty data folder (<code class="docutils literal notranslate"><span class="pre">--force</span></code>) needs
+the service stopped first. <code class="docutils literal notranslate"><span class="pre">gc</span></code> takes no directory, and only counts unless given <code class="docutils literal notranslate"><span class="pre">--delete</span></code>. The
+rootless-podman specifics, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> are in <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>. A
+backup volume is a local copy only: copy it off the machine to survive losing it.</p>
+</section>
+<section id="next">
+<h2>Next<a class="headerlink" href="#next" title="Link to this heading">#</a></h2>
+<p>To run scrap as a service on one machine, with restarts, daily backups and Tailscale Serve, see
+<a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>; on Kubernetes, see <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 </section>
 </section>
 
@@ -552,7 +660,12 @@ see <a class="reference internal" href="deploy-kubernetes.html"><span class="std
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#starting-the-container">Starting the container</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#get-the-image">Get the image</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-the-service">Run the service</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#keep-the-data">Keep the data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings">Settings</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-one-off-commands">Run one-off commands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next">Next</a></li>
 </ul>
   </nav></div>
 

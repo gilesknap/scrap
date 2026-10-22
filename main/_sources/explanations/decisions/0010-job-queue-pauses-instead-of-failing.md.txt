@@ -4,7 +4,8 @@ Date: 2026-10-19 (design), built 2026-10-20
 
 ## Status
 
-Accepted. Supersedes the first design's "retry five times with doubling delays".
+Accepted. Supersedes the first design's "retry five times with doubling delays". See also
+[](0020-text-enrichment.md): text enrichment uses the same queue pause and the same daily budget.
 
 ## Context
 
@@ -32,5 +33,8 @@ to tell the owner.
 ## Consequences
 
 - Operators must set a notify URL or a pause can go unnoticed.
+- The daily budget is one budget for everything that calls the API: `spent_today` sums the cost of
+  photo runs (`model_run`) and text runs (`enrich_run`), so text enrichment can use up what photos
+  would have had.
 - Classification relies on error shapes from provider docs; the credit wording was not provoked
   in testing.

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -549,6 +549,11 @@ profile.</p>
 recommended one.</p></li>
 <li><p>For ingest: a Claude API key.</p></li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>No release or image tag exists yet (the chart is version 0.1.0), so for now build and push your
+own image as described next and set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> to it.</p>
+</div>
 </section>
 <section id="get-the-image">
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
@@ -556,6 +561,7 @@ recommended one.</p></li>
 chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> names the release it was made with. Until the first release exists, build
 and push an image to a registry your cluster can pull from, and point the chart at it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">--</span><span class="n">platform</span> <span class="n">linux</span><span class="o">/</span><span class="n">amd64</span><span class="p">,</span><span class="n">linux</span><span class="o">/</span><span class="n">arm64</span> <span class="o">--</span><span class="n">manifest</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
+<span class="n">podman</span> <span class="n">login</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span>
 <span class="n">podman</span> <span class="n">manifest</span> <span class="n">push</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span>
 </pre></div>
 </div>
@@ -573,25 +579,47 @@ and build only that.</p>
 </section>
 <section id="install">
 <h2>Install<a class="headerlink" href="#install" title="Link to this heading">#</a></h2>
+<p>A minimal <code class="docutils literal notranslate"><span class="pre">my-values.yaml</span></code> for the recommended setup (the Tailscale operator for access, ingest
+on). It assumes the image from the previous section and the Secret from
+<a class="reference internal" href="#k8s-ingest"><span class="std std-ref">Secrets and ingest</span></a>; drop <code class="docutils literal notranslate"><span class="pre">image</span></code> once a release image exists, and <code class="docutils literal notranslate"><span class="pre">ingest</span></code> to run without Claude:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">image</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/scrap</span>
+<span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dev</span>
+<span class="nt">ingest</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-secrets</span>
+<span class="nt">ingress</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tailscale</span>
+<span class="w">  </span><span class="nt">tls</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">hosts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">scrap</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
 <p>From a checkout of the repository:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">create</span> <span class="n">namespace</span> <span class="n">scrap</span>
 <span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="o">./</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">namespace</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">rollout</span> <span class="n">status</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span>
 </pre></div>
 </div>
+<p>The commands in this guide assume the release is called <code class="docutils literal notranslate"><span class="pre">scrap</span></code> in the namespace <code class="docutils literal notranslate"><span class="pre">scrap</span></code>. For
+another name, use the chart’s fullname instead (<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">deploy,cronjob,pvc</span></code> lists
+the names, and <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">install</span></code> prints them in its notes).</p>
 <p>Check it without exposing it anywhere:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">port</span><span class="o">-</span><span class="n">forward</span> <span class="n">svc</span><span class="o">/</span><span class="n">scrap</span> <span class="mi">8000</span><span class="p">:</span><span class="mi">80</span>
 <span class="n">curl</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">healthz</span>
 </pre></div>
 </div>
-<p>and open <a class="reference external" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a> for the PWA. The PWA installs and works offline only over HTTPS
-(or on <code class="docutils literal notranslate"><span class="pre">localhost</span></code>), so use one of the exposures below for a phone.</p>
+<p>and open <a class="reference external" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a> for the PWA. The PWA needs HTTPS to install on a phone (see
+<a class="reference internal" href="use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>), so use one of the exposures below for that.</p>
 </section>
 <section id="values">
 <h2>Values<a class="headerlink" href="#values" title="Link to this heading">#</a></h2>
 <p>Every value is described in
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml"><code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></a>; unknown
-keys are refused, so a typo fails the install instead of being ignored. The main ones:</p>
+top-level keys, and unknown keys under <code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest</span></code>, <code class="docutils literal notranslate"><span class="pre">backup</span></code>, <code class="docutils literal notranslate"><span class="pre">persistence</span></code> and <code class="docutils literal notranslate"><span class="pre">ingress</span></code>,
+are refused, so a typo there fails the install instead of being ignored. Other groups
+(<code class="docutils literal notranslate"><span class="pre">service</span></code>, <code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">resources</span></code> and the security contexts) are not
+checked, so a typo inside them is silently ignored. The main ones:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Value</p></th>
@@ -613,20 +641,20 @@ keys are refused, so a typo fails the install instead of being ignored. The main
 <td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code>: send photos to Claude (see <a class="reference internal" href="#k8s-ingest"><span class="std std-ref">Secrets and ingest</span></a>).</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ingest.visionModel</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest.budgetDayUSD</span></code></p></td>
-<td><p>app defaults</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>.</p></td>
+<td><p>app default, <code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (US dollars per UTC day). Like <code class="docutils literal notranslate"><span class="pre">ingest.notifyUrlKey</span></code>, they take effect only while <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code> is true.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">persistence.size</span></code>, <code class="docutils literal notranslate"><span class="pre">.storageClass</span></code>, <code class="docutils literal notranslate"><span class="pre">.existingClaim</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">5Gi</span></code>, default class, none</p></td>
 <td><p>The data volume.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.schedule</span></code>, <code class="docutils literal notranslate"><span class="pre">.timeZone</span></code>, <code class="docutils literal notranslate"><span class="pre">.keep</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code>, UTC, <code class="docutils literal notranslate"><span class="pre">7</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code>, the cluster’s default (usually UTC), <code class="docutils literal notranslate"><span class="pre">7</span></code></p></td>
 <td><p>The backup CronJob.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.size</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">20Gi</span></code></p></td>
-<td><p>Each run is a full copy: allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the data.</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.size</span></code>, <code class="docutils literal notranslate"><span class="pre">.storageClass</span></code>, <code class="docutils literal notranslate"><span class="pre">.existingClaim</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">20Gi</span></code>, default class, none</p></td>
+<td><p>The backups volume. Each run is a full copy: allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the data.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1Gi</span></code></p></td>
@@ -636,21 +664,38 @@ keys are refused, so a typo fails the install instead of being ignored. The main
 <td><p>off</p></td>
 <td><p>Exposure, below.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">networkPolicy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.from</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">service.type</span></code>, <code class="docutils literal notranslate"><span class="pre">service.port</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ClusterIP</span></code>, <code class="docutils literal notranslate"><span class="pre">80</span></code></p></td>
+<td><p>The Service.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">networkPolicy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.from</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Who may connect, below.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
 <td><p>none</p></td>
-<td><p>Anything else for the container.</p></td>
+<td><p>Anything else for the container, such as <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (see <a class="reference internal" href="#k8s-mcp"><span class="std std-ref">Claude Code (MCP)</span></a>) or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Scheduling and annotations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
+<td><p>see <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></p></td>
+<td><p>Naming, the ServiceAccount, the stop timeout (<code class="docutils literal notranslate"><span class="pre">30</span></code>) and the backup job’s resources.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<p>Leave <code class="docutils literal notranslate"><span class="pre">service.type</span></code> at <code class="docutils literal notranslate"><span class="pre">ClusterIP</span></code>: the chart assumes access goes through the Ingress or a
+port-forward. <code class="docutils literal notranslate"><span class="pre">LoadBalancer</span></code> and <code class="docutils literal notranslate"><span class="pre">NodePort</span></code> open the Service to whatever network the node or load
+balancer is on, and scrap has no login, so use them only on a private network. With <code class="docutils literal notranslate"><span class="pre">ingress.hosts</span></code>
+empty, the Ingress has one rule that matches any host (the Tailscale example below relies on
+this); with hosts set, each gets its own host-specific rule. The
+<a class="reference external" href="https://github.com/gilesknap/scrap/tree/main/charts/scrap/ci"><code class="docutils literal notranslate"><span class="pre">charts/scrap/ci</span></code></a> directory holds
+the value sets the chart is tested with (defaults, no backup, existing claims, a generic ingress,
+ingest, long names, and the Tailscale Ingress and Service), which are worked examples to copy
+from.</p>
 <p>The settings themselves are in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>. The chart sets
 <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR=/data</span></code>; <code class="docutils literal notranslate"><span class="pre">SCRAP_WEB_DIR</span></code> (for trying out a PWA build) has no value of its own,
 use <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>.</p>
@@ -681,6 +726,15 @@ under another key, e.g. <code class="docutils literal notranslate"><span class="
 <span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-secrets</span>
 <span class="w">  </span><span class="nt">apiKeyKey</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ANTHROPIC_API_KEY</span><span class="w">     </span><span class="c1"># the default</span>
 <span class="w">  </span><span class="nt">notifyUrlKey</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_NOTIFY_URL</span><span class="w">   </span><span class="c1"># optional</span>
+</pre></div>
+</div>
+<p>With ingest on, Claude also tags, summarises and links text pages and fetches the links you save
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>, on by default). That shares the daily budget with photos (<code class="docutils literal notranslate"><span class="pre">ingest.budgetDayUSD</span></code>,
+$3 per UTC day by default), and the pod then makes outbound HTTP and HTTPS requests (ports 80 and
+443) to public sites. To keep Claude to photos, switch it off:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">extraEnv</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_ENRICH</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">"off"</span>
 </pre></div>
 </div>
 <p>With GitOps, create the Secret with whatever your cluster uses for secrets (Sealed Secrets,
@@ -721,8 +775,8 @@ Tailscale’s source the Serve reverse proxy adds the headers to every proxied r
 <code class="docutils literal notranslate"><span class="pre">addTailscaleIdentityHeaders</span></code>), so they are expected to arrive, but this is <strong>not yet verified</strong>
 end to end. To check on your cluster: make a change from a phone or laptop through the Ingress,
 then look at the page’s history (or <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/&lt;id&gt;</span></code>): your tailnet login should be its
-author, not the fixed fallback author. If it is not, every change is recorded under the fallback
-author; nothing else breaks.</p>
+author, not the fixed fallback author <code class="docutils literal notranslate"><span class="pre">tagged</span></code>. If it is not, every change is recorded as
+<code class="docutils literal notranslate"><span class="pre">tagged</span></code>; nothing else breaks.</p>
 <p>Because a pod inside the cluster can send its own <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header straight to the
 Service, let only the operator’s proxies in (they run in the operator’s namespace, <code class="docutils literal notranslate"><span class="pre">tailscale</span></code> by
 default):</p>
@@ -734,9 +788,10 @@ default):</p>
 <span class="w">          </span><span class="nt">kubernetes.io/metadata.name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tailscale</span>
 </pre></div>
 </div>
-<p>A NetworkPolicy needs a CNI that enforces it (k3s’s built-in controller does). Whether kubelet
-probes still get through depends on the CNI; if the pod never becomes ready after turning the
-policy on, check that first.</p>
+<p>A NetworkPolicy needs a CNI that enforces it (k3s’s built-in controller does). Check that the
+policy exists (<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">networkpolicy</span></code>): a misspelt key inside <code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code> is
+not rejected. Whether kubelet probes still get through depends on the CNI; if the pod never
+becomes ready after turning the policy on, check that first.</p>
 <section id="tailnet-acl-deny-tagged-devices-by-default">
 <h4>Tailnet ACL: deny tagged devices by default<a class="headerlink" href="#tailnet-acl-deny-tagged-devices-by-default" title="Link to this heading">#</a></h4>
 <p>The operator’s proxies are tagged devices (<code class="docutils literal notranslate"><span class="pre">tag:k8s</span></code> by default). As for the single server, use a
@@ -772,8 +827,25 @@ limit to at least <code class="docutils literal notranslate"><span class="pre">m
 </pre></div>
 </div>
 <p>The annotation names differ for every controller (Traefik uses Middleware objects instead), so
-the chart takes them as plain <code class="docutils literal notranslate"><span class="pre">ingress.annotations</span></code>. Make sure the proxy removes any <code class="docutils literal notranslate"><span class="pre">Tailscale-User-*</span></code> headers sent by clients; changes are then
-recorded under the fixed fallback author. Never expose the Service without authentication.</p>
+the chart takes them as plain <code class="docutils literal notranslate"><span class="pre">ingress.annotations</span></code>. Make sure the proxy removes any
+<code class="docutils literal notranslate"><span class="pre">Tailscale-User-*</span></code> headers sent by clients; changes are then recorded under the fixed fallback
+author <code class="docutils literal notranslate"><span class="pre">tagged</span></code>. Never expose the Service without authentication.</p>
+<p>The Ingress sends every path to scrap, so the proxy covers <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> too. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> is
+called by Claude Code, not a browser, so a login page in front of it will block it unless the
+proxy exempts that path or the client can pass its check; the tailnet route avoids the problem.</p>
+</section>
+<section id="claude-code-mcp">
+<span id="k8s-mcp"></span><h3>Claude Code (MCP)<a class="headerlink" href="#claude-code-mcp" title="Link to this heading">#</a></h3>
+<p>Claude Code sessions talk to scrap’s <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> endpoint (see <a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a> and
+<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>). It answers <code class="docutils literal notranslate"><span class="pre">421</span></code> to any <code class="docutils literal notranslate"><span class="pre">Host</span></code> that is not loopback or listed in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, and the chart has no value for it, so set it through <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code> to the address
+you reach scrap at:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">extraEnv</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_PUBLIC_URL</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://scrap.&lt;tailnet&gt;.ts.net</span>
+</pre></div>
+</div>
+<p>The same address makes the page links the MCP tools return absolute.</p>
 </section>
 <section id="port-forward">
 <h3>Port-forward<a class="headerlink" href="#port-forward" title="Link to this heading">#</a></h3>
@@ -796,8 +868,15 @@ them five minutes.</p>
 So <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">rollback</span></code> alone does not go back: roll back to the old image <em>and</em> restore the
 pre-upgrade backup with <code class="docutils literal notranslate"><span class="pre">--force</span></code> (below). Anything captured since the upgrade is then lost from
 the database; its files stay. The one exception is migration 0004 (Markdown-aware search
-text), which changes no schema: to go back past it, stop scrap and run
-<code class="docutils literal notranslate"><span class="pre">sqlite3</span> <span class="pre">scrap.db</span> <span class="pre">'PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">3'</span></code> on its data folder instead of restoring.</p>
+text), which changes no schema. If the database is at version 4 (you upgraded from a scrap that
+stopped at migration 3 and no later migration has run), you can go back past it without
+restoring: stop scrap, then run this in a one-off pod like <code class="docutils literal notranslate"><span class="pre">restore.yaml</span></code> below (in place of its
+<code class="docutils literal notranslate"><span class="pre">args</span></code>), with only the data claim mounted and the old image (the image has no <code class="docutils literal notranslate"><span class="pre">sqlite3</span></code> command,
+but has Python):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"python"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"-c"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"import</span><span class="nv"> </span><span class="s">sqlite3;</span><span class="nv"> </span><span class="s">c</span><span class="nv"> </span><span class="s">=</span><span class="nv"> </span><span class="s">sqlite3.connect('/data/scrap.db');</span><span class="nv"> </span><span class="s">c.execute('PRAGMA</span><span class="nv"> </span><span class="s">user_version</span><span class="nv"> </span><span class="s">=</span><span class="nv"> </span><span class="s">3');</span><span class="nv"> </span><span class="s">c.close()"</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Migrations 0005 and later change the schema: once one has run, restore the backup instead.</p>
 </section>
 <section id="backup-and-restore">
 <h2>Backup and restore<a class="headerlink" href="#backup-and-restore" title="Link to this heading">#</a></h2>
@@ -808,7 +887,14 @@ refuses anything else), and only real directories named like a run are ever dele
 else on the volume, including symlinks, is left alone. A failed run removes only its own
 directory. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> is safe while scrap is serving. The job runs on the same node as the
 scrap pod (pod affinity), because the data volume is <code class="docutils literal notranslate"><span class="pre">ReadWriteOnce</span></code>; while scrap is scaled to
-zero, a run waits and gives up after an hour.</p>
+zero, a run waits and gives up after an hour. Runs never overlap, and one that cannot start
+within an hour of its schedule is skipped. A failed run is retried once and then counted as
+failed; the last 3 successful and the last 3 failed Jobs are kept, so <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span></code> still works
+on them.</p>
+<p>The CronJob is called <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup</span></code>, which is <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> for the release used in this
+guide. When the fullname is longer than 45 characters, the chart shortens it and adds a 6-character
+hash, so the name differs: read it from <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">cronjob</span></code> and use it in place of
+<code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> in the commands below and under Upgrades.</p>
 <p>Backups are on by default because the data is personal and irreplaceable; set
 <code class="docutils literal notranslate"><span class="pre">backup.enabled:</span> <span class="pre">false</span></code> if you back up the data volume another way (volume snapshots, Longhorn
 or Velero backups). Either way the backup claim lives in the same cluster: copy it somewhere
@@ -824,7 +910,7 @@ one-off pod with both claims mounted:</p>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">scale</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">replicas</span><span class="o">=</span><span class="mi">0</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">wait</span> <span class="o">--</span><span class="k">for</span><span class="o">=</span><span class="n">delete</span> <span class="n">pod</span> <span class="o">-</span><span class="n">l</span> <span class="n">app</span><span class="o">.</span><span class="n">kubernetes</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">name</span><span class="o">=</span><span class="n">scrap</span> <span class="o">--</span><span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="n">m</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">apply</span> <span class="o">-</span><span class="n">f</span> <span class="n">restore</span><span class="o">.</span><span class="n">yaml</span>
-<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">logs</span> <span class="o">-</span><span class="n">f</span> <span class="n">pod</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">restore</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">wait</span> <span class="o">--</span><span class="k">for</span><span class="o">=</span><span class="n">jsonpath</span><span class="o">=</span><span class="s1">'{.status.phase}'</span><span class="o">=</span><span class="n">Succeeded</span> <span class="n">pod</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">restore</span> <span class="o">--</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="n">m</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">delete</span> <span class="n">pod</span> <span class="n">scrap</span><span class="o">-</span><span class="n">restore</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">scale</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">replicas</span><span class="o">=</span><span class="mi">1</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">patch</span> <span class="n">cronjob</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="o">-</span><span class="n">p</span> <span class="s1">'{"spec":{"suspend":false}}'</span>
@@ -832,7 +918,8 @@ one-off pod with both claims mounted:</p>
 </div>
 <p>With Argo CD or another GitOps controller, pause its automatic sync first, or it scales scrap
 straight back up. <code class="docutils literal notranslate"><span class="pre">restore.yaml</span></code>, with the run to restore, the image of the scrap version you
-want and, for a non-empty data volume, <code class="docutils literal notranslate"><span class="pre">--force</span></code> (which replaces the whole database; see
+want (the version that wrote the backup, or a newer one: restore refuses a backup from a newer
+scrap) and, for a non-empty data volume, <code class="docutils literal notranslate"><span class="pre">--force</span></code> (which replaces the whole database; see
 <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--help</span></code>):</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Pod</span>
@@ -840,6 +927,8 @@ want and, for a non-empty data volume, <code class="docutils literal notranslate
 <span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-restore</span>
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Never</span>
+<span class="w">  </span><span class="nt">automountServiceAccountToken</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="c1"># imagePullSecrets: [{name: my-registry-credentials}]   # if the registry needs a login</span>
 <span class="w">  </span><span class="nt">securityContext</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">runAsNonRoot</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">    </span><span class="nt">runAsUser</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10001</span>
@@ -861,7 +950,7 @@ want and, for a non-empty data volume, <code class="docutils literal notranslate
 <span class="w">          </span><span class="nt">drop</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">ALL</span><span class="p p-Indicator">]</span>
 <span class="w">      </span><span class="nt">volumeMounts</span><span class="p">:</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="nv">data</span><span class="p p-Indicator">,</span><span class="nt"> mountPath</span><span class="p">:</span><span class="w"> </span><span class="nv">/data</span><span class="p p-Indicator">}</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="nv">backups</span><span class="p p-Indicator">,</span><span class="nt"> mountPath</span><span class="p">:</span><span class="w"> </span><span class="nv">/backups</span><span class="p p-Indicator">}</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="nv">backups</span><span class="p p-Indicator">,</span><span class="nt"> mountPath</span><span class="p">:</span><span class="w"> </span><span class="nv">/backups</span><span class="p p-Indicator">,</span><span class="nt"> readOnly</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">}</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="nv">tmp</span><span class="p p-Indicator">,</span><span class="nt"> mountPath</span><span class="p">:</span><span class="w"> </span><span class="nv">/tmp</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data</span>
@@ -876,16 +965,19 @@ want and, for a non-empty data volume, <code class="docutils literal notranslate
 </div>
 <p>The claim names are <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-data</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backups</span></code>, where the fullname is the
 release name if it contains <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, else <code class="docutils literal notranslate"><span class="pre">&lt;release&gt;-scrap</span></code>: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">pvc</span></code> shows
-them. The backups claim must be mounted writable: a backup’s database is in SQLite’s WAL mode,
-and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> cannot open it in a read-only directory. The same pod with other arguments
-runs any <code class="docutils literal notranslate"><span class="pre">scrap</span></code> command against the data, for example <code class="docutils literal notranslate"><span class="pre">[&quot;export&quot;,</span> <span class="pre">&quot;/backups/export&quot;]</span></code> (pruning
-only ever deletes directories named like a backup run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
+them. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> prints nothing when it works and exits non-zero with a message when it does
+not (<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">logs</span> <span class="pre">pod/scrap-restore</span></code>; the <code class="docutils literal notranslate"><span class="pre">wait</span></code> above then times out instead of
+returning). It works on a copy and never writes to the
+backup, so the backups claim can be mounted <code class="docutils literal notranslate"><span class="pre">readOnly:</span> <span class="pre">true</span></code>, as above. The same pod with other
+arguments runs any <code class="docutils literal notranslate"><span class="pre">scrap</span></code> command against the data, for example <code class="docutils literal notranslate"><span class="pre">[&quot;export&quot;,</span> <span class="pre">&quot;/backups/export&quot;]</span></code>
+(which does need the claim writable; pruning only ever deletes directories named like a backup
+run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without <code class="docutils literal notranslate"><span class="pre">--force</span></code>, and point <code class="docutils literal notranslate"><span class="pre">persistence.existingClaim</span></code> at it.</p>
 </section>
 <section id="health-and-monitoring">
 <h2>Health and monitoring<a class="headerlink" href="#health-and-monitoring" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">/healthz</span></code> answers 200 with the version while scrap is well. It answers 503 when the ingest
-worker thread has died; the liveness probe then restarts the pod, which is intended (the
+<p><code class="docutils literal notranslate"><span class="pre">/healthz</span></code> answers 200 with the version while scrap is well. It answers 503 when ingest is on and
+its worker thread has died; the liveness probe then restarts the pod, which is intended (the
 readiness probe takes it out of the Service first). Logs: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span></code>.
 Ingest pauses (budget spent, credit, auth) are reported once per episode to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>
 if set, and are visible at <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code>. The backup CronJob’s failed jobs stay listed
@@ -958,6 +1050,26 @@ ignores it. Delete a claim you no longer need by hand.</p></li>
 <p>Also use a StorageClass (or set the PV) with the <code class="docutils literal notranslate"><span class="pre">Retain</span></code> reclaim policy: k3s’s <code class="docutils literal notranslate"><span class="pre">local-path</span></code>
 defaults to <code class="docutils literal notranslate"><span class="pre">Delete</span></code>, so a deleted claim takes the data with it.</p>
 </section>
+<section id="uninstall">
+<h2>Uninstall<a class="headerlink" href="#uninstall" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">uninstall</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span>
+</pre></div>
+</div>
+<p>removes the Deployment, CronJob, Service, ServiceAccount, Ingress and NetworkPolicy, but keeps
+both claims (data and backups), because they are annotated <code class="docutils literal notranslate"><span class="pre">helm.sh/resource-policy:</span> <span class="pre">keep</span></code>. The
+namespace and the Secret you created stay too. Installing again with the same release name reuses
+the surviving claims.</p>
+<p>To delete the data for good, first copy a final backup off the cluster, then delete the claims:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">get</span> <span class="n">pvc</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">delete</span> <span class="n">pvc</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backups</span>
+</pre></div>
+</div>
+<p>Use the names <code class="docutils literal notranslate"><span class="pre">get</span> <span class="pre">pvc</span></code> shows (<code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-data</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backups</span></code>). A claim you supplied
+with <code class="docutils literal notranslate"><span class="pre">persistence.existingClaim</span></code> or <code class="docutils literal notranslate"><span class="pre">backup.persistence.existingClaim</span></code> is not the chart’s to
+delete. What happens to the underlying volume depends on the StorageClass reclaim policy: with
+<code class="docutils literal notranslate"><span class="pre">Delete</span></code> (k3s’s <code class="docutils literal notranslate"><span class="pre">local-path</span></code>) it goes with the claim, with <code class="docutils literal notranslate"><span class="pre">Retain</span></code> it stays, and you remove the
+PersistentVolume by hand.</p>
+</section>
 <section id="what-the-chart-does-not-do">
 <h2>What the chart does not do<a class="headerlink" href="#what-the-chart-does-not-do" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -965,9 +1077,22 @@ defaults to <code class="docutils literal notranslate"><span class="pre">Delete<
 <li><p>Create Secrets, take the API key as a value, or log in users.</p></li>
 <li><p>Expose scrap to the internet, or add authentication.</p></li>
 <li><p>Copy backups off the cluster.</p></li>
-<li><p>Restrict egress (ingest needs <code class="docutils literal notranslate"><span class="pre">api.anthropic.com</span></code>; notifications need your notify URL).</p></li>
+<li><p>Restrict egress (ingest needs <code class="docutils literal notranslate"><span class="pre">api.anthropic.com</span></code>, and any public site a saved link points to
+while <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> is on; notifications need your notify URL).</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> on a schedule, as the single-server deployment does nightly, so files nothing
+uses build up on the data volume and in each backup. After a fresh backup, run
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">scrap</span> <span class="pre">gc</span></code> (a dry run that only counts) and then the same
+with <code class="docutils literal notranslate"><span class="pre">--delete</span></code> (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
+<li><p>Run the nightly related-pages pass (<code class="docutils literal notranslate"><span class="pre">scrap-enrich-related</span></code> on the single server). Run it by
+hand with <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>; it is safe while scrap
+serves, and with ingest or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> off it says so and does nothing.</p></li>
 <li><p>Publish a Helm repository or OCI chart: install from a checkout or a Git source.</p></li>
 </ul>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
+<p>Open scrap’s tailnet address and install the PWA (<a class="reference internal" href="use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>), then connect Claude Code
+sessions (<a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>).</p>
 </section>
 </section>
 
@@ -1030,6 +1155,7 @@ defaults to <code class="docutils literal notranslate"><span class="pre">Delete<
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#any-other-ingress-controller">Any other ingress controller</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code-mcp">Claude Code (MCP)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#port-forward">Port-forward</a></li>
 </ul>
 </li>
@@ -1038,7 +1164,9 @@ defaults to <code class="docutils literal notranslate"><span class="pre">Delete<
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#health-and-monitoring">Health and monitoring</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#k3s-and-storage-notes">k3s and storage notes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#argo-cd">Argo CD</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#uninstall">Uninstall</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-chart-does-not-do">What the chart does not do</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
 </ul>
   </nav></div>
 

@@ -1,512 +1,566 @@
-# Claude ingest (M2)
+# Claude ingest
 
-Status: design for milestone 2. It builds on the M1 code on `main` (`0001_init.sql`, `store.py`,
-`app.py`) and the PWA, and supersedes parts of [the design](design.md) listed there.
+Ingest is how scrap uses Claude. Each photo is sent once for its text, a description, a kind, a
+title, tags and, for a whiteboard or diagram, an Excalidraw drawing. Notes, todos, reads and saved
+links get tags, a summary and related pages from a second, cheaper job on the same worker
+(see {ref}`Enrich <ingest-enrich>`). Every result is a version that can be regenerated, edited or restored,
+and every call is stored, so a later conversation can start from what the model saw and said.
 
-M2 sends each photo to Claude once for its text, description, kind, title, tags and an
-Excalidraw drawing. Each result is a version that can be regenerated, edited or discussed;
-every call is stored, so a chat in the PWA (M4) or an MCP session (M3) starts from what the
-model saw and said.
+This page explains how it works and why. It builds on [the design](design.md). The decisions
+behind it are [](decisions/0009-claude-ingest-via-messages-api.md),
+[](decisions/0010-job-queue-pauses-instead-of-failing.md) and
+[](decisions/0011-drawings-as-skeletons-excalidraw.md). To switch it on, see
+{ref}`ingest-enabling`. Every setting is in [](../reference/api.md), the HTTP routes and CLI
+commands included.
 
-**Settled:** the Messages API only, on Opus; photos only; Reprocess always asks before replacing
-a human drawing; the image kind is stored as given (issue #11 does not block); $3 a day.
+**Settled:** the Messages API only, on Opus; Reprocess always asks before replacing a human
+drawing; a daily budget of $3 by default.
 
-**Cut:** a `claude -p` backend (needs a Read tool; `complete()` is the seam), a cheaper
-first-pass model, a monthly budget (the Console limit caps it), a circuit breaker and a
-rate-limit class (the budget and **Retry** cover them).
+**Not built:** a `claude -p` backend (it needs a Read tool; `complete()` is the seam), a cheaper
+first-pass model, a monthly budget (the Console spend limit caps it), a circuit breaker and a
+rate-limit class (the budget and **Retry** cover them). Chat and refine are not part of ingest
+yet; the stored runs are kept so they can start from them.
+
+(ingest-enabling)=
+## Enabling ingest
+
+Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
+lost: it is sent when the worker starts.
+
+The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set; the worker does not check the key
+at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
+installed:
+
+- **Single server (podman).** `deploy/install.sh` writes `~/.config/scrap/ingest.env` (mode 600) and
+  never overwrites it. Uncomment or add the lines there and run `systemctl --user restart scrap`.
+  The tutorial's optional last step does this: [](../tutorials/installation.md). Every setting is in
+  {ref}`scrap-ingest-settings`.
+- **Kubernetes (Helm).** `ingest.enabled`, `ingest.existingSecret` (the chart never takes the key
+  itself) and the optional `visionModel`, `budgetDayUSD` and `notifyUrlKey`: {ref}`k8s-ingest`.
+
+`SCRAP_ENRICH` (default on) controls the text-page job and needs ingest on; `off` keeps ingest to
+photos. The Helm chart has no value of its own for the text model, effort or debounce, or for
+`SCRAP_ENRICH`; set them with `extraEnv`. It also has no CronJob for the nightly related-pages
+pass (see {ref}`ingest-enrich-related`): run `scrap enrich --related` in the pod yourself, or from
+a cluster scheduler of your own.
+
+`scrap ingest-once IMAGE` tries the Claude call on one image file without a database, and prints
+tokens, cost and counts only; `--save FILE` also writes the full result. It is the quickest way to
+check a key and a model.
 
 ## Worker
 
-One daemon thread from the FastAPI lifespan: `Store` is synchronous and SQLite has one writer,
-so no asyncio task or second process. `SCRAP_INGEST=off` (the default until spend control lands)
-leaves it unstarted. The capture transaction enqueues one job per distinct image of a photo:
+One daemon thread from the FastAPI lifespan. `Store` is synchronous and SQLite has one writer, so
+there is no asyncio task and no second process. With `SCRAP_INGEST` off the thread is not
+started. The capture transaction enqueues one `ingest` job per distinct image of a photo capture
+(`Store.ENQUEUE`). A unique index, `job_one_active`, allows one queued or running job per
+photo, so a repeated photo or a second *Reprocess* adds nothing.
 
-```sql
-INSERT INTO job (kind, capture_id, source_sha256, run_after, created_at, updated_at)
-SELECT DISTINCT 'ingest', cb.capture_id, cb.sha256, :now, :now, :now
-FROM capture_blob cb
-JOIN capture c ON c.id = cb.capture_id AND c.kind = 'photo'
-JOIN blob b ON b.sha256 = cb.sha256 AND b.mime LIKE 'image/%'
-WHERE cb.capture_id = :capture
-ON CONFLICT DO NOTHING
-```
+The thread wakes on an enqueue or every 30 s (`POLL`) and claims the oldest ready job whose page
+is not in the trash, with one `UPDATE ... RETURNING` (`ingest.CLAIM`), unless the queue is paused
+(`queue_state.paused_until`). The claim and pause gate are in one statement, so a pause cannot
+race a claim.
 
-`job_one_active` makes a repeated photo or a second *Reprocess* add nothing. The thread wakes
-on enqueue or every 30 s and claims the oldest ready job whose page is not in the trash, unless
-the queue is paused:
+One job runs at a time, and a photo job is always taken before a text one (see
+{ref}`Enrich <ingest-enrich>`). It inserts a `model_run` row, calls Claude holding no lock, then in one
+`BEGIN IMMEDIATE` re-reads the job (a purge counts as done), finishes the run, writes the
+versions and page fields, and marks the job `done` or applies the error rules below. The loop
+catches every exception, so the thread cannot die silently, and `/healthz` answers 503 if it
+has. A job found `running` at service start is charged as `crashed` (it may have killed the
+process), so a crashing job cannot loop the service. A clean shutdown (`Worker.stop()`) stops
+claiming and gives the job in flight back to the queue for free; its call is abandoned and its
+run is marked as `service stopped`.
 
-```sql
-UPDATE job SET state = 'running', updated_at = :now
-WHERE id = (
-    SELECT j.id FROM job j
-    JOIN capture c ON c.id = j.capture_id
-    JOIN page p ON p.id = c.page_id
-    WHERE j.state = 'queued' AND j.run_after <= :now AND p.deleted_at IS NULL
-    ORDER BY j.run_after, j.id LIMIT 1)
-  AND NOT EXISTS (SELECT 1 FROM queue_state WHERE paused_until > :now)
-RETURNING id, capture_id, source_sha256, failures
-```
-
-One job runs at a time (11 to 55 s per board): insert a `model_run` row, call Claude holding
-no lock, then in one `BEGIN IMMEDIATE` re-read the job (a purge counts as done), finish the run,
-write the versions and page fields, and mark the job `done` or apply the error rules. The loop
-catches every exception, so the thread cannot die silently; `/healthz` fails if it does. A
-`running` job found at service start is charged as `crashed` (it may have killed the process),
-so a crashing job cannot loop the service. The PWA shows each capture *queued*, *processing*, *done*, *failed* (reason and
-**Retry**) or *paused*, a **Reprocess** per photo, and a banner with **Resume** while paused.
+The PWA shows each photo's state under it ([](../how-to/use-the-pwa.md)): *queued* ("Waiting for
+Claude", or "Waiting: Claude ingest is off"), *processing*, *done*, *failed* (with the reason and
+**Retry**) or *paused* ("Paused (reason): nothing is lost", with **Resume**). A finished photo has
+a quiet **Reprocess**. There is no banner: the pause shows on every waiting photo, and
+`GET /api/ingest` and `POST /api/ingest/resume` are the queue's status and the resume.
 
 ## The Claude call
 
-`complete(model, system, messages, schema)` returns the sanitised JSON, the raw content blocks,
-the usage and the served model.
+`claude.complete(model, system, messages, schema)` returns the sanitised JSON, the raw content
+blocks, the usage and the served model.
 
-- The `anthropic` SDK, with `ANTHROPIC_API_KEY` from the service user's mode-600 env file; no
+- The `anthropic` SDK, with `ANTHROPIC_API_KEY` from the service user's env file (`ingest.env`, mode 600); no
   `tools`; SDK debug logging off (it logs request bodies).
-- Error text is stored and shown only after redaction: anything shaped like an API key, and the
-  key itself, is removed, in case a server or proxy ever echoes the request headers.
-- `max_retries=0` and a 240 s request timeout: the queue does all retrying, so one claim is one
-  call. The SDK's own retries would triple a timeout and repeat a spend-cap 429 that cannot
+- Error text is stored and shown only after redaction: anything shaped like an API key
+  (`sk-ant-...`), and the key itself, is removed, in case a server or proxy ever echoes the
+  request headers.
+- `max_retries=0` and a 240 s request timeout: the queue does all the retrying, so one claim is
+  one call. The SDK's own retries would triple a timeout and repeat a spend-cap 429 that cannot
   succeed.
-- `SCRAP_VISION_MODEL`, default `claude-opus-5-5` (best on handwriting in the experiment). Its
-  thinking cannot be disabled, so `effort` is set explicitly (`medium` to start) and recorded.
-  `max_tokens` is 16000.
+- `SCRAP_VISION_MODEL`, default `claude-opus-5-5`. Its thinking cannot be disabled, so `effort`
+  is set explicitly (`medium`) and recorded. `max_tokens` is 16000. A board takes seconds to a
+  minute or so; the 240 s timeout is the bound.
 
-**Image.** Claude never gets the original, but a JPEG made from it (EXIF orientation applied,
-HEIC converted, quality 85). It is made by the preview code, one decode at a time and within
-its memory budget, so an image too large to decode is refused from its header. It is scaled to the largest size with a long edge of at most
-2048 px and ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens, the high-resolution cap:
-
-- a 4:3 photo is sent as 2048×1536 (4070 tokens);
-- a square one as 1932×1932.
+**Image.** Claude never gets the original, but a JPEG made from it by `preview.for_claude`: EXIF
+orientation applied, HEIC converted, quality 85. It is made one decode at a time and within a
+memory budget (400 MiB), so an image too large to decode is refused from its header and charged
+as class `image`. The result has the largest size with a long edge of at most 2048 px and
+⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
+photo is sent as 2048×1536 and a square one as 1932×1932.
 
 The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
-rescales it silently (verified: a 2048×2048 image is refused with a 400 naming 1932×1932 as the
-largest size; 1932×1932 is accepted at 4781 input tokens), and drawing coordinates are in sent pixels. The JPEG is
-stored as a blob (`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA
-scales the drawing to the displayed photo, and M4 replays the exact bytes. A later `scrap gc`
-must count `sent_sha256` as in use; after a purge it is an orphan that gc removes.
+rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
+(`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA scales the drawing
+to the displayed photo, and a later conversation can replay the exact bytes. `scrap gc` counts
+`sent_sha256` as in use; after a purge it is an orphan that gc removes.
 
-**Output:** `kind` (whiteboard, diagram, handwriting, screenshot, document, photo or other),
-`title`, `tags`, `description`, `text` (one item per line, `(?)` after uncertain readings) and
-`elements` (empty unless whiteboard or diagram). The prompt grows from the experiment's
-`skeleton_v3` and lives in `src/scrap/prompts/`; `prompt_version` is `<name>@<12 hex digits of
-sha256(prompt + schema)>`.
+**Output:** `kind` (whiteboard, handwriting, diagram, screenshot, document, photo or other), `title`,
+`tags`, `description`, `text` (one item per line, `(?)` after uncertain readings) and `elements`
+(empty unless a whiteboard or diagram). The prompt lives in `src/scrap/prompts/photo.md`;
+`prompt_version` is `<name>@<12 hex digits of sha256(prompt + schema)>`.
 
 **Schema.** It keeps to the documented structured-output subset (`additionalProperties: false`,
-no numeric or string bounds, `minItems` 0 or 1, at most 24 optional and 16 union properties),
-which the experiment's `[x, y]` tuples broke. An element is one flat object: `type`, `id`, `x`,
-`y` required, plus 11 optional scalars or number lists, none a union: `width`, `height`,
-`text`, `fontSize`, `label`, `labelFontSize`, `points` (flat `[dx0, dy0, dx1, dy1, ...]`),
-`start` and `end` (shape ids), `strokeColor`, `startArrowhead`. Code makes Excalidraw skeletons
-of these and the sanitiser enforces bounds. Verified on `claude-opus-5-5` (4 calls on real
-boards, `thinking` omitted so adaptive, effort `medium`): the API takes this schema with
-thinking on, every output was valid JSON first try, and the model chose not to think at all
-(0 thinking tokens, no thinking blocks). With `id` optional the model left out every id and
-every arrow on a box-and-arrow board, so `id` is required and the prompt asks for every arrow.
+no numeric or string bounds, limited unions), which `[x, y]` tuples would break. An element is
+one flat object: `type`, `id`, `x` and `y` are required, plus optional scalars or number lists,
+none a union: `width`, `height`, `text`, `fontSize`, `label`, `labelFontSize`, `points` (flat
+`[dx0, dy0, dx1, dy1, ...]`), `start` and `end` (shape ids), `strokeColor` and
+`startArrowhead`. Code makes Excalidraw skeletons of these and the sanitiser enforces bounds.
+`id` is required because, optional, the model leaves out every id and so every arrow.
 
-## Stored context for later discussion
+## Stored context
 
-A `model_run` row is one call (columns in the SQL below). `request` holds the system prompt,
-messages and parameters, with images as blob references, never base64; `response` holds the
-content blocks exactly as returned, thinking blocks and signatures included. A run (10 to 50 KB)
-cannot be deleted while a version or later turn uses it.
+A `model_run` row is one call: the system prompt, messages and parameters in `request` (images
+as blob references, never base64), the content blocks exactly as returned in `response` (thinking
+blocks and signatures included), the sanitised `output` with its warnings, `usage`,
+`cost_microusd`, `status` and `error_class`. A run cannot be deleted while a version uses it.
+The schema is in [`0002_ingest.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0002_ingest.sql).
 
-**Discuss and refine (M4).** Continuing run *R* sends *R*'s system prompt and messages (the
-stored JPEG, byte for byte), *R*'s `response` unchanged as the assistant turn, and one new user
-turn (plus the current drawing if a human version is newer), on *R*'s model. The history is
-append-only, as thinking blocks require. The new run gets `parent_id = R`; a refine stores a new
-model version. Each turn re-sends the image tokens.
-
-**MCP (M3).** `read` gives each photo's text, description, kind, drawing and run id; a `context`
-tool returns that run with its image.
+A conversation (not built yet) would continue run *R* by sending *R*'s system prompt and
+messages, *R*'s `response` unchanged as the assistant turn, and a new user turn, on *R*'s model.
+`model_run.parent_id` is there for it. MCP does not expose runs: `read` lists each image with its URL and what Claude read from
+it, and Claude's own additions (summary, tags, related pages) under `by_model`. See
+[](../reference/mcp.md).
 
 ## Derived results and versions
 
-0002 creates `derived` with versions, replacing the design's "regenerating replaces it":
+Migration 0002 creates `derived`, which holds results as versions:
 
-- One current row (`superseded_at IS NULL`, a partial unique index) per `(capture, photo,
-  kind)`; inserting one supersedes the old (a trigger). Rows never change otherwise;
+- One current row (`superseded_at IS NULL`, a partial unique index) per `(capture, photo, kind)`;
+  inserting one supersedes the old (a trigger). Rows never change otherwise (more triggers);
   **Restore** inserts a copy.
 - **Kinds.** `ocr`, `description` (its `data` keeps the image kind) and `excalidraw` (`data` is
-  `{"format": "skeleton" | "scene", "width", "height", "elements"}`). `summary` and `fetched`
-  come later.
+  `{"format": "skeleton" | "scene", "width", "height", "elements"}`). The table also allows
+  `summary` and `fetched`; enrichment keeps those in `enrichment` instead.
 - **Producer:** the model id with its `run_id`, or `human` with `author`. A reprocess over a
   human drawing stores its drawing already superseded unless the user confirmed. The
-  confirmation is kept on a job already queued or running (the worker reads it as it
-  finishes), so it is never lost (issue #19).
+  confirmation is kept on a job already queued or running (the worker reads it as it finishes),
+  so it is never lost.
 - **Restore** copies the version's producer, run, author and text; its `data` adds
-  `restored_from` (the version) and `restored_by`, so the history can say so.
+  `restored_from` and `restored_by`, so the history can say so.
 
 **Page fields** come from the first photo, and the user wins:
 
-- **Title.** The provisional title is M1's (first line of text, else the URL, else the device
-  date) and stays in rev 1 as captured. Only the first photo of a capture without text may
-  replace it, once, on the page row only, adding no revision:
-
-  ```sql
-  UPDATE page SET title = :title, updated_at = :now
-  WHERE id = :page AND deleted_at IS NULL
-    AND title = (SELECT title FROM page_rev WHERE page_id = :page AND rev = 1)
-    AND NOT EXISTS (SELECT 1 FROM page_rev WHERE page_id = :page AND rev > 1)
-    AND EXISTS (SELECT 1 FROM capture c WHERE c.id = :capture AND c.page_id = :page
-                AND c.text IS NULL AND :photo = (SELECT sha256 FROM capture_blob
-                                                 WHERE capture_id = c.id ORDER BY ord LIMIT 1))
-  ```
-
-  The same transaction re-indexes the page. `PATCH /api/pages/{id}` treats a title equal to the
-  title at its `base_rev` as unchanged, so the PWA, which always sends the title it loaded,
-  never undoes the model's. The PWA should still send `title` only when edited (issue #13), but
-  the server does not depend on it. The slug never changes (the PWA uses the id).
+- **Title.** The provisional title (first line of text, else the URL, else the device date)
+  stays in rev 1 as captured. Only the first photo of a capture without text may replace it,
+  once, on the page row only, adding no revision (`ingest.TITLE_CAS`: it applies only while the
+  title still equals rev 1's and there is no later revision). The same transaction re-indexes the
+  page. `PATCH /api/pages/{id}` treats a title equal to the title at its `base_rev` as unchanged,
+  so the PWA, which always sends the title it loaded, never undoes the model's. The slug never
+  changes (the PWA uses the id).
 - **Tags** join the page's own on the first reading of its first photo, the user's first: Claude's
-  fill what the user's leave of the page's 64 (0002 adds `tag`). A later reading (Reprocess)
-  adds them only to a page with none, so a tag the user took off stays off.
-- **Kind** changes only while it is `note` and not fixed: whiteboard and diagram become
-  `whiteboard`, document becomes `document`. The mapping is one table in code.
+  fill what the user's leave of the page's 64. A later reading (Reprocess) adds them only to a
+  page with none, so a tag the user took off stays off. Photo tags are cleaned to lower case,
+  words joined by `-`, at most 64 characters each, at most 10 per reading.
+- **Kind** changes only while it is an unfixed `note`: whiteboard and diagram become
+  `whiteboard`, document becomes `document` (`ingest.PAGE_KINDS`).
 
-**Search.** A trigger indexes a current version's `text` as a chunk with `derived_id`, and
-superseding removes it. That covers OCR, the description and a human drawing's labels; a model
-drawing's text is NULL, because its words are the OCR. M1 needs two changes:
-
-- `Store._index` deletes only chunks with `derived_id IS NULL`;
-- search groups hits by page, in a subquery or in Python, since `bm25()` and `snippet()` refuse
-  `GROUP BY`.
+**Search.** A trigger indexes a current version's `text` as a chunk of its page (with
+`derived_id`), and superseding removes it. That covers OCR, the description and a human drawing's
+labels; a model drawing's text is empty, because its words are the OCR. `Store.index_page`
+rewrites only the chunks with `derived_id IS NULL`, and search groups hits by page.
 
 ## Excalidraw in the PWA
 
-A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React (about 435 kB gzipped) only
-when a drawing is shown; the base app stays small. Only the fonts used are self-hosted
-(`EXCALIDRAW_ASSET_PATH`; the default is a CDN, the full set 14 MB). `convertToExcalidrawElements`
-expands skeletons in the browser with the experiment's two workarounds: an arrow bound to free
-text carries that text's `x`/`y` in `start`/`end`, and the scene is converted again after
-`document.fonts.ready`. View mode by default, beside the photo; **Edit** saves the scene with its
-base version (409 if stale) as a `human` version whose labels become `text`; **History** has
-**Restore**; export to `.excalidraw`, PNG and SVG; the image tool is hidden.
-
-**As built** (the PWA, `web/src/board/`):
+A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React only when a drawing is shown;
+the base app stays small. `convertToExcalidrawElements` expands skeletons in the browser with two
+workarounds: an arrow bound to free text carries that text's `x`/`y` in `start`/`end`, and the
+scene is converted again after `document.fonts.ready`. The code is in `web/src/board/`.
 
 - *On the page* the drawing is a static SVG from Excalidraw's `exportToSvg`, framed like the
   photo (its `viewBox` is the frame, so it lines up with the photo whatever the photo's size),
   rendered when it nears the screen and kept in memory. It behaves like an image: no gestures,
-  so a finger drag scrolls the page. Its aspect ratio comes with the page (`ingest.drawing`
-  has the frame), so nothing shifts when it renders. Wide screens show it beside the photo,
-  phones upright a Photo / Drawing switch.
+  so a finger drag scrolls the page. Its aspect ratio comes with the page (`ingest.drawing` has
+  the frame), so nothing shifts when it renders. Wide screens show it beside the photo; narrow ones (a phone held
+  upright) show one at a time, with a Photo / Drawing switch.
 - *Tapping it* opens the full-screen viewer: a layer sized to the visual viewport with a history
-  entry (Back closes it), Excalidraw in view mode fitted to the frame (clear of its own tool
-  bars), **Edit** switching the same scene to edit mode, so zoom, scroll and edits survive the
-  switch. Edits are kept as a draft in IndexedDB as they change. **Photo** shows the photo beside
-  the drawing (landscape) or over it (portrait).
-- *Fonts:* Excalidraw's drawing fonts but Xiaolai (CJK, 14 MB) are copied from the package into
-  the build (`/excalidraw/fonts/`), about 440 kB, fetched only when used. Excalidraw always
-  lists its CDN as a fallback source; a `font-src 'self' data:; connect-src 'self'` policy keeps
-  the app from ever using it (Chrome logs each blocked fallback). The preview skips Excalidraw's
-  font inlining (the page has the fonts), which would load its 740 kB font subsetter; exported
-  SVGs inline them.
-- *The second workaround* (convert again once fonts are loaded) is done before anything is
-  shown: convert, export the text to a 1 px canvas (which makes Excalidraw load the fonts it
-  uses), wait for `document.fonts.ready`, convert again.
-- *Sizes:* the app shell is 14.1 kB of JavaScript gzipped (32 kB raw), 2.0 kB more than
-  without drawings (the photo panel and the preview's loader); the viewer chunk is 412 kB JS
-  and 22 kB CSS gzipped (1.32 MB and 142 kB raw). scrap gzips its scripts, styles, pages and
-  JSON for clients that accept it (not files, previews, downloads, fonts or range requests), so
-  the gzipped sizes are what crosses the network. The service worker precaches only the shell,
-  never the viewer or its fonts. `npm run size` checks both in CI.
+  entry (Back closes it), Excalidraw in view mode fitted to the frame, and **Edit** switching the
+  same scene to edit mode, so zoom, scroll and edits survive the switch. Edits are kept as a
+  draft in IndexedDB as they change. **Photo** shows the photo beside the drawing (landscape) or
+  over it (portrait). **Save** (in edit mode) stores the scene with its base version (409 if stale) as a `human`
+  version whose labels become `text`; **History** has **Restore**; the viewer exports to
+  `.excalidraw`, PNG and SVG; the image tool is hidden.
+- *Fonts.* Excalidraw's drawing fonts, but not Xiaolai (CJK, 14 MB), are copied from the package
+  into the build (`/excalidraw/fonts/`) and fetched only when used. Excalidraw always lists its
+  CDN as a fallback source; the app's CSP, `font-src 'self' data:; connect-src 'self'`, keeps it
+  from ever using it (Chrome logs each blocked fallback). The preview skips Excalidraw's font
+  inlining (the page already has the fonts); exported SVGs inline them.
+- *The second workaround* is done before anything is shown: convert, export the text to a 1 px
+  canvas (which makes Excalidraw load the fonts it uses), wait for `document.fonts.ready`,
+  convert again.
+- *Sizes.* `npm run size` checks them in CI. The app shell's JavaScript is budgeted at 16 kB
+  gzipped (about 15 kB now, plus about 8 kB of CSS); the viewer chunk loaded on demand is about
+  400 kB of JavaScript and 23 kB of CSS gzipped, and the fonts about 350 kB. scrap gzips its
+  scripts, styles, pages and JSON for clients that accept it (not files, previews, downloads,
+  fonts or range requests), so gzipped sizes are what crosses the network.
+- *Offline.* The service worker precaches the shell and a short list of screen chunks (`OFFLINE`
+  in `web/vite.config.ts`: composer, editor, page edit, render, sharing, refine and searches),
+  never the drawing viewer or its fonts. The viewer and fonts are fetched when a drawing is first
+  opened.
 - *Reprocess* shows **Replace mine** / **Keep mine** when the current drawing is a human one, and
-  `{queued, already}` tells it whether the photo was waiting already.
-- *Downloads:* the page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton
-  is converted on the server, approximately (Excalidraw re-measures text when it opens it). The
-  viewer's own exports (`.excalidraw`, PNG, SVG) are made by Excalidraw in the browser.
+  `{queued, already}` in the reply says whether the photo was waiting already.
+- *Downloads.* The page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton is
+  converted on the server, approximately (Excalidraw re-measures text when it opens it). The
+  viewer's own exports are made by Excalidraw in the browser.
 
-**Sanitising.**
+(ingest-sanitising)=
+## Sanitising
 
-*Model output* is strict; a violation drops just that element, with a warning in the run:
+Two sanitisers, in `src/scrap/sanitise.py`. A violation by the model drops just that element,
+with a warning in the run; a violation in a human scene refuses the whole save with a 422 and
+the editor keeps its state.
 
-- types `rectangle`, `ellipse`, `diamond`, `text`, `arrow` and `line`;
-- ids of up to 32 characters `[A-Za-z0-9_-]`, colours `#rrggbb`;
-- finite numbers within a quarter of the image beyond its edges;
-- font size 4 to 200, at most 200 points, 2000 characters and 1000 elements;
-- an arrow whose `start` or `end` names no remaining element loses that binding.
-
-*Human scenes* are permissive:
-
-- types from an allowlist: the six above plus `freedraw` (no images, embeds or frames);
-- any finite position, freedraw strokes of up to 50,000 points;
-- any colour Excalidraw writes (`transparent`, named, `#rgb`, `#rrggbbaa`, `rgba()`), and its
-  own keys (`index`, `groupIds`, `containerId`, `originalText`, bindings);
-- `link` only with http(s), and the scene's `files` map (embedded image data) stripped;
-- 5 MB per scene (as compact UTF-8 JSON), nested at most 32 levels deep, and no lone
-  surrogates (JSON can escape half a UTF-16 pair, UTF-8 cannot encode it): either could be
-  stored, then never served. The model's text has lone surrogates replaced with U+FFFD.
-
-A scene that breaks these gets a 422, and the editor keeps its state.
+| Rule | Model output (strict) | Human scene (permissive) |
+| --- | --- | --- |
+| Element types | `rectangle`, `ellipse`, `diamond`, `text`, `arrow`, `line` | those six plus `freedraw`; no images, embeds, iframes or frames |
+| Count | at most 1000 elements | the scene is bounded by size and depth |
+| Position | finite, within a quarter of the image beyond its edges | any finite number |
+| Points | at most 200 | at most 200, or 50,000 for `freedraw` |
+| Text and font | 2000 characters; font size 4 to 200 | no limit of their own beyond the scene's size; `fontSize` must be a finite number |
+| Ids | up to 32 characters of `[A-Za-z0-9_-]` | Excalidraw's own |
+| Colours | `#rrggbb` | anything Excalidraw writes (`transparent`, named, `#rgb`, `#rrggbbaa`, `rgba()`) |
+| Bindings | an arrow whose `start` or `end` names no remaining element loses that binding | Excalidraw's own keys (`index`, `groupIds`, `containerId`, `originalText`, bindings) |
+| Links | none | `link` only with http(s) |
+| Embedded files | none | the `files` map is stripped |
+| Size and depth | none | 5 MB per scene (compact UTF-8 JSON), nested at most 32 levels |
+| Unicode | lone surrogates replaced with U+FFFD | lone surrogates refused (JSON can escape half a UTF-16 pair, UTF-8 cannot encode it, so it could be stored and never served) |
 
 **Prompt injection.** The image is data: no tools, no network, output schema-checked and
-sanitised. It can change only its page's versions, a provisional title, its tags (adding up to 10
-on the first reading, alongside the user's, which it cannot remove; none on a later one unless
+sanitised. It can change only its page's versions, a provisional title, its tags (adding up to
+10 on the first reading, alongside the user's, which it cannot remove; none on a later one unless
 the page has none) and an unfixed `note` kind.
 
+(ingest-spend)=
 ## Spend and outage control
 
-A price table turns each run's `usage` into `cost_microusd` (measured: $0.03 to $0.06 a board,
-about 6900 input tokens and 150 to 1500 output tokens, 3 to 39 s). The budget is `SCRAP_BUDGET_DAY_USD` (default 3); the Console spend limit is
-the hard cap.
+A price table (`claude.PRICES`, dollars per million tokens) turns each run's `usage` into
+`cost_microusd`: `claude-opus-5-5` is $4 in / $20 out, `claude-sonnet-5-5` $2 / $10 and
+`claude-haiku-5-5` $0.10 / $0.50 (for prompts up to 100k tokens, which enrich's never reach),
+with cache write and read rates too. A model that is not in the table is priced at the
+`DEAREST` fallback, $10 in / $50 out, so an unlisted model's cost is over-estimated rather than
+under-estimated; add the model to `PRICES` to get its real price.
+
+**The budget** is `SCRAP_BUDGET_DAY_USD` (default 3), for photos and text pages together: the sum
+of `cost_microusd` of the runs started since UTC midnight, in `model_run` and `enrich_run`. It is
+checked when a job is claimed, not during a call, so the call that crosses the line still
+finishes and the day can end a little over; the Console spend limit is the hard cap. Once it is
+reached, the job is given back and the queue pauses (reason `budget`) until UTC midnight, or
+**Resume**. Resume does not raise the budget: the next claim sees the spend still over and pauses
+again, so raise `SCRAP_BUDGET_DAY_USD` and restart if you want to go on today.
 
 | Class | Recognised by | Effect |
 | --- | --- | --- |
-| credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* (wording from the docs, not provoked) |
-| auth | 401 (verified: `authentication_error`, "invalid x-api-key"), 403, 404 (unknown model) | pause until *Resume* |
-| outage | any other 429; any 5xx (incl. 504, 529); connection error | pause until `retry-after` (at most 1 h), else 1, 2, 4 ... 60 min |
+| credit | 402 `billing_error`; 400 whose message contains "reached your specified" and "API usage limits" (Console spend limit) or "credit balance"; 429 with `error.details.error_code` `enforced_spend_limit_reached` | pause until *Resume* |
+| auth | 401, 403, 404 (unknown model) | pause until *Resume* |
+| outage | any other 429; any 5xx (including 504, 529); connection error | pause until `retry-after` (at most 1 h), else 1, 2, 4 ... 60 min |
 | budget | the day's spend reached | pause until UTC midnight |
 | timeout | `APITimeoutError` (240 s) | charged |
 | invalid | `max_tokens`, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped) | charged; retried at once |
 | content | refusal, any other 400, 409, 413, 422 | charged |
-| image | decode or HEIC failure, too large to decode within the preview code's memory budget | charged |
+| image | decode or HEIC failure, too large to decode within the memory budget | charged |
 | internal | any other exception | charged |
 | crashed | `running` at service start | charged |
 
 **The rule.** A pause refunds the claim: the job stays `queued` with `run_after` set to the
 failure's time, behind older jobs, while the pause gate waits. *Resume*, or the pause running
 out, makes it claimable again, so an outage fails nothing. Every charged failure adds 1 to
-`job.failures` and retries 10 minutes later (invalid output at once); the third kills the job.
-The SDK's `APITimeoutError` subclasses `APIConnectionError`, so it is tested first, else every
-timeout would be a free outage retry. A success clears the pause. The first pause of an
-episode (or a pause for a new reason, such as a spend limit after a budget pause) POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic works) with fixed text
-naming only the reason, never titles, OCR or API errors.
+`job.failures` and retries 10 minutes later (invalid output at once); the third kills the job
+(`dead`, shown as *failed* with **Retry**). The SDK's `APITimeoutError` subclasses
+`APIConnectionError`, so it is tested first, else every timeout would be a free outage retry. A
+success clears the pause.
 
-## Migration 0002 (sketch)
+**Notification.** The first pause of an episode (or a pause for a new reason, such as a spend
+limit after a budget pause) POSTs once to `SCRAP_NOTIFY_URL` (off when unset; an ntfy topic
+works) with the fixed text `scrap: Claude ingest paused ({reason}). Open scrap to resume.` It
+names only the reason, never titles, OCR or API errors.
 
-Runs after `0001_init.sql` under the M1 runner (`foreign_keys` on every connection). A version
-is inserted with `version = (SELECT coalesce(max(version), 0) + 1 ...)` in `BEGIN IMMEDIATE`;
-the app strips control characters from `text`, as M1 does.
+(ingest-sent)=
+## What is sent to Anthropic
 
-```sql
-CREATE TABLE tag (
-    page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
-    tag         TEXT NOT NULL CHECK (tag = lower(tag) AND length(tag) BETWEEN 1 AND 64),
-    PRIMARY KEY (page_id, tag)
-);
-CREATE INDEX tag_by_name ON tag(tag);
+Only when ingest is on and only to the Claude API:
 
-CREATE TABLE job (
-    id            INTEGER PRIMARY KEY,
-    kind          TEXT NOT NULL CHECK (kind IN ('ingest', 'refine')),
-    capture_id    TEXT NOT NULL REFERENCES capture(id) ON DELETE CASCADE,
-    source_sha256 TEXT NOT NULL,               -- the photo
-    state         TEXT NOT NULL DEFAULT 'queued'
-                    CHECK (state IN ('queued', 'running', 'done', 'dead')),
-    failures      INTEGER NOT NULL DEFAULT 0,  -- charged failures (all but pauses): dead at 3
-    options       TEXT NOT NULL DEFAULT '{}' CHECK (json_type(options) = 'object'),
-    run_after     TEXT NOT NULL,
-    last_error    TEXT,
-    created_at    TEXT NOT NULL,
-    updated_at    TEXT NOT NULL
-);
-CREATE INDEX job_ready ON job(state, run_after);
-CREATE INDEX job_by_capture ON job(capture_id);
--- One queued or running job per photo (enqueue with ON CONFLICT DO NOTHING).
-CREATE UNIQUE INDEX job_one_active ON job(kind, capture_id, source_sha256)
-    WHERE state IN ('queued', 'running');
+- **A photo:** the JPEG described above (a resized, re-encoded copy; only its colour profile is kept from the original's metadata) and
+  the fixed prompt. Nothing else about the page is sent.
+- **A note, todo or read:** its kind, tags, title and text as plain words (at most 12,000
+  characters), a list of the tags already in use with their counts (at most 600 tags), and the
+  fixed prompt.
+- **A saved link:** the same, plus the link's readable text (at most 20,000 characters) fetched by
+  scrap. The fetched text is sent, not stored.
+- **Related pages:** the page in brief and an index of up to 150 candidate pages, each a title,
+  up to 6 tags and a summary cut to 150 characters.
 
--- One row. A pause stops every claim until paused_until (far future: until Resume).
-CREATE TABLE queue_state (
-    id            INTEGER PRIMARY KEY CHECK (id = 1),
-    paused_until  TEXT,                        -- NULL: running
-    reason        TEXT CHECK (reason IN ('auth', 'credit', 'outage', 'budget')),
-    outages       INTEGER NOT NULL DEFAULT 0,  -- consecutive outage errors: backoff exponent
-    notified_at   TEXT,                        -- this pause has been announced
-    updated_at    TEXT NOT NULL
-);
-INSERT INTO queue_state (id, updated_at) VALUES (1, '1970-01-01T00:00:00.000Z');
+Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
+link fetches above (to the linked site) and `SCRAP_NOTIFY_URL`, which gets a fixed line with the
+pause reason. Everything sent is kept in the
+database in `model_run` and `enrich_run` (photos as references to the stored JPEG), so it is
+covered by the same backups as the pages.
 
--- Every model call, kept so a conversation can resume from it.
-CREATE TABLE model_run (
-    id             INTEGER PRIMARY KEY,
-    capture_id     TEXT NOT NULL REFERENCES capture(id) ON DELETE CASCADE,
-    source_sha256  TEXT NOT NULL,
-    job_id         INTEGER REFERENCES job(id) ON DELETE SET NULL,
-    parent_id      INTEGER REFERENCES model_run(id),  -- the turn this one continues (M4)
-    purpose        TEXT NOT NULL CHECK (purpose IN ('ingest', 'refine', 'discuss')),
-    model          TEXT NOT NULL,              -- requested
-    served_model   TEXT,
-    prompt_version TEXT NOT NULL,
-    sent_sha256    TEXT REFERENCES blob(sha256),  -- the JPEG actually sent, kept for replay
-    image_width    INTEGER,                    -- its pixels: the drawing's frame
-    image_height   INTEGER,
-    request        TEXT NOT NULL CHECK (json_valid(request)),
-    response       TEXT CHECK (json_valid(response)),  -- content blocks as returned
-    output         TEXT CHECK (json_valid(output)),    -- the sanitised result, with warnings
-    usage          TEXT CHECK (json_valid(usage)),
-    cost_microusd  INTEGER NOT NULL DEFAULT 0,  -- from usage and a price table
-    status         TEXT NOT NULL DEFAULT 'running'
-                     CHECK (status IN ('running', 'ok', 'invalid', 'refused', 'error')),
-    error_class    TEXT CHECK (error_class IN
-                     ('credit', 'auth', 'outage', 'budget', 'timeout', 'invalid', 'content',
-                      'image', 'internal', 'crashed')),
-    error          TEXT,
-    started_at     TEXT NOT NULL,
-    finished_at    TEXT
-);
-CREATE INDEX model_run_by_source ON model_run(capture_id, source_sha256);
-CREATE INDEX model_run_by_started ON model_run(started_at);  -- spend per day
-
--- Results as versions: one current row (superseded_at IS NULL) per (capture, photo, kind).
-CREATE TABLE derived (
-    id            INTEGER PRIMARY KEY,
-    capture_id    TEXT NOT NULL REFERENCES capture(id) ON DELETE CASCADE,
-    source_sha256 TEXT NOT NULL DEFAULT '',
-    kind          TEXT NOT NULL CHECK (kind IN
-                    ('ocr', 'description', 'summary', 'fetched', 'excalidraw')),
-    version       INTEGER NOT NULL CHECK (version >= 1),
-    producer      TEXT NOT NULL,               -- model id, or 'human'
-    run_id        INTEGER REFERENCES model_run(id),  -- the call that made it; NULL if human
-    author        TEXT,                        -- of a human version
-    text          TEXT,                        -- indexed while current
-    data          TEXT CHECK (json_valid(data)),  -- excalidraw: {"format": ..., "elements": ...}
-    superseded_at TEXT,                        -- NULL: the current version
-    created_at    TEXT NOT NULL,
-    UNIQUE (capture_id, source_sha256, kind, version)
-);
-CREATE UNIQUE INDEX derived_current ON derived(capture_id, source_sha256, kind)
-    WHERE superseded_at IS NULL;
-CREATE INDEX derived_by_run ON derived(run_id);
-
--- A current insert supersedes the previous one; insert superseded to keep history only.
-CREATE TRIGGER derived_supersede BEFORE INSERT ON derived
-WHEN new.superseded_at IS NULL BEGIN
-    UPDATE derived SET superseded_at = new.created_at
-    WHERE capture_id = new.capture_id AND source_sha256 = new.source_sha256
-      AND kind = new.kind AND superseded_at IS NULL;
-END;
-CREATE TRIGGER derived_immutable BEFORE UPDATE OF capture_id, source_sha256, kind, version,
-    producer, run_id, author, text, data, created_at ON derived BEGIN
-    SELECT RAISE(ABORT, 'derived versions are immutable: insert a new version');
-END;
-CREATE TRIGGER derived_once BEFORE UPDATE OF superseded_at ON derived
-WHEN old.superseded_at IS NOT NULL BEGIN
-    SELECT RAISE(ABORT, 'a superseded version stays superseded: insert a copy to restore it');
-END;
-
--- Search: a current version's text is a chunk of its page; the page's own has derived_id NULL.
-ALTER TABLE chunk ADD COLUMN derived_id INTEGER REFERENCES derived(id) ON DELETE CASCADE;
-CREATE INDEX chunk_by_derived ON chunk(derived_id);
-
-CREATE TRIGGER derived_index AFTER INSERT ON derived
-WHEN new.superseded_at IS NULL AND coalesce(new.text, '') <> '' BEGIN
-    INSERT INTO chunk (page_id, derived_id, ord, text)
-    SELECT page_id, new.id, 0, new.text FROM capture WHERE id = new.capture_id;
-END;
-CREATE TRIGGER derived_unindex AFTER UPDATE OF superseded_at ON derived
-WHEN new.superseded_at IS NOT NULL BEGIN
-    DELETE FROM chunk WHERE derived_id = new.id;
-END;
-```
-
-## Enrich: text pages and links (#85, stage 1)
+(ingest-enrich)=
+## Enrich: text pages and links
 
 Photos get tags from their own reading; notes, todos, reads and saved links get them from a
-second job kind, `enrich` (`enrich.py`), on the same worker thread, queue pause and daily
-budget. One tool-less call per page, structured output, schema-checked: Claude adds tags and a
-summary, and for a link a title. Related pages are a call of their own, nightly and on Ask.
-Nothing edits the page's text.
+second job kind, `enrich` (`src/scrap/enrich.py`), on the same worker thread, queue pause and
+daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
+and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
+page's text. The schema is in
+[`0009_enrich.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql).
 
-- **Model.** `SCRAP_TEXT_MODEL`, default `claude-haiku-5-5` ($0.10 / $0.50 per Mtok for prompts
-  up to 100k tokens), `SCRAP_TEXT_EFFORT` default `low`, `max_tokens` 4000. Measured on the
-  canary (~280 pages, ~250 tags): about $0.003 a page with the index in the call; tags and
-  summary alone are cheaper. Sonnet 5.5 (`claude-sonnet-5-5`) would be about 20 times that.
-  `SCRAP_ENRICH=off` turns it off while photo ingest stays on; it needs `SCRAP_INGEST` on.
-- **Triggers.** A note or link capture (a photo has its own job): a link at once, a note after
-  `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or text moves the page's one queued
-  job that far ahead again, so a burst of edits makes one call (a save while a job runs queues
-  the next). These do tags and summary only. **Ask Claude** on the page
-  (`POST /api/pages/{id}/enrich`) queues it now and also picks its related pages.
-  `scrap enrich --backfill [--limit N] [--dry-run]` queues every page with no tags that Claude
-  has not read, once, by hand (never automatic). Tag edits alone queue nothing.
+- **Model.** `SCRAP_TEXT_MODEL`, default `claude-haiku-5-5`; `SCRAP_TEXT_EFFORT`, default `low`;
+  `max_tokens` 4000. `SCRAP_ENRICH=off` turns it off while photo ingest stays on.
+- **Triggers.** A text capture (a note, todo or read) or a link capture: a link is fetched and
+  read at once, a text capture after `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or
+  text, on any page, moves the page's one queued job that far ahead again, so a burst of edits
+  makes one call (a save while a job runs queues the next). These do tags and summary only.
+  **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
+  related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every page with no tags
+  that Claude has not read, once, by hand (never automatic). Some things queue nothing:
+  - A photo or file capture, even with a typed note: photo ingest reads the photo, and the
+    page's first text reading comes with a later save of its title or text (or Ask Claude).
+  - Pages Claude Code adds with the MCP `write` tool count as notes, whatever their kind, so a
+    new one is read after the debounce like a user's note: Claude's own pages get model tags and
+    a summary, and cost budget. `append_to` adds a section without a reading, as do tag and kind
+    edits.
+  - An import ([](../how-to/import-a-vault.md)); use `--backfill`.
+- **Order.** The worker takes the oldest ready photo job first and runs a text page only when no
+  photo job is ready. After `scrap import --ingest` or a burst of photos, notes and links wait
+  until the photo queue is empty, so "Waiting for Claude" on a note can last as long as the
+  photos take, and several days if the daily budget spreads them out. A photo waiting out a
+  retry delay does not hold text back, but a pause stops both kinds, and they share the one daily
+  budget.
 - **Prompt** (`prompts/enrich.md`): the fixed instructions, then the tags in use with their
   counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
   text as plain words (at most 12,000 characters) and, for a link, what was fetched. Everything
   there is data; the prompt says to follow nothing in it.
-- **Output, checked.** `tags`: cleaned like the user's, at most 2 not already in use (invented
-  ones are the sprawl risk), at most 5 added; `summary`: one paragraph, at most 600 characters,
-  dropped for a note under 200 characters (tagged, not summarised); `title`: links only, 200
-  characters.
-- **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill
-  (a save's re-reading refreshes the summary only); never one the user took off. `model_tag`
-  marks Claude's tags (`on`), and `off` once the user removes one, so it never comes back; a tag
-  the user puts back by hand is theirs. Photo ingest marks its tags there too. A link's title
-  replaces the provisional one only while the title is still the URL as captured (rev 1, no
-  edit since); a share with its own title keeps it. The kind becomes Later (`consume`, with
-  `source`) only while it is an unfixed note. The summary is the model's own (`enrichment`); a
-  page's `summary` field (imported, the user's) wins in search and the index.
+- **Output, checked.** `tags`: cleaned like the user's, each at most 40 characters, at most 2 not
+  already in use (invented ones are the sprawl risk), at most 5 added; `summary`: one paragraph,
+  at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
+  `title`: links only, 200 characters.
+- **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill (a
+  save's re-reading refreshes the summary only); never one the user took off. `model_tag` marks
+  Claude's tags (`on`), and `off` once the user removes one, so it never comes back; a tag the
+  user puts back by hand is theirs. Photo ingest marks its tags there too. A link's title
+  replaces the provisional one only while the title is still the URL as captured (rev 1, no edit
+  since); a share with its own title keeps it. For a link, the kind becomes Later (`consume`, with `source`)
+  only while it is an unfixed note. The summary is the model's own (`enrichment`); a page's
+  `summary` field (imported, the user's) wins in search and the index.
 - **Stored apart from the text:** `enrichment` (summary, fetched address and title, the run),
-  `model_tag`, `related` (Claude's picks in order), every call in `enrich_run` (as `model_run`,
-  whose cost it shares in the budget; `request.purpose` is `enrich` or `related`). A link's
-  fetched text is sent, not kept: the stored request has a placeholder with its length and hash
-  (a read keeps its link and summary only). Search indexes the summary in the page's summary
-  column.
+  `model_tag`, `related` (Claude's picks in order), and every call in `enrich_run` (as
+  `model_run`, whose cost it shares in the budget; `request.purpose` is `enrich` or `related`). A
+  link's fetched text is sent, not kept: the stored request has a placeholder with its length and
+  hash. Search indexes the summary in the page's summary column.
 - **Failures** follow the photo rules: outage, credit, auth and budget pause the shared queue and
   refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
   it, and the page says so with **Ask Claude** to retry. A failed fetch is not a failed job: the
-  page is still tagged from what is known.
+  page is still tagged from what is known, and the prompt tells the model the page could not be
+  fetched. The PWA does not show why; see {ref}`ingest-fetch` and {ref}`ingest-inspect`.
 
-**Related pages** (`enrich.relate`, prompt `prompts/related.md`). One call per page: the page in
+(ingest-enrich-related)=
+### Related pages
+
+`enrich.relate`, prompt `prompts/related.md`. One call per page: the page in
 brief (title, tags, summary, the start of its text) and a numbered index of candidate pages
-(title, up to 6 tags, summary cut to 150 characters: ~40 tokens a line); Claude answers with up
-to 5 index numbers, so it cannot name a page that is not there.
+(title, up to 6 tags, summary cut to 150 characters); Claude answers with up to 5 index numbers,
+so it cannot name a page that is not there.
 
 - **Candidates** (`enrich.CANDIDATES`, swappable) are at most 150 pages whatever the library's
   size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
   text best match the words of its title, tags and summary (full-text search, an OR of up to 24
-  words), then the most recently changed. Embeddings (#53) can replace this if it proves weak.
+  words), then the most recently changed.
 - **When.** On Ask Claude, at once. Otherwise `scrap enrich --related [--all] [--limit N]
-  [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related`
-  run newer than its `updated_at`; `--all`: every page). It runs in the command's process (in
-  the container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and
-  the day's budget before each call, and stops at either (an outage, credit or auth error pauses
-  the queue as the worker does); other failures are counted and it goes on. Exit status 1 when
-  stopped. `deploy/scrap-enrich-related.{service,timer}` run it nightly (03:41) in the
-  service's container; `install.sh` enables the timer if the image has the command. While
-  ingest or enrich is off, or no key is set, the command prints a note and exits 0.
+  [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
+  newer than its `updated_at`; `--all`: every page). It runs in the command's process (in the
+  container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and the
+  day's budget before each call, and stops at either (an outage, credit or auth error pauses the
+  queue as the worker does); other failures are counted and it goes on. Exit status 1 when
+  stopped. On a single server, `deploy/scrap-enrich-related.{service,timer}` run it nightly
+  (03:41) in the service's container, and `install.sh` enables the timer if the image has the
+  command. While ingest or enrich is off, or no key is set, the command prints a note and exits
+  0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
 - **Both ways.** A page's Related merges its picks, pages that picked it, and pages linking here
   with `[[slug]]` (marked "links here"), each once, at most 8. So a new page that picks an older
   one shows on the older one too, without a call for the older page.
 - **MCP** `read` returns all of this under `by_model` (summary, Claude's tags, related), labelled
   as written by a model, not the user.
 
-**Fetching a link** (`fetch.py`). The page is untrusted:
+(ingest-fetch)=
+### Fetching a link
+
+`src/scrap/fetch.py`. The page is untrusted:
 
 - http(s) only, standard ports, no login in the address, no proxy, no cookies;
 - every address the name resolves to must be global (no private, loopback, link-local and
   metadata `169.254.169.254`, CGNAT/tailnet `100.64/10`, ULA, multicast or reserved, nor
   IPv4-compatible `::/96`, NAT64 `64:ff9b::/96` or site-local `fec0::/10`; IPv4-mapped IPv6
-  judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to
-  the checked address (TLS still verifies the name), so a second DNS answer cannot swap it;
+  judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to the
+  checked address (TLS still verifies the name), so a second DNS answer cannot swap it;
 - at most 2 MB after decompression (a gzip bomb stops there), 20 s for the whole fetch (the
-  socket is cut at the deadline wherever it waits, so a site sending a byte at a time cannot
-  hold the worker); a body that does not decompress is refused;
+  socket is cut at the deadline wherever it waits, so a site sending a byte at a time cannot hold
+  the worker); a body that does not decompress is refused;
 - a path or query that is not ASCII is sent percent-encoded (`%XX` already there kept), an
   international name as IDNA;
 - HTML, XHTML or plain text only; the readable text is the `<article>` (else `<main>`, else
   `<body>`) without scripts, styles, menus, headers, footers and forms, at most 20,000
   characters, with the page's title and description.
 
-**Migration 9** is additive (its Python step creates the tables if missing), so an older scrap
-runs on the database with `PRAGMA user_version` set back to 8.
+**The request.** A plain `GET` with these headers: `User-Agent: scrap/1 (personal notes; fetches
+a page its owner saved)` (`fetch.AGENT`; match it in a site's logs or an egress allow-list),
+`Accept: text/html,application/xhtml+xml,text/plain;q=0.8`, `Accept-Encoding: gzip, deflate` and
+`Accept-Language: en`. scrap does not read `robots.txt`: it fetches one page, once per reading,
+because its owner saved the link. A reading fetches the link again, whether from **Ask Claude**,
+a save or a retry.
 
-## Build order
+**When it fails.** The reason is not shown in the PWA. The job still succeeds: the page is tagged
+from the link and the text the user typed, with no title or summary taken from the site, and
+the reason is kept only in the run's `request` under `fetch` (read it as in
+{ref}`ingest-inspect`; a page that was fetched has `{"url", "chars"}` there instead). The reasons:
 
-1. **Worker, backend, runs:** one real call with schema and thinking first; then 0002, the
-   worker (off), `complete()`, prompt, model sanitiser, page rules with the PATCH title rule,
-   the `_index` fix, search grouping, a status badge, OCR and descriptions in `scrap export`.
-2. **Excalidraw view:** the lazy chunk, edit with the scene sanitiser, history, restore,
-   export, `.excalidraw` in the export.
-3. **Spend and outage control:** error classes, pause, budget, notification, banner. Ingest goes
-   on for daily use after this.
-4. **Reprocess UI:** *Reprocess* with its confirmation, *Retry*.
+| Reason | Cause | Fix |
+| --- | --- | --- |
+| the address is private or local: not fetched | A name that resolves to a loopback, LAN, tailnet (`100.64/10`) or other non-public address, or to a mix of public and private ones | None: scrap never fetches these. Paste the text into the note instead |
+| only the standard ports are fetched | The address has a port other than 80 or 443 | None, as above |
+| an address with a login in it is not fetched | `user:password@` in the address | Remove it |
+| only http and https pages are fetched; not a valid address | Another scheme, or an address that does not parse | Save the real web address |
+| the site answered N | The site refused (401, 403, 429) or has no such page (404, 5xx), often because it blocks automated clients or wants a login | **Ask Claude** later; for a page behind a login, paste its text |
+| not a web page (no readable text) | The content type is not HTML, XHTML or plain text: a PDF, an image, JSON | Paste the text into the note |
+| the page is encoded as X | The site answered with a compression scrap did not ask for (`br`, `zstd`); only `identity`, `gzip` and `deflate` are read | None from scrap's side; paste the text |
+| the page could not be decompressed | The body claimed gzip or deflate and was not | **Ask Claude** later |
+| the page is too large | More than 2 MB after decompression | Paste the part you want |
+| the site took too long | Not done within 20 s | **Ask Claude** later |
+| too many redirects; a redirect with nowhere to go | More than 5 redirects, or one with no `Location` | Save the address the site ends up at |
+| the site's name does not resolve | DNS has no answer, from where scrap runs | Check the address, and DNS in the container or pod |
+| could not fetch the page (ExcName) | A connection or TLS error; the name is that of the Python exception, such as `ConnectionRefusedError` or `SSLCertVerificationError` | Check the address and the site's certificate |
 
-Deferred: MCP (M3), chat and refine (M4), files, embeddings, run pruning. Notes, links and URL
-fetching came with enrich (above).
+A page that answers 200 but has no text in its HTML, because a script draws it in the browser,
+is not a failure: the readable text is short or empty (the stored `chars` is small), and the
+reading rests on the link, the title and the user's text. A site that shows a login page with a
+200 is read as that page.
+
+Migration 9 is additive (its Python step creates the tables if missing), so an older scrap runs
+on the database with `PRAGMA user_version` set back to 8.
+
+(ingest-inspect)=
+## Inspecting runs
+
+There is no screen or MCP tool for runs (`read` shows only their results), so an operator reads
+them from the status route, the logs and the database.
+
+**Quick checks.** `GET /api/ingest` returns whether ingest is `enabled`, whether the queue is
+`paused` (with `reason` and `paused_until`), `jobs` (photo jobs by state), `enrich` (whether it is
+on, and its `jobs` by state) and `spent_today_usd`. On a single server, call it on the socket,
+as the deploy page does for `/healthz`:
+
+```
+curl --unix-socket "$XDG_RUNTIME_DIR/scrap/scrap.sock" http://localhost/api/ingest
+```
+
+(on Kubernetes, `kubectl -n scrap port-forward svc/scrap 8000:80` and the same path on
+`http://127.0.0.1:8000`). The logs are `journalctl --user -u scrap`, `podman logs scrap` or
+`kubectl -n scrap logs deploy/scrap`. The worker logs a traceback only for an unexpected
+exception, under `ingest worker`, `ingest job N` or `enrich job N`; API errors, pauses and fetch
+failures are not logged (apart from a failed pause notification); they are in the database.
+
+**Detail.** Read `scrap.db` with Python's `sqlite3`, because the image has no `sqlite3` command.
+Open it read-only, inside the container where the data is at `/data`:
+
+```
+podman exec scrap python -c '
+import sqlite3
+c = sqlite3.connect("file:/data/scrap.db?mode=ro", uri=True)
+for row in c.execute("SELECT ..."):
+    print(row)'
+```
+
+(on Kubernetes, `kubectl -n scrap exec deploy/scrap -- python -c '...'`). The `SELECT`s below were
+run against a database made by scrap's own code.
+
+Cost per day, photos and text together (the budget's own sum):
+
+```sql
+SELECT day, round(sum(usd), 4) FROM (
+  SELECT substr(started_at, 1, 10) AS day, cost_microusd / 1e6 AS usd FROM model_run
+  UNION ALL
+  SELECT substr(started_at, 1, 10), cost_microusd / 1e6 FROM enrich_run)
+GROUP BY day ORDER BY day DESC LIMIT 14;
+```
+
+The latest runs that did not succeed, with the class from the table above and the (redacted)
+error:
+
+```sql
+SELECT * FROM (
+  SELECT 'photo' AS what, started_at, status, error_class, error
+    FROM model_run WHERE status <> 'ok'
+  UNION ALL
+  SELECT 'text', started_at, status, error_class, error
+    FROM enrich_run WHERE status <> 'ok')
+ORDER BY started_at DESC LIMIT 10;
+```
+
+Why a link got no summary or title, newest first (a `NULL` is a note, which has no fetch):
+
+```sql
+SELECT p.title, json_extract(r.request, '$.fetch')
+FROM enrich_run r JOIN page p ON p.id = r.page_id
+WHERE json_extract(r.request, '$.purpose') = 'enrich'
+  AND json_extract(r.request, '$.fetch') IS NOT NULL
+ORDER BY r.started_at DESC LIMIT 10;
+```
+
+The `fetch` value is a reason from the fetch table, or `{"url": ..., "chars": N}` when the page was
+read. The queue state is in `job` and `enrich_job` (`state`, `failures`, `last_error`,
+`run_after`). A run with `status` `running` is a call in flight.
+
+Two cautions. `cost_microusd` is an estimate from the run's `usage` and `claude.PRICES` (see
+{ref}`ingest-spend`), so the Console is the authority on what you spent. And the runs hold your
+content: `model_run` keeps the JPEG that was sent (`sent_sha256`, a blob) and `enrich_run` keeps
+the system prompt and the page text (a fetched page's text is a placeholder), so the database
+holds what you sent to Claude, and your backups do too.
+
+(ingest-cli)=
+## Command line
+
+| Command | Use |
+| --- | --- |
+| `scrap ingest-once IMAGE [--save FILE]` | Try one image against Claude with no database; numbers only unless `--save` |
+| `scrap enrich --backfill` | Queue the pages with no tags that Claude has not read; the service's worker runs them |
+| `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
+| `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
+
+The full option lists are in [](../reference/api.md). A large import with `--ingest` queues one
+job per image, so the daily budget decides how many days it takes; the queue works through them
+and pauses at the budget each day.
+
+(ingest-troubleshooting)=
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Photos say "Waiting: Claude ingest is off" | `SCRAP_INGEST` is not on | Set it (see {ref}`ingest-enabling`) and restart |
+| Paused (auth) | The key is wrong or revoked (401, 403), or the model name is unknown (404) | Fix `ANTHROPIC_API_KEY` or `SCRAP_VISION_MODEL`, restart, then **Resume** |
+| Paused (credit) | Out of credit, or at the Console spend limit | Add credit or raise the limit, then **Resume** |
+| Paused (budget) | The day's spend reached `SCRAP_BUDGET_DAY_USD` | Wait for UTC midnight, or raise the budget and restart; **Resume** alone pauses again |
+| Paused (outage) | The API is unreachable, failing or rate limiting | Nothing: it backs off and retries; **Resume** tries at once |
+| A photo says Failed | Three charged failures (see the table above); the reason is shown | **Retry**; for an `image` failure the photo may be too large to decode |
+| A drawing is missing | The photo was not a whiteboard or diagram, or the model returned none (warnings are in the run's `output`) | **Reprocess** |
+| `/healthz` returns 503 | The ingest thread has died | Read the logs and restart |
+| A note or link is never tagged | `SCRAP_ENRICH=off`, ingest off, the page is still inside the debounce, or photo jobs are queued ahead of it (text runs only when no photo job is ready) | Check the settings and `GET /api/ingest`; **Ask Claude** queues it now, but still behind ready photos |
+| A saved link has no summary or a poor title | The page could not be fetched or the site blocked scrap, so Claude had only the address and the user's text; the PWA does not show this | Read the reason ({ref}`ingest-inspect`, and the table in {ref}`ingest-fetch`); **Ask Claude** fetches the link again |
+| `scrap enrich --related` prints a note and does nothing | Ingest or enrich is off, or `ANTHROPIC_API_KEY` is not in the command's environment | Run it in the container (`podman exec scrap ...`) |
 
 ## Risks
 
-Thinking: at effort `medium` with structured output the model did not think on any board
-(raise the effort if drawings fall short); Excalidraw API drift (pin the version); model
-drift (`prompt_version` traces it; keep the experiment's boards as a check set).
+Thinking: with structured output at effort `medium` the model may not think on a board (raise the
+effort if drawings fall short); Excalidraw API drift (the version is pinned); model drift
+(`prompt_version` traces it).

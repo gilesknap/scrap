@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>12. Page kinds with flat fields; due date and priority as typed columns &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>12. Page kinds with flat fields; due date and priority as typed columns &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -442,12 +442,13 @@
 <li class="toctree-l2"><a class="reference internal" href="0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../design.html">scrap design</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest (M2)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
 </ul>
 </div>
 </nav></div>
@@ -527,8 +528,9 @@ the vocabulary.</p>
 <section id="decision">
 <h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">kind</span></code> is one of <code class="docutils literal notranslate"><span class="pre">note</span></code> (default and fallback), <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">consume</span></code> (shown as “Read”), <code class="docutils literal notranslate"><span class="pre">memory</span></code>,
-<code class="docutils literal notranslate"><span class="pre">reference</span></code>, <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code>. The PWA offers Note, Todo, Read, Whiteboard and Document;
+<li><p><code class="docutils literal notranslate"><span class="pre">kind</span></code> is one of <code class="docutils literal notranslate"><span class="pre">note</span></code> (default and fallback), <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">consume</span></code> (decided as “Read”; the PWA
+shows “Later”, see the consequences), <code class="docutils literal notranslate"><span class="pre">memory</span></code>,
+<code class="docutils literal notranslate"><span class="pre">reference</span></code>, <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code>. The PWA offers Note, Todo, Later, Whiteboard and Document;
 the rest stay in the schema until wanted. The list is hard-coded until real use asks otherwise.</p></li>
 <li><p>Kind-specific data lives in a <strong>flat JSON <code class="docutils literal notranslate"><span class="pre">fields</span></code> object</strong> (no nulls or nesting), not per-kind
 tables: status (<code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>, Thoth’s lifecycle) and, for reads, a
@@ -539,7 +541,8 @@ They belong to todos: the API refuses them elsewhere, and a todo turned note kee
 rather than losing them. Setting them is not a revision.</p></li>
 <li><p>Changing a kind <strong>keeps every field</strong> and adds the new kind’s defaults, so a stray tap loses
 nothing. A kind set by capture or in the editor sets <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>; ingest sets kind
-only while it is an unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code>, and fields and tags only on the first success.</p></li>
+only while it is an unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code>, and fields and tags only on the first success. (Tags have
+since become a merge, see the consequences.)</p></li>
 <li><p>Deliberately out: recurring tasks, sub-tasks, projects.</p></li>
 </ul>
 </section>
@@ -549,6 +552,15 @@ only while it is an unfixed <code class="docutils literal notranslate"><span cla
 <li><p>New kinds are code changes, not data migrations; filtering by kind or status is cheap.</p></li>
 <li><p>Fields are only as validated as the code that writes them; the schema checks the JSON type only.</p></li>
 <li><p>Migration 0005 moved imported <code class="docutils literal notranslate"><span class="pre">due</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code> out of <code class="docutils literal notranslate"><span class="pre">fields</span></code>.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">consume</span></code> kind shipped in the PWA as “Later”, not “Read”: <code class="docutils literal notranslate"><span class="pre">web/src/kinds.ts</span></code> names it Later,
+and a search’s <code class="docutils literal notranslate"><span class="pre">kind:</span></code> also accepts <code class="docutils literal notranslate"><span class="pre">later</span></code> and <code class="docutils literal notranslate"><span class="pre">read</span></code> (<code class="docutils literal notranslate"><span class="pre">KIND_NAMES</span></code> in <code class="docutils literal notranslate"><span class="pre">store.py</span></code>) beside
+<code class="docutils literal notranslate"><span class="pre">consume</span></code>.</p></li>
+<li><p>Tags are no longer set only on the first successful model run. Photo ingest adds its tags to the
+user’s on the first reading of the first photo (and on a later one only to a page with none),
+and text enrichment (<a class="reference internal" href="0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>) adds up to five on a page’s first reading, on
+capture, on Ask Claude and on backfill. Both mark them in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, and neither adds back a tag
+the user took off. Enrichment also makes a link’s page a <code class="docutils literal notranslate"><span class="pre">consume</span></code> page, but only while it is an
+unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code>. Kind and tag edits are revisioned by <a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>.</p></li>
 </ul>
 </section>
 </section>

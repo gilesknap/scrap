@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -496,8 +496,8 @@ cluster would run, under rootless podman, as a systemd user service. scrap liste
 socket that only its own user (and root) can open;
 <a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> publishes it over HTTPS to your tailnet and
 nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.</p>
-<p>Podman is the tested path. Docker works with the small changes in
-<a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
+<p>Podman is the tested path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
+units up by hand: see <a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
 <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -519,8 +519,9 @@ and process</strong> can do the same through the port: keep that for single-purp
 <ul class="simple">
 <li><p>Linux with systemd (user services and <code class="docutils literal notranslate"><span class="pre">loginctl</span></code>), and an admin account with <code class="docutils literal notranslate"><span class="pre">sudo</span></code> for the
 one-off setup steps.</p></li>
-<li><p>Rootless <a class="reference external" href="https://podman.io">podman</a> 4.4 or newer, with <code class="docutils literal notranslate"><span class="pre">uidmap</span></code> (<code class="docutils literal notranslate"><span class="pre">newuidmap</span></code>/<code class="docutils literal notranslate"><span class="pre">newgidmap</span></code>)
-installed.</p></li>
+<li><p>Rootless <a class="reference external" href="https://podman.io">podman</a>, with <code class="docutils literal notranslate"><span class="pre">uidmap</span></code> (<code class="docutils literal notranslate"><span class="pre">newuidmap</span></code>/<code class="docutils literal notranslate"><span class="pre">newgidmap</span></code>) installed. The
+units use <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=,gid=</span></code>, <code class="docutils literal notranslate"><span class="pre">--sdnotify=conmon</span></code> and <code class="docutils literal notranslate"><span class="pre">--cgroups=split</span></code>, and have
+been run with podman 5.x; older versions are untested.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">git</span></code> and <code class="docutils literal notranslate"><span class="pre">curl</span></code>.</p></li>
 <li><p><a class="reference external" href="https://tailscale.com/download">Tailscale</a> on the server, logged in to your tailnet, with
 <a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates</a> and MagicDNS enabled for the
@@ -547,8 +548,11 @@ user’s systemd session.</p>
 <section id="get-the-image">
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
 <p>Until a release is published to <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code>, build the image yourself, as the
-<code class="docutils literal notranslate"><span class="pre">scrap</span></code> user (podman images belong to the user who built or pulled them):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
+<code class="docutils literal notranslate"><span class="pre">scrap</span></code> user (podman images belong to the user who built or pulled them). Clone into the
+user’s home directory, so the clone is <code class="docutils literal notranslate"><span class="pre">~/scrap</span></code>: the <code class="docutils literal notranslate"><span class="pre">./deploy/...</span></code> commands below run from
+it, and the update steps refer to it by that path.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
 <span class="n">cd</span> <span class="n">scrap</span>
 <span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
 <span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">--</span><span class="n">version</span>
@@ -567,7 +571,7 @@ name in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE
 <p>The image runs scrap as an unprivileged user (uid 10001) and keeps all its data under <code class="docutils literal notranslate"><span class="pre">/data</span></code>.</p>
 </section>
 <section id="install">
-<h2>Install<a class="headerlink" href="#install" title="Link to this heading">#</a></h2>
+<span id="scrap-install-script"></span><h2>Install<a class="headerlink" href="#install" title="Link to this heading">#</a></h2>
 <p>From the clone:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
@@ -585,10 +589,13 @@ exist yet (it never overwrites them);</p></li>
 backup timer only if that image has the <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> command, the nightly gc timer only if
 it has <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>, and the nightly related-pages timer only if it has <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>
 (images built before them do not; re-run the script after updating the image);</p></li>
-<li><p>restarts a running <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> if the image it runs or its unit has changed (see
-<a class="reference internal" href="#scrap-update"><span class="std std-ref">Update</span></a>);</p></li>
+<li><p>restarts a running <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> if the image it runs, the unit or the <code class="docutils literal notranslate"><span class="pre">scrap-run</span></code> launcher
+has changed (see <a class="reference internal" href="#scrap-update"><span class="std std-ref">Update</span></a>);</p></li>
 <li><p>prints where scrap listens, and a note if that is a TCP port (see <a class="reference internal" href="#scrap-listen"><span class="std std-ref">Socket or port</span></a>).</p></li>
 </ul>
+<p>If the image named in the settings is not present, the script stops after writing the files and
+the units, says so, and <strong>exits 0</strong> without enabling the service or any timer. Build or pull the
+image, then re-run it.</p>
 <p>It is safe to re-run after pulling a newer version of the repo.</p>
 <section id="settings">
 <h3>Settings<a class="headerlink" href="#settings" title="Link to this heading">#</a></h3>
@@ -624,7 +631,7 @@ plain <code class="docutils literal notranslate"><span class="pre">KEY=value</sp
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">14</span></code></p></td>
-<td><p>Number of backup runs to keep (at least 1).</p></td>
+<td><p>Number of backup runs to keep (at least 1). Each is a full copy: see <a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_MEMORY_MAX</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1g</span></code></p></td>
@@ -634,6 +641,11 @@ plain <code class="docutils literal notranslate"><span class="pre">KEY=value</sp
 </table>
 </div>
 <p>After changing a setting: <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
+<p>The two directory defaults are <code class="docutils literal notranslate"><span class="pre">${XDG_DATA_HOME:-~/.local/share}/scrap/data</span></code> and <code class="docutils literal notranslate"><span class="pre">.../backups</span></code>,
+which <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> writes into the file as absolute paths and creates. If you point
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> somewhere else, create the directory first, owned by the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user: nothing
+else creates it, and the backup and gc jobs fail without it. <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> creates a missing
+<code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code> itself, and it too must belong to the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user.</p>
 </section>
 <section id="socket-or-port">
 <span id="scrap-listen"></span><h3>Socket or port<a class="headerlink" href="#socket-or-port" title="Link to this heading">#</a></h3>
@@ -673,15 +685,28 @@ which shows the key and the notify URL in plain text. Plain <code class="docutil
 <span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
 <span class="n">SCRAP_BUDGET_DAY_USD</span><span class="o">=</span><span class="mi">3</span>
 <span class="n">SCRAP_NOTIFY_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">ntfy</span><span class="o">.</span><span class="n">sh</span><span class="o">/&lt;</span><span class="n">your</span> <span class="n">private</span> <span class="n">topic</span><span class="o">&gt;</span>
+<span class="n">TZ</span><span class="o">=</span><span class="n">Europe</span><span class="o">/</span><span class="n">London</span>
+<span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
 </pre></div>
 </div>
-<p>Also set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone, for example <code class="docutils literal notranslate"><span class="pre">TZ=Europe/London</span></code>. The server decides what
+<p>The generated file also has a commented <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code> line; leave it alone to use the
+default. It has no <code class="docutils literal notranslate"><span class="pre">TZ</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> line: add them yourself. With ingest on, the
+container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS to fetch saved
+links.</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> to the address you publish scrap at (see
+<a class="reference internal" href="#scrap-publish"><span class="std std-ref">Publish on your tailnet</span></a>), with the scheme and, unless it is 443, the port; several addresses can be comma separated.
+<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only requests whose <code class="docutils literal notranslate"><span class="pre">Host</span></code> is loopback or one of these, so without it Claude Code
+gets <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> through Tailscale Serve, and the MCP tools return bare paths
+(<code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>) instead of page URLs. See <a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone, for example <code class="docutils literal notranslate"><span class="pre">TZ=Europe/London</span></code>. The server decides what
 “today” means for <code class="docutils literal notranslate"><span class="pre">due:today</span></code> searches (the web UI and the MCP tools alike) from its own clock,
 which is UTC unless <code class="docutils literal notranslate"><span class="pre">TZ</span></code> says otherwise, while the PWA uses the phone’s date, so the two disagree
 for the hours around midnight. The image carries the time zone database, so <code class="docutils literal notranslate"><span class="pre">TZ</span></code> takes effect.</p>
 <p>Set <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>: without it, a pause (daily budget reached, credit or login problem, an
 outage) is only visible when you next open scrap. An ntfy topic URL is itself a secret. Every
-setting, with its default, is in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>. After editing:
+setting, with its default, is in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>; besides the ones
+above, <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (default 50) is the one to raise if you upload large photos. After
+editing:
 <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p>With ingest on, Claude also tags and summarises notes and links (<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>, on by default).
 Related pages come from a nightly pass, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code> (about 03:41, run in the
@@ -694,14 +719,17 @@ succeeds. <code class="docutils literal notranslate"><span class="pre">podman</s
 <h2>First run<a class="headerlink" href="#first-run" title="Link to this heading">#</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">status</span> <span class="n">scrap</span>
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span>
+<span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="nb">list</span><span class="o">-</span><span class="n">timers</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> calls <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> on the socket (or the local port) and should print
 <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. Logs:
-<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span></code>. <code class="docutils literal notranslate"><span class="pre">list-timers</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code>,
+<code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>; one that is missing was skipped because the
+image lacks its command (see <a class="reference internal" href="#scrap-install-script"><span class="std std-ref">Install</span></a>).</p>
 </section>
 <section id="publish-on-your-tailnet">
-<h2>Publish on your tailnet<a class="headerlink" href="#publish-on-your-tailnet" title="Link to this heading">#</a></h2>
+<span id="scrap-publish"></span><h2>Publish on your tailnet<a class="headerlink" href="#publish-on-your-tailnet" title="Link to this heading">#</a></h2>
 <p>As an admin on the server, publish the socket over HTTPS on a port that is not already in use
 (<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> prints the target). Check first, and leave existing entries alone:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sudo tailscale serve status
@@ -716,6 +744,10 @@ makes the setting persist across reboots. Check it from any tailnet device:</p>
 </div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">--https=443</span></code> instead if the machine serves nothing else. Never use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code> for
 scrap: that publishes it to the internet.</p>
+<p>Now put this address in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> (see
+<a class="reference internal" href="#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>) and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>, as the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user. It is
+needed for <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> to answer through Serve and for the MCP tools to return page links; the
+address, port included, must match what clients use (with <code class="docutils literal notranslate"><span class="pre">--https=443</span></code>, no port).</p>
 <p>This is the only supported way in, from phones and other computers alike. If the server is down
 or unreachable for a while (a restart, a workstation asleep or off the network), the PWA keeps
 new captures in its offline queue and sends them when it can reach scrap again
@@ -723,15 +755,20 @@ new captures in its offline queue and sends them when it can reach scrap again
 <section id="fallback-an-ssh-tunnel">
 <span id="scrap-ssh-tunnel"></span><h3>Fallback: an SSH tunnel<a class="headerlink" href="#fallback-an-ssh-tunnel" title="Link to this heading">#</a></h3>
 <p>From a machine that cannot join the tailnet, an SSH tunnel can carry a local port to the socket.
-This is a fallback, not a supported path: sshd on the server must allow forwarding to a Unix
-socket (<code class="docutils literal notranslate"><span class="pre">AllowStreamLocalForwarding</span></code>, on by default, and no <code class="docutils literal notranslate"><span class="pre">DisableForwarding</span></code> or <code class="docutils literal notranslate"><span class="pre">restrict</span></code> for
-the key; <code class="docutils literal notranslate"><span class="pre">AllowTcpForwarding</span></code> does not matter here), the tunnel sends no identity header (changes are recorded under the fallback author), and anything on the client
-machine can use the forwarded port while the tunnel is open.</p>
+This is a fallback, not a supported path:</p>
+<ul class="simple">
+<li><p>sshd on the server must allow forwarding to a Unix socket: <code class="docutils literal notranslate"><span class="pre">AllowStreamLocalForwarding</span></code>
+(on by default), and no <code class="docutils literal notranslate"><span class="pre">DisableForwarding</span></code> or <code class="docutils literal notranslate"><span class="pre">restrict</span></code> for the key. <code class="docutils literal notranslate"><span class="pre">AllowTcpForwarding</span></code>
+does not matter here.</p></li>
+<li><p>The tunnel sends no identity header, so changes are recorded under the fallback author.</p></li>
+<li><p>Anything on the client machine can use the forwarded port while the tunnel is open.</p></li>
+</ul>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span> <span class="o">-</span><span class="n">N</span> <span class="o">-</span><span class="n">L</span> <span class="mi">8790</span><span class="p">:</span><span class="o">/</span><span class="n">run</span><span class="o">/</span><span class="n">user</span><span class="o">/&lt;</span><span class="n">uid</span><span class="o">&gt;/</span><span class="n">scrap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">sock</span> <span class="n">scrap</span><span class="o">@&lt;</span><span class="n">host</span><span class="o">&gt;</span>
 </pre></div>
 </div>
-<p>Then open <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790</span></code> (a loopback address is a secure context, so the PWA works),
-or add the MCP server with
+<p>Use any free local port instead of <code class="docutils literal notranslate"><span class="pre">8790</span></code> (the client machine may have a scrap of its own on it).
+Then open <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790</span></code> (a loopback address is a secure context,
+so the PWA works), or add the MCP server with
 <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span> <span class="pre">--transport</span> <span class="pre">http</span> <span class="pre">scrap</span> <span class="pre">http://127.0.0.1:8790/mcp</span></code> (<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accepts loopback
 hosts).</p>
 </section>
@@ -748,6 +785,16 @@ anything running unattended) no access unless you grant it. For example, with th
 </div>
 <p>Then a compromised server elsewhere on your tailnet cannot reach scrap.</p>
 </section>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>: install the app on your phone and computers.</p></li>
+<li><p><a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>: let Claude Code sessions search and write scrap (needs
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, above).</p></li>
+<li><p><a class="reference internal" href="import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a>: bring in an existing vault with <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code>; its
+<a class="reference internal" href="import-a-vault.html#import-container"><span class="std std-ref">In a container</span></a> section has the <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">run</span></code> recipe for this install.</p></li>
+</ul>
 </section>
 <section id="access-and-identity">
 <span id="scrap-access"></span><h2>Access and identity<a class="headerlink" href="#access-and-identity" title="Link to this heading">#</a></h2>
@@ -778,18 +825,37 @@ connection to <code class="docutils literal notranslate"><span class="pre">127.0
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">install.sh</span></code> restarts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> when the image named in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> is not the one the
-running container was started from, or when the unit itself changed; otherwise it leaves it
-running. A restart drops requests in flight (a capture being uploaded fails and the PWA retries
-it), and a photo Claude is describing at that moment counts one failed try and is retried later.
+running container was started from, or when the unit or the <code class="docutils literal notranslate"><span class="pre">scrap-run</span></code> launcher changed;
+otherwise (including when only a timer changed) it leaves it running. A restart drops requests in
+flight (a capture being uploaded fails and the PWA retries it), and a photo Claude is describing
+at that moment counts one failed try and is retried later.
 After editing only a settings file, restart by hand: <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p>If a drop-in under <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/scrap.service.d/</span></code> replaces <code class="docutils literal notranslate"><span class="pre">ExecStart</span></code>, its command
 runs instead of the unit’s, now and after every update (<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> prints a note when it finds
 one). A drop-in that only added <code class="docutils literal notranslate"><span class="pre">--env-file</span> <span class="pre">~/.config/scrap/ingest.env</span></code> is no longer needed:
 delete it, then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code> and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> pinned to a release version changes only when you edit it.</p>
+<section id="database-changes-and-rolling-back">
+<span id="scrap-upgrade-db"></span><h3>Database changes and rolling back<a class="headerlink" href="#database-changes-and-rolling-back" title="Link to this heading">#</a></h3>
+<p>A new image may carry database migrations. scrap runs the missing ones when it starts, before it
+serves anything: each in its own transaction, under an exclusive lock on <code class="docutils literal notranslate"><span class="pre">scrap.db.lock</span></code> in the
+data folder so two processes never migrate at once. A migration that fails is rolled back and
+scrap does not start (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code> says why).</p>
+<p>Migrations are <strong>forward only</strong>, and an older scrap refuses a database that a newer one has
+migrated: it stops with <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code>. So starting the old image again
+is not a rollback. Take a restore point before you update, and keep the old image to go back to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">start</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span>                       <span class="c1"># returns when the backup is done</span>
+<span class="n">podman</span> <span class="n">tag</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">previous</span>   <span class="c1"># a rebuild of :dev replaces the image</span>
+</pre></div>
+</div>
+<p>To roll back, stop scrap, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code> from the <strong>old</strong> image on the backup you took
+before the update (see <a class="reference internal" href="#scrap-restore"><span class="std std-ref">Restore</span></a>; set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> to the old image first), and start
+scrap on that image. Pages added since the backup are lost from the database; their files stay.
+Backups made after the update have the new schema, so the old image refuses to restore them.</p>
+</section>
 </section>
 <section id="backup-and-restore">
-<h2>Backup and restore<a class="headerlink" href="#backup-and-restore" title="Link to this heading">#</a></h2>
+<span id="scrap-backup-restore"></span><h2>Backup and restore<a class="headerlink" href="#backup-and-restore" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code> runs <code class="docutils literal notranslate"><span class="pre">scrap-backup.service</span></code> daily (about 03:30, and at the next start if the
 machine was off). Each run starts a throwaway container from the same image that runs
 <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> into a new timestamped directory under <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>, then deletes all but the
@@ -801,20 +867,146 @@ symlinks, is left alone. A failed run removes its own directory and deletes noth
 <span class="n">ls</span> <span class="o">~/.</span><span class="n">local</span><span class="o">/</span><span class="n">share</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">backups</span>
 </pre></div>
 </div>
+<p><strong>Disk use.</strong> Each run is a full, independent copy (the database and every file, not an
+increment), so <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> needs about <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> times the size of <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, plus
+one more while a run is in progress. Check with <code class="docutils literal notranslate"><span class="pre">du</span> <span class="pre">-sh</span> <span class="pre">&quot;$SCRAP_DATA&quot;</span> <span class="pre">&quot;$SCRAP_BACKUPS&quot;</span></code> (after
+loading the settings, as in <a class="reference internal" href="#scrap-restore"><span class="std std-ref">Restore</span></a> below), and if the backups are too big,
+lower <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> or point <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> at a bigger disk. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> makes later runs
+smaller; it never shrinks earlier ones.</p>
+<p><strong>Pruning on demand.</strong> The retention step runs only at the end of a successful backup, so a night
+that fails or is missed prunes nothing (a long outage cannot remove your last good backups).
+After lowering <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code>, or when disk is short, apply it now without a new backup:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="o">-</span><span class="n">a</span><span class="p">;</span> <span class="o">.</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span><span class="p">;</span> <span class="nb">set</span> <span class="o">+</span><span class="n">a</span>
+<span class="o">~/.</span><span class="n">local</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">prune</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">prune</span></code> only deletes the run directories beyond the newest <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code>. It starts no
+container and takes no lock. With a <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> that is not a whole number of at least 1
+it prints <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span> <span class="pre">must</span> <span class="pre">be</span> <span class="pre">a</span> <span class="pre">whole</span> <span class="pre">number</span> <span class="pre">&gt;=</span> <span class="pre">1</span></code> and exits 1, deleting nothing.</p>
 <p>The backup directory is a local copy only: copy it off the machine (restic, rsync, a cloud
-bucket) to survive losing the server.</p>
-<p>To restore, stop the service, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> from the image against the data directory, and
-start again. See <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--help</span></code> for its arguments. The commands load the settings file
-first so they use your <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code>:</p>
+bucket) to survive losing the server. A backup holds the database (<code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>) and the files
+(<code class="docutils literal notranslate"><span class="pre">files/</span></code>) and nothing else. It does not include <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> or <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> (the API
+key, notify URL, <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, <code class="docutils literal notranslate"><span class="pre">TZ</span></code>) nor the Tailscale Serve entry, so keep a copy of
+<code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> somewhere safe too (it holds a secret). Deleted pages are in a backup too: deleting
+only moves a page to the trash (see <a class="reference internal" href="#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p>
+<section id="data-folder-layout">
+<h3>Data folder layout<a class="headerlink" href="#data-folder-layout" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code> (mounted at <code class="docutils literal notranslate"><span class="pre">/data</span></code>) holds:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>: the database. It is in WAL mode, so while scrap runs, recent changes are in
+<code class="docutils literal notranslate"><span class="pre">scrap.db-wal</span></code> (with <code class="docutils literal notranslate"><span class="pre">scrap.db-shm</span></code> beside it), not yet in <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap.db.lock</span></code>: the lock that serialises migrations (empty; leave it alone).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">files/&lt;ab&gt;/&lt;sha256&gt;</span></code>: every stored file (photos, uploads), named by the SHA-256 of its bytes.
+<code class="docutils literal notranslate"><span class="pre">files/.up-*</span></code> are leftovers of uploads that were cut off by a crash.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cache/previews/</span></code>: the 480 and 2048 pixel JPEG previews, made again on demand.</p></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Do not copy <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, or the whole folder, while scrap is running: a plain file copy can miss
+what is still in the <code class="docutils literal notranslate"><span class="pre">-wal</span></code> file, or catch the database and <code class="docutils literal notranslate"><span class="pre">files/</span></code> at different moments, and
+gives a backup that looks fine and is not. Use <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> (the timer, or below), which takes a
+consistent snapshot of the database with SQLite’s online backup and then copies the files, and is
+safe while scrap serves. If you must copy files, stop scrap first and copy the whole folder.</p>
+</div>
+<p>A backup leaves out <code class="docutils literal notranslate"><span class="pre">cache/previews/</span></code> (a cache: it needs no backup) and anything whose name starts
+with a dot, so <code class="docutils literal notranslate"><span class="pre">.up-*</span></code> leftovers are not backed up. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> deletes <code class="docutils literal notranslate"><span class="pre">.up-*</span></code> files once they are
+older than its grace period; with scrap stopped you may delete them by hand.</p>
+</section>
+<section id="extra-backups-by-hand">
+<h3>Extra backups by hand<a class="headerlink" href="#extra-backups-by-hand" title="Link to this heading">#</a></h3>
+<p>To take another backup now, use <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code>: it takes the lock in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>, so it waits for a running gc, and gc waits for it. It counts as a run for
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code>.</p>
+<p>The lock is taken only by the <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> scripts. A <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> you run
+yourself against <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> takes none, so never run it while <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> is active. Name
+the directory anything but a run’s <code class="docutils literal notranslate"><span class="pre">YYYYMMDDTHHMMSSZ</span></code> form, for example <code class="docutils literal notranslate"><span class="pre">pre-import</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="o">-</span><span class="n">a</span><span class="p">;</span> <span class="o">.</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span><span class="p">;</span> <span class="nb">set</span> <span class="o">+</span><span class="n">a</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">userns</span><span class="o">=</span><span class="n">keep</span><span class="o">-</span><span class="nb">id</span><span class="p">:</span><span class="n">uid</span><span class="o">=</span><span class="mi">10001</span><span class="p">,</span><span class="n">gid</span><span class="o">=</span><span class="mi">10001</span> <span class="o">--</span><span class="n">network</span><span class="o">=</span><span class="n">none</span> \
+    <span class="o">-</span><span class="n">v</span> <span class="s2">"$SCRAP_DATA:/data"</span> <span class="o">-</span><span class="n">v</span> <span class="s2">"$SCRAP_BACKUPS:/backups"</span> <span class="o">-</span><span class="n">e</span> <span class="n">SCRAP_DATA_DIR</span><span class="o">=/</span><span class="n">data</span> \
+    <span class="s2">"$SCRAP_IMAGE"</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backups</span><span class="o">/</span><span class="n">pre</span><span class="o">-</span><span class="kn">import</span>
+</pre></div>
+</div>
+<p>A directory named like a run is pruned by the retention step, and counts as a recent backup for
+gc, which looks only at the name and modification time of such a directory, never at what is
+inside it, so even an unfinished backup would pass. (<code class="docutils literal notranslate"><span class="pre">ls</span></code> lists <code class="docutils literal notranslate"><span class="pre">pre-import</span></code> after the runs.)
+You can instead keep hand backups outside <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>, in a folder you mount on its own.</p>
+</section>
+<section id="checking-the-timers">
+<h3>Checking the timers<a class="headerlink" href="#checking-the-timers" title="Link to this heading">#</a></h3>
+<p>Nothing notifies you when a timer’s service fails: <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> is for ingest pauses only.
+All three services (<code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related</span></code>) are one-shot, so a failed
+night shows only in systemd, and you find out by looking:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="nb">list</span><span class="o">-</span><span class="n">timers</span>                        <span class="c1"># next and last run of each timer</span>
+<span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">status</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">scrap</span><span class="o">-</span><span class="n">gc</span>       <span class="c1"># the last result of each service</span>
+<span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="o">--</span><span class="n">failed</span>                           <span class="c1"># any unit whose last run failed</span>
+<span class="n">journalctl</span> <span class="o">--</span><span class="n">user</span> <span class="o">-</span><span class="n">u</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="o">-</span><span class="n">u</span> <span class="n">scrap</span><span class="o">-</span><span class="n">gc</span> <span class="o">-</span><span class="n">u</span> <span class="n">scrap</span><span class="o">-</span><span class="n">enrich</span><span class="o">-</span><span class="n">related</span>
+</pre></div>
+</div>
+<p>A failed service stays listed as failed until it next runs. The two scripts report on stderr,
+which the journal keeps:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Backup</span> <span class="pre">failed;</span> <span class="pre">kept</span> <span class="pre">the</span> <span class="pre">existing</span> <span class="pre">backups</span> <span class="pre">untouched.</span></code> The backup run failed (the container
+could not run, or <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> failed: the lines above it in the journal say why). Its
+half-written directory was removed and nothing was pruned.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">No</span> <span class="pre">backup</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">last</span> <span class="pre">26</span> <span class="pre">hours:</span> <span class="pre">counting</span> <span class="pre">only,</span> <span class="pre">deleting</span> <span class="pre">nothing.</span></code> <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> found no run
+directory in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> modified in the last 26 hours, so it did a dry run and then failed
+on purpose. Usually last night’s backup failed or did not run. Fix the cause, then
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code>, and when that succeeds <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>.</p></li>
+</ul>
+</section>
+<section id="changing-the-schedule">
+<h3>Changing the schedule<a class="headerlink" href="#changing-the-schedule" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code> is set to 03:30 and <code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> to 04:30 (each with up to 15 minutes of
+random delay, <code class="docutils literal notranslate"><span class="pre">RandomizedDelaySec</span></code>, so the run is spread over that quarter hour). Do not edit
+the copies in <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code>: <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> overwrites them on every run. Use a drop-in,
+which survives it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">edit</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">.</span><span class="n">timer</span>
+</pre></div>
+</div>
+<p>In the editor that opens, clear the default <code class="docutils literal notranslate"><span class="pre">OnCalendar</span></code> with an empty line before the new one:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Timer</span><span class="p">]</span>
+<span class="n">OnCalendar</span><span class="o">=</span>
+<span class="n">OnCalendar</span><span class="o">=*-*-*</span> <span class="mi">02</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+</pre></div>
+</div>
+<p>Check with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">list-timers</span></code>. The gc timer works the same way.</p>
+<p>The two are linked: <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> deletes only if a run directory in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> is under 26
+hours old, and otherwise counts, then fails (and it always keeps files younger than 24 hours,
+<code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">24</span></code>). While a backup runs daily, the newest is never much more than a day old, so
+gc may run at any time of day. A backup less often than daily makes gc a dry run that fails on
+the days between, as does a run of failed backups. Either keep the backup at least daily, or turn
+gc off with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-gc.timer</span></code> (unused files then build up, and you
+can run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> by hand, as below).</p>
+</section>
+<section id="restore">
+<span id="scrap-restore"></span><h3>Restore<a class="headerlink" href="#restore" title="Link to this heading">#</a></h3>
+<p>To restore, stop the service, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> from the image on the backup you want, and
+start again. Each run is a directory named by its UTC start time, so the newest is the last in
+<code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">&quot;$SCRAP_BACKUPS&quot;</span></code> (after loading the settings, below). The commands load the settings file
+first so they use your <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code>; the backups appear at
+<code class="docutils literal notranslate"><span class="pre">/backups</span></code> inside the container:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">stop</span> <span class="n">scrap</span>
 <span class="nb">set</span> <span class="o">-</span><span class="n">a</span><span class="p">;</span> <span class="o">.</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span><span class="p">;</span> <span class="nb">set</span> <span class="o">+</span><span class="n">a</span>
+<span class="n">ls</span> <span class="s2">"$SCRAP_BACKUPS"</span>
 <span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">userns</span><span class="o">=</span><span class="n">keep</span><span class="o">-</span><span class="nb">id</span><span class="p">:</span><span class="n">uid</span><span class="o">=</span><span class="mi">10001</span><span class="p">,</span><span class="n">gid</span><span class="o">=</span><span class="mi">10001</span> \
     <span class="o">-</span><span class="n">v</span> <span class="s2">"$SCRAP_DATA:/data"</span> <span class="o">-</span><span class="n">v</span> <span class="s2">"$SCRAP_BACKUPS:/backups"</span> <span class="o">-</span><span class="n">e</span> <span class="n">SCRAP_DATA_DIR</span><span class="o">=/</span><span class="n">data</span> \
-    <span class="s2">"$SCRAP_IMAGE"</span> <span class="n">restore</span> <span class="o">--</span><span class="n">help</span>
+    <span class="s2">"$SCRAP_IMAGE"</span> <span class="n">restore</span> <span class="o">/</span><span class="n">backups</span><span class="o">/&lt;</span><span class="n">timestamp</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">force</span>
 <span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">start</span> <span class="n">scrap</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">restore</span></code> refuses a data directory that already has a database or files (“is not empty; stop
+scrap and use <code class="docutils literal notranslate"><span class="pre">--force</span></code>”). Drop <code class="docutils literal notranslate"><span class="pre">--force</span></code> only for a data directory scrap has never run in. With
+<code class="docutils literal notranslate"><span class="pre">--force</span></code> the whole database is replaced by the backup’s, so pages added since the backup are
+lost; files are only ever added, never removed. It checks the backup’s integrity first, refuses
+one made by a newer scrap, and leaves the data as it was if the backup is refused.
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--help</span></code> lists the arguments.</p>
 <p>The same pattern runs any other <code class="docutils literal notranslate"><span class="pre">scrap</span></code> command (for example <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>) against the data.</p>
+<p><strong>Rebuilding on a new server.</strong> Create the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user and get the image as above, copy your
+backups and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> over, and run <code class="docutils literal notranslate"><span class="pre">./deploy/install.sh</span></code>. That starts scrap, which creates an
+empty database, so stop it and restore with <code class="docutils literal notranslate"><span class="pre">--force</span></code> as shown (nothing is lost: the database
+is new). Start it, and publish it with <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> again. Make sure the new Serve address
+is what <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> says.</p>
+</section>
 </section>
 <section id="deleting-unused-files-scrap-gc">
 <span id="scrap-gc"></span><h2>Deleting unused files (scrap gc)<a class="headerlink" href="#deleting-unused-files-scrap-gc" title="Link to this heading">#</a></h2>
@@ -828,6 +1020,11 @@ it would delete and their size (never any page text). It refuses to run, deletin
 cannot read every reference, and it is safe while scrap serves. Each run first puts back any
 file an earlier run left renamed aside (<code class="docutils literal notranslate"><span class="pre">files/ab/.gc-&lt;sha&gt;</span></code>) because it stopped mid-delete. Only
 each page’s current text counts: old revisions of a page do not keep a file.</p>
+<p><strong>Deleting is not erasing.</strong> A trashed page keeps its text, its revisions, its captures, what
+Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
+no disk space and removes none of its content from the data folder or from your backups. There is
+no purge or empty-trash command; a page comes back with <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/undelete</span></code> (see
+<a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
 <p><code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> runs <code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code> nightly (about 04:30, after the backup) with
 <code class="docutils literal notranslate"><span class="pre">--delete</span></code>, but only if a backup run in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> is less than 26 hours old; otherwise it
 only counts and the service fails, so a missing backup shows. Every file a backup’s database names
@@ -845,16 +1042,81 @@ what it would delete now, without deleting:</p>
 <span class="n">journalctl</span> <span class="o">--</span><span class="n">user</span> <span class="o">-</span><span class="n">u</span> <span class="n">scrap</span><span class="o">-</span><span class="n">gc</span>   <span class="c1"># what the nightly runs deleted</span>
 </pre></div>
 </div>
+<p>To run the nightly job now, with its recent-backup check and lock, use
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>. To delete by hand, add <code class="docutils literal notranslate"><span class="pre">--delete</span></code> after <code class="docutils literal notranslate"><span class="pre">gc</span></code> in the command
+above; that skips the recent-backup check, so make sure you have a recent backup first.</p>
+<section id="reading-the-report">
+<h3>Reading the report<a class="headerlink" href="#reading-the-report" title="Link to this heading">#</a></h3>
+<p>A run prints one line, for example <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">would</span> <span class="pre">delete</span> <span class="pre">(dry</span> <span class="pre">run:</span> <span class="pre">--delete</span> <span class="pre">deletes)</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">and</span> <span class="pre">1</span> <span class="pre">leftover</span> <span class="pre">uploads,</span> <span class="pre">12.4</span> <span class="pre">MB;</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">file</span> <span class="pre">records;</span> <span class="pre">kept</span> <span class="pre">2</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period</span></code>. With <code class="docutils literal notranslate"><span class="pre">--delete</span></code> it says <code class="docutils literal notranslate"><span class="pre">deleted</span></code> instead. The parts:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Part</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">unused</span> <span class="pre">files</span></code></p></td>
+<td><p>Files nothing uses, older than the grace period. The <code class="docutils literal notranslate"><span class="pre">MB</span></code> is the size of these and of the leftover uploads together. A deleted file takes its cached 480 and 2048 previews with it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">M</span> <span class="pre">leftover</span> <span class="pre">uploads</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">files/.up-*</span></code> temporaries from uploads cut off by a crash, also deleted once older than the grace period.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">R</span> <span class="pre">unused</span> <span class="pre">file</span> <span class="pre">records</span></code></p></td>
+<td><p>Database rows for files nothing uses. The row is deleted with its file, or on its own if the file is already gone, so this can be more than the files.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kept</span> <span class="pre">Y</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period</span></code></p></td>
+<td><p>Unused, but too new to delete: a later run takes them.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">K</span> <span class="pre">used</span> <span class="pre">again</span> <span class="pre">meanwhile</span></code></p></td>
+<td><p>Only shown when above zero. Unused when gc looked, but referenced, or uploaded again, before it deleted them (it checks again inside the delete), so they were kept.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">put</span> <span class="pre">back</span> <span class="pre">Z</span> <span class="pre">files</span> <span class="pre">an</span> <span class="pre">earlier</span> <span class="pre">run</span> <span class="pre">left</span> <span class="pre">aside</span></code></p></td>
+<td><p>Only shown when above zero. A run that stopped mid-delete left <code class="docutils literal notranslate"><span class="pre">.gc-&lt;sha&gt;</span></code> files; this run restored them before it began.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>When gc cannot run it prints <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">&lt;reason&gt;</span></code> to stderr and exits non-zero, deleting nothing.
+A normal run, a dry run included, exits 0; only the nightly <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> script fails on purpose when
+it has no recent backup.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Message</p></th>
+<th class="head"><p>Cause and fix</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">database</span> <span class="pre">at</span> <span class="pre">&lt;path&gt;</span></code></p></td>
+<td><p>The data folder is wrong or empty. Check <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, the <code class="docutils literal notranslate"><span class="pre">/data</span></code> mount and <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR</span></code> (or <code class="docutils literal notranslate"><span class="pre">--data-dir</span></code>) in the command.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">files</span> <span class="pre">folder</span> <span class="pre">at</span> <span class="pre">&lt;path&gt;</span></code></p></td>
+<td><p>The folder has a database but no <code class="docutils literal notranslate"><span class="pre">files/</span></code>. The wrong folder again, or the files were not restored with the database.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period</span> <span class="pre">must</span> <span class="pre">not</span> <span class="pre">be</span> <span class="pre">negative</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--grace-hours</span></code> was below 0.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cannot</span> <span class="pre">read</span> <span class="pre">what</span> <span class="pre">is</span> <span class="pre">in</span> <span class="pre">use,</span> <span class="pre">so</span> <span class="pre">nothing</span> <span class="pre">was</span> <span class="pre">deleted:</span> <span class="pre">...</span></code></p></td>
+<td><p>The database or files could not be read after the reason given: a damaged or unreadable database, or a permission problem. If the reason is <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code>, the database is from a newer scrap: run gc with the newer image (see <a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cannot</span> <span class="pre">delete:</span> <span class="pre">...</span></code></p></td>
+<td><p>The database refused the delete (read-only, disk full). Nothing in the database changed; fix the cause and run again, which removes any file left over.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 </section>
 <section id="uninstall">
 <h2>Uninstall<a class="headerlink" href="#uninstall" title="Link to this heading">#</a></h2>
 <p>As the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">disable</span> <span class="o">--</span><span class="n">now</span> <span class="n">scrap</span><span class="o">.</span><span class="n">service</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">.</span><span class="n">timer</span> <span class="n">scrap</span><span class="o">-</span><span class="n">gc</span><span class="o">.</span><span class="n">timer</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">disable</span> <span class="o">--</span><span class="n">now</span> <span class="n">scrap</span><span class="o">.</span><span class="n">service</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">.</span><span class="n">timer</span> <span class="n">scrap</span><span class="o">-</span><span class="n">gc</span><span class="o">.</span><span class="n">timer</span> \
+    <span class="n">scrap</span><span class="o">-</span><span class="n">enrich</span><span class="o">-</span><span class="n">related</span><span class="o">.</span><span class="n">timer</span>
 <span class="n">rm</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">systemd</span><span class="o">/</span><span class="n">user</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">service</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">systemd</span><span class="o">/</span><span class="n">user</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">.*</span> \
-    <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">systemd</span><span class="o">/</span><span class="n">user</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">gc</span><span class="o">.*</span>
+    <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">systemd</span><span class="o">/</span><span class="n">user</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">gc</span><span class="o">.*</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">systemd</span><span class="o">/</span><span class="n">user</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">enrich</span><span class="o">-</span><span class="n">related</span><span class="o">.*</span>
 <span class="n">rm</span> <span class="o">-</span><span class="n">r</span> <span class="o">~/.</span><span class="n">local</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">scrap</span>
 <span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">daemon</span><span class="o">-</span><span class="n">reload</span>
-<span class="n">podman</span> <span class="n">rmi</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span>
+<span class="nb">set</span> <span class="o">-</span><span class="n">a</span><span class="p">;</span> <span class="o">.</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span><span class="p">;</span> <span class="nb">set</span> <span class="o">+</span><span class="n">a</span>
+<span class="n">podman</span> <span class="n">rmi</span> <span class="s2">"$SCRAP_IMAGE"</span>
 </pre></div>
 </div>
 <p>As an admin, remove the Serve entry (<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">tailscale</span> <span class="pre">serve</span> <span class="pre">--https=8446</span> <span class="pre">off</span></code>). The data,
@@ -863,15 +1125,24 @@ backups and the settings in <code class="docutils literal notranslate"><span cla
 </section>
 <section id="using-docker-instead">
 <span id="scrap-docker"></span><h2>Using Docker instead<a class="headerlink" href="#using-docker-instead" title="Link to this heading">#</a></h2>
-<p>With Docker, edit the installed copies. In <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>: replace <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code> with
+<p><code class="docutils literal notranslate"><span class="pre">install.sh</span></code> exits at “podman is not installed” without podman on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and it calls
+<code class="docutils literal notranslate"><span class="pre">podman</span></code> for its image and timer checks, so on a Docker-only host you do its work yourself:
+create <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> (the templates are in the script), copy the
+units from <code class="docutils literal notranslate"><span class="pre">deploy/</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code> and the scripts to <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/</span></code>,
+then edit the copies as below, <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code>, and enable <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> and
+the timers you want (<code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>)
+with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">enable</span> <span class="pre">--now</span></code>.</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>: replace <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code> with
 <code class="docutils literal notranslate"><span class="pre">/usr/bin/docker</span></code>, change <code class="docutils literal notranslate"><span class="pre">Type=notify</span></code> to <code class="docutils literal notranslate"><span class="pre">Type=simple</span></code>, remove <code class="docutils literal notranslate"><span class="pre">NotifyAccess</span></code> and <code class="docutils literal notranslate"><span class="pre">Delegate</span></code>,
 and drop <code class="docutils literal notranslate"><span class="pre">-i</span></code> from the <code class="docutils literal notranslate"><span class="pre">rm</span></code> commands. In <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/scrap-run</span></code>: replace <code class="docutils literal notranslate"><span class="pre">podman</span></code> with
 <code class="docutils literal notranslate"><span class="pre">docker</span></code> and drop <code class="docutils literal notranslate"><span class="pre">--replace</span></code>, <code class="docutils literal notranslate"><span class="pre">-d</span></code>, <code class="docutils literal notranslate"><span class="pre">--cgroups=split</span></code> and <code class="docutils literal notranslate"><span class="pre">--sdnotify=conmon</span></code>. In
 <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>: replace <code class="docutils literal notranslate"><span class="pre">podman</span></code> with <code class="docutils literal notranslate"><span class="pre">docker</span></code> and drop <code class="docutils literal notranslate"><span class="pre">--replace</span></code>. In all three
 scripts, replace <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code> with <code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">&lt;uid&gt;:&lt;gid&gt;</span></code> of the user
-that owns <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> and the socket’s folder (<code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-g</span></code>). Re-running <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>
-overwrites these edits. Membership of the <code class="docutils literal notranslate"><span class="pre">docker</span></code> group is equivalent to root, so on a shared
-machine prefer rootless podman.</p>
+that owns <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> and the socket’s folder (<code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-u</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">-g</span></code>). In
+<code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.service</span></code>, replace <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code> with <code class="docutils literal notranslate"><span class="pre">/usr/bin/docker</span></code> in <code class="docutils literal notranslate"><span class="pre">ExecStart</span></code>.
+Copying the files again (an update) overwrites these edits. The commands elsewhere in this guide
+that start <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">run</span></code> need <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span></code> and <code class="docutils literal notranslate"><span class="pre">--user</span></code> likewise. Membership of the <code class="docutils literal notranslate"><span class="pre">docker</span></code> group
+is equivalent to root, so on a shared machine prefer rootless podman.</p>
 </section>
 <section id="troubleshooting">
 <span id="scrap-troubleshooting"></span><h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
@@ -889,10 +1160,24 @@ Images built from this repo’s Dockerfile carry them; rebuild with a current ch
 <p><strong>The service fails with “address already in use”</strong> (<code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>). Another process has
 the port: <code class="docutils literal notranslate"><span class="pre">ss</span> <span class="pre">-ltnp</span> <span class="pre">|</span> <span class="pre">grep</span> <span class="pre">:8790</span></code>. Pick a free port in <code class="docutils literal notranslate"><span class="pre">SCRAP_PORT</span></code>, restart, and point
 <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> at the new port.</p>
-<p><strong>The service fails with “is in use”, “may be in use” or “is not a socket”.</strong> Something else is
-at <code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR/scrap/scrap.sock</span></code>: another scrap, a busy listener, or a file scrap will not
-remove. Stop or move it and restart. A socket nothing listens on (left by a scrap that stopped) is
-replaced on its own.</p>
+<p><strong>The service fails with “is in use”, “may be in use”, “exists and is not a socket” or “is being
+set up by another process”.</strong> Something else is at <code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR/scrap/scrap.sock</span></code>: another
+scrap, a busy listener, or a file scrap will not remove. Stop or move it and restart. A socket
+nothing listens on (left by a scrap that stopped) is replaced on its own.</p>
+<p><strong>The service fails with “is open to other users”, “belongs to another user” or “is longer than
+107 bytes”.</strong> These come from the socket setup (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--uds</span></code>). Its folder must belong to
+the scrap user and be mode 700, which the unit’s runtime folder is; the path (including
+<code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR</span></code>) must be at most 107 bytes.</p>
+<p><strong>The service stops restarting: “start request repeated too quickly”.</strong> After 5 failed starts
+in 5 minutes (a missing image, a missing <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>, a bad setting) systemd stops trying. Fix
+the cause (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code>), then
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">reset-failed</span> <span class="pre">scrap</span> <span class="pre">&amp;&amp;</span> <span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap</span></code>.</p>
+<p><strong>scrap will not start and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> is missing or a dangling symlink.</strong> The launcher passes
+<code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> to podman unconditionally. <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> only warns about a
+dangling symlink; restore the file (an empty one will do) and start scrap.</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> fails with a 503, <code class="docutils literal notranslate"><span class="pre">&quot;ingest</span> <span class="pre">worker</span> <span class="pre">stopped&quot;</span></code>.</strong> <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> reports 503 when the
+ingest worker has stopped, and <code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> fails on any error status. Look in
+<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span></code> for why, then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p><strong>Tailscale Serve answers 502 with <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code>.</strong> scrap is not running (the socket’s
 folder is removed when it stops), or the Serve target names another path or user id: compare
 <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">tailscale</span> <span class="pre">serve</span> <span class="pre">status</span></code> with what <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> printed.</p>
@@ -900,9 +1185,19 @@ folder is removed when it stops), or the Serve target names another path or user
 the container started with <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code> (the units do this). On
 SELinux systems (Fedora, RHEL) also add <code class="docutils literal notranslate"><span class="pre">:Z</span></code> to the <code class="docutils literal notranslate"><span class="pre">--volume</span></code> options.</p>
 <p><strong>The access log shows every client as the server’s own address</strong> (<code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>).
-Rootless podman’s network (pasta) forwards connections so that local clients, including Tailscale
-Serve, appear to come from one of the host’s own addresses, which may be its public one. These
+Rootless podman’s network (pasta, the default from podman 5.0) forwards connections so that
+local clients, including Tailscale Serve, appear to come from one of the host’s own addresses, which may be its public one. These
 lines are not outside traffic. On the socket the log shows no client address at all.</p>
+<p><strong>The service will not start and the log says <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code>.</strong> The image
+is older than the database: a newer scrap has already migrated it, and migrations only go
+forward. Run the newer image again, or roll back with the old image and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code>
+from a backup taken before the update (see <a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>).</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> fails with “No backup in the last 26 hours”.</strong> There is no run directory in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> modified in the last 26 hours, so gc only counted. Find out why the backup did not
+run (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap-backup</span></code>), then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code> and, once
+that succeeds, <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>. See <a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> prints <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">...</span></code> and exits non-zero.</strong> See the table of messages under
+<a class="reference internal" href="#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>.</p>
 <p><strong>Anything else.</strong> <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code> and <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code>.</p>
 </section>
 </section>
@@ -969,10 +1264,24 @@ lines are not outside traffic. On the socket the log shows no client address at 
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tailnet-acl-deny-tagged-servers-by-default">Tailnet ACL: deny tagged servers by default</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#access-and-identity">Access and identity</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update">Update</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deleting-unused-files-scrap-gc">Deleting unused files (scrap gc)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update">Update</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#database-changes-and-rolling-back">Database changes and rolling back</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-folder-layout">Data folder layout</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#extra-backups-by-hand">Extra backups by hand</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#checking-the-timers">Checking the timers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changing-the-schedule">Changing the schedule</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#restore">Restore</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deleting-unused-files-scrap-gc">Deleting unused files (scrap gc)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reading-the-report">Reading the report</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#uninstall">Uninstall</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-docker-instead">Using Docker instead</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a></li>

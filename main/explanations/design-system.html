@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -58,8 +58,8 @@
     <link rel="icon" href="../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Claude ingest (M2)" href="ingest.html" />
-    <link rel="prev" title="Design handover, 2026-10-21" href="design-handover-2026-10-21.html" />
+    <link rel="next" title="Claude ingest" href="ingest.html" />
+    <link rel="prev" title="Design handover, 2026-10-21 (superseded)" href="design-handover-2026-10-21.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
@@ -442,12 +442,13 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
-<li class="toctree-l1"><a class="reference internal" href="design-handover-2026-10-21.html">Design handover, 2026-10-21</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest (M2)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
 </ul>
 </div>
 </nav></div>
@@ -511,10 +512,15 @@
   <section id="the-pwa-s-design-system">
 <h1>The PWA’s design system<a class="headerlink" href="#the-pwa-s-design-system" title="Link to this heading">#</a></h1>
 <p>The phone app is a tool you reach for one-handed, often in a hurry: open, capture, gone. The
-design follows from that, and from keeping the app tiny (no UI framework, no icon library, no web
-font). Everything visual is defined once, in <code class="docutils literal notranslate"><span class="pre">web/src/tokens.css</span></code>; the components in
-<code class="docutils literal notranslate"><span class="pre">web/src/style.css</span></code> use nothing else. This page is the portable description, for carrying the
-design into another tool and back.</p>
+design follows from that, and from keeping the app tiny: the shell (capture, lists, pages,
+search) uses no UI framework, icon library or web font, and its JavaScript is held under 16 kB
+gzipped (<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">size</span></code>, <code class="docutils literal notranslate"><span class="pre">web/scripts/size.mjs</span></code>). The one exception is the drawing viewer for a
+photo’s drawing: a separate chunk, fetched only when a drawing is shown, built on React and
+Excalidraw with Excalidraw’s own fonts (served by scrap from <code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>), and outside
+that budget. Everything visual is defined once, in <code class="docutils literal notranslate"><span class="pre">web/src/tokens.css</span></code>; the components in
+<code class="docutils literal notranslate"><span class="pre">web/src/style.css</span></code> and <code class="docutils literal notranslate"><span class="pre">web/src/excalidraw.css</span></code> (the photo panel and the drawing viewer) use
+nothing else. This page is the portable description, for carrying the design into another tool
+and back.</p>
 <section id="principles">
 <h2>Principles<a class="headerlink" href="#principles" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -550,7 +556,8 @@ lighter; toasts stay dark slabs in both themes.</p></li>
 Delete are also on its page (and a row’s tick is a button of its own, with Mark done and
 Reopen on the page too), the page’s swipe is also its ‹ › pager and the arrow keys.
 Gestures start away from the screen’s edges, which belong to the phone’s Back gesture.</p></li>
-<li><p><strong>Motion confirms, never decorates.</strong> 90-260 ms, eased out; none under reduced motion.</p></li>
+<li><p><strong>Motion confirms, never decorates.</strong> 90-260 ms, eased out; none under reduced motion. The
+two looping indicators (busy, loading image) are the only motion that runs longer.</p></li>
 </ul>
 </section>
 <section id="tokens">
@@ -558,9 +565,14 @@ Gestures start away from the screen’s edges, which belong to the phone’s Bac
 <p>Light / dark values, held to WCAG AA (4.5:1 for text, 3:1 for control edges) twice:
 <code class="docutils literal notranslate"><span class="pre">web/tests/contrast.test.ts</span></code> reads <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code> and checks the listed text/background pairs,
 every <code class="docutils literal notranslate"><span class="pre">style.css</span></code> rule that sets both a text colour and a background from tokens, and white
-text on <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> over a white photo; and an end-to-end sweep (<code class="docutils literal notranslate"><span class="pre">web/e2e/view.spec.ts</span></code>)
-computes the real colour of every visible piece of text and of what lies behind it, on each
-screen in both themes.</p>
+text on <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> over a white photo; and an end-to-end sweep (the <code class="docutils literal notranslate"><span class="pre">lowContrast</span></code> helper in
+<code class="docutils literal notranslate"><span class="pre">web/e2e/contrast.ts</span></code>, run by <code class="docutils literal notranslate"><span class="pre">web/e2e/view.spec.ts</span></code> on each screen in both themes and by
+several other e2e specs) computes the real colour of every visible piece of text and of what
+lies behind it.</p>
+<p>The browser’s <code class="docutils literal notranslate"><span class="pre">theme-color</span></code> follows the colour scheme: two <code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">name=&quot;theme-color&quot;&gt;</span></code> tags in
+<code class="docutils literal notranslate"><span class="pre">web/index.html</span></code>, one per scheme, with the <code class="docutils literal notranslate"><span class="pre">--bg</span></code> values below. The PWA manifest
+(<code class="docutils literal notranslate"><span class="pre">web/public/manifest.webmanifest</span></code>) does not: its <code class="docutils literal notranslate"><span class="pre">theme_color</span></code> and <code class="docutils literal notranslate"><span class="pre">background_color</span></code> are a
+fixed dark <code class="docutils literal notranslate"><span class="pre">#161411</span></code>.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Token</p></th>
@@ -670,7 +682,7 @@ screen in both themes.</p>
 </div>
 <p>Presses, edges and washes that need a translucent tint mix a token with <code class="docutils literal notranslate"><span class="pre">transparent</span></code>
 (<code class="docutils literal notranslate"><span class="pre">color-mix(in</span> <span class="pre">srgb,</span> <span class="pre">var(--ink)</span> <span class="pre">14%,</span> <span class="pre">transparent)</span></code>) rather than writing a new colour.</p>
-<p>Type: the system UI face (Roboto on Android); a 17 px root. On iPhone the root follows the
+<p>Type: the system UI face (Roboto on Android; <code class="docutils literal notranslate"><span class="pre">--font</span></code>: <code class="docutils literal notranslate"><span class="pre">system-ui,</span> <span class="pre">-apple-system,</span> <span class="pre">&quot;Segoe</span> <span class="pre">UI&quot;,</span> <span class="pre">Roboto,</span> <span class="pre">sans-serif</span></code>, and <code class="docutils literal notranslate"><span class="pre">--mono</span></code> for code: <code class="docutils literal notranslate"><span class="pre">ui-monospace,</span> <span class="pre">&quot;SF</span> <span class="pre">Mono&quot;,</span> <span class="pre">Menlo,</span> <span class="pre">Consolas,</span> <span class="pre">monospace</span></code>); a 17 px root, so a <code class="docutils literal notranslate"><span class="pre">rem</span></code> is 17 px and <code class="docutils literal notranslate"><span class="pre">--t-xs</span></code> (0.75rem) is 12.75 px. On iPhone the root follows the
 phone’s text size, Larger Text too (<code class="docutils literal notranslate"><span class="pre">font:</span> <span class="pre">-apple-system-body</span></code>, applied only where
 <code class="docutils literal notranslate"><span class="pre">-webkit-touch-callout</span></code> exists, so iOS and not a Mac), with scrap’s own family and line height
 set again after it; a small check in <code class="docutils literal notranslate"><span class="pre">main.ts</span></code> keeps it from going under 17 px (the smaller
@@ -679,18 +691,20 @@ chips), <code class="docutils literal notranslate"><span class="pre">--t-sm</spa
 1.1875rem (wordmark, field titles, a Markdown <code class="docutils literal notranslate"><span class="pre">h2</span></code>), <code class="docutils literal notranslate"><span class="pre">--t-xl</span></code> 1.5rem (page title). Markdown
 headings step down a size a level, all under the page title: <code class="docutils literal notranslate"><span class="pre">h1</span></code> 1.3125rem, <code class="docutils literal notranslate"><span class="pre">h2</span></code> <code class="docutils literal notranslate"><span class="pre">--t-lg</span></code>,
 <code class="docutils literal notranslate"><span class="pre">h3</span></code> 1.0625rem semibold, <code class="docutils literal notranslate"><span class="pre">h4</span></code>-<code class="docutils literal notranslate"><span class="pre">h6</span></code> <code class="docutils literal notranslate"><span class="pre">--t-md</span></code>. Line height
-1.5, 1.25 for titles, 1.6 for page text. Weights 500 (controls), 600 (titles, labels), 700
+<code class="docutils literal notranslate"><span class="pre">--lh</span></code> 1.5, <code class="docutils literal notranslate"><span class="pre">--lh-tight</span></code> 1.25 for titles, 1.6 for page text. Weights 500 (controls), 600 (titles, labels), 700
 (page title, active nav).</p>
 <p>Space: a 4 px grid, <code class="docutils literal notranslate"><span class="pre">--s-1</span></code>..<code class="docutils literal notranslate"><span class="pre">--s-7</span></code> = 4, 8, 12, 16, 24, 32, 48. Screen gutter 16.
 Radius: <code class="docutils literal notranslate"><span class="pre">--r-sm</span></code> 8 (thumbnails, code), <code class="docutils literal notranslate"><span class="pre">--r-md</span></code> 12 (buttons, fields, toasts), <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> 16
 (cards, lists, photos), <code class="docutils literal notranslate"><span class="pre">--r-pill</span></code> (badge, search field, nav indicator).
-Size: <code class="docutils literal notranslate"><span class="pre">--tap</span></code> 48 (every touch target, extended with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code> where the drawn control
-is smaller), <code class="docutils literal notranslate"><span class="pre">--bar-h</span></code> 56, <code class="docutils literal notranslate"><span class="pre">--nav-h</span></code> 64 (<code class="docutils literal notranslate"><span class="pre">max(64px,</span> <span class="pre">1.125rem</span> <span class="pre">+</span> <span class="pre">44px)</span></code>: taller when its labels
+Size: <code class="docutils literal notranslate"><span class="pre">--tap</span></code> 48 (the touch target, extended with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code> where the drawn control
+is smaller; the exceptions are listed under “What we don’t do”), <code class="docutils literal notranslate"><span class="pre">--bar-h</span></code> 56, <code class="docutils literal notranslate"><span class="pre">--nav-h</span></code> 64 (<code class="docutils literal notranslate"><span class="pre">max(64px,</span> <span class="pre">1.125rem</span> <span class="pre">+</span> <span class="pre">44px)</span></code>: taller when its labels
 are, at a large text size). Elevation: <code class="docutils literal notranslate"><span class="pre">--shadow</span></code> (selected segment), <code class="docutils literal notranslate"><span class="pre">--shadow-2</span></code>
 (capture cluster, toasts).
 Motion: <code class="docutils literal notranslate"><span class="pre">--d-1</span></code> 90 ms (press), <code class="docutils literal notranslate"><span class="pre">--d-2</span></code> 180 ms (view enter, toast), <code class="docutils literal notranslate"><span class="pre">--d-3</span></code> 260 ms (editor sheet,
 viewer); <code class="docutils literal notranslate"><span class="pre">--ease</span></code> <code class="docutils literal notranslate"><span class="pre">cubic-bezier(0.2,</span> <span class="pre">0.8,</span> <span class="pre">0.2,</span> <span class="pre">1)</span></code>. Under <code class="docutils literal notranslate"><span class="pre">prefers-reduced-motion</span></code> all three are
-0 and the placeholder shimmer stops.</p>
+0, and the two looping indicators stop: the placeholder shimmer (1.2 s, alternating) and the busy
+icon’s pulse (0.8 s, see Busy under States). Those two are not on the <code class="docutils literal notranslate"><span class="pre">--d-*</span></code> scale: they repeat
+only while the work or the image is in progress.</p>
 </section>
 <section id="components">
 <h2>Components<a class="headerlink" href="#components" title="Link to this heading">#</a></h2>
@@ -764,7 +778,7 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-odd"><td><p>Pager</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.pager</span></code></p></td>
-<td><p>a page opened from a list: ‹ “3 of 23 · Recent” ›, its middle a plain label (<code class="docutils literal notranslate"><span class="pre">.pager</span> <span class="pre">.at</span></code>, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>): the top bar’s Back goes back to the list; the page follows a sideways swipe and slides off to the next. From the Todos screen, Mark done steps on to the next todo with a toast “Done: <title>. Next todo, 3 of 9” and <strong>Undo</strong> (6 s); on the last, “Done: that was the last in the list” and <strong>Back to list</strong></p></td>
+<td><p>a page opened from a list: ‹ “3 of 23 · Latest” ›, its middle a plain label (<code class="docutils literal notranslate"><span class="pre">.pager</span> <span class="pre">.at</span></code>, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>) saying which list: “Latest” (Capture’s list, and the search screen’s newest-first list), the kind row’s name when one kind is chosen alone (“Notes”, “Todos”, “Later”, “Boards”, “Docs”), “Search results”, “Todos · Now”, “Todos · Upcoming”, “Todos · All” and “Todos · Done” (the Todos screen’s folded done and cancelled): the top bar’s Back goes back to the list; the page follows a sideways swipe and slides off to the next. From the Todos screen, Mark done steps on to the next todo with a toast “Done: <title>. Next todo, 3 of 9” and <strong>Undo</strong> (6 s); on the last, “Done: that was the last in the list” and <strong>Back to list</strong></p></td>
 </tr>
 <tr class="row-even"><td><p>Status chip</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">em</span></code></p></td>
@@ -776,19 +790,19 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-even"><td><p>Due line</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.list</span> <span class="pre">.due</span></code>, <code class="docutils literal notranslate"><span class="pre">.todoline</span></code>, <code class="docutils literal notranslate"><span class="pre">.todoedit</span></code></p></td>
-<td><p>a todo’s priority and due date in words (“high · due 3 Nov”) after its chip, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; overdue (<code class="docutils literal notranslate"><span class="pre">.late</span></code>: due before today, not done or cancelled) says “overdue” in <code class="docutils literal notranslate"><span class="pre">--danger</span></code>, semibold: the word carries it, never colour alone; done or cancelled (<code class="docutils literal notranslate"><span class="pre">.closed</span></code>) keeps its due date in <code class="docutils literal notranslate"><span class="pre">--ink-3</span></code>, said as a date (“due 3 Nov”), never “today” or “overdue”. On its page, a pill button under the tags (the calendar icon) opens <code class="docutils literal notranslate"><span class="pre">.todoedit</span></code> in place: a native date input and <strong>No date</strong> (ghost), then on a line of their own (<code class="docutils literal notranslate"><span class="pre">.soon</span></code>, a group “Due soon”) <strong>Today</strong>, <strong>Tomorrow</strong> and <strong>Next week</strong> (seven days on, the phone’s calendar) as <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips, the one matching the date set <code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code> on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code>, semibold, as in the Filters panel, then a native priority <code class="docutils literal notranslate"><span class="pre">select</span></code>, then Cancel and Save; a closed todo with none shows no pill (no “Add due date”: Reopen it first); the editor shows the same while the kind is Todo. The page’s form adds, on a line of its own, <strong>Snooze until</strong> (a native date input and <strong>No snooze</strong>, ghost, then <strong>Tomorrow</strong> and <strong>Next week</strong> chips in a group “Snooze for”); a snoozed todo’s line ends “· snoozed till 3 Nov” and it is out of Now, Upcoming and the nav count until that day. The due line wraps rather than being cut (when it is due outranks one tidy line); the page’s pill is drawn like the Tags pill, 32 px inside a 48 px target</p></td>
+<td><p>a todo’s priority and due date in words (“high · due 3 Nov”) after its chip, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; overdue (<code class="docutils literal notranslate"><span class="pre">.late</span></code>: due before today, not done or cancelled) says “overdue” in <code class="docutils literal notranslate"><span class="pre">--danger</span></code>, semibold: the word carries it, never colour alone; done or cancelled (<code class="docutils literal notranslate"><span class="pre">.closed</span></code>) keeps its due date in <code class="docutils literal notranslate"><span class="pre">--ink-3</span></code>, said as a date (“due 3 Nov”), never “today” or “overdue”. On its page, a pill button under the tags (the calendar icon) opens <code class="docutils literal notranslate"><span class="pre">.todoedit</span></code> in place: a native date input and <strong>No date</strong> (ghost), then on a line of their own (<code class="docutils literal notranslate"><span class="pre">.soon</span></code>, a group “Due soon”) <strong>Today</strong>, <strong>Tomorrow</strong> and <strong>Next week</strong> (seven days on, the phone’s calendar) as <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips, the one matching the date set <code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code> on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code>, semibold, as in the Filters panel, then a native priority <code class="docutils literal notranslate"><span class="pre">select</span></code>, then Cancel and Save; the pill reads the due line’s words when there is any (“high · due 3 Nov”), else “Add due date” on an open todo; a closed todo with none shows no pill (Reopen it first); the editor shows the same while the kind is Todo. The page’s form adds, on a line of its own, <strong>Snooze until</strong> (a native date input and <strong>No snooze</strong>, ghost, then <strong>Tomorrow</strong> and <strong>Next week</strong> chips in a group “Snooze for”); a snoozed todo’s line ends “· snoozed till 3 Nov” and it is out of Now, Upcoming and the nav count until that day. The due line wraps rather than being cut (when it is due outranks one tidy line); the page’s pill is drawn like the Tags pill, 32 px inside a 48 px target</p></td>
 </tr>
 <tr class="row-odd"><td><p>Filters button</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.field-search</span> <span class="pre">.ffield</span></code></p></td>
-<td><p>a 48 px slider icon (filter) at the search field’s end, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; while the panel is open (<code class="docutils literal notranslate"><span class="pre">aria-expanded</span></code>), <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> on <code class="docutils literal notranslate"><span class="pre">--sunk</span></code>. With filters on, their number in an 18 px <code class="docutils literal notranslate"><span class="pre">--accent</span></code> pill with <code class="docutils literal notranslate"><span class="pre">--on-accent</span></code> digits on its corner; its name says “Filters, 2 on”</p></td>
+<td><p>a 48 px slider icon (filter) at the search field’s end, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>; while the panel is open (<code class="docutils literal notranslate"><span class="pre">aria-expanded</span></code>), <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> on <code class="docutils literal notranslate"><span class="pre">--sunk</span></code>. With filters on, their number in an 18 px <code class="docutils literal notranslate"><span class="pre">--accent</span></code> pill with <code class="docutils literal notranslate"><span class="pre">--on-accent</span></code> digits on its corner (<code class="docutils literal notranslate"><span class="pre">b</span></code>, 0.7rem, about 12 px: the one text under 12.75 px, a non-interactive count whose number is also in the button’s name); its name says “Filters, 2 on”</p></td>
 </tr>
 <tr class="row-even"><td><p>Filters on</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.refine</span> <span class="pre">.fon</span></code></p></td>
-<td><p>under the search field, led by how many pages were found (<code class="docutils literal notranslate"><span class="pre">.count</span></code>, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>), so the count and the chips share one line; then each filter on (not the kind row’s kind) as a <code class="docutils literal notranslate"><span class="pre">.facet.on</span></code> chip with a ✕ (<code class="docutils literal notranslate"><span class="pre">aria-label</span></code> “Remove #home”), saying it in words (“#home”, “past month”, “A–Z”, “Written by Claude”), in one row that scrolls sideways to the screen’s edges; no filters, no row</p></td>
+<td><p>under the search field, led by how many pages were found (<code class="docutils literal notranslate"><span class="pre">.count</span></code>, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>), so the count and the chips share one line; then each filter on (not the kind row’s kind) as a <code class="docutils literal notranslate"><span class="pre">.facet.on</span></code> chip with a ✕ (<code class="docutils literal notranslate"><span class="pre">aria-label</span></code> “Remove #home”), saying it in words (“#home”, “past month”, “A–Z”, “Written by Claude”), in one row that scrolls sideways to the screen’s edges, the last 32 px of the block fading out (a mask on <code class="docutils literal notranslate"><span class="pre">.refine</span></code>, which holds this row and the Filters panel); no filters, no row</p></td>
 </tr>
 <tr class="row-odd"><td><p>Filters panel</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.fpanel</span></code></p></td>
-<td><p>opens in place under the filters on (below), a <code class="docutils literal notranslate"><span class="pre">--surface</span></code> card with a <code class="docutils literal notranslate"><span class="pre">--line</span></code> hairline and <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> corners. Rows (<code class="docutils literal notranslate"><span class="pre">.frow</span></code>, a group each), a small uppercase <code class="docutils literal notranslate"><span class="pre">.flabel</span></code> in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code> then <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips on one line that scrolls sideways (never a wall of chips): <strong>Tags</strong> (<code class="docutils literal notranslate"><span class="pre">.ftags</span></code>: a pill field “Add a tag”, then on the next line the tags it offers: with nothing typed, the current results’ top tags with their counts (the 12 the search’s facets give), and <strong>All tags</strong>; as typed, the results’ tags that match (all of them, <code class="docutils literal notranslate"><span class="pre">search/facets?top=1000</span></code>, asked for only then; before any search, every tag in use); none, a line saying why), <strong>Order</strong> (the default first: Best match with words typed, else Last edited; then Newest, Oldest, Last edited with words typed, A–Z, and for <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> Due soonest and Priority) and <strong>When</strong> (1w, 1m, 1y, Dates…, and By created date once a range is on; Dates… opens From and To date inputs, applied as picked); a chosen chip <code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code> on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code>, semibold (a chip’s count, <code class="docutils literal notranslate"><span class="pre">small</span></code>, shares the label’s line height so it sits on its baseline rather than raised); then <strong>Clear filters</strong> (<code class="docutils literal notranslate"><span class="pre">button.link</span></code>) while any are on. Each row is scrolled so its chosen chip shows. <code class="docutils literal notranslate"><span class="pre">refine.ts</span></code>, a chunk of its own, kept offline by the service worker</p></td>
+<td><p>opens in place under the filters on (below), a <code class="docutils literal notranslate"><span class="pre">--surface</span></code> card with a <code class="docutils literal notranslate"><span class="pre">--line</span></code> hairline and <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> corners. Rows (<code class="docutils literal notranslate"><span class="pre">.frow</span></code>, a group each), a small uppercase <code class="docutils literal notranslate"><span class="pre">.flabel</span></code> in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code> then <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips on one line that scrolls sideways (never a wall of chips): <strong>Tags</strong> (<code class="docutils literal notranslate"><span class="pre">.ftags</span></code>: a pill field “Add a tag”, then on the next line the tags it offers: with nothing typed, the current results’ top tags with their counts (the 12 the search’s facets give), or with no search yet the 8 most used top-level tags, then a link-chip <strong>All tags</strong> to the Tags screen; as typed, the results’ tags that match (those starting with the typed text first), at most 8, no All tags (the matches come from <code class="docutils literal notranslate"><span class="pre">search/facets?top=1000</span></code>, asked for only then; before any search, from every tag in use); none, a line saying why), <strong>Order</strong> (the default first: Best match with words typed, else Last edited; then Newest, Oldest, Last edited with words typed, A–Z, and for <code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> Due soonest and Priority) and <strong>When</strong> (1w, 1m, 1y, Dates…, and By created date once a range is on; Dates… opens From and To date inputs, applied as picked); a chosen chip <code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code> on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code>, semibold (a chip’s count, <code class="docutils literal notranslate"><span class="pre">small</span></code>, shares the label’s line height so it sits on its baseline rather than raised); then <strong>Clear filters</strong> (<code class="docutils literal notranslate"><span class="pre">button.link</span></code>) while any are on. Each row is scrolled so its chosen chip shows. <code class="docutils literal notranslate"><span class="pre">refine.ts</span></code>, a chunk of its own, kept offline by the service worker</p></td>
 </tr>
 <tr class="row-even"><td><p>Found line</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.found</span></code></p></td>
@@ -852,11 +866,11 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-odd"><td><p>Embed chips</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.editor</span> <span class="pre">&gt;</span> <span class="pre">.embeds</span></code></p></td>
-<td><p>the page editor shows each of the page’s own images and files as a short token (<code class="docutils literal notranslate"><span class="pre">⟦image</span> <span class="pre">1⟧</span></code>, <code class="docutils literal notranslate"><span class="pre">⟦file</span> <span class="pre">2:</span> <span class="pre">scan.pdf⟧</span></code>; <code class="docutils literal notranslate"><span class="pre">embeds.ts</span></code>), and under the fields, above the keys, a chip each (<code class="docutils literal notranslate"><span class="pre">.embed</span></code>: a thumbnail, or the file icon, and its name, cut with …) in one line that scrolls sideways; a tap on a chip selects its token (to cut and paste it elsewhere), its 48 px ✕ (“Remove image 1”) takes the token out, with its line if alone on one. Saved, the tokens become the Markdown they stood for, byte for byte where none was touched; a deleted or mangled token is no embed. Gone in Preview</p></td>
+<td><p>the page editor shows each of the page’s own images and files as a short token (<code class="docutils literal notranslate"><span class="pre">⟦image</span> <span class="pre">1⟧</span></code>, <code class="docutils literal notranslate"><span class="pre">⟦file</span> <span class="pre">2:</span> <span class="pre">scan.pdf⟧</span></code>; <code class="docutils literal notranslate"><span class="pre">embeds.ts</span></code>), and under the fields, above the keys, a chip each (<code class="docutils literal notranslate"><span class="pre">.embed</span></code>: a thumbnail, or the file icon, and its name, cut with …) in one line that scrolls sideways; a tap on a chip selects its token (to cut and paste it elsewhere), its ✕ (“Remove image 1”; 40 px wide, 48 high) takes the token out, with its line if alone on one. Saved, the tokens become the Markdown they stood for, byte for byte where none was touched; a deleted or mangled token is no embed. Gone in Preview</p></td>
 </tr>
 <tr class="row-even"><td><p>Editor fold</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.fold</span></code> (<code class="docutils literal notranslate"><span class="pre">details</span></code>)</p></td>
-<td><p>in the composer and editor, the rarely changed parts folded to one 48 px line each above the text, so the text stays the hero: <strong>Tags</strong> (the tag icon, “3 · #work #garden…”) and, while the kind is Todo, <strong>Due</strong> (the calendar, “24 Oct · high”); the name in <code class="docutils literal notranslate"><span class="pre">--ink</span></code>, semibold, what it holds in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>, cut with …, a chevron at its end (down folded, up open); tapped, the controls open in place under it and nothing takes focus. Two folds read as one group</p></td>
+<td><p>in the composer and editor, the rarely changed parts folded to one 48 px line each above the text, so the text stays the hero: <strong>Tags</strong> (the tag icon, “3 · #work #garden…”, or “none”) and, while the kind is Todo (in the composer, not with photos: they have no kind there), <strong>Due</strong> (the calendar, “24 Oct · high”, or “none”); the name in <code class="docutils literal notranslate"><span class="pre">--ink</span></code>, semibold, what it holds in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>, cut with …, a chevron at its end (down folded, up open); tapped, the controls open in place under it and nothing takes focus. Two folds read as one group</p></td>
 </tr>
 <tr class="row-odd"><td><p>Share menu</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.share-menu</span></code></p></td>
@@ -864,15 +878,15 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-even"><td><p>Tag line</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.tags</span></code></p></td>
-<td><p>a page’s tags under its title, <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> pills that each search for their tag, in one line that scrolls; first an outlined <strong>Tags</strong> pill (tag icon) that edits them</p></td>
+<td><p>a page’s tags under its title, <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> pills that each search for their tag, in one line that scrolls, its last 32 px fading out (a mask, as on the Filters on row and <code class="docutils literal notranslate"><span class="pre">.toptags</span></code>); first an outlined pill (tag icon) that edits them: <strong>Tags</strong> (its name “Change tags”), or <strong>Add tags</strong> when the page has none. A tag Claude added (<code class="docutils literal notranslate"><span class="pre">a.ai</span></code>, tooltip “Added by Claude”) is drawn dashed in <code class="docutils literal notranslate"><span class="pre">--line-strong</span></code> on <code class="docutils literal notranslate"><span class="pre">--surface</span></code>, so the user’s own stand apart</p></td>
 </tr>
 <tr class="row-odd"><td><p>Tag editor</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.tagedit</span></code>, <code class="docutils literal notranslate"><span class="pre">.tagform</span></code></p></td>
-<td><p>the tags as <code class="docutils literal notranslate"><span class="pre">.facet.on</span></code> chips that wrap, each with a ✕ to take it off, then a field, then one row of up to six <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips with a dashed <code class="docutils literal notranslate"><span class="pre">--line-strong</span></code> edge (offered, where the chosen are filled), one tap each, in a line that scrolls (<code class="docutils literal notranslate"><span class="pre">.toptags</span></code>): with nothing typed, the most used tags not on it yet (a group “Most used tags”); as you type, the tags in use that match, those starting with it first (a group “Matching tags”), and a tap on one replaces what was typed. Our own row, not a native <code class="docutils literal notranslate"><span class="pre">datalist</span></code>, whose menu covers the keyboard on a phone; all from one <code class="docutils literal notranslate"><span class="pre">/api/tags</span></code> answer. On a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the composer and editor, inside the Tags fold</p></td>
+<td><p>the tags as <code class="docutils literal notranslate"><span class="pre">.facet.on</span></code> chips that wrap, each with a ✕ to take it off, then a field, then one row of up to six <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips with a dashed <code class="docutils literal notranslate"><span class="pre">--line-strong</span></code> edge (offered, where the chosen are filled), one tap each, in a line that scrolls and fades at its end (<code class="docutils literal notranslate"><span class="pre">.toptags</span></code>): with nothing typed, the most used tags not on it yet (a group “Most used tags”); as you type, the tags in use that match, those starting with it first (a group “Matching tags”), and a tap on one replaces what was typed. Our own row, not a native <code class="docutils literal notranslate"><span class="pre">datalist</span></code>, whose menu covers the keyboard on a phone; all from one <code class="docutils literal notranslate"><span class="pre">/api/tags</span></code> answer. On a page, Cancel (ghost) and Save (primary) under it, in place of the tag line; in the composer and editor, inside the Tags fold</p></td>
 </tr>
 <tr class="row-even"><td><p>Toast</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.toast</span></code></p></td>
-<td><p>dark slab above what is under the thumb, amber text action</p></td>
+<td><p>dark slab above what is under the thumb, amber text action. “Update available” with <strong>Reload</strong> appears when a new version of the app has installed behind the one running; it has no timeout and stays through navigation until tapped, and Reload swaps it in and reloads the app</p></td>
 </tr>
 <tr class="row-odd"><td><p>Banner</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.conflict</span></code>, <code class="docutils literal notranslate"><span class="pre">.restored</span></code></p></td>
@@ -880,11 +894,43 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 </tr>
 <tr class="row-even"><td><p>Empty state</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.empty</span></code> (<code class="docutils literal notranslate"><span class="pre">empty()</span></code> in ui.ts)</p></td>
-<td><p>icon in a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> circle, a sentence, one action</p></td>
+<td><p>icon in a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> circle, one plain sentence in <code class="docutils literal notranslate"><span class="pre">--ink</span></code> (“Nothing here.”, “No matches”, “No todos yet.”), and at most one extra: a <code class="docutils literal notranslate"><span class="pre">small</span></code> hint line (Capture’s “Nothing captured yet.” adds “Photos, notes and links you save show up here.”) or one action (<strong>Back to capture</strong> on “Not found: it may have been deleted.”; <strong>Retry</strong> under a problem such as “Offline: this needs the server.” or “Can’t reach the server. Check your connection or VPN.”). A view still loading after 150 ms is a plain “Loading…” line (<code class="docutils literal notranslate"><span class="pre">role=&quot;status&quot;</span></code>) in the same block, without an icon; a quick answer shows no flash</p></td>
+</tr>
+<tr class="row-odd"><td><p>Tags tree</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.tagtree</span></code> (<code class="docutils literal notranslate"><span class="pre">tags.ts</span></code>)</p></td>
+<td><p>the Tags screen: a filter field with the tag icon (“Filter tags”), the order as a segmented control (<strong>A–Z</strong>, <strong>Most used</strong>), then a <code class="docutils literal notranslate"><span class="pre">.list</span></code> of tags as a tree: each row a link to the search for that tag (<code class="docutils literal notranslate"><span class="pre">#name</span></code>, or the full path at the top level) with its page count (<code class="docutils literal notranslate"><span class="pre">small</span></code>) at the end, indented by depth (<code class="docutils literal notranslate"><span class="pre">--depth</span></code> × <code class="docutils literal notranslate"><span class="pre">--s-5</span></code>); a parent has a 48 px ghost chevron (the next icon) that turns down when open (<code class="docutils literal notranslate"><span class="pre">aria-expanded</span></code>, “Show tags under x”); a filter keeps a tag if it or one under it matches and opens the parents of a match. Empty: “No such tag” or “No tags yet”</p></td>
+</tr>
+<tr class="row-even"><td><p>Match highlight</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mark</span></code></p></td>
+<td><p>the matched words in a search hit’s snippet: <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code> with <code class="docutils literal notranslate"><span class="pre">--ink</span></code> text and a 2 px <code class="docutils literal notranslate"><span class="pre">--accent</span></code> underline drawn inside the box</p></td>
+</tr>
+<tr class="row-odd"><td><p>Build line</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.build</span></code></p></td>
+<td><p>the running build (the service worker’s cache name, <code class="docutils literal notranslate"><span class="pre">scrap-…</span></code>) at the foot of the search screen: centred, <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>, <code class="docutils literal notranslate"><span class="pre">--t-xs</span></code>. Five taps turn the debug panel (<code class="docutils literal notranslate"><span class="pre">debug.ts</span></code>) on or off</p></td>
+</tr>
+<tr class="row-even"><td><p>Written-by badge</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.meta</span> <span class="pre">.badge</span></code></p></td>
+<td><p>on a page that came in over MCP, last in its meta line: “Written by Claude”, a link to the search <code class="docutils literal notranslate"><span class="pre">is:claude</span></code>, as a hairline pill in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code> at <code class="docutils literal notranslate"><span class="pre">--t-xs</span></code>; its tooltip is the page’s <code class="docutils literal notranslate"><span class="pre">origin</span></code> field (“Written by Claude over MCP” if none)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Draft dot</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.dot</span></code></p></td>
+<td><p>a 9 px <code class="docutils literal notranslate"><span class="pre">--accent</span></code> dot ringed in <code class="docutils literal notranslate"><span class="pre">--bg</span></code> on the corner of a button’s icon: a page’s Edit when a draft of it is kept (its word becomes “Edit draft”, its name “Edit draft (unsaved)”) and, on the button’s own corner, the drawing viewer’s Edit (no room there for words; on its amber fill the dot is inverted, <code class="docutils literal notranslate"><span class="pre">--on-accent</span></code> ringed in <code class="docutils literal notranslate"><span class="pre">--accent</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Enrich panel</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">enrich.ts</span></code>)</p></td>
+<td><p>under a text page’s text, shown when Claude is on for it or it has a summary or related pages: a <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> card, <code class="docutils literal notranslate"><span class="pre">--r-md</span></code>, <code class="docutils literal notranslate"><span class="pre">--t-sm</span></code>. A row of bold “Claude”, its state in <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code> (“Waiting for Claude”, “Waiting: Claude is off”, “Claude is reading it…”; “Claude couldn’t read it: …” in <code class="docutils literal notranslate"><span class="pre">--danger</span></code>) and, while Claude is on, at the row’s end a ghost <strong>Ask Claude</strong> (<strong>Ask again</strong> once it has a summary or is done), disabled while waiting or reading; then its summary, then a “Related” heading and up to 8 page links, with “· links here” after those that link to this page</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photo panel</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.photo-panel</span></code>, <code class="docutils literal notranslate"><span class="pre">.pair</span></code>, <code class="docutils literal notranslate"><span class="pre">.tabs</span></code>, <code class="docutils literal notranslate"><span class="pre">.drawing-card</span></code> (<code class="docutils literal notranslate"><span class="pre">excalidraw.css</span></code>)</p></td>
+<td><p>under a photo’s page: the photo and, if Claude drew one, its drawing, as a <code class="docutils literal notranslate"><span class="pre">.pair</span></code> of two columns from 700 px wide (or landscape from 560 px), else one at a time under <strong>Photo</strong> / <strong>Drawing</strong> <code class="docutils literal notranslate"><span class="pre">.tabs</span></code> (a segmented control like <code class="docutils literal notranslate"><span class="pre">.chips</span></code>: <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> track, the chosen tab raised on <code class="docutils literal notranslate"><span class="pre">--surface</span></code>; 42 px segments in a 48 px track; Drawing chosen to start with). The drawing is a preview (<code class="docutils literal notranslate"><span class="pre">.drawing-card</span></code>: a button on <code class="docutils literal notranslate"><span class="pre">--surface</span></code> with a <code class="docutils literal notranslate"><span class="pre">--line</span></code> edge and <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> corners, the drawing’s own shape, at most 75 % of the screen high, inert to gestures so a drag scrolls the page); a tap opens the viewer. While it renders it says “Loading drawing…”; if it can’t, “Can’t show the drawing here: tap to open it”, or offline “Offline: the drawing needs the server”</p></td>
+</tr>
+<tr class="row-even"><td><p>Drawing viewer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.drawing-layer</span></code>, <code class="docutils literal notranslate"><span class="pre">.drawing-bar</span></code></p></td>
+<td><p>the full-screen drawing (<code class="docutils literal notranslate"><span class="pre">board/viewer.ts</span></code>), a <code class="docutils literal notranslate"><span class="pre">role=&quot;dialog&quot;</span></code> <code class="docutils literal notranslate"><span class="pre">aria-modal</span></code> sheet over the app (the nav is hidden) that rises in over <code class="docutils literal notranslate"><span class="pre">--d-3</span></code>, on <code class="docutils literal notranslate"><span class="pre">--bg</span></code>. A top bar of text buttons sharing the width by their labels: <strong>Close</strong>, <strong>Fit</strong>, <strong>Photo</strong> (a toggle, <code class="docutils literal notranslate"><span class="pre">aria-pressed</span></code> on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code> with an <code class="docutils literal notranslate"><span class="pre">--accent</span></code> edge: the photo beside the drawing in landscape or from 900 px wide, over it in portrait), <strong>More</strong> (a menu: History, Export .excalidraw, Export PNG, Export SVG) and <strong>Edit</strong> (<code class="docutils literal notranslate"><span class="pre">.primary</span></code>); while editing, <strong>Cancel</strong>, <strong>Undo</strong>, <strong>Photo</strong> and <strong>Save</strong> (<code class="docutils literal notranslate"><span class="pre">.primary</span></code>, <code class="docutils literal notranslate"><span class="pre">aria-busy</span></code> while it saves). Under the bar, a live-region <code class="docutils literal notranslate"><span class="pre">.drawing-notes</span></code> (at most 40 % of the height) holds the restored-draft and conflict banners (<code class="docutils literal notranslate"><span class="pre">.restored</span></code>, <code class="docutils literal notranslate"><span class="pre">.conflict</span></code>) and History (<code class="docutils literal notranslate"><span class="pre">.versions</span></code>: a 48 px row per version, <strong>Restore</strong>). The canvas and its tools are Excalidraw’s own</p></td>
 </tr>
 <tr class="row-odd"><td><p>Photo viewer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.viewer</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">--viewer</span></code>; close top right, count pill top centre, tools on an <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> scrim</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--viewer</span></code>; close top right, count pill top centre, tools on a scrim that fades from clear to <code class="docutils literal notranslate"><span class="pre">--overlay</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Icons</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">icons.ts</span></code></p></td>
@@ -920,10 +966,16 @@ viewer); <code class="docutils literal notranslate"><span class="pre">--ease</sp
 <td><p>50 % opacity (exempt from contrast, and never the only sign: the label says why)</p></td>
 </tr>
 <tr class="row-even"><td><p>Busy</p></td>
-<td><p>the label reads “Preparing…” and taps are ignored; no dimming, so it stays at full contrast</p></td>
+<td><p>the label reads “Preparing…” and taps are ignored; the label is never dimmed, so it stays at full contrast. Only the control’s icon pulses (opacity down to 0.3 and back, 0.8 s, looping), so the state shows even where labels are hidden; it stops under reduced motion</p></td>
 </tr>
 <tr class="row-odd"><td><p>Loading image</p></td>
 <td><p>the reserved box shimmers between <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> and <code class="docutils literal notranslate"><span class="pre">--line</span></code> until the image loads or fails, then stops</p></td>
+</tr>
+<tr class="row-even"><td><p>Loading view</p></td>
+<td><p>after 150 ms without an answer, a plain “Loading…” line in place of the last screen (a quick answer shows none; the same page again does not blank)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Not found</p></td>
+<td><p>an empty state with the search icon, “Not found: it may have been deleted.” and <strong>Back to capture</strong>; any other failure is the offline icon, its reason and <strong>Retry</strong></p></td>
 </tr>
 <tr class="row-even"><td><p>Failed</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">--danger</span></code> text in words, a <code class="docutils literal notranslate"><span class="pre">--danger-soft</span></code> badge; never colour alone</p></td>
@@ -949,7 +1001,9 @@ number of filters on rides on it. A tap opens or folds the panel (<code class="d
 <code class="docutils literal notranslate"><span class="pre">aria-controls</span></code>); it stays open or folded while the app is open, the next search too.</p></li>
 <li><p>The panel opens under the search field and the filters on, above the kind row and the
 list, so each tap in it shows its effect at once. A row per kind of choice (Tags, Order,
-When), each one line that scrolls sideways, keeps it short: never a wall of chips.</p></li>
+When), each one line that scrolls sideways, keeps it short: never a wall of chips. The tags
+it offers are capped at 8 when typing (12 for a search’s top tags), with <strong>All tags</strong>, a link
+to the Tags screen, after them while nothing is typed.</p></li>
 <li><p>What is on is always in view, panel open or not: a row of chips under the field, each with
 a ✕. The kind row stays under it, always shown.</p></li>
 <li><p>A tap changes the query at once, so the panel is never a form to submit and never holds
@@ -976,7 +1030,8 @@ in view.</p></li>
 and the page toolbar scrolls with the page instead of sticking. Landscape (also 560 px and
 wider): the nav’s label sits beside its icon and the capture tiles are 64 high.</p></li>
 <li><p>Very narrow (under 300 px: a small phone at its largest text size): the capture cluster
-scrolls with the list instead of covering it, tiles go two by two, labels and list titles
+scrolls with the list instead of covering it (it is static and moves to the top, <code class="docutils literal notranslate"><span class="pre">order:</span> <span class="pre">-1</span></code>,
+so Camera is on the first screen and the list follows), tiles go two by two, labels and list titles
 wrap, list thumbnails shrink to 32, and toolbars show icons only (the words remain their
 accessible names).</p></li>
 <li><p>Toasts sit just above whatever is under the thumb (the capture cluster, the page toolbar, the
@@ -992,13 +1047,14 @@ and spacing uses logical properties (<code class="docutils literal notranslate">
 <h2>High contrast<a class="headerlink" href="#high-contrast" title="Link to this heading">#</a></h2>
 <p>Under <code class="docutils literal notranslate"><span class="pre">forced-colors:</span> <span class="pre">active</span></code> the system replaces fills and drops shadows, so the selected
 segment and the current nav item get a 2 px <code class="docutils literal notranslate"><span class="pre">Highlight</span></code> outline, and the borderless tiles and
-badge get a <code class="docutils literal notranslate"><span class="pre">ButtonText</span></code> edge.</p>
+badge get a <code class="docutils literal notranslate"><span class="pre">ButtonText</span></code> edge. In the drawing viewer, the chosen Photo / Drawing tab and a pressed
+toggle in its bar get a 3 px <code class="docutils literal notranslate"><span class="pre">Highlight</span></code> outline.</p>
 </section>
 <section id="icons">
 <h2>Icons<a class="headerlink" href="#icons" title="Link to this heading">#</a></h2>
 <p>Sizes: 20 in buttons, 24 in tiles, the nav and list placeholders, 18 in the
 segmented control, 16 on a photo’s remove button, 52 (in a circle) in empty states.
-Icons: camera, image, note, todo (a checklist: the Todo kind, so a row’s kind icon never reads
+Icons: camera, image, note, tag (the Tags pill, the Tags fold, the Tags screen’s field and All tags), todo (a checklist: the Todo kind, so a row’s kind icon never reads
 as a ticked box beside its tick box), tick (check in a square: a row’s tick, which hides the
 check until done, and the Todos empty state; the nav’s Todos tab draws the same box inline), done (a check alone: Mark done, so a box always means a tick you can see), add (a plus: New todo), due (a calendar: a todo’s due pill, the Due fold, Upcoming), now (a
 clock: Now), all (four tiles: All, on the kind row and the Todos screen), later (bookmark: Later), board (a whiteboard on
@@ -1011,17 +1067,30 @@ paper scrap on amber; the header mark is the same scrap in amber.</p>
 <section id="what-we-don-t-do">
 <h2>What we don’t do<a class="headerlink" href="#what-we-don-t-do" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>No web font, icon font, CSS framework or component library.</p></li>
+<li><p>No web font, icon font, CSS framework or component library in the shell. The drawing viewer
+is a separate lazily loaded chunk on React and Excalidraw, with Excalidraw’s bundled fonts,
+and is outside the 16 kB shell budget.</p></li>
 <li><p>No colour outside <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code> (the debug panel aside), and no second accent; no gradients
-except the viewer’s scrim. High-contrast mode uses the system’s colour keywords.</p></li>
+except the photo viewer’s scrim and the fade mask at the end of a sideways-scrolling row
+(<code class="docutils literal notranslate"><span class="pre">.tags</span></code>, <code class="docutils literal notranslate"><span class="pre">.refine</span></code>, <code class="docutils literal notranslate"><span class="pre">.toptags</span></code>: a 32 px <code class="docutils literal notranslate"><span class="pre">mask-image</span></code> fade to transparent, not a colour).
+High-contrast mode uses the system’s colour keywords.</p></li>
 <li><p>No colour as the only signal: selection also raises, failure also says so in words.</p></li>
-<li><p>No modal dialogs of our own: the Filters panel opens in place (above), the browser’s
-<code class="docutils literal notranslate"><span class="pre">confirm()</span></code> stays for destructive questions, and the share menu is a light-dismiss popover.</p></li>
-<li><p>No motion longer than 260 ms, no motion that carries meaning, none under reduced motion.</p></li>
-<li><p>No touch target under 48 px (the 36 px badge, the 30 px remove button and the 42 px segments
-extend their hit area with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code>), no text under 12.75 px, no text pair
-under AA.</p></li>
-<li><p>No dimming to mean “busy”: opacity would break contrast; the label says it instead.</p></li>
+<li><p>No sheet or dialog for choices: the Filters panel opens in place (above), the browser’s
+<code class="docutils literal notranslate"><span class="pre">confirm()</span></code> stays for destructive questions, and the share menu is a light-dismiss popover.
+The full-screen photo viewer and drawing viewer (<code class="docutils literal notranslate"><span class="pre">role=&quot;dialog&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">aria-modal</span></code>) are the only
+modal surfaces of our own.</p></li>
+<li><p>No transition or entrance longer than 260 ms, no motion that carries meaning, none under
+reduced motion. The exceptions are the two looping indicators, which stop under reduced
+motion: the busy icon’s pulse (0.8 s) and the image placeholder’s shimmer (1.2 s).</p></li>
+<li><p>No touch target under 48 px where it can be avoided (the 36 px badge, the 30 px remove button
+and the 42 px <code class="docutils literal notranslate"><span class="pre">.chips</span></code> segments extend their hit area with an invisible <code class="docutils literal notranslate"><span class="pre">::after</span></code>). The
+exceptions: the <code class="docutils literal notranslate"><span class="pre">.facet</span></code> chips and the tag-field inputs in the Filters panel and the tag
+editor are 44 px high; the embed chip’s ✕ is 40 px wide (48 high); and the Photo / Drawing
+tabs are 42 px segments in a 48 px track, with no extension. No text under 12.75 px, except
+the 0.7rem (about 12 px) count on the Filters button, which is not interactive and is also
+in the button’s name; no text pair under AA.</p></li>
+<li><p>No dimming to mean “busy”: the label (the text) is never dimmed, since opacity would break
+contrast; it says “Preparing…” in words, and only the control’s icon pulses.</p></li>
 </ul>
 </section>
 </section>
@@ -1042,7 +1111,7 @@ under AA.</p></li>
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Design handover, 2026-10-21</p>
+        <p class="prev-next-title">Design handover, 2026-10-21 (superseded)</p>
       </div>
     </a>
     <a class="right-next"
@@ -1050,7 +1119,7 @@ under AA.</p></li>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Claude ingest (M2)</p>
+        <p class="prev-next-title">Claude ingest</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

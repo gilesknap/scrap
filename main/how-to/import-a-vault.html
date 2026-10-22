@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import a Thoth vault &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>Import a Thoth vault &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -492,8 +492,12 @@
   <section id="import-a-thoth-vault">
 <h1>Import a Thoth vault<a class="headerlink" href="#import-a-thoth-vault" title="Link to this heading">#</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span></code> reads a Thoth vault (Obsidian-style Markdown pages with YAML front matter, as
-its <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code> describes) and saves each content page as a scrap page, with its images. It calls
-no model unless you ask it to.</p>
+its <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code> describes) and saves each content page as a scrap page, with its images. The
+command itself calls no model; what Claude does with the pages afterwards is under
+<a class="reference internal" href="#import-claude"><span class="std std-ref">What Claude does with imported pages</span></a>.</p>
+<p>The commands below assume <code class="docutils literal notranslate"><span class="pre">scrap</span></code> is on your <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, as in a development checkout. Against a
+deployed scrap, see <a class="reference internal" href="#import-container"><span class="std std-ref">In a container</span></a>. <code class="docutils literal notranslate"><span class="pre">--data-dir</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">$SCRAP_DATA_DIR</span></code>, then
+<code class="docutils literal notranslate"><span class="pre">./data</span></code>; a real import creates the data folder if it is missing and migrates its database (<code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> creates nothing).</p>
 <section id="steps">
 <h2>Steps<a class="headerlink" href="#steps" title="Link to this heading">#</a></h2>
 <ol class="arabic">
@@ -503,25 +507,64 @@ no model unless you ask it to.</p>
 </div>
 </li>
 <li><p>Look before you write. <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> writes nothing. It prints the pages it would import as
-counts (by kind and by folder), then every problem it found, one per line, under a count:</p>
+counts (by kind and by folder), then each kind of problem it found with a count and, under
+it, one line per file:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>scrap<span class="w"> </span>import<span class="w"> </span>--dry-run<span class="w"> </span>--data-dir<span class="w"> </span>./data<span class="w"> </span>~/vault-copy
 </pre></div>
 </div>
+<p>A real import prints only the counts, not the lines, so use <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> to see which files a
+problem is about. A <code class="docutils literal notranslate"><span class="pre">DIR</span></code> that does not exist fails with <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">folder</span> <span class="pre">DIR</span></code>.</p>
 </li>
 <li><p>Import. Stop scrap first: slugs are worked out before anything is written, so a page
 captured meanwhile can take one and stop the import (running it again carries on).</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>scrap<span class="w"> </span>import<span class="w"> </span>--data-dir<span class="w"> </span>./data<span class="w"> </span>~/vault-copy
 </pre></div>
 </div>
+<p>It prints the same summary, then <code class="docutils literal notranslate"><span class="pre">imported</span> <span class="pre">N</span> <span class="pre">pages</span> <span class="pre">into</span> <span class="pre">DIR</span></code>.</p>
 <p>Running it again imports only pages it has not imported before (a page is known by its path in
-the vault); a page already there is left as it is, even if the vault’s copy has changed: there
-is no update. To pick up changes, import afresh into an empty data folder.</p>
+the vault, so the summary says <code class="docutils literal notranslate"><span class="pre">(0</span> <span class="pre">new)</span></code> for a vault already imported); a page already there is
+left as it is, even if the vault’s copy has changed: there is no update. To pick up changes,
+import afresh into an empty data folder. Moving or renaming a file in the vault makes it a new
+path, so a re-run imports it again as a second page. A page you imported and then trashed in
+scrap is not brought back by a re-run.</p>
 </li>
 <li><p>Optionally, <code class="docutils literal notranslate"><span class="pre">--ingest</span></code> also queues every imported image for Claude, as a photo capture would
-be (they run once <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>). Off by default: Thoth pages already describe their images.
-Claude’s first reading of a page’s first image adds its tags (up to 10) to the page’s imported
-ones, so the vault’s tags no longer stand alone.</p></li>
+be. Off by default: Thoth pages already describe their images. The queue is run by the
+service, which needs <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> and <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>. Each queued image is a paid
+call, counted against <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (the queue pauses when it is spent). Only the
+images the PWA can preview are queued, not PDFs, SVGs or other attached files. The settings are
+in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>. Claude’s first reading of a page’s first image
+adds its tags to the page’s imported ones, so the vault’s tags no longer stand alone.</p></li>
 </ol>
+</section>
+<section id="in-a-container">
+<span id="import-container"></span><h2>In a container<a class="headerlink" href="#in-a-container" title="Link to this heading">#</a></h2>
+<p>The documented deployments run scrap from the image, whose entrypoint is <code class="docutils literal notranslate"><span class="pre">scrap</span></code> and whose data
+folder is <code class="docutils literal notranslate"><span class="pre">/data</span></code> (<code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR</span></code>), as uid 10001. To import into a single-server install, stop
+the service, run <code class="docutils literal notranslate"><span class="pre">import</span></code> in a throwaway container with the vault mounted read-only, and start
+the service again. As in the restore recipe of <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>, load the settings
+file first so <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> are yours; the vault must be readable by that uid
+(with the <code class="docutils literal notranslate"><span class="pre">--userns</span></code> option below, by the user who runs podman):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>scrap
+<span class="nb">set</span><span class="w"> </span>-a<span class="p">;</span><span class="w"> </span>.<span class="w"> </span>~/.config/scrap/env<span class="p">;</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>+a
+podman<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--userns<span class="o">=</span>keep-id:uid<span class="o">=</span><span class="m">10001</span>,gid<span class="o">=</span><span class="m">10001</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$SCRAP_DATA</span><span class="s2">:/data"</span><span class="w"> </span>-v<span class="w"> </span>~/vault-copy:/vault:ro<span class="w"> </span>-e<span class="w"> </span><span class="nv">SCRAP_DATA_DIR</span><span class="o">=</span>/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="s2">"</span><span class="nv">$SCRAP_IMAGE</span><span class="s2">"</span><span class="w"> </span>import<span class="w"> </span>--dry-run<span class="w"> </span>/vault
+</pre></div>
+</div>
+<p>Before the real import, take a backup, since an import cannot be undone from within scrap. With
+scrap stopped (so nothing is captured after it), run <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code>; the
+command returns when the backup is done. If the import goes wrong, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code> of
+that backup puts the database back, as in <a class="reference internal" href="deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>; any page captured after
+the backup is lost with it. The files the import stored stay on disk, unused, until <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>
+removes them (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p>
+<p>Then run the import command again without <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>, and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap</span></code>. The
+import does not take the lock that <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> share, but nothing needs
+coordinating with the timers: scrap is stopped, and a <code class="docutils literal notranslate"><span class="pre">gc</span></code> that runs meanwhile does not delete
+the files of pages already saved.</p>
+<p>On Kubernetes the chart has no import recipe. The nearest is the one-off pod that
+<a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a> uses for <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code>: the same image and data claim with scrap
+stopped, run with <code class="docutils literal notranslate"><span class="pre">import</span></code> arguments, and the vault on a second volume mounted read-only.</p>
 </section>
 <section id="what-is-imported">
 <h2>What is imported<a class="headerlink" href="#what-is-imported" title="Link to this heading">#</a></h2>
@@ -542,28 +585,40 @@ ones, so the vault’s tags no longer stand alone.</p></li>
 <td><p>Title; a first heading equal to it is dropped from the body</p></td>
 </tr>
 <tr class="row-odd"><td><p>File name</p></td>
-<td><p>Slug (made unique with <code class="docutils literal notranslate"><span class="pre">-2</span></code>, <code class="docutils literal notranslate"><span class="pre">-3</span></code>… in path order)</p></td>
+<td><p>Slug: the name without <code class="docutils literal notranslate"><span class="pre">.md</span></code>, lower-cased to ASCII letters and digits (accents are removed, other non-ASCII characters dropped) with runs of anything else as one <code class="docutils literal notranslate"><span class="pre">-</span></code>, cut to 60 characters (<code class="docutils literal notranslate"><span class="pre">page</span></code> if nothing is left). A slug already in use gets <code class="docutils literal notranslate"><span class="pre">-2</span></code>, <code class="docutils literal notranslate"><span class="pre">-3</span></code>… (see <code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">created</span></code>, <code class="docutils literal notranslate"><span class="pre">updated</span></code> (no <code class="docutils literal notranslate"><span class="pre">created</span></code>: <code class="docutils literal notranslate"><span class="pre">memory_date</span></code>, else the file’s time)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">created_at</span></code>, <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> and the time of revision 1; a date alone is taken as noon UTC, so it is the same day in any time zone</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">created</span></code>, <code class="docutils literal notranslate"><span class="pre">updated</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">created_at</span></code> and <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>. No <code class="docutils literal notranslate"><span class="pre">created</span></code>: <code class="docutils literal notranslate"><span class="pre">memory_date</span></code>, else <code class="docutils literal notranslate"><span class="pre">updated</span></code>, else the file’s time. No <code class="docutils literal notranslate"><span class="pre">updated</span></code>: the same as <code class="docutils literal notranslate"><span class="pre">created</span></code>, and never earlier than it. A date alone is taken as noon UTC, so it is the same day in any time zone</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
-<td><p>Tags, lower-cased and cut to 64 characters</p></td>
+<tr class="row-odd"><td><p>(none)</p></td>
+<td><p>Revision 1 of the page, stamped with <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, by author <code class="docutils literal notranslate"><span class="pre">import</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">todo</span></code> becomes <code class="docutils literal notranslate"><span class="pre">open</span></code>), <code class="docutils literal notranslate"><span class="pre">due_date</span></code> or <code class="docutils literal notranslate"><span class="pre">due</span></code> (as <code class="docutils literal notranslate"><span class="pre">due</span></code>), <code class="docutils literal notranslate"><span class="pre">priority</span></code> (lower-cased), <code class="docutils literal notranslate"><span class="pre">media_type</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code> or <code class="docutils literal notranslate"><span class="pre">source_url</span></code> (as <code class="docutils literal notranslate"><span class="pre">source</span></code>), <code class="docutils literal notranslate"><span class="pre">memory_date</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">personal</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">fields</span></code>, over the kind’s defaults (a todo’s <code class="docutils literal notranslate"><span class="pre">status</span></code> is <code class="docutils literal notranslate"><span class="pre">open</span></code>); a consume page also gets <code class="docutils literal notranslate"><span class="pre">subtype</span></code> (<code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">watch</span></code> or <code class="docutils literal notranslate"><span class="pre">listen</span></code>) from <code class="docutils literal notranslate"><span class="pre">media_type</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
+<td><p>Tags: a leading <code class="docutils literal notranslate"><span class="pre">#</span></code> removed, spaces collapsed, lower-cased, cut to 64 characters, duplicates removed. A single <code class="docutils literal notranslate"><span class="pre">tags:</span> <span class="pre">x</span></code> is one tag. The PWA’s limit of 64 tags per page is not applied</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">todo</span></code> becomes <code class="docutils literal notranslate"><span class="pre">open</span></code>), <code class="docutils literal notranslate"><span class="pre">due_date</span></code> or <code class="docutils literal notranslate"><span class="pre">due</span></code> (as <code class="docutils literal notranslate"><span class="pre">due</span></code>), <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>, <code class="docutils literal notranslate"><span class="pre">media_type</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code> or <code class="docutils literal notranslate"><span class="pre">source_url</span></code> (as <code class="docutils literal notranslate"><span class="pre">source</span></code>), <code class="docutils literal notranslate"><span class="pre">memory_date</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">personal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fields</span></code>, over the kind’s defaults. <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">media_type</span></code> are lower-cased. A todo’s <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code> become the todo’s own due day, snooze day and priority instead, if they are a date or a priority (<code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>; Thoth’s <code class="docutils literal notranslate"><span class="pre">urgent</span></code> becomes <code class="docutils literal notranslate"><span class="pre">high</span></code>); otherwise they stay in <code class="docutils literal notranslate"><span class="pre">fields</span></code>. <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> is what <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> writes, so an export imports back</p></td>
+</tr>
+<tr class="row-even"><td><p>Defaults</p></td>
+<td><p>A todo has <code class="docutils literal notranslate"><span class="pre">status</span></code> <code class="docutils literal notranslate"><span class="pre">open</span></code>. A consume page has <code class="docutils literal notranslate"><span class="pre">subtype</span></code> <code class="docutils literal notranslate"><span class="pre">read</span></code> and <code class="docutils literal notranslate"><span class="pre">status</span></code> <code class="docutils literal notranslate"><span class="pre">open</span></code>, and its <code class="docutils literal notranslate"><span class="pre">media_type</span></code> sets <code class="docutils literal notranslate"><span class="pre">subtype</span></code>: <code class="docutils literal notranslate"><span class="pre">book</span></code> and <code class="docutils literal notranslate"><span class="pre">article</span></code> give <code class="docutils literal notranslate"><span class="pre">read</span></code>; <code class="docutils literal notranslate"><span class="pre">film</span></code>, <code class="docutils literal notranslate"><span class="pre">tv</span></code> and <code class="docutils literal notranslate"><span class="pre">video</span></code> give <code class="docutils literal notranslate"><span class="pre">watch</span></code>; <code class="docutils literal notranslate"><span class="pre">podcast</span></code> and <code class="docutils literal notranslate"><span class="pre">music</span></code> give <code class="docutils literal notranslate"><span class="pre">listen</span></code>. Any other <code class="docutils literal notranslate"><span class="pre">media_type</span></code> leaves <code class="docutils literal notranslate"><span class="pre">read</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[Label](folder/page.md)</span></code>, <code class="docutils literal notranslate"><span class="pre">[[page]]</span></code>, <code class="docutils literal notranslate"><span class="pre">[[page|label]]</span></code> to an imported page</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, a link to it in the PWA. A path is tried from the linking page’s folder, then from the top; a wiki link with a folder (<code class="docutils literal notranslate"><span class="pre">[[memories/x]]</span></code>) is tried as a path first, from the top. A wiki link in a table cell, its pipe escaped with a backslash, works too. A wiki name found in several places prefers an imported page, then the linking page’s folder, and never <code class="docutils literal notranslate"><span class="pre">raw/</span></code> or <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> over a content folder</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, a link to it in the PWA. A heading anchor (<code class="docutils literal notranslate"><span class="pre">[[page#sec]]</span></code>, <code class="docutils literal notranslate"><span class="pre">page.md#h</span></code>) is dropped, so the link goes to the page. A path is tried from the linking page’s folder, then from the top; a wiki link with a folder (<code class="docutils literal notranslate"><span class="pre">[[memories/x]]</span></code>) is tried as a path first, from the top, then from the linking page’s folder, then by name. A wiki link in a table cell, its pipe escaped with a backslash, works too. A wiki name found in several places prefers an imported page, then the linking page’s folder, and never <code class="docutils literal notranslate"><span class="pre">raw/</span></code> or <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> over a content folder</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">![](../raw/assets/x.png)</span></code> and <code class="docutils literal notranslate"><span class="pre">![[x.png]]</span></code></p></td>
-<td><p>The image, stored with the page (a photo capture) and shown where it was, not again among the page’s files. An image the PWA cannot preview (SVG) is attached as a file instead</p></td>
+<td><p>The image, stored with the page (a photo capture) and shown where it was, not again among the page’s files. An image the PWA cannot preview (SVG) is attached as a file instead, and its place in the text becomes <code class="docutils literal notranslate"><span class="pre">*alt</span> <span class="pre">text</span> <span class="pre">(attached)*</span></code> (the file name if there is no alt text)</p></td>
 </tr>
-<tr class="row-odd"><td><p>A PDF embedded or linked</p></td>
-<td><p>Attached to the page as a file</p></td>
+<tr class="row-odd"><td><p>A link (not an embed) to an image the PWA can preview</p></td>
+<td><p>The image is attached to the page as a photo, and the link becomes the text <code class="docutils literal notranslate"><span class="pre">*label</span> <span class="pre">(attached)*</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>A PDF embedded or linked</p></td>
+<td><p>Attached to the page as a file; the link or embed becomes <code class="docutils literal notranslate"><span class="pre">*label</span> <span class="pre">(attached)*</span></code> (the file name if there is no label)</p></td>
+</tr>
+<tr class="row-odd"><td><p>A drawing, or a file that cannot be attached (a CSV, a file over the size limit or one that cannot be read), embedded or linked</p></td>
+<td><p>Not imported; replaced by the text <code class="docutils literal notranslate"><span class="pre">*name</span> <span class="pre">(not</span> <span class="pre">imported)*</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>The page file as it is</p></td>
-<td><p>Kept as its capture’s text</p></td>
+<td><p>Kept as its capture’s text (capture source <code class="docutils literal notranslate"><span class="pre">import</span></code>)</p></td>
 </tr>
 </tbody>
 </table>
@@ -573,10 +628,42 @@ of links and images (it indexes their labels and alt text), for every page: a li
 not a word to find, even in a note you wrote by hand. That is the intended trade-off. Links are
 found by parsing the page as Markdown, so one in code (fenced, indented or <code class="docutils literal notranslate"><span class="pre">inline</span></code>) is left as
 it is.</p>
-<p>Not imported: <code class="docutils literal notranslate"><span class="pre">raw/</span></code> and <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> (except the images and PDFs pages use), every folder starting
-<code class="docutils literal notranslate"><span class="pre">.</span></code> or <code class="docutils literal notranslate"><span class="pre">_</span></code>, the top <code class="docutils literal notranslate"><span class="pre">index.md</span></code>, <code class="docutils literal notranslate"><span class="pre">log.md</span></code> and <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code>, pages of any other <code class="docutils literal notranslate"><span class="pre">type</span></code> (such as
-<code class="docutils literal notranslate"><span class="pre">summary</span></code>), Excalidraw drawings, and every file that is not Markdown. Other front matter fields
-are dropped, Thoth’s <code class="docutils literal notranslate"><span class="pre">source</span></code> among them (the original stays in the capture’s text).</p>
+<p>Not imported: the top-level folders <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> and any starting <code class="docutils literal notranslate"><span class="pre">_</span></code> (except the images and
+PDFs pages use; the same names deeper in the tree are ordinary folders, and their pages are
+imported), the top <code class="docutils literal notranslate"><span class="pre">index.md</span></code>, <code class="docutils literal notranslate"><span class="pre">log.md</span></code> and <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code>, pages of any other <code class="docutils literal notranslate"><span class="pre">type</span></code> (such as
+<code class="docutils literal notranslate"><span class="pre">summary</span></code>), Excalidraw drawings, and every file that is not Markdown. Files and folders whose
+name starts with <code class="docutils literal notranslate"><span class="pre">.</span></code>, at any depth (such as <code class="docutils literal notranslate"><span class="pre">.obsidian/</span></code>), are ignored without a line in the
+report. Other front matter fields are dropped, Thoth’s <code class="docutils literal notranslate"><span class="pre">source</span></code> among them (the original stays in
+the capture’s text).</p>
+</section>
+<section id="limits">
+<h2>Limits<a class="headerlink" href="#limits" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Pages are not size-capped on import, unlike a page saved through the API (1 MB). Only images and
+PDFs are checked, against <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (50 MB).</p></li>
+<li><p>If a file changes between the check and the write, the import stops with <code class="docutils literal notranslate"><span class="pre">changed</span> <span class="pre">since</span> <span class="pre">it</span> <span class="pre">was</span> <span class="pre">checked:</span> <span class="pre">run</span> <span class="pre">again</span></code>. Run it again: it carries on with the pages not yet imported. The files
+of the page it stopped on were already stored, but the page was not saved, so nothing uses
+them. On the single server the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> removes them once they are over 24 hours
+old; to remove them by hand, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> after a backup (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
+<li><p>A page you import and then trash in scrap keeps its images: <code class="docutils literal notranslate"><span class="pre">gc</span></code> counts the text of trashed
+pages as in use, so that the page can be brought back.</p></li>
+<li><p>The vault must be readable by the user (or container uid) that runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code>.</p></li>
+</ul>
+</section>
+<section id="what-claude-does-with-imported-pages">
+<span id="import-claude"></span><h2>What Claude does with imported pages<a class="headerlink" href="#what-claude-does-with-imported-pages" title="Link to this heading">#</a></h2>
+<p>Importing queues no Claude work for text, but a deployment with Claude enrichment on
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>, <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> set, <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> not <code class="docutils literal notranslate"><span class="pre">off</span></code>) still picks up the pages:</p>
+<ul class="simple">
+<li><p>The nightly related-pages pass (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>, run by <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>
+on the single server) treats a page with no related pages picked yet as stale, so it makes a
+paid call for every imported page, oldest first, within <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, even if you did
+not use <code class="docutils literal notranslate"><span class="pre">--ingest</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code> queues every page with no tags that Claude has not read yet.</p></li>
+</ul>
+<p>To hold this back, set <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> (or leave ingest off) until you want it. With
+enrichment on, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">--dry-run</span></code> says how many pages the pass would do; with it
+off the command only says that enrichment is off.</p>
 </section>
 <section id="the-report">
 <h2>The report<a class="headerlink" href="#the-report" title="Link to this heading">#</a></h2>
@@ -587,62 +674,71 @@ are dropped, Thoth’s <code class="docutils literal notranslate"><span class="p
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">broken</span> <span class="pre">link</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">pages</span> <span class="pre">(M</span> <span class="pre">new):</span> <span class="pre">...</span></code></p></td>
+<td><p>The pages found, how many are not imported yet, and the count of each kind</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">folder:</span></code></p></td>
+<td><p>Pages by top-level folder; pages at the top of the vault show as <code class="docutils literal notranslate"><span class="pre">./</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">images</span> <span class="pre">shown</span> <span class="pre">inline</span> <span class="pre">and</span> <span class="pre">M</span> <span class="pre">other</span> <span class="pre">files</span> <span class="pre">attached;</span> <span class="pre">K</span> <span class="pre">tags</span></code></p></td>
+<td><p>What the pages bring with them: N counts the previewable images attached as photos (a linked one is attached but not shown inline), M the PDFs and SVGs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">broken</span> <span class="pre">link</span></code></p></td>
 <td><p>A link to a page that is not in the vault: left as its label</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">to</span> <span class="pre">dropped</span> <span class="pre">page</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">to</span> <span class="pre">dropped</span> <span class="pre">page</span></code></p></td>
 <td><p>A link into <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code>, an index or a skipped page: left as its label</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">found</span> <span class="pre">by</span> <span class="pre">name</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">found</span> <span class="pre">by</span> <span class="pre">name</span></code></p></td>
 <td><p>A link whose path was wrong, matched to a page by its file name or title</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">missing</span> <span class="pre">file</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">missing</span> <span class="pre">file</span></code></p></td>
 <td><p>An embedded image or file that is not in the vault</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">links</span> <span class="pre">kept</span> <span class="pre">as</span> <span class="pre">typed</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">links</span> <span class="pre">kept</span> <span class="pre">as</span> <span class="pre">typed</span></code></p></td>
 <td><p>A block of text (paragraph, list item, table row) whose links could not be found back in the text as typed: its links are left as they were, not rewritten</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">file</span> <span class="pre">not</span> <span class="pre">imported</span></code></p></td>
-<td><p>A drawing or other file a page embeds: replaced by its name</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">file</span> <span class="pre">not</span> <span class="pre">imported</span></code></p></td>
+<td><p>A drawing or other file a page embeds or links: replaced by <code class="docutils literal notranslate"><span class="pre">*name</span> <span class="pre">(not</span> <span class="pre">imported)*</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unreferenced</span> <span class="pre">image</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unreferenced</span> <span class="pre">image</span></code></p></td>
 <td><p>An image in <code class="docutils literal notranslate"><span class="pre">raw/</span></code> no imported page uses: not imported</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code></p></td>
-<td><p>Two pages with the same file name: the later (in path order) gets a suffix</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code></p></td>
+<td><p>A slug already in use, by an earlier page in the vault (the later, in path order, gets the suffix; <code class="docutils literal notranslate"><span class="pre">My</span> <span class="pre">Note.md</span></code> and <code class="docutils literal notranslate"><span class="pre">my-note.md</span></code> collide) or by any page already in the data folder, the trash included</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">changed</span></code></p></td>
-<td><p>A tag that was lower-cased or cut</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">changed</span></code></p></td>
+<td><p>A tag that was changed (lower-cased, cut, <code class="docutils literal notranslate"><span class="pre">#</span></code> removed or spaces collapsed)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unmapped</span> <span class="pre">field</span></code></p></td>
-<td><p>A front matter field scrap has no field for: dropped</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unmapped</span> <span class="pre">field</span></code></p></td>
+<td><p>A front matter field scrap has no field for, or a mapped one whose value is a list or a map: dropped</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unknown</span> <span class="pre">status</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unknown</span> <span class="pre">status</span></code></p></td>
 <td><p>A status other than <code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code> or <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>: kept as it is</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
 <td><p>Imported anyway, with its folder’s kind and the file’s time</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
 <td><p>Front matter that is not valid YAML (an impossible date such as <code class="docutils literal notranslate"><span class="pre">2024-13-45</span></code>, or more than 64 aliases): the page is imported as if it had none</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">date</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">date</span></code></p></td>
 <td><p>A <code class="docutils literal notranslate"><span class="pre">created</span></code>, <code class="docutils literal notranslate"><span class="pre">updated</span></code> or <code class="docutils literal notranslate"><span class="pre">memory_date</span></code> that is not a date: the next one is used, else the file’s time</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ambiguous</span> <span class="pre">link</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ambiguous</span> <span class="pre">link</span></code></p></td>
 <td><p>A wiki name that matches several files, and the one chosen</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">cut</span></code>, <code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">dropped</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">cut</span></code>, <code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">dropped</span></code></p></td>
 <td><p>A field value over 200 characters, cut to 200 (ending <code class="docutils literal notranslate"><span class="pre">…</span></code>; the whole of it stays in the capture’s text), and fields past 32, as a PWA edit allows</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">dropped</span></code></p></td>
-<td><p>A tag that is not text or a number (empty, a list)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">dropped</span></code></p></td>
+<td><p>A tag that is not text or a number (null, a list, a map, true or false). An empty tag is dropped without a line</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">symlink</span> <span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">unreadable</span></code>, <code class="docutils literal notranslate"><span class="pre">too</span> <span class="pre">large</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">symlink</span> <span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">unreadable</span></code>, <code class="docutils literal notranslate"><span class="pre">too</span> <span class="pre">large</span></code></p></td>
 <td><p>Files left out: symbolic links, files that cannot be read, and images or PDFs over <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (50 MB)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code></p></td>
-<td><p>Files left out, and why</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code></p></td>
+<td><p>Files left out, and why. <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code> counts the files under the top-level <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> and <code class="docutils literal notranslate"><span class="pre">_*</span></code> folders</p></td>
 </tr>
 </tbody>
 </table>
@@ -698,7 +794,10 @@ are dropped, Thoth’s <code class="docutils literal notranslate"><span class="p
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#steps">Steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#in-a-container">In a container</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-imported">What is imported</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limits">Limits</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-does-with-imported-pages">What Claude does with imported pages</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-report">The report</a></li>
 </ul>
   </nav></div>

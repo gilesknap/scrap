@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Installation &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>Install scrap on a server &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -422,7 +422,7 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Install scrap on a server</a></li>
 </ul>
 </div>
 </nav></div>
@@ -466,7 +466,7 @@
     
     <li class="breadcrumb-item"><a href="../tutorials.html" class="nav-link">Tutorials</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Installation</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Install scrap on a server</span></li>
   </ul>
 </nav>
 </div>
@@ -483,41 +483,154 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h1>
-<section id="check-your-version-of-python">
-<h2>Check your version of python<a class="headerlink" href="#check-your-version-of-python" title="Link to this heading">#</a></h2>
-<p>You will need python 3.11 or later. You can check your version of python by
-typing into a terminal:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python3 --version
-</pre></div>
+  <section id="install-scrap-on-a-server">
+<h1>Install scrap on a server<a class="headerlink" href="#install-scrap-on-a-server" title="Link to this heading">#</a></h1>
+<p>In this tutorial you run scrap on one Linux server, as a container under rootless podman, started
+by a systemd user service. <a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> then publishes
+it over HTTPS to your tailnet, so you can open it from your phone. At the end you have a running
+service and its web app open on your phone.</p>
+<p>It is the same container image a cluster would run. To run scrap on Kubernetes instead, see
+<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>. This page follows one happy path; every option, and the
+update, backup, uninstall and troubleshooting steps, are in <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>v0 of scrap has <strong>no login</strong>. Anyone who can reach it can read and change everything. Only
+expose it through Tailscale Serve (tailnet only, never <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>).</p>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>On the server itself, <strong>root, anyone with <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, and anything running as the scrap user</strong> can
+open scrap’s socket and read and change all its data. Run scrap as its own user with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code>
+rights, and run nothing else as that user. See <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-access"><span class="std std-ref">Access and identity</span></a>.</p>
+</div>
+<section id="what-you-need">
+<h2>What you need<a class="headerlink" href="#what-you-need" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Linux with systemd (user services and <code class="docutils literal notranslate"><span class="pre">loginctl</span></code>), and an admin account with <code class="docutils literal notranslate"><span class="pre">sudo</span></code> for the
+one-off setup steps.</p></li>
+<li><p>Rootless <a class="reference external" href="https://podman.io">podman</a>, with <code class="docutils literal notranslate"><span class="pre">uidmap</span></code> (<code class="docutils literal notranslate"><span class="pre">newuidmap</span></code>/<code class="docutils literal notranslate"><span class="pre">newgidmap</span></code>) installed. The
+units have been run with podman 5.x; older versions are untested.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span></code> and <code class="docutils literal notranslate"><span class="pre">curl</span></code>.</p></li>
+<li><p><a class="reference external" href="https://tailscale.com/download">Tailscale</a> on the server, logged in to your tailnet, with
+<a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates</a> and MagicDNS enabled for the
+tailnet.</p></li>
+</ul>
+<p>You do not need Python or Node on the server: the image carries everything scrap needs.</p>
 </section>
-<section id="create-a-virtual-environment">
-<h2>Create a virtual environment<a class="headerlink" href="#create-a-virtual-environment" title="Link to this heading">#</a></h2>
-<p>It is recommended that you install into a “virtual environment” so this
-installation will not interfere with any existing Python software:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python3 -m venv /path/to/venv
-$ source /path/to/venv/bin/activate
+<section id="create-a-dedicated-user">
+<h2>Create a dedicated user<a class="headerlink" href="#create-a-dedicated-user" title="Link to this heading">#</a></h2>
+<p>As an admin, create a user that does nothing but run scrap, and let its services run when nobody
+is logged in:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">useradd</span> <span class="o">--</span><span class="n">create</span><span class="o">-</span><span class="n">home</span> <span class="o">--</span><span class="n">shell</span> <span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">bash</span> <span class="n">scrap</span>
+<span class="n">sudo</span> <span class="n">loginctl</span> <span class="n">enable</span><span class="o">-</span><span class="n">linger</span> <span class="n">scrap</span>
+<span class="n">grep</span> <span class="n">scrap</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">subuid</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">subgid</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">grep</span></code> should print one line from each file; rootless podman needs those ID ranges. If it prints
+nothing, see <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-troubleshooting"><span class="std std-ref">Troubleshooting</span></a>.</p>
+<p>Everything from here to the Tailscale step runs <strong>as that user</strong>, in a real login session so that
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span></code> works: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">scrap&#64;&lt;host&gt;</span></code>, or from an admin account
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">machinectl</span> <span class="pre">shell</span> <span class="pre">scrap&#64;</span></code>. A plain <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">-u</span> <span class="pre">scrap</span></code> or <code class="docutils literal notranslate"><span class="pre">su</span></code> does not work.</p>
 </section>
-<section id="installing-the-library">
-<h2>Installing the library<a class="headerlink" href="#installing-the-library" title="Link to this heading">#</a></h2>
-<p>You can now use <code class="docutils literal notranslate"><span class="pre">pip</span></code> to install the library and its dependencies:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python3 -m pip install scrap
+<section id="build-the-image">
+<h2>Build the image<a class="headerlink" href="#build-the-image" title="Link to this heading">#</a></h2>
+<p>There is no published release image yet, so build it from a clone of the repo:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">scrap</span>
+<span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">--</span><span class="n">version</span>
 </pre></div>
 </div>
-<p>If you require a feature that is not currently released you can also install
-from github:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python3 -m pip install git+https://github.com/gilesknap/scrap.git
+<p>The first build downloads a large build-stage image, so it takes a while. The last command prints
+scrap’s version. Once releases exist you can instead <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pull</span> <span class="pre">ghcr.io/gilesknap/scrap:&lt;version&gt;</span></code> and put that
+name in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> (the install step below writes the file) before
+re-running <code class="docutils literal notranslate"><span class="pre">./deploy/install.sh</span></code>.</p>
+</section>
+<section id="install-the-service">
+<h2>Install the service<a class="headerlink" href="#install-the-service" title="Link to this heading">#</a></h2>
+<p>Still as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, in the clone:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p>The library should now be installed and the commandline interface on your path.
-You can check the version that has been installed by typing:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ scrap --version
+<p>The script is safe to re-run. It:</p>
+<ul class="simple">
+<li><p>writes the settings files <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> if they do not
+exist yet, and never overwrites them;</p></li>
+<li><p>copies the systemd units (the service plus the backup, gc and related-pages timers) to
+<code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code> and its helper scripts to <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/</span></code>;</p></li>
+<li><p>enables and starts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>, and enables each timer if the image has the command it
+runs;</p></li>
+<li><p>prints where scrap listens and the address to give Tailscale Serve.</p></li>
+</ul>
+<p>If it says the image is not here yet, build it (previous step) and run the script again.</p>
+<p>The defaults in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> are what this tutorial uses: <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap:dev</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code> (a Unix socket only you and root can open, no TCP port),
+<code class="docutils literal notranslate"><span class="pre">SCRAP_DATA=~/.local/share/scrap/data</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS=~/.local/share/scrap/backups</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP=14</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_MEMORY_MAX=1g</span></code>. The full table is in
+<a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>. After changing a setting, run
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
+</section>
+<section id="check-that-it-runs">
+<h2>Check that it runs<a class="headerlink" href="#check-that-it-runs" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">status</span> <span class="n">scrap</span>
+<span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> calls <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> on the socket and should print <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. If not, read the
+logs with <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-n</span> <span class="pre">50</span></code> or <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code>.</p>
+</section>
+<section id="publish-it-on-your-tailnet">
+<h2>Publish it on your tailnet<a class="headerlink" href="#publish-it-on-your-tailnet" title="Link to this heading">#</a></h2>
+<p>Leave the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> session. As an admin on the server, check what Serve already publishes, then add
+scrap on a port that is free (the port is yours to choose; this tutorial uses 8446):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sudo tailscale serve status
+sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap.sock
+</pre></div>
+</div>
+<p>Leave any existing entries alone. <code class="docutils literal notranslate"><span class="pre">--bg</span></code> makes the setting persist across reboots. scrap is now at
+<code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> for devices on your tailnet. Check it from a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> login session on the server, passing the address to <code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
+</pre></div>
+</div>
+<p>From any other tailnet device, <code class="docutils literal notranslate"><span class="pre">curl</span></code> the <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> path of that address instead: <code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> also
+checks the local socket first, so on a machine without scrap it fails before reaching the URL.</p>
+</section>
+<section id="open-it-on-your-phone">
+<h2>Open it on your phone<a class="headerlink" href="#open-it-on-your-phone" title="Link to this heading">#</a></h2>
+<p>On a phone that is on your tailnet, open the address above in Chrome (Android) and choose <strong>Add to home
+screen</strong>, then <strong>Install</strong>. Open scrap from its icon and capture your first note. See
+<a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a> for what each screen does.</p>
+</section>
+<section id="optional-turn-on-claude-ingest">
+<h2>Optional: turn on Claude ingest<a class="headerlink" href="#optional-turn-on-claude-ingest" title="Link to this heading">#</a></h2>
+<p>Photos are queued but not sent to Claude until you switch ingest on. As <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, edit
+<code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> (keep it mode 600, as <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> created it) and uncomment or add:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
+<span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
+<span class="n">SCRAP_BUDGET_DAY_USD</span><span class="o">=</span><span class="mi">3</span>
+<span class="n">SCRAP_NOTIFY_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">ntfy</span><span class="o">.</span><span class="n">sh</span><span class="o">/&lt;</span><span class="n">your</span> <span class="n">private</span> <span class="n">topic</span><span class="o">&gt;</span>
+<span class="n">TZ</span><span class="o">=</span><span class="n">Europe</span><span class="o">/</span><span class="n">London</span>
+</pre></div>
+</div>
+<p>Use plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines with no quotes. Set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone, otherwise <code class="docutils literal notranslate"><span class="pre">due:today</span></code>
+follows UTC. Then restart:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">restart</span> <span class="n">scrap</span>
+</pre></div>
+</div>
+<p>Every ingest setting is described in <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>.</p>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Connect Claude Code sessions to scrap over MCP: <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>. It starts
+by adding <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL=https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> to <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>; without it
+<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>.</p></li>
+<li><p>Bring in an existing vault: <a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a>.</p></li>
+<li><p>Look after the install, in <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>: <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-update"><span class="std std-ref">Update</span></a>, backup and
+restore (a daily backup timer is already running, but its copy stays on the server),
+<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>, uninstalling and <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-troubleshooting"><span class="std std-ref">Troubleshooting</span></a>.</p></li>
+</ul>
 </section>
 </section>
 
@@ -568,9 +681,15 @@ You can check the version that has been installed by typing:</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-your-version-of-python">Check your version of python</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-virtual-environment">Create a virtual environment</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-the-library">Installing the library</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-dedicated-user">Create a dedicated user</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-the-image">Build the image</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-the-service">Install the service</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-that-it-runs">Check that it runs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-it-on-your-tailnet">Publish it on your tailnet</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-on-your-phone">Open it on your phone</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-turn-on-claude-ingest">Optional: turn on Claude ingest</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
 </ul>
   </nav></div>
 

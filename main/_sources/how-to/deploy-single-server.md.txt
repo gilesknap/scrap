@@ -6,8 +6,8 @@ socket that only its own user (and root) can open;
 [Tailscale Serve](https://tailscale.com/kb/1312/serve) publishes it over HTTPS to your tailnet and
 nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-server-installs.md).
 
-Podman is the tested path. Docker works with the small changes in
-{ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
+Podman is the tested path. Docker is possible, but `install.sh` needs podman, so you wire the
+units up by hand: see {ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
 [](deploy-kubernetes.md).
 
 ```{warning}
@@ -29,8 +29,9 @@ and process** can do the same through the port: keep that for single-purpose ser
 
 - Linux with systemd (user services and `loginctl`), and an admin account with `sudo` for the
   one-off setup steps.
-- Rootless [podman](https://podman.io) 4.4 or newer, with `uidmap` (`newuidmap`/`newgidmap`)
-  installed.
+- Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
+  units use `--userns=keep-id:uid=,gid=`, `--sdnotify=conmon` and `--cgroups=split`, and have
+  been run with podman 5.x; older versions are untested.
 - `git` and `curl`.
 - [Tailscale](https://tailscale.com/download) on the server, logged in to your tailnet, with
   [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) and MagicDNS enabled for the
@@ -59,9 +60,12 @@ user's systemd session.
 ## Get the image
 
 Until a release is published to `ghcr.io/gilesknap/scrap`, build the image yourself, as the
-`scrap` user (podman images belong to the user who built or pulled them):
+`scrap` user (podman images belong to the user who built or pulled them). Clone into the
+user's home directory, so the clone is `~/scrap`: the `./deploy/...` commands below run from
+it, and the update steps refer to it by that path.
 
 ```
+cd ~
 git clone https://github.com/gilesknap/scrap.git
 cd scrap
 podman build -t localhost/scrap:dev .
@@ -83,6 +87,7 @@ name in `SCRAP_IMAGE` (below).
 
 The image runs scrap as an unprivileged user (uid 10001) and keeps all its data under `/data`.
 
+(scrap-install-script)=
 ## Install
 
 From the clone:
@@ -104,9 +109,13 @@ The script:
   backup timer only if that image has the `scrap backup` command, the nightly gc timer only if
   it has `scrap gc`, and the nightly related-pages timer only if it has `scrap enrich --related`
   (images built before them do not; re-run the script after updating the image);
-- restarts a running `scrap.service` if the image it runs or its unit has changed (see
-  {ref}`scrap-update`);
+- restarts a running `scrap.service` if the image it runs, the unit or the `scrap-run` launcher
+  has changed (see {ref}`scrap-update`);
 - prints where scrap listens, and a note if that is a TCP port (see {ref}`scrap-listen`).
+
+If the image named in the settings is not present, the script stops after writing the files and
+the units, says so, and **exits 0** without enabling the service or any timer. Build or pull the
+image, then re-run it.
 
 It is safe to re-run after pulling a newer version of the repo.
 
@@ -122,10 +131,16 @@ plain `KEY=value` lines with absolute paths.
 | `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
-| `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). |
+| `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each is a full copy: see {ref}`scrap-backup-restore`. |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
 
 After changing a setting: `systemctl --user restart scrap`.
+
+The two directory defaults are `${XDG_DATA_HOME:-~/.local/share}/scrap/data` and `.../backups`,
+which `install.sh` writes into the file as absolute paths and creates. If you point
+`SCRAP_BACKUPS` somewhere else, create the directory first, owned by the `scrap` user: nothing
+else creates it, and the backup and gc jobs fail without it. `scrap.service` creates a missing
+`SCRAP_DATA` itself, and it too must belong to the `scrap` user.
 
 (scrap-listen)=
 ### Socket or port
@@ -172,16 +187,31 @@ SCRAP_INGEST=on
 ANTHROPIC_API_KEY=<your key>
 SCRAP_BUDGET_DAY_USD=3
 SCRAP_NOTIFY_URL=https://ntfy.sh/<your private topic>
+TZ=Europe/London
+SCRAP_PUBLIC_URL=https://<host>.<tailnet>.ts.net:8446
 ```
 
-Also set `TZ` to your own time zone, for example `TZ=Europe/London`. The server decides what
+The generated file also has a commented `SCRAP_VISION_MODEL` line; leave it alone to use the
+default. It has no `TZ` or `SCRAP_PUBLIC_URL` line: add them yourself. With ingest on, the
+container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS to fetch saved
+links.
+
+Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see
+{ref}`scrap-publish`), with the scheme and, unless it is 443, the port; several addresses can be comma separated.
+`/mcp` answers only requests whose `Host` is loopback or one of these, so without it Claude Code
+gets `421 Invalid Host header` through Tailscale Serve, and the MCP tools return bare paths
+(`/p/<slug>`) instead of page URLs. See [](connect-claude-code.md).
+
+Set `TZ` to your own time zone, for example `TZ=Europe/London`. The server decides what
 "today" means for `due:today` searches (the web UI and the MCP tools alike) from its own clock,
 which is UTC unless `TZ` says otherwise, while the PWA uses the phone's date, so the two disagree
 for the hours around midnight. The image carries the time zone database, so `TZ` takes effect.
 
 Set `SCRAP_NOTIFY_URL`: without it, a pause (daily budget reached, credit or login problem, an
 outage) is only visible when you next open scrap. An ntfy topic URL is itself a secret. Every
-setting, with its default, is in the [API reference](../reference/api.md). After editing:
+setting, with its default, is in the [API reference](../reference/api.md); besides the ones
+above, `SCRAP_MAX_UPLOAD_MB` (default 50) is the one to raise if you upload large photos. After
+editing:
 `systemctl --user restart scrap`.
 
 With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
@@ -195,12 +225,16 @@ succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pag
 ```
 systemctl --user status scrap
 ./deploy/smoke.sh
+systemctl --user list-timers
 ```
 
 `smoke.sh` calls `/healthz` on the socket (or the local port) and should print
 `{"status":"ok",...}`. Logs:
-`journalctl --user -u scrap`.
+`journalctl --user -u scrap`. `list-timers` should show `scrap-backup.timer`,
+`scrap-gc.timer` and `scrap-enrich-related.timer`; one that is missing was skipped because the
+image lacks its command (see {ref}`scrap-install-script`).
 
+(scrap-publish)=
 ## Publish on your tailnet
 
 As an admin on the server, publish the socket over HTTPS on a port that is not already in use
@@ -223,6 +257,11 @@ makes the setting persist across reboots. Check it from any tailnet device:
 Use `--https=443` instead if the machine serves nothing else. Never use `tailscale funnel` for
 scrap: that publishes it to the internet.
 
+Now put this address in `SCRAP_PUBLIC_URL` in `~/.config/scrap/ingest.env` (see
+{ref}`scrap-ingest-settings`) and `systemctl --user restart scrap`, as the `scrap` user. It is
+needed for `/mcp` to answer through Serve and for the MCP tools to return page links; the
+address, port included, must match what clients use (with `--https=443`, no port).
+
 This is the only supported way in, from phones and other computers alike. If the server is down
 or unreachable for a while (a restart, a workstation asleep or off the network), the PWA keeps
 new captures in its offline queue and sends them when it can reach scrap again
@@ -232,17 +271,21 @@ new captures in its offline queue and sends them when it can reach scrap again
 ### Fallback: an SSH tunnel
 
 From a machine that cannot join the tailnet, an SSH tunnel can carry a local port to the socket.
-This is a fallback, not a supported path: sshd on the server must allow forwarding to a Unix
-socket (`AllowStreamLocalForwarding`, on by default, and no `DisableForwarding` or `restrict` for
-the key; `AllowTcpForwarding` does not matter here), the tunnel sends no identity header (changes are recorded under the fallback author), and anything on the client
-machine can use the forwarded port while the tunnel is open.
+This is a fallback, not a supported path:
+
+- sshd on the server must allow forwarding to a Unix socket: `AllowStreamLocalForwarding`
+  (on by default), and no `DisableForwarding` or `restrict` for the key. `AllowTcpForwarding`
+  does not matter here.
+- The tunnel sends no identity header, so changes are recorded under the fallback author.
+- Anything on the client machine can use the forwarded port while the tunnel is open.
 
 ```
 ssh -N -L 8790:/run/user/<uid>/scrap/scrap.sock scrap@<host>
 ```
 
-Then open `http://127.0.0.1:8790` (a loopback address is a secure context, so the PWA works),
-or add the MCP server with
+Use any free local port instead of `8790` (the client machine may have a scrap of its own on it).
+Then open `http://127.0.0.1:8790` (a loopback address is a secure context,
+so the PWA works), or add the MCP server with
 `claude mcp add --transport http scrap http://127.0.0.1:8790/mcp` (`/mcp` accepts loopback
 hosts).
 
@@ -260,6 +303,14 @@ anything running unattended) no access unless you grant it. For example, with th
 ```
 
 Then a compromised server elsewhere on your tailnet cannot reach scrap.
+
+## Next steps
+
+- [](use-the-pwa.md): install the app on your phone and computers.
+- [](connect-claude-code.md): let Claude Code sessions search and write scrap (needs
+  `SCRAP_PUBLIC_URL`, above).
+- [](import-a-vault.md): bring in an existing vault with `scrap import`; its
+  {ref}`import-container` section has the `podman run` recipe for this install.
 
 (scrap-access)=
 ## Access and identity
@@ -294,9 +345,10 @@ podman build -t localhost/scrap:dev ~/scrap      # or: podman pull <image>
 ```
 
 `install.sh` restarts `scrap.service` when the image named in `SCRAP_IMAGE` is not the one the
-running container was started from, or when the unit itself changed; otherwise it leaves it
-running. A restart drops requests in flight (a capture being uploaded fails and the PWA retries
-it), and a photo Claude is describing at that moment counts one failed try and is retried later.
+running container was started from, or when the unit or the `scrap-run` launcher changed;
+otherwise (including when only a timer changed) it leaves it running. A restart drops requests in
+flight (a capture being uploaded fails and the PWA retries it), and a photo Claude is describing
+at that moment counts one failed try and is retried later.
 After editing only a settings file, restart by hand: `systemctl --user restart scrap`.
 
 If a drop-in under `~/.config/systemd/user/scrap.service.d/` replaces `ExecStart`, its command
@@ -306,6 +358,29 @@ delete it, then `systemctl --user daemon-reload` and `systemctl --user restart s
 
 `SCRAP_IMAGE` pinned to a release version changes only when you edit it.
 
+(scrap-upgrade-db)=
+### Database changes and rolling back
+
+A new image may carry database migrations. scrap runs the missing ones when it starts, before it
+serves anything: each in its own transaction, under an exclusive lock on `scrap.db.lock` in the
+data folder so two processes never migrate at once. A migration that fails is rolled back and
+scrap does not start (`journalctl --user -u scrap -e` says why).
+
+Migrations are **forward only**, and an older scrap refuses a database that a newer one has
+migrated: it stops with `<db> has schema N; this scrap knows M`. So starting the old image again
+is not a rollback. Take a restore point before you update, and keep the old image to go back to:
+
+```
+systemctl --user start scrap-backup                       # returns when the backup is done
+podman tag localhost/scrap:dev localhost/scrap:previous   # a rebuild of :dev replaces the image
+```
+
+To roll back, stop scrap, run `scrap restore --force` from the **old** image on the backup you took
+before the update (see {ref}`scrap-restore`; set `SCRAP_IMAGE` to the old image first), and start
+scrap on that image. Pages added since the backup are lost from the database; their files stay.
+Backups made after the update have the new schema, so the old image refuses to restore them.
+
+(scrap-backup-restore)=
 ## Backup and restore
 
 `scrap-backup.timer` runs `scrap-backup.service` daily (about 03:30, and at the next start if the
@@ -321,23 +396,164 @@ systemctl --user start scrap-backup
 ls ~/.local/share/scrap/backups
 ```
 
-The backup directory is a local copy only: copy it off the machine (restic, rsync, a cloud
-bucket) to survive losing the server.
+**Disk use.** Each run is a full, independent copy (the database and every file, not an
+increment), so `SCRAP_BACKUPS` needs about `SCRAP_BACKUP_KEEP` times the size of `SCRAP_DATA`, plus
+one more while a run is in progress. Check with `du -sh "$SCRAP_DATA" "$SCRAP_BACKUPS"` (after
+loading the settings, as in {ref}`scrap-restore` below), and if the backups are too big,
+lower `SCRAP_BACKUP_KEEP` or point `SCRAP_BACKUPS` at a bigger disk. `scrap gc` makes later runs
+smaller; it never shrinks earlier ones.
 
-To restore, stop the service, run `scrap restore` from the image against the data directory, and
-start again. See `scrap restore --help` for its arguments. The commands load the settings file
-first so they use your `SCRAP_DATA`, `SCRAP_BACKUPS` and `SCRAP_IMAGE`:
+**Pruning on demand.** The retention step runs only at the end of a successful backup, so a night
+that fails or is missed prunes nothing (a long outage cannot remove your last good backups).
+After lowering `SCRAP_BACKUP_KEEP`, or when disk is short, apply it now without a new backup:
+
+```
+set -a; . ~/.config/scrap/env; set +a
+~/.local/lib/scrap/scrap-backup prune
+```
+
+`prune` only deletes the run directories beyond the newest `SCRAP_BACKUP_KEEP`. It starts no
+container and takes no lock. With a `SCRAP_BACKUP_KEEP` that is not a whole number of at least 1
+it prints `SCRAP_BACKUP_KEEP must be a whole number >= 1` and exits 1, deleting nothing.
+
+The backup directory is a local copy only: copy it off the machine (restic, rsync, a cloud
+bucket) to survive losing the server. A backup holds the database (`scrap.db`) and the files
+(`files/`) and nothing else. It does not include `~/.config/scrap/env` or `ingest.env` (the API
+key, notify URL, `SCRAP_PUBLIC_URL`, `TZ`) nor the Tailscale Serve entry, so keep a copy of
+`ingest.env` somewhere safe too (it holds a secret). Deleted pages are in a backup too: deleting
+only moves a page to the trash (see {ref}`scrap-gc`).
+
+### Data folder layout
+
+`SCRAP_DATA` (mounted at `/data`) holds:
+
+- `scrap.db`: the database. It is in WAL mode, so while scrap runs, recent changes are in
+  `scrap.db-wal` (with `scrap.db-shm` beside it), not yet in `scrap.db`.
+- `scrap.db.lock`: the lock that serialises migrations (empty; leave it alone).
+- `files/<ab>/<sha256>`: every stored file (photos, uploads), named by the SHA-256 of its bytes.
+  `files/.up-*` are leftovers of uploads that were cut off by a crash.
+- `cache/previews/`: the 480 and 2048 pixel JPEG previews, made again on demand.
+
+```{warning}
+Do not copy `scrap.db`, or the whole folder, while scrap is running: a plain file copy can miss
+what is still in the `-wal` file, or catch the database and `files/` at different moments, and
+gives a backup that looks fine and is not. Use `scrap backup` (the timer, or below), which takes a
+consistent snapshot of the database with SQLite's online backup and then copies the files, and is
+safe while scrap serves. If you must copy files, stop scrap first and copy the whole folder.
+```
+
+A backup leaves out `cache/previews/` (a cache: it needs no backup) and anything whose name starts
+with a dot, so `.up-*` leftovers are not backed up. `scrap gc` deletes `.up-*` files once they are
+older than its grace period; with scrap stopped you may delete them by hand.
+
+### Extra backups by hand
+
+To take another backup now, use `systemctl --user start scrap-backup`: it takes the lock in
+`SCRAP_BACKUPS`, so it waits for a running gc, and gc waits for it. It counts as a run for
+`SCRAP_BACKUP_KEEP`.
+
+The lock is taken only by the `scrap-backup` and `scrap-gc` scripts. A `scrap backup` you run
+yourself against `SCRAP_BACKUPS` takes none, so never run it while `scrap-gc` is active. Name
+the directory anything but a run's `YYYYMMDDTHHMMSSZ` form, for example `pre-import`:
+
+```
+set -a; . ~/.config/scrap/env; set +a
+podman run --rm --userns=keep-id:uid=10001,gid=10001 --network=none \
+    -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
+    "$SCRAP_IMAGE" backup /backups/pre-import
+```
+
+A directory named like a run is pruned by the retention step, and counts as a recent backup for
+gc, which looks only at the name and modification time of such a directory, never at what is
+inside it, so even an unfinished backup would pass. (`ls` lists `pre-import` after the runs.)
+You can instead keep hand backups outside `SCRAP_BACKUPS`, in a folder you mount on its own.
+
+### Checking the timers
+
+Nothing notifies you when a timer's service fails: `SCRAP_NOTIFY_URL` is for ingest pauses only.
+All three services (`scrap-backup`, `scrap-gc`, `scrap-enrich-related`) are one-shot, so a failed
+night shows only in systemd, and you find out by looking:
+
+```
+systemctl --user list-timers                        # next and last run of each timer
+systemctl --user status scrap-backup scrap-gc       # the last result of each service
+systemctl --user --failed                           # any unit whose last run failed
+journalctl --user -u scrap-backup -u scrap-gc -u scrap-enrich-related
+```
+
+A failed service stays listed as failed until it next runs. The two scripts report on stderr,
+which the journal keeps:
+
+- `Backup failed; kept the existing backups untouched.` The backup run failed (the container
+  could not run, or `scrap backup` failed: the lines above it in the journal say why). Its
+  half-written directory was removed and nothing was pruned.
+- `No backup in the last 26 hours: counting only, deleting nothing.` `scrap-gc` found no run
+  directory in `SCRAP_BACKUPS` modified in the last 26 hours, so it did a dry run and then failed
+  on purpose. Usually last night's backup failed or did not run. Fix the cause, then
+  `systemctl --user start scrap-backup`, and when that succeeds `systemctl --user start scrap-gc`.
+
+### Changing the schedule
+
+`scrap-backup.timer` is set to 03:30 and `scrap-gc.timer` to 04:30 (each with up to 15 minutes of
+random delay, `RandomizedDelaySec`, so the run is spread over that quarter hour). Do not edit
+the copies in `~/.config/systemd/user/`: `install.sh` overwrites them on every run. Use a drop-in,
+which survives it:
+
+```
+systemctl --user edit scrap-backup.timer
+```
+
+In the editor that opens, clear the default `OnCalendar` with an empty line before the new one:
+
+```
+[Timer]
+OnCalendar=
+OnCalendar=*-*-* 02:00:00
+```
+
+Check with `systemctl --user list-timers`. The gc timer works the same way.
+
+The two are linked: `scrap-gc` deletes only if a run directory in `SCRAP_BACKUPS` is under 26
+hours old, and otherwise counts, then fails (and it always keeps files younger than 24 hours,
+`--grace-hours 24`). While a backup runs daily, the newest is never much more than a day old, so
+gc may run at any time of day. A backup less often than daily makes gc a dry run that fails on
+the days between, as does a run of failed backups. Either keep the backup at least daily, or turn
+gc off with `systemctl --user disable --now scrap-gc.timer` (unused files then build up, and you
+can run `scrap gc` by hand, as below).
+
+(scrap-restore)=
+### Restore
+
+To restore, stop the service, run `scrap restore` from the image on the backup you want, and
+start again. Each run is a directory named by its UTC start time, so the newest is the last in
+`ls "$SCRAP_BACKUPS"` (after loading the settings, below). The commands load the settings file
+first so they use your `SCRAP_DATA`, `SCRAP_BACKUPS` and `SCRAP_IMAGE`; the backups appear at
+`/backups` inside the container:
 
 ```
 systemctl --user stop scrap
 set -a; . ~/.config/scrap/env; set +a
+ls "$SCRAP_BACKUPS"
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
     -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
-    "$SCRAP_IMAGE" restore --help
+    "$SCRAP_IMAGE" restore /backups/<timestamp> --force
 systemctl --user start scrap
 ```
 
+`restore` refuses a data directory that already has a database or files ("is not empty; stop
+scrap and use `--force`"). Drop `--force` only for a data directory scrap has never run in. With
+`--force` the whole database is replaced by the backup's, so pages added since the backup are
+lost; files are only ever added, never removed. It checks the backup's integrity first, refuses
+one made by a newer scrap, and leaves the data as it was if the backup is refused.
+`scrap restore --help` lists the arguments.
+
 The same pattern runs any other `scrap` command (for example `scrap export`) against the data.
+
+**Rebuilding on a new server.** Create the `scrap` user and get the image as above, copy your
+backups and `ingest.env` over, and run `./deploy/install.sh`. That starts scrap, which creates an
+empty database, so stop it and restore with `--force` as shown (nothing is lost: the database
+is new). Start it, and publish it with `tailscale serve` again. Make sure the new Serve address
+is what `SCRAP_PUBLIC_URL` says.
 
 (scrap-gc)=
 ## Deleting unused files (scrap gc)
@@ -352,6 +568,12 @@ it would delete and their size (never any page text). It refuses to run, deletin
 cannot read every reference, and it is safe while scrap serves. Each run first puts back any
 file an earlier run left renamed aside (`files/ab/.gc-<sha>`) because it stopped mid-delete. Only
 each page's current text counts: old revisions of a page do not keep a file.
+
+**Deleting is not erasing.** A trashed page keeps its text, its revisions, its captures, what
+Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
+no disk space and removes none of its content from the data folder or from your backups. There is
+no purge or empty-trash command; a page comes back with `POST /api/pages/{id}/undelete` (see
+[](../reference/api.md)).
 
 `scrap-gc.timer` runs `scrap-gc.service` nightly (about 04:30, after the backup) with
 `--delete`, but only if a backup run in `SCRAP_BACKUPS` is less than 26 hours old; otherwise it
@@ -372,17 +594,50 @@ podman run --rm --userns=keep-id:uid=10001,gid=10001 \
 journalctl --user -u scrap-gc   # what the nightly runs deleted
 ```
 
+To run the nightly job now, with its recent-backup check and lock, use
+`systemctl --user start scrap-gc`. To delete by hand, add `--delete` after `gc` in the command
+above; that skips the recent-backup check, so make sure you have a recent backup first.
+
+### Reading the report
+
+A run prints one line, for example `scrap gc: would delete (dry run: --delete deletes) 3 unused
+files and 1 leftover uploads, 12.4 MB; 3 unused file records; kept 2 unused files younger than
+the grace period`. With `--delete` it says `deleted` instead. The parts:
+
+| Part | Meaning |
+| --- | --- |
+| `N unused files` | Files nothing uses, older than the grace period. The `MB` is the size of these and of the leftover uploads together. A deleted file takes its cached 480 and 2048 previews with it. |
+| `M leftover uploads` | `files/.up-*` temporaries from uploads cut off by a crash, also deleted once older than the grace period. |
+| `R unused file records` | Database rows for files nothing uses. The row is deleted with its file, or on its own if the file is already gone, so this can be more than the files. |
+| `kept Y unused files younger than the grace period` | Unused, but too new to delete: a later run takes them. |
+| `K used again meanwhile` | Only shown when above zero. Unused when gc looked, but referenced, or uploaded again, before it deleted them (it checks again inside the delete), so they were kept. |
+| `put back Z files an earlier run left aside` | Only shown when above zero. A run that stopped mid-delete left `.gc-<sha>` files; this run restored them before it began. |
+
+When gc cannot run it prints `scrap gc: <reason>` to stderr and exits non-zero, deleting nothing.
+A normal run, a dry run included, exits 0; only the nightly `scrap-gc` script fails on purpose when
+it has no recent backup.
+
+| Message | Cause and fix |
+| --- | --- |
+| `no database at <path>` | The data folder is wrong or empty. Check `SCRAP_DATA`, the `/data` mount and `SCRAP_DATA_DIR` (or `--data-dir`) in the command. |
+| `no files folder at <path>` | The folder has a database but no `files/`. The wrong folder again, or the files were not restored with the database. |
+| `the grace period must not be negative` | `--grace-hours` was below 0. |
+| `cannot read what is in use, so nothing was deleted: ...` | The database or files could not be read after the reason given: a damaged or unreadable database, or a permission problem. If the reason is `<db> has schema N; this scrap knows M`, the database is from a newer scrap: run gc with the newer image (see {ref}`scrap-upgrade-db`). |
+| `cannot delete: ...` | The database refused the delete (read-only, disk full). Nothing in the database changed; fix the cause and run again, which removes any file left over. |
+
 ## Uninstall
 
 As the `scrap` user:
 
 ```
-systemctl --user disable --now scrap.service scrap-backup.timer scrap-gc.timer
+systemctl --user disable --now scrap.service scrap-backup.timer scrap-gc.timer \
+    scrap-enrich-related.timer
 rm ~/.config/systemd/user/scrap.service ~/.config/systemd/user/scrap-backup.* \
-    ~/.config/systemd/user/scrap-gc.*
+    ~/.config/systemd/user/scrap-gc.* ~/.config/systemd/user/scrap-enrich-related.*
 rm -r ~/.local/lib/scrap
 systemctl --user daemon-reload
-podman rmi localhost/scrap:dev
+set -a; . ~/.config/scrap/env; set +a
+podman rmi "$SCRAP_IMAGE"
 ```
 
 As an admin, remove the Serve entry (`sudo tailscale serve --https=8446 off`). The data,
@@ -392,15 +647,25 @@ backups and the settings in `~/.config/scrap/` stay until you delete them;
 (scrap-docker)=
 ## Using Docker instead
 
-With Docker, edit the installed copies. In `scrap.service`: replace `/usr/bin/podman` with
+`install.sh` exits at "podman is not installed" without podman on `PATH`, and it calls
+`podman` for its image and timer checks, so on a Docker-only host you do its work yourself:
+create `~/.config/scrap/env` and `ingest.env` (the templates are in the script), copy the
+units from `deploy/` to `~/.config/systemd/user/` and the scripts to `~/.local/lib/scrap/`,
+then edit the copies as below, `systemctl --user daemon-reload`, and enable `scrap.service` and
+the timers you want (`scrap-backup.timer`, `scrap-gc.timer`, `scrap-enrich-related.timer`)
+with `systemctl --user enable --now`.
+
+In `scrap.service`: replace `/usr/bin/podman` with
 `/usr/bin/docker`, change `Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`,
 and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace `podman` with
 `docker` and drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`. In
 `scrap-backup` and `scrap-gc`: replace `podman` with `docker` and drop `--replace`. In all three
 scripts, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of the user
-that owns `SCRAP_DATA`, `SCRAP_BACKUPS` and the socket's folder (`id -u`, `id -g`). Re-running `install.sh`
-overwrites these edits. Membership of the `docker` group is equivalent to root, so on a shared
-machine prefer rootless podman.
+that owns `SCRAP_DATA`, `SCRAP_BACKUPS` and the socket's folder (`id -u`, `id -g`). In
+`scrap-enrich-related.service`, replace `/usr/bin/podman` with `/usr/bin/docker` in `ExecStart`.
+Copying the files again (an update) overwrites these edits. The commands elsewhere in this guide
+that start `podman run` need `docker run` and `--user` likewise. Membership of the `docker` group
+is equivalent to root, so on a shared machine prefer rootless podman.
 
 (scrap-troubleshooting)=
 ## Troubleshooting
@@ -424,10 +689,28 @@ Images built from this repo's Dockerfile carry them; rebuild with a current chec
 the port: `ss -ltnp | grep :8790`. Pick a free port in `SCRAP_PORT`, restart, and point
 `tailscale serve` at the new port.
 
-**The service fails with "is in use", "may be in use" or "is not a socket".** Something else is
-at `$XDG_RUNTIME_DIR/scrap/scrap.sock`: another scrap, a busy listener, or a file scrap will not
-remove. Stop or move it and restart. A socket nothing listens on (left by a scrap that stopped) is
-replaced on its own.
+**The service fails with "is in use", "may be in use", "exists and is not a socket" or "is being
+set up by another process".** Something else is at `$XDG_RUNTIME_DIR/scrap/scrap.sock`: another
+scrap, a busy listener, or a file scrap will not remove. Stop or move it and restart. A socket
+nothing listens on (left by a scrap that stopped) is replaced on its own.
+
+**The service fails with "is open to other users", "belongs to another user" or "is longer than
+107 bytes".** These come from the socket setup (`scrap serve --uds`). Its folder must belong to
+the scrap user and be mode 700, which the unit's runtime folder is; the path (including
+`$XDG_RUNTIME_DIR`) must be at most 107 bytes.
+
+**The service stops restarting: "start request repeated too quickly".** After 5 failed starts
+in 5 minutes (a missing image, a missing `ingest.env`, a bad setting) systemd stops trying. Fix
+the cause (`journalctl --user -u scrap -e`), then
+`systemctl --user reset-failed scrap && systemctl --user start scrap`.
+
+**scrap will not start and `ingest.env` is missing or a dangling symlink.** The launcher passes
+`~/.config/scrap/ingest.env` to podman unconditionally. `install.sh` only warns about a
+dangling symlink; restore the file (an empty one will do) and start scrap.
+
+**`smoke.sh` fails with a 503, `"ingest worker stopped"`.** `/healthz` reports 503 when the
+ingest worker has stopped, and `smoke.sh` fails on any error status. Look in
+`journalctl --user -u scrap` for why, then `systemctl --user restart scrap`.
 
 **Tailscale Serve answers 502 with `SCRAP_LISTEN=socket`.** scrap is not running (the socket's
 folder is removed when it stops), or the Serve target names another path or user id: compare
@@ -438,8 +721,21 @@ the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do 
 SELinux systems (Fedora, RHEL) also add `:Z` to the `--volume` options.
 
 **The access log shows every client as the server's own address** (`SCRAP_LISTEN=tcp`).
-Rootless podman's network (pasta) forwards connections so that local clients, including Tailscale
-Serve, appear to come from one of the host's own addresses, which may be its public one. These
+Rootless podman's network (pasta, the default from podman 5.0) forwards connections so that
+local clients, including Tailscale Serve, appear to come from one of the host's own addresses, which may be its public one. These
 lines are not outside traffic. On the socket the log shows no client address at all.
+
+**The service will not start and the log says `<db> has schema N; this scrap knows M`.** The image
+is older than the database: a newer scrap has already migrated it, and migrations only go
+forward. Run the newer image again, or roll back with the old image and `scrap restore --force`
+from a backup taken before the update (see {ref}`scrap-upgrade-db`).
+
+**`scrap-gc` fails with "No backup in the last 26 hours".** There is no run directory in
+`SCRAP_BACKUPS` modified in the last 26 hours, so gc only counted. Find out why the backup did not
+run (`journalctl --user -u scrap-backup`), then `systemctl --user start scrap-backup` and, once
+that succeeds, `systemctl --user start scrap-gc`. See {ref}`scrap-backup-restore`.
+
+**`scrap gc` prints `scrap gc: ...` and exits non-zero.** See the table of messages under
+{ref}`scrap-gc`.
 
 **Anything else.** `journalctl --user -u scrap -e` and `podman logs scrap`.

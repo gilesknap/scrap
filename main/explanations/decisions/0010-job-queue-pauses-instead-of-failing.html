@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>10. Queue error classes: outages pause, charged failures count, spend is capped &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>10. Queue error classes: outages pause, charged failures count, spend is capped &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -442,12 +442,13 @@
 <li class="toctree-l2"><a class="reference internal" href="0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../design.html">scrap design</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest (M2)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
 </ul>
 </div>
 </nav></div>
@@ -516,7 +517,8 @@
 <p>Date: 2026-10-19 (design), built 2026-10-20</p>
 <section id="status">
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
-<p>Accepted. Supersedes the first design’s “retry five times with doubling delays”.</p>
+<p>Accepted. Supersedes the first design’s “retry five times with doubling delays”. See also
+<a class="reference internal" href="0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>: text enrichment uses the same queue pause and the same daily budget.</p>
 </section>
 <section id="context">
 <h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
@@ -547,6 +549,9 @@ text naming only the reason, never titles, OCR or API errors. Error text is reda
 <h2>Consequences<a class="headerlink" href="#consequences" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p>Operators must set a notify URL or a pause can go unnoticed.</p></li>
+<li><p>The daily budget is one budget for everything that calls the API: <code class="docutils literal notranslate"><span class="pre">spent_today</span></code> sums the cost of
+photo runs (<code class="docutils literal notranslate"><span class="pre">model_run</span></code>) and text runs (<code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>), so text enrichment can use up what photos
+would have had.</p></li>
 <li><p>Classification relies on error shapes from provider docs; the credit wording was not provoked
 in testing.</p></li>
 </ul>

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>4. Originals are kept; everything else is derived, versioned or disposable &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>4. Originals are kept; everything else is derived, versioned or disposable &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -442,12 +442,13 @@
 <li class="toctree-l2"><a class="reference internal" href="0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../design.html">scrap design</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest (M2)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
 </ul>
 </div>
 </nav></div>
@@ -516,7 +517,8 @@
 <p>Date: 2026-10-19 (derived versions: 2026-10-19/20, migration 0002)</p>
 <section id="status">
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
-<p>Accepted</p>
+<p>Accepted. Partly superseded by <a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>: changes to a
+page’s kind and tags are now revisioned too (see the decision below).</p>
 </section>
 <section id="context">
 <h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
@@ -528,7 +530,10 @@ own words must never be lost to a model’s idea of tidiness.</p>
 <p>Data falls into three tiers:</p>
 <ol class="arabic simple">
 <li><p><strong>Source of truth:</strong> <code class="docutils literal notranslate"><span class="pre">capture</span></code> (what arrived), <code class="docutils literal notranslate"><span class="pre">blob</span></code> (its bytes) and <code class="docutils literal notranslate"><span class="pre">page</span></code> (what you read and
-edit). A page keeps a revision per title or body change (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>; tags are not revisioned).</p></li>
+edit). A page keeps a revision per title or body change (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>). Originally tags were not
+revisioned; since migration 8 a change to its kind or tags is a row of <code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code>, and
+changes by the same author and source within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds (default 300) fold
+into one.</p></li>
 <li><p><strong>Derived, stored because remaking costs an LLM call:</strong> OCR, descriptions, drawings, summaries.
 The first design overwrote one row per kind on regeneration; migration 0002, which created
 <code class="docutils literal notranslate"><span class="pre">derived</span></code>, made them <strong>append-only versions</strong> instead (one current row per capture/photo/kind via a partial unique index and a trigger that
@@ -540,7 +545,9 @@ table and <code class="docutils literal notranslate"><span class="pre">scrap</sp
 </ol>
 <p><strong>The user wins.</strong> Model output may set a title, tags or a kind only while the user has not chosen
 one (<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>, an unchanged rev 1 title, an empty tag list). A model can change only its own
-page’s versions.</p>
+page’s versions. (Tags have since become a merge: photo ingest and text enrichment add their tags
+to the user’s, marked in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, and never add back one the user took off; see
+<a class="reference internal" href="0009-claude-ingest-via-messages-api.html"><span class="std std-doc">9. Claude ingest: Messages API, no tools, one structured call per photo</span></a> and <a class="reference internal" href="0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>.)</p>
 <p>Deleting a page is a <strong>soft delete</strong> (<code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>, undelete); nothing is purged yet, so every query
 that follows jobs or links must check it.</p>
 </section>

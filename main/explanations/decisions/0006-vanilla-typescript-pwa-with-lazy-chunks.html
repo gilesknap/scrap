@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>6. A vanilla TypeScript PWA with a size budget and lazy chunks &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
+    <title>6. A vanilla TypeScript PWA with a size budget and lazy chunks &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=0d8ef2ee"></script>
+    <script src="../../_static/documentation_options.js?v=5cdb7589"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -442,12 +442,13 @@
 <li class="toctree-l2"><a class="reference internal" href="0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../design.html">scrap design</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest (M2)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
 </ul>
 </div>
 </nav></div>
@@ -529,9 +530,11 @@ stay tiny: no UI framework, icon library or web font.</p>
 <ul class="simple">
 <li><p>Vanilla TypeScript built by Vite into the Python package (<code class="docutils literal notranslate"><span class="pre">scrap/static</span></code>). React exists only
 inside the lazily loaded Excalidraw chunk.</p></li>
-<li><p>The app shell has a gzipped JavaScript <strong>budget</strong> (15 kB), enforced by <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">size</span></code> in CI. The
-service worker precaches the shell only; the composer, editor and Markdown renderer are lazy chunks it keeps for
-offline use, while Excalidraw (~435 kB gzipped), its fonts and Mermaid load only when used.</p></li>
+<li><p>The app shell has a gzipped JavaScript <strong>budget</strong> (16 kB, raised from the original 15 kB), enforced
+by <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">size</span></code> in CI. The service worker precaches the shell only; the lazy chunks it also
+keeps for offline use are those in <code class="docutils literal notranslate"><span class="pre">OFFLINE</span></code> in <code class="docutils literal notranslate"><span class="pre">web/vite.config.ts</span></code> (the composer, editor,
+page editor, Markdown renderer, sharing, search filters and recent searches), while Excalidraw
+(~405 kB gzipped), its fonts and Mermaid load only when used.</p></li>
 <li><p>The server gzips scripts, styles, pages and JSON, so the gzipped sizes are what crosses the wire.</p></li>
 <li><p>One design system, all tokens in <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code>: paper and ink with a single amber accent, designed
 dark mode, controls under the thumb, every gesture also a button, icons always with words.

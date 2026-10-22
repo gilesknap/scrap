@@ -33,5 +33,9 @@ dependencies today.)
 
 - Fast, explainable, no model download. No semantic recall: "that thing about gardens" will not find
   a page that never says garden.
+- The first design planned sqlite-vec, fastembed and reciprocal rank fusion; this ADR replaced
+  that plan, and [the design page](../design.md) now describes scrap as built (FTS5 only). Related
+  pages ([](0020-text-enrichment.md)) are found by shared tags and full-text search, not
+  embeddings.
 - The `chunk_vec` design is still available. If embeddings return, the plan is: one model at a time,
   embed first without a lock, then swap `chunk_vec` in one short write transaction.

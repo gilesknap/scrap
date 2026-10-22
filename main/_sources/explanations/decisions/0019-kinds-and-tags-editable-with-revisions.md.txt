@@ -63,11 +63,17 @@ to get wrong, so letting Claude change them needs a way to see and undo every ch
 
 ## Deploying over a database already at version 8
 
-A local build of other work (text enrichment) also numbers its migration 8, and a canary
+A local build of other work (text enrichment) also numbered its migration 8, and a canary
 database already at `user_version` 8 from it would skip this one: then `page_meta_rev` is
 missing and every tag or kind edit, PWA's too, fails. Both migrations are additive and
 idempotent (`IF NOT EXISTS`), so before the first deploy of any build containing both, set
 `PRAGMA user_version = 7` on that database, and renumber whichever lands second to 9.
+
+As merged, this change is migration 8 (`add_meta_revs`) and text enrichment
+([](0020-text-enrichment.md)) is migration 9 (`add_enrich`). A database at version 8 made by the
+merged code is simply migrated to 9 on its first start. The workaround above applies only to a
+database numbered 8 by the earlier local build: with `user_version` set back to 7, the next start
+runs migrations 8 and 9 in order, and each leaves tables that already exist alone.
 
 A database that already has a `page_meta_rev` table from an earlier revision of this change
 (only throwaway test databases: the canary has none) must have it dropped first (`DROP TABLE
