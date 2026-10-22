@@ -65,8 +65,8 @@ def test_tools_are_listed(store):
 
     tools = anyio.run(main)
     assert sorted(tools) == [
-        "edit_meta", "read", "recent", "rename_tag", "revert", "revisions", "search",
-        "tags", "todos", "write",
+        "edit_meta", "edit_page", "read", "recent", "rename_tag", "revert",
+        "revert_text", "revisions", "search", "tags", "todos", "write",
     ]  # fmt: skip
 
 
@@ -383,7 +383,7 @@ def test_mcp_over_http(tmp_path, monkeypatch):
         assert r.status_code == 200, r.text
         assert r.json()["result"]["serverInfo"]["name"] == "scrap"
         tools = rpc(client, "tools/list", headers=good).json()["result"]["tools"]
-        assert len(tools) == 10
+        assert len(tools) == 12
         args = {"title": "Over HTTP", "body": "via /mcp", "origin": "test"}
         r = rpc(client, "tools/call", {"name": "write", "arguments": args}, good)
         written = r.json()["result"]["structuredContent"]

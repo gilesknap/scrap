@@ -290,8 +290,9 @@ def test_revisions_list_text_revisions_and_return_one(store):
 
 
 def test_no_mcp_tool_can_delete_or_overwrite_text(store):
-    """Every tool, and every argument it takes: none deletes a page or writes the text
-    of one the user made (write's body only adds, and appends only to Claude's)."""
+    """Every tool, and every argument it takes: none deletes a page, and none but write
+    (adds, and appends only to Claude's) and edit_page (a revision: see
+    test_content_edit) writes the text of one the user made."""
 
     async def main():
         async with Client(mcp_server.server(store)) as client:
@@ -300,7 +301,7 @@ def test_no_mcp_tool_can_delete_or_overwrite_text(store):
     tools = {t.name: set(t.input_schema["properties"]) for t in anyio.run(main)}
     assert not [n for n in tools if any(w in n for w in ("delete", "trash", "purge"))]
     for name, args in tools.items():
-        if name != "write":
+        if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "fields", "status"}, name
     ref = human(store, "my own words", tags=["t"])
     ok(store, "edit_meta", pages=[ref["slug"]], kind="todo", set_tags=["u"])

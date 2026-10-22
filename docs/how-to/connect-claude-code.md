@@ -118,10 +118,13 @@ appends to an earlier page only if that page was written by Claude (`written_by_
 `read`); otherwise it links to your page.
 
 Pages written this way carry a *Written by Claude* badge and the origin the session gave;
-`is:claude` lists them. Claude can append to its own pages but never change the text of
-yours, nor delete any page. It can change any page's kind and tags ("make these 15 notes
-whiteboards", with `edit_meta`); each such change is a revision you can ask it to list
-(`revisions`) and undo (`revert`). Revert covers kinds and tags only, never text. A bulk change
+`is:claude` lists them. Claude never deletes a page. It can change any page's kind and tags
+("make these 15 notes whiteboards", with `edit_meta`); each such change is a revision you can
+ask it to list (`revisions`) and undo (`revert`). It can also edit the text of a page you name
+("fix the typo in my trip notes", with `edit_page`): it replaces one passage it quotes exactly,
+shows you a diff first if you ask, and refuses if the page changed since it read it. Each text
+edit is a revision too, which `revert_text` undoes, and `is:claude-edited` finds the pages whose
+text it changed. A bulk change
 given as a search is refused if it finds more than 50 pages unless `limit` is raised (up to
 200; naming the pages takes up to 200 as well), and Claude is told to try `dry_run` first. See "Kinds and tags" in [](../reference/mcp.md).
 
@@ -130,6 +133,11 @@ given as a search is refused if it finds more than 50 pages unless `limit` is ra
 Claude Code asks before using an MCP tool unless you allow it, and the skill allows none. You
 might allow the read tools (`mcp__scrap__search`, `read`, `recent`, `todos`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
+
+To keep Claude off the text of your pages, set `SCRAP_MCP_CONTENT_EDIT=0` on the server
+(`edit_page` and `revert_text` are then not offered at all), or deny the two tools in one
+client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page",
+"mcp__scrap__revert_text"]}`.
 
 scrap has no login: any device on the tailnet that can reach the port can use `/mcp`, so
 restrict that with the tailnet ACL (see [](deploy-single-server.md)).
