@@ -927,21 +927,22 @@ mark {
   align-self: flex-start;
   margin: 0 0 0 var(--s-3);
 }
-/* Above the list: how many were found, then each filter on (tap to take it out); wraps */
+/* Above the list, no filters on: how many were found, in a tight line that takes some of the
+   kinds' margin (with filters on, the count leads their row: .fon) */
 .found {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-  margin-bottom: var(--s-3);
+  margin: calc(-1 * var(--s-1)) 0 var(--s-1);
+  font-size: var(--t-sm);
+  line-height: 1.25; /* the line costs under 20 px */
 }
-.found .count,
+:is(.found, .fon) .count,
 .sheet .count {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.found .facet {
-  max-width: 100%;
+.fon .count {
+  flex: none;
+  align-self: center;
+  white-space: nowrap;
 }
 .facet {
   flex: none;

@@ -3,10 +3,11 @@
 // a sheet, so each tap shows its effect at once and a few taps in a row cost nothing. Inside:
 // Tags (those on, each with a ✕, then a box that offers the tags in use as you type, or the
 // results' top tags with their counts), Order and When, each a row of chips.
-// Above the list, how many pages were found and each filter that is on, as a chip (tap to take
-// it out), so nothing chosen is hidden. All of it only edits the query's text (tag:tech,
-// is:personal), so it can be typed too, and Back, a reload or a link keep it. In the app
-// chunk of its own (search.ts loads it with the screen; the service worker keeps it offline).
+// Under the box, each filter that is on, as a chip (tap to take it out), so nothing chosen is
+// hidden, led by how many pages were found (no filters on: the count alone, over the list).
+// All of it only edits the query's text (tag:tech, is:personal), so it can be typed too, and
+// Back, a reload or a link keep it. In the app chunk of its own (search.ts loads it with the
+// screen; the service worker keeps it offline).
 import { api } from "./api";
 import { icon } from "./icons";
 import { adding, day, has, KIND_ROW, kindsIn, removing, token, unsorted } from "./terms";
@@ -117,8 +118,10 @@ export async function refine(
     panel.hidden = !open;
     button.setAttribute("aria-expanded", String(open));
   };
-  // The filters on, as chips on a row of their own that scrolls sideways (none: no row): each
-  // says what it is ("#home", "past month") and a tap takes it off
+  // The filters on, as chips on a row of their own that scrolls sideways, the count at its
+  // start, so the two cost one line (none: no row, and the count is over the list): each says
+  // what it is ("#home", "past month") and a tap takes it off
+  const count = q && h("span", { className: "count" }, pages(f.total));
   const chips = on.map((a) => {
     const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
@@ -129,7 +132,7 @@ export async function refine(
     "div",
     { className: "refine" },
     chips.length > 0 &&
-      h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, ...chips),
+      h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, count, ...chips),
     panel,
   );
   // Each row scrolled so what is chosen in it shows (an order off to the right, say)
@@ -148,12 +151,7 @@ export async function refine(
       el?.focus({ preventScroll: true });
       if (el instanceof HTMLInputElement) el.setSelectionRange(el.value.length, el.value.length);
     });
-  return h(
-    "div",
-    {},
-    bar,
-    q && h("p", { className: "found" }, h("span", { className: "count" }, pages(f.total))),
-  );
+  return h("div", {}, bar, chips.length === 0 && count && h("p", { className: "found" }, count));
 }
 
 /** The panel's rows: Tags, Order, When. */
