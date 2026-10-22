@@ -58,17 +58,22 @@ const ios = (navigator as { standalone?: boolean }).standalone === true;
 // Back to the app's entry before this one (go() marks the entries it pushes), else (opened
 // from a link or a share) up to a parent: a todo's is Todos, Tags' is Search, any other
 // page's is Capture
-up.onclick = () =>
-  history.state?.at
-    ? history.back()
-    : go(
-        location.pathname === "/tags"
-          ? "/search"
-          : view.querySelector(".page[data-kind=todo]")
-            ? "/todos"
-            : "/",
-        true,
-      );
+up.onclick = async () => {
+  if (history.state?.at) return history.back();
+  const from = location.pathname;
+  const to = from === "/tags" ? "/search" : (await kindShown()) === "todo" ? "/todos" : "/";
+  if (location.pathname === from) go(to, true); // unless gone elsewhere meanwhile
+};
+/** The kind of the page on screen: as drawn, else (still loading) asked for; "" unknown. */
+async function kindShown() {
+  const drawn = view.querySelector<HTMLElement>(".page[data-kind]")?.dataset.kind;
+  if (drawn) return drawn;
+  const key = decodeURIComponent(location.pathname.slice("/p/".length));
+  return api<{ kind: string }>(`pages/${encodeURIComponent(key)}`).then(
+    (p) => p.kind,
+    () => "",
+  );
+}
 let rendering = 0;
 let shown = ""; // the path on screen
 let controller = new AbortController();
