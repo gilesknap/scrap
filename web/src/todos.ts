@@ -12,6 +12,9 @@ import { today } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { empty, h, problem } from "./ui";
 
+// The snoozed todos, as the search screen has them (the count of them links there)
+const SNOOZED = "kind:todo is:snoozed -is:done -is:cancelled sort:due";
+
 // Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
 // All search's All
 const MODES = [
@@ -116,11 +119,27 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     });
     const n = shown.length;
     const asleep = list.filter((t) => isOpen(t) && !toDo(t, day)).length;
-    count.textContent = [
-      `${n} open ${n === 1 ? "todo" : "todos"}${asleep ? ` · ${asleep} snoozed (in All)` : ""}`,
-      `${n} due in the next 7 days`,
-      `${n} ${n === 1 ? "todo" : "todos"}`,
-    ][MODES.findIndex(([k]) => k === m)];
+    count.replaceChildren(
+      [
+        `${n} open ${n === 1 ? "todo" : "todos"}`,
+        `${n} due in the next 7 days`,
+        `${n} ${n === 1 ? "todo" : "todos"}`,
+      ][MODES.findIndex(([k]) => k === m)],
+    );
+    // Now's snoozed ones, a link to a search of them: the server's is:snoozed counts done ones
+    // too (#131), so not those, as here; soonest due first (there is no sort by waking day)
+    if (m === "now" && asleep)
+      count.append(
+        " · ",
+        h(
+          "a",
+          {
+            href: `/search?q=${encodeURIComponent(SNOOZED)}`,
+            "aria-label": `${asleep} snoozed: show them`,
+          },
+          `${asleep} snoozed`,
+        ),
+      );
     const none = [
       "Nothing to do: every todo is done.",
       "Nothing due in the next 7 days.",
