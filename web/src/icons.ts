@@ -29,6 +29,8 @@ const PATHS = {
   offline:
     '<path d="M7 18.5h10a4 4 0 0 0 .6-8A6 6 0 0 0 6.3 9.6 4.5 4.5 0 0 0 7 18.5zM4 4l16 16"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  // Opens elsewhere (a Later page's link card): an arrow out of a box
+  open: '<path d="M13.5 4.5h6v6M19.5 4.5 11 13M17.5 14v5.5h-13v-13H10"/>',
   file: '<path d="M6 3.5h9l4 4v13H6z"/><path d="M15 3.5v4h4"/>',
   filter:
     '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',

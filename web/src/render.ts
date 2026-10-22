@@ -5,9 +5,10 @@
 // server's own files, each marked with its file's data-sha for the page to make a figure of.
 // A ```mermaid block is drawn as a diagram, by Mermaid, a chunk of its own loaded only then.
 // The server parses text the same way for search (src/scrap/markdown.py). The stored text is
-// never changed.
+// never changed. On a Later page, a link on its own line is drawn as a card (cards()).
 import markdownit, { type StateCore, type StateInline, type Token } from "markdown-it";
 import footnote from "markdown-it-footnote";
+import { icon } from "./icons";
 
 const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const EXTERNAL = /^(https?:\/\/|mailto:)/i;
@@ -177,4 +178,53 @@ export async function diagrams(el: HTMLElement) {
   if (!blocks.length) return;
   const mod = await import("./mermaid").catch(() => null);
   await mod?.draw(blocks);
+}
+
+/** A link's path as a line to read: its words, not its escapes ("wiki / Integrated
+ * information theory"), no trailing slash nor .html. */
+function tidyPath(url: URL): string {
+  const parts = decoded(url.pathname).replace(/\/+$/, "").split("/").filter(Boolean);
+  const last = parts.pop()?.replace(/\.(html?|php|aspx?)$/i, "");
+  // Its last part's words, when it is words joined by _ or - (not an id like 3f2a9c1e-4b7d)
+  const words = last?.split(/[_-]+/);
+  if (last && words && words.length > 1 && words.every((w) => /^(\p{L}+|\p{N}+)$/u.test(w)))
+    parts.push(words.join(" "));
+  else if (last) parts.push(last);
+  return parts.join(" / ");
+}
+
+/** On a Later page: each paragraph that is only a link to the web, as a card that opens it,
+ * its site over its path (or the link's own text, if it was given one) and an Open button.
+ * The whole card is the link, so it is one tab stop; Open only says what tapping it does. */
+export function cards(el: HTMLElement) {
+  for (const p of el.querySelectorAll<HTMLParagraphElement>(":scope > p")) {
+    const a = p.firstElementChild;
+    const href = a?.getAttribute("href") ?? ""; // as written: a.href would make /p/x a URL
+    const said = a?.textContent?.trim() ?? "";
+    if (!(a instanceof HTMLAnchorElement) || p.children.length > 1 || a.children.length) continue;
+    if (!/^https?:\/\//i.test(href) || p.textContent?.trim() !== said) continue;
+    // Its own text, unless that is only the link again (a bare URL, <https://...>)
+    const bare = [href, decoded(href)].some(
+      (u) => u.replace(/\/$/, "") === said.replace(/\/$/, ""),
+    );
+    let url: URL;
+    try {
+      url = new URL(href);
+    } catch {
+      continue;
+    }
+    const text = (cls: string, s: string) =>
+      Object.assign(document.createElement("span"), { className: cls, textContent: s });
+    const open = text("button", "Open");
+    open.prepend(icon("open"));
+    const words = document.createElement("span");
+    words.className = "words";
+    words.append(text("site", url.hostname.replace(/^www\./, "")));
+    const line = bare ? tidyPath(url) : said;
+    if (line) words.append(text("path", line));
+    a.className = "file linkcard";
+    a.title = href;
+    a.replaceChildren(words, open);
+    p.replaceWith(a);
+  }
 }
