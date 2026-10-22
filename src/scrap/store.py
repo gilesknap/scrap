@@ -1023,10 +1023,11 @@ class Store:
         picks = _rows(
             conn,
             "SELECT p.id, p.slug, p.title, p.kind FROM ("
-            " SELECT other_id AS id, rank FROM related WHERE page_id = :id"
-            " UNION ALL SELECT page_id, rank + 100 FROM related WHERE other_id = :id"
+            " SELECT other_id AS id, rank FROM related WHERE page_id = ?"
+            " UNION ALL SELECT page_id, rank + 100 FROM related WHERE other_id = ?"
             ") r JOIN page p ON p.id = r.id WHERE p.deleted_at IS NULL"
             " GROUP BY p.id ORDER BY min(r.rank) LIMIT 8",
+            page_id,
             page_id,
         )
         related = {r["id"]: {**r, "via": "claude"} for r in picks}
