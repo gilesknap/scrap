@@ -5,6 +5,7 @@ import { go, view } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
+import { KINDS } from "./kinds";
 import { renderer, unembedded } from "./md";
 import { closed, dueOf, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
@@ -17,6 +18,12 @@ const POLL = 10_000; // while Claude has a photo of this page
 type Figures = typeof import("./figure");
 const hasFiles = (p: Page) =>
   p.captures.some((c) => c.blobs.length) || p.body.includes("](/api/blobs/");
+/** A page's kind and status, as its meta line's chip says them: "Todo · done", "Note". */
+const kindChip = (p: Page) => {
+  const label = KINDS.find(([k]) => k === p.kind)?.[1];
+  const s = statusOf(p.kind, p.fields)?.replace("_", " ");
+  return label && h("em", { className: "state" }, s ? `${label} · ${s}` : label);
+};
 /** Without that chunk (offline): its files as links, the text's images as they are. */
 const links = (p: Page) =>
   p.captures.flatMap((c) =>
@@ -161,9 +168,8 @@ export async function page(key: string): Promise<Node> {
       h(
         "p",
         { className: "meta" },
-        // A todo or a Later that is done (or cancelled) says so first, as its row's chip does
-        ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`) &&
-          h("em", { className: "state" }, `${statusOf(p.kind, p.fields)}`),
+        // What it is, first (its row has only the icon): its kind, and its status if it has one
+        kindChip(p),
         `Created ${whenShort(p.created_at)}`,
         p.updated_at !== p.created_at && ` · edited ${whenShort(p.updated_at)}`,
         // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all

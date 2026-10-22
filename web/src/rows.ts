@@ -109,8 +109,10 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
     const some = status !== "cancelled" && partly(p);
     b.setAttribute("aria-pressed", status === "done" ? "true" : some ? "mixed" : "false");
     b.title = some ? `${some} ticked` : "";
-    const chip = li.querySelector("em");
-    if (chip) chip.textContent = chipOf(p.kind, { status });
+    // Its chip comes with done or cancelled and goes when open again (an open row has none)
+    const ends = chipOf(p.kind, { status });
+    li.querySelector(".sub em")?.remove();
+    if (ends) li.querySelector(".sub > small")?.after(h("em", { className: ends }, ends));
     // A todo's due date: greyed, and overdue no longer, once done
     const due = li.querySelector(".due");
     const said = dueOf({ ...p, fields: { status } });

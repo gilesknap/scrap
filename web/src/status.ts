@@ -1,6 +1,5 @@
 // The status todos and Reads carry (open, in_progress, done or cancelled) and what ticks them
-// off: on a page (page.ts) and its list row (rows.ts). No DOM here (the unit tests run it); not
-// in kinds.ts, which the app shell would then carry whole.
+// off: on a page (page.ts) and its list row (rows.ts). No DOM here (the unit tests run it).
 
 type Fields = Record<string, unknown> | undefined;
 
@@ -15,11 +14,10 @@ export const ticks = (status: string | null): [string, string][] => [
   ...(status === "done" || status === "cancelled" ? [["Reopen", "open"] as [string, string]] : []),
 ];
 
-const CHIP: Record<string, string> = { todo: "todo", consume: "later" };
-/** A list row's chip: a status that ends it (done, cancelled), else its kind (todo, read). */
+/** A list row's chip: only a status that ends it (done, cancelled); its icon says its kind. */
 export const chipOf = (kind: string, fields: Fields): string => {
   const s = statusOf(kind, fields);
-  return s === "done" || s === "cancelled" ? s : (CHIP[kind] ?? "");
+  return s === "done" || s === "cancelled" ? s : "";
 };
 
 // ---- a todo's due date and priority (#104): columns of its page, a todo's only
