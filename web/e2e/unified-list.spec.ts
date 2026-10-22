@@ -177,15 +177,16 @@ test("the kind row: an icon over each word, all six in one row from 320 px", asy
     ls.map((l) => l.querySelector("svg")?.innerHTML ?? ""),
   );
   expect(new Set(glyphs).size).toBe(6);
-  // The icon over its word, and one row
-  const tops = new Set<number>();
-  for (const label of await labels.all()) {
-    const [icon, box] = [await label.locator("svg").boundingBox(), await label.boundingBox()];
-    expect((icon?.y ?? 0) + (icon?.height ?? 0)).toBeLessThan((box?.y ?? 0) + (box?.height ?? 0));
-    expect(await label.evaluate((l) => l.scrollWidth <= l.clientWidth + 1)).toBe(true); // whole
-    tops.add(Math.round(box?.y ?? 0));
-  }
-  expect(tops.size).toBe(1);
+  // The icon over its word (one row of them is checked in view.spec.ts)
+  const over = await labels.evaluateAll((ls) =>
+    ls.map((l) => {
+      const icon = (l.querySelector("svg") as SVGElement).getBoundingClientRect();
+      const word = document.createRange();
+      word.selectNodeContents(l.lastChild as Node);
+      return icon.bottom <= word.getBoundingClientRect().top + 1;
+    }),
+  );
+  expect(over).toEqual([true, true, true, true, true, true]);
   // Shown with a query and filters too, under the filters on
   await page.goto("/search?q=x%20after%3A1w");
   await expect(row).toBeVisible();
