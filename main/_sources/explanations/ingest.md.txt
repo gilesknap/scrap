@@ -16,9 +16,10 @@ commands included.
 **Settled:** the Messages API only, on Opus; Reprocess always asks before replacing a human
 drawing; a daily budget of $3 by default.
 
-**Not built:** a `claude -p` backend (it needs a Read tool; `complete()` is the seam), a cheaper
-first-pass model, a monthly budget (the Console spend limit caps it), a circuit breaker and a
-rate-limit class (the budget and **Retry** cover them). Chat and refine are not part of ingest
+**Not built:** a `claude -p` backend with a Read tool (one without tools, for Claude seats, is
+{ref}`below <on-a-claude-seat>`), a cheaper first-pass model, a monthly budget (the Console
+spend limit caps it), a circuit breaker and a rate-limit class (the budget and **Retry** cover
+them). Chat and refine are not part of ingest
 yet; the stored runs are kept so they can start from them.
 
 (ingest-enabling)=
@@ -27,7 +28,9 @@ yet; the stored runs are kept so they can start from them.
 Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
 lost: it is sent when the worker starts.
 
-The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set; the worker does not check the key
+The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set (or, on a Claude seat,
+`SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`, where a missing
+token or `claude` binary pauses the queue at start); the worker does not check the key
 at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
 installed:
 
@@ -97,7 +100,8 @@ blocks, the usage and the served model.
 **Image.** Claude never gets the original, but a JPEG made from it by `preview.for_claude`: EXIF
 orientation applied, HEIC converted, quality 85. It is made one decode at a time and within a
 memory budget (400 MiB), so an image too large to decode is refused from its header and charged
-as class `image`. The result has the largest size with a long edge of at most 2048 px and
+as class `image`. The result has the largest size with a long edge of at most 2048 px (2000 px on a
+Claude seat, {ref}`below <on-a-claude-seat>`) and
 ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
 photo is sent as 2048×1536 and a square one as 1932×1932.
 
@@ -119,6 +123,56 @@ none a union: `width`, `height`, `text`, `fontSize`, `label`, `labelFontSize`, `
 `[dx0, dy0, dx1, dy1, ...]`), `start` and `end` (shape ids), `strokeColor` and
 `startArrowhead`. Code makes Excalidraw skeletons of these and the sanitiser enforces bounds.
 `id` is required because, optional, the model leaves out every id and so every arrow.
+
+(on-a-claude-seat)=
+### On a Claude seat (`SCRAP_LLM_BACKEND=cli`)
+
+For a Team or Enterprise seat with no API key ([ADR 0021](decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)).
+`complete()` hands the call to `claude_cli.py`, which runs `claude -p` once per call and
+returns the same `Completion`; everything after the call is shared. That is every Claude call:
+photos, and text enrichment (tags, summary, *Ask Claude*, the nightly related pass), whose text
+turn goes in the same way with the text model's `--effort` and `max_tokens`
+(`CLAUDE_CODE_MAX_OUTPUT_TOKENS`). Nothing in scrap needs a tool: links are fetched by scrap.
+
+- **Auth:** `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, in `ingest.env`. Without it, or
+  without the `claude` binary, the worker pauses at start (`auth`) and logs why.
+- **Input:** one stream-json user message on stdin holding the image block (base64) and size text
+  that scrap records; our prompt in place of Claude Code's system prompt. The photo's long edge
+  is at most 2000 px, not 2048: the CLI rescales anything longer (and adds its own note on
+  scaling coordinates). The CLI is not a pass-through: it re-encodes a JPEG over about 500 KB
+  (same size in pixels), drops the block's `transformations`, prefixes the system prompt, adds a
+  message describing its environment, and may make a second request if the model does not call
+  `StructuredOutput` (see [ADR 0021](decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)).
+- **Lock-down:** `--tools ""`, `--permission-mode dontAsk`, `--strict-mcp-config` with no
+  servers, `--setting-sources ""`, `--disable-slash-commands`, `--no-session-persistence`,
+  `--model`, `--effort` and `--json-schema` on every call; a throwaway `HOME` and working
+  directory; an environment of `PATH`, the token, proxy and CA settings only; CLI retries off,
+  prompt caching off, 540 s for the process and its children (two request timeouts and
+  start-up). A run whose `init` message offers any tool but `StructuredOutput` or any MCP
+  server, or that has no `init` message, is discarded and pauses ingest (`auth`).
+- **Output:** the result's `structured_output`; the stored content blocks are the
+  `StructuredOutput` tool call, `usage` is the CLI's with its `total_cost_usd`, which is the
+  run's `cost_microusd` and so counts towards the daily budget (a notional figure on a seat);
+  for a model the CLI has no list price for (`costBasis` not `list`: Haiku and Sonnet 5.5 on
+  2.1.281), scrap's `PRICES` cost the usage instead. A
+  run killed at the deadline keeps the usage of the requests it got answers to.
+- **Errors:** the CLI's error kind and status map onto the classes below. A run is failed if any
+  request in it failed, even if the CLI went on to report a success (as it does after the API
+  rejects the image: it drops the image and asks again without it). A seat's usage limit (a
+  rejected `rate_limit_event`) is an `outage` that waits for its reset (at most an hour at a
+  time). Overage (`isUsingOverage`: past the limit, where calls may be billed) is a `credit`
+  pause until *Resume*, so a person checks before more is spent; that run's answer is not
+  stored and the photo is sent again after *Resume*.
+
+| CLI error | Class |
+| --- | --- |
+| `authentication_failed`, `oauth_org_not_allowed`, `account_on_hold`, `verification_required`, `model_not_found`; 401, 403, 404; tools or MCP servers offered, or no `init` message | auth |
+| `billing_error`; 402; a `rate_limit_event` with `isUsingOverage` | credit |
+| a message saying it timed out, with no status (the CLI calls it a `server_error`); the process running over 540 s | timeout |
+| a rejected `rate_limit_event`; `rate_limit`, `overloaded`, `server_error` (including no connection); 429, 5xx | outage |
+| `invalid_request` (including an image the API could not process); 400, 409, 413, 422; a refusal | content |
+| `max_output_tokens`, no structured output, `error_max_structured_output_retries` | invalid |
+| no result at all (a crash); any other error | internal |
 
 ## Stored context
 
@@ -386,8 +440,8 @@ so it cannot name a page that is not there.
   queue as the worker does); other failures are counted and it goes on. Exit status 1 when
   stopped. On a single server, `deploy/scrap-enrich-related.{service,timer}` run it nightly
   (03:41) in the service's container, and `install.sh` enables the timer if the image has the
-  command. While ingest or enrich is off, or no key is set, the command prints a note and exits
-  0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
+  command. While ingest or enrich is off, or no key (or, with `SCRAP_LLM_BACKEND=cli`, no seat
+  token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
 - **Both ways.** A page's Related merges its picks, pages that picked it, and pages linking here
   with `[[slug]]` (marked "links here"), each once, at most 8. So a new page that picks an older
   one shows on the older one too, without a call for the older page.

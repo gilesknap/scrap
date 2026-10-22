@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.1.dev351+gea36f7e33 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.1.dev358+g9efeca6cf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=5cdb7589"></script>
+    <script src="../_static/documentation_options.js?v=972eedf9"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -443,6 +443,7 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
@@ -524,15 +525,18 @@ behind it are <a class="reference internal" href="decisions/0009-claude-ingest-v
 commands included.</p>
 <p><strong>Settled:</strong> the Messages API only, on Opus; Reprocess always asks before replacing a human
 drawing; a daily budget of $3 by default.</p>
-<p><strong>Not built:</strong> a <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> backend (it needs a Read tool; <code class="docutils literal notranslate"><span class="pre">complete()</span></code> is the seam), a cheaper
-first-pass model, a monthly budget (the Console spend limit caps it), a circuit breaker and a
-rate-limit class (the budget and <strong>Retry</strong> cover them). Chat and refine are not part of ingest
+<p><strong>Not built:</strong> a <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> backend with a Read tool (one without tools, for Claude seats, is
+<a class="reference internal" href="#on-a-claude-seat"><span class="std std-ref">below</span></a>), a cheaper first-pass model, a monthly budget (the Console
+spend limit caps it), a circuit breaker and a rate-limit class (the budget and <strong>Retry</strong> cover
+them). Chat and refine are not part of ingest
 yet; the stored runs are kept so they can start from them.</p>
 <section id="enabling-ingest">
 <span id="ingest-enabling"></span><h2>Enabling ingest<a class="headerlink" href="#enabling-ingest" title="Link to this heading">#</a></h2>
 <p>Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
 lost: it is sent when the worker starts.</p>
-<p>The switch is <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>, with <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> set; the worker does not check the key
+<p>The switch is <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>, with <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> set (or, on a Claude seat,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code> with <code class="docutils literal notranslate"><span class="pre">CLAUDE_CODE_OAUTH_TOKEN</span></code>: <a class="reference internal" href="#on-a-claude-seat"><span class="std std-ref">On a Claude seat (SCRAP_LLM_BACKEND=cli)</span></a>, where a missing
+token or <code class="docutils literal notranslate"><span class="pre">claude</span></code> binary pauses the queue at start); the worker does not check the key
 at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
 installed:</p>
 <ul class="simple">
@@ -598,7 +602,8 @@ minute or so; the 240 s timeout is the bound.</p></li>
 <p><strong>Image.</strong> Claude never gets the original, but a JPEG made from it by <code class="docutils literal notranslate"><span class="pre">preview.for_claude</span></code>: EXIF
 orientation applied, HEIC converted, quality 85. It is made one decode at a time and within a
 memory budget (400 MiB), so an image too large to decode is refused from its header and charged
-as class <code class="docutils literal notranslate"><span class="pre">image</span></code>. The result has the largest size with a long edge of at most 2048 px and
+as class <code class="docutils literal notranslate"><span class="pre">image</span></code>. The result has the largest size with a long edge of at most 2048 px (2000 px on a
+Claude seat, <a class="reference internal" href="#on-a-claude-seat"><span class="std std-ref">below</span></a>) and
 ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
 photo is sent as 2048×1536 and a square one as 1932×1932.</p>
 <p>The image block sets <code class="docutils literal notranslate"><span class="pre">&quot;transformations&quot;:</span> <span class="pre">{&quot;oversized_image&quot;:</span> <span class="pre">&quot;error&quot;}</span></code>, so the API never
@@ -617,6 +622,77 @@ none a union: <code class="docutils literal notranslate"><span class="pre">width
 <code class="docutils literal notranslate"><span class="pre">[dx0,</span> <span class="pre">dy0,</span> <span class="pre">dx1,</span> <span class="pre">dy1,</span> <span class="pre">...]</span></code>), <code class="docutils literal notranslate"><span class="pre">start</span></code> and <code class="docutils literal notranslate"><span class="pre">end</span></code> (shape ids), <code class="docutils literal notranslate"><span class="pre">strokeColor</span></code> and
 <code class="docutils literal notranslate"><span class="pre">startArrowhead</span></code>. Code makes Excalidraw skeletons of these and the sanitiser enforces bounds.
 <code class="docutils literal notranslate"><span class="pre">id</span></code> is required because, optional, the model leaves out every id and so every arrow.</p>
+<section id="on-a-claude-seat-scrap-llm-backend-cli">
+<span id="on-a-claude-seat"></span><h3>On a Claude seat (<code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>)<a class="headerlink" href="#on-a-claude-seat-scrap-llm-backend-cli" title="Link to this heading">#</a></h3>
+<p>For a Team or Enterprise seat with no API key (<a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>).
+<code class="docutils literal notranslate"><span class="pre">complete()</span></code> hands the call to <code class="docutils literal notranslate"><span class="pre">claude_cli.py</span></code>, which runs <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> once per call and
+returns the same <code class="docutils literal notranslate"><span class="pre">Completion</span></code>; everything after the call is shared. That is every Claude call:
+photos, and text enrichment (tags, summary, <em>Ask Claude</em>, the nightly related pass), whose text
+turn goes in the same way with the text model’s <code class="docutils literal notranslate"><span class="pre">--effort</span></code> and <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>
+(<code class="docutils literal notranslate"><span class="pre">CLAUDE_CODE_MAX_OUTPUT_TOKENS</span></code>). Nothing in scrap needs a tool: links are fetched by scrap.</p>
+<ul class="simple">
+<li><p><strong>Auth:</strong> <code class="docutils literal notranslate"><span class="pre">CLAUDE_CODE_OAUTH_TOKEN</span></code> from <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code>, in <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>. Without it, or
+without the <code class="docutils literal notranslate"><span class="pre">claude</span></code> binary, the worker pauses at start (<code class="docutils literal notranslate"><span class="pre">auth</span></code>) and logs why.</p></li>
+<li><p><strong>Input:</strong> one stream-json user message on stdin holding the image block (base64) and size text
+that scrap records; our prompt in place of Claude Code’s system prompt. The photo’s long edge
+is at most 2000 px, not 2048: the CLI rescales anything longer (and adds its own note on
+scaling coordinates). The CLI is not a pass-through: it re-encodes a JPEG over about 500 KB
+(same size in pixels), drops the block’s <code class="docutils literal notranslate"><span class="pre">transformations</span></code>, prefixes the system prompt, adds a
+message describing its environment, and may make a second request if the model does not call
+<code class="docutils literal notranslate"><span class="pre">StructuredOutput</span></code> (see <a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>).</p></li>
+<li><p><strong>Lock-down:</strong> <code class="docutils literal notranslate"><span class="pre">--tools</span> <span class="pre">&quot;&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">--permission-mode</span> <span class="pre">dontAsk</span></code>, <code class="docutils literal notranslate"><span class="pre">--strict-mcp-config</span></code> with no
+servers, <code class="docutils literal notranslate"><span class="pre">--setting-sources</span> <span class="pre">&quot;&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">--disable-slash-commands</span></code>, <code class="docutils literal notranslate"><span class="pre">--no-session-persistence</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--model</span></code>, <code class="docutils literal notranslate"><span class="pre">--effort</span></code> and <code class="docutils literal notranslate"><span class="pre">--json-schema</span></code> on every call; a throwaway <code class="docutils literal notranslate"><span class="pre">HOME</span></code> and working
+directory; an environment of <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, the token, proxy and CA settings only; CLI retries off,
+prompt caching off, 540 s for the process and its children (two request timeouts and
+start-up). A run whose <code class="docutils literal notranslate"><span class="pre">init</span></code> message offers any tool but <code class="docutils literal notranslate"><span class="pre">StructuredOutput</span></code> or any MCP
+server, or that has no <code class="docutils literal notranslate"><span class="pre">init</span></code> message, is discarded and pauses ingest (<code class="docutils literal notranslate"><span class="pre">auth</span></code>).</p></li>
+<li><p><strong>Output:</strong> the result’s <code class="docutils literal notranslate"><span class="pre">structured_output</span></code>; the stored content blocks are the
+<code class="docutils literal notranslate"><span class="pre">StructuredOutput</span></code> tool call, <code class="docutils literal notranslate"><span class="pre">usage</span></code> is the CLI’s with its <code class="docutils literal notranslate"><span class="pre">total_cost_usd</span></code>, which is the
+run’s <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> and so counts towards the daily budget (a notional figure on a seat);
+for a model the CLI has no list price for (<code class="docutils literal notranslate"><span class="pre">costBasis</span></code> not <code class="docutils literal notranslate"><span class="pre">list</span></code>: Haiku and Sonnet 5.5 on
+2.1.281), scrap’s <code class="docutils literal notranslate"><span class="pre">PRICES</span></code> cost the usage instead. A
+run killed at the deadline keeps the usage of the requests it got answers to.</p></li>
+<li><p><strong>Errors:</strong> the CLI’s error kind and status map onto the classes below. A run is failed if any
+request in it failed, even if the CLI went on to report a success (as it does after the API
+rejects the image: it drops the image and asks again without it). A seat’s usage limit (a
+rejected <code class="docutils literal notranslate"><span class="pre">rate_limit_event</span></code>) is an <code class="docutils literal notranslate"><span class="pre">outage</span></code> that waits for its reset (at most an hour at a
+time). Overage (<code class="docutils literal notranslate"><span class="pre">isUsingOverage</span></code>: past the limit, where calls may be billed) is a <code class="docutils literal notranslate"><span class="pre">credit</span></code>
+pause until <em>Resume</em>, so a person checks before more is spent; that run’s answer is not
+stored and the photo is sent again after <em>Resume</em>.</p></li>
+</ul>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>CLI error</p></th>
+<th class="head"><p>Class</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">authentication_failed</span></code>, <code class="docutils literal notranslate"><span class="pre">oauth_org_not_allowed</span></code>, <code class="docutils literal notranslate"><span class="pre">account_on_hold</span></code>, <code class="docutils literal notranslate"><span class="pre">verification_required</span></code>, <code class="docutils literal notranslate"><span class="pre">model_not_found</span></code>; 401, 403, 404; tools or MCP servers offered, or no <code class="docutils literal notranslate"><span class="pre">init</span></code> message</p></td>
+<td><p>auth</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">billing_error</span></code>; 402; a <code class="docutils literal notranslate"><span class="pre">rate_limit_event</span></code> with <code class="docutils literal notranslate"><span class="pre">isUsingOverage</span></code></p></td>
+<td><p>credit</p></td>
+</tr>
+<tr class="row-even"><td><p>a message saying it timed out, with no status (the CLI calls it a <code class="docutils literal notranslate"><span class="pre">server_error</span></code>); the process running over 540 s</p></td>
+<td><p>timeout</p></td>
+</tr>
+<tr class="row-odd"><td><p>a rejected <code class="docutils literal notranslate"><span class="pre">rate_limit_event</span></code>; <code class="docutils literal notranslate"><span class="pre">rate_limit</span></code>, <code class="docutils literal notranslate"><span class="pre">overloaded</span></code>, <code class="docutils literal notranslate"><span class="pre">server_error</span></code> (including no connection); 429, 5xx</p></td>
+<td><p>outage</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">invalid_request</span></code> (including an image the API could not process); 400, 409, 413, 422; a refusal</p></td>
+<td><p>content</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">max_output_tokens</span></code>, no structured output, <code class="docutils literal notranslate"><span class="pre">error_max_structured_output_retries</span></code></p></td>
+<td><p>invalid</p></td>
+</tr>
+<tr class="row-even"><td><p>no result at all (a crash); any other error</p></td>
+<td><p>internal</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 </section>
 <section id="stored-context">
 <h2>Stored context<a class="headerlink" href="#stored-context" title="Link to this heading">#</a></h2>
@@ -959,8 +1035,8 @@ day’s budget before each call, and stops at either (an outage, credit or auth 
 queue as the worker does); other failures are counted and it goes on. Exit status 1 when
 stopped. On a single server, <code class="docutils literal notranslate"><span class="pre">deploy/scrap-enrich-related.{service,timer}</span></code> run it nightly
 (03:41) in the service’s container, and <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> enables the timer if the image has the
-command. While ingest or enrich is off, or no key is set, the command prints a note and exits
-0. The Helm chart has no equivalent yet (see <a class="reference internal" href="#ingest-enabling"><span class="std std-ref">Enabling ingest</span></a>).</p></li>
+command. While ingest or enrich is off, or no key (or, with <code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>, no seat
+token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see <a class="reference internal" href="#ingest-enabling"><span class="std std-ref">Enabling ingest</span></a>).</p></li>
 <li><p><strong>Both ways.</strong> A page’s Related merges its picks, pages that picked it, and pages linking here
 with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (marked “links here”), each once, at most 8. So a new page that picks an older
 one shows on the older one too, without a call for the older page.</p></li>
@@ -1273,7 +1349,10 @@ effort if drawings fall short); Excalidraw API drift (the version is pinned); mo
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enabling-ingest">Enabling ingest</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#worker">Worker</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-claude-call">The Claude call</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-claude-call">The Claude call</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#on-a-claude-seat-scrap-llm-backend-cli">On a Claude seat (<code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>)</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stored-context">Stored context</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#derived-results-and-versions">Derived results and versions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw-in-the-pwa">Excalidraw in the PWA</a></li>
