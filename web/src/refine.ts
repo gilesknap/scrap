@@ -6,7 +6,7 @@
 // Above the list, how many pages were found and each filter that is on, as a chip (tap to take
 // it out), so nothing chosen is hidden. All of it only edits the query's text (tag:tech,
 // is:personal), so it can be typed too, and Back, a reload or a link keep it. In the app
-// shell, so Filters opens at once.
+// chunk of its own (search.ts loads it with the screen; the service worker keeps it offline).
 import { api } from "./api";
 import { icon } from "./icons";
 import { adding, day, has, kindsIn, removing, token, unsorted } from "./terms";
@@ -87,6 +87,7 @@ export async function refine(
   q: string,
   signal: AbortSignal,
   apply: (edit: Edit) => void,
+  button: HTMLButtonElement,
 ): Promise<HTMLElement> {
   // Where focus is now, to put it back on the same control once drawn again
   const was = document.activeElement as HTMLElement | null;
@@ -98,28 +99,18 @@ export async function refine(
     { className: "fpanel", id: "fpanel", hidden: !open },
     ...rows(q, f, apply),
   );
-  // Filters (how many are on), then the filters on as chips, one line that scrolls sideways:
-  // each says what it is ("#home", "past month") and a tap takes it off. Filters opens the
-  // panel under them, in place
-  const toggle = h(
-    "button",
-    {
-      type: "button",
-      className: "facet ftoggle",
-      "aria-expanded": String(open),
-      "aria-controls": "fpanel",
-      "aria-label": on.length ? `Filters, ${on.length} on` : "Filters",
-      onclick: () => {
-        open = !open;
-        panel.hidden = !open;
-        toggle.setAttribute("aria-expanded", String(open));
-      },
-    },
-    icon("filter"),
-    "Filters",
-    on.length > 0 && h("b", {}, String(on.length)),
-  );
-  toggle.dataset.k = "toggle";
+  // The box's slider: how many are on, in a dot; tapped, the panel opens under the kinds
+  button.replaceChildren(icon("filter"), on.length > 0 ? h("b", {}, String(on.length)) : "");
+  button.setAttribute("aria-label", on.length ? `Filters, ${on.length} on` : "Filters");
+  button.setAttribute("aria-controls", "fpanel");
+  button.setAttribute("aria-expanded", String(open));
+  button.onclick = () => {
+    open = !open;
+    panel.hidden = !open;
+    button.setAttribute("aria-expanded", String(open));
+  };
+  // The filters on, as chips on a row of their own that scrolls sideways (none: no row): each
+  // says what it is ("#home", "past month") and a tap takes it off
   const chips = on.map((a) => {
     const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
@@ -128,8 +119,9 @@ export async function refine(
   });
   const bar = h(
     "div",
-    { className: "refine", role: "group", "aria-label": "Filters" },
-    h("div", { className: "fbar" }, toggle, h("div", { className: "fon" }, ...chips)),
+    { className: "refine" },
+    chips.length > 0 &&
+      h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, ...chips),
     panel,
   );
   // Each row scrolled so what is chosen in it shows (an order off to the right, say)
@@ -144,7 +136,7 @@ export async function refine(
     requestAnimationFrame(() => {
       const el =
         bar.querySelector<HTMLElement>(`[data-k="${CSS.escape(k)}"]`) ??
-        (k.startsWith("off:") ? toggle : null); // a chip taken off: Filters, beside it
+        (k.startsWith("off:") ? (bar.querySelector<HTMLElement>(".fon button") ?? button) : null);
       el?.focus({ preventScroll: true });
       if (el instanceof HTMLInputElement) el.setSelectionRange(el.value.length, el.value.length);
     });

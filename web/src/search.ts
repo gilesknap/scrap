@@ -1,7 +1,8 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
 // and <mark>s, never HTML). The box's ✕ clears it. Under it, a fixed row of kinds (one tap
-// sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's row: Filters
+// sets or clears kind:; Todos alone opens the Todos screen), then refine.ts's: the filters on
+// as a row of chips, and the Filters panel, opened by the slider at the box's end. Filters
 // and the results' top tags, and above the list their count and the filters on. All of it is
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
@@ -9,7 +10,6 @@ import { api, type Hit } from "./api";
 import { address, go, markNav, view } from "./app";
 import { icon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
-import { refine } from "./refine";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
@@ -50,6 +50,14 @@ export async function search(): Promise<Node> {
   let settle: ReturnType<typeof setTimeout>;
   const results = h("div");
   const chips = h("div");
+  // Filters: a slider at the box's end (how many are on, in a dot); refine.ts, a chunk of its
+  // own, fills it and opens its panel under the kinds
+  const filters = h(
+    "button",
+    { type: "button", className: "ffield", "aria-label": "Filters" },
+    icon("filter"),
+  );
+  const refining = import("./refine");
   // The kind row: made once, so a radio keeps its focus (arrow keys) as the query changes
   const radios = [["All", ""] as const, ...KIND_ROW].map(([label, v]) => {
     const radio = h("input", {
@@ -110,7 +118,8 @@ export async function search(): Promise<Node> {
     const { signal } = abort;
     clear.hidden = !input.value;
     // Filters even before a query, then what refines its results
-    refine(query, signal, apply)
+    refining
+      .then((m) => m.refine(query, signal, apply, filters))
       .then((el) => {
         if (signal.aborted) return;
         chips.replaceChildren(el); // (refine puts focus back on the control it was on)
@@ -227,7 +236,7 @@ export async function search(): Promise<Node> {
   const root = h(
     "section",
     { className: "search" },
-    h("div", { className: "field-search" }, icon("search"), input, clear),
+    h("div", { className: "field-search" }, icon("search"), input, clear, filters),
     recents,
     kinds,
     chips,

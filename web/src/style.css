@@ -728,7 +728,7 @@ mark {
 /* The box's ✕ (the search screen's: one tap back to every page); the browser's own is hidden */
 .field-search .clear {
   position: absolute;
-  inset-inline-end: 0;
+  inset-inline-end: var(--tap); /* beside Filters, at the box's end */
   top: 50%; /* centred on the box, whatever its height */
   translate: 0 -50%;
   width: var(--tap);
@@ -743,76 +743,63 @@ mark {
   display: none;
 }
 .field-search:has(.clear) input {
-  padding-inline-end: var(--tap);
+  padding-inline-end: calc(2 * var(--tap));
 }
 .field-search input::-webkit-search-cancel-button {
   appearance: none;
 }
 
 /* Refine chips: one row that scrolls sideways, the query's own filters first */
-/* Filters, then the filters on as chips on one line that scrolls sideways; Filters opens the
-   panel in place under them, over the results, which stay in view and follow each tap */
-.refine {
-  margin: 0 0 var(--s-3);
+/* Filters: a slider at the search box's end, beside its ✕ (how many are on, in a dot); the
+   filters on are a row of their own under the kinds, scrolling sideways; the panel opens under
+   that, in place, over the results, which stay in view and follow each tap */
+.field-search .ffield {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--tap);
+  padding: 0;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
 }
-.fbar {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-.ftoggle {
-  flex: none;
-}
-.ftoggle::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  margin-inline-start: 2px;
-  border: solid currentColor;
-  border-width: 0 2px 2px 0;
-  rotate: 45deg;
-  translate: 0 -2px;
-  transition: rotate var(--d-1) var(--ease);
-}
-.ftoggle[aria-expanded="true"] {
-  border-color: var(--line-strong);
+.field-search .ffield[aria-expanded="true"] {
+  color: var(--accent-ink);
   background: var(--sunk);
 }
-.ftoggle[aria-expanded="true"]::after {
-  rotate: -135deg;
-  translate: 0 1px;
-}
-/* How many are on, in an amber dot */
-.ftoggle b {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
+.ffield b {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: var(--t-xs);
-  line-height: 20px;
+  font-size: 0.7rem;
+  line-height: 18px;
   text-align: center;
+}
+.refine {
+  margin: 0 0 var(--s-3);
 }
 .fon {
   display: flex;
-  flex: 1;
-  min-width: 0;
   gap: var(--s-2);
-  margin-inline-end: calc(-1 * var(--s-4)); /* scrolls out to the screen's edge */
-  padding: 2px var(--s-4) 2px 0;
+  margin-inline: calc(-1 * var(--s-4)); /* the screen's width, scrolling to its edges */
+  padding: 2px var(--s-4);
   overflow-x: auto;
   scrollbar-width: none;
-}
-.fon:empty {
-  display: none;
 }
 .fpanel {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
   margin-top: var(--s-2);
-  padding: 0 0 var(--s-3);
+  padding: var(--s-1) 0 var(--s-3);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);

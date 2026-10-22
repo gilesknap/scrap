@@ -8,7 +8,7 @@ import { defineConfig } from "vitest/config";
 // the Markdown renderer, and what Share and Download do (sharing, loaded on the first tap of
 // either). They are not loaded until used, so they are not part of the
 // shell's size budget. (Mermaid, for diagrams, is not kept: it is big.)
-export const OFFLINE = ["composer", "editor", "pageedit", "render", "sharing"];
+export const OFFLINE = ["composer", "editor", "pageedit", "render", "sharing", "refine"];
 
 // The files the app shell needs: what the entry chunks import statically, and their CSS
 // and assets, plus the OFFLINE chunks. The drawing viewer (Excalidraw and React, loaded by a
