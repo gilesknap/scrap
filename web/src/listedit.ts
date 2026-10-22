@@ -27,10 +27,12 @@ const lineEnd = (text: string, at: number) => {
 export function inCode(text: string, at: number): boolean {
   let fence: string | null = null;
   for (const line of text.slice(0, lineStart(text, at)).split("\n")) {
-    const m = /^[ \t]*(`{3,}|~{3,})/.exec(line);
+    const m = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
     if (!m) continue;
     if (!fence) fence = m[1];
-    else if (m[1][0] === fence[0] && m[1].length >= fence.length) fence = null;
+    // A closing fence: as long at least, of the same mark, and nothing after it (```js inside
+    // a block is text). Indented too: fences in list items are
+    else if (m[1][0] === fence[0] && m[1].length >= fence.length && !m[2].trim()) fence = null;
   }
   return fence !== null;
 }
@@ -45,8 +47,12 @@ export function enter(text: string, start: number, end: number): Change | null {
   if (!m || start < from + m[0].length) return null; // the caret before the marker: plain
   const [all, quote, marker, num, delim, gap, box] = m;
   if (!line.slice(all.length).trim()) {
-    // An empty item: the list ends, and its marker goes (the line is left empty)
-    return { from, to: from + line.length, insert: quote.trimEnd(), start: from, end: from };
+    // An empty item: the list ends, and its marker goes (the line is left empty, or in a
+    // quote, the quote's "> " with the caret after it)
+    const kept = quote.trimEnd();
+    const insert = kept ? `${kept} ` : "";
+    const at = from + insert.length;
+    return { from, to: from + line.length, insert, start: at, end: at };
   }
   const next = num ? `${Number(num) + 1}${delim}` : marker;
   const insert = `\n${quote}${next}${gap}${box ? "[ ] " : ""}`;
