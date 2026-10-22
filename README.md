@@ -100,7 +100,8 @@ To try the container, see [run in a container](https://github.com/gilesknap/scra
 [install on a server](https://github.com/gilesknap/scrap/blob/main/docs/tutorials/installation.md) (a walk-through),
 [deploy on a single server](https://github.com/gilesknap/scrap/blob/main/docs/how-to/deploy-single-server.md) (rootless podman and systemd, with
 backup, retention and enrichment timers) or [deploy on Kubernetes](https://github.com/gilesknap/scrap/blob/main/docs/how-to/deploy-kubernetes.md)
-(the Helm chart in `charts/scrap`, with a backup CronJob). To work on scrap, see
+(the Helm chart in `charts/scrap`, with a backup CronJob). Diamond colleagues can
+[try it on a DLS workstation](https://github.com/gilesknap/scrap/blob/main/docs/tutorials/dls-workstation.md) without `sudo`. To work on scrap, see
 [contribute](https://github.com/gilesknap/scrap/blob/main/docs/how-to/contribute.md).
 
 <!-- README only content. Anything below this line won't be included in index.md -->
