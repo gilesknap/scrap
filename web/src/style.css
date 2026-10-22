@@ -386,6 +386,33 @@ nav a[aria-current] .i {
 .tile:active {
   background: var(--accent-soft);
 }
+/* A kept draft: one quiet line over the tiles, the whole width; ✕ at its end */
+.draft {
+  grid-column: 1 / -1;
+  display: flex;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+}
+.draft button {
+  border: none;
+  background: transparent;
+  padding: 0 var(--s-3);
+}
+.draft button:first-child {
+  flex: 1;
+  justify-content: flex-start;
+}
+.draft span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.draft button:last-child {
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
 .tile .i {
   width: 24px;
   height: 24px;

@@ -21,8 +21,8 @@ import { type Capture, split } from "./queue";
 import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
-const DRAFT = "new"; // the composer's draft
-interface Draft {
+const DRAFT = "new"; // the composer's draft (one at a time; Capture's draft row shows it)
+export interface Draft {
   text: string;
   kind?: string;
   picked?: boolean; // the user chose the kind
@@ -35,10 +35,15 @@ interface Draft {
 /** What the text box asks for, by kind. */
 const ASK: Record<string, string> = { todo: "What needs doing?", consume: "Link or title" };
 
-/** as: a kind chosen before it opens (the Todos screen's New todo), over a draft's. */
-export async function compose(picked: File[], as?: string) {
-  // An unsaved draft comes back, with any photos just picked added to it.
-  const kept = await drafts.get<Draft>(DRAFT).catch(() => undefined);
+/** as: a kind chosen before it opens (the Todos screen's New todo). resume: open the kept
+ * draft (Capture's draft row); otherwise a fresh capture (the tiles, New todo). */
+export async function compose(picked: File[], as?: string, resume = false) {
+  // The unsaved draft comes back only when asked for: a tile always starts afresh.
+  const stored = await drafts.get<Draft>(DRAFT).catch(() => undefined);
+  const kept = resume ? stored : undefined;
+  // A fresh one beside a kept draft works in memory, and takes the draft's place only if
+  // left by Back with something in it (Undo puts the older one back)
+  const hold = !resume && !!stored;
   const files = [...(kept?.files ?? []), ...picked];
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
   // The kind: Note unless chosen (a bare URL suggests Later). Photos have none: ingest
@@ -123,6 +128,18 @@ export async function compose(picked: File[], as?: string) {
     }),
     dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0 || dated(),
     restored: !!kept,
+    hold,
+    left: () => {
+      const back = () =>
+        drafts
+          .put(DRAFT, stored)
+          .then(() => document.dispatchEvent(new Event("draftchange")))
+          .catch(() => {});
+      // Its row is on Capture: elsewhere (Todos), say where
+      const where = location.pathname === "/" ? "" : ": it's on Capture";
+      if (hold) toast(`Kept as a draft, in place of the older one${where}`, "Undo", back, 8000);
+      else toast(`Kept as a draft${where}`);
+    },
     ondiscard: () => {
       text.value = "";
       files.length = 0;

@@ -213,6 +213,10 @@ export function editor(o: {
   draft: () => object; // the fields, to keep
   dirty: () => boolean; // changed since opened
   restored: boolean; // the fields came from a draft
+  // Another draft is kept under key (a fresh composer's, see composer.ts): this one is kept
+  // only when the editor is left by Back with changes, in its place, and never dropped
+  hold?: boolean;
+  left?: () => void; // left by Back with changes (kept as the draft): say so, if not as here
   ondiscard: () => void; // put the fields back as they were
   onsave: () => void;
 }): Editor {
@@ -245,10 +249,10 @@ export function editor(o: {
   const opener = document.activeElement as HTMLElement | null;
   let timer = 0;
   let finished = false; // saved or discarded: no more drafts
-  const drop = () => drafts.del(o.key).catch(() => {});
-  const keep = () => {
+  const drop = () => (o.hold ? undefined : drafts.del(o.key).catch(() => {}));
+  const keep = (leaving = false) => {
     clearTimeout(timer);
-    if (finished) return;
+    if (finished || (o.hold && !leaving)) return;
     if (!o.dirty()) return void drop();
     // Storage full or refused: the editor itself still has it all
     drafts.put(o.key, { ...o.draft(), at: Date.now() }).catch(() => {});
@@ -261,6 +265,8 @@ export function editor(o: {
     for (const el of behind) el.inert = false;
     document.body.classList.remove("editing");
     opener?.focus({ preventScroll: true });
+    // Its draft may have changed (kept, dropped): e.g. Capture's draft row draws it again
+    document.dispatchEvent(new Event("draftchange"));
     closing?.();
   };
   // Closing pops the editor's history entry. The phone's Back pops it too: that keeps the
@@ -268,9 +274,9 @@ export function editor(o: {
   const onpop = (e: PopStateEvent) => {
     e.stopImmediatePropagation();
     const kept = !closing && o.dirty();
-    if (!closing) keep();
+    if (!closing) keep(true);
     teardown();
-    if (kept) toast("Kept as a draft: open it again to carry on"); // placed for the page under it
+    if (kept) (o.left ?? (() => toast("Kept as a draft")))(); // placed for the page under it
   };
   const done = () =>
     new Promise<void>((ok) => {
