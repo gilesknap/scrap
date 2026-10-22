@@ -8,12 +8,14 @@ type Fields = Record<string, unknown> | undefined;
 export const statusOf = (kind: string, fields: Fields): string | null =>
   kind === "todo" || kind === "consume" ? String(fields?.status ?? "open") : null;
 
-/** What its page offers, [label, the status it sets]: Mark done from any status but done,
- * Reopen from done or cancelled (a cancelled one has both); nothing without a status. */
-export const ticks = (status: string | null): [string, string][] => [
-  ...(status === null || status === "done" ? [] : [["Mark done", "done"] as [string, string]]),
-  ...(status === "done" || status === "cancelled" ? [["Reopen", "open"] as [string, string]] : []),
-];
+/** What its page offers, [label, the status it sets]: Reopen once done or cancelled, else
+ * Mark done; nothing without a status. */
+export const ticks = (status: string | null): [string, string][] =>
+  status === null
+    ? []
+    : status === "done" || status === "cancelled"
+      ? [["Reopen", "open"]]
+      : [["Mark done", "done"]];
 
 const CHIP: Record<string, string> = { todo: "todo", consume: "later" };
 /** A list row's chip: a status that ends it (done, cancelled), else its kind (todo, read). */

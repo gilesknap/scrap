@@ -533,7 +533,13 @@ nav a[aria-current] .i {
 .tick[aria-pressed="mixed"] {
   color: var(--accent-ink);
 }
-.tick[aria-pressed="mixed"]::after {
+/* Cancelled: closed but not done, so its title struck and a grey dash in its box */
+.list li.cancelled strong {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.tick[aria-pressed="mixed"]::after,
+.cancelled > .tick::after {
   content: "";
   position: absolute;
   left: 50%;
