@@ -42,8 +42,7 @@ export async function search(): Promise<Node> {
     (m) => m.attach(input, recents, (q) => apply(() => q)),
     () => null, // offline before it was kept: no recents, search as before
   );
-  const remember = () => {
-    const query = input.value.trim();
+  const remember = (query = input.value.trim()) => {
     if (query) void later.then((r) => r?.remember(query));
   };
   let settle: ReturnType<typeof setTimeout>;
@@ -131,7 +130,8 @@ export async function search(): Promise<Node> {
     if (signal.aborted) return;
     results.replaceChildren(shown);
     // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
-    if (!first && query && results.querySelector(".hits a")) settle = setTimeout(remember, 3000);
+    if (!first && query && results.querySelector(".hits a"))
+      settle = setTimeout(() => remember(query), 3000); // the query that ran, not what is typed since
     if (scroll) {
       const y = scroll;
       scroll = 0;
@@ -219,6 +219,7 @@ export async function search(): Promise<Node> {
     icon("close"),
   );
   input.oninput = () => {
+    clearTimeout(settle); // typed on: not settled
     clear.hidden = !input.value;
     clearTimeout(timer);
     timer = setTimeout(run, 250);

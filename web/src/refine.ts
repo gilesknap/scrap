@@ -198,33 +198,45 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     typed = box.value;
     // Only tags that narrow what is found: with a search, those of its results (each on some
     // of them, not all), with how many; before one, every tag in use
-    let source: Promise<[string, number][]>;
-    if (q) {
-      if (inResults?.q !== q)
-        inResults = {
+    // Asked for only when needed (a failure is not kept: the next try asks again)
+    const source = (): Promise<[string, number][]> => {
+      if (!q) {
+        allTags ??= api<[string, number, number][]>("tags").then(
+          (all) => all.map(([t, n]) => [t, n] as [string, number]),
+          () => {
+            allTags = null;
+            return [];
+          },
+        );
+        return allTags;
+      }
+      if (inResults?.q !== q) {
+        const ask = {
           q,
           tags: api<Facets>(`search/facets?q=${encodeURIComponent(q)}&top=1000`).then(
             (got) => got.tags,
-            () => f.tags,
+            () => {
+              if (inResults === ask) inResults = null;
+              return f.tags;
+            },
           ),
         };
-      source = inResults.tags;
-    } else
-      source = allTags ??= api<[string, number, number][]>("tags").then(
-        (all) => all.map(([t, n]) => [t, n] as [string, number]),
-        () => [],
-      );
+        inResults = ask;
+      }
+      return inResults.tags;
+    };
     let list: [string, number][];
-    // Nothing typed: the results' top tags; with no search yet, the most used of all
+    // Nothing typed: the results' top tags (the facets already here); with no search yet,
+    // the most used of all. Typed: every tag of the results (top=1000), fetched only now
     if (!want)
       list = q
         ? f.tags
-        : (await source)
+        : (await source())
             .filter(([t]) => !t.includes("/"))
             .sort((a, b) => b[1] - a[1])
             .slice(0, 8);
     else {
-      const all = (await source).filter(([t]) => !asked.includes(t));
+      const all = (await source()).filter(([t]) => !asked.includes(t));
       const starts = all.filter(
         ([t]) => t.startsWith(want) || t.split("/").some((p) => p.startsWith(want)),
       );
