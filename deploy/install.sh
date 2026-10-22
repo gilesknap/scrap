@@ -112,6 +112,12 @@ elif [ ! -e "$conf/ingest.env" ]; then
 # Where a pause (budget, credit, auth, outage) is announced, e.g. an ntfy
 # topic URL. Without it a pause goes unnoticed until you open scrap.
 #SCRAP_NOTIFY_URL=
+
+# The address scrap is published at (tailscale serve); /mcp refuses other hosts.
+#SCRAP_PUBLIC_URL=https://HOST.TAILNET.ts.net:8446
+
+# Your time zone, so "due:today" and friends follow your day, not UTC.
+#TZ=Europe/London
 ENV
     )
     echo "Wrote $conf/ingest.env"
