@@ -115,6 +115,7 @@ export async function page(key: string): Promise<Node> {
     const typing = !!tagForm?.contains(document.activeElement);
     const said = dueOf(p);
     const saved = download(`/api/pages/${p.id}/download`); // the page as a file
+    const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
       pager ?? "",
       h("h1", { dir: "auto" }, p.title),
@@ -198,13 +199,15 @@ export async function page(key: string): Promise<Node> {
         ),
         editButton(p),
         // Its link, its text as typed (no link to scrap in it), or the page as a file; where
-        // the phone can't share, Download in Share's place
+        // the phone can't share, Download in Share's place, and where it can share but has no
+        // menu (no Popover API), Download beside Share
         share(
           () => ({ title: p.title, text: unembedded(p.body) }),
           pageLink(p.slug),
           undefined,
-          saved,
+          menus ? saved : undefined,
         ) ?? saved,
+        !menus && "share" in navigator && saved,
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
       ),
     );
