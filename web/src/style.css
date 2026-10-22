@@ -1384,6 +1384,45 @@ div.orig .save {
 .file .i {
   color: var(--ink-2);
 }
+/* A Later page's link on its own line (render.ts cards()): a file card, its site over its
+   path, each cut to one line, and Open, a button's look, at its end */
+.md > .linkcard {
+  margin: var(--s-4) 0;
+  line-height: var(--lh-tight);
+}
+.md > .linkcard:first-child {
+  margin-top: 0;
+}
+.linkcard .words {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.linkcard :is(.site, .path) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.linkcard .site {
+  font-weight: 600;
+}
+.linkcard .path {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.linkcard .button {
+  flex: none;
+  overflow-wrap: normal;
+}
+.linkcard .button .i {
+  color: inherit;
+}
+.linkcard:active .button {
+  transform: scale(0.97);
+  background-color: var(--sunk);
+}
 
 /* Toolbars: equal icon-over-label tiles (the page's actions, the viewer's tools) */
 .tools {

@@ -6,7 +6,7 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { KINDS } from "./kinds";
-import { renderer, unembedded } from "./md";
+import { rendered, renderer, unembedded } from "./md";
 import { closed, dueOf, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
@@ -112,6 +112,7 @@ export async function page(key: string): Promise<Node> {
     shown = p;
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);
+    if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card
     // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
     if (body.querySelector("[data-line]"))
       import("./tasks").then(
