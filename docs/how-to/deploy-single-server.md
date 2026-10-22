@@ -95,13 +95,15 @@ The script:
 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
-- copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`, `scrap-gc.service` and
-  `scrap-gc.timer` to `~/.config/systemd/user/`, and the scripts `scrap-run`, `scrap-backup` and
-  `scrap-gc` to `~/.local/lib/scrap/`;
+- copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`, `scrap-gc.service`,
+  `scrap-gc.timer`, `scrap-enrich-related.service` and `scrap-enrich-related.timer` to
+  `~/.config/systemd/user/`, and the scripts `scrap-run`, `scrap-backup` and `scrap-gc` to
+  `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
 - enables and starts `scrap.service` if the image named in the settings is present, and the daily
-  backup timer only if that image has the `scrap backup` command, and the nightly gc timer only if
-  it has `scrap gc` (images built before them do not; re-run the script after updating the image);
+  backup timer only if that image has the `scrap backup` command, the nightly gc timer only if
+  it has `scrap gc`, and the nightly related-pages timer only if it has `scrap enrich --related`
+  (images built before them do not; re-run the script after updating the image);
 - restarts a running `scrap.service` if the image it runs or its unit has changed (see
   {ref}`scrap-update`);
 - prints where scrap listens, and a note if that is a TCP port (see {ref}`scrap-listen`).
@@ -183,11 +185,10 @@ setting, with its default, is in the [API reference](../reference/api.md). After
 `systemctl --user restart scrap`.
 
 With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
-Related pages come from a nightly pass, which `install.sh` does not install: to have it, copy
-`deploy/scrap-enrich-related.service` and `deploy/scrap-enrich-related.timer` to
-`~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now
-scrap-enrich-related.timer`. It keeps to the same daily budget and stops at a queue pause.
-`podman exec scrap scrap enrich --related --dry-run` says how many pages it would do.
+Related pages come from a nightly pass, `scrap-enrich-related.timer` (about 03:41, run in the
+scrap container), which `install.sh` enables. It keeps to the same daily budget and stops (and
+the service fails) at a queue pause; while ingest is off or no key is set it says so and
+succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it would do.
 
 ## First run
 

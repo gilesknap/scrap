@@ -462,8 +462,9 @@ to 5 index numbers, so it cannot name a page that is not there.
   the container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and
   the day's budget before each call, and stops at either (an outage, credit or auth error pauses
   the queue as the worker does); other failures are counted and it goes on. Exit status 1 when
-  stopped. `deploy/scrap-enrich-related.{service,timer}` run it nightly (03:41); a template:
-  `install.sh` does not install it.
+  stopped. `deploy/scrap-enrich-related.{service,timer}` run it nightly (03:41) in the
+  service's container; `install.sh` enables the timer if the image has the command. While
+  ingest or enrich is off, or no key is set, the command prints a note and exits 0.
 - **Both ways.** A page's Related merges its picks, pages that picked it, and pages linking here
   with `[[slug]]` (marked "links here"), each once, at most 8. So a new page that picks an older
   one shows on the older one too, without a call for the older page.

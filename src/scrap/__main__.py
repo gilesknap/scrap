@@ -188,11 +188,19 @@ def main(args: Sequence[str] | None = None) -> None:
                 print(f"imported {n} pages into {store.dir} (--dry-run lists problems)")
         elif parsed.command == "enrich":
             from .enrich import backfill, related_pass
+            from .store import enrich_on
 
             if parsed.backfill == parsed.related:
                 parser.error("enrich: say --backfill or --related")
             store.migrate()
-            if parsed.related:
+            if parsed.related and not (
+                enrich_on() and os.environ.get("ANTHROPIC_API_KEY")
+            ):  # nothing to do, and not a failure (the nightly timer runs anyway)
+                print(
+                    "related pages: Claude enrichment is off (needs SCRAP_INGEST=on"
+                    " and ANTHROPIC_API_KEY; SCRAP_ENRICH not off); nothing done"
+                )
+            elif parsed.related:
                 c = related_pass(store, None, parsed.all, parsed.limit, parsed.dry_run)
                 if parsed.dry_run:
                     print(f"would pick related pages for {c['pages']} pages")

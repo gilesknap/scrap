@@ -467,6 +467,14 @@ def test_the_cli_backfills_and_counts_the_related_pass(tmp_path, capsys, monkeyp
     capture(store, "one")
     main(["enrich", "--backfill", "--dry-run", "--data-dir", str(tmp_path)])
     assert "would queue 1" in capsys.readouterr().out
+    # off (ingest off, or no key): a note, and success, for the nightly timer
+    main(["enrich", "--related", "--data-dir", str(tmp_path)])
+    assert "enrichment is off" in capsys.readouterr().out
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    main(["enrich", "--related", "--data-dir", str(tmp_path)])
+    assert "enrichment is off" in capsys.readouterr().out
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     main(["enrich", "--related", "--dry-run", "--data-dir", str(tmp_path)])
     assert "would pick related pages for 1 pages" in capsys.readouterr().out
     with pytest.raises(SystemExit):

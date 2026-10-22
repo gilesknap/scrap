@@ -124,7 +124,8 @@ cmp -s "$here/scrap.service" "$units/scrap.service" || : >"$pending"
 cmp -s "$here/scrap-run" "$lib/scrap-run" || : >"$pending"
 cp "$here/scrap-backup" "$here/scrap-gc" "$here/scrap-run" "$lib/"
 cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" \
-    "$here/scrap-gc.service" "$here/scrap-gc.timer" "$units/"
+    "$here/scrap-gc.service" "$here/scrap-gc.timer" \
+    "$here/scrap-enrich-related.service" "$here/scrap-enrich-related.timer" "$units/"
 systemctl --user daemon-reload
 if dropins=$(grep -ls '^ExecStart=' "$units"/scrap.service.d/*.conf); then
     echo "Note: a drop-in sets ExecStart, so scrap.service's own command is not used:" >&2
@@ -180,6 +181,15 @@ else
     systemctl --user disable --now scrap-gc.timer 2>/dev/null || true
     echo "Note: $image has no 'scrap gc' command, so the nightly gc" >&2
     echo "timer is NOT enabled. Re-run this script after updating the image." >&2
+fi
+# The related-pages timer needs an image with `scrap enrich --related`. It
+# does nothing (and succeeds) while ingest is off or no key is set.
+if podman run --rm "$image" enrich --help 2>/dev/null | grep -q -- --related; then
+    systemctl --user enable --now scrap-enrich-related.timer
+else
+    systemctl --user disable --now scrap-enrich-related.timer 2>/dev/null || true
+    echo "Note: $image has no 'scrap enrich --related' command, so the nightly" >&2
+    echo "related-pages timer is NOT enabled. Re-run this script after updating the image." >&2
 fi
 [ -n "$started" ] || exit 1
 echo "scrap is running on $listen: try $here/smoke.sh"
