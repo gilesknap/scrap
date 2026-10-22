@@ -5,6 +5,18 @@
 :root {
   font: 17px / var(--lh) var(--font);
 }
+/* iPhone: the root follows the phone's text size (Larger Text too), which only reaches a page
+   through the system body font; at the default setting it is 17 px. The shorthand also sets the
+   face and line height: ours again. Only where the callout exists (iOS, not a Mac, where the body
+   font is 13 px); main.ts keeps it from going under 17 px (the smaller settings). */
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  :root {
+    /* biome-ignore lint/a11y/useGenericFontNames: a system font keyword; the family is set next */
+    font: -apple-system-body;
+    font-family: var(--font);
+    line-height: var(--lh);
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -892,7 +904,7 @@ mark {
 }
 .frow.ftags .tagline input {
   flex: 1;
-  min-width: 8rem;
+  min-width: min(8rem, 100%); /* never wider than the panel at a large text size */
   min-height: 44px;
   border-radius: var(--r-pill);
 }
@@ -1765,6 +1777,7 @@ div.orig .save {
 /* Segmented control: a page's kind, in the editor */
 .chips {
   display: flex;
+  flex-wrap: wrap; /* at a large text size, a second line rather than words over each other */
   padding: 3px;
   border-radius: var(--r-md);
   background: var(--sunk);
@@ -1776,6 +1789,7 @@ div.orig .save {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: min-content; /* equal shares while the words fit, else the row wraps */
   min-height: 42px;
   border-radius: 10px;
   color: var(--ink-2);
@@ -1798,7 +1812,6 @@ div.orig .save {
 .kindrow label {
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
   padding: 5px 0 4px;
   font-size: var(--t-xs);
 }

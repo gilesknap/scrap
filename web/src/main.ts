@@ -185,8 +185,18 @@ function dueSoon() {
 }
 addEventListener("scrap:wrote", dueSoon);
 
+// iPhone's text size sets the root (style.css), but never under scrap's 17 px: measured again
+// when the app comes back, the setting may have changed meanwhile
+const root = document.documentElement.style;
+const floor = () => {
+  root.fontSize = "";
+  if (parseFloat(getComputedStyle(document.documentElement).fontSize) < 17) root.fontSize = "17px";
+};
+floor();
+
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
+  floor();
   void queue.nudge(); // now, not when its backoff says: the user is here
   dueSoon();
   void learnLimit(); // the server's upload limit, kept for offline checks
