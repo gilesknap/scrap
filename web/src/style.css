@@ -1886,6 +1886,63 @@ div.orig .save {
 .bar .add {
   flex: 1;
 }
+/* The page editor's embeds (editor.ts embedded()): a chip each under the text, for the token
+   that stands for it there. Not while the text is previewed */
+.embeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.embeds:empty,
+.fields > textarea[hidden] ~ .embeds {
+  display: none;
+}
+.embed {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+}
+.embed button {
+  min-height: var(--tap);
+  border: none;
+  background: transparent;
+}
+.embed .pick {
+  min-width: 0;
+  padding: 0 0 0 var(--s-1);
+  font-size: var(--t-sm);
+}
+.embed .pick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.embed img,
+.embed .pick .i {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.embed .pick .i {
+  padding: 8px;
+  color: var(--ink-2);
+}
+.embed .ghost {
+  flex: none;
+  width: 40px;
+  padding: 0;
+  color: var(--ink-2);
+}
+.embed .ghost .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
 
 /* ---- Photo viewer ---- */
 .viewing {

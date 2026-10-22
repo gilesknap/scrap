@@ -193,14 +193,15 @@ export function bodyView(text: string, raw: boolean): HTMLElement {
   return el;
 }
 
-/** A Preview button that swaps a textarea for its text as formatted Markdown, and back. */
-export function previewer(text: HTMLTextAreaElement) {
+/** A Preview button that swaps a textarea for its text as formatted Markdown, and back. read
+ * gives the text as Markdown (the editor's box shows embeds as tokens). */
+export function previewer(text: HTMLTextAreaElement, read = () => text.value) {
   const pane = h("div", { className: "preview", hidden: true });
   const button = h("button", { type: "button" }, "Preview");
   button.onclick = async () => {
     const on = pane.hidden;
     if (on) await renderer();
-    pane.replaceChildren(bodyView(text.value, false));
+    pane.replaceChildren(bodyView(read(), false));
     pane.hidden = !on;
     text.hidden = on;
     button.textContent = on ? "Edit" : "Preview";

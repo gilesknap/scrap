@@ -10,7 +10,9 @@
 //
 // It is a chunk of its own, with the composer (composer.ts): the service worker keeps it for
 // offline use, but screens that never edit don't load it.
+import { previewUrl } from "./api";
 import { drafts } from "./db";
+import { expand, found, tokenise } from "./embeds";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
 import { checkbox, edit, lists } from "./listedit";
@@ -64,6 +66,67 @@ const box = () => {
     '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/></svg>';
   return t.content.firstChild as SVGSVGElement;
 };
+
+/** The text box's embeds of stored files as tokens (embeds.ts), with a chip each under it:
+ * a thumbnail and its name; tapped, its token is selected (to cut and paste elsewhere), and
+ * its ✕ takes the token out. value() is the text as Markdown, the embeds put back: read the
+ * text through it, never text.value. */
+export function embedded(text: HTMLTextAreaElement) {
+  // A preview that won't come (not a photo the server can draw, offline): the file icon
+  const thumb = (sha: string) => {
+    const img = h("img", { src: previewUrl(sha, 480), alt: "" });
+    img.onerror = () => img.replaceWith(icon("file"));
+    return img;
+  };
+  let embeds: ReturnType<typeof tokenise>["embeds"] = [];
+  // A tap keeps the keyboard as it is, as the editor's keys do
+  const chips = h("div", { className: "embeds", onpointerdown: (e: Event) => e.preventDefault() });
+  const show = () => {
+    chips.replaceChildren(
+      ...found(text.value, embeds).map(({ embed: e, at }) => {
+        const what = `${e.image ? "image" : "file"} ${e.n}`;
+        const span = { from: at, to: at + e.token.length };
+        const pick = () => {
+          text.focus();
+          text.setSelectionRange(span.from, span.to);
+        };
+        const remove = () => {
+          // A token on a line of its own takes its line with it
+          const v = text.value;
+          let { from, to } = span;
+          if ((from === 0 || v[from - 1] === "\n") && (to === v.length || v[to] === "\n")) {
+            if (to < v.length) to++;
+            else if (from > 0) from--;
+          }
+          text.focus();
+          edit(text, { from, to, insert: "", start: from, end: from });
+        };
+        return h(
+          "span",
+          { className: "embed" },
+          h(
+            "button",
+            { type: "button", className: "pick", title: e.token, onclick: pick },
+            e.image ? thumb(e.sha) : icon("file"),
+            h("span", { dir: "auto" }, e.label),
+          ),
+          h(
+            "button",
+            { type: "button", className: "ghost", "aria-label": `Remove ${what}`, onclick: remove },
+            icon("close"),
+          ),
+        );
+      }),
+    );
+  };
+  const set = (body: string) => {
+    ({ text: text.value, embeds } = tokenise(body));
+    show();
+  };
+  text.addEventListener("input", show);
+  set(text.value);
+  return { chips, value: () => expand(text.value, embeds), set };
+}
 
 /** Why text can't be saved as a page's (over 1 MB), said before sending it; else null. */
 export function tooLong(text: string) {
@@ -142,6 +205,7 @@ export interface Editor {
 
 export function editor(o: {
   text: HTMLTextAreaElement;
+  read?: () => string; // the text as Markdown (embedded()'s value), if not the box's own
   before?: Node[];
   after?: Node[];
   key: string; // what this is a draft of
@@ -153,7 +217,7 @@ export function editor(o: {
 }): Editor {
   o.text.dir = "auto"; // right-to-left text lays out as such
   lists(o.text); // Enter continues a list (listedit.ts)
-  const preview = previewer(o.text);
+  const preview = previewer(o.text, o.read);
   // Just above the keyboard (the layer is the visual viewport's height): the Checkbox key,
   // which turns the line (or the lines selected) into tasks. A tap keeps the keyboard up.
   const keys = h(
