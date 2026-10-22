@@ -13,9 +13,11 @@ steps, are in [](../how-to/deploy-single-server.md).
 ```{note}
 **What has been checked.** On 22 Oct 2026 the steps up to {ref}`dls-phone` were run by hand on a
 DLS workstation (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2): a
-phone on the tailnet opened the web app through Tailscale Serve and captured a photo. Ingest was
-not turned on. Starting the pod at boot under systemd ({ref}`dls-systemd`) and backups
-({ref}`dls-backup`) are not automated, and the systemd steps have not been run end to end at DLS.
+phone on the tailnet opened the web app through Tailscale Serve and captured a photo. Since
+then `tailscaled` runs as you rather than as root in its container; that change was checked on
+the same pod, which kept its login and Serve setting. Ingest was not turned on. Backups
+({ref}`dls-backup`) are not automated, and the systemd steps ({ref}`dls-systemd`) have not been
+run end to end.
 ```
 
 ```{warning}
@@ -38,20 +40,32 @@ A podman pod is a group of containers that share one network namespace, with its
   container, publishes `http://127.0.0.1:8000` on your tailnet as
   `https://<name>.<tailnet>.ts.net`.
 
-Rootless podman maps root in a container to an unprivileged id of yours, so nothing here needs
-`sudo`. It still matters that `tailscaled` runs as root in its container: since Tailscale 1.98.9
-([TS-2026-005](https://tailscale.com/security-bulletins#ts-2026-005)), some Serve settings are
-accepted only from a local admin, which a `tailscaled` run directly as you is not.
+Nothing here needs `sudo`. The pod maps user 10001 in its containers to you on the
+workstation, and both containers run as that user, so their processes and files are yours.
+
+:::{dropdown} Why Tailscale does not run as root in its container
+DLS workstations give every user the same subordinate id range in `/etc/subuid`. Rootless
+podman maps root in a container, and every id other than your own, into that range, so root in
+your container is the same workstation id as root in anyone else's, and another user can become
+it with `podman unshare`. A `tailscaled` running as root in its container could then be
+signalled by other users, have its node key read, and be driven through its control socket via
+`/proc/<pid>/root`. So on these workstations, never run a long-lived container process as root,
+or as any id other than the one mapped to you, inside a rootless container. This page runs
+`tailscaled` as user 10001, which is you. It does not need root: Serve here only forwards to
+`http://127.0.0.1:8000`.
+:::
 
 ## What runs as you
 
 Without `sudo` there is no dedicated user, so scrap, its data and Tailscale all run as you. Other
-users on the workstation cannot reach scrap: it listens only inside the pod, and its files are
-yours. Anything running in your own account can: it can `podman exec` into the pod, read and
-change all of scrap's data, and send its own `Tailscale-User-Login` header to be recorded as any
-author. So can root and the workstation's admins, and so can whoever owns or administers your
-tailnet (you, if you follow {ref}`dls-make-tailnet`). That is fine for a trial; for lasting use,
-follow [](installation.md) on a machine where scrap has its own user. See {ref}`scrap-access`.
+users on the workstation cannot reach scrap or Tailscale: scrap listens only inside the pod,
+Tailscale's control socket is inside the pod too, and their processes and files are yours, in a
+folder only you can open. Anything running as you can: it can `podman exec` into the pod, read
+and change all of scrap's data, drive Tailscale, and send its own `Tailscale-User-Login` header
+to be recorded as any author. So can root and the workstation's admins, and so can whoever owns
+or administers your tailnet (you, if you follow {ref}`dls-make-tailnet`). That is fine for a
+trial; for lasting use, follow [](installation.md) on a machine where scrap has its own user.
+See {ref}`scrap-access`.
 
 ## What you need
 
@@ -101,7 +115,8 @@ Under the default policy, which lets every device reach every port, any device o
 could reach scrap directly on port 8000, over plain HTTP and without the identity header that
 Serve adds. This policy lets your own devices reach each other on port 443 only, and nothing
 else. Replacing the policy wipes whatever was there, which is fine only because the tailnet is
-new.
+new; it also drops the default policy's `nodeAttrs` that allow Funnel, so scrap cannot be put on
+the internet by mistake.
 
 ## Build the image
 
@@ -131,22 +146,24 @@ here and below.
 ## Create the pod
 
 Pick a name for the workstation on your tailnet, such as `scrap`; it becomes
-`https://scrap.<tailnet>.ts.net`. Make the folders on `/scratch`, and a settings file for scrap
-there, readable only by you:
+`https://scrap.<tailnet>.ts.net`. Make the folders on `/scratch`, open only to you, and a
+settings file for scrap there, readable only by you:
 
 ```
 base=/scratch/$USER/scrap-pod
 mkdir -p $base/data $base/backups $base/tailscale
-cat >$base/scrap.env <<'EOF'
+chmod 700 $base
+(umask 077; cat >$base/scrap.env <<'EOF'
 SCRAP_PUBLIC_URL=https://scrap.<tailnet>.ts.net
 TZ=Europe/London
 EOF
-chmod 600 $base/scrap.env
+)
 ```
 
-`SCRAP_PUBLIC_URL` lets Claude Code reach `/mcp` through Serve; `TZ` makes `due:today` follow
-your day rather than UTC. See {ref}`scrap-ingest-settings`. The commands below use `$base`, so
-set it again in each new shell.
+Replace `<tailnet>` with your tailnet's name from the admin console. The first part, `scrap`, must
+match the `--hostname` you give Tailscale below. `SCRAP_PUBLIC_URL` lets Claude Code reach `/mcp`
+through Serve; `TZ` makes `due:today` follow your day rather than UTC. See
+{ref}`scrap-ingest-settings`. The commands below use `$base`, so set it again in each new shell.
 
 Create the pod, then start scrap and Tailscale in it:
 
@@ -155,10 +172,10 @@ podman pod create --name scrap-pod --userns=keep-id:uid=10001,gid=10001
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
     localhost/scrap:dev serve --host 127.0.0.1 --port 8000
-podman run -d --pod scrap-pod --name scrap-pod-ts --user 0:0 \
+podman run -d --pod scrap-pod --name scrap-pod-ts --user 10001:10001 \
     -v $base/tailscale:/var/lib/tailscale:z \
     --entrypoint tailscaled docker.io/tailscale/tailscale:stable \
-    --tun=userspace-networking --statedir=/var/lib/tailscale
+    --tun=userspace-networking --statedir=/var/lib/tailscale --socket=/tmp/tailscaled.sock
 ```
 
 - `--userns=keep-id:uid=10001,gid=10001` maps scrap's user in the image, 10001, to you, so the
@@ -167,6 +184,11 @@ podman run -d --pod scrap-pod --name scrap-pod-ts --user 0:0 \
 - `:z` relabels each folder so that a container can write to it with SELinux enforcing.
 - There is no memory cap: on cgroups v1, as on DLS workstations, rootless podman ignores
   `--memory`.
+- `--user 10001:10001` runs `tailscaled` as you. Containers in this pod run as 10001 anyway,
+  but the page says so because it matters: see "Why Tailscale does not run as root in its
+  container" above.
+- `--socket=/tmp/tailscaled.sock` puts `tailscaled`'s control socket where user 10001 can create
+  it; the default, under `/var/run/tailscale`, needs root.
 - `--entrypoint tailscaled` skips the image's own start-up script, which gives up and exits if
   you have not logged in within about 40 seconds.
 
@@ -183,8 +205,17 @@ The first should print `{"status":"ok",...}`; the second should fail with
 
 ## Join your tailnet and publish scrap
 
+Every `tailscale` command must name that socket, so define a shell function for them (again in
+each new shell, like `$base`):
+
 ```
-podman exec -it scrap-pod-ts tailscale up --hostname=scrap
+ts() { podman exec scrap-pod-ts tailscale --socket=/tmp/tailscaled.sock "$@"; }
+```
+
+Log in, with a terminal attached so that you can watch it:
+
+```
+podman exec -it scrap-pod-ts tailscale --socket=/tmp/tailscaled.sock up --hostname=scrap
 ```
 
 This prints a login URL and waits: open it in any browser and log in to your new tailnet. (To
@@ -193,8 +224,8 @@ console and pass `--auth-key=<key>` instead.) Then publish scrap with Tailscale 
 standard HTTPS port:
 
 ```
-podman exec scrap-pod-ts tailscale serve --bg --https=443 http://127.0.0.1:8000
-podman exec scrap-pod-ts tailscale serve status
+ts serve --bg --https=443 http://127.0.0.1:8000
+ts serve status
 ```
 
 `--bg` keeps the setting, in Tailscale's state on `/scratch`, across restarts. `serve status`
@@ -230,8 +261,11 @@ nothing. Each container keeps its own output:
 ```
 podman logs scrap-pod-app
 podman logs scrap-pod-ts
-podman exec scrap-pod-ts tailscale status
+ts status
 ```
+
+Under systemd ({ref}`dls-systemd`), a container is removed when its unit stops, and its logs go
+with it.
 
 ## Optional: ingest on your Claude seat
 
@@ -261,8 +295,11 @@ token can use your whole seat, and calls count against your seat's usage limits.
    CLAUDE_CODE_OAUTH_TOKEN=<your token>
    ```
 
+   `podman inspect scrap-pod-app` shows the container's environment, token included, in plain
+   text: do not paste its output anywhere.
+
 4. Recreate scrap's container as in {ref}`dls-update`, with `localhost/scrap-claude:dev` in place
-   of `localhost/scrap:dev`.
+   of `localhost/scrap:dev` (under systemd, regenerate the units).
 
 What the token gives away, the budget and the limits are in the how-to's "On a Claude seat, with
 no API key", under {ref}`scrap-ingest-settings`. An API key works instead: it comes from a Claude
@@ -285,13 +322,31 @@ Back up first if the new image may change the database: see {ref}`scrap-upgrade-
 Tailscale, `podman pull` its image, then remove and run `scrap-pod-ts` the same way. Its login
 and Serve setting are kept on `/scratch`.
 
-## Start it again after a reboot
+Under systemd ({ref}`dls-systemd`), do not remove containers by hand. The units create each
+container afresh at every start, reading `$base/scrap.env` again and running whatever
+`localhost/scrap:dev` (or Tailscale's pulled image) now is, so after a settings change or a
+rebuild, restart the container's unit:
 
-The pod does not start by itself. After the workstation restarts, or after `podman pod stop`:
+```
+systemctl --user restart container-scrap-pod-app.service
+```
+
+(`container-scrap-pod-ts.service` for Tailscale.) To change a container's command line, such as
+switching to `localhost/scrap-claude:dev`, regenerate the units as described there.
+
+## Start it again
+
+The pod does not start by itself, and it stops when you log out: unless your account lingers,
+systemd stops all your processes when your last session ends. After a reboot, a logout or
+`podman pod stop`:
 
 ```
 podman pod start scrap-pod
 ```
+
+To keep the pod running after you log out, run `loginctl enable-linger` (if it is refused, see
+below). That alone keeps a pod you started by hand alive; to start it at boot too, follow
+{ref}`dls-systemd`.
 
 (dls-systemd)=
 ### Optional: start it at boot with systemd
@@ -302,9 +357,10 @@ Not yet run end to end at DLS. The generated units have been checked with
 ```
 
 Podman 4.9 has no Quadlet `.pod` units, so generate systemd user units from the running pod
-instead. (`podman generate systemd` is deprecated in podman 5 in favour of Quadlet.) The units
-record each container's command line, so the pod must be running as above. Each unit gets a
-guard so that it runs only on this workstation, not on another machine that mounts your NFS home:
+instead; `podman generate systemd` prints a DEPRECATED notice recommending Quadlet, which you can
+ignore here. The units record each container's command line, so the pod must be running as above.
+Each unit gets a guard so that it runs only on this workstation, not on another machine that mounts
+your NFS home:
 
 ```
 mkdir -p ~/.config/systemd/user
@@ -318,8 +374,9 @@ done
 systemd-analyze --user verify pod-scrap-pod.service
 ```
 
-With `--new`, systemd creates the pod and containers afresh at each start and removes them at
-each stop, so stop and remove the ones you made by hand, then start the pod's unit:
+With `--new`, systemd creates the pod and containers afresh at each start and removes them at each
+stop, and restarts a container that fails. Stop and remove the ones you made by hand, then start
+the pod's unit:
 
 ```
 podman pod stop scrap-pod
@@ -330,8 +387,9 @@ loginctl enable-linger
 ```
 
 `enable-linger` lets your user services run when you are not logged in, and start at boot. If it
-is refused, ask IT to run `sudo loginctl enable-linger <fedid>` for you. To change a container
-later, make the pod by hand again as above and regenerate the units.
+is refused, ask IT to run `sudo loginctl enable-linger <fedid>` for you. To change a container's
+command line later, first `systemctl --user disable --now pod-scrap-pod.service`, then make the
+pod by hand again as above and regenerate the units.
 
 (dls-backup)=
 ## Back up
@@ -356,20 +414,36 @@ To restore, see {ref}`scrap-restore`.
 To stop scrap and Tailscale, `podman pod stop scrap-pod` (or, under systemd,
 `systemctl --user stop pod-scrap-pod.service`); start them again as above.
 
-To remove them, first take the workstation off your tailnet, then remove the pod and Tailscale's
-state:
+To remove them, do these steps in order. If you set up systemd, the pod must be running under it
+for the first step, and the second uses `systemctl` instead of `podman pod`.
 
-```
-podman exec scrap-pod-ts tailscale serve reset
-podman exec scrap-pod-ts tailscale logout
-podman pod stop scrap-pod
-podman pod rm scrap-pod
-podman unshare rm -r /scratch/$USER/scrap-pod/tailscale
-```
+1. While the pod is up, take it off your tailnet:
 
-Some of Tailscale's files belong to root in the container, which `podman unshare` lets you
-remove. Then delete the machine under **Machines** in the Tailscale admin console. If you set up
-systemd, first `systemctl --user disable --now pod-scrap-pod.service` and remove the
-`*scrap-pod*` files and folders from `~/.config/systemd/user`.
+   ```
+   ts serve reset
+   ts logout
+   ```
+
+2. Stop and remove the pod:
+
+   ```
+   podman pod stop scrap-pod
+   podman pod rm scrap-pod
+   ```
+
+   Under systemd, run `systemctl --user disable --now pod-scrap-pod.service` instead, remove the
+   `*scrap-pod*` files and folders from `~/.config/systemd/user`, and run
+   `systemctl --user daemon-reload`.
+
+3. Remove Tailscale's state:
+
+   ```
+   rm -r /scratch/$USER/scrap-pod/tailscale
+   ```
+
+   If that state was made by an older version of this page, which ran Tailscale as root in its
+   container, some files are not yours: use `podman unshare rm -r` instead.
+
+Then delete the machine under **Machines** in the Tailscale admin console, if it is still listed.
 
 Your data in `/scratch/$USER/scrap-pod` stays until you delete it.
