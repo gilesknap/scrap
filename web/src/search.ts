@@ -65,10 +65,9 @@ export async function search(): Promise<Node> {
       type: "radio",
       name: "kind",
       value: v,
-      // A click, not a change: tapping the one that is on clears it. Todos alone: the Todos
-      // screen (Now), not a search
-      onclick: () =>
-        withKind(input.value, v) === "kind:todo" ? go("/todos") : apply((now) => withKind(now, v)),
+      // A click, not a change: tapping the one that is on clears it. Todos filter as the
+      // others do (the Todos screen is the nav bar's)
+      onclick: () => apply((now) => withKind(now, v)),
     });
     // Each kind with its icon, as the editor's kinds have them (All: every kind's tiles)
     return [radio, h("label", {}, radio, icon(v ? kindIcon(apiKind) : "all"), label)] as const;

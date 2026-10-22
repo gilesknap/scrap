@@ -165,11 +165,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     h("div", { className: "chips kindrow", role: "radiogroup", "aria-label": "Show" }, ...radios),
     count,
     body,
-    h(
-      "a",
-      { className: "button ghost more", href: `/search?q=${encodeURIComponent("kind:todo")}` },
-      "Search todos",
-    ),
     add,
   );
   // Leaving by a tap or a swipe: where the list is, for Back
