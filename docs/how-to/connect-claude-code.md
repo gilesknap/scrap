@@ -4,6 +4,9 @@ Claude Code sessions can search, read and write scrap through its MCP server (se
 [](../reference/mcp.md)). Nothing is installed on the session's machine: it talks to `/mcp`
 over HTTPS on the tailnet.
 
+If scrap runs in a podman pod on a DLS workstation, follow {ref}`dls-claude-code` in the DLS
+tutorial instead: setting the address and restarting scrap work differently there.
+
 Before you start you need:
 
 - scrap running and published on your tailnet, so that the machine running Claude Code can open

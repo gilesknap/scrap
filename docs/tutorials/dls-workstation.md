@@ -11,13 +11,13 @@ Tailscale, is [](installation.md); every option, and the update, backup and trou
 steps, are in [](../how-to/deploy-single-server.md).
 
 ```{note}
-**What has been checked.** On 22 Oct 2026 the steps up to {ref}`dls-phone` were run by hand on a
-DLS workstation (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2): a
-phone on the tailnet opened the web app through Tailscale Serve and captured a photo. Since
-then `tailscaled` runs as you rather than as root in its container; that change was checked on
-the same pod, which kept its login and Serve setting. Ingest was not turned on. Backups
-({ref}`dls-backup`) are not automated, and the systemd steps ({ref}`dls-systemd`) have not been
-run end to end.
+**What has been checked.** On 22 Oct 2026 this page was run by hand, end to end, on a DLS
+workstation (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2), with
+`tailscaled` running as you: a phone on the tailnet opened the web app through Tailscale Serve,
+installed it as an app and captured photos, and ingest on a Claude seat ({ref}`dls-ingest`)
+read two photos in about 10 seconds. Not yet checked or automated: Claude Code over MCP
+({ref}`dls-claude-code`), starting at boot with systemd ({ref}`dls-systemd`), and automatic
+backups ({ref}`dls-backup`).
 ```
 
 ```{warning}
@@ -75,7 +75,7 @@ See {ref}`scrap-access`.
   you to every machine that mounts it, so keep scrap's data, Tailscale's state (which identifies
   this machine) and any secrets on `/scratch`, not in your home.
 - A phone with the [Tailscale app](https://tailscale.com/download), and another device on which
-  to run Claude Code if you want to connect it (see {ref}`dls-check`).
+  to run Claude Code if you want to connect it (see {ref}`dls-claude-code`).
 
 You do not need Python or Node: the images carry everything.
 
@@ -241,7 +241,11 @@ The workstation itself is not on your tailnet (only the pod is), so check from y
 another tailnet device instead: with Tailscale connected, open
 `https://scrap.<tailnet>.ts.net/healthz`, which should show `{"status":"ok",...}`. The first
 request can take a few seconds while Tailscale fetches the certificate. For the same reason, run
-Claude Code on another device on your tailnet, not on the workstation.
+Claude Code on another device on your tailnet, not on the workstation (see {ref}`dls-claude-code`).
+
+If `ts status` shows the pod's node as offline, or a device hangs on "loading…", run
+`ts up --hostname=scrap` again: after a restart the node's registration can stall, and running
+`up` again registers it at once. The login and Serve setting are kept.
 
 (dls-phone)=
 ## Open it on your phone
@@ -250,8 +254,51 @@ With the Tailscale app connected, open `https://scrap.<tailnet>.ts.net` on your 
 the app: see [](../how-to/use-the-pwa.md). Captures made while the workstation is off, or the pod
 stopped, wait in the app's offline queue and are sent when it is back.
 
-To let Claude Code sessions on another tailnet device search and write scrap, see
-[](../how-to/connect-claude-code.md); `SCRAP_PUBLIC_URL` is already set.
+(dls-claude-code)=
+## Connect Claude Code
+
+```{warning}
+Not yet checked end to end in this setup.
+```
+
+Claude Code sessions can search, read and write scrap through its MCP server at `/mcp`. Claude
+Code must run on a device on your tailnet: for now, a laptop or another machine on which you can
+install Tailscale.
+
+**Claude Code on the workstation itself cannot reach scrap yet.** Only the pod is on your
+tailnet, and scrap is not published to the workstation, so that other users there cannot reach
+it. Ways round this that keep that property are still open: see
+[scrap#163](https://github.com/gilesknap/scrap/issues/163).
+
+1. On that device, install [Tailscale](https://tailscale.com/download) and log in to the **same**
+   personal account as the pod. The policy from {ref}`dls-make-tailnet` already lets your own
+   devices reach each other on port 443, so nothing changes there.
+2. Add scrap to Claude Code, for all your projects, and check that it connects:
+
+   ```
+   claude mcp add --transport http --scope user scrap https://scrap.<tailnet>.ts.net/mcp
+   claude mcp list
+   ```
+
+   `claude mcp list` should show `scrap` as connected. The address must be the one in
+   `SCRAP_PUBLIC_URL` in `$base/scrap.env`, set when you created the pod; any other address gets
+   `421 Invalid Host header` from `/mcp`. If you change that setting, recreate scrap's container
+   ({ref}`dls-update`).
+3. Optionally, install the `scrap-post` skill, which posts a summary of a conversation to scrap
+   when you say "post this to scrap". On that device:
+
+   ```
+   mkdir -p ~/.claude/skills/scrap-post
+   curl -fsSL -o ~/.claude/skills/scrap-post/SKILL.md \
+       https://raw.githubusercontent.com/gilesknap/scrap/main/skills/scrap-post/SKILL.md
+   ```
+
+   or copy `skills/scrap-post/SKILL.md` from a clone of the repo to the same place.
+
+What the tools do, which to allow without asking, and how to check `/mcp` with `curl` are in
+[](../how-to/connect-claude-code.md). Its steps for setting the address and restarting scrap
+(`systemctl --user restart scrap`, the `scrap` user) are for the single-server install and do
+not apply here: change `$base/scrap.env` and recreate the container instead.
 
 ## Logs
 
@@ -267,6 +314,7 @@ ts status
 Under systemd ({ref}`dls-systemd`), a container is removed when its unit stops, and its logs go
 with it.
 
+(dls-ingest)=
 ## Optional: ingest on your Claude seat
 
 Photos are queued but not sent to Claude until you turn ingest on. On a Claude Team or
@@ -276,7 +324,8 @@ check with your organisation's Claude admin that unattended use of your seat is 
 token can use your whole seat, and calls count against your seat's usage limits.
 
 1. On any machine with Claude Code logged in to your seat, run `claude setup-token` and copy the
-   token it prints.
+   token it prints: only the token, one line of about 108 characters starting `sk-ant-oat01-`,
+   not the line after it.
 2. From the clone, build the image with the CLI added:
 
    ```
@@ -304,6 +353,11 @@ token can use your whole seat, and calls count against your seat's usage limits.
 What the token gives away, the budget and the limits are in the how-to's "On a Claude seat, with
 no API key", under {ref}`scrap-ingest-settings`. An API key works instead: it comes from a Claude
 Console account, which is separate from a seat and billed per use.
+
+If ingest pauses for `auth` with `401 OAuth access token is invalid`, the token was copied
+wrongly. Put only the `sk-ant-oat01-…` token in `$base/scrap.env`, recreate scrap's container
+({ref}`dls-update`), then press **Resume** on the paused photo in the app (or
+`POST /api/ingest/resume`). Nothing is lost while ingest is paused.
 
 (dls-update)=
 ## Update or change settings
