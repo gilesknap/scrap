@@ -1,4 +1,4 @@
-// The app shell: a tiny router, the queue badge in the header and service worker updates.
+// The app shell: a tiny router, the top bar (Back, the queue badge) and service worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
 import { back, view as current, go, markNav, plain, queue } from "./app";
@@ -41,6 +41,23 @@ function recent() {
 }
 
 const view = document.getElementById("view") as HTMLElement;
+const logo = document.querySelector(".logo") as HTMLElement;
+const up = document.getElementById("back") as HTMLButtonElement;
+const where = document.getElementById("where") as HTMLElement;
+// Back to the app's entry before this one (go() marks the entries it pushes), else (opened
+// from a link or a share) up to a parent: a todo's is Todos, Tags' is Search, any other
+// page's is Capture
+up.onclick = () =>
+  history.state?.at
+    ? history.back()
+    : go(
+        location.pathname === "/tags"
+          ? "/search"
+          : view.querySelector(".page[data-kind=todo]")
+            ? "/todos"
+            : "/",
+        true,
+      );
 let rendering = 0;
 let shown = ""; // the path on screen
 let controller = new AbortController();
@@ -53,6 +70,13 @@ async function render() {
   clearToasts();
   const path = location.pathname;
   markNav();
+  // A page and Tags are reached from elsewhere: Back in the top bar instead of the wordmark
+  const sub = path.startsWith("/p/") ? "" : path === "/tags" ? "Tags" : null;
+  logo.hidden = sub !== null;
+  up.hidden = sub === null;
+  where.hidden = !sub;
+  where.textContent = sub;
+  document.body.classList.toggle("paged", sub === ""); // its toolbar is the bottom bar: no nav
   for (const [re, fn] of routes) {
     const m = path.match(re);
     if (!m) continue;
