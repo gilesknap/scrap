@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on a DLS workstation &#8212; scrap 0.1.dev370+g2e35df4f8 documentation</title>
+    <title>Try scrap on a DLS workstation &#8212; scrap 0.1.dev372+g313a57fb7 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=f97519c5"></script>
+    <script src="../_static/documentation_options.js?v=bc02b9be"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -496,13 +496,13 @@ Tailscale, is <a class="reference internal" href="installation.html"><span class
 steps, are in <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>What has been checked.</strong> On 22 Oct 2026 the steps up to <a class="reference internal" href="#dls-phone"><span class="std std-ref">Open it on your phone</span></a> were run by hand on a
-DLS workstation (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2): a
-phone on the tailnet opened the web app through Tailscale Serve and captured a photo. Since
-then <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> runs as you rather than as root in its container; that change was checked on
-the same pod, which kept its login and Serve setting. Ingest was not turned on. Backups
-(<a class="reference internal" href="#dls-backup"><span class="std std-ref">Back up</span></a>) are not automated, and the systemd steps (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>) have not been
-run end to end.</p>
+<p><strong>What has been checked.</strong> On 22 Oct 2026 this page was run by hand, end to end, on a DLS
+workstation (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2), with
+<code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> running as you: a phone on the tailnet opened the web app through Tailscale Serve,
+installed it as an app and captured photos, and ingest on a Claude seat (<a class="reference internal" href="#dls-ingest"><span class="std std-ref">Optional: ingest on your Claude seat</span></a>)
+read two photos in about 10 seconds. Not yet checked or automated: Claude Code over MCP
+(<a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>), starting at boot with systemd (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>), and automatic
+backups (<a class="reference internal" href="#dls-backup"><span class="std std-ref">Back up</span></a>).</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -560,7 +560,7 @@ database (in WAL mode) needs a local disk, not NFS. Your home directory is on NF
 you to every machine that mounts it, so keep scrap’s data, Tailscale’s state (which identifies
 this machine) and any secrets on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, not in your home.</p></li>
 <li><p>A phone with the <a class="reference external" href="https://tailscale.com/download">Tailscale app</a>, and another device on which
-to run Claude Code if you want to connect it (see <a class="reference internal" href="#dls-check"><span class="std std-ref">Check it from another device</span></a>).</p></li>
+to run Claude Code if you want to connect it (see <a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>).</p></li>
 </ul>
 <p>You do not need Python or Node: the images carry everything.</p>
 </section>
@@ -706,7 +706,10 @@ port 443: slower, but it works.</p>
 another tailnet device instead: with Tailscale connected, open
 <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net/healthz</span></code>, which should show <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. The first
 request can take a few seconds while Tailscale fetches the certificate. For the same reason, run
-Claude Code on another device on your tailnet, not on the workstation.</p>
+Claude Code on another device on your tailnet, not on the workstation (see <a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>).</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">status</span></code> shows the pod’s node as offline, or a device hangs on “loading…”, run
+<code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">up</span> <span class="pre">--hostname=scrap</span></code> again: after a restart the node’s registration can stall, and running
+<code class="docutils literal notranslate"><span class="pre">up</span></code> again registers it at once. The login and Serve setting are kept.</p>
 </section>
 </section>
 <section id="open-it-on-your-phone">
@@ -714,8 +717,48 @@ Claude Code on another device on your tailnet, not on the workstation.</p>
 <p>With the Tailscale app connected, open <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code> on your phone and install
 the app: see <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>. Captures made while the workstation is off, or the pod
 stopped, wait in the app’s offline queue and are sent when it is back.</p>
-<p>To let Claude Code sessions on another tailnet device search and write scrap, see
-<a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>; <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is already set.</p>
+</section>
+<section id="connect-claude-code">
+<span id="dls-claude-code"></span><h2>Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Not yet checked end to end in this setup.</p>
+</div>
+<p>Claude Code sessions can search, read and write scrap through its MCP server at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Claude
+Code must run on a device on your tailnet: for now, a laptop or another machine on which you can
+install Tailscale.</p>
+<p><strong>Claude Code on the workstation itself cannot reach scrap yet.</strong> Only the pod is on your
+tailnet, and scrap is not published to the workstation, so that other users there cannot reach
+it. Ways round this that keep that property are still open: see
+<a class="reference external" href="https://github.com/gilesknap/scrap/issues/163">scrap#163</a>.</p>
+<ol class="arabic">
+<li><p>On that device, install <a class="reference external" href="https://tailscale.com/download">Tailscale</a> and log in to the <strong>same</strong>
+personal account as the pod. The policy from <a class="reference internal" href="#dls-make-tailnet"><span class="std std-ref">Make a tailnet</span></a> already lets your own
+devices reach each other on port 443, so nothing changes there.</p></li>
+<li><p>Add scrap to Claude Code, for all your projects, and check that it connects:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="o">/</span><span class="n">mcp</span>
+<span class="n">claude</span> <span class="n">mcp</span> <span class="nb">list</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. The address must be the one in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, set when you created the pod; any other address gets
+<code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> from <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. If you change that setting, recreate scrap’s container
+(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>).</p>
+</li>
+<li><p>Optionally, install the <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill, which posts a summary of a conversation to scrap
+when you say “post this to scrap”. On that device:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span>
+<span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="o">-</span><span class="n">o</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span> \
+    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span>
+</pre></div>
+</div>
+<p>or copy <code class="docutils literal notranslate"><span class="pre">skills/scrap-post/SKILL.md</span></code> from a clone of the repo to the same place.</p>
+</li>
+</ol>
+<p>What the tools do, which to allow without asking, and how to check <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> with <code class="docutils literal notranslate"><span class="pre">curl</span></code> are in
+<a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>. Its steps for setting the address and restarting scrap
+(<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>, the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user) are for the single-server install and do
+not apply here: change <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> and recreate the container instead.</p>
 </section>
 <section id="logs">
 <h2>Logs<a class="headerlink" href="#logs" title="Link to this heading">#</a></h2>
@@ -730,7 +773,7 @@ nothing. Each container keeps its own output:</p>
 with it.</p>
 </section>
 <section id="optional-ingest-on-your-claude-seat">
-<h2>Optional: ingest on your Claude seat<a class="headerlink" href="#optional-ingest-on-your-claude-seat" title="Link to this heading">#</a></h2>
+<span id="dls-ingest"></span><h2>Optional: ingest on your Claude seat<a class="headerlink" href="#optional-ingest-on-your-claude-seat" title="Link to this heading">#</a></h2>
 <p>Photos are queued but not sent to Claude until you turn ingest on. On a Claude Team or
 Enterprise seat it runs through Claude Code with a long-lived token
 (<a class="reference internal" href="../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>). First
@@ -738,7 +781,8 @@ check with your organisation’s Claude admin that unattended use of your seat i
 token can use your whole seat, and calls count against your seat’s usage limits.</p>
 <ol class="arabic">
 <li><p>On any machine with Claude Code logged in to your seat, run <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code> and copy the
-token it prints.</p></li>
+token it prints: only the token, one line of about 108 characters starting <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-</span></code>,
+not the line after it.</p></li>
 <li><p>From the clone, build the image with the CLI added:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> \
     <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
@@ -763,6 +807,10 @@ of <code class="docutils literal notranslate"><span class="pre">localhost/scrap:
 <p>What the token gives away, the budget and the limits are in the how-to’s “On a Claude seat, with
 no API key”, under <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>. An API key works instead: it comes from a Claude
 Console account, which is separate from a seat and billed per use.</p>
+<p>If ingest pauses for <code class="docutils literal notranslate"><span class="pre">auth</span></code> with <code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">OAuth</span> <span class="pre">access</span> <span class="pre">token</span> <span class="pre">is</span> <span class="pre">invalid</span></code>, the token was copied
+wrongly. Put only the <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-…</span></code> token in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, recreate scrap’s container
+(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>), then press <strong>Resume</strong> on the paused photo in the app (or
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/ingest/resume</span></code>). Nothing is lost while ingest is paused.</p>
 </section>
 <section id="update-or-change-settings">
 <span id="dls-update"></span><h2>Update or change settings<a class="headerlink" href="#update-or-change-settings" title="Link to this heading">#</a></h2>
@@ -945,6 +993,7 @@ container, some files are not yours: use <code class="docutils literal notransla
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-on-your-phone">Open it on your phone</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">Connect Claude Code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logs">Logs</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-ingest-on-your-claude-seat">Optional: ingest on your Claude seat</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-or-change-settings">Update or change settings</a></li>
