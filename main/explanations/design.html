@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.1.dev339+g1054d0b8a documentation</title>
+    <title>scrap design &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a866737e"></script>
+    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -734,8 +734,12 @@ renames, at the cost of a slug that drifts from the title. A deleted page’s sl
 and old links then point at the new page; accepted for one user.</p></li>
 <li><p><strong>Links.</strong> <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> in Markdown, parsed into <code class="docutils literal notranslate"><span class="pre">link</span></code> on save. Dangling links
 are allowed; backlinks are a query on <code class="docutils literal notranslate"><span class="pre">link_by_dst</span></code>.</p></li>
-<li><p><strong>Tags.</strong> Flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed. The PWA edits them; <code class="docutils literal notranslate"><span class="pre">summarise</span></code> adds them only on its
-first success and only to a page with none.</p></li>
+<li><p><strong>Tags.</strong> Flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed. The PWA edits them. Claude’s (photo ingest, and
+enrich for text pages: <a class="reference internal" href="ingest.html"><span class="std std-doc">Claude ingest (M2)</span></a>) are marked in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> and shown dashed; a tag the
+user takes off is never added back, and Claude never removes one.</p></li>
+<li><p><strong>Related.</strong> Enrich stores the pages Claude picked as related apart from the text (a nightly
+pass and Ask Claude, not every save); the page shows them as Related both ways, merged with
+backlinks.</p></li>
 </ul>
 </section>
 <section id="kinds">
@@ -776,7 +780,8 @@ defaults plus any checked model output: todo <code class="docutils literal notra
 <code class="docutils literal notranslate"><span class="pre">{&quot;subtype&quot;:&quot;read&quot;,&quot;status&quot;:&quot;open&quot;}</span></code> and <code class="docutils literal notranslate"><span class="pre">source</span></code>, always the capture’s own URL (omitted if it has
 none). Either way the page is listed at once, even if <code class="docutils literal notranslate"><span class="pre">summarise</span></code> never succeeds.</p></li>
 <li><p><strong>The user wins</strong>, as with titles. A kind chosen at capture or in the editor sets
-<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>. <code class="docutils literal notranslate"><span class="pre">extract</span></code> and
+<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>. As built, enrich (#85, <a class="reference internal" href="ingest.html"><span class="std std-doc">Claude ingest (M2)</span></a>) files a saved link as Later only while it
+is an unfixed note, and retitles it only while its title is still the URL. <code class="docutils literal notranslate"><span class="pre">extract</span></code> and
 <code class="docutils literal notranslate"><span class="pre">summarise</span></code> set the kind only while it is still <code class="docutils literal notranslate"><span class="pre">note</span></code> and not fixed. <code class="docutils literal notranslate"><span class="pre">summarise</span></code> writes kind,
 <code class="docutils literal notranslate"><span class="pre">fields</span></code> and tags only on its first success; a regenerated summary replaces just the summary text,
 so a cleared <code class="docutils literal notranslate"><span class="pre">due</span></code> stays cleared. It calls Claude holding no lock, then in one <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code>
@@ -954,7 +959,8 @@ gets only the Read tool, in a throwaway directory holding that one file. The Cla
 share its container, so the call never bypasses permissions and a deny rule covers their
 directory; this confinement is verified when the worker is built. The worst outcome is a wrong
 page, which <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> can undo. URL fetching refuses private and tailnet addresses, re-checked
-after DNS resolution and after every redirect.</p></li>
+after DNS resolution and after every redirect, and connects to the address it checked
+(<code class="docutils literal notranslate"><span class="pre">fetch.py</span></code>; as built, text calls have no tools at all).</p></li>
 <li><p><strong>Reading is not acting.</strong> Sessions holding cluster or other powerful credentials should not
 mount the scrap MCP server, since pages may hold injected text.</p></li>
 </ul>

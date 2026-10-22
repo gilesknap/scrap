@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest (M2) &#8212; scrap 0.1.dev339+g1054d0b8a documentation</title>
+    <title>Claude ingest (M2) &#8212; scrap 0.1.dev350+g8217309c6 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a866737e"></script>
+    <script src="../_static/documentation_options.js?v=0d8ef2ee"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -929,6 +929,96 @@ the app strips control characters from <code class="docutils literal notranslate
 </pre></div>
 </div>
 </section>
+<section id="enrich-text-pages-and-links-85-stage-1">
+<h2>Enrich: text pages and links (#85, stage 1)<a class="headerlink" href="#enrich-text-pages-and-links-85-stage-1" title="Link to this heading">#</a></h2>
+<p>Photos get tags from their own reading; notes, todos, reads and saved links get them from a
+second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">enrich.py</span></code>), on the same worker thread, queue pause and daily
+budget. One tool-less call per page, structured output, schema-checked: Claude adds tags and a
+summary, and for a link a title. Related pages are a call of their own, nightly and on Ask.
+Nothing edits the page’s text.</p>
+<ul class="simple">
+<li><p><strong>Model.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code>, default <code class="docutils literal notranslate"><span class="pre">claude-haiku-5-5</span></code> ($0.10 / $0.50 per Mtok for prompts
+up to 100k tokens), <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code> default <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code> 4000. Measured on the
+canary (~280 pages, ~250 tags): about $0.003 a page with the index in the call; tags and
+summary alone are cheaper. Sonnet 5.5 (<code class="docutils literal notranslate"><span class="pre">claude-sonnet-5-5</span></code>) would be about 20 times that.
+<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> turns it off while photo ingest stays on; it needs <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code> on.</p></li>
+<li><p><strong>Triggers.</strong> A note or link capture (a photo has its own job): a link at once, a note after
+<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds (60). A save of the title or text moves the page’s one queued
+job that far ahead again, so a burst of edits makes one call (a save while a job runs queues
+the next). These do tags and summary only. <strong>Ask Claude</strong> on the page
+(<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/enrich</span></code>) queues it now and also picks its related pages.
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> queues every page with no tags that Claude
+has not read, once, by hand (never automatic). Tag edits alone queue nothing.</p></li>
+<li><p><strong>Prompt</strong> (<code class="docutils literal notranslate"><span class="pre">prompts/enrich.md</span></code>): the fixed instructions, then the tags in use with their
+counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
+text as plain words (at most 12,000 characters) and, for a link, what was fetched. Everything
+there is data; the prompt says to follow nothing in it.</p></li>
+<li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">tags</span></code>: cleaned like the user’s, at most 2 not already in use (invented
+ones are the sprawl risk), at most 5 added; <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one paragraph, at most 600 characters,
+dropped for a note under 200 characters (tagged, not summarised); <code class="docutils literal notranslate"><span class="pre">title</span></code>: links only, 200
+characters.</p></li>
+<li><p><strong>The user wins.</strong> Tags are added on the first reading, on Ask, on a capture and on backfill
+(a save’s re-reading refreshes the summary only); never one the user took off. <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>
+marks Claude’s tags (<code class="docutils literal notranslate"><span class="pre">on</span></code>), and <code class="docutils literal notranslate"><span class="pre">off</span></code> once the user removes one, so it never comes back; a tag
+the user puts back by hand is theirs. Photo ingest marks its tags there too. A link’s title
+replaces the provisional one only while the title is still the URL as captured (rev 1, no
+edit since); a share with its own title keeps it. The kind becomes Later (<code class="docutils literal notranslate"><span class="pre">consume</span></code>, with
+<code class="docutils literal notranslate"><span class="pre">source</span></code>) only while it is an unfixed note. The summary is the model’s own (<code class="docutils literal notranslate"><span class="pre">enrichment</span></code>); a
+page’s <code class="docutils literal notranslate"><span class="pre">summary</span></code> field (imported, the user’s) wins in search and the index.</p></li>
+<li><p><strong>Stored apart from the text:</strong> <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> (summary, fetched address and title, the run),
+<code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> (Claude’s picks in order), every call in <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> (as <code class="docutils literal notranslate"><span class="pre">model_run</span></code>,
+whose cost it shares in the budget; <code class="docutils literal notranslate"><span class="pre">request.purpose</span></code> is <code class="docutils literal notranslate"><span class="pre">enrich</span></code> or <code class="docutils literal notranslate"><span class="pre">related</span></code>). A link’s
+fetched text is sent, not kept: the stored request has a placeholder with its length and hash
+(a read keeps its link and summary only). Search indexes the summary in the page’s summary
+column.</p></li>
+<li><p><strong>Failures</strong> follow the photo rules: outage, credit, auth and budget pause the shared queue and
+refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
+it, and the page says so with <strong>Ask Claude</strong> to retry. A failed fetch is not a failed job: the
+page is still tagged from what is known.</p></li>
+</ul>
+<p><strong>Related pages</strong> (<code class="docutils literal notranslate"><span class="pre">enrich.relate</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/related.md</span></code>). One call per page: the page in
+brief (title, tags, summary, the start of its text) and a numbered index of candidate pages
+(title, up to 6 tags, summary cut to 150 characters: ~40 tokens a line); Claude answers with up
+to 5 index numbers, so it cannot name a page that is not there.</p>
+<ul class="simple">
+<li><p><strong>Candidates</strong> (<code class="docutils literal notranslate"><span class="pre">enrich.CANDIDATES</span></code>, swappable) are at most 150 pages whatever the library’s
+size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
+text best match the words of its title, tags and summary (full-text search, an OR of up to 24
+words), then the most recently changed. Embeddings (#53) can replace this if it proves weak.</p></li>
+<li><p><strong>When.</strong> On Ask Claude, at once. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code>
+run newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in
+the container: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>), checks the shared queue pause and
+the day’s budget before each call, and stops at either (an outage, credit or auth error pauses
+the queue as the worker does); other failures are counted and it goes on. Exit status 1 when
+stopped. <code class="docutils literal notranslate"><span class="pre">deploy/scrap-enrich-related.{service,timer}</span></code> run it nightly (03:41) in the
+service’s container; <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> enables the timer if the image has the command. While
+ingest or enrich is off, or no key is set, the command prints a note and exits 0.</p></li>
+<li><p><strong>Both ways.</strong> A page’s Related merges its picks, pages that picked it, and pages linking here
+with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (marked “links here”), each once, at most 8. So a new page that picks an older
+one shows on the older one too, without a call for the older page.</p></li>
+<li><p><strong>MCP</strong> <code class="docutils literal notranslate"><span class="pre">read</span></code> returns all of this under <code class="docutils literal notranslate"><span class="pre">by_model</span></code> (summary, Claude’s tags, related), labelled
+as written by a model, not the user.</p></li>
+</ul>
+<p><strong>Fetching a link</strong> (<code class="docutils literal notranslate"><span class="pre">fetch.py</span></code>). The page is untrusted:</p>
+<ul class="simple">
+<li><p>http(s) only, standard ports, no login in the address, no proxy, no cookies;</p></li>
+<li><p>every address the name resolves to must be global (no private, loopback, link-local and
+metadata <code class="docutils literal notranslate"><span class="pre">169.254.169.254</span></code>, CGNAT/tailnet <code class="docutils literal notranslate"><span class="pre">100.64/10</span></code>, ULA, multicast or reserved, nor
+IPv4-compatible <code class="docutils literal notranslate"><span class="pre">::/96</span></code>, NAT64 <code class="docutils literal notranslate"><span class="pre">64:ff9b::/96</span></code> or site-local <code class="docutils literal notranslate"><span class="pre">fec0::/10</span></code>; IPv4-mapped IPv6
+judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to
+the checked address (TLS still verifies the name), so a second DNS answer cannot swap it;</p></li>
+<li><p>at most 2 MB after decompression (a gzip bomb stops there), 20 s for the whole fetch (the
+socket is cut at the deadline wherever it waits, so a site sending a byte at a time cannot
+hold the worker); a body that does not decompress is refused;</p></li>
+<li><p>a path or query that is not ASCII is sent percent-encoded (<code class="docutils literal notranslate"><span class="pre">%XX</span></code> already there kept), an
+international name as IDNA;</p></li>
+<li><p>HTML, XHTML or plain text only; the readable text is the <code class="docutils literal notranslate"><span class="pre">&lt;article&gt;</span></code> (else <code class="docutils literal notranslate"><span class="pre">&lt;main&gt;</span></code>, else
+<code class="docutils literal notranslate"><span class="pre">&lt;body&gt;</span></code>) without scripts, styles, menus, headers, footers and forms, at most 20,000
+characters, with the page’s title and description.</p></li>
+</ul>
+<p><strong>Migration 9</strong> is additive (its Python step creates the tables if missing), so an older scrap
+runs on the database with <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span></code> set back to 8.</p>
+</section>
 <section id="build-order">
 <h2>Build order<a class="headerlink" href="#build-order" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
@@ -941,8 +1031,8 @@ export, <code class="docutils literal notranslate"><span class="pre">.excalidraw
 on for daily use after this.</p></li>
 <li><p><strong>Reprocess UI:</strong> <em>Reprocess</em> with its confirmation, <em>Retry</em>.</p></li>
 </ol>
-<p>Deferred: MCP (M3), chat and refine (M4), notes, links, files, URL fetching, embeddings, run
-pruning.</p>
+<p>Deferred: MCP (M3), chat and refine (M4), files, embeddings, run pruning. Notes, links and URL
+fetching came with enrich (above).</p>
 </section>
 <section id="risks">
 <h2>Risks<a class="headerlink" href="#risks" title="Link to this heading">#</a></h2>
@@ -1006,6 +1096,7 @@ drift (<code class="docutils literal notranslate"><span class="pre">prompt_versi
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw-in-the-pwa">Excalidraw in the PWA</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spend-and-outage-control">Spend and outage control</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration-0002-sketch">Migration 0002 (sketch)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enrich-text-pages-and-links-85-stage-1">Enrich: text pages and links (#85, stage 1)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-order">Build order</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#risks">Risks</a></li>
 </ul>
