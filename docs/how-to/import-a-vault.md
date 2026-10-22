@@ -66,7 +66,7 @@ file first so `SCRAP_DATA` and `SCRAP_IMAGE` are yours; the vault must be readab
 systemctl --user stop scrap
 set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v "$SCRAP_DATA:/data" -v ~/vault-copy:/vault:ro -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v ~/vault-copy:/vault:ro,z -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" import --dry-run /vault
 ```
 

@@ -192,9 +192,9 @@ SCRAP_PUBLIC_URL=https://<host>.<tailnet>.ts.net:8446
 ```
 
 The generated file also has a commented `SCRAP_VISION_MODEL` line; leave it alone to use the
-default. It has no `TZ` or `SCRAP_PUBLIC_URL` line: add them yourself. With ingest on, the
-container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS to fetch saved
-links.
+default. It lists `SCRAP_PUBLIC_URL` and `TZ` commented out: uncomment and set them. With
+ingest on, the container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS
+to fetch saved links.
 
 Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see
 {ref}`scrap-publish`), with the scheme and, unless it is 443, the port; several addresses can be comma separated.
@@ -501,7 +501,7 @@ the directory anything but a run's `YYYYMMDDTHHMMSSZ` form, for example `pre-imp
 ```
 set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 --network=none \
-    -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:z" -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" backup /backups/pre-import
 ```
 
@@ -577,7 +577,7 @@ systemctl --user stop scrap
 set -a; . ~/.config/scrap/env; set +a
 ls "$SCRAP_BACKUPS"
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v "$SCRAP_DATA:/data" -v "$SCRAP_BACKUPS:/backups" -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:z" -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" restore /backups/<timestamp> --force
 systemctl --user start scrap
 ```
@@ -632,7 +632,7 @@ what it would delete now, without deleting:
 ```
 set -a; . ~/.config/scrap/env; set +a
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    --network=none -v "$SCRAP_DATA:/data" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
+    --network=none -v "$SCRAP_DATA:/data:z" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc
 journalctl --user -u scrap-gc   # what the nightly runs deleted
 ```
 
@@ -760,7 +760,9 @@ folder is removed when it stops), or the Serve target names another path or user
 
 **Permission denied writing `/data`.** The data directory must be owned by the `scrap` user and
 the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do this). On
-SELinux systems (Fedora, RHEL) also add `:Z` to the `--volume` options.
+SELinux systems (Fedora, RHEL) the folder must also be relabelled, which the `:z` on every
+volume does. Keep it lowercase if you write your own `podman run`: `:Z` makes the label private
+to one container, locking the backup and gc containers out of `SCRAP_DATA`.
 
 **The access log shows every client as the server's own address** (`SCRAP_LISTEN=tcp`).
 Rootless podman's network (pasta, the default from podman 5.0) forwards connections so that
