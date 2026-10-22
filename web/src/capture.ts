@@ -36,9 +36,15 @@ export async function capture(): Promise<Node> {
   }
   const root = h("section", { className: "capture" });
   const pending = h("div", { className: "strip" });
-  const refresh = async () =>
-    pending.replaceChildren(await pendingList(), await pageList(4, "", "Latest"));
+  // Offline, the waiting rows (and the header's badge) say so: one quiet line, no card
+  const latest = () =>
+    navigator.onLine
+      ? pageList(4, "", "Latest")
+      : h("p", { className: "offline" }, "Offline: showing what's on this phone");
+  const refresh = async () => pending.replaceChildren(await pendingList(), await latest());
   document.addEventListener("queuechange", refresh, { signal: view.signal });
+  // Back online with nothing waiting, no upload redraws it: no Retry needed
+  addEventListener("online", refresh, { signal: view.signal });
   await refresh();
 
   // The capture actions, equal tiles under the thumb
