@@ -13,7 +13,7 @@ import { swipeRows, trail } from "./swipe";
 import { empty, h, problem } from "./ui";
 
 // The snoozed todos, as the search screen has them (the count of them links there)
-const SNOOZED = "kind:todo is:snoozed -is:done -is:cancelled sort:due";
+const SNOOZED = "kind:todo is:snoozed sort:due";
 
 // Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
 // All search's All

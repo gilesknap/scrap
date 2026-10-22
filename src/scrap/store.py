@@ -1305,7 +1305,12 @@ class Store:
                 )
                 args.append(MCP)
             elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
-                sql.append(f"{no}coalesce({TODO_SQL}p.snoozed_until > ?, 0)")
+                # An open one: a done or cancelled one's snooze hides nothing (#131)
+                sql.append(
+                    f"{no}coalesce({TODO_SQL}p.snoozed_until > ?"
+                    " AND coalesce(json_extract(p.fields, '$.status'), 'open')"
+                    " NOT IN ('done', 'cancelled'), 0)"
+                )
                 args.append(date.today().isoformat())  # the server's day, as due:'s
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
