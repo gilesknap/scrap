@@ -750,26 +750,145 @@ mark {
 }
 
 /* Refine chips: one row that scrolls sideways, the query's own filters first */
-.refine {
+/* Filters: one line saying what is on; tapped, the panel opens in place over the results,
+   which stay in view under it and follow each tap */
+.filters {
+  margin: 0 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.filters > summary {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  margin: 0 calc(-1 * var(--s-4)) var(--s-3);
-  padding: 2px var(--s-4);
-  overflow-x: auto;
-  scrollbar-width: none;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  list-style: none;
+  cursor: pointer;
 }
-/* Filters, first and always alone at the row's start: with how many are on */
-.facet.filter b {
+.filters > summary::-webkit-details-marker {
+  display: none;
+}
+.filters > summary b {
+  flex: none;
+  color: var(--ink);
+  font-weight: 600;
+}
+/* How many are on, in an amber dot */
+.filters > summary i {
+  flex: none;
   min-width: 20px;
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: var(--t-xs);
-  line-height: 20px;
+  font: 600 var(--t-xs) / 20px var(--font);
   text-align: center;
+}
+.filters > summary .says {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filters > summary::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: var(--s-1) 3px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.filters[open] > summary::after {
+  rotate: -135deg;
+}
+.filters[open] > summary .says {
+  visibility: hidden; /* open: the rows say it */
+}
+.fpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 0 0 var(--s-3);
+  border-top: 1px solid var(--line);
+}
+/* A row: its label, then its chips on one line that scrolls sideways (never a wall of chips) */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-inline-start: var(--s-3);
+}
+.flabel {
+  flex: none;
+  width: 4.2em;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.frow .opts,
+.frow.ftags > .opts {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: var(--s-2);
+  padding: 2px var(--s-3) 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fpanel .facet[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+/* Tags: those on and the box on one line, what it offers on the next (under the box) */
+.frow.ftags {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: var(--s-2);
+}
+.frow.ftags > .flabel {
+  line-height: 44px; /* level with the first line of chips and the box */
+}
+/* Open, the panel shows the filters on: the line above the list keeps only the count */
+.filters[open] + .found .facet {
+  display: none;
+}
+.frow.ftags .tagline {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-inline-end: var(--s-3);
+}
+.frow.ftags .tagline input {
+  flex: 1;
+  min-width: 8rem;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+}
+.frow.ftags > .opts {
+  flex-basis: 100%;
+  padding-inline-start: calc(4.2em + var(--s-2));
+}
+.fpanel .range {
+  margin: 0;
+  padding-inline: calc(4.2em + var(--s-2) + var(--s-3)) var(--s-3);
+}
+.fpanel > button.link {
+  align-self: flex-start;
+  margin: 0 0 0 var(--s-3);
 }
 /* Above the list: how many were found, then each filter on (tap to take it out); wraps */
 .found {

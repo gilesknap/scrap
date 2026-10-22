@@ -113,10 +113,7 @@ export async function search(): Promise<Node> {
     refine(query, signal, apply)
       .then((el) => {
         if (signal.aborted) return;
-        // Focus on Filters (the sheet just closed) stays on it, drawn again
-        const had = document.activeElement?.matches(".refine .filter");
-        chips.replaceChildren(el);
-        if (had) (el.querySelector(".filter") as HTMLElement).focus();
+        chips.replaceChildren(el); // (refine puts focus back on the control it was on)
       })
       .catch(() => signal.aborted || chips.replaceChildren());
     clearTimeout(settle);

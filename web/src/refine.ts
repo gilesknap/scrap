@@ -1,13 +1,13 @@
-// Refine a search with a tap (#84). Under the box, a short row that never grows at its left
-// end: Filters (with how many are on), then the results' top tags, each with a count (tap one
-// to add tag:). Above the list, how many pages were found and each filter that is on, as a
-// chip (tap to take it out), so nothing chosen is hidden. Filters opens a bottom sheet: the
-// order, a time range, Work or Personal and Browse tags (a todo's due date is searched by
-// typing due:, or on the Todos screen). All of it
-// only edits the query's text (tag:tech, is:personal), so it can be typed too. In the app
+// Refine a search with a tap (#84). Under the box, Filters: one line saying what is on
+// ("Filters · #home · past month"); tapped, it opens in place, over the results rather than in
+// a sheet, so each tap shows its effect at once and a few taps in a row cost nothing. Inside:
+// Tags (those on, each with a ✕, then a box that offers the tags in use as you type, or the
+// results' top tags with their counts), Order, When, and Work or personal, each a row of chips.
+// Above the list, how many pages were found and each filter that is on, as a chip (tap to take
+// it out), so nothing chosen is hidden. All of it only edits the query's text (tag:tech,
+// is:personal), so it can be typed too, and Back, a reload or a link keep it. In the app
 // shell, so Filters opens at once.
 import { api } from "./api";
-import { address, back, go, view } from "./app";
 import { icon } from "./icons";
 import { adding, day, has, kindsIn, removing, token, unsorted } from "./terms";
 import { h } from "./ui";
@@ -43,45 +43,99 @@ const facets = (q: string, signal?: AbortSignal) =>
 const filtersOf = (f: Facets) => f.active.filter((a) => a.key !== "kind" || a.neg);
 const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
 
-let queued = false; // a tap on Filters waiting for a step back to land
+let open = false; // the panel, open or folded: kept while the app is (the next search too)
+let typed = ""; // what is in its tag box, kept as the panel is drawn again
+let allTags: Promise<[string, number][]> | null = null; // every tag in use, asked once
 
-/** The row and the line above the list, for a query (with none: Filters alone). apply edits
- * the query in the box and runs it. */
+// Orders: [sort: as typed, label]; "" is the default (best match, or newest edit first)
+const SORTS = [
+  ["sort:created", "Newest"],
+  ["-sort:created", "Oldest"],
+  ["sort:updated", "Last edited"],
+  ["sort:title", "A–Z"],
+];
+// A todo's orders, offered when the search is of todos (kind:todo)
+const TODO_SORTS = [
+  ["sort:due", "Due soonest"],
+  ["sort:priority", "Priority"],
+];
+// Time ranges: [label, token value, what it says]
+const RANGES = [
+  ["1w", "1w", "the past week"],
+  ["1m", "1m", "the past month"],
+  ["1y", "1y", "the past year"],
+];
+
+/** What the folded line says is on: "#home · past month · A–Z", or none. */
+function says(f: Facets) {
+  const words = filtersOf(f).map((a) => {
+    const not = a.neg ? "not " : "";
+    if (a.key === "tag") return `${not}#${a.value}`;
+    if (a.key === "sort") {
+      const t = `${a.neg ? "-" : ""}sort:${a.value}`;
+      return (
+        [...SORTS, ...TODO_SORTS, ["-sort:updated", "First edited"]].find(([k]) => k === t)?.[1] ??
+        t
+      );
+    }
+    if (a.key === "after" && /^\d+[dwmy]$/.test(a.value))
+      return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
+    if (a.key === "is") return `${not}${a.value}`;
+    return a.token;
+  });
+  return words.join(" · ") || "none";
+}
+
+/** Filters, and the line above the list, for a query. apply edits the query in the box and
+ * runs it: the results follow at once, and this is drawn again for the query as it is then. */
 export async function refine(
   q: string,
   signal: AbortSignal,
   apply: (edit: Edit) => void,
 ): Promise<HTMLElement> {
+  // Where focus is now, to put it back on the same control once drawn again
+  const was = document.activeElement as HTMLElement | null;
+  const k = was?.closest(".fpanel") ? was.dataset.k : was?.matches(".filters > summary") && "top";
   const f = await facets(q, signal);
   const on = filtersOf(f);
-  const filters = h(
-    "button",
-    {
-      type: "button",
-      className: "facet filter",
-      "aria-haspopup": "dialog",
-      "aria-label": on.length ? `Filters, ${on.length} on` : "Filters",
-      // After a closed sheet's step back has landed (Escape, then Enter at once)
-      onclick: () => {
-        if (queued) return;
-        queued = true;
-        void (back.pending ?? Promise.resolve()).then(() => {
-          queued = false;
-          sheet(q, f, apply);
-        });
-      },
-    },
-    icon("filter"),
-    "Filters",
-    on.length > 0 && h("b", {}, String(on.length)),
+  const panel = h("div", { className: "fpanel" }, ...rows(q, f, apply));
+  const fold = h(
+    "details",
+    { className: "filters", open },
+    h(
+      "summary",
+      { "aria-label": on.length ? `Filters, ${on.length} on: ${says(f)}` : "Filters" },
+      icon("filter"),
+      h("b", {}, "Filters"),
+      on.length > 0 && h("i", {}, String(on.length)),
+      h("span", { className: "says" }, says(f)),
+    ),
+    panel,
   );
-  const tags = f.tags.map(([tag, n]) =>
-    chip(`#${tag}`, n, () => apply((now) => adding(now, token("tag", tag)))),
-  );
+  fold.addEventListener("toggle", () => {
+    open = fold.open;
+  });
+  // Each row scrolled so what is chosen in it shows (an order off to the right, say)
+  requestAnimationFrame(() => {
+    for (const b of fold.querySelectorAll<HTMLElement>('.opts [aria-pressed="true"]')) {
+      const row = b.parentElement as HTMLElement;
+      if (b.offsetLeft + b.offsetWidth > row.scrollLeft + row.clientWidth)
+        row.scrollLeft = b.offsetLeft + b.offsetWidth - row.clientWidth + 16;
+    }
+  });
+  if (k)
+    requestAnimationFrame(() => {
+      const el =
+        k === "top"
+          ? fold.querySelector<HTMLElement>("summary")
+          : fold.querySelector<HTMLElement>(`[data-k="${CSS.escape(k)}"]`);
+      el?.focus({ preventScroll: true });
+      if (el instanceof HTMLInputElement) el.setSelectionRange(el.value.length, el.value.length);
+    });
   return h(
     "div",
     {},
-    h("div", { className: "refine", role: "group", "aria-label": "Refine" }, filters, ...tags),
+    fold,
     q &&
       h(
         "div",
@@ -96,224 +150,182 @@ export async function refine(
   );
 }
 
-// ---- the Filters sheet
-
-// Orders: [sort: as typed, label]; "" is the default (best match, or newest edit first)
-const SORTS = [
-  ["sort:updated", "Last edited"],
-  ["-sort:updated", "First edited"],
-  ["sort:created", "Newest"],
-  ["-sort:created", "Oldest"],
-  ["sort:title", "Title A–Z"],
-  ["-sort:title", "Title Z–A"],
-];
-// A todo's orders, offered when the search is of todos (kind:todo)
-const TODO_SORTS = [
-  ["sort:due", "Due soonest"],
-  ["-sort:due", "Due latest"],
-  ["sort:priority", "Priority"],
-];
-// Time ranges: [label, token value, what it says]
-const RANGES = [
-  ["1w", "1w", "the past week"],
-  ["1m", "1m", "the past month"],
-  ["1y", "1y", "the past year"],
-];
-
-/** The Filters sheet: a modal dialog at the bottom of the screen, under the thumb. A tap in
- * it edits the query at once (the list behind follows); Done, Escape, Back or a tap outside
- * closes it, and focus goes back to Filters. It has a history entry of its own, so Back
- * closes it rather than leaving the screen. */
-function sheet(q: string, f: Facets, apply: (edit: Edit) => void) {
-  const here = () => location.pathname + location.search;
-  let url = here(); // the query's address, as the edits leave it
-  let then: (() => void) | null = null; // after it has closed: e.g. on to the tags
-  let entry = true; // its history entry is the current one
-  let n = 0; // the latest facets asked for
-  const body = h("div", { className: "sheet-body" });
-  const title = h("h2", { id: "sheet-title", tabIndex: -1, autofocus: true }, "Filters");
-  const count = h("span", { className: "count" });
-  const clear = h("button", { type: "button", className: "ghost" }, "Clear filters");
-  const done = h("button", { type: "button", className: "primary" }, "Done");
-  const dlg = h(
-    "dialog",
-    { className: "sheet", "aria-labelledby": "sheet-title" },
-    h(
-      "div",
-      {},
-      h("div", { className: "sheet-top" }, title, count),
-      body,
-      h("div", { className: "sheet-bar" }, clear, done),
-    ),
-  );
-  const set = (edit: Edit) => {
-    q = edit(q);
-    apply(() => q);
-    url = here();
-    const k = (document.activeElement as HTMLElement | null)?.dataset?.k;
-    const mine = ++n;
-    facets(q).then(
-      (got) => {
-        if (mine !== n || !dlg.open) return;
-        fill(got);
-        if (k) (body.querySelector(`[data-k="${k}"]`) as HTMLElement | null)?.focus();
-      },
-      () => {},
-    );
-  };
-  const fill = (got: Facets) => {
-    f = got;
-    count.textContent = q ? pages(f.total) : "";
-    clear.hidden = !filtersOf(f).length;
-    body.replaceChildren(
-      ...sections(q, f, set, () => {
-        then = () => go("/tags");
-        shut();
-      }),
-    );
-  };
-  clear.onclick = () => set((now) => filtersOf(f).reduce((s, a) => removing(s, a.token), now));
-  // Its entry off the stack at once (the close event comes a task later: a tap could come
-  // first), and go() waits for that step back to land; popped() runs then
-  const leave = () => {
-    if (entry) back.pop();
-    entry = false;
-  };
-  const shut = () => {
-    leave();
-    dlg.close();
-  };
-  done.onclick = shut;
-  dlg.oncancel = leave; // Escape
-  dlg.onclick = (e) => e.target === dlg && shut(); // a tap outside it (on the backdrop)
-  const popped = () => {
-    entry = false; // main.ts took it off back.take: the screen stays as it is
-    if (here() !== url) address(url); // the query as it is now
-    if (dlg.open) dlg.close();
-    then?.();
-  };
-  dlg.addEventListener("close", () => {
-    dlg.remove();
-    leave();
-    if (!then) (document.querySelector(".refine .filter") as HTMLElement | null)?.focus();
-  });
-  view.signal.addEventListener("abort", () => {
-    if (back.take === popped) back.take = null;
-    dlg.remove();
-  });
-  fill(f);
-  history.pushState({ sheet: 1 }, "");
-  back.take = popped;
-  document.body.append(dlg);
-  dlg.showModal();
-}
-
-/** The sheet's sections for a query: Sort, When, Work or personal, Tags. */
-function sections(q: string, f: Facets, set: (edit: Edit) => void, toTags: () => void) {
+/** The panel's rows: Tags, Order, When, Work or personal. */
+function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] {
   const toggle = (label: string, t: string, n = -1, others: string[] = []) => {
     const on = has(q, t);
     const b = chip(label, n, () =>
-      set((now) => (on ? removing(now, t) : adding(others.reduce(removing, now), t))),
+      apply((now) => (on ? removing(now, t) : adding(others.reduce(removing, now), t))),
     );
     b.setAttribute("aria-pressed", String(on));
     b.dataset.k = label;
     return b;
   };
-  const group = (label: string, ...kids: (Node | false)[]) =>
+  const row = (label: string, ...kids: (Node | false | null)[]) =>
     h(
-      "section",
-      { "aria-label": label },
-      h("h3", {}, label),
+      "div",
+      { className: "frow", role: "group", "aria-label": label },
+      h("span", { className: "flabel" }, label),
       h("div", { className: "opts" }, ...kids),
     );
-  // Sort: a native menu (the phone's own picker), writing sort: into the query
+
+  // Tags: those on (a ✕ each), a box, and the tags it offers: as typed, the tags in use that
+  // match; with nothing typed, the results' top tags with their counts
+  const asked = f.active.filter((a) => a.key === "tag" && !a.neg).map((a) => a.value);
+  const offers = h("div", { className: "opts" });
+  const box = h("input", {
+    type: "text",
+    value: typed,
+    placeholder: "Add a tag",
+    "aria-label": "Add a tag filter",
+    autocapitalize: "none",
+    autocomplete: "off",
+    enterKeyHint: "done",
+  });
+  box.dataset.k = "tagbox";
+  const addTag = (t: string) => {
+    typed = "";
+    apply((now) => adding(now, token("tag", t)));
+  };
+  const offer = async () => {
+    const want = box.value.trim().replace(/^#+/, "").toLowerCase();
+    typed = box.value;
+    allTags ??= api<[string, number, number][]>("tags").then(
+      (all) => all.map(([t, n]) => [t, n] as [string, number]),
+      () => [],
+    );
+    let list: [string, number][];
+    // Nothing typed: the results' top tags; with no search yet, the most used of all
+    if (!want)
+      list = f.tags.length
+        ? f.tags
+        : (await allTags)
+            .filter(([t]) => !asked.includes(t) && !t.includes("/"))
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8);
+    else {
+      const all = (await allTags).filter(([t]) => !asked.includes(t));
+      const starts = all.filter(
+        ([t]) => t.startsWith(want) || t.split("/").some((p) => p.startsWith(want)),
+      );
+      const holds = all.filter((r) => !starts.includes(r) && r[0].includes(want));
+      list = [...starts, ...holds].slice(0, 8);
+    }
+    if (box.value.trim().replace(/^#+/, "").toLowerCase() !== want) return; // typed on meanwhile
+    offers.replaceChildren(
+      ...list.map(([t, n]) => {
+        const b = chip(`#${t}`, want ? -1 : n, () => addTag(t));
+        b.setAttribute("aria-label", `Filter by #${t}`);
+        b.dataset.k = `tag:${t}`;
+        return b;
+      }),
+      ...(want
+        ? []
+        : [h("a", { className: "button facet", href: "/tags" }, icon("tag"), "All tags")]),
+    );
+  };
+  box.oninput = () => void offer();
+  box.onkeydown = (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    const first = offers.querySelector<HTMLElement>("[data-k^='tag:']");
+    const want = box.value.trim().replace(/^#+/, "").toLowerCase();
+    if (first && want) first.click();
+    else if (want) addTag(want); // a tag typed whole: searched as typed
+  };
+  void offer();
+  const on = asked.map((t) => {
+    const b = chip(`#${t}`, null, () => apply((now) => removing(now, token("tag", t))), true);
+    b.setAttribute("aria-label", `Remove #${t}`);
+    b.dataset.k = `on:${t}`;
+    return b;
+  });
+  const tags = h(
+    "div",
+    { className: "frow ftags", role: "group", "aria-label": "Tags" },
+    h("span", { className: "flabel" }, "Tags"),
+    h("div", { className: "tagline" }, ...on, box),
+    offers,
+  );
+
+  // Order: one tap each; the default (best match, or last edited) has its own chip
   const todos = kindsIn(q).length === 1 && kindsIn(q)[0][1] === "todo";
   const last = f.active.filter((a) => a.key === "sort").at(-1);
+  const now = last ? `${last.neg ? "-" : ""}sort:${last.value}` : "";
   const words = q.split(/\s+/).some((w) => w && !"-!".includes(w[0]) && !w.includes(":"));
-  const sort = h(
-    "select",
-    {
-      className: "button facet sort",
-      "aria-label": "Sort",
-      onchange: () =>
-        // The orders in the query as it is now, not as this menu was drawn: two picks
-        // before the sheet is drawn again must not leave the first one behind
-        set((now) => {
-          const rest = unsorted(now);
-          return sort.value ? adding(rest, sort.value) : rest;
-        }),
-    },
-    h("option", { value: "" }, words ? "Best match" : "Last edited"),
-    ...[...SORTS, ...(todos ? TODO_SORTS : [])]
-      .filter(([t]) => words || t !== "sort:updated")
-      .map(([t, label]) => h("option", { value: t }, label)),
-  );
-  sort.value = last ? `${last.neg ? "-" : ""}sort:${last.value}` : "";
-  if (sort.selectedIndex < 0) sort.value = ""; // an unknown order: the default
-  sort.dataset.k = "sort";
+  const orders = [
+    ["", words ? "Best match" : "Last edited"],
+    ...SORTS,
+    ...(todos ? TODO_SORTS : []),
+  ]
+    .filter(([t]) => words || t !== "sort:updated")
+    .map(([t, label]) => {
+      const b = chip(label, -1, () => apply((q2) => (t ? adding(unsorted(q2), t) : unsorted(q2))));
+      b.setAttribute("aria-pressed", String(t === now));
+      b.dataset.k = `sort:${t}`;
+      return b;
+    });
+
   // When: a preset (after:1w, by when last edited; date:created for when made), or dates
   const ranged = f.active.filter((a) => a.key === "after" || a.key === "before");
   const created = has(q, "date:created");
-  const presets = RANGES.map(([label, value, says]) => {
+  const presets = RANGES.map(([label, value, said]) => {
     const others = ranged.map((a) => a.token);
     const b = toggle(label, `after:${value}`, -1, others);
-    b.setAttribute("aria-label", `${created ? "Made" : "Edited"} in ${says}`);
+    b.setAttribute("aria-label", `${created ? "Made" : "Edited"} in ${said}`);
     return b;
   });
   const dated = ranged.some((a) => a.value.length === 10);
-  const panel = h("div", { className: "range", hidden: !dated });
+  const range = h("div", { className: "range", hidden: !dated });
   const dates = chip("Dates…", -1, () => {
-    panel.hidden = !panel.hidden;
-    dates.setAttribute("aria-expanded", String(!panel.hidden));
-    if (!panel.hidden) panel.querySelector("input")?.focus();
+    range.hidden = !range.hidden;
+    dates.setAttribute("aria-expanded", String(!range.hidden));
+    if (!range.hidden) range.querySelector("input")?.focus();
   });
   dates.setAttribute("aria-expanded", String(dated));
   dates.dataset.k = "dates";
-  const range = { type: "date", min: "0001-01-01", max: "9999-12-31" };
-  const from = h("input", { ...range, "aria-label": "From" });
-  const to = h("input", { ...range, "aria-label": "To" });
+  const kind = { type: "date", min: "0001-01-01", max: "9999-12-31" };
+  const from = h("input", { ...kind, "aria-label": "From" });
+  const to = h("input", { ...kind, "aria-label": "To" });
   for (const a of ranged)
     (a.key === "after" ? from : to).value = a.value.length === 10 ? a.value : "";
-  panel.append(
-    h("label", {}, "From", from),
-    h("label", {}, "To", to),
-    h(
-      "button",
-      {
-        type: "button",
-        onclick: () =>
-          set((now) => {
-            let next = ranged.reduce((s, a) => removing(s, a.token), now);
-            if (day(from.value)) next = adding(next, `after:${day(from.value)}`);
-            if (day(to.value)) next = adding(next, `before:${day(to.value)}`);
-            return next;
-          }),
-      },
-      "Apply",
-    ),
-    h("small", {}, "Days are UTC; both ends included."),
-  );
+  const setDates = () =>
+    apply((q2) => {
+      let next = ranged.reduce((s, a) => removing(s, a.token), q2);
+      if (day(from.value)) next = adding(next, `after:${day(from.value)}`);
+      if (day(to.value)) next = adding(next, `before:${day(to.value)}`);
+      return next;
+    });
+  from.onchange = to.onchange = setDates; // applied as picked: no Apply to find
+  range.append(h("label", {}, "From", from), h("label", {}, "To", to));
+
   const { work, personal } = f.personal;
   const sides = [
     (work > 0 || has(q, "is:work")) && toggle("Work", "is:work", work, ["is:personal"]),
     (personal > 0 || has(q, "is:personal")) &&
       toggle("Personal", "is:personal", personal, ["is:work"]),
   ];
-  const tags = h("a", { className: "button facet", href: "/tags" }, icon("tag"), "Browse tags");
-  tags.onclick = (e) => {
-    e.preventDefault();
-    toTags();
-  };
+  const clear = filtersOf(f).length
+    ? Object.assign(h("button", { type: "button", className: "link" }, "Clear filters"), {
+        onclick: () => {
+          typed = "";
+          apply((q2) => filtersOf(f).reduce((s, a) => removing(s, a.token), q2));
+        },
+      })
+    : null;
+  clear?.setAttribute("data-k", "clear");
+
   return [
-    group("Sort", sort),
-    group(
+    tags,
+    row("Order", ...orders),
+    row(
       "When",
       ...presets,
       dates,
       (ranged.length > 0 || created) && toggle("By created date", "date:created"),
-      panel,
     ),
-    sides.some(Boolean) && group("Work or personal", ...sides),
-    group("Tags", tags),
-  ].filter((s): s is HTMLElement => !!s);
+    range,
+    sides.some(Boolean) ? row("Area", ...sides) : (null as unknown as HTMLElement),
+    clear as HTMLElement,
+  ].filter(Boolean);
 }
