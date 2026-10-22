@@ -469,7 +469,7 @@ def add_meta_revs(conn: sqlite3.Connection) -> None:
     revision a revert undid; batch_id shared by one bulk change's revisions."""
     conn.execute(
         "CREATE TABLE IF NOT EXISTS page_meta_rev ("
-        " id INTEGER PRIMARY KEY,"
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"  # an id is never used again
         " page_id TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,"
         " author TEXT NOT NULL,"
         " source TEXT NOT NULL CHECK (source IN ('web', 'mcp')),"
@@ -1393,9 +1393,10 @@ class Store:
         """Set the kind of these pages (ids or slugs; fixed, as the PWA's picker
         does, even if it is theirs already) and/or change their tags: add and remove
         these (exact tags: removing a leaves a/b), or replace them all with tags. Each
-        page changed is a revision (see _record_meta); with batch, all of them share
-        a batch id, returned, which revert_batch undoes at once. updated_at stays as it
-        was, as for the PWA's tag and kind edits. All or nothing: an unknown page or a
+        page changed is a revision (see _record_meta); with batch (a query's pages,
+        however many) or several distinct pages, all of them share a batch id,
+        returned, which revert_batch undoes at once. updated_at stays as it was, as
+        for the PWA's tag and kind edits. All or nothing: an unknown page or a
         refused change saves none. dry_run: say what would change, save nothing.
         Never the title, the text or other fields."""
         kind = KIND_NAMES.get(kind, kind) if kind is not None else None
@@ -1407,15 +1408,15 @@ class Store:
         if set(add) & set(remove):
             raise InvalidError("a tag cannot be both added and removed")
         tags = None if tags is None else clean_tags(tags)
-        batch_id = new_ulid() if batch and not dry_run else None
         out: list[dict[str, Any]] = []
         with self.connect() as conn, transaction(conn):
-            seen: set[str] = set()
-            for key in keys:
+            pages: dict[str, sqlite3.Row] = {}
+            for key in keys:  # each page once, however named
                 page = self._page_row(conn, key)
-                if page["id"] in seen:
-                    continue
-                seen.add(page["id"])
+                pages.setdefault(page["id"], page)
+            several = batch or len(pages) > 1
+            batch_id = new_ulid() if several and not dry_run else None
+            for page in pages.values():
                 before = self._meta(conn, page["id"])
                 new = tags if tags is not None else [
                     t for t in before.tags if t not in remove
@@ -1472,12 +1473,16 @@ class Store:
                 raise InvalidError(
                     f"{old!r} is on {len(ids)} pages, more than {limit}: raise limit"
                 )
+            in_use = (  # the trash's too: restoring a page would merge them unasked
+                "SELECT 1 FROM tag WHERE tag = ? OR substr(tag, 1, ?) = ? LIMIT 1"
+            )
             if (
                 not merge
-                and conn.execute(under, (new, len(new) + 1, f"{new}/")).fetchone()
+                and conn.execute(in_use, (new, len(new) + 1, f"{new}/")).fetchone()
             ):
                 raise InvalidError(
-                    f"{new!r} is in use: renaming into it merges the two (merge)"
+                    f"{new!r} is in use (perhaps only in the trash): renaming into it"
+                    " merges the two (merge)"
                 )
             for page_id in ids:
                 page = self._page_row(conn, page_id)
@@ -1591,8 +1596,9 @@ class Store:
                 raise InvalidError("give a page or a batch")
             meta = conn.execute(
                 f"{META_REV} WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT ?",
-                (*args, limit),
+                (*args, limit + 1),
             ).fetchall()
+            more, meta = len(meta) > limit, meta[:limit]
             slugs = dict(conn.execute(
                 "SELECT id, slug FROM page"
                 " WHERE id IN (SELECT value FROM json_each(?))",
@@ -1606,6 +1612,7 @@ class Store:
             )  # fmt: skip
         out: dict[str, Any] = {
             "meta": [{**meta_row(r), "slug": slugs.get(r["page_id"])} for r in meta],
+            "more": more,  # older revisions than limit allows
             "text": text,
         }
         if page is not None:
@@ -1625,7 +1632,7 @@ class Store:
                 (page["id"], rev),
             ).fetchone()
         if row is None:
-            raise NotFoundError(f"{key} rev {rev}")
+            raise NotFoundError(f"revision {rev} of {key}")
         return dict(row)
 
     def tags_of(self, ids: list[str]) -> dict[str, list[str]]:

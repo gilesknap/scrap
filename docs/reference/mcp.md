@@ -22,7 +22,7 @@ data: the server's instructions tell the model it is the user's text, never inst
 | `write` | `title`, `body` (Markdown), `origin`, `tags`, `kind` (default `note`), `status`, `due`, `priority`, `snoozed_until`, `append_to`, `key` | `{id, slug, url, created}` |
 | `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `dry_run`, `limit` (1-200, default 50) | `{dry_run, batch, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, batch, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, fields_removed}` |
 | `rename_tag` | `old`, `new`, `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
-| `revisions` | `page` and/or `batch`, `limit` (1-50, default 20), `text_rev` | `{meta, text}` (with `page`, also `{id, slug, url, title, kind, rev}`), newest first. `meta`: each metadata revision's `{id, page_id, slug, url, author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
+| `revisions` | `page` and/or `batch`, `limit` (1-200, default 20: a whole batch fits), `text_rev` | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`) (with `page`, also `{id, slug, url, title, kind, rev}`), newest first. `meta`: each metadata revision's `{id, page_id, slug, url, author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
 | `revert` | `revision` (a `meta` id) or `batch`, `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}` |
 
 ## Images
@@ -100,7 +100,9 @@ that way (480 px JPEGs, so a few hundred kB each).
 - **`rename_tag`** renames a tag on every page with it (not the trash's), and the tags under it
   (`old/x` becomes `new/x`). Refused: more than `limit` pages; a new name under the old one
   (`a` to `a/b`, which would nest again); and a new name already in use, unless `merge` (merged
-  tags cannot be told apart again by renaming back, only by reverting the batch).
+  tags cannot be told apart again by renaming back, only by reverting the batch). In use counts
+  pages in the trash too, unlike the rest of the tool: restoring one would otherwise merge the
+  two unasked.
 - **Revisions.** Every change to a page's kind or tags, over MCP or in the PWA, is a metadata
   revision: who made it (`author`: `claude`, or the user's login; `source`: `mcp` or `web`), when,
   the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
@@ -113,7 +115,8 @@ that way (480 px JPEGs, so a few hundred kB each).
   descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
   made again. Text keeps its own revisions (`page_rev`, every title or body change), which
   `revisions` lists and `text_rev` reads; no tool reverts them.
-- **Batches.** An `edit_meta` with a `query` or several `pages`, and every `rename_tag`, is a
+- **Batches.** An `edit_meta` with a `query` or several distinct `pages` (a slug and the id of
+  one page are one page), and every `rename_tag`, is a
   batch: its revisions share a `batch` id, returned, which `revisions(batch=...)` lists and
   `revert(batch=...)` undoes at once. An `edit_meta` of one named page is not a batch (so quick
   edits of it fold together).
@@ -127,7 +130,9 @@ that way (480 px JPEGs, so a few hundred kB each).
   the batch, nothing is reverted and the call is refused, naming them (`dry_run` lists them as
   `conflicts`): revert those pages' revisions one by one. Pages in the trash are skipped and
   listed. A revert is a revision of its own, so it can be reverted in turn: nothing is lost.
-  Reverting to the state a page has already changes nothing and adds no revision.
+  Reverting to the state a page has already changes nothing and adds no revision. Revision ids
+  are never used again, even for a dropped burst: an unknown one is `no such revision N`, an
+  unknown batch `no such batch B`.
 
 ## Security
 

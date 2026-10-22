@@ -4,7 +4,7 @@
 -- step (store.AFTER[8], add_meta_revs) creates the table only if missing, so an older scrap
 -- still runs with user_version set back to 7 (it never reads it), and migrating again later
 -- is harmless. No backfill: a page's first change records the state it had before. Table:
---   page_meta_rev  id, page_id, author, source ('web' or 'mcp'), kind_before, kind_after,
+--   page_meta_rev  id (AUTOINCREMENT: never reused, as tools hand ids out), page_id, author, source ('web' or 'mcp'), kind_before, kind_after,
 --                  fixed_before, fixed_after (kind_fixed), tags_before, tags_after (JSON
 --                  arrays, sorted), fields_added (a new kind's defaults), reverts (the
 --                  revision a revert undid, else NULL), batch_id (shared by a bulk

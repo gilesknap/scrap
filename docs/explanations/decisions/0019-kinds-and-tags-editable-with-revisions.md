@@ -43,6 +43,8 @@ to get wrong, so letting Claude change them needs a way to see and undo every ch
   itself undoable at once. If any page of the batch changed kind or tags since, the batch revert
   is refused, saving nothing (never a silent clobber); its pages can still be reverted one by
   one. Pages in the trash are skipped.
+- Revision ids are `AUTOINCREMENT`: a dropped burst's id is never handed to another page's
+  revision, since tools give ids out and `revert` takes them back.
 - Kinds are the fixed set the schema allows (`note`, `todo`, `consume`, `whiteboard`,
   `document`, with the PWA's names `read`, `board`, `doc`), not free-form.
 - A kind or tag edit does not change `updated_at`, as the PWA's never did. A kind given to
@@ -66,3 +68,8 @@ database already at `user_version` 8 from it would skip this one: then `page_met
 missing and every tag or kind edit, PWA's too, fails. Both migrations are additive and
 idempotent (`IF NOT EXISTS`), so before the first deploy of any build containing both, set
 `PRAGMA user_version = 7` on that database, and renumber whichever lands second to 9.
+
+A database that already has a `page_meta_rev` table from an earlier revision of this change
+(only throwaway test databases: the canary has none) must have it dropped first (`DROP TABLE
+page_meta_rev`): migration 8 then fails loudly on the missing columns, or, at version 8, is
+skipped and inserts fail.

@@ -241,7 +241,7 @@ def test_a_revert_never_coalesces(store):
 
 
 def test_revert_of_a_missing_revision_or_a_trashed_page(store):
-    assert "no such page" in refused(store, "revert", revision=999)
+    assert "no such revision 999" in refused(store, "revert", revision=999)
     ref = human(store, "x")
     rev = ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["a"])["pages"][0]
     store.delete_page(ref["slug"])
@@ -285,7 +285,8 @@ def test_revisions_list_text_revisions_and_return_one(store):
     assert [r["rev"] for r in out["text"]] == [2, 1]
     assert out["text"][0]["author"] == "claude" and out["text"][1]["bytes"] == 5
     assert out["text_revision"]["body"] == "first"
-    assert "no such page" in refused(store, "revisions", page=w["slug"], text_rev=9)
+    error = refused(store, "revisions", page=w["slug"], text_rev=9)
+    assert "no such revision 9" in error
 
 
 def test_no_mcp_tool_can_delete_or_overwrite_text(store):
@@ -452,6 +453,45 @@ def test_batch_revert_skips_a_trashed_page_and_unknown_batches(store):
     out = ok(store, "revert", batch=batch)
     assert [s["id"] for s in out["skipped"]] == [refs[0]["page_id"]]
     assert store.page(refs[1]["slug"])["kind"] == "note"
-    assert "no such page" in refused(store, "revert", batch="NOPE")
+    assert "no such batch NOPE" in refused(store, "revert", batch="NOPE")
     assert "a revision or a batch" in refused(store, "revert")
     assert "a revision or a batch" in refused(store, "revert", revision=1, batch="x")
+
+
+def test_a_revision_id_is_never_used_again(store):
+    """A burst that changes nothing is dropped: its id must not then name another
+    page's revision, or a revert of it would change the wrong page."""
+    a, b = human(store, "A"), human(store, "B")
+    first = ok(store, "edit_meta", pages=[a["slug"]], add_tags=["x"])["pages"][0]
+    ok(store, "edit_meta", pages=[a["slug"]], remove_tags=["x"])  # burst dropped
+    assert meta(store, a["slug"]) == []
+    other = ok(store, "edit_meta", pages=[b["slug"]], add_tags=["y"])["pages"][0]
+    assert other["revision"] != first["revision"]
+    assert "no such revision" in refused(store, "revert", revision=first["revision"])
+    assert store.page(b["slug"])["tags"] == ["y"]
+
+
+def test_one_page_named_twice_is_not_a_batch(store):
+    ref = human(store, "x")
+    out = ok(store, "edit_meta", pages=[ref["slug"], ref["page_id"]], add_tags=["a"])
+    assert out["matched"] == 1 and out["batch"] is None
+    two = ok(store, "edit_meta", pages=[ref["slug"]], add_tags=["b"])
+    assert two["pages"][0]["revision"] == out["pages"][0]["revision"]  # folded
+
+
+def test_revisions_of_a_whole_batch_and_more(store):
+    refs = [human(store, f"P {n}", tags=["t"]) for n in range(60)]
+    batch = ok(store, "edit_meta", query="tag:t", add_tags=["u"], limit=60)["batch"]
+    whole = ok(store, "revisions", batch=batch, limit=200)
+    assert len(whole["meta"]) == 60 and not whole["more"]
+    part = ok(store, "revisions", batch=batch, limit=50)
+    assert len(part["meta"]) == 50 and part["more"]
+    assert not ok(store, "revisions", page=refs[0]["slug"])["more"]
+
+
+def test_rename_into_a_tag_only_in_the_trash_needs_merge(store):
+    human(store, "a", tags=["a"])
+    gone = human(store, "b", tags=["b"])
+    store.delete_page(gone["slug"])
+    assert "only in the trash" in refused(store, "rename_tag", old="a", new="b")
+    assert ok(store, "rename_tag", old="a", new="b", merge=True)["changed"] == 1

@@ -172,7 +172,10 @@ def server(store: Store) -> MCPServer:
         try:
             return call(*args, **kwargs)
         except NotFoundError as e:
-            raise ToolError(f"no such page: {e}") from None
+            what = str(e)  # a slug has no spaces: "revision 9", "batch X" are not one
+            if what.startswith(("revision ", "batch ")):
+                raise ToolError(f"no such {what}") from None
+            raise ToolError(f"no such page: {what}") from None
         except InvalidError as e:
             raise ToolError(str(e)) from None
 
@@ -454,7 +457,7 @@ def server(store: Store) -> MCPServer:
             store.edit_meta, keys, AUTHOR, MCP, kind,
             tag_list(add_tags, "a tag"), tag_list(remove_tags, "a tag"),
             None if set_tags is None else tag_list(set_tags, "a tag"), dry_run,
-            batch=query is not None or len(set(pages)) > 1,
+            batch=query is not None,  # else several distinct pages: Store decides
         )  # fmt: skip
         return changes(found, dry_run)
 
@@ -484,7 +487,9 @@ def server(store: Store) -> MCPServer:
     def revisions(
         page: Annotated[str | None, Field(description="Id or slug")] = None,
         batch: Batch = None,
-        limit: Limit = 20,
+        limit: Annotated[
+            int, Field(ge=1, le=MAX_BULK, description="At most this many of each")
+        ] = 20,
         text_rev: Annotated[
             int | None,
             Field(ge=1, description="Also return this text revision's title and body"),
@@ -498,7 +503,8 @@ def server(store: Store) -> MCPServer:
         updated_at: the last change folded in); revert(revision=id) undoes one,
         revert(batch=id) a batch. text: the page's title and body revisions (rev,
         title, author, when, bytes), which no tool reverts; text_rev returns one's
-        text, the user's data."""
+        text, the user's data. more: there are more meta revisions than limit (up to
+        200, a whole batch)."""
         if page is None and batch is None:
             raise ToolError("give a page or a batch")
         key = text(page, "page") if page is not None else None
