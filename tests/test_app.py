@@ -744,3 +744,53 @@ def test_author_from_a_custom_identity_header(client, monkeypatch):
 def test_blank_identity_header_means_the_default(client, monkeypatch):
     monkeypatch.setenv("SCRAP_IDENTITY_HEADER", " ")
     assert who(client, **{"Tailscale-User-Login": "me@example.com"}) == "me@example.com"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"1e400", b"-1e400", b"NaN", b"Infinity", b"-Infinity", b"9007199254740993",
+     b"-9007199254740993", b"100000000000000000000000"],
+)  # fmt: skip
+def test_field_numbers_must_be_finite_and_exact_in_a_browser(client, note, raw):
+    url = f"/api/pages/{note()['page_id']}"
+    body = b'{"fields": {"n": ' + raw + b"}}"
+    sent = client.patch(url, content=body, headers={"content-type": "application/json"})
+    assert sent.status_code == 422
+    assert client.get(url).json()["fields"] == {}
+
+
+def test_field_numbers_at_the_limits_are_kept(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    edge = {"hi": 2**53, "lo": -(2**53), "f": 1.5e300}
+    assert client.patch(url, json={"fields": edge}).json()["fields"] == edge
+
+
+def test_the_store_refuses_numbers_a_browser_cannot_hold():
+    from scrap.store import InvalidError, check_value
+
+    for bad in (float("nan"), float("inf"), -float("inf"), 2**53 + 1):
+        with pytest.raises(InvalidError):
+            check_value("n", bad)
+    check_value("n", True)
+    check_value("n", 2**53)
+
+
+def test_kind_change_on_a_full_page_keeps_every_field(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    full = {f"k{n}": "x" for n in range(32)}
+    assert client.patch(url, json={"fields": full}).status_code == 200
+    for kind in ("todo", "consume"):
+        sent = client.patch(url, json={"kind": kind})
+        assert sent.status_code == 200, sent.text
+        page = sent.json()
+        assert page["kind"] == kind and page["fields"] == full  # no room: none added
+
+
+def test_kind_change_adds_only_the_defaults_that_fit(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    thirty = {f"k{n}": "x" for n in range(30)}
+    assert client.patch(url, json={"fields": thirty}).status_code == 200
+    page = client.patch(url, json={"kind": "consume"}).json()  # subtype, status
+    assert len(page["fields"]) == 32
+    assert thirty.items() <= page["fields"].items()
+    assert page["fields"]["subtype"] == "read"

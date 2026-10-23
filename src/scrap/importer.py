@@ -7,6 +7,7 @@ SCHEMA pages, and anything else that is not a page. See docs/how-to/import-a-vau
 """
 
 import hashlib
+import math
 import mimetypes
 import posixpath
 import re
@@ -23,17 +24,14 @@ from . import markdown
 from .markdown import Link, wiki_parts
 from .store import (
     CROCKFORD,
+    DEFAULT_FIELDS,
+    MAX_INT,
     BlobRef,
     Store,
     lines,
     slug_base,
     upload_limit,
 )
-
-try:  # TODO: once #46 and this are both merged, import DEFAULT_FIELDS only
-    from .store import DEFAULT_FIELDS  # type: ignore[attr-defined]
-except ImportError:
-    from .store import HINT_FIELDS as DEFAULT_FIELDS
 
 __all__ = ["plan", "run", "report", "Plan"]
 
@@ -217,6 +215,12 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
             value = value.isoformat()
         if name is None or not isinstance(value, str | bool | int | float):
             plan.note("unmapped field", rel, key)
+            continue
+        if isinstance(value, float) and not math.isfinite(value) or (
+            isinstance(value, int) and not isinstance(value, bool)
+            and abs(value) > MAX_INT
+        ):  # fmt: skip
+            plan.note("field dropped", rel, f"{key}: number out of range")
             continue
         if isinstance(value, str):
             value = " ".join(value.split())

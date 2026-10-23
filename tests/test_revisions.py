@@ -496,3 +496,12 @@ def test_rename_into_a_tag_only_in_the_trash_needs_merge(store):
     store.delete_page(gone["slug"])
     assert "only in the trash" in refused(store, "rename_tag", old="a", new="b")
     assert ok(store, "rename_tag", old="a", new="b", merge=True)["changed"] == 1
+
+
+def test_edit_meta_kind_change_on_a_full_page_loses_nothing(store):
+    ref = human(store, "Crowded")
+    full = {f"k{n}": "x" for n in range(32)}
+    store.update_page(ref["slug"], None, None, None, "giles", fields=full)
+    out = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")
+    assert out["changed"] == 1
+    assert store.page(ref["page_id"])["fields"] == full
