@@ -74,7 +74,18 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
     store.dir.mkdir(parents=True, exist_ok=True)
     part = store.dir / "scrap.db.restore"
     try:
+        _restore_into(src, store, part)
+    except BaseException:  # a refusal or Ctrl-C: leave no backup-sized leftover
         _discard(part)
+        if created:
+            shutil.rmtree(store.dir, ignore_errors=True)
+        raise
+
+
+def _restore_into(src: Path, store: Store, part: Path) -> None:
+    backup_db = src / "scrap.db"
+    _discard(part)
+    try:
         shutil.copyfile(backup_db, part)
         # A backup is a closed snapshot with no -wal; copy one if it is there
         if Path(f"{backup_db}-wal").is_file():
@@ -85,11 +96,10 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
         if check != "ok":
             raise sqlite3.DatabaseError(f"integrity_check says {check}")
     except (RuntimeError, sqlite3.DatabaseError, OSError) as error:
-        _discard(part)
-        if created:
-            store.dir.rmdir()
         what = "cannot copy the backup" if isinstance(error, OSError) else "bad backup"
-        raise SystemExit(f"{what}: {error}") from None
+        # Name the folder the user gave, not the temporary copy
+        reason = str(error).replace(str(part), str(src))
+        raise SystemExit(f"{what}: {reason}") from None
     store.files.mkdir(parents=True, exist_ok=True)
     _copy_files(src / "files", store.files)
     migrate(part)
