@@ -247,19 +247,22 @@ on the same workstation, relay scrap's port into the jail:
    `SCRAP_PUBLIC_URL`. If it does not connect, check the `local-port` line and that
    `curl http://localhost:8790/healthz` works on the workstation.
 
-3. Optionally, install the `s` skill, a short `/s` command for scrap (`/s post` posts a summary of a
-   conversation to scrap). In the same container terminal:
+3. Optionally, install the `s-` skills, short commands for scrap (`/s-post`, `/s-summarise`,
+   `/s-find`, `/s-todos`, `/s-tidy`, `/s-undo`; see [](../how-to/connect-claude-code.md)). In the
+   same container terminal:
 
    ```
-   mkdir -p ~/.claude/skills/s
-   curl -fsSL -o ~/.claude/skills/s/SKILL.md \
-       https://raw.githubusercontent.com/gilesknap/scrap/main/skills/s/SKILL.md
+   for s in s s-post s-summarise s-find s-todos s-tidy s-undo; do
+       mkdir -p ~/.claude/skills/$s
+       curl -fsSL -o ~/.claude/skills/$s/SKILL.md \
+           https://raw.githubusercontent.com/gilesknap/scrap/main/skills/$s/SKILL.md
+   done
    ```
 
 In claude-sandbox's containers, `~/.claude` and `~/.claude.json` are kept in
-`~/.config/terminal-config` on the host. So the server added with `--scope user`, and the skill,
-survive `--recreate` and apply to every project you run in claude-sandbox. On the host, the skill
-is at `~/.config/terminal-config/.claude/skills/s`.
+`~/.config/terminal-config` on the host. So the server added with `--scope user`, and the skills,
+survive `--recreate` and apply to every project you run in claude-sandbox. On the host, the skills
+are in `~/.config/terminal-config/.claude/skills/`.
 
 To check it all, start Claude (`claude-sandbox` in your project directory) and ask it to search
 scrap for something you have put there. It lists the pages it finds, with links such as
@@ -290,7 +293,7 @@ machine on the DLS network, allow the scrap workstation's IP address through the
    place of the `local-port` line above (with the same shipped defaults), and recreate if the
    file is new. `allow-ip` takes a bare IP address, and lets Claude reach every service on that
    machine, not only scrap.
-3. In a container terminal there, add scrap by IP address, then the skill as above:
+3. In a container terminal there, add scrap by IP address, then the skills as above:
 
    ```
    claude mcp add --transport http --scope user scrap http://<IP address>:8790/mcp

@@ -134,31 +134,57 @@ do not commit it.
 - A tool error such as "only a page written over MCP can be appended to", or a title over 200
   characters, a body over 200 kB or more than 20 tags: the call is refused and nothing is saved.
 
-## 3. Use scrap with the `/s` skill
+## 3. Install the `s-` skills
 
-`skills/s/SKILL.md` in this repository is a Claude Code skill that gives you one short command,
-`/s <verb>`. Copy it to `~/.claude/skills/s/SKILL.md` (for all your projects) or
-`.claude/skills/s/SKILL.md` in a repository (for that project) unchanged: it uses the server
-added in step 2. The first word picks the verb:
+`skills/` in this repository holds Claude Code skills that give you short scrap commands. Each
+is a directory with a `SKILL.md`, and each is its own command, so typing `/s-` in Claude Code
+autocompletes the whole set. They use the server added in step 2 (the `mcp__scrap__*` tools) and
+do nothing useful without it; if the tools are missing they say so and print the `claude mcp add`
+line.
 
 | Command | What it does |
 | --- | --- |
-| `/s post` | Posts the useful findings of the conversation as one page (below). "post this to scrap" works too. |
-| `/s tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
-| `/s undo` | Lists recent `revisions` and `revert`s the one you name. |
-| `/s todos` | What to do now, overdue first. |
-| `/s <anything else>` | A plain search of scrap. |
+| `/s-post [title]` | Posts Claude's previous response to scrap verbatim, as one page. "post this to scrap" works too. |
+| `/s-summarise` | Summarises the conversation's learnings, decisions and activity into one page and posts it (below). |
+| `/s-find <words>` | Searches scrap and shows the top results as short lines. |
+| `/s-todos` | What to do now, overdue first. |
+| `/s-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
+| `/s-undo` | Lists recent `revisions` and `revert`s the one you name. |
+| `/s <words>` | An index: searches like `/s-find`, or lists the commands above. |
 
-`/s post` replaces the earlier `scrap-post` skill: delete `~/.claude/skills/scrap-post` after
-installing `s`. Only the scrap tools are used. Both uses of `<SCRAP_URL>` in the skill are placeholders (the hint
-it gives when the tools are missing, and the shape of the page URL it reports); the real URL
-comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
+Install them for all your projects by copying (or symlinking) the directories into
+`~/.claude/skills/`, from a clone of this repository:
 
-`/s post` makes Claude summarise the useful findings of the conversation into one page, reusing
-existing tags and linking related pages, and show you the title and tags before it writes; say
-"just post" to skip the question.
+```
+mkdir -p ~/.claude/skills
+cp -r skills/* ~/.claude/skills/
+```
 
-The page has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
+or for one project, into `.claude/skills/` in that repository:
+
+```
+mkdir -p .claude/skills
+cp -r skills/* .claude/skills/
+```
+
+To keep them up to date with the repository, symlink instead:
+`ln -s "$PWD"/skills/* ~/.claude/skills/`. Without a clone, fetch each file, for example
+`mkdir -p ~/.claude/skills/s-post` then `curl -fsSL -o ~/.claude/skills/s-post/SKILL.md
+https://raw.githubusercontent.com/gilesknap/scrap/main/skills/s-post/SKILL.md`. Start a new
+Claude Code session afterwards, and type `/s-` to check that the commands are listed. Copy the
+files unchanged.
+
+These skills replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on) and
+the older `scrap-post` skill: copying over `~/.claude/skills/s` updates it to the index, and you
+can delete `~/.claude/skills/scrap-post`. Only the scrap tools are used. `<SCRAP_URL>` in the
+skills is a placeholder (the hint they give when the tools are missing, and the shape of the
+page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
+
+`/s-summarise` makes Claude summarise the useful findings of the conversation into one page,
+reusing existing tags and linking related pages, and show you the title and tags before it
+writes; say "just post" to skip the question.
+
+The summary has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
 questions. It is a `note` unless it is a task (`todo`) or a longer reference (`doc`), carries
 the repository and date as its origin, and is sent with a random `key` so that a retry does not
 post twice. The skill tells Claude to leave out secrets, credentials and private data. It
@@ -178,7 +204,7 @@ given as a search is refused if it finds more than 50 pages unless `limit` is ra
 
 ## Permissions and security
 
-Claude Code asks before using an MCP tool unless you allow it, and the `s` skill allows none. You
+Claude Code asks before using an MCP tool unless you allow it, and the `s-` skills allow none. You
 might allow the read tools (`mcp__scrap__search`, `read`, `recent`, `todos`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
 

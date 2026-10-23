@@ -11,8 +11,9 @@ to `/mcp`, sending `Accept: application/json, text/event-stream` as the MCP spec
 `rename_tag` change only kinds and tags (each change a revision that `revert` undoes), and try a
 bulk change with `dry_run` first. Unless content editing is off, they also say `edit_page` and
 `revert_text` change a page's text as revisions, only on a page the user asked to change (see
-Page text below). For a short `/s` command in Claude Code (post a summary of a conversation, tidy kinds and
-tags, undo, list todos, search), see the `s` skill (`skills/s` in the repository).
+Page text below). For short commands in Claude Code (`/s-post`, `/s-summarise`, `/s-find`, `/s-todos`, `/s-tidy`,
+`/s-undo`), see the `s-` skills (`skills/` in the repository, installed as in
+[](../how-to/connect-claude-code.md)).
 
 Every tool result is JSON (MCP structured content, also sent as its text). Page text (titles,
 bodies, summaries, snippets, tags, what Claude read from photos) is in fields of that JSON, as
