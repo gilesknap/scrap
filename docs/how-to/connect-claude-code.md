@@ -82,8 +82,40 @@ Off the tailnet, or for a quick test, use the SSH tunnel fallback ({ref}`scrap-s
 add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A session that
 cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way.
 
+### If `/mcp` needs a token
+
+If scrap has `SCRAP_MCP_TOKEN` or `SCRAP_MCP_TOKEN_FILE` set (see [](../reference/mcp.md)), send
+the token as a header. With `claude mcp add`:
+
+```
+claude mcp add --transport http scrap https://myhost.my-tailnet.ts.net:8446/mcp \
+  --header "Authorization: Bearer ${SCRAP_MCP_TOKEN}"
+```
+
+or in `.mcp.json`, where Claude Code expands `${VAR}` in header values, so the token can stay in
+the environment (or an env file you do not commit):
+
+```json
+{
+  "mcpServers": {
+    "scrap": {
+      "type": "http",
+      "url": "https://scrap.example.com/mcp",
+      "headers": {"Authorization": "Bearer ${SCRAP_MCP_TOKEN}"}
+    }
+  }
+}
+```
+
+Behind Cloudflare Access, add its service-token headers too, so the request carries
+`CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}`, `CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}`
+and the `Authorization` header. In the DLS claude-sandbox, keep all of these in an env file and
+do not commit it.
+
 ### If it does not connect
 
+- `401`: scrap wants a bearer token and the client sent none, or a wrong one. Check the header
+  above; a `curl` check needs `-H "Authorization: Bearer $TOKEN"` too.
 - `421 Invalid Host header`: the `Host` the client used is not loopback or in `SCRAP_PUBLIC_URL`
   (unset, wrong, or a different port). Fix step 1 and restart scrap.
 - `403`: the request carried an `Origin` that is not one of those addresses.
