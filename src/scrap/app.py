@@ -18,6 +18,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import (
     FileResponse,
+    HTMLResponse,
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
@@ -241,6 +242,9 @@ class TextGzip:
             await self.app(scope, receive, send)
         else:
             await self.gzip(scope, receive, send)
+
+
+VERSION_SLOT = '<small id="ver" aria-hidden="true"></small>'  # in the PWA's index.html
 
 
 class Shell(StaticFiles):
@@ -604,7 +608,9 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """The PWA: every app route loads index.html and routes in the browser."""
         if not index.is_file():
             return PlainTextResponse(NOT_BUILT, 503)
-        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+        slot = VERSION_SLOT.replace("></", f">v{__version__}</")
+        html = index.read_text(encoding="utf-8").replace(VERSION_SLOT, slot)
+        return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
     for route in APP_ROUTES:
         app.get(route, include_in_schema=False)(shell)

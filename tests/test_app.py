@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from scrap import __version__
-from scrap.app import create_app
+from scrap.app import VERSION_SLOT, create_app
 from scrap.store import Store, connect, migrate, migrations, new_ulid
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
@@ -837,3 +837,14 @@ def test_kind_change_adds_only_the_defaults_that_fit(client, note):
     assert len(page["fields"]) == 32
     assert thirty.items() <= page["fields"].items()
     assert page["fields"]["subtype"] == "read"
+
+
+def test_the_shell_shows_the_server_version_in_the_title_bar(tmp_path, monkeypatch):
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text(f"<header>scrap{VERSION_SLOT}</header>")
+    monkeypatch.setattr("scrap.app.STATIC", static)
+    client = TestClient(create_app(tmp_path / "data"))
+    page = client.get("/")
+    assert f'<small id="ver" aria-hidden="true">v{__version__}</small>' in page.text
+    assert page.headers["cache-control"] == "no-cache"
