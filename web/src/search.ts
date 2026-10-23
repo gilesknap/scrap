@@ -82,6 +82,8 @@ export async function search(): Promise<Node> {
     for (const [radio] of radios) radio.checked = radio.value === value;
   };
   let timer: ReturnType<typeof setTimeout>;
+  let typed = false; // typed, and its run not yet started
+  let busy: Promise<void> | undefined; // the run for what was typed, until it ends
   let saving: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
   // Leaving the view: no late debounce rewrites the address bar, no late results land.
@@ -264,13 +266,28 @@ export async function search(): Promise<Node> {
     clearTimeout(settle); // typed on: not settled
     clear.hidden = !input.value;
     clearTimeout(timer);
-    timer = setTimeout(run, 250);
+    typed = true;
+    timer = setTimeout(() => {
+      typed = false;
+      busy = run();
+    }, 250);
   };
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
-    const first = results.querySelector("a");
-    if (e.key === "Enter") remember();
-    if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
+    if (e.key !== "Enter") return;
+    remember();
+    const open = () => {
+      const first = results.querySelector("a");
+      if (first) go(first.pathname, false, trailOf(first));
+    };
+    // Typed within the debounce, or its run still going: open the typed query's first hit
+    if (typed) {
+      clearTimeout(timer);
+      typed = false;
+      busy = run();
+    }
+    if (busy) void busy.then(open);
+    else open();
   };
   results.addEventListener("click", (e) => (e.target as Element).closest("a") && remember());
   const first = run(true);

@@ -70,15 +70,18 @@ export async function page(key: string): Promise<Node> {
   let poll = 0;
   signal.addEventListener("abort", () => clearTimeout(poll));
   // Fetch the page again and show it if what Claude did changed (a new state or drawing)
+  let drawn = 0; // how many times the page has been drawn
   const refresh = async (force = true) => {
     clearTimeout(poll);
+    const was = drawn;
     try {
       const [fresh, q] = await Promise.all([
         api<Page>(`pages/${p.id}`),
         api<Queue>("ingest").catch(() => queue),
       ]);
       await load(fresh);
-      if (signal.aborted) return;
+      // A poll that a save or tick has drawn over meanwhile is stale: not drawn over it
+      if (signal.aborted || (!force && drawn !== was)) return;
       const changed =
         ingestOf(fresh) !== ingestOf(shown) ||
         q?.paused !== queue?.paused ||
@@ -120,6 +123,7 @@ export async function page(key: string): Promise<Node> {
   let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
   const show = (p: Page) => {
     shown = p;
+    drawn++;
     root.dataset.kind = p.kind; // for the top bar's Back: a todo's parent is the Todos screen
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);
