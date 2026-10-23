@@ -437,6 +437,17 @@ def enrich_on() -> bool:
     return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
 
 
+# The page kinds Claude reads for tags and a summary: notes (a saved link is one), todos
+# and reads (consume). A photo, whiteboard or document page is not read as text (#155).
+# Ask Claude is an explicit act and still works on any page.
+ENRICH_KINDS = ("note", "todo", "consume")
+
+
+def should_enrich(kind: str) -> bool:
+    """Whether enrich reads a page of this kind on a capture, save or backfill."""
+    return kind in ENRICH_KINDS
+
+
 def debounce() -> float:
     """Seconds an enrich job waits after a save, so a burst of edits makes one call."""
     try:
@@ -839,7 +850,11 @@ class Store:
             self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
-            if enrich_on() and c["kind"] in ("note", "url"):  # a photo has ingest
+            if (
+                enrich_on()
+                and c["kind"] in ("note", "url")  # a photo has ingest
+                and should_enrich(kind or "note")
+            ):
                 # A link is fetched at once; a note waits, in case it is edited now
                 wait = 0.0 if c["kind"] == "url" else debounce()
                 queue_enrich(conn, page_id, "capture", wait)
@@ -1232,7 +1247,10 @@ class Store:
                     status_set=bool(fields and "status" in fields),
                 )
                 self.reindex(conn, page["id"])
-                if enrich_on():  # read again once the edits stop
+                kind_now = conn.execute(
+                    "SELECT kind FROM page WHERE id = ?", (page["id"],)
+                ).fetchone()[0]
+                if enrich_on() and should_enrich(kind_now):  # again once edits stop
                     queue_enrich(conn, page["id"], "save", debounce())
             return self.page_in(conn, page["id"])
 
@@ -1969,7 +1987,10 @@ class Store:
         )
         self._body(conn, page["id"], boxes_before(page))
         self.reindex(conn, page["id"])
-        if enrich_on():  # read again once the edits stop, as for the PWA's saves
+        kind_now = conn.execute(
+            "SELECT kind FROM page WHERE id = ?", (page["id"],)
+        ).fetchone()[0]
+        if enrich_on() and should_enrich(kind_now):  # as for the PWA's saves
             queue_enrich(conn, page["id"], "save", debounce())
         return rev, folded
 

@@ -39,6 +39,7 @@ from .ingest import (
 from .markdown import plain
 from .query import CONTROL
 from .store import (
+    ENRICH_KINDS,
     MAX_TAG,
     MAX_TAGS,
     Store,
@@ -689,14 +690,17 @@ def ask(store: Store, key: str) -> dict[str, Any]:
 
 
 def backfill(store: Store, limit: int | None = None, dry_run: bool = False) -> int:
-    """Queue every page with no tags that Claude has not read (not in the trash),
-    oldest first: a one-off command. Returns how many (would be) queued."""
+    """Queue every note, todo, read or link with no tags that Claude has not read (not
+    in the trash, and not a photo, whiteboard or document page), oldest first: a
+    one-off command. Returns how many (would be) queued."""
     with store.connect() as conn, transaction(conn):
         ids = [r[0] for r in conn.execute(
             "SELECT p.id FROM page p WHERE p.deleted_at IS NULL"
+            f" AND p.kind IN ({','.join('?' * len(ENRICH_KINDS))})"
             " AND NOT EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id)"
             " AND NOT EXISTS (SELECT 1 FROM enrichment e WHERE e.page_id = p.id)"
-            " ORDER BY p.created_at LIMIT ?", (-1 if limit is None else limit,),
+            " ORDER BY p.created_at LIMIT ?",
+            (*ENRICH_KINDS, -1 if limit is None else limit),
         )]  # fmt: skip
         if not dry_run:
             for page_id in ids:

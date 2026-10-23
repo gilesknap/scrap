@@ -594,3 +594,32 @@ def test_checked_bounds_the_output():
     assert enrich.checked_related({"related": [True, 0, 2, 2, 3, 9]}, 3) == [2, 3]
     with pytest.raises(ValueError):
         enrich.checked_related({}, 3)
+
+
+# Which kinds are read (#155)
+
+
+@pytest.mark.parametrize("kind", ["whiteboard", "document"])
+def test_a_save_on_a_whiteboard_or_document_page_queues_nothing(store, kind):
+    ref = capture(store, "a page", kind=kind)
+    store.update_page(ref["page_id"], 1, None, "a page, edited", "me")
+    assert jobs(store) == []
+
+
+@pytest.mark.parametrize("kind", ["note", "todo", "consume"])
+def test_a_save_on_a_note_todo_or_read_queues_enrich(store, kind):
+    ref = capture(store, "a page", kind=kind)
+    store.update_page(ref["page_id"], 1, None, "a page, edited", "me")
+    assert jobs(store)[-1] == ("save", "queued", 0)
+
+
+def test_backfill_skips_photo_whiteboard_and_document_pages(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    for kind in ("whiteboard", "document"):
+        capture(store, f"a {kind}", kind=kind)
+    for kind in ("note", "todo", "consume"):
+        capture(store, f"a {kind}", kind=kind)
+    capture(store, url="https://example.com/a")
+    assert enrich.backfill(store, dry_run=True) == 4
+    assert enrich.backfill(store) == 4
+    assert [j[0] for j in jobs(store)] == ["backfill"] * 4

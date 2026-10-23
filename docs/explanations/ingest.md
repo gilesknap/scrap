@@ -375,10 +375,11 @@ page's text. The schema is in
   `max_tokens` 4000. `SCRAP_ENRICH=off` turns it off while photo ingest stays on.
 - **Triggers.** A text capture (a note, todo or read) or a link capture: a link is fetched and
   read at once, a text capture after `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or
-  text, on any page, moves the page's one queued job that far ahead again, so a burst of edits
+  text of a note, todo or read (not a photo, whiteboard or document page: `should_enrich` in
+  `store.py`, #155) moves the page's one queued job that far ahead again, so a burst of edits
   makes one call (a save while a job runs queues the next). These do tags and summary only.
   **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
-  related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every page with no tags
+  related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags
   that Claude has not read, once, by hand (never automatic). Some things queue nothing:
   - A photo or file capture, even with a typed note: photo ingest reads the photo, and the
     page's first text reading comes with a later save of its title or text (or Ask Claude).
@@ -588,7 +589,7 @@ holds what you sent to Claude, and your backups do too.
 | Command | Use |
 | --- | --- |
 | `scrap ingest-once IMAGE [--save FILE]` | Try one image against Claude with no database; numbers only unless `--save` |
-| `scrap enrich --backfill` | Queue the pages with no tags that Claude has not read; the service's worker runs them |
+| `scrap enrich --backfill` | Queue the notes, todos and reads with no tags that Claude has not read; the service's worker runs them |
 | `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
 | `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
 
