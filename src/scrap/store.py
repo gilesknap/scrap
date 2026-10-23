@@ -342,11 +342,23 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     conn.execute("COMMIT")
 
 
-def _text(data: dict[str, Any], key: str) -> str | None:
+def _text(data: dict[str, Any], key: str, indent: bool = False) -> str | None:
+    """A string field, tidied: None if blank.
+
+    indent keeps the first line's own indent (only blank lines before it go): four
+    spaces make it code, and `    # x` is no heading.
+    """
     value = data.get(key)
     if value is not None and not isinstance(value, str):
         raise InvalidError(f"{key} must be a string")
-    return lines(value).strip() or None if value else None
+    if not value:
+        return None
+    value = lines(value)
+    if indent:
+        value = re.sub(r"\A(?:[ \t]*\n)+", "", value).rstrip()
+    else:
+        value = value.strip()
+    return value or None
 
 
 def lines(text: str) -> str:
@@ -789,7 +801,8 @@ class Store:
         cid = (_text(data, "id") or "").upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")
-        text, url, hint = _text(data, "text"), _text(data, "url"), _text(data, "hint")
+        text = _text(data, "text", indent=True)
+        url, hint = _text(data, "url"), _text(data, "hint")
         kind = _text(data, "kind")
         source = _text(data, "source") or "pwa"
         created = _text(data, "created_at") or now()
@@ -807,8 +820,8 @@ class Store:
         todo = {k: check_todo(k, _text(data, k)) for k in TODO}
         if kind != "todo" and any(todo.values()):
             raise InvalidError("due and priority are for todos")
-        if not url and text and BARE_URL.fullmatch(text):
-            url, text = text, None  # a link shared as text
+        if not url and text and BARE_URL.fullmatch(text.strip()):
+            url, text = text.strip(), None  # a link shared as text
         if mimes:
             images = all(mime.startswith("image/") for mime in mimes)
             what = "photo" if images else "file"

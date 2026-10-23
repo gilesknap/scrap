@@ -12,12 +12,7 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Buy oat milk\nfrom the corner shop");
   await page.getByRole("button", { name: "Save" }).click();
-  // Uploaded (the badge may not have shown yet, and Search lists what waits too)
-  await expect
-    .poll(async () => (await (await page.request.get("/api/pages")).json()).length)
-    .toBe(1);
-  await expect(page.locator("#queue")).toBeHidden();
-
+  // Straight to Search, whether or not the upload has landed: its results follow the queue
   await page.getByRole("link", { name: "Search", exact: true }).click();
   await expect(page.getByText("Buy oat milk")).toBeVisible(); // newest first
   await page.getByRole("searchbox").fill("corner sho");

@@ -116,8 +116,15 @@ export function problem(e: unknown): Node {
       : navigator.onLine
         ? "Can't reach the server. Check your connection or VPN."
         : "Offline: this needs the server.";
-  return empty("offline", why, h("button", { onclick: rerender }, icon("retry"), "Retry"));
+  return failed(why, h("button", { onclick: rerender }, icon("retry"), "Retry"));
 }
+
+/** A problem state (the server can't be reached): marked, so a quiet refresh can keep the old rows. */
+export const failed = (line: string, ...more: Kid[]) => {
+  const el = empty("offline", line, ...more);
+  el.classList.add("failed");
+  return el;
+};
 
 /** An image of a Blob on the phone; its object URL is freed once shown. */
 export function blobImg(blob: Blob, alt = ""): HTMLImageElement {

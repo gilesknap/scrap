@@ -13,7 +13,7 @@ import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
-import { empty, h } from "./ui";
+import { empty, failed, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
 const MOST = 1000; // search results, fetched PAGE at a time
@@ -103,32 +103,73 @@ export async function search(): Promise<Node> {
   const pend = async () => pending.replaceChildren(await pendingList());
   document.addEventListener("queuechange", pend, { signal: view.signal });
   void pend();
+  // A capture that uploads (or is queued) may belong in the results: run the same query again.
+  // Debounced (a queue drains in a burst); not while the box holds something other than what
+  // ran (typing: its own run is coming), nor while a finger is down, the page is scrolling or
+  // a scroll is being restored, nor with focus or a selection inside the results: it waits and
+  // tries again, so a swipe, tap or selection is never replaced under the user.
+  let keeps: typeof import("./refresh").keeps = () => true; // whether a refresh leaves the rows be
+  const watching = import("./refresh").then((m) => {
+    keeps = m.keeps;
+    return m.watch(
+      view.signal,
+      input,
+      () => scroll !== 0,
+      () => {
+        scroll = scrollY;
+        void run(true, true);
+      },
+    );
+  });
+  // (a change before the chunk is here waits for it; offline before it was kept: no refresh)
+  document.addEventListener(
+    "queuechange",
+    () =>
+      watching.then(
+        (kick) => kick(),
+        () => {},
+      ),
+    {
+      signal: view.signal,
+    },
+  );
 
-  async function run(first = false) {
+  async function run(first = false, quiet = false) {
     const query = input.value.trim();
     if (!first) {
       limit = PAGE; // a new query: from the top
       scroll = 0;
       address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
-    markNav();
-    showKinds(query);
-    abort.abort();
-    abort = new AbortController();
+    // A refresh shares the signal of the run before it: it never cancels that run's refine
+    if (!quiet) {
+      abort.abort();
+      abort = new AbortController();
+    }
     const { signal } = abort;
-    clear.hidden = !input.value;
-    // Filters even before a query, then what refines its results
-    refining
-      .then((m) => m.refine(query, signal, apply, filters))
-      .then((el) => {
-        if (signal.aborted) return;
-        found.replaceChildren(el.querySelector(".found") ?? "");
-        chips.replaceChildren(el); // (refine puts focus back on the control it was on)
-      })
-      .catch(() => signal.aborted || chips.replaceChildren());
-    clearTimeout(settle);
+    // A refresh (quiet) redraws the rows only: never the kinds, filters, chips or the timer
+    if (!quiet) {
+      markNav();
+      showKinds(query);
+      clear.hidden = !input.value;
+      // Filters even before a query, then what refines its results
+      refining
+        .then((m) => m.refine(query, signal, apply, filters))
+        .then((el) => {
+          if (signal.aborted) return;
+          found.replaceChildren(el.querySelector(".found") ?? "");
+          chips.replaceChildren(el); // (refine puts focus back on the control it was on)
+        })
+        .catch(() => signal.aborted || chips.replaceChildren());
+      clearTimeout(settle);
+    }
     const shown = await list(query, signal);
     if (signal.aborted) return;
+    // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
+    if (quiet && keeps(shown, results)) {
+      scroll = 0;
+      return;
+    }
     results.replaceChildren(shown);
     // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
     if (!first && query && results.querySelector(".hits a"))
@@ -194,7 +235,7 @@ export async function search(): Promise<Node> {
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError")
-        ul.append(h("li", {}, empty("offline", "Search needs the server.")));
+        ul.append(h("li", {}, failed("Search needs the server.")));
     }
     return ul;
   }
