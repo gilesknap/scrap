@@ -36,7 +36,7 @@ installed:
 
 - **Single server (podman).** `deploy/install.sh` writes `~/.config/scrap/ingest.env` (mode 600) and
   never overwrites it. Uncomment or add the lines there and run `systemctl --user restart scrap`.
-  The tutorial's optional last step does this: [](../tutorials/installation.md). Every setting is in
+  The server tutorial does this: [](../tutorials/install-server.md). Every setting is in
   {ref}`scrap-ingest-settings`.
 - **Kubernetes (Helm).** `ingest.enabled`, `ingest.existingSecret` (the chart never takes the key
   itself) and the optional `visionModel`, `budgetDayUSD` and `notifyUrlKey`: {ref}`k8s-ingest`.
