@@ -68,3 +68,11 @@ it("says whether a draft was kept: storage that refuses it is not a silent succe
   full.mockRestore();
   expect(await drafts.get(DRAFT)).toEqual({ text: "newer" }); // the old save, which Back must not trust
 });
+
+it("says a draft was not kept when storage refuses it, so no one claims 'Kept as a draft'", async () => {
+  const put = vi.spyOn(drafts, "put").mockRejectedValueOnce(new DOMException("full"));
+  expect(await stash("k", { text: "x" })).toBe(false);
+  put.mockRestore();
+  expect(await stash("k", { text: "x" })).toBe(true);
+  await drafts.del("k");
+});

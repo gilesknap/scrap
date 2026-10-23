@@ -296,9 +296,16 @@ export function editor(o: {
     return ok;
   };
 
+  // Hidden or closed by the system: the last moments of typing are kept now, not after the
+  // 0.4 s pause (the app may be killed before it)
+  const flush = () => void keep();
+  const onhide = () => document.visibilityState === "hidden" && flush();
+
   let closing: (() => void) | null = null;
   const teardown = () => {
     removeEventListener("popstate", onpop, true);
+    removeEventListener("pagehide", flush);
+    document.removeEventListener("visibilitychange", onhide);
     form.remove();
     for (const el of behind) el.inert = false;
     document.body.classList.remove("editing");
@@ -393,6 +400,8 @@ export function editor(o: {
   document.body.append(form);
   history.pushState({ editor: true }, "");
   addEventListener("popstate", onpop, true);
+  addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", onhide);
   void keep(); // e.g. photos just picked
   return { form, save, keep: () => void keep(), done };
 }
