@@ -122,8 +122,9 @@ the capture's text).
 
 ## Limits
 
-- Pages are not size-capped on import, unlike a page saved through the API (1 MB). Only images and
-  PDFs are checked, against `SCRAP_MAX_UPLOAD_MB` (50 MB).
+- A page file over 1 MB, the most a page saved through the API holds, is skipped and reported as
+  `too large`; links to it are reported as `link to dropped page`. Images and PDFs are checked
+  against `SCRAP_MAX_UPLOAD_MB` (50 MB).
 - If a file changes between the check and the write, the import stops with `changed since it was
   checked: run again`. Run it again: it carries on with the pages not yet imported. The files
   of the page it stopped on were already stored, but the page was not saved, so nothing uses
@@ -173,5 +174,5 @@ off the command only says that enrichment is off.
 | `ambiguous link` | A wiki name that matches several files, and the one chosen |
 | `field cut`, `field dropped` | A field value over 200 characters, cut to 200 (ending `…`; the whole of it stays in the capture's text), and fields past 32, as a PWA edit allows |
 | `tag dropped` | A tag that is not text or a number (null, a list, a map, true or false). An empty tag is dropped without a line |
-| `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
+| `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and pages over 1 MB, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
 | `skipped`, `dropped folder` | Files left out, and why. `dropped folder` counts the files under the top-level `raw/`, `inbox/` and `_*` folders |
