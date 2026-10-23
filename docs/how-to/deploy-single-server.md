@@ -532,6 +532,7 @@ only moves a page to the trash (see {ref}`scrap-gc`).
 - `scrap.db`: the database. It is in WAL mode, so while scrap runs, recent changes are in
   `scrap.db-wal` (with `scrap.db-shm` beside it), not yet in `scrap.db`.
 - `scrap.db.lock`: the lock that serialises migrations (empty; leave it alone).
+- `gc.lock`: the lock a deleting `scrap gc` holds so two do not run at once (empty; leave it alone).
 - `files/<ab>/<sha256>`: every stored file (photos, uploads), named by the SHA-256 of its bytes.
   `files/.up-*` are leftovers of uploads that were cut off by a crash.
 - `cache/previews/`: the 480 and 2048 pixel JPEG previews, made again on demand.
@@ -693,8 +694,9 @@ and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap
 `scrap-gc.service` is ordered `After=scrap-backup.service`. The gc timer is not `Persistent`: a
 night missed while the machine was off is skipped rather than run at boot, where it could take
 the lock before the catch-up backup and fail for want of a recent backup. Both containers run with
-`--network=none`. A `scrap gc` you run by hand takes no lock, so it can race the nightly run; the
-worst case is a file left on disk after its record is deleted, which the next run removes. To see
+`--network=none`. A `scrap gc --delete` you run by hand takes a lock of its own (`gc.lock` in
+`SCRAP_DATA`), so it cannot overlap the nightly run: whichever starts second stops with `another
+scrap gc is deleting`. It does not wait for a backup, so do not run it during one. To see
 what it would delete now, without deleting:
 
 ```
