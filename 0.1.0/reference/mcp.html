@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>MCP server &#8212; scrap 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/mcp';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.1.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="scrap" href="../_api/scrap.html" />
+    <link rel="prev" title="HTTP API and CLI" href="api.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.1.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="api.html">HTTP API and CLI</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">MCP server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_api/scrap.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/gilesknap/scrap/releases">Release Notes</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../reference.html" class="nav-link">Reference</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">MCP server</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="mcp-server">
+<h1>MCP server<a class="headerlink" href="#mcp-server" title="Link to this heading">#</a></h1>
+<p>scrap serves an <a class="reference external" href="https://modelcontextprotocol.io">MCP</a> server at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> in the same process as
+the PWA and its API: Streamable HTTP, stateless (every request stands alone, so a restart drops
+no session), JSON replies. A Claude Code session connects with one line and needs nothing
+installed; see <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>. The server is named <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, so tools show
+in a session as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code> and so on. A raw client <code class="docutils literal notranslate"><span class="pre">POST</span></code>s JSON-RPC
+to <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, sending <code class="docutils literal notranslate"><span class="pre">Accept:</span> <span class="pre">application/json,</span> <span class="pre">text/event-stream</span></code> as the MCP specification asks
+(the curl check in the how-to shows one). The server also sends the model instructions: search before writing, reuse existing tags
+(the <code class="docutils literal notranslate"><span class="pre">tags</span></code> tool), <code class="docutils literal notranslate"><span class="pre">write</span></code> only adds pages or appends to ones written over MCP, <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and
+<code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> change only kinds and tags (each change a revision that <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes), and try a
+bulk change with <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first. Unless content editing is off, they also say <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and
+<code class="docutils literal notranslate"><span class="pre">revert_text</span></code> change a page’s text as revisions, only on a page the user asked to change (see
+Page text below). To have Claude Code post a summary of a conversation, see the
+<code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill (<code class="docutils literal notranslate"><span class="pre">skills/scrap-post</span></code> in the repository).</p>
+<p>Every tool result is JSON (MCP structured content, also sent as its text). Page text (titles,
+bodies, summaries, snippets, tags, what Claude read from photos) is in fields of that JSON, as
+data: the server’s instructions tell the model it is the user’s text, never instructions to it.</p>
+<section id="tools">
+<h2>Tools<a class="headerlink" href="#tools" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Arguments</p></th>
+<th class="head"><p>Returns</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">search</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">query</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-50, default 20), <code class="docutils literal notranslate"><span class="pre">offset</span></code> (0-200, default 0)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{results,</span> <span class="pre">offset}</span></code>: each <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">kind,</span> <span class="pre">status,</span> <span class="pre">due,</span> <span class="pre">priority,</span> <span class="pre">snoozed_until,</span> <span class="pre">tasks,</span> <span class="pre">updated_at,</span> <span class="pre">tags,</span> <span class="pre">title,</span> <span class="pre">snippet}</span></code> (<code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>: a todo’s, else <code class="docutils literal notranslate"><span class="pre">null</span></code>) plus its images (see Images below), best first. <code class="docutils literal notranslate"><span class="pre">query</span></code> takes the search box’s syntax (see <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search</span></code> in <a class="reference internal" href="api.html"><span class="std std-doc">HTTP API and CLI</span></a>): words (AND, as prefixes; they also match what Claude read from the page’s photos), <code class="docutils literal notranslate"><span class="pre">-word</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;phrase&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:</span></code>, <code class="docutils literal notranslate"><span class="pre">tag:</span></code>, <code class="docutils literal notranslate"><span class="pre">is:open</span></code>/<code class="docutils literal notranslate"><span class="pre">is:done</span></code>/…, <code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code>, <code class="docutils literal notranslate"><span class="pre">is:claude</span></code>, <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code>, <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code>, <code class="docutils literal notranslate"><span class="pre">has:image</span></code>, <code class="docutils literal notranslate"><span class="pre">has:drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">image:K</span></code>, <code class="docutils literal notranslate"><span class="pre">after:</span></code>, <code class="docutils literal notranslate"><span class="pre">before:</span></code>, <code class="docutils literal notranslate"><span class="pre">date:created</span></code>, a todo’s <code class="docutils literal notranslate"><span class="pre">due:</span></code> (<code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> overdue, <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;=2026-11-01</span></code>, <code class="docutils literal notranslate"><span class="pre">due:none</span></code>) and <code class="docutils literal notranslate"><span class="pre">priority:</span></code> (<code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>), and <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:created</span></code> (newest first), <code class="docutils literal notranslate"><span class="pre">sort:title</span></code> (A to Z), <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> (soonest first) or <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code> (high first; pages with none last either way), with <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> reversing one (<code class="docutils literal notranslate"><span class="pre">-sort:created</span></code>: oldest first). Also: <code class="docutils literal notranslate"><span class="pre">!word</span></code> negates like <code class="docutils literal notranslate"><span class="pre">-word</span></code>; <code class="docutils literal notranslate"><span class="pre">after:</span></code> and <code class="docutils literal notranslate"><span class="pre">before:</span></code> take a date or a time ago (<code class="docutils literal notranslate"><span class="pre">1d</span></code>, <code class="docutils literal notranslate"><span class="pre">2w</span></code>, <code class="docutils literal notranslate"><span class="pre">1m</span></code> is 30 days, <code class="docutils literal notranslate"><span class="pre">1y</span></code> is 365 days); <code class="docutils literal notranslate"><span class="pre">due:</span></code> also takes <code class="docutils literal notranslate"><span class="pre">yesterday</span></code>, <code class="docutils literal notranslate"><span class="pre">tomorrow</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>; <code class="docutils literal notranslate"><span class="pre">is:</span></code> takes any status (<code class="docutils literal notranslate"><span class="pre">is:in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">is:cancelled</span></code>); <code class="docutils literal notranslate"><span class="pre">tag:a</span></code> also finds <code class="docutils literal notranslate"><span class="pre">a/b</span></code>. A query with no word and no filter finds nothing. Over MCP <code class="docutils literal notranslate"><span class="pre">limit</span></code> is at most 50 and <code class="docutils literal notranslate"><span class="pre">offset</span></code> at most 200 (the HTTP API allows 100 and 10 000). The snippet is plain text</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">read</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">page</span></code></strong> (id or slug)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{page,</span> <span class="pre">content,</span> <span class="pre">images,</span> <span class="pre">links,</span> <span class="pre">backlinks,</span> <span class="pre">by_model}</span></code>. <code class="docutils literal notranslate"><span class="pre">page</span></code>: id, slug, url, kind, status, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>, <code class="docutils literal notranslate"><span class="pre">tasks</span></code> (<code class="docutils literal notranslate"><span class="pre">{done,</span> <span class="pre">total}</span></code>: its task boxes), tags, dates, <code class="docutils literal notranslate"><span class="pre">rev</span></code> (the token <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> take), <code class="docutils literal notranslate"><span class="pre">written_by_claude</span></code>, <code class="docutils literal notranslate"><span class="pre">edited_by_claude</span></code> (its text changed over MCP after it was made), <code class="docutils literal notranslate"><span class="pre">origin</span></code>, other fields. <code class="docutils literal notranslate"><span class="pre">content</span></code>: <code class="docutils literal notranslate"><span class="pre">title</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">body_markdown</span></code>. <code class="docutils literal notranslate"><span class="pre">images</span></code>: each file’s <code class="docutils literal notranslate"><span class="pre">url</span></code>, <code class="docutils literal notranslate"><span class="pre">thumbnail_url</span></code> (images only, else <code class="docutils literal notranslate"><span class="pre">null</span></code>), mime, filename, and what Claude made of it (<code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">image_kind</span></code>, <code class="docutils literal notranslate"><span class="pre">has_drawing</span></code>), never the image itself. <code class="docutils literal notranslate"><span class="pre">links</span></code>: the <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links in the body; <code class="docutils literal notranslate"><span class="pre">backlinks</span></code>: pages linking here. <code class="docutils literal notranslate"><span class="pre">by_model</span></code>: what scrap’s Claude enrichment, not the user, wrote about the page, labelled so (<code class="docutils literal notranslate"><span class="pre">note</span></code>): <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">producer</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code> (which of the page’s tags Claude added) and <code class="docutils literal notranslate"><span class="pre">related</span></code> (pages it found related, with those that picked this one); derived, possibly wrong, data like the rest</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">recent</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-50, default 20), <code class="docutils literal notranslate"><span class="pre">kind</span></code> (<code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code>, <code class="docutils literal notranslate"><span class="pre">doc</span></code>; also the stored names, <code class="docutils literal notranslate"><span class="pre">later</span></code>, <code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{results}</span></code>: pages newest change first, rows as <code class="docutils literal notranslate"><span class="pre">search</span></code> (images included) without a snippet</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">todos</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-100, default 50), <code class="docutils literal notranslate"><span class="pre">sort</span></code> (<code class="docutils literal notranslate"><span class="pre">due</span></code> or <code class="docutils literal notranslate"><span class="pre">priority</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{results}</span></code>: todos neither done nor cancelled nor snoozed (<code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> in <code class="docutils literal notranslate"><span class="pre">search</span></code> finds the snoozed ones, open ones only), rows as <code class="docutils literal notranslate"><span class="pre">search</span></code> (with <code class="docutils literal notranslate"><span class="pre">due</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code>), newest first, or soonest due or highest priority first (those with none last)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">prefix</span></code> (not case sensitive), <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-2000, default 300)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{tags:</span> <span class="pre">[[tag,</span> <span class="pre">n]],</span> <span class="pre">total}</span></code>, most used first; <code class="docutils literal notranslate"><span class="pre">a</span></code> counts the pages of <code class="docutils literal notranslate"><span class="pre">a/b</span></code> too; <code class="docutils literal notranslate"><span class="pre">total</span></code> is how many tags match <code class="docutils literal notranslate"><span class="pre">prefix</span></code>, before <code class="docutils literal notranslate"><span class="pre">limit</span></code> cuts the list</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">write</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">title</span></code></strong>, <strong><code class="docutils literal notranslate"><span class="pre">body</span></code></strong> (Markdown), <strong><code class="docutils literal notranslate"><span class="pre">origin</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">kind</span></code> (default <code class="docutils literal notranslate"><span class="pre">note</span></code>), <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>, <code class="docutils literal notranslate"><span class="pre">append_to</span></code>, <code class="docutils literal notranslate"><span class="pre">key</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">created}</span></code>; the <code class="docutils literal notranslate"><span class="pre">kind</span></code> given is fixed (see Writing)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pages</span></code> (ids or slugs, at most 200) or <code class="docutils literal notranslate"><span class="pre">query</span></code> (a search), <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">add_tags</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_tags</span></code>, <code class="docutils literal notranslate"><span class="pre">set_tags</span></code>, <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-200, default 50; applies to <code class="docutils literal notranslate"><span class="pre">query</span></code> only)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{dry_run,</span> <span class="pre">batch,</span> <span class="pre">matched,</span> <span class="pre">changed,</span> <span class="pre">pages}</span></code>: each page’s <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">title,</span> <span class="pre">changed,</span> <span class="pre">revision,</span> <span class="pre">batch,</span> <span class="pre">kind_before,</span> <span class="pre">kind_after,</span> <span class="pre">fixed_before,</span> <span class="pre">fixed_after,</span> <span class="pre">tags_before,</span> <span class="pre">tags_after,</span> <span class="pre">tags_added,</span> <span class="pre">tags_removed,</span> <span class="pre">fields_added,</span> <span class="pre">fields_removed}</span></code> (with <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>, <code class="docutils literal notranslate"><span class="pre">revision</span></code> is <code class="docutils literal notranslate"><span class="pre">null</span></code> and there is no per-page <code class="docutils literal notranslate"><span class="pre">batch</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rename_tag</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">old</span></code></strong>, <strong><code class="docutils literal notranslate"><span class="pre">new</span></code></strong> (each at most 200 characters), <code class="docutils literal notranslate"><span class="pre">merge</span></code>, <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-200, default 50)</p></td>
+<td><p>As <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>’s</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">page</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">new</span></code> (<code class="docutils literal notranslate"><span class="pre">new</span></code> empty deletes), <code class="docutils literal notranslate"><span class="pre">replace_all</span></code>, or <code class="docutils literal notranslate"><span class="pre">body</span></code> (needs <code class="docutils literal notranslate"><span class="pre">rev</span></code>); <code class="docutils literal notranslate"><span class="pre">title</span></code>; <code class="docutils literal notranslate"><span class="pre">rev</span></code>; <code class="docutils literal notranslate"><span class="pre">allow_empty</span></code>; <code class="docutils literal notranslate"><span class="pre">dry_run</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">dry_run,</span> <span class="pre">changed,</span> <span class="pre">rev_before,</span> <span class="pre">rev,</span> <span class="pre">folded,</span> <span class="pre">replacements,</span> <span class="pre">title_before,</span> <span class="pre">title,</span> <span class="pre">diff,</span> <span class="pre">diff_cut}</span></code> (<code class="docutils literal notranslate"><span class="pre">diff</span></code>: unified, of the body; <code class="docutils literal notranslate"><span class="pre">folded</span></code>: the revision this one replaced, a burst’s). Not listed with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">revert_text</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">page</span></code></strong>, <strong><code class="docutils literal notranslate"><span class="pre">to_rev</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">rev</span></code> (needed unless <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>), <code class="docutils literal notranslate"><span class="pre">restore_title</span></code>, <code class="docutils literal notranslate"><span class="pre">allow_empty</span></code>, <code class="docutils literal notranslate"><span class="pre">dry_run</span></code></p></td>
+<td><p>As <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>’s, with <code class="docutils literal notranslate"><span class="pre">restores</span></code> (<code class="docutils literal notranslate"><span class="pre">to_rev</span></code>) instead of <code class="docutils literal notranslate"><span class="pre">replacements</span></code>. Not listed with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">revisions</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">page</span></code> and/or <code class="docutils literal notranslate"><span class="pre">batch</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code> (1-200, default 20: a whole batch fits), <code class="docutils literal notranslate"><span class="pre">text_rev</span></code> (only with <code class="docutils literal notranslate"><span class="pre">page</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{meta,</span> <span class="pre">more,</span> <span class="pre">text}</span></code> (<code class="docutils literal notranslate"><span class="pre">more</span></code>: there are more metadata revisions than <code class="docutils literal notranslate"><span class="pre">limit</span></code>; text revisions also stop at <code class="docutils literal notranslate"><span class="pre">limit</span></code> but have no such flag) (with <code class="docutils literal notranslate"><span class="pre">page</span></code>, also <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">title,</span> <span class="pre">kind,</span> <span class="pre">rev}</span></code>; a call with <code class="docutils literal notranslate"><span class="pre">batch</span></code> alone has an empty <code class="docutils literal notranslate"><span class="pre">text</span></code> and no page fields), newest first. A page in the trash is “no such page”. <code class="docutils literal notranslate"><span class="pre">meta</span></code>: each metadata revision’s <code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">page_id,</span> <span class="pre">slug,</span> <span class="pre">url</span> <span class="pre">(null</span> <span class="pre">if</span> <span class="pre">the</span> <span class="pre">page</span> <span class="pre">has</span> <span class="pre">no</span> <span class="pre">slug),</span> <span class="pre">author,</span> <span class="pre">source,</span> <span class="pre">kind_before,</span> <span class="pre">kind_after,</span> <span class="pre">fixed_before,</span> <span class="pre">fixed_after,</span> <span class="pre">tags_before,</span> <span class="pre">tags_after,</span> <span class="pre">tags_added,</span> <span class="pre">tags_removed,</span> <span class="pre">fields_added,</span> <span class="pre">reverts,</span> <span class="pre">batch_id,</span> <span class="pre">created_at,</span> <span class="pre">updated_at}</span></code>; <code class="docutils literal notranslate"><span class="pre">text</span></code>: each text revision of the page, <code class="docutils literal notranslate"><span class="pre">{rev,</span> <span class="pre">title,</span> <span class="pre">author,</span> <span class="pre">created_at,</span> <span class="pre">bytes}</span></code>; with <code class="docutils literal notranslate"><span class="pre">text_rev</span></code>, also <code class="docutils literal notranslate"><span class="pre">text_revision:</span> <span class="pre">{rev,</span> <span class="pre">title,</span> <span class="pre">body,</span> <span class="pre">author,</span> <span class="pre">created_at}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">revert</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">revision</span></code> (a <code class="docutils literal notranslate"><span class="pre">meta</span></code> id) or <code class="docutils literal notranslate"><span class="pre">batch</span></code> (exactly one), <code class="docutils literal notranslate"><span class="pre">dry_run</span></code></p></td>
+<td><p>For a revision, as one page of <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> plus <code class="docutils literal notranslate"><span class="pre">reverts</span></code>; for a batch, <code class="docutils literal notranslate"><span class="pre">{batch,</span> <span class="pre">reverts_batch,</span> <span class="pre">pages,</span> <span class="pre">skipped,</span> <span class="pre">conflicts,</span> <span class="pre">dry_run}</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>The trash.</strong> A page in the trash does not exist for the tools: <code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">recent</span></code>, <code class="docutils literal notranslate"><span class="pre">todos</span></code>
+and <code class="docutils literal notranslate"><span class="pre">tags</span></code> leave it out (as do <code class="docutils literal notranslate"><span class="pre">read</span></code>’s <code class="docutils literal notranslate"><span class="pre">backlinks</span></code>), and <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">write</span></code> with <code class="docutils literal notranslate"><span class="pre">append_to</span></code>,
+<code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code> with a <code class="docutils literal notranslate"><span class="pre">revision</span></code> give the tool error <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">such</span> <span class="pre">page:</span> <span class="pre">&lt;id</span> <span class="pre">or</span> <span class="pre">slug&gt;</span></code>
+until the user restores it in the PWA. Two checks look at the trash anyway: <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> counts a
+trashed page’s tag as in use, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> with a <code class="docutils literal notranslate"><span class="pre">batch</span></code> skips and lists trashed pages (both
+below).</p>
+<p><strong>Kind names.</strong> Kinds are accepted as <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code> and <code class="docutils literal notranslate"><span class="pre">doc</span></code>; the stored names
+<code class="docutils literal notranslate"><span class="pre">consume</span></code>, <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> and <code class="docutils literal notranslate"><span class="pre">document</span></code> also work in <code class="docutils literal notranslate"><span class="pre">write</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and <code class="docutils literal notranslate"><span class="pre">recent</span></code> (<code class="docutils literal notranslate"><span class="pre">recent</span></code>
+also takes <code class="docutils literal notranslate"><span class="pre">later</span></code>, <code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code>). Results always show the stored names: a page
+written with <code class="docutils literal notranslate"><span class="pre">kind=&quot;read&quot;</span></code> comes back as <code class="docutils literal notranslate"><span class="pre">consume</span></code> in <code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">recent</span></code>, <code class="docutils literal notranslate"><span class="pre">todos</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>,
+<code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">revert</span></code> and <code class="docutils literal notranslate"><span class="pre">revisions</span></code>. <code class="docutils literal notranslate"><span class="pre">read</span></code> is <code class="docutils literal notranslate"><span class="pre">consume</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code> is <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> and <code class="docutils literal notranslate"><span class="pre">doc</span></code> is
+<code class="docutils literal notranslate"><span class="pre">document</span></code>.</p>
+</section>
+<section id="images">
+<h2>Images<a class="headerlink" href="#images" title="Link to this heading">#</a></h2>
+<p>A photo page is a plain <code class="docutils literal notranslate"><span class="pre">note</span></code> whose body is only an image embed, so its title, tags and
+snippet may say little. Every row of <code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">recent</span></code> and <code class="docutils literal notranslate"><span class="pre">todos</span></code> therefore says what images
+the page has (fields added in place; older clients can ignore them):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">image_count</span></code>: how many image files the page’s captures hold (<code class="docutils literal notranslate"><span class="pre">0</span></code>: none).</p></li>
+<li><p>When it is above 0, the first image’s <code class="docutils literal notranslate"><span class="pre">image_kind</span></code> (what Claude took it for: <code class="docutils literal notranslate"><span class="pre">photo</span></code>,
+<code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">handwriting</span></code>, <code class="docutils literal notranslate"><span class="pre">diagram</span></code>, <code class="docutils literal notranslate"><span class="pre">screenshot</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code> or <code class="docutils literal notranslate"><span class="pre">other</span></code>),
+<code class="docutils literal notranslate"><span class="pre">image_description</span></code> (Claude’s 1-3 sentences about it), <code class="docutils literal notranslate"><span class="pre">image_url</span></code> (the original file) and
+<code class="docutils literal notranslate"><span class="pre">thumbnail_url</span></code> (a JPEG at most 480 pixels a side, HEIC converted). <code class="docutils literal notranslate"><span class="pre">image_kind</span></code> and
+<code class="docutils literal notranslate"><span class="pre">image_description</span></code> are <code class="docutils literal notranslate"><span class="pre">null</span></code> until the photo has been read (ingest queued, failed or off).</p></li>
+</ul>
+<p>Search filters (the PWA’s search box takes them too): <code class="docutils literal notranslate"><span class="pre">has:image</span></code> (a page with an image),
+<code class="docutils literal notranslate"><span class="pre">has:drawing</span></code> (one with a current drawing), <code class="docutils literal notranslate"><span class="pre">image:K</span></code> (an image Claude took for kind <code class="docutils literal notranslate"><span class="pre">K</span></code>, e.g.
+<code class="docutils literal notranslate"><span class="pre">image:photo</span></code>, <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code>); <code class="docutils literal notranslate"><span class="pre">-</span></code> before any of them excludes. A filter alone lists newest
+first, so <strong><code class="docutils literal notranslate"><span class="pre">search</span></code> with <code class="docutils literal notranslate"><span class="pre">has:image</span></code> is “my recent photos”</strong>. A word in a photo’s description or
+its transcribed text finds the page (Claude’s results are indexed as the page’s text), so
+<code class="docutils literal notranslate"><span class="pre">mantis</span></code> finds a photo of one.</p>
+<p><strong>Can a client fetch the image?</strong> The URLs are plain HTTPS <code class="docutils literal notranslate"><span class="pre">GET</span></code>s with no login, like the rest
+of scrap: anything on the tailnet can fetch them (<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">-o</span> <span class="pre">p.jpg</span> <span class="pre">&lt;thumbnail_url&gt;</span></code>, then look at
+the file; Claude Code’s Read shows an image). A client off the tailnet cannot, and a built-in
+web-fetch tool that runs elsewhere, or refuses private hosts, will not reach it.</p>
+<p><strong>Can <code class="docutils literal notranslate"><span class="pre">read</span></code> return the image itself?</strong> Not yet: results are JSON (URLs and Claude’s text). MCP
+can carry images as <code class="docutils literal notranslate"><span class="pre">image</span></code> content blocks; a later option could return a page’s thumbnails
+that way (480 px JPEGs, so a few hundred kB each).</p>
+</section>
+<section id="writing">
+<h2>Writing<a class="headerlink" href="#writing" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">write</span></code> makes a new page, or with <code class="docutils literal notranslate"><span class="pre">append_to</span></code> (an id or slug) adds <code class="docutils literal notranslate"><span class="pre">body</span></code> at the end of a page
+written over MCP, as a new revision, and adds its <code class="docutils literal notranslate"><span class="pre">tags</span></code>; appending to a page the user made is
+refused. Only <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> change the text of other pages (below), and
+<code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code> only kinds and tags. No tool deletes a page.</p></li>
+<li><p><strong>Due dates and priorities.</strong> A todo may have <code class="docutils literal notranslate"><span class="pre">due</span></code> (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>) and <code class="docutils literal notranslate"><span class="pre">priority</span></code> (<code class="docutils literal notranslate"><span class="pre">high</span></code>,
+<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>), and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>: hidden from what to do now, and from
+<code class="docutils literal notranslate"><span class="pre">todos</span></code>, until that day); on another kind they are refused, as <code class="docutils literal notranslate"><span class="pre">status</span></code> is on a note. With
+<code class="docutils literal notranslate"><span class="pre">append_to</span></code>, they change those of the todo appended to (Claude’s own; <code class="docutils literal notranslate"><span class="pre">none</span></code> clears one), and
+<code class="docutils literal notranslate"><span class="pre">body</span></code> may then be empty: that adds no revision and leaves <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> as it was.</p></li>
+<li><p><strong>Required arguments.</strong> <code class="docutils literal notranslate"><span class="pre">write</span></code> needs <code class="docutils literal notranslate"><span class="pre">title</span></code>, <code class="docutils literal notranslate"><span class="pre">body</span></code> and <code class="docutils literal notranslate"><span class="pre">origin</span></code> even with <code class="docutils literal notranslate"><span class="pre">append_to</span></code> (on an
+append, <code class="docutils literal notranslate"><span class="pre">title</span></code>, <code class="docutils literal notranslate"><span class="pre">origin</span></code>, <code class="docutils literal notranslate"><span class="pre">kind</span></code> and <code class="docutils literal notranslate"><span class="pre">status</span></code> are ignored; only <code class="docutils literal notranslate"><span class="pre">body</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>,
+<code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> and <code class="docutils literal notranslate"><span class="pre">key</span></code> take effect).</p></li>
+<li><p><strong>Provenance.</strong> The page’s capture has source <code class="docutils literal notranslate"><span class="pre">mcp</span></code> and author <code class="docutils literal notranslate"><span class="pre">claude</span></code> (as has its
+revision), and <code class="docutils literal notranslate"><span class="pre">fields.origin</span></code> holds <code class="docutils literal notranslate"><span class="pre">origin</span></code> (free text, at most 200 characters: the repo or
+directory and the date, say). The PWA shows such a page with a <em>Written by Claude</em> badge (its
+origin as the tooltip), and <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> finds them. Clients of <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/captures</span></code> cannot send
+source <code class="docutils literal notranslate"><span class="pre">mcp</span></code>.</p></li>
+<li><p><strong>Idempotency.</strong> With <code class="docutils literal notranslate"><span class="pre">key</span></code> (at most 128 characters), a retry with the same key adds nothing
+and returns the same page with <code class="docutils literal notranslate"><span class="pre">created:</span> <span class="pre">false</span></code>. Without it, every call adds. Keys are
+global, not per session: use a random value per post, reused only to retry it. A key is
+matched together with its target (a new page, or the page appended to, by id or slug), so
+reusing one for another page writes there rather than being taken for a retry.</p></li>
+<li><p><strong>Kind is fixed.</strong> <code class="docutils literal notranslate"><span class="pre">write</span></code> always fixes the kind it makes, <code class="docutils literal notranslate"><span class="pre">note</span></code> (the default) included, as
+when the user picks a kind in the PWA. Task boxes (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span></code>) in a <code class="docutils literal notranslate"><span class="pre">note</span></code> therefore give it a
+<code class="docutils literal notranslate"><span class="pre">tasks</span></code> count in results but do not make it a todo, and it has no <code class="docutils literal notranslate"><span class="pre">status</span></code>. For a checklist
+that is a todo, write <code class="docutils literal notranslate"><span class="pre">kind:</span> <span class="pre">todo</span></code>: it has a <code class="docutils literal notranslate"><span class="pre">status</span></code> and may have <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and
+<code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>.</p></li>
+<li><p><strong>Enrichment.</strong> With <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> not turned off (it defaults to on),
+every page <code class="docutils literal notranslate"><span class="pre">write</span></code> makes, of any kind, is queued for scrap’s own Claude about
+<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds (default 60) after it is written. That reading adds a summary
+(not for a text under 200 characters) and up to 5 tags, at most 2 of them not already in use.
+They show in <code class="docutils literal notranslate"><span class="pre">read</span></code>’s <code class="docutils literal notranslate"><span class="pre">by_model</span></code> and in <code class="docutils literal notranslate"><span class="pre">tags</span></code>, so a page’s tags a minute later can differ from
+those <code class="docutils literal notranslate"><span class="pre">write</span></code> sent. The text is never changed, and the calls count against the daily budget
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, see <a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a>). <code class="docutils literal notranslate"><span class="pre">append_to</span></code> does not queue the page
+again, so appended text is not read until the page is edited in the PWA or the user asks Claude
+to read it. Related pages (<code class="docutils literal notranslate"><span class="pre">by_model.related</span></code>) are not part of this reading: they come from
+the nightly pass, or when the user asks. With enrichment off, none of this happens.</p></li>
+<li><p><strong>Limits.</strong> <code class="docutils literal notranslate"><span class="pre">title</span></code> 1 to 200 characters (whitespace collapsed); <code class="docutils literal notranslate"><span class="pre">body</span></code> at most 200,000 bytes of UTF-8
+per call, and a page, after an append, at most 1,000,000 bytes (as for any other way of
+writing it); at most 20 tags, each 1 to 64 characters once
+normalised as imported tags are (one space between words, no leading <code class="docutils literal notranslate"><span class="pre">#</span></code>, lower case;
+<code class="docutils literal notranslate"><span class="pre">a/b</span></code> nests); <code class="docutils literal notranslate"><span class="pre">kind</span></code> one of <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code>, <code class="docutils literal notranslate"><span class="pre">doc</span></code>; <code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">open</span></code>,
+<code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>) only for a todo or a read. Text must be valid Unicode with
+no NUL (a lone surrogate is refused). A request over 2 MiB is <code class="docutils literal notranslate"><span class="pre">413</span></code>. A refused call is an MCP
+tool error with the reason; nothing is saved.</p></li>
+<li><p><strong>Cleaning.</strong> Line endings in <code class="docutils literal notranslate"><span class="pre">body</span></code> become LF and it is trimmed of leading and trailing
+whitespace; whitespace runs in <code class="docutils literal notranslate"><span class="pre">title</span></code> and <code class="docutils literal notranslate"><span class="pre">origin</span></code> become one space. A new page’s <code class="docutils literal notranslate"><span class="pre">title</span></code> must
+not be empty once cleaned (the body may be: the page then has no text). <code class="docutils literal notranslate"><span class="pre">none</span></code> for <code class="docutils literal notranslate"><span class="pre">due</span></code>,
+<code class="docutils literal notranslate"><span class="pre">priority</span></code> or <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> clears the field on an append; on a new page it is the same as
+leaving it out. A <code class="docutils literal notranslate"><span class="pre">due</span></code> or <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> that is not <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>, or a <code class="docutils literal notranslate"><span class="pre">priority</span></code> other
+than <code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code> or <code class="docutils literal notranslate"><span class="pre">low</span></code>, is a tool error.</p></li>
+</ul>
+</section>
+<section id="kinds-and-tags">
+<h2>Kinds and tags<a class="headerlink" href="#kinds-and-tags" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code></strong> changes the kind and/or tags of any page, the user’s own too: the <code class="docutils literal notranslate"><span class="pre">pages</span></code>
+named, or every page <code class="docutils literal notranslate"><span class="pre">query</span></code> finds (refused, changing nothing, if it finds more than <code class="docutils literal notranslate"><span class="pre">limit</span></code>).
+<code class="docutils literal notranslate"><span class="pre">kind</span></code> is one of <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code> or <code class="docutils literal notranslate"><span class="pre">doc</span></code> (or the stored names <code class="docutils literal notranslate"><span class="pre">consume</span></code>,
+<code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code>); anything else is refused. A kind given is fixed (<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>: ingest
+and task boxes no longer change it), even if it is the page’s kind already, as when the user
+picks one in the PWA, and a new kind adds its default fields the page lacks (a todo’s
+<code class="docutils literal notranslate"><span class="pre">status:</span> <span class="pre">open</span></code>). Tags: <code class="docutils literal notranslate"><span class="pre">add_tags</span></code> and <code class="docutils literal notranslate"><span class="pre">remove_tags</span></code> (exact: removing <code class="docutils literal notranslate"><span class="pre">a</span></code> leaves <code class="docutils literal notranslate"><span class="pre">a/b</span></code>), or
+<code class="docutils literal notranslate"><span class="pre">set_tags</span></code> to replace them all (<code class="docutils literal notranslate"><span class="pre">[]</span></code>: none), cleaned as <code class="docutils literal notranslate"><span class="pre">write</span></code>’s. Nothing else changes: not
+the title, the text, other fields, nor <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> (as with the PWA’s own tag and kind
+edits). All or nothing: an unknown page or a refused change saves nothing. <strong><code class="docutils literal notranslate"><span class="pre">dry_run</span></code></strong> says
+what each page would get and saves nothing: try a bulk change with it first.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">rename_tag</span></code></strong> renames a tag on every page with it (not the trash’s), and the tags under it
+(<code class="docutils literal notranslate"><span class="pre">old/x</span></code> becomes <code class="docutils literal notranslate"><span class="pre">new/x</span></code>). Refused: more than <code class="docutils literal notranslate"><span class="pre">limit</span></code> pages; a new name under the old one
+(<code class="docutils literal notranslate"><span class="pre">a</span></code> to <code class="docutils literal notranslate"><span class="pre">a/b</span></code>, which would nest again); and a new name already in use, unless <code class="docutils literal notranslate"><span class="pre">merge</span></code> (merged
+tags cannot be told apart again by renaming back, only by reverting the batch). In use counts
+pages in the trash too, unlike the rest of the tool: restoring one would otherwise merge the
+two unasked.</p></li>
+<li><p><strong>Revisions.</strong> Every change to a page’s kind or tags, over MCP or in the PWA, is a metadata
+revision: who made it (<code class="docutils literal notranslate"><span class="pre">author</span></code>: <code class="docutils literal notranslate"><span class="pre">claude</span></code>, or the user’s login; <code class="docutils literal notranslate"><span class="pre">source</span></code>: <code class="docutils literal notranslate"><span class="pre">mcp</span></code> or <code class="docutils literal notranslate"><span class="pre">web</span></code>), when,
+the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
+added. Changes by the same author from the same source within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds
+(default 300) of a revision being made fold into it, as long as nothing else changed the page’s
+kind or tags between, so a burst of edits is one revision; a burst that ends where it started
+leaves none. A revert, and a change in a batch, never folds, nor is folded into. A page’s first
+revision records the state it had before (pages need no backfill). Revisions keep kind and tag
+names only: never a copy of the text or of a file, nor what a model derived (summaries, image
+descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
+made again. Text keeps its own revisions (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, every title or body change), which
+<code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists, <code class="docutils literal notranslate"><span class="pre">text_rev</span></code> reads and <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> restores (see Page text).</p></li>
+<li><p><strong>Claude’s tags.</strong> A tag that scrap’s Claude enrichment added (<code class="docutils literal notranslate"><span class="pre">read</span></code>’s <code class="docutils literal notranslate"><span class="pre">by_model.tags</span></code>) and
+that <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> or <code class="docutils literal notranslate"><span class="pre">revert</span></code> then takes off counts as off: enrichment never adds
+it back, as when the user removes it in the PWA. Putting it back makes it the user’s tag.</p></li>
+<li><p><strong>Arguments and refusals.</strong> <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> takes either <code class="docutils literal notranslate"><span class="pre">pages</span></code> or <code class="docutils literal notranslate"><span class="pre">query</span></code>, not both and not
+neither, and needs a <code class="docutils literal notranslate"><span class="pre">kind</span></code> or tags (else “nothing to change”). <code class="docutils literal notranslate"><span class="pre">set_tags</span></code> cannot be combined
+with <code class="docutils literal notranslate"><span class="pre">add_tags</span></code> or <code class="docutils literal notranslate"><span class="pre">remove_tags</span></code>, and a tag cannot be both added and removed. Each tag list is
+at most 20 tags, and a page’s resulting tags at most 64. <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code>’s <code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">new</span></code> are
+cleaned like other tags, and <code class="docutils literal notranslate"><span class="pre">old</span></code> equal to <code class="docutils literal notranslate"><span class="pre">new</span></code> is refused.</p></li>
+<li><p><strong>Batches.</strong> An <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> with a <code class="docutils literal notranslate"><span class="pre">query</span></code> or several distinct <code class="docutils literal notranslate"><span class="pre">pages</span></code> (a slug and the id of
+one page are one page), and every <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code>, is a
+batch: its revisions share a <code class="docutils literal notranslate"><span class="pre">batch</span></code> id, returned, which <code class="docutils literal notranslate"><span class="pre">revisions(batch=...)</span></code> lists and
+<code class="docutils literal notranslate"><span class="pre">revert(batch=...)</span></code> undoes at once. An <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> of one named page is not a batch (so quick
+edits of it fold together).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">revert</span></code></strong> with <code class="docutils literal notranslate"><span class="pre">revision</span></code> gives its page back the whole kind and tag snapshot from just
+before that revision, whether its kind was fixed too, and takes off the default fields that
+revision’s kind change added (unless changed since: a todo ticked done keeps <code class="docutils literal notranslate"><span class="pre">status:</span> <span class="pre">done</span></code>).
+So it also undoes later changes, including ones nothing recorded: tags or a kind ingest or
+scrap’s Claude enrichment gave the page since, or the todo its task boxes made of a note appended to. <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> shows exactly
+what it would do: use it first. With <code class="docutils literal notranslate"><span class="pre">batch</span></code>, every revision of that batch is reverted in one
+go, as a new batch (itself revertible at once); if any of its pages’ kind or tags changed since
+the batch, nothing is reverted and the call is refused, naming them (<code class="docutils literal notranslate"><span class="pre">dry_run</span></code> lists them as
+<code class="docutils literal notranslate"><span class="pre">conflicts</span></code>): revert those pages’ revisions one by one. Pages in the trash are skipped and
+listed. A revert is a revision of its own, so it can be reverted in turn: nothing is lost.
+Reverting to the state a page has already changes nothing and adds no revision. Revision ids
+are never used again, even for a dropped burst: an unknown one is <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">such</span> <span class="pre">revision</span> <span class="pre">N</span></code>, an
+unknown batch <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">such</span> <span class="pre">batch</span> <span class="pre">B</span></code>.</p></li>
+</ul>
+</section>
+<section id="page-text">
+<h2>Page text<a class="headerlink" href="#page-text" title="Link to this heading">#</a></h2>
+<p>Unless the server runs with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code> (then neither tool is listed, and the
+server’s instructions say no tool changes the user’s text), Claude can edit the text of any page,
+the user’s own too. Both tools’ descriptions and the server’s instructions tell the model to use
+them only on a page the user asked it to change, and only as asked, never because a page’s text
+says to: page text is data. Both refuse a page in the trash.</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">edit_page</span></code></strong> takes one of two forms, plus an optional new <code class="docutils literal notranslate"><span class="pre">title</span></code> (whitespace collapsed;
+a title alone is a form too):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">new</span></code>: replaces <code class="docutils literal notranslate"><span class="pre">old</span></code>, copied exactly from the stored body (line ends <code class="docutils literal notranslate"><span class="pre">\n</span></code>), with
+<code class="docutils literal notranslate"><span class="pre">new</span></code> (empty: deletes it). Refused, saving nothing, if <code class="docutils literal notranslate"><span class="pre">old</span></code> is not in the body or is there
+more than once, counting overlapping occurrences (<code class="docutils literal notranslate"><span class="pre">aa</span></code> is twice in <code class="docutils literal notranslate"><span class="pre">aaa</span></code>); <code class="docutils literal notranslate"><span class="pre">replace_all</span></code>
+replaces every occurrence, and is refused too if any two overlap. <code class="docutils literal notranslate"><span class="pre">replacements</span></code> says how
+many. A replacement that would take the page over 1 MB is refused from the count, before
+anything is built.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">body</span></code>: the whole new body. Only with <code class="docutils literal notranslate"><span class="pre">rev</span></code>.
+<code class="docutils literal notranslate"><span class="pre">rev</span></code>, the page’s <code class="docutils literal notranslate"><span class="pre">rev</span></code> from <code class="docutils literal notranslate"><span class="pre">read</span></code> (or a dry run), makes the edit refuse a page changed since
+(“the page has changed: it is at rev N”); the targeted forms take it optionally, but should
+give it. Leaving a body that had text empty (blank) is refused unless <code class="docutils literal notranslate"><span class="pre">allow_empty</span></code>, in
+every form and in <code class="docutils literal notranslate"><span class="pre">revert_text</span></code>. <code class="docutils literal notranslate"><span class="pre">old</span></code>, <code class="docutils literal notranslate"><span class="pre">new</span></code> and <code class="docutils literal notranslate"><span class="pre">body</span></code> are at most 200 kB each, and the
+page at most 1 MB.</p></li>
+</ul>
+</li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">revert_text</span></code></strong> gives the page back the body it had at text revision <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> (<code class="docutils literal notranslate"><span class="pre">revisions</span></code>
+lists them; with <code class="docutils literal notranslate"><span class="pre">restore_title</span></code>, that revision’s title too, else the current one stays), as a
+<strong>new</strong> revision: history is never rewritten, so a revert can be reverted in turn. It needs the
+page’s current <code class="docutils literal notranslate"><span class="pre">rev</span></code> (refused if the page has changed since), except with <code class="docutils literal notranslate"><span class="pre">dry_run</span></code>.
+Restoring the text the page has already adds nothing.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">dry_run</span></code></strong> (both) returns the unified diff of the body (<code class="docutils literal notranslate"><span class="pre">diff</span></code>, cut at 100 000 characters:
+<code class="docutils literal notranslate"><span class="pre">diff_cut</span></code>; when very many lines changed, one hunk replacing them all) and the title before
+and after, and saves nothing: use it first.</p></li>
+<li><p>An edit that changes nothing adds no revision. Every other is a text revision (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>) by
+author <code class="docutils literal notranslate"><span class="pre">claude</span></code>; only MCP writes as <code class="docutils literal notranslate"><span class="pre">claude</span></code> (the PWA’s author is a Tailscale login or
+<code class="docutils literal notranslate"><span class="pre">tagged</span></code>), so the revision’s author is also its source. <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds a page with a
+text revision by Claude after its first (an <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, a <code class="docutils literal notranslate"><span class="pre">revert_text</span></code>, or an append to a page
+Claude wrote: <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span> <span class="pre">-is:claude</span></code> is the user’s own pages Claude changed), and <code class="docutils literal notranslate"><span class="pre">read</span></code>
+says <code class="docutils literal notranslate"><span class="pre">edited_by_claude</span></code>. Task boxes follow the new text as they do for the PWA’s edits: a
+box added to a note nobody filed makes it a todo, and <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> restores text only, not
+that kind (<code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> sets a kind). With enrichment on, a save queues the page to be read again
+once the edits stop, as a PWA save does, so its summary and related pages follow the new text.</p></li>
+<li><p><strong>Coalescing.</strong> An <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds (default 300) of
+Claude’s previous text revision of that page folds into it, so a burst of small edits is one
+snapshot, not many: the burst’s text replaces that revision, keeping when it was made, <strong>under
+a new number</strong> (rev + 1, never one used before). <code class="docutils literal notranslate"><span class="pre">rev</span></code> is also the PWA’s edit token, so an
+editor that loaded the page between two edits of a burst gets a conflict (409) on saving, never
+a silent overwrite; the burst leaves a gap in the numbers. Never folded into: a page’s first
+revision, a revision by anyone else (a PWA edit between ends the burst), and one holding the
+body of an earlier revision (a <code class="docutils literal notranslate"><span class="pre">revert_text</span></code>’s, whatever its title). A <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> itself
+never folds. Claude’s latest revision may be an append to its own page: an edit then folds
+into it, losing only the snapshot just after the append (its text stays in the page, and in
+the append’s capture). The author is <code class="docutils literal notranslate"><span class="pre">claude</span></code> for every MCP session, so two sessions editing
+one page within the window fold into each other.</p></li>
+<li><p><strong>Not built:</strong> a bulk text edit (several pages, or a search’s, as one batch): each
+<code class="docutils literal notranslate"><span class="pre">edit_page</span></code> is one page, so batches stay metadata-only.</p></li>
+</ul>
+</section>
+<section id="security">
+<h2>Security<a class="headerlink" href="#security" title="Link to this heading">#</a></h2>
+<p>The service has no login of its own, and the tools have no access control: anyone who can reach
+<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> can read every page, and <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">revert</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and
+<code class="docutils literal notranslate"><span class="pre">revert_text</span></code> act on any page. Every MCP
+change is attributed to the author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, with no per-user identity. By default scrap is
+reachable only over the tailnet, through Tailscale Serve, like the rest of scrap; a single-server
+install listens on a Unix socket instead, and <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> or a Kubernetes ingress changes
+the exposure (see <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a> and <a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">/mcp</span></code> also checks the <code class="docutils literal notranslate"><span class="pre">Host</span></code> header against loopback and the hosts of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (<code class="docutils literal notranslate"><span class="pre">421</span></code>
+otherwise), and an <code class="docutils literal notranslate"><span class="pre">Origin</span></code> header, if sent, against those origins (<code class="docutils literal notranslate"><span class="pre">403</span></code>), so a web page cannot
+reach it by DNS rebinding. The rules are:</p>
+<ul class="simple">
+<li><p><strong>Host.</strong> <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>, <code class="docutils literal notranslate"><span class="pre">localhost</span></code> and <code class="docutils literal notranslate"><span class="pre">[::1]</span></code> on any port, and the host of each
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> as written, port included. A URL with a port (<code class="docutils literal notranslate"><span class="pre">https://myhost.ts.net:8446</span></code>)
+accepts only that port; one without (<code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code>) accepts the bare host
+and any port, so a proxy that adds <code class="docutils literal notranslate"><span class="pre">:443</span></code> still works.</p></li>
+<li><p><strong>Origin.</strong> <code class="docutils literal notranslate"><span class="pre">http://</span></code> on those loopback names, any port, and <code class="docutils literal notranslate"><span class="pre">scheme://host[:port]</span></code> of each
+public URL exactly. A page on any other origin, or on <code class="docutils literal notranslate"><span class="pre">https://localhost</span></code>, gets <code class="docutils literal notranslate"><span class="pre">403</span></code>.</p></li>
+<li><p><strong>No <code class="docutils literal notranslate"><span class="pre">Origin</span></code></strong> (curl, Claude Code): only the <code class="docutils literal notranslate"><span class="pre">Host</span></code> is checked.</p></li>
+<li><p><strong>The value.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is a comma separated list; a trailing <code class="docutils literal notranslate"><span class="pre">/</span></code> is dropped and blank
+items are ignored. A value that is not a URL (no scheme or host) stops scrap at startup.</p></li>
+</ul>
+<p>Set <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> as described in <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a> (the environment
+table in <a class="reference internal" href="api.html"><span class="std std-doc">HTTP API and CLI</span></a> lists it): the first URL is the base of every <code class="docutils literal notranslate"><span class="pre">url</span></code>, <code class="docutils literal notranslate"><span class="pre">image_url</span></code> and
+<code class="docutils literal notranslate"><span class="pre">thumbnail_url</span></code> in results, and without it they are bare paths (<code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/blobs/&lt;sha&gt;</span></code>).</p>
+<p><strong>What is recorded.</strong> scrap does not log tool calls: the server’s journal has the web server’s
+request lines (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/mcp</span></code>, with the status, not the tool) and warnings such as a refused <code class="docutils literal notranslate"><span class="pre">Host</span></code>
+or <code class="docutils literal notranslate"><span class="pre">Origin</span></code>. What Claude did is in the data instead. <code class="docutils literal notranslate"><span class="pre">search</span></code> with <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> finds the pages it
+wrote, and <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> those whose text it changed; <code class="docutils literal notranslate"><span class="pre">revisions</span></code> with <code class="docutils literal notranslate"><span class="pre">page</span></code> lists a
+page’s kind and tag changes (<code class="docutils literal notranslate"><span class="pre">author</span></code> <code class="docutils literal notranslate"><span class="pre">claude</span></code>, <code class="docutils literal notranslate"><span class="pre">source</span></code> <code class="docutils literal notranslate"><span class="pre">mcp</span></code>) and its text revisions (<code class="docutils literal notranslate"><span class="pre">author</span></code>
+<code class="docutils literal notranslate"><span class="pre">claude</span></code>, which includes appended sections and <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> edits, whose text <code class="docutils literal notranslate"><span class="pre">text_rev</span></code> reads);
+with <code class="docutils literal notranslate"><span class="pre">batch</span></code> it lists what a bulk change did. No tool deletes a page or a revision, though a
+burst of quick edits folds into one revision (see Revisions and Page text).</p>
+<p>Pages may hold injected text, so a session holding powerful credentials should treat what it
+reads as data (see the Security posture section of <a class="reference internal" href="../explanations/design.html"><span class="std std-doc">scrap design</span></a>).</p>
+<p>Not yet: thinning old revisions, a <code class="docutils literal notranslate"><span class="pre">context</span></code> tool returning the stored ingest run of a photo (its
+messages, for discussing it with the model that made it), and an <code class="docutils literal notranslate"><span class="pre">ingest</span></code> tool.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="api.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">HTTP API and CLI</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../_api/scrap.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">scrap</span></code></p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tools">Tools</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#images">Images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing">Writing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kinds-and-tags">Kinds and tags</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#page-text">Page text</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#security">Security</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.1.0/docs/reference/mcp.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/reference/mcp.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
