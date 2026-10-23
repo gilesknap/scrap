@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.2.2.dev21+gae97be77c documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.2.2.dev24+g8dd9f7623 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bbeb0f1d"></script>
+    <script src="../_static/documentation_options.js?v=155f0708"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -931,7 +931,7 @@ only while the work or the image is in progress.</p>
 </tr>
 <tr class="row-odd"><td><p>Photo panel</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.photo-panel</span></code>, <code class="docutils literal notranslate"><span class="pre">.pair</span></code>, <code class="docutils literal notranslate"><span class="pre">.tabs</span></code>, <code class="docutils literal notranslate"><span class="pre">.drawing-card</span></code> (<code class="docutils literal notranslate"><span class="pre">excalidraw.css</span></code>)</p></td>
-<td><p>under a photo’s page: the photo and, if Claude drew one, its drawing, as a <code class="docutils literal notranslate"><span class="pre">.pair</span></code> of two columns from 700 px wide (or landscape from 560 px), else one at a time under <strong>Photo</strong> / <strong>Drawing</strong> <code class="docutils literal notranslate"><span class="pre">.tabs</span></code> (a segmented control like <code class="docutils literal notranslate"><span class="pre">.chips</span></code>: <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> track, the chosen tab raised on <code class="docutils literal notranslate"><span class="pre">--surface</span></code>; 42 px segments in a 48 px track; Drawing chosen to start with). The drawing is a preview (<code class="docutils literal notranslate"><span class="pre">.drawing-card</span></code>: a button on <code class="docutils literal notranslate"><span class="pre">--surface</span></code> with a <code class="docutils literal notranslate"><span class="pre">--line</span></code> edge and <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> corners, the drawing’s own shape, at most 75 % of the screen high, inert to gestures so a drag scrolls the page); a tap opens the viewer. While it renders it says “Loading drawing…”; if it can’t, “Can’t show the drawing here: tap to open it”, or offline “Offline: the drawing needs the server”</p></td>
+<td><p>under a photo’s page: the photo and, if Claude drew one, its drawing, as a <code class="docutils literal notranslate"><span class="pre">.pair</span></code> of two columns from 700 px wide (or landscape from 560 px), else one at a time under <strong>Photo</strong> / <strong>Drawing</strong> <code class="docutils literal notranslate"><span class="pre">.tabs</span></code> (a segmented control like <code class="docutils literal notranslate"><span class="pre">.chips</span></code>: <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> track, the chosen tab raised on <code class="docutils literal notranslate"><span class="pre">--surface</span></code>; 42 px segments in a 48 px track; Drawing chosen to start with). The drawing is a preview (<code class="docutils literal notranslate"><span class="pre">.drawing-card</span></code>: a button in the drawings theme, not the app’s (<code class="docutils literal notranslate"><span class="pre">data-scheme</span></code>, from Settings: paper <code class="docutils literal notranslate"><span class="pre">#ffffff</span></code> or Excalidraw’s dark <code class="docutils literal notranslate"><span class="pre">#121212</span></code>, with <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code> and <code class="docutils literal notranslate"><span class="pre">--line</span></code> set to match; updated live), with a <code class="docutils literal notranslate"><span class="pre">--line</span></code> edge and <code class="docutils literal notranslate"><span class="pre">--r-lg</span></code> corners, the drawing’s own shape, at most 75 % of the screen high, inert to gestures so a drag scrolls the page); a tap opens the viewer. While it renders it says “Loading drawing…”; if it can’t, “Can’t show the drawing here: tap to open it”, or offline “Offline: the drawing needs the server”</p></td>
 </tr>
 <tr class="row-even"><td><p>Drawing viewer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.drawing-layer</span></code>, <code class="docutils literal notranslate"><span class="pre">.drawing-bar</span></code></p></td>
