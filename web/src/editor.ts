@@ -30,7 +30,7 @@ import { NOT_KEPT, stash } from "./stash";
 import { h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, tidy, toSend } from "./kinds";
-export { same, tagField } from "./tagedit";
+export { mergeTags, same, tagField } from "./tagedit";
 export { todoField, todoStart } from "./todoedit";
 export { confirmRemoval } from "./unembed";
 

@@ -9,6 +9,7 @@ import {
   embedded,
   fold,
   kindPicker,
+  mergeTags,
   same,
   suggested,
   tagField,
@@ -19,6 +20,7 @@ import {
   toSend,
 } from "./editor";
 import { tooLong } from "./pagecap";
+import { textPart } from "./textpart";
 import { h, toast } from "./ui";
 
 interface Draft {
@@ -54,9 +56,14 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(body())));
   // Tags: a draft's only if they were changed in it (not, say, tags Claude or another
   // device set since); and sent only if changed from those it started from
+  // changed there, they are merged onto the page's now: tags set elsewhere kept, its adds
+  // and removals applied
   const ours = kept?.tags && !same(kept.tags, kept.tagsFrom ?? p.tags) ? kept : null;
-  let tagsFrom = ours?.tagsFrom ?? p.tags;
-  const tags = tagField(ours?.tags ?? p.tags, () => ed.keep());
+  let tagsFrom = p.tags;
+  const tags = tagField(
+    ours?.tags ? mergeTags(p.tags, ours.tagsFrom ?? p.tags, ours.tags) : p.tags,
+    () => ed.keep(),
+  );
   const retagged = () => !same(tags.value(), tagsFrom);
   // A todo's due date and priority: shown while the kind is Todo, sent if changed
   const start = todoStart(kept, p); // a draft's, cleared ones too, else the page's
@@ -77,14 +84,14 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     const long = tooLong(body(), 0, body() === over);
     if (long) return toast(long, "", undefined, 8000); // still editing, as it was
     if (!(await confirmRemoval(p, over, body()))) return; // still editing, as it was
+    const textual = body() !== over || title.value !== p.title;
     try {
       const saved = await api<Page>(`pages/${p.id}`, {
         method: "PATCH",
         headers: JSON_TYPE,
         // The title only if changed: ingest may rename a provisional title meanwhile
         body: JSON.stringify({
-          base_rev: base,
-          body: body(),
+          ...textPart(textual, base, body()),
           ...(title.value !== p.title && { title: title.value }),
           kind: toSend(kind.value(), kind.picked(), p.kind),
           ...(retagged() && { tags: tags.value() }),
