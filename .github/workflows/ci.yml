@@ -61,7 +61,7 @@ jobs:
     uses: ./.github/workflows/_dist.yml
   
   release:
-    needs: [dist, test, docs, web]
+    needs: [dist, test, deploy, docs, web]
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/_release.yml
     permissions:

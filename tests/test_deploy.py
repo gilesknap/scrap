@@ -295,9 +295,13 @@ def test_install_needs_podman_at_the_path_the_units_use(tmp_path):
 
 
 def _smoke(tmp_path, env_file, **caller_env):
-    conf = tmp_path / "xdg" / "scrap"
+    conf = tmp_path / ".config" / "scrap"
     conf.mkdir(parents=True)
     (conf / "env").write_text(env_file)
+    # XDG_CONFIG_HOME must be ignored: a decoy env there says the opposite.
+    decoy = tmp_path / "xdg" / "scrap"
+    decoy.mkdir(parents=True)
+    (decoy / "env").write_text("SCRAP_LISTEN=tcp\nSCRAP_PORT=1\n")
     _fake(tmp_path / "bin", "curl", f'echo "$@" > {tmp_path}/args; echo ok')
     env = {
         "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}",
