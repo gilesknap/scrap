@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.2.2.dev14+g8a2b833c1 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.2.2.dev21+gae97be77c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4ec8c5c5"></script>
+    <script src="../_static/documentation_options.js?v=bbeb0f1d"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -603,7 +603,10 @@ release you pulled and run the script again:</p>
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p>(If you built <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> instead, the first run starts it.) The script:</p>
+<p>(If you built <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> instead, the first run starts it.) If the file names
+<code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> more than once the last line wins, as it does for systemd. The settings and units
+always live under <code class="docutils literal notranslate"><span class="pre">~/.config</span></code>: the units name <code class="docutils literal notranslate"><span class="pre">%h/.config/scrap/env</span></code> and a unit cannot see
+<code class="docutils literal notranslate"><span class="pre">XDG_CONFIG_HOME</span></code>, so <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> ignores that variable (and says so). The script:</p>
 <ul class="simple">
 <li><p>writes the settings files <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> if they do not
 exist yet (it never overwrites them);</p></li>
@@ -990,6 +993,7 @@ only moves a page to the trash (see <a class="reference internal" href="#scrap-g
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>: the database. It is in WAL mode, so while scrap runs, recent changes are in
 <code class="docutils literal notranslate"><span class="pre">scrap.db-wal</span></code> (with <code class="docutils literal notranslate"><span class="pre">scrap.db-shm</span></code> beside it), not yet in <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap.db.lock</span></code>: the lock that serialises migrations (empty; leave it alone).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gc.lock</span></code>: the lock a deleting <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> holds so two do not run at once (empty; leave it alone).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">files/&lt;ab&gt;/&lt;sha256&gt;</span></code>: every stored file (photos, uploads), named by the SHA-256 of its bytes.
 <code class="docutils literal notranslate"><span class="pre">files/.up-*</span></code> are leftovers of uploads that were cut off by a crash.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">cache/previews/</span></code>: the 480 and 2048 pixel JPEG previews, made again on demand.</p></li>
@@ -1134,8 +1138,8 @@ and gc scripts take the same lock (<code class="docutils literal notranslate"><s
 <code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code> is ordered <code class="docutils literal notranslate"><span class="pre">After=scrap-backup.service</span></code>. The gc timer is not <code class="docutils literal notranslate"><span class="pre">Persistent</span></code>: a
 night missed while the machine was off is skipped rather than run at boot, where it could take
 the lock before the catch-up backup and fail for want of a recent backup. Both containers run with
-<code class="docutils literal notranslate"><span class="pre">--network=none</span></code>. A <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> you run by hand takes no lock, so it can race the nightly run; the
-worst case is a file left on disk after its record is deleted, which the next run removes. To see
+<code class="docutils literal notranslate"><span class="pre">--network=none</span></code>. A <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> you run by hand takes a lock of its own (<code class="docutils literal notranslate"><span class="pre">gc.lock</span></code> in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>), so it cannot overlap the nightly run: whichever starts second stops with <code class="docutils literal notranslate"><span class="pre">another</span> <span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">is</span> <span class="pre">deleting</span></code>. It does not wait for a backup, so do not run it during one. To see
 what it would delete now, without deleting:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="o">-</span><span class="n">a</span><span class="p">;</span> <span class="o">.</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span><span class="p">;</span> <span class="nb">set</span> <span class="o">+</span><span class="n">a</span>
 <span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">userns</span><span class="o">=</span><span class="n">keep</span><span class="o">-</span><span class="nb">id</span><span class="p">:</span><span class="n">uid</span><span class="o">=</span><span class="mi">10001</span><span class="p">,</span><span class="n">gid</span><span class="o">=</span><span class="mi">10001</span> \
@@ -1288,7 +1292,8 @@ clean exit (status 0) is not restarted. Run <code class="docutils literal notran
 <p><strong>The service stops restarting: “start request repeated too quickly”.</strong> After 5 failed starts
 in 5 minutes (a missing image, a missing <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>, a bad setting) systemd stops trying. Fix
 the cause (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code>), then
-<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">reset-failed</span> <span class="pre">scrap</span> <span class="pre">&amp;&amp;</span> <span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">reset-failed</span> <span class="pre">scrap</span> <span class="pre">&amp;&amp;</span> <span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap</span></code>. Re-running <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>
+does the <code class="docutils literal notranslate"><span class="pre">reset-failed</span></code> for you.</p>
 <p><strong>scrap will not start and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> is missing or a dangling symlink.</strong> The launcher passes
 <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> to podman unconditionally. <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> only warns about a
 dangling symlink; restore the file (an empty one will do) and start scrap.</p>
