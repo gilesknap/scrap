@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on a DLS workstation &#8212; scrap 0.1.dev372+g313a57fb7 documentation</title>
+    <title>Try scrap on a DLS workstation (open-source demo) &#8212; scrap 0.1.dev376+g999393393 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bc02b9be"></script>
+    <script src="../_static/documentation_options.js?v=d55197f0"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -422,7 +422,7 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Try scrap on a DLS workstation</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Try scrap on a DLS workstation (open-source demo)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Install scrap on a server</a></li>
 </ul>
 </div>
@@ -467,7 +467,7 @@
     
     <li class="breadcrumb-item"><a href="../tutorials.html" class="nav-link">Tutorials</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Try scrap on a DLS workstation</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Try scrap on a DLS workstation (open-source demo)</span></li>
   </ul>
 </nav>
 </div>
@@ -484,72 +484,66 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="try-scrap-on-a-dls-workstation">
-<h1>Try scrap on a DLS workstation<a class="headerlink" href="#try-scrap-on-a-dls-workstation" title="Link to this heading">#</a></h1>
-<p>In this tutorial you run scrap on your own Diamond workstation, with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, and open it from
-your phone. DLS workstations run RHEL 8 with SELinux enforcing and cgroups v1, are shared with
-other users, mount your home directory over NFS, and already have rootless podman set up with its
-storage on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>. Your phone cannot join the workstation network, so Tailscale carries scrap
-to it over HTTPS. Both run as you, as two containers in one rootless podman pod.</p>
-<p>This page follows one path for a trial. The general install, with a dedicated user and a system
+  <section id="try-scrap-on-a-dls-workstation-open-source-demo">
+<h1>Try scrap on a DLS workstation (open-source demo)<a class="headerlink" href="#try-scrap-on-a-dls-workstation-open-source-demo" title="Link to this heading">#</a></h1>
+<p>In this tutorial you run scrap on your own Diamond workstation, with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, as a demo for
+colleagues: you open it in the workstation’s browser, Claude Code in
+<a class="reference external" href="https://diamondlightsource.github.io/claude-sandbox/">claude-sandbox</a> searches and writes it over
+MCP, and the links Claude gives you open in that browser. Other machines on the DLS network can
+open it too. To capture from your phone, which is what scrap is mostly for, add Tailscale
+(<a class="reference internal" href="#dls-tailscale"><span class="std std-ref">Phone capture with Tailscale (recommended)</span></a>): phones cannot join the DLS network, so that path needs it.</p>
+<p>DLS workstations run RHEL 8 with SELinux enforcing and cgroups v1, are shared with other users,
+mount your home directory over NFS, and already have rootless podman set up with its storage on
+<code class="docutils literal notranslate"><span class="pre">/scratch</span></code>. scrap runs as you, in a rootless podman pod, on a port of the workstation.</p>
+<div class="admonition danger">
+<p class="admonition-title">Danger</p>
+<p><strong>Open-source material only.</strong> This demo has <strong>no login</strong>: anyone who can reach the
+workstation on the DLS network can read and change everything in it, and so can every other
+user of the workstation. Who wrote a change is not trustworthy either: any client can send its
+own <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header and be recorded as anyone. Put nothing in it that is not
+already public. Real adoption at DLS will run on Kubernetes behind Keycloak instead.</p>
+</div>
+<p>This page follows one path for a demo. The general install, with a dedicated user and a system
 Tailscale, is <a class="reference internal" href="installation.html"><span class="std std-doc">Install scrap on a server</span></a>; every option, and the update, backup and troubleshooting
 steps, are in <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>What has been checked.</strong> On 22 Oct 2026 this page was run by hand, end to end, on a DLS
-workstation (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2), with
-<code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> running as you: a phone on the tailnet opened the web app through Tailscale Serve,
-installed it as an app and captured photos, and ingest on a Claude seat (<a class="reference internal" href="#dls-ingest"><span class="std std-ref">Optional: ingest on your Claude seat</span></a>)
-read two photos in about 10 seconds. Not yet checked or automated: Claude Code over MCP
+<p><strong>What has been checked.</strong> On 22–23 Oct 2026 this page was run by hand on a DLS workstation
+(RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2): the pod with its
+published port; <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> on <code class="docutils literal notranslate"><span class="pre">localhost</span></code>, on the workstation’s IP address and on its hostname;
+MCP (<code class="docutils literal notranslate"><span class="pre">initialize</span></code> and a search) through <code class="docutils literal notranslate"><span class="pre">http://&lt;host&gt;:8790/mcp</span></code>, with page links on the
+hostname; claude-sandbox’s network jail (in its 5.0.0-beta.1 image, with the launcher’s default
+host networking) reaching scrap at <code class="docutils literal notranslate"><span class="pre">http://localhost:8790</span></code> with <code class="docutils literal notranslate"><span class="pre">local-port</span></code>, while the
+workstation’s IP address stayed blocked; the jail reaching scrap by IP address with <code class="docutils literal notranslate"><span class="pre">allow-ip</span></code>,
+and blocked without it; and systemd units generated from the pod, started, restarted and
+stopped. Earlier, on 22 Oct: a phone on the tailnet opening the web app through Tailscale
+Serve, installing it as an app and capturing photos, and ingest on a Claude seat
+(<a class="reference internal" href="#dls-ingest"><span class="std std-ref">Optional: ingest on your Claude seat</span></a>) reading two photos in about 10 seconds. Not yet checked: opening scrap from
+another machine on the DLS network, a real Claude Code session in claude-sandbox end to end
 (<a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>), starting at boot with systemd (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>), and automatic
 backups (<a class="reference internal" href="#dls-backup"><span class="std std-ref">Back up</span></a>).</p>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>v0 of scrap has <strong>no login</strong>. Anyone who can reach it can read and change everything. Only
-expose it through Tailscale Serve (tailnet only, never <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>).</p>
-</div>
-<p><strong>Check with DLS IT policy before you run Tailscale on a workstation.</strong> It connects the
-workstation to an outside network that IT does not manage.</p>
 <section id="how-it-fits-together">
 <h2>How it fits together<a class="headerlink" href="#how-it-fits-together" title="Link to this heading">#</a></h2>
 <p>A podman pod is a group of containers that share one network namespace, with its own private
-<code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>. The pod <code class="docutils literal notranslate"><span class="pre">scrap-pod</span></code> holds two containers:</p>
+<code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>. The pod <code class="docutils literal notranslate"><span class="pre">scrap-pod</span></code> holds:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">scrap-pod-app</span></code>, scrap itself, listening on the pod’s <code class="docutils literal notranslate"><span class="pre">127.0.0.1:8000</span></code>. Nothing is published
-to the workstation, so <code class="docutils literal notranslate"><span class="pre">127.0.0.1:8000</span></code> on the workstation reaches nothing.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code>, the official <a class="reference external" href="https://hub.docker.com/r/tailscale/tailscale">Tailscale image</a>,
-with <code class="docutils literal notranslate"><span class="pre">--tun=userspace-networking</span></code> so that it needs no network device. Tailscale Serve, in this
-container, publishes <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8000</span></code> on your tailnet as
-<code class="docutils literal notranslate"><span class="pre">https://&lt;name&gt;.&lt;tailnet&gt;.ts.net</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap-pod-app</span></code>, scrap itself, listening on port 8000 in the pod. The pod publishes that port
+on the workstation as port 8790 (or another you choose), on all its addresses: <code class="docutils literal notranslate"><span class="pre">localhost</span></code>,
+its hostname <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;.diamond.ac.uk</span></code> and its IP address.</p></li>
+<li><p>Optionally, <code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code>, the official
+<a class="reference external" href="https://hub.docker.com/r/tailscale/tailscale">Tailscale image</a>, which publishes scrap over
+HTTPS on your own tailnet so that your phone can reach it. Phone capture needs it: see
+<a class="reference internal" href="#dls-tailscale"><span class="std std-ref">Phone capture with Tailscale (recommended)</span></a>.</p></li>
 </ul>
 <p>Nothing here needs <code class="docutils literal notranslate"><span class="pre">sudo</span></code>. The pod maps user 10001 in its containers to you on the
-workstation, and both containers run as that user, so their processes and files are yours.</p>
-<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">Why Tailscale does not run as root in its container</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
-<p class="sd-card-text">DLS workstations give every user the same subordinate id range in <code class="docutils literal notranslate"><span class="pre">/etc/subuid</span></code>. Rootless
-podman maps root in a container, and every id other than your own, into that range, so root in
-your container is the same workstation id as root in anyone else’s, and another user can become
-it with <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">unshare</span></code>. A <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> running as root in its container could then be
-signalled by other users, have its node key read, and be driven through its control socket via
-<code class="docutils literal notranslate"><span class="pre">/proc/&lt;pid&gt;/root</span></code>. So on these workstations, never run a long-lived container process as root,
-or as any id other than the one mapped to you, inside a rootless container. This page runs
-<code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> as user 10001, which is you. It does not need root: Serve here only forwards to
-<code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8000</span></code>.</p>
-</div>
-</details></section>
-<section id="what-runs-as-you">
-<h2>What runs as you<a class="headerlink" href="#what-runs-as-you" title="Link to this heading">#</a></h2>
-<p>Without <code class="docutils literal notranslate"><span class="pre">sudo</span></code> there is no dedicated user, so scrap, its data and Tailscale all run as you. Other
-users on the workstation cannot reach scrap or Tailscale: scrap listens only inside the pod,
-Tailscale’s control socket is inside the pod too, and their processes and files are yours, in a
-folder only you can open. Anything running as you can: it can <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span></code> into the pod, read
-and change all of scrap’s data, drive Tailscale, and send its own <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header
-to be recorded as any author. So can root and the workstation’s admins, and so can whoever owns
-or administers your tailnet (you, if you follow <a class="reference internal" href="#dls-make-tailnet"><span class="std std-ref">Make a tailnet</span></a>). That is fine for a
-trial; for lasting use, follow <a class="reference internal" href="installation.html"><span class="std std-doc">Install scrap on a server</span></a> on a machine where scrap has its own user.
-See <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-access"><span class="std std-ref">Access and identity</span></a>.</p>
+workstation, and the containers run as that user, so their processes and files are yours, not
+in the subordinate id range that every DLS user shares.</p>
+<p>Claude Code at DLS runs inside claude-sandbox, whose network jail blocks the workstation’s own
+ports and the DLS network unless you open them. On the same workstation, you relay scrap’s one
+port into the jail, and Claude Code reaches scrap at <code class="docutils literal notranslate"><span class="pre">http://localhost:8790/mcp</span></code>. From
+claude-sandbox on another machine, you allow the workstation’s IP address instead
+(<a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>).</p>
 </section>
 <section id="what-you-need">
 <h2>What you need<a class="headerlink" href="#what-you-need" title="Link to this heading">#</a></h2>
@@ -557,50 +551,25 @@ See <a class="reference internal" href="../how-to/deploy-single-server.html#scra
 <li><p>A DLS workstation account with rootless podman working (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">info</span></code> runs) and <code class="docutils literal notranslate"><span class="pre">git</span></code>.</p></li>
 <li><p>A directory of your own on the workstation’s local disk, <code class="docutils literal notranslate"><span class="pre">/scratch/&lt;fedid&gt;</span></code>. scrap’s SQLite
 database (in WAL mode) needs a local disk, not NFS. Your home directory is on NFS and follows
-you to every machine that mounts it, so keep scrap’s data, Tailscale’s state (which identifies
-this machine) and any secrets on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, not in your home.</p></li>
-<li><p>A phone with the <a class="reference external" href="https://tailscale.com/download">Tailscale app</a>, and another device on which
-to run Claude Code if you want to connect it (see <a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>).</p></li>
+you to every machine that mounts it, so keep scrap’s data and secrets on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, not in
+your home.</p></li>
+<li><p>A free port on the workstation. This page uses 8790; <code class="docutils literal notranslate"><span class="pre">ss</span> <span class="pre">-ltn</span> <span class="pre">|</span> <span class="pre">grep</span> <span class="pre">:8790</span></code> prints nothing if
+it is free. If it is taken, use another in its place throughout.</p></li>
+<li><p>To connect Claude Code,
+<a class="reference external" href="https://diamondlightsource.github.io/claude-sandbox/dls/claude-at-dls.html">claude-sandbox</a>
+installed and logged in, on this workstation or another.</p></li>
 </ul>
-<p>You do not need Python or Node: the images carry everything.</p>
+<p>You do not need Python or Node: the image carries everything.</p>
 </section>
-<section id="make-a-tailnet">
-<span id="dls-make-tailnet"></span><h2>Make a tailnet<a class="headerlink" href="#make-a-tailnet" title="Link to this heading">#</a></h2>
-<p><strong>Do not sign up with your <code class="docutils literal notranslate"><span class="pre">&#64;diamond.ac.uk</span></code> address.</strong> Tailscale ties a tailnet to a custom email
-domain: the first person to sign up with a <code class="docutils literal notranslate"><span class="pre">diamond.ac.uk</span></code> address creates a tailnet that owns
-that domain, and everyone who signs up with one later joins it, subject to its admins’ approval
-(see <a class="reference external" href="https://tailscale.com/docs/concepts/domain-ownership">domain ownership</a> and
-<a class="reference external" href="https://tailscale.com/kb/1239/user-approval">user approval</a>). It would also be treated as
-business use and start an Enterprise trial. Use a personal identity instead: a personal GitHub
-account, whose tailnet others can join only by invitation
-(<a class="reference external" href="https://tailscale.com/kb/1284/sso-github">GitHub</a>), or a personal Google, Apple or Microsoft
-account.</p>
-<ol class="arabic">
-<li><p>Sign up for a free Personal <a class="reference external" href="https://tailscale.com">Tailscale</a> account with that identity.</p></li>
-<li><p>Install the Tailscale app on your phone and log in to the same account. A phone is on one
-tailnet at a time.</p></li>
-<li><p>In the admin console, under <strong>DNS</strong>, turn on MagicDNS and
-<a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates</a>. Note the tailnet DNS name
-shown there, <code class="docutils literal notranslate"><span class="pre">&lt;tailnet&gt;.ts.net</span></code>.</p></li>
-<li><p>In the admin console, under <strong>Access controls</strong>, replace the whole policy with:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">"grants"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">"src"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"autogroup:member"</span><span class="p">],</span><span class="w"> </span><span class="nt">"dst"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"autogroup:self"</span><span class="p">],</span><span class="w"> </span><span class="nt">"ip"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"tcp:443"</span><span class="p">]}</span>
-<span class="w">  </span><span class="p">]</span>
-<span class="p">}</span>
+<section id="make-the-data-folder">
+<h2>Make the data folder<a class="headerlink" href="#make-the-data-folder" title="Link to this heading">#</a></h2>
+<p>Make the folders on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, open only to you:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>base=/scratch/$USER/scrap-pod
+mkdir -p $base/data $base/backups
+chmod 700 $base
 </pre></div>
 </div>
-</li>
-</ol>
-<p>Do step 4 <strong>before</strong> the pod joins the tailnet. In userspace mode, Tailscale forwards an inbound
-tailnet connection to any TCP port that Serve does not handle to the same port on the pod’s
-<code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> (<a class="reference external" href="https://github.com/tailscale/tailscale/tree/main/wgengine/netstack">wgengine/netstack</a>).
-Under the default policy, which lets every device reach every port, any device on your tailnet
-could reach scrap directly on port 8000, over plain HTTP and without the identity header that
-Serve adds. This policy lets your own devices reach each other on port 443 only, and nothing
-else. Replacing the policy wipes whatever was there, which is fine only because the tailnet is
-new; it also drops the default policy’s <code class="docutils literal notranslate"><span class="pre">nodeAttrs</span></code> that allow Funnel, so scrap cannot be put on
-the internet by mistake.</p>
+<p>The commands below use <code class="docutils literal notranslate"><span class="pre">$base</span></code>, so set it again in each new shell.</p>
 </section>
 <section id="build-the-image">
 <h2>Build the image<a class="headerlink" href="#build-the-image" title="Link to this heading">#</a></h2>
@@ -615,202 +584,192 @@ the internet by mistake.</p>
 <p>The first build downloads a large build-stage image, so it takes a while. Once releases exist you
 can instead <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pull</span> <span class="pre">ghcr.io/gilesknap/scrap:&lt;version&gt;</span></code> and use that name in place of
 <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> below.</p>
-<p>Fetch Tailscale’s image too:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">docker</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">tailscale</span><span class="o">/</span><span class="n">tailscale</span><span class="p">:</span><span class="n">stable</span>
-</pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>If you made the pod with an earlier version of this page</strong>, which published no port, keep
+your <code class="docutils literal notranslate"><span class="pre">$base</span></code>. Do not rewrite <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> below: edit it instead, so that it keeps your
+seat token, the other ingest settings and the <code class="docutils literal notranslate"><span class="pre">ts.net</span></code> address. Make <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> start
+with the two addresses below, hostname first, and keep the <code class="docutils literal notranslate"><span class="pre">ts.net</span></code> address after them. If you
+used systemd, run <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">pod-scrap-pod.service</span></code> first. Then remove the
+old pod with <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pod</span> <span class="pre">rm</span> <span class="pre">-f</span> <span class="pre">scrap-pod</span></code>, create the new one (<a class="reference internal" href="#dls-pod"><span class="std std-ref">Create the pod</span></a>), and run the
+<code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code> container again (<a class="reference internal" href="#dls-tailscale-add"><span class="std std-ref">Add Tailscale to the pod</span></a>): its login and Serve setting come back
+from <code class="docutils literal notranslate"><span class="pre">$base/tailscale</span></code>.</p>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">stable</span></code> moves with each release. To stay on one version, use a tag such as <code class="docutils literal notranslate"><span class="pre">v1.104.2</span></code> instead,
-here and below.</p>
 </section>
-<section id="create-the-pod">
-<h2>Create the pod<a class="headerlink" href="#create-the-pod" title="Link to this heading">#</a></h2>
-<p>Pick a name for the workstation on your tailnet, such as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>; it becomes
-<code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code>. Make the folders on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, open only to you, and a
-settings file for scrap there, readable only by you:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>base=/scratch/$USER/scrap-pod
-mkdir -p $base/data $base/backups $base/tailscale
-chmod 700 $base
-(umask 077; cat &gt;$base/scrap.env &lt;&lt;'EOF'
-SCRAP_PUBLIC_URL=https://scrap.&lt;tailnet&gt;.ts.net
+<section id="write-scrap-s-settings">
+<h2>Write scrap’s settings<a class="headerlink" href="#write-scrap-s-settings" title="Link to this heading">#</a></h2>
+<p>Find the workstation’s full hostname, such as <code class="docutils literal notranslate"><span class="pre">pc0126.diamond.ac.uk</span></code>, with <code class="docutils literal notranslate"><span class="pre">hostname</span> <span class="pre">-f</span></code>, and
+put it in a settings file for scrap, readable only by you:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>(umask 077; cat &gt;$base/scrap.env &lt;&lt;'EOF'
+SCRAP_PUBLIC_URL=http://&lt;host&gt;.diamond.ac.uk:8790,http://localhost:8790
 TZ=Europe/London
 EOF
 )
 </pre></div>
 </div>
-<p>Replace <code class="docutils literal notranslate"><span class="pre">&lt;tailnet&gt;</span></code> with your tailnet’s name from the admin console. The first part, <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, must
-match the <code class="docutils literal notranslate"><span class="pre">--hostname</span></code> you give Tailscale below. <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> lets Claude Code reach <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
-through Serve; <code class="docutils literal notranslate"><span class="pre">TZ</span></code> makes <code class="docutils literal notranslate"><span class="pre">due:today</span></code> follow your day rather than UTC. See
-<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>. The commands below use <code class="docutils literal notranslate"><span class="pre">$base</span></code>, so set it again in each new shell.</p>
-<p>Create the pod, then start scrap and Tailscale in it:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman pod create --name scrap-pod --userns=keep-id:uid=10001,gid=10001
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> lists the addresses scrap is reached at, comma separated. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers
+only requests addressed to one of them (or to loopback); any other gets
+<code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>. The <strong>first</strong> makes the page links that Claude Code shows you, so
+put the hostname first: those links then open on any machine on the network, the workstation
+included. Claude Code in claude-sandbox on another machine needs the workstation’s IP address
+here too (<a class="reference internal" href="#dls-claude-other"><span class="std std-ref">From claude-sandbox on another machine</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TZ</span></code> makes <code class="docutils literal notranslate"><span class="pre">due:today</span></code> follow your day rather than UTC.</p></li>
+</ul>
+<p>Every setting is described in <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>.</p>
+</section>
+<section id="create-the-pod">
+<span id="dls-pod"></span><h2>Create the pod<a class="headerlink" href="#create-the-pod" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman pod create --name scrap-pod --userns=keep-id:uid=10001,gid=10001 -p 8790:8000
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
-    localhost/scrap:dev serve --host 127.0.0.1 --port 8000
-podman run -d --pod scrap-pod --name scrap-pod-ts --user 10001:10001 \
-    -v $base/tailscale:/var/lib/tailscale:z \
-    --entrypoint tailscaled docker.io/tailscale/tailscale:stable \
-    --tun=userspace-networking --statedir=/var/lib/tailscale --socket=/tmp/tailscaled.sock
+    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
 </pre></div>
 </div>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code> maps scrap’s user in the image, 10001, to you, so the
 files under <code class="docutils literal notranslate"><span class="pre">$base/data</span></code> stay yours. Podman takes it only on the pod, not on a container in
 one.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">:z</span></code> relabels each folder so that a container can write to it with SELinux enforcing.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">8790:8000</span></code> publishes the pod’s port 8000 on the workstation’s port 8790. Podman takes
+ports only on the pod, and only when it is created: to change one, remove the pod and create
+it again (your data stays in <code class="docutils literal notranslate"><span class="pre">$base</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--host</span> <span class="pre">0.0.0.0</span></code> makes scrap listen on the pod’s network, not only on its <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>, so that
+the published port reaches it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">:z</span></code> relabels the folder so that the container can write to it with SELinux enforcing.</p></li>
 <li><p>There is no memory cap: on cgroups v1, as on DLS workstations, rootless podman ignores
 <code class="docutils literal notranslate"><span class="pre">--memory</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">10001:10001</span></code> runs <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> as you. Containers in this pod run as 10001 anyway,
-but the page says so because it matters: see “Why Tailscale does not run as root in its
-container” above.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--socket=/tmp/tailscaled.sock</span></code> puts <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code>’s control socket where user 10001 can create
-it; the default, under <code class="docutils literal notranslate"><span class="pre">/var/run/tailscale</span></code>, needs root.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--entrypoint</span> <span class="pre">tailscaled</span></code> skips the image’s own start-up script, which gives up and exits if
-you have not logged in within about 40 seconds.</p></li>
 </ul>
-<p>Check that scrap answers inside the pod and not on the workstation:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span> <span class="n">wget</span> <span class="o">-</span><span class="n">qO</span><span class="o">-</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">healthz</span>
-<span class="n">curl</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">healthz</span>
+<p>Check that scrap answers:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>curl http://localhost:8790/healthz
+curl http://$(hostname -f):8790/healthz
 </pre></div>
 </div>
-<p>The first should print <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>; the second should fail with
-<code class="docutils literal notranslate"><span class="pre">Connection</span> <span class="pre">refused</span></code>. If scrap is not running, see <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap-pod-app</span></code> and
-<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-troubleshooting"><span class="std std-ref">Troubleshooting</span></a>.</p>
+<p>Each should print <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. If scrap is not running, see <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap-pod-app</span></code>
+and <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-troubleshooting"><span class="std std-ref">Troubleshooting</span></a>.</p>
 </section>
-<section id="join-your-tailnet-and-publish-scrap">
-<h2>Join your tailnet and publish scrap<a class="headerlink" href="#join-your-tailnet-and-publish-scrap" title="Link to this heading">#</a></h2>
-<p>Every <code class="docutils literal notranslate"><span class="pre">tailscale</span></code> command must name that socket, so define a shell function for them (again in
-each new shell, like <code class="docutils literal notranslate"><span class="pre">$base</span></code>):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ts</span><span class="p">()</span> <span class="p">{</span> <span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="o">--</span><span class="n">socket</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">tailscaled</span><span class="o">.</span><span class="n">sock</span> <span class="s2">"$@"</span><span class="p">;</span> <span class="p">}</span>
-</pre></div>
-</div>
-<p>Log in, with a terminal attached so that you can watch it:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">exec</span> <span class="o">-</span><span class="n">it</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="o">--</span><span class="n">socket</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">tailscaled</span><span class="o">.</span><span class="n">sock</span> <span class="n">up</span> <span class="o">--</span><span class="n">hostname</span><span class="o">=</span><span class="n">scrap</span>
-</pre></div>
-</div>
-<p>This prints a login URL and waits: open it in any browser and log in to your new tailnet. (To
-join without a browser, make an <a class="reference external" href="https://tailscale.com/kb/1085/auth-keys">auth key</a> in the admin
-console and pass <code class="docutils literal notranslate"><span class="pre">--auth-key=&lt;key&gt;</span></code> instead.) Then publish scrap with Tailscale Serve on the
-standard HTTPS port:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ts</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">443</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span>
-<span class="n">ts</span> <span class="n">serve</span> <span class="n">status</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">--bg</span></code> keeps the setting, in Tailscale’s state on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, across restarts. <code class="docutils literal notranslate"><span class="pre">serve</span> <span class="pre">status</span></code>
-prints the address. If it is not <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code> (Tailscale adds a suffix if the
-name is taken), put the real one in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> and recreate scrap’s container
-(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>). Where UDP is blocked, Tailscale falls back to its DERP relays over HTTPS on
-port 443: slower, but it works.</p>
-<section id="check-it-from-another-device">
-<span id="dls-check"></span><h3>Check it from another device<a class="headerlink" href="#check-it-from-another-device" title="Link to this heading">#</a></h3>
-<p>The workstation itself is not on your tailnet (only the pod is), so check from your phone or
-another tailnet device instead: with Tailscale connected, open
-<code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net/healthz</span></code>, which should show <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. The first
-request can take a few seconds while Tailscale fetches the certificate. For the same reason, run
-Claude Code on another device on your tailnet, not on the workstation (see <a class="reference internal" href="#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a>).</p>
-<p>If <code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">status</span></code> shows the pod’s node as offline, or a device hangs on “loading…”, run
-<code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">up</span> <span class="pre">--hostname=scrap</span></code> again: after a restart the node’s registration can stall, and running
-<code class="docutils literal notranslate"><span class="pre">up</span></code> again registers it at once. The login and Serve setting are kept.</p>
-</section>
-</section>
-<section id="open-it-on-your-phone">
-<span id="dls-phone"></span><h2>Open it on your phone<a class="headerlink" href="#open-it-on-your-phone" title="Link to this heading">#</a></h2>
-<p>With the Tailscale app connected, open <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code> on your phone and install
-the app: see <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>. Captures made while the workstation is off, or the pod
-stopped, wait in the app’s offline queue and are sent when it is back.</p>
+<section id="open-it-in-the-browser">
+<span id="dls-browser"></span><h2>Open it in the browser<a class="headerlink" href="#open-it-in-the-browser" title="Link to this heading">#</a></h2>
+<p>On the workstation, open <code class="docutils literal notranslate"><span class="pre">http://localhost:8790</span></code>. To browsers, <code class="docutils literal notranslate"><span class="pre">localhost</span></code> is a secure context
+even over plain HTTP, so the whole web app works there: you can install it as an app, and
+captures made while scrap is stopped wait in its offline queue. See
+<a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>.</p>
+<p>From another machine on the DLS network, open <code class="docutils literal notranslate"><span class="pre">http://&lt;host&gt;.diamond.ac.uk:8790</span></code>. You can read,
+search and edit there, but plain HTTP on a hostname is not a secure context, so that browser
+cannot install the app or queue captures offline. The links Claude Code gives you use this
+address, and open on the workstation too.</p>
+<p>If other machines cannot connect, the workstation’s firewall blocks the port; <code class="docutils literal notranslate"><span class="pre">localhost</span></code>, and
+claude-sandbox on the same workstation, still work.</p>
 </section>
 <section id="connect-claude-code">
 <span id="dls-claude-code"></span><h2>Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Not yet checked end to end in this setup.</p>
+<p>claude-sandbox’s jail reaching scrap, with <code class="docutils literal notranslate"><span class="pre">local-port</span></code> and with <code class="docutils literal notranslate"><span class="pre">allow-ip</span></code>, has been checked,
+but not a whole Claude Code session.</p>
 </div>
-<p>Claude Code sessions can search, read and write scrap through its MCP server at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Claude
-Code must run on a device on your tailnet: for now, a laptop or another machine on which you can
-install Tailscale.</p>
-<p><strong>Claude Code on the workstation itself cannot reach scrap yet.</strong> Only the pod is on your
-tailnet, and scrap is not published to the workstation, so that other users there cannot reach
-it. Ways round this that keep that property are still open: see
-<a class="reference external" href="https://github.com/gilesknap/scrap/issues/163">scrap#163</a>.</p>
+<p>Claude Code sessions can search, read and write scrap through its MCP server at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. At DLS,
+Claude Code runs inside
+<a class="reference external" href="https://diamondlightsource.github.io/claude-sandbox/dls/claude-at-dls.html">claude-sandbox</a>,
+whose network jail gives the agent its own <code class="docutils literal notranslate"><span class="pre">localhost</span></code> and blocks the DLS network. To reach scrap
+on the same workstation, relay scrap’s port into the jail:</p>
 <ol class="arabic">
-<li><p>On that device, install <a class="reference external" href="https://tailscale.com/download">Tailscale</a> and log in to the <strong>same</strong>
-personal account as the pod. The policy from <a class="reference internal" href="#dls-make-tailnet"><span class="std std-ref">Make a tailnet</span></a> already lets your own
-devices reach each other on port 443, so nothing changes there.</p></li>
-<li><p>Add scrap to Claude Code, for all your projects, and check that it connects:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="o">/</span><span class="n">mcp</span>
+<li><p>On the workstation, outside any container, add the port to <code class="docutils literal notranslate"><span class="pre">~/.config/claude-sandbox.conf</span></code>.
+That file <strong>replaces</strong> claude-sandbox’s shipped configuration, so if you are creating it,
+keep the shipped defaults too:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">allow-write</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/cache</span>
+<span class="na">allow-ip</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">172.23.142.119</span><span class="w">   </span><span class="c1"># Diamond GitLab</span>
+<span class="na">local-model-port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1920</span>
+<span class="na">local-port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">8790</span><span class="w">           </span><span class="c1"># scrap</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">local-port</span></code> relays the workstation’s <code class="docutils literal notranslate"><span class="pre">localhost:8790</span></code>, and only that port, to the same
+address inside the jail; the rest of the workstation and the network stay blocked. It relies
+on the launcher’s default host networking: a container made with <code class="docutils literal notranslate"><span class="pre">--bridge</span></code> has its own
+<code class="docutils literal notranslate"><span class="pre">localhost</span></code> and does not see scrap.</p>
+<p>The container mounts the file on its own, as it was when the container was made. If the file
+is new, run <code class="docutils literal notranslate"><span class="pre">claude-sandbox</span> <span class="pre">--recreate</span></code> in each project directory whose container already
+exists; recreating drops forge logins, so run <code class="docutils literal notranslate"><span class="pre">claude-sandbox</span> <span class="pre">gh-auth</span></code> again if you use it.
+Edits to an existing file apply at the next launch, unless your editor saves by writing a new
+file and renaming it over the old one: the container then keeps the old copy, so recreate.
+See claude-sandbox’s
+<a class="reference external" href="https://diamondlightsource.github.io/claude-sandbox/how-to/network-egress-jail.html">network access</a>.</p>
+<p>If you run claude-sandbox in your own devcontainer instead, put these lines in its
+<code class="docutils literal notranslate"><span class="pre">.devcontainer/claude-sandbox.conf</span></code>, which is installed as <code class="docutils literal notranslate"><span class="pre">/etc/claude-sandbox.conf</span></code>;
+<code class="docutils literal notranslate"><span class="pre">local-port</span></code> reaches scrap only if that devcontainer uses host networking.</p>
+</li>
+<li><p>In a container terminal (<code class="docutils literal notranslate"><span class="pre">claude-sandbox</span> <span class="pre">shell</span></code> in your project directory), add scrap for all
+your projects, and check that it connects:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="p">:</span><span class="mi">8790</span><span class="o">/</span><span class="n">mcp</span>
 <span class="n">claude</span> <span class="n">mcp</span> <span class="nb">list</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. The address must be the one in
-<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, set when you created the pod; any other address gets
-<code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> from <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. If you change that setting, recreate scrap’s container
-(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> always answers requests addressed
+to <code class="docutils literal notranslate"><span class="pre">localhost</span></code>; the page links in its answers still use the hostname, the first address in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. If it does not connect, check the <code class="docutils literal notranslate"><span class="pre">local-port</span></code> line and that
+<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">http://localhost:8790/healthz</span></code> works on the workstation.</p>
 </li>
 <li><p>Optionally, install the <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill, which posts a summary of a conversation to scrap
-when you say “post this to scrap”. On that device:</p>
+when you say “post this to scrap”. In the same container terminal:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span>
 <span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="o">-</span><span class="n">o</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span> \
     <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span>
 </pre></div>
 </div>
-<p>or copy <code class="docutils literal notranslate"><span class="pre">skills/scrap-post/SKILL.md</span></code> from a clone of the repo to the same place.</p>
 </li>
 </ol>
+<p>In claude-sandbox’s containers, <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code> are kept in
+<code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config</span></code> on the host. So the server added with <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">user</span></code>, and the skill,
+survive <code class="docutils literal notranslate"><span class="pre">--recreate</span></code> and apply to every project you run in claude-sandbox. On the host, the skill
+is at <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.claude/skills/scrap-post</span></code>.</p>
+<p>To check it all, start Claude (<code class="docutils literal notranslate"><span class="pre">claude-sandbox</span></code> in your project directory) and ask it to search
+scrap for something you have put there. It lists the pages it finds, with links such as
+<code class="docutils literal notranslate"><span class="pre">http://&lt;host&gt;.diamond.ac.uk:8790/p/&lt;slug&gt;</span></code>: open one in the workstation’s browser.</p>
 <p>What the tools do, which to allow without asking, and how to check <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> with <code class="docutils literal notranslate"><span class="pre">curl</span></code> are in
 <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>. Its steps for setting the address and restarting scrap
 (<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>, the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user) are for the single-server install and do
-not apply here: change <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> and recreate the container instead.</p>
+not apply here: change <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> and recreate the container instead (<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>).</p>
+<section id="from-claude-sandbox-on-another-machine">
+<span id="dls-claude-other"></span><h3>From claude-sandbox on another machine<a class="headerlink" href="#from-claude-sandbox-on-another-machine" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">local-port</span></code> reaches only the machine claude-sandbox runs on. From claude-sandbox on another
+machine on the DLS network, allow the scrap workstation’s IP address through the jail instead.</p>
+<ol class="arabic">
+<li><p>On the scrap workstation, find its IP address:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>getent hosts $(hostname -f)
+</pre></div>
+</div>
+<p>It prints the IP address, such as <code class="docutils literal notranslate"><span class="pre">172.23.244.126</span></code>, then the hostname. (<code class="docutils literal notranslate"><span class="pre">hostname</span> <span class="pre">-I</span></code> is less
+reliable: it also lists the addresses of local bridges, such as libvirt’s <code class="docutils literal notranslate"><span class="pre">192.168.122.1</span></code>.)
+Add <code class="docutils literal notranslate"><span class="pre">http://&lt;IP</span> <span class="pre">address&gt;:8790</span></code> to the end of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, after a
+comma, keeping the hostname first, and recreate scrap’s container (<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>).</p>
+</li>
+<li><p>On the other machine, put <code class="docutils literal notranslate"><span class="pre">allow-ip</span> <span class="pre">=</span> <span class="pre">&lt;IP</span> <span class="pre">address&gt;</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/claude-sandbox.conf</span></code>, in
+place of the <code class="docutils literal notranslate"><span class="pre">local-port</span></code> line above (with the same shipped defaults), and recreate if the
+file is new. <code class="docutils literal notranslate"><span class="pre">allow-ip</span></code> takes a bare IP address, and lets Claude reach every service on that
+machine, not only scrap.</p></li>
+<li><p>In a container terminal there, add scrap by IP address, then the skill as above:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">http</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">IP</span> <span class="n">address</span><span class="o">&gt;</span><span class="p">:</span><span class="mi">8790</span><span class="o">/</span><span class="n">mcp</span>
+</pre></div>
+</div>
+<p>The address must be one of those in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, or <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers
+<code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>. Use the IP address, not the hostname, for now: claude-sandbox does
+not yet resolve hostnames for <code class="docutils literal notranslate"><span class="pre">allow-ip</span></code>. Once it does, <code class="docutils literal notranslate"><span class="pre">http://&lt;host&gt;.diamond.ac.uk:8790/mcp</span></code>
+works directly, and the IP address can come out of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>.</p>
+</li>
+</ol>
+<p>If it does not connect, check that a browser on that machine can open
+<code class="docutils literal notranslate"><span class="pre">http://&lt;host&gt;.diamond.ac.uk:8790/healthz</span></code> (<a class="reference internal" href="#dls-browser"><span class="std std-ref">Open it in the browser</span></a>): if not, the workstation’s
+firewall blocks the port.</p>
+</section>
 </section>
 <section id="logs">
 <h2>Logs<a class="headerlink" href="#logs" title="Link to this heading">#</a></h2>
 <p>The user journal is not available to users on DLS workstations, so <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span></code> shows
 nothing. Each container keeps its own output:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">logs</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">app</span>
-<span class="n">podman</span> <span class="n">logs</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span>
-<span class="n">ts</span> <span class="n">status</span>
 </pre></div>
 </div>
 <p>Under systemd (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>), a container is removed when its unit stops, and its logs go
 with it.</p>
-</section>
-<section id="optional-ingest-on-your-claude-seat">
-<span id="dls-ingest"></span><h2>Optional: ingest on your Claude seat<a class="headerlink" href="#optional-ingest-on-your-claude-seat" title="Link to this heading">#</a></h2>
-<p>Photos are queued but not sent to Claude until you turn ingest on. On a Claude Team or
-Enterprise seat it runs through Claude Code with a long-lived token
-(<a class="reference internal" href="../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>). First
-check with your organisation’s Claude admin that unattended use of your seat is allowed. The
-token can use your whole seat, and calls count against your seat’s usage limits.</p>
-<ol class="arabic">
-<li><p>On any machine with Claude Code logged in to your seat, run <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code> and copy the
-token it prints: only the token, one line of about 108 characters starting <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-</span></code>,
-not the line after it.</p></li>
-<li><p>From the clone, build the image with the CLI added:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> \
-    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
-</pre></div>
-</div>
-<p>Rebuild this image whenever you rebuild <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code>, or scrap keeps running the old
-one.</p>
-</li>
-<li><p>Add to <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, which stays mode 600 on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code> (never put the token in your NFS
-home):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
-<span class="n">SCRAP_LLM_BACKEND</span><span class="o">=</span><span class="n">cli</span>
-<span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">token</span><span class="o">&gt;</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span> <span class="pre">scrap-pod-app</span></code> shows the container’s environment, token included, in plain
-text: do not paste its output anywhere.</p>
-</li>
-<li><p>Recreate scrap’s container as in <a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>, with <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:dev</span></code> in place
-of <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> (under systemd, regenerate the units).</p></li>
-</ol>
-<p>What the token gives away, the budget and the limits are in the how-to’s “On a Claude seat, with
-no API key”, under <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>. An API key works instead: it comes from a Claude
-Console account, which is separate from a seat and billed per use.</p>
-<p>If ingest pauses for <code class="docutils literal notranslate"><span class="pre">auth</span></code> with <code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">OAuth</span> <span class="pre">access</span> <span class="pre">token</span> <span class="pre">is</span> <span class="pre">invalid</span></code>, the token was copied
-wrongly. Put only the <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-…</span></code> token in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, recreate scrap’s container
-(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>), then press <strong>Resume</strong> on the paused photo in the app (or
-<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/ingest/resume</span></code>). Nothing is lost while ingest is paused.</p>
 </section>
 <section id="update-or-change-settings">
 <span id="dls-update"></span><h2>Update or change settings<a class="headerlink" href="#update-or-change-settings" title="Link to this heading">#</a></h2>
@@ -819,21 +778,19 @@ or to run a newly built image, remove scrap’s container and run it again:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman rm -f scrap-pod-app
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
-    localhost/scrap:dev serve --host 127.0.0.1 --port 8000
+    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
 </pre></div>
 </div>
-<p>Back up first if the new image may change the database: see <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>. To update
-Tailscale, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pull</span></code> its image, then remove and run <code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code> the same way. Its login
-and Serve setting are kept on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>.</p>
+<p>Back up first if the new image may change the database: see <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>.</p>
 <p>Under systemd (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>), do not remove containers by hand. The units create each
 container afresh at every start, reading <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> again and running whatever
-<code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> (or Tailscale’s pulled image) now is, so after a settings change or a
-rebuild, restart the container’s unit:</p>
+<code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> now is, so after a settings change or a rebuild, restart the container’s
+unit:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">restart</span> <span class="n">container</span><span class="o">-</span><span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">app</span><span class="o">.</span><span class="n">service</span>
 </pre></div>
 </div>
-<p>(<code class="docutils literal notranslate"><span class="pre">container-scrap-pod-ts.service</span></code> for Tailscale.) To change a container’s command line, such as
-switching to <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:dev</span></code>, regenerate the units as described there.</p>
+<p>To change a container’s command line, such as switching to <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:dev</span></code>,
+regenerate the units as described there.</p>
 </section>
 <section id="start-it-again">
 <h2>Start it again<a class="headerlink" href="#start-it-again" title="Link to this heading">#</a></h2>
@@ -850,21 +807,22 @@ below). That alone keeps a pod you started by hand alive; to start it at boot to
 <span id="dls-systemd"></span><h3>Optional: start it at boot with systemd<a class="headerlink" href="#optional-start-it-at-boot-with-systemd" title="Link to this heading">#</a></h3>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Not yet run end to end at DLS. The generated units have been checked with
-<code class="docutils literal notranslate"><span class="pre">systemd-analyze</span> <span class="pre">--user</span> <span class="pre">verify</span></code> on a DLS workstation, but not enabled there.</p>
+<p>Not yet run end to end at DLS. On a DLS workstation, units generated from this pod, published
+port included, have been verified, started, restarted and stopped, and scrap answered while they
+ran; enabling them, <code class="docutils literal notranslate"><span class="pre">enable-linger</span></code> and starting at boot have not been checked.</p>
 </div>
 <p>Podman 4.9 has no Quadlet <code class="docutils literal notranslate"><span class="pre">.pod</span></code> units, so generate systemd user units from the running pod
 instead; <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">generate</span> <span class="pre">systemd</span></code> prints a DEPRECATED notice recommending Quadlet, which you can
-ignore here. The units record each container’s command line, so the pod must be running as above.
-Each unit gets a guard so that it runs only on this workstation, not on another machine that mounts
-your NFS home:</p>
+ignore here. The units record the command lines of the pod (its published port included) and of
+each container in it, Tailscale’s too if you have added it, so the pod must be running as above.
+Each unit gets a guard so that it runs only on this workstation, not on another machine that
+mounts your NFS home:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>mkdir -p ~/.config/systemd/user
 cd ~/.config/systemd/user
 podman generate systemd --new --files --name scrap-pod
-for u in pod-scrap-pod container-scrap-pod-app container-scrap-pod-ts; do
-    mkdir -p $u.service.d
-    printf '[Unit]\nConditionPathIsDirectory=/scratch/%s/scrap-pod\n' "$USER" \
-        &gt;$u.service.d/host.conf
+for f in pod-scrap-pod.service container-scrap-pod-*.service; do
+    mkdir -p $f.d
+    printf '[Unit]\nConditionPathIsDirectory=/scratch/%s/scrap-pod\n' "$USER" &gt;$f.d/host.conf
 done
 systemd-analyze --user verify pod-scrap-pod.service
 </pre></div>
@@ -902,36 +860,240 @@ To restore, see <a class="reference internal" href="../how-to/deploy-single-serv
 </section>
 <section id="stop-or-remove-it">
 <h2>Stop or remove it<a class="headerlink" href="#stop-or-remove-it" title="Link to this heading">#</a></h2>
-<p>To stop scrap and Tailscale, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pod</span> <span class="pre">stop</span> <span class="pre">scrap-pod</span></code> (or, under systemd,
-<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">stop</span> <span class="pre">pod-scrap-pod.service</span></code>); start them again as above.</p>
-<p>To remove them, do these steps in order. If you set up systemd, the pod must be running under it
-for the first step, and the second uses <code class="docutils literal notranslate"><span class="pre">systemctl</span></code> instead of <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pod</span></code>.</p>
-<ol class="arabic">
-<li><p>While the pod is up, take it off your tailnet:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ts</span> <span class="n">serve</span> <span class="n">reset</span>
-<span class="n">ts</span> <span class="n">logout</span>
-</pre></div>
-</div>
-</li>
-<li><p>Stop and remove the pod:</p>
+<p>To stop scrap, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pod</span> <span class="pre">stop</span> <span class="pre">scrap-pod</span></code> (or, under systemd,
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">stop</span> <span class="pre">pod-scrap-pod.service</span></code>); start it again as above.</p>
+<p>To remove it, first take the pod off your tailnet if you added Tailscale
+(<a class="reference internal" href="#dls-tailscale-remove"><span class="std std-ref">Remove Tailscale</span></a>), then stop and remove the pod:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pod</span> <span class="n">stop</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span>
 <span class="n">podman</span> <span class="n">pod</span> <span class="n">rm</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span>
 </pre></div>
 </div>
 <p>Under systemd, run <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">pod-scrap-pod.service</span></code> instead, remove the
 <code class="docutils literal notranslate"><span class="pre">*scrap-pod*</span></code> files and folders from <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user</span></code>, and run
-<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code>.</p>
-</li>
-<li><p>Remove Tailscale’s state:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>rm -r /scratch/$USER/scrap-pod/tailscale
+<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code>. Take scrap out of Claude Code with <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">scrap</span></code>
+in a claude-sandbox container terminal, and remove its <code class="docutils literal notranslate"><span class="pre">local-port</span></code> (or <code class="docutils literal notranslate"><span class="pre">allow-ip</span></code>) line.</p>
+<p>Your data in <code class="docutils literal notranslate"><span class="pre">/scratch/$USER/scrap-pod</span></code> stays until you delete it.</p>
+</section>
+<section id="phone-capture-with-tailscale-recommended">
+<span id="dls-tailscale"></span><h2>Phone capture with Tailscale (recommended)<a class="headerlink" href="#phone-capture-with-tailscale-recommended" title="Link to this heading">#</a></h2>
+<p>scrap is mostly for quick capture from your phone: snap a whiteboard, share a link from another
+app, jot a note, from anywhere. The installed app keeps captures in an offline queue until scrap
+is reachable, and on Android it appears in the share sheet. Your phone cannot join the DLS
+network, so Tailscale carries scrap to it over HTTPS: a second container in the pod joins your
+own tailnet and publishes scrap there as <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code>. The desktop demo above
+works without it, but there is no phone capture without it.</p>
+<p><strong>Check with DLS IT policy before you run Tailscale on a workstation.</strong> It connects the
+workstation to an outside network that IT does not manage.</p>
+<p>The Tailscale container, <code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code>, runs with <code class="docutils literal notranslate"><span class="pre">--tun=userspace-networking</span></code>, so that it needs
+no network device. Tailscale Serve, in this container, publishes <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8000</span></code> (scrap,
+in the same pod) on your tailnet. It runs as you, like scrap: anything running as you can drive
+it, and whoever owns or administers your tailnet (you, if you follow <a class="reference internal" href="#dls-make-tailnet"><span class="std std-ref">Make a tailnet</span></a>) can
+reach scrap through it. See <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-access"><span class="std std-ref">Access and identity</span></a>.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">Why Tailscale does not run as root in its container</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">DLS workstations give every user the same subordinate id range in <code class="docutils literal notranslate"><span class="pre">/etc/subuid</span></code>. Rootless
+podman maps root in a container, and every id other than your own, into that range, so root in
+your container is the same workstation id as root in anyone else’s, and another user can become
+it with <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">unshare</span></code>. A <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> running as root in its container could then be
+signalled by other users, have its node key read, and be driven through its control socket via
+<code class="docutils literal notranslate"><span class="pre">/proc/&lt;pid&gt;/root</span></code>. So on these workstations, never run a long-lived container process as root,
+or as any id other than the one mapped to you, inside a rootless container. This page runs
+<code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> as user 10001, which is you. It does not need root: Serve here only forwards to
+<code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8000</span></code>.</p>
+</div>
+</details><p>You need a phone with the <a class="reference external" href="https://tailscale.com/download">Tailscale app</a>.</p>
+<section id="make-a-tailnet">
+<span id="dls-make-tailnet"></span><h3>Make a tailnet<a class="headerlink" href="#make-a-tailnet" title="Link to this heading">#</a></h3>
+<p><strong>Do not sign up with your <code class="docutils literal notranslate"><span class="pre">&#64;diamond.ac.uk</span></code> address.</strong> Tailscale ties a tailnet to a custom email
+domain: the first person to sign up with a <code class="docutils literal notranslate"><span class="pre">diamond.ac.uk</span></code> address creates a tailnet that owns
+that domain, and everyone who signs up with one later joins it, subject to its admins’ approval
+(see <a class="reference external" href="https://tailscale.com/docs/concepts/domain-ownership">domain ownership</a> and
+<a class="reference external" href="https://tailscale.com/kb/1239/user-approval">user approval</a>). It would also be treated as
+business use and start an Enterprise trial. Use a personal identity instead: a personal GitHub
+account, whose tailnet others can join only by invitation
+(<a class="reference external" href="https://tailscale.com/kb/1284/sso-github">GitHub</a>), or a personal Google, Apple or Microsoft
+account.</p>
+<ol class="arabic">
+<li><p>Sign up for a free Personal <a class="reference external" href="https://tailscale.com">Tailscale</a> account with that identity.</p></li>
+<li><p>Install the Tailscale app on your phone and log in to the same account. A phone is on one
+tailnet at a time.</p></li>
+<li><p>In the admin console, under <strong>DNS</strong>, turn on MagicDNS and
+<a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates</a>. Note the tailnet DNS name
+shown there, <code class="docutils literal notranslate"><span class="pre">&lt;tailnet&gt;.ts.net</span></code>.</p></li>
+<li><p>In the admin console, under <strong>Access controls</strong>, replace the whole policy with:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"grants"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">"src"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"autogroup:member"</span><span class="p">],</span><span class="w"> </span><span class="nt">"dst"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"autogroup:self"</span><span class="p">],</span><span class="w"> </span><span class="nt">"ip"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"tcp:443"</span><span class="p">]}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
 </pre></div>
 </div>
-<p>If that state was made by an older version of this page, which ran Tailscale as root in its
-container, some files are not yours: use <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">unshare</span> <span class="pre">rm</span> <span class="pre">-r</span></code> instead.</p>
 </li>
 </ol>
-<p>Then delete the machine under <strong>Machines</strong> in the Tailscale admin console, if it is still listed.</p>
-<p>Your data in <code class="docutils literal notranslate"><span class="pre">/scratch/$USER/scrap-pod</span></code> stays until you delete it.</p>
+<p>Do step 4 <strong>before</strong> the pod joins the tailnet. In userspace mode, Tailscale forwards an inbound
+tailnet connection to any TCP port that Serve does not handle to the same port on the pod’s
+<code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> (<a class="reference external" href="https://github.com/tailscale/tailscale/tree/main/wgengine/netstack">wgengine/netstack</a>).
+Under the default policy, which lets every device reach every port, any device on your tailnet
+could reach scrap directly on port 8000, over plain HTTP and without the identity header that
+Serve adds. This policy lets your own devices reach each other on port 443 only, and nothing
+else. Replacing the policy wipes whatever was there, which is fine only because the tailnet is
+new; it also drops the default policy’s <code class="docutils literal notranslate"><span class="pre">nodeAttrs</span></code> that allow Funnel, so scrap cannot be put on
+the internet by mistake.</p>
+</section>
+<section id="add-tailscale-to-the-pod">
+<span id="dls-tailscale-add"></span><h3>Add Tailscale to the pod<a class="headerlink" href="#add-tailscale-to-the-pod" title="Link to this heading">#</a></h3>
+<p>Pick a name for the pod on your tailnet, such as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>; it becomes
+<code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code>. Add that address to the end of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> in
+<code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, after a comma, so that Claude Code on another tailnet device can use <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
+through it too:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">http</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.</span><span class="n">diamond</span><span class="o">.</span><span class="n">ac</span><span class="o">.</span><span class="n">uk</span><span class="p">:</span><span class="mi">8790</span><span class="p">,</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="p">:</span><span class="mi">8790</span><span class="p">,</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span>
+</pre></div>
+</div>
+<p>Keep the hostname first, so that the links Claude Code gives you still open in the workstation’s
+browser, and keep any IP address you added for <a class="reference internal" href="#dls-claude-other"><span class="std std-ref">From claude-sandbox on another machine</span></a>. Recreate scrap’s
+container (<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>). Then fetch Tailscale’s image, make a folder for its state, and
+start it in the pod:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman pull docker.io/tailscale/tailscale:stable
+mkdir -p $base/tailscale
+podman run -d --pod scrap-pod --name scrap-pod-ts --user 10001:10001 \
+    -v $base/tailscale:/var/lib/tailscale:z \
+    --entrypoint tailscaled docker.io/tailscale/tailscale:stable \
+    --tun=userspace-networking --statedir=/var/lib/tailscale --socket=/tmp/tailscaled.sock
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">stable</span></code> moves with each release. To stay on one version, use a tag such as <code class="docutils literal notranslate"><span class="pre">v1.104.2</span></code>
+instead, here and below.</p></li>
+<li><p>Tailscale’s state identifies this machine on your tailnet, so it stays on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, not in
+your NFS home.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">10001:10001</span></code> runs <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code> as you. Containers in this pod run as 10001 anyway,
+but the page says so because it matters: see “Why Tailscale does not run as root in its
+container” above.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--socket=/tmp/tailscaled.sock</span></code> puts <code class="docutils literal notranslate"><span class="pre">tailscaled</span></code>’s control socket where user 10001 can create
+it; the default, under <code class="docutils literal notranslate"><span class="pre">/var/run/tailscale</span></code>, needs root.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--entrypoint</span> <span class="pre">tailscaled</span></code> skips the image’s own start-up script, which gives up and exits if
+you have not logged in within about 40 seconds.</p></li>
+</ul>
+<p>Check that Tailscale’s container reaches scrap inside the pod; it should print
+<code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span> <span class="n">wget</span> <span class="o">-</span><span class="n">qO</span><span class="o">-</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">healthz</span>
+</pre></div>
+</div>
+</section>
+<section id="join-your-tailnet-and-publish-scrap">
+<h3>Join your tailnet and publish scrap<a class="headerlink" href="#join-your-tailnet-and-publish-scrap" title="Link to this heading">#</a></h3>
+<p>Every <code class="docutils literal notranslate"><span class="pre">tailscale</span></code> command must name that socket, so define a shell function for them (again in
+each new shell, like <code class="docutils literal notranslate"><span class="pre">$base</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ts</span><span class="p">()</span> <span class="p">{</span> <span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="o">--</span><span class="n">socket</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">tailscaled</span><span class="o">.</span><span class="n">sock</span> <span class="s2">"$@"</span><span class="p">;</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>Log in, with a terminal attached so that you can watch it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">exec</span> <span class="o">-</span><span class="n">it</span> <span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="o">--</span><span class="n">socket</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">tailscaled</span><span class="o">.</span><span class="n">sock</span> <span class="n">up</span> <span class="o">--</span><span class="n">hostname</span><span class="o">=</span><span class="n">scrap</span>
+</pre></div>
+</div>
+<p>This prints a login URL and waits: open it in any browser and log in to your new tailnet. (To
+join without a browser, make an <a class="reference external" href="https://tailscale.com/kb/1085/auth-keys">auth key</a> in the admin
+console and pass <code class="docutils literal notranslate"><span class="pre">--auth-key=&lt;key&gt;</span></code> instead.) Then publish scrap with Tailscale Serve on the
+standard HTTPS port:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ts</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">443</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span>
+<span class="n">ts</span> <span class="n">serve</span> <span class="n">status</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">--bg</span></code> keeps the setting, in Tailscale’s state on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, across restarts. <code class="docutils literal notranslate"><span class="pre">serve</span> <span class="pre">status</span></code>
+prints the address. If it is not <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code> (Tailscale adds a suffix if the
+name is taken), put the real one in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> and recreate scrap’s container
+(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>). Where UDP is blocked, Tailscale falls back to its DERP relays over HTTPS on
+port 443: slower, but it works.</p>
+</section>
+<section id="check-it-from-your-phone">
+<span id="dls-check"></span><h3>Check it from your phone<a class="headerlink" href="#check-it-from-your-phone" title="Link to this heading">#</a></h3>
+<p>The workstation itself is not on your tailnet (only the pod is), so check from your phone: with
+Tailscale connected, open <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net/healthz</span></code>, which should show
+<code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. The first request can take a few seconds while Tailscale fetches the
+certificate.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">status</span></code> shows the pod’s node as offline, or a device hangs on “loading…”, run
+<code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">up</span> <span class="pre">--hostname=scrap</span></code> again: after a restart the node’s registration can stall, and running
+<code class="docutils literal notranslate"><span class="pre">up</span></code> again registers it at once. The login and Serve setting are kept.</p>
+</section>
+<section id="open-it-on-your-phone">
+<span id="dls-phone"></span><h3>Open it on your phone<a class="headerlink" href="#open-it-on-your-phone" title="Link to this heading">#</a></h3>
+<p>With the Tailscale app connected, open <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code> on your phone and install
+the app: see <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>. Captures made while the workstation is off, or the pod
+stopped, wait in the app’s offline queue and are sent when it is back.</p>
+</section>
+<section id="run-and-update-tailscale">
+<h3>Run and update Tailscale<a class="headerlink" href="#run-and-update-tailscale" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap-pod-ts</span></code> and <code class="docutils literal notranslate"><span class="pre">ts</span> <span class="pre">status</span></code> show what Tailscale is doing. <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pod</span> <span class="pre">start</span></code> and
+<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pod</span> <span class="pre">stop</span></code> start and stop it with scrap. To update it, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pull</span></code> its image, then
+remove and run <code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code> as above; its login and Serve setting are kept on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>.
+Under systemd, add Tailscale before you generate the units, so that they include it, and
+restart <code class="docutils literal notranslate"><span class="pre">container-scrap-pod-ts.service</span></code> after a pull.</p>
+</section>
+<section id="remove-tailscale">
+<span id="dls-tailscale-remove"></span><h3>Remove Tailscale<a class="headerlink" href="#remove-tailscale" title="Link to this heading">#</a></h3>
+<p>While the pod is up, take it off your tailnet, then remove the container and its state:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>ts serve reset
+ts logout
+podman rm -f scrap-pod-ts
+rm -r /scratch/$USER/scrap-pod/tailscale
+</pre></div>
+</div>
+<p>If you set up systemd, the pod must be running under it for the first two commands, and you
+regenerate the units without <code class="docutils literal notranslate"><span class="pre">scrap-pod-ts</span></code> afterwards (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>). If Tailscale’s state
+was made by an older version of this page, which ran Tailscale as root in its container, some
+files are not yours: use <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">unshare</span> <span class="pre">rm</span> <span class="pre">-r</span></code> instead. Then delete the machine under
+<strong>Machines</strong> in the Tailscale admin console, if it is still listed, and take its address out of
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>.</p>
+</section>
+</section>
+<section id="optional-ingest-on-your-claude-seat">
+<span id="dls-ingest"></span><h2>Optional: ingest on your Claude seat<a class="headerlink" href="#optional-ingest-on-your-claude-seat" title="Link to this heading">#</a></h2>
+<p>Photos are queued but not sent to Claude until you turn ingest on. On a Claude Team or
+Enterprise seat it runs through Claude Code with a long-lived token
+(<a class="reference internal" href="../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>). First
+check with your organisation’s Claude admin that unattended use of your seat is allowed. The
+token can use your whole seat, and calls count against your seat’s usage limits. With no login,
+anyone on the DLS network can upload photos while the port is published, and each is ingested
+on your seat: consider leaving ingest off for the demo, or keep an eye on the daily budget.</p>
+<ol class="arabic">
+<li><p>On any machine with Claude Code logged in to your seat, run <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code> and copy the
+token it prints: only the token, one line of about 108 characters starting <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-</span></code>,
+not the line after it.</p></li>
+<li><p>From the clone, build the image with the CLI added:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> \
+    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
+</pre></div>
+</div>
+<p>Rebuild this image whenever you rebuild <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code>, or scrap keeps running the old
+one.</p>
+</li>
+<li><p>Add to <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, which stays mode 600 on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code> (never put the token in your NFS
+home):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
+<span class="n">SCRAP_LLM_BACKEND</span><span class="o">=</span><span class="n">cli</span>
+<span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">token</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span> <span class="pre">scrap-pod-app</span></code> shows the container’s environment, token included, in plain
+text: do not paste its output anywhere.</p>
+</li>
+<li><p>Recreate scrap’s container as in <a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>, with <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:dev</span></code> in place
+of <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> (under systemd, regenerate the units).</p></li>
+</ol>
+<p>What the token gives away, the budget and the limits are in the how-to’s “On a Claude seat, with
+no API key”, under <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>. An API key works instead: it comes from a Claude
+Console account, which is separate from a seat and billed per use.</p>
+<p>If ingest pauses for <code class="docutils literal notranslate"><span class="pre">auth</span></code> with <code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">OAuth</span> <span class="pre">access</span> <span class="pre">token</span> <span class="pre">is</span> <span class="pre">invalid</span></code>, the token was copied
+wrongly. Put only the <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-…</span></code> token in <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, recreate scrap’s container
+(<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>), then press <strong>Resume</strong> on the paused photo in the app (or
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/ingest/resume</span></code>). Nothing is lost while ingest is paused.</p>
+</section>
+<section id="where-this-goes-next">
+<h2>Where this goes next<a class="headerlink" href="#where-this-goes-next" title="Link to this heading">#</a></h2>
+<p>Real adoption at DLS will run scrap on Kubernetes (<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>), behind
+a Keycloak login. Nothing on this page needs undoing first: it is the same image, and a backup
+of the data here can be restored there (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-restore"><span class="std std-ref">Restore</span></a>).</p>
 </section>
 </section>
 
@@ -983,19 +1145,17 @@ container, some files are not yours: use <code class="docutils literal notransla
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-it-fits-together">How it fits together</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-runs-as-you">What runs as you</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#make-a-tailnet">Make a tailnet</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#make-the-data-folder">Make the data folder</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-the-image">Build the image</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#write-scrap-s-settings">Write scrap’s settings</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-the-pod">Create the pod</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#join-your-tailnet-and-publish-scrap">Join your tailnet and publish scrap</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#check-it-from-another-device">Check it from another device</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-in-the-browser">Open it in the browser</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">Connect Claude Code</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#from-claude-sandbox-on-another-machine">From claude-sandbox on another machine</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-on-your-phone">Open it on your phone</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">Connect Claude Code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logs">Logs</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-ingest-on-your-claude-seat">Optional: ingest on your Claude seat</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-or-change-settings">Update or change settings</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#start-it-again">Start it again</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-start-it-at-boot-with-systemd">Optional: start it at boot with systemd</a></li>
@@ -1003,6 +1163,18 @@ container, some files are not yours: use <code class="docutils literal notransla
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#back-up">Back up</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stop-or-remove-it">Stop or remove it</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phone-capture-with-tailscale-recommended">Phone capture with Tailscale (recommended)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#make-a-tailnet">Make a tailnet</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#add-tailscale-to-the-pod">Add Tailscale to the pod</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#join-your-tailnet-and-publish-scrap">Join your tailnet and publish scrap</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#check-it-from-your-phone">Check it from your phone</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-on-your-phone">Open it on your phone</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#run-and-update-tailscale">Run and update Tailscale</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#remove-tailscale">Remove Tailscale</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-ingest-on-your-claude-seat">Optional: ingest on your Claude seat</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-this-goes-next">Where this goes next</a></li>
 </ul>
   </nav></div>
 

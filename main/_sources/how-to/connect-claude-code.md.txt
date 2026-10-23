@@ -5,7 +5,8 @@ Claude Code sessions can search, read and write scrap through its MCP server (se
 over HTTPS on the tailnet.
 
 If scrap runs in a podman pod on a DLS workstation, follow {ref}`dls-claude-code` in the DLS
-tutorial instead: setting the address and restarting scrap work differently there.
+tutorial instead: there Claude Code runs in claude-sandbox and reaches scrap on a port of the
+workstation, not over the tailnet, and setting the address and restarting scrap work differently.
 
 Before you start you need:
 

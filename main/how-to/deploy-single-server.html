@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.1.dev372+g313a57fb7 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.1.dev376+g999393393 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bc02b9be"></script>
+    <script src="../_static/documentation_options.js?v=d55197f0"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -498,8 +498,8 @@ socket that only its own user (and root) can open;
 nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.</p>
 <p>Podman is the tested path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
 units up by hand: see <a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
-<a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>. To try it on a DLS workstation without <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, see
-<a class="reference internal" href="../tutorials/dls-workstation.html"><span class="std std-doc">Try scrap on a DLS workstation</span></a>.</p>
+<a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>. To demo it on a DLS workstation without <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, see
+<a class="reference internal" href="../tutorials/dls-workstation.html"><span class="std std-doc">Try scrap on a DLS workstation (open-source demo)</span></a>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>v0 of scrap has <strong>no login</strong>. Anyone who can reach it can read and change everything.

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.1.dev372+g313a57fb7 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.1.dev376+g999393393 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bc02b9be"></script>
+    <script src="../_static/documentation_options.js?v=d55197f0"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -495,7 +495,8 @@
 <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>). Nothing is installed on the session’s machine: it talks to <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
 over HTTPS on the tailnet.</p>
 <p>If scrap runs in a podman pod on a DLS workstation, follow <a class="reference internal" href="../tutorials/dls-workstation.html#dls-claude-code"><span class="std std-ref">Connect Claude Code</span></a> in the DLS
-tutorial instead: setting the address and restarting scrap work differently there.</p>
+tutorial instead: there Claude Code runs in claude-sandbox and reaches scrap on a port of the
+workstation, not over the tailnet, and setting the address and restarting scrap work differently.</p>
 <p>Before you start you need:</p>
 <ul class="simple">
 <li><p>scrap running and published on your tailnet, so that the machine running Claude Code can open
