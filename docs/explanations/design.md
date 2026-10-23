@@ -628,7 +628,9 @@ font subsetting is an Emscripten module), which `script-src 'self'` alone blocks
 WebAssembly only, not `eval()`, `new Function()` or inline scripts, and `tests/csp.test.ts` keeps
 `'unsafe-eval'` and `'unsafe-inline'` out of `script-src`. The font subsetting module also builds
 functions with `Function()`, which only `'unsafe-eval'` would allow; that is refused, so Excalidraw
-logs "Skipped glyph subsetting" and exports with whole fonts (larger files, same drawing)
+logs "Skipped glyph subsetting" and an SVG export embeds the whole font it uses instead of
+the glyphs drawn (about 40 kB against 13 kB for a three-box sketch); PNG exports, the stored
+drawing, which holds no fonts, and what shows on screen are unchanged
 ([issue 105](https://github.com/gilesknap/scrap/issues/105)).
 
 The server parses with markdown-it-py (`scrap/markdown.py`, with mdit-py-plugins for footnotes):
