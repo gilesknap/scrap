@@ -376,7 +376,7 @@ def test_capture_rejects_a_lone_surrogate(client, field):
         {"base_rev": 1, "body": "a\ud800"},
         {"kind": "\ud800"},
         {"due": "\ud800"},
-        {"fields": {"\ud800": "x"}},
+        {"fields": {"zzkey\ud800": "x"}},
         {"fields": {"k": "\ud800"}},
         {"tags_shown": ["\ud800"]},
     ],
@@ -387,6 +387,7 @@ def test_edit_rejects_a_lone_surrogate_without_echoing_it(client, note, edit):
     sent = client.patch(url, content=body, headers={"content-type": "application/json"})
     assert sent.status_code == 422
     assert "ud800" not in sent.text
+    assert "zzkey" not in sent.text  # not even in loc
 
 
 def test_capture_with_tags_is_tagged_and_indexed_at_once(client):

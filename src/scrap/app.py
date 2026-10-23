@@ -81,12 +81,15 @@ NOT_BUILT = (
 )
 
 
+SURROGATE_MSG = "a lone surrogate"
+
+
 def _encodable(value: str) -> str:
     """Refuse a lone surrogate: JSON can escape one, but the database cannot store it
     (a 500). The error does not carry the text, as invalid_request omits the input."""
     if value.isascii() or SURROGATE.search(value) is None:
         return value
-    raise ValueError("must be valid Unicode (a lone surrogate)")
+    raise ValueError(f"must be valid Unicode ({SURROGATE_MSG})")
 
 
 # Every request string that can reach the database goes through this
@@ -300,13 +303,19 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
         app.add_exception_handler(exc, handler)
 
+    def place(error: Any) -> list[Any]:
+        """Where an error is; a map key that is itself the bad text is not named."""
+        loc = list(error["loc"])
+        if SURROGATE_MSG in error["msg"] and "fields" in loc:
+            loc = loc[: loc.index("fields") + 1] + ["*"]
+        return loc
+
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):
         """422 as FastAPI's, without each error's input: 1e400 parses to infinity, which
         JSON cannot carry back (that would be a 500)."""
         detail = [
-            {"type": e["type"], "loc": list(e["loc"]), "msg": e["msg"]}
-            for e in exc.errors()
+            {"type": e["type"], "loc": place(e), "msg": e["msg"]} for e in exc.errors()
         ]
         return JSONResponse({"detail": detail}, 422)
 
