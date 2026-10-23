@@ -5,7 +5,7 @@ import os
 import pytest
 
 from scrap import importer
-from scrap.store import Store
+from scrap.store import MAX_PAGE, Store
 
 PNG = b"synthetic png bytes"
 SHA = hashlib.sha256(PNG).hexdigest()
@@ -363,6 +363,18 @@ def test_symlinks_unreadable_and_large_files_are_skipped(tmp_path, monkeypatch):
     assert [p.path for p in plan.pages] == ["notes/page.md"]
     with store.connect() as conn:
         assert conn.execute("SELECT count(*) FROM blob").fetchone()[0] == 0
+
+
+def test_a_huge_page_is_skipped_and_links_to_it_reported(tmp_path):
+    root = tmp_path / "v"
+    write(root, "notes/huge.md", "x" * (MAX_PAGE + 1))
+    write(root, "notes/ok.md", "see [huge](huge.md)\n")
+    _, plan = edge_plan(tmp_path, root)
+    assert [p.path for p in plan.pages] == ["notes/ok.md"]
+    assert plan.issues["too large"] == [
+        f"notes/huge.md: {MAX_PAGE + 1:,} bytes, over {MAX_PAGE:,}"
+    ]
+    assert plan.issues["link to dropped page"] == ["notes/ok.md: notes/huge.md"]
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root reads anything")

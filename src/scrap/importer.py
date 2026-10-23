@@ -26,6 +26,7 @@ from .store import (
     CROCKFORD,
     DEFAULT_FIELDS,
     MAX_INT,
+    MAX_PAGE,
     BlobRef,
     Store,
     lines,
@@ -183,8 +184,12 @@ def _skipped_dir(part: str) -> bool:
 
 def _read(plan: Plan, rel: str, path: Path) -> Page | None:
     try:
+        stat = path.stat()
+        if stat.st_size > MAX_PAGE:  # as for a page saved through the API (#62)
+            plan.note("too large", rel, f"{stat.st_size:,} bytes, over {MAX_PAGE:,}")
+            return None
         text = lines(path.read_text(encoding="utf-8", errors="replace"))
-        mtime = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+        mtime = datetime.fromtimestamp(stat.st_mtime, UTC)
     except OSError as e:
         plan.note("unreadable", rel, e.strerror or type(e).__name__)
         return None
