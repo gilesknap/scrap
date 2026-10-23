@@ -128,7 +128,10 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|' ~/.config/
 ./deploy/install.sh
 ```
 
-(If you built `localhost/scrap:dev` instead, the first run starts it.) The script:
+(If you built `localhost/scrap:dev` instead, the first run starts it.) If the file names
+`SCRAP_IMAGE` more than once the last line wins, as it does for systemd. The settings and units
+always live under `~/.config`: the units name `%h/.config/scrap/env` and a unit cannot see
+`XDG_CONFIG_HOME`, so `install.sh` ignores that variable (and says so). The script:
 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
@@ -827,7 +830,8 @@ clean exit (status 0) is not restarted. Run `./deploy/smoke.sh` to see that it a
 **The service stops restarting: "start request repeated too quickly".** After 5 failed starts
 in 5 minutes (a missing image, a missing `ingest.env`, a bad setting) systemd stops trying. Fix
 the cause (`journalctl --user -u scrap -e`), then
-`systemctl --user reset-failed scrap && systemctl --user start scrap`.
+`systemctl --user reset-failed scrap && systemctl --user start scrap`. Re-running `install.sh`
+does the `reset-failed` for you.
 
 **scrap will not start and `ingest.env` is missing or a dangling symlink.** The launcher passes
 `~/.config/scrap/ingest.env` to podman unconditionally. `install.sh` only warns about a
