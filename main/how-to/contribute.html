@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Contribute to the project &#8212; scrap 0.2.1.dev19+g7266ad5c7 documentation</title>
+    <title>Contribute to the project &#8212; scrap 0.2.1.dev22+g3b31118dc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4ea35a97"></script>
+    <script src="../_static/documentation_options.js?v=4e2f587b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -604,8 +604,9 @@ pull request.</p>
 <section id="deployment-scripts-and-the-helm-chart">
 <h2>Deployment scripts and the Helm chart<a class="headerlink" href="#deployment-scripts-and-the-helm-chart" title="Link to this heading">#</a></h2>
 <p>The scripts in <code class="docutils literal notranslate"><span class="pre">deploy/</span></code> are covered by <code class="docutils literal notranslate"><span class="pre">tests/test_deploy.py</span></code>, which runs under
-pytest. Its tests put a fake <code class="docutils literal notranslate"><span class="pre">podman</span></code> (or <code class="docutils literal notranslate"><span class="pre">systemctl</span></code>) on <code class="docutils literal notranslate"><span class="pre">PATH</span></code> that records its
-arguments, so none of them needs podman or root. When you change a script, add
+pytest. Its tests put a fake <code class="docutils literal notranslate"><span class="pre">podman</span></code> (or <code class="docutils literal notranslate"><span class="pre">systemctl</span></code>) in a temporary folder that records its
+arguments (the scripts call <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code>, so the tests point <code class="docutils literal notranslate"><span class="pre">PODMAN</span></code> at the
+fake; it is a test hook, not a setting), so none of them needs podman or root. When you change a script, add
 a test of that kind instead of trying it on a live install.</p>
 <p><code class="docutils literal notranslate"><span class="pre">./deploy/test-retention.sh</span></code> runs the <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> pruning checks on their
 own, also without podman or root, and prints <code class="docutils literal notranslate"><span class="pre">ok</span></code> or <code class="docutils literal notranslate"><span class="pre">FAIL</span></code> for each case. It
@@ -614,7 +615,9 @@ that symlinks and other directories are left alone, that a bad <code class="docu
 (<code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">00</span></code>, empty, <code class="docutils literal notranslate"><span class="pre">abc</span></code>, <code class="docutils literal notranslate"><span class="pre">-1</span></code>, <code class="docutils literal notranslate"><span class="pre">2x</span></code>) is refused, and that a second run in the
 same second stops before it calls podman. <code class="docutils literal notranslate"><span class="pre">tests/test_deploy.py</span></code> runs it as
 <code class="docutils literal notranslate"><span class="pre">test_backup_retention</span></code>, and also tests the <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> wrapper. Extend these
-when you change <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>.</p>
+when you change <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>. <code class="docutils literal notranslate"><span class="pre">./deploy/test-check-env.sh</span></code> does the
+same for <code class="docutils literal notranslate"><span class="pre">deploy/check-env</span></code>, which <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> and <code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> use to refuse env
+files that systemd and the shell would read differently.</p>
 <p>After a change to <code class="docutils literal notranslate"><span class="pre">charts/</span></code>, run <code class="docutils literal notranslate"><span class="pre">./charts/test-chart.sh</span></code> (needs <code class="docutils literal notranslate"><span class="pre">helm</span></code> and
 <code class="docutils literal notranslate"><span class="pre">kubeconform</span></code> on your PATH). For every <code class="docutils literal notranslate"><span class="pre">charts/scrap/ci/*-values.yaml</span></code> it:</p>
 <ul class="simple">
