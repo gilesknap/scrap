@@ -27,8 +27,11 @@ export const drawingTheme = (pref: DrawPref, app: Theme): Theme => (pref === "ap
 const system = () => matchMedia("(prefers-color-scheme: dark)");
 const listeners = new Set<() => void>();
 
-export const getAppPref = () => appPref(kept(APP_KEY));
-export const getDrawPref = () => drawPref(kept(DRAW_KEY));
+// Held here as well: with storage refused (a private tab) the choice still lasts the session
+let app: AppPref | null = null;
+let draw: DrawPref | null = null;
+export const getAppPref = () => (app ??= appPref(kept(APP_KEY)));
+export const getDrawPref = () => (draw ??= drawPref(kept(DRAW_KEY)));
 export const currentApp = () => appTheme(getAppPref(), system().matches);
 export const currentDrawings = () => drawingTheme(getDrawPref(), currentApp());
 
@@ -52,12 +55,14 @@ export function onTheme(fn: () => void): () => void {
 }
 
 export function setAppPref(pref: AppPref) {
+  app = pref;
   kept(APP_KEY, pref === "system" ? null : pref);
   applyTheme();
   for (const fn of [...listeners]) fn();
 }
 
 export function setDrawPref(pref: DrawPref) {
+  draw = pref;
   kept(DRAW_KEY, pref === "light" ? null : pref);
   for (const fn of [...listeners]) fn();
 }

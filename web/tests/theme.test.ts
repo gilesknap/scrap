@@ -1,5 +1,14 @@
-import { describe, expect, test } from "vitest";
-import { appPref, appTheme, drawingTheme, drawPref } from "../src/theme";
+import { describe, expect, test, vi } from "vitest";
+import {
+  appPref,
+  appTheme,
+  drawingTheme,
+  drawPref,
+  getAppPref,
+  getDrawPref,
+  setAppPref,
+  setDrawPref,
+} from "../src/theme";
 
 describe("app theme", () => {
   test("system follows the OS, a choice overrides it", () => {
@@ -26,5 +35,23 @@ describe("drawings theme", () => {
     expect(drawingTheme(drawPref("dark"), "light")).toBe("dark");
     expect(drawingTheme(drawPref("app"), "dark")).toBe("dark");
     expect(drawingTheme(drawPref("app"), "light")).toBe("light");
+  });
+});
+
+describe("with storage refused", () => {
+  test("a choice still holds for the session", () => {
+    const refuse = () => {
+      throw new Error("denied");
+    };
+    vi.stubGlobal("localStorage", { getItem: refuse, setItem: refuse, removeItem: refuse });
+    vi.stubGlobal("document", {
+      documentElement: { dataset: {}, removeAttribute() {} },
+      querySelectorAll: () => [],
+    });
+    setAppPref("dark");
+    setDrawPref("app");
+    expect(getAppPref()).toBe("dark");
+    expect(getDrawPref()).toBe("app");
+    vi.unstubAllGlobals();
   });
 });
