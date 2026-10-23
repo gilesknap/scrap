@@ -11,6 +11,7 @@ revision that revert undoes; nothing deletes a page."""
 
 import difflib
 import hashlib
+import hmac
 import html
 import os
 import re
@@ -22,6 +23,8 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
+from starlette.responses import PlainTextResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from . import __version__
 from .store import (
@@ -122,6 +125,68 @@ def security(urls: list[str]) -> TransportSecuritySettings:
         if parts.port is None:  # a proxy may add the default port
             hosts.append(f"{parts.netloc}:*")
     return TransportSecuritySettings(allowed_hosts=hosts, allowed_origins=origins)
+
+
+def tokens() -> list[str]:
+    """The bearer tokens /mcp requires: $SCRAP_MCP_TOKEN (comma separated) and the
+    lines of the file $SCRAP_MCP_TOKEN_FILE (blank lines and # comments skipped).
+    Neither set: none, and /mcp is open as before. A setting that yields no token
+    (an empty value, an empty or missing file) stops scrap starting: auth that
+    silently turned itself off would be worse than no start."""
+    found, given = [], False
+    if (raw := os.environ.get("SCRAP_MCP_TOKEN")) is not None:
+        given = True
+        found += [t.strip() for t in raw.split(",") if t.strip()]
+    if (path := os.environ.get("SCRAP_MCP_TOKEN_FILE")) is not None:
+        given = True
+        try:
+            with open(path, encoding="utf-8") as f:
+                lines = [line.strip() for line in f]
+        except OSError as error:
+            raise SystemExit(
+                f"SCRAP_MCP_TOKEN_FILE: cannot read {path!r}: {error.strerror}"
+            ) from error
+        found += [line for line in lines if line and not line.startswith("#")]
+    if given and not found:
+        raise SystemExit("SCRAP_MCP_TOKEN(_FILE) is set but holds no token")
+    return found
+
+
+class BearerAuth:
+    """ASGI middleware: /mcp (only) needs `Authorization: Bearer <token>`, one of
+    `tokens`, else 401 with `WWW-Authenticate: Bearer`. It runs ahead of the Host and
+    Origin checks and of every tool. Compared in constant time; the token is never
+    logged or echoed."""
+
+    def __init__(self, app: ASGIApp, tokens: list[str]) -> None:
+        self.app = app
+        self.tokens = [t.encode() for t in tokens]
+
+    def allowed(self, scope: Scope) -> bool:
+        value = b""
+        for name, v in scope["headers"]:
+            if name == b"authorization":
+                value = v
+                break
+        scheme, _, given = value.partition(b" ")
+        if scheme.lower() != b"bearer":
+            return False
+        given = given.strip()
+        ok = False
+        for token in self.tokens:  # every token, so the time says nothing of which
+            ok |= hmac.compare_digest(given, token)
+        return ok
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = scope.get("path", "")
+        guarded = path == "/mcp" or path.startswith("/mcp/")
+        if scope["type"] == "http" and guarded and not self.allowed(scope):
+            response = PlainTextResponse(
+                "Unauthorized", 401, {"WWW-Authenticate": "Bearer"}
+            )
+            await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
 
 
 def content_edit() -> bool:

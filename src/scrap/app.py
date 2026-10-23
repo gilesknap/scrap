@@ -129,9 +129,15 @@ class PageEdit(BaseModel):
         }
 
 
+IDENTITY_HEADER = "Tailscale-User-Login"
+
+
 def author(request: Request) -> str:
-    # Set by Tailscale Serve; tagged devices (and anything else) send none.
-    return request.headers.get("Tailscale-User-Login") or "tagged"
+    # $SCRAP_IDENTITY_HEADER (default Tailscale-User-Login, set by Tailscale Serve);
+    # tagged devices, and anything else without it, send none. Only this header is
+    # trusted, so a proxy that sets another (X-Auth-Request-User) names it here.
+    name = os.environ.get("SCRAP_IDENTITY_HEADER", "").strip() or IDENTITY_HEADER
+    return request.headers.get(name) or "tagged"
 
 
 def attachment(name: str) -> str:
@@ -233,6 +239,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     app.state.worker = worker
     app.add_middleware(BodyLimit, limit=limit)
     app.add_middleware(TextGzip)
+    if bearer := mcp_server.tokens():  # added last, so outermost: before any work
+        app.add_middleware(mcp_server.BearerAuth, tokens=bearer)
 
     for exc, status in ERRORS.items():
 
