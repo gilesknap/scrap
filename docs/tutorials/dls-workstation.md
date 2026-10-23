@@ -65,7 +65,7 @@ claude-sandbox on another machine, you allow the workstation's IP address instea
 
 ## What you need
 
-- A DLS workstation account with rootless podman working (`podman info` runs) and `git`.
+- A DLS workstation account with rootless podman working (`podman info` runs).
 - A directory of your own on the workstation's local disk, `/scratch/<fedid>`. scrap's SQLite
   database (in WAL mode) needs a local disk, not NFS. Your home directory is on NFS and follows
   you to every machine that mounts it, so keep scrap's data and secrets on `/scratch`, not in
@@ -88,23 +88,27 @@ mkdir -p $base/data $base/backups
 chmod 700 $base
 ```
 
-The commands below use `$base`, so set it again in each new shell.
+## Get the image
 
-## Build the image
-
-There is no published release image yet, so build it from a clone of the repo:
+Pick the newest release from [scrap's releases](https://github.com/gilesknap/scrap/releases);
+this page uses 0.1.0. Name its image once, then pull it and check that it runs:
 
 ```
-cd ~
-git clone https://github.com/gilesknap/scrap.git
-cd scrap
-podman build -t localhost/scrap:dev .
-podman run --rm localhost/scrap:dev --version
+image=ghcr.io/gilesknap/scrap:0.1.0
+podman pull $image
+podman run --rm $image --version
 ```
 
-The first build downloads a large build-stage image, so it takes a while. Once releases exist you
-can instead `podman pull ghcr.io/gilesknap/scrap:<version>` and use that name in place of
-`localhost/scrap:dev` below.
+The image is public, so no login is needed, and it is built for amd64 and arm64.
+
+The commands below use `$base` and `$image`, so set both again in each new shell.
+
+```{note}
+To run unreleased changes instead, build the image from a clone of the repo
+(`git clone https://github.com/gilesknap/scrap.git`, then `podman build -t localhost/scrap:dev .`
+in it) and set `image=localhost/scrap:dev`. The first build downloads a large build-stage image,
+so it takes a while.
+```
 
 ```{note}
 **If you made the pod with an earlier version of this page**, which published no port, keep
@@ -147,7 +151,7 @@ Every setting is described in {ref}`scrap-ingest-settings`.
 podman pod create --name scrap-pod --userns=keep-id:uid=10001,gid=10001 -p 8790:8000
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
-    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
+    $image serve --host 0.0.0.0 --port 8000
 ```
 
 - `--userns=keep-id:uid=10001,gid=10001` maps scrap's user in the image, 10001, to you, so the
@@ -317,28 +321,41 @@ with it.
 ## Update or change settings
 
 Podman reads `--env-file` only when it creates a container, so after changing `$base/scrap.env`,
-or to run a newly built image, remove scrap's container and run it again:
+or to run a new image, remove scrap's container and run it again:
 
 ```
 podman rm -f scrap-pod-app
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
-    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
+    $image serve --host 0.0.0.0 --port 8000
 ```
 
-Back up first if the new image may change the database: see {ref}`scrap-upgrade-db`.
+`$image` is the image you run: the release you pulled, or `localhost/scrap-claude:<version>` if
+you turned on ingest ({ref}`dls-ingest`).
+
+To update to a new release, find it on
+[scrap's releases](https://github.com/gilesknap/scrap/releases) and back up first
+({ref}`dls-backup`; see {ref}`scrap-upgrade-db`). Then pull its image and recreate scrap's
+container as above:
+
+```
+image=ghcr.io/gilesknap/scrap:<version>
+podman pull $image
+```
+
+If you run ingest, build the `-claude` image again on the new release first, as in
+{ref}`dls-ingest`, and set `$image` to that instead.
 
 Under systemd ({ref}`dls-systemd`), do not remove containers by hand. The units create each
-container afresh at every start, reading `$base/scrap.env` again and running whatever
-`localhost/scrap:dev` now is, so after a settings change or a rebuild, restart the container's
-unit:
+container afresh at every start, reading `$base/scrap.env` again, so after a settings change,
+restart the container's unit:
 
 ```
 systemctl --user restart container-scrap-pod-app.service
 ```
 
-To change a container's command line, such as switching to `localhost/scrap-claude:dev`,
-regenerate the units as described there.
+The units record the image by name, so moving to a new release, or to the `-claude` image,
+changes the container's command line: regenerate the units as described there.
 
 ## Start it again
 
@@ -409,7 +426,7 @@ back up by hand. A backup is safe while scrap runs:
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 podman run --rm --userns=keep-id:uid=10001,gid=10001 --network=none \
     -v $base/data:/data:z -v $base/backups:/backups:z -e SCRAP_DATA_DIR=/data \
-    localhost/scrap:dev backup /backups/$stamp
+    $image backup /backups/$stamp
 ```
 
 Old backups are not deleted for you. `/scratch` is not backed up either, and the backups are on
@@ -644,15 +661,21 @@ on your seat: consider leaving ingest off for the demo, or keep an eye on the da
 1. On any machine with Claude Code logged in to your seat, run `claude setup-token` and copy the
    token it prints: only the token, one line of about 108 characters starting `sk-ant-oat01-`,
    not the line after it.
-2. From the clone, build the image with the CLI added:
+2. Build the image with the CLI added, on top of the release you pulled. It needs only
+   `Dockerfile.claude` from the same release, not a clone, so build it in an empty folder:
 
    ```
-   podman build -f Dockerfile.claude --build-arg BASE=localhost/scrap:dev \
-       -t localhost/scrap-claude:dev .
+   mkdir -p $base/build && cd $base/build
+   curl -fsSL -o Dockerfile.claude \
+       https://raw.githubusercontent.com/gilesknap/scrap/0.1.0/Dockerfile.claude
+   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.1.0 \
+       -t localhost/scrap-claude:0.1.0 .
+   podman run --rm --entrypoint claude localhost/scrap-claude:0.1.0 --version
    ```
 
-   Rebuild this image whenever you rebuild `localhost/scrap:dev`, or scrap keeps running the old
-   one.
+   Use your release's version in each place. Build it again on each new release, or scrap keeps
+   running the old one ({ref}`dls-update`). If you built scrap from a clone, run this
+   `podman build` in the clone with `BASE=localhost/scrap:dev` instead.
 3. Add to `$base/scrap.env`, which stays mode 600 on `/scratch` (never put the token in your NFS
    home):
 
@@ -665,8 +688,8 @@ on your seat: consider leaving ingest off for the demo, or keep an eye on the da
    `podman inspect scrap-pod-app` shows the container's environment, token included, in plain
    text: do not paste its output anywhere.
 
-4. Recreate scrap's container as in {ref}`dls-update`, with `localhost/scrap-claude:dev` in place
-   of `localhost/scrap:dev` (under systemd, regenerate the units).
+4. Set `image=localhost/scrap-claude:0.1.0` and recreate scrap's container as in
+   {ref}`dls-update` (under systemd, regenerate the units).
 
 What the token gives away, the budget and the limits are in the how-to's "On a Claude seat, with
 no API key", under {ref}`scrap-ingest-settings`. An API key works instead: it comes from a Claude

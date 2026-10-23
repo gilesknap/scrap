@@ -51,28 +51,42 @@ Everything from here to the Tailscale step runs **as that user**, in a real logi
 `systemctl --user` works: `ssh scrap@<host>`, or from an admin account
 `sudo machinectl shell scrap@`. A plain `sudo -u scrap` or `su` does not work.
 
-## Build the image
+## Get the image
 
-There is no published release image yet, so build it from a clone of the repo:
+Pull the newest release from [scrap's releases](https://github.com/gilesknap/scrap/releases);
+this tutorial uses 0.1.0. The image is public, so no login is needed:
+
+```
+podman pull ghcr.io/gilesknap/scrap:0.1.0
+podman run --rm ghcr.io/gilesknap/scrap:0.1.0 --version
+```
+
+The last command prints scrap's version. The install script and its units come from the repo, so
+clone it too:
 
 ```
 cd ~
 git clone https://github.com/gilesknap/scrap.git
 cd scrap
-podman build -t localhost/scrap:dev .
-podman run --rm localhost/scrap:dev --version
 ```
 
-The first build downloads a large build-stage image, so it takes a while. The last command prints
-scrap's version. Once releases exist you can instead `podman pull ghcr.io/gilesknap/scrap:<version>` and put that
-name in `SCRAP_IMAGE` in `~/.config/scrap/env` (the install step below writes the file) before
-re-running `./deploy/install.sh`.
+To run unreleased changes instead, build the image in the clone with
+`podman build -t localhost/scrap:dev .` (the first build takes a while) and skip the `sed` step
+below.
 
 ## Install the service
 
 Still as `scrap`, in the clone:
 
 ```
+./deploy/install.sh
+```
+
+The first run writes `~/.config/scrap/env` naming a local build, `localhost/scrap:dev`, and says
+the image is not here yet. Point it at the release you pulled and run the script again:
+
+```
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|' ~/.config/scrap/env
 ./deploy/install.sh
 ```
 
@@ -86,9 +100,9 @@ The script is safe to re-run. It:
   runs;
 - prints where scrap listens and the address to give Tailscale Serve.
 
-If it says the image is not here yet, build it (previous step) and run the script again.
+If it still says the image is not here yet, check `SCRAP_IMAGE` against `podman images`.
 
-The defaults in `~/.config/scrap/env` are what this tutorial uses: `SCRAP_IMAGE=localhost/scrap:dev`,
+Apart from `SCRAP_IMAGE`, the defaults in `~/.config/scrap/env` are what this tutorial uses:
 `SCRAP_LISTEN=socket` (a Unix socket only you and root can open, no TCP port),
 `SCRAP_DATA=~/.local/share/scrap/data`, `SCRAP_BACKUPS=~/.local/share/scrap/backups`,
 `SCRAP_BACKUP_KEEP=14` and `SCRAP_MEMORY_MAX=1g`. The full table is in
