@@ -280,7 +280,7 @@ A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, wa
 `memory`, `reference`, `whiteboard` or `document`. scrap classifies and summarises; it never
 rewrites the user's words or fits them to templates.
 
-- **`fields`** is a flat JSON object (no nulls, no nested values, at most 32 fields), not per-kind
+- **`fields`** is a flat JSON object (no nulls, no nested values, at most 32 fields, a kind's defaults added only while there is room; numbers finite and within ±2^53, the most a browser holds exactly), not per-kind
   tables. In use: `status` on todo and consume, `subtype` (`read`, `watch`, `listen`) and `source`
   (the link) on consume, `summary` (an import's or the user's, which wins over Claude's in the
   index) and `origin` (where a page written over MCP came from).
