@@ -33,38 +33,43 @@ Releases        | <https://github.com/gilesknap/scrap/releases>
   vault and `scrap gc` finds files nothing uses.
 
 Search is full-text only (SQLite FTS5); semantic search was deferred, see
-[](explanations/decisions/0008-search-fts5-only-for-now.md). There is no login: access and identity
-come from Tailscale Serve, so never expose the service on a public address.
+[](explanations/decisions/0008-search-fts5-only-for-now.md). scrap has no login code of its own:
+access is the network (Tailscale) or an authenticating proxy (Cloudflare Access), with an optional
+bearer token on `/mcp` ([](explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
+Never expose it on a public address without one of them.
 
-## Try it
+## Choose your install
 
-scrap is not published on PyPI (the `scrap` package there is an unrelated project), so run it from
-the container image or from a checkout, which needs Python 3.11 or newer and
-[uv](https://docs.astral.sh/uv/):
+scrap is not published on PyPI (the `scrap` package there is an unrelated project); you run the
+container image. Each tutorial is one short path from nothing to a running scrap.
 
-```
-git clone https://github.com/gilesknap/scrap && cd scrap
-uv sync
-npm --prefix web ci && npm --prefix web run build   # the PWA (Node 22); the image has it built in
-uv run scrap serve --data-dir ./data --host 127.0.0.1 --port 8000
-```
+::::{grid} 1 1 3 3
+:gutter: 3
 
-Then open <http://127.0.0.1:8000/> for the PWA; `GET /healthz` reports the version and upload limit.
-To run the container, see [](how-to/run-container.md). For a lasting install on a server, with
-rootless podman, systemd and Tailscale, follow [](tutorials/installation.md); for a cluster, see
-[](how-to/deploy-kubernetes.md).
+:::{grid-item-card} Try it on your LAN
+:link: tutorials/install-lan
+:link-type: doc
+One container on a laptop, Pi or home PC, reached from your phone over the LAN or Tailscale. No
+login, no systemd. The quickest way to try it.
+:::
 
-## Where next
+:::{grid-item-card} One server with Tailscale
+:link: tutorials/install-server
+:link-type: doc
+A hardened single VPS or home server: dedicated user, Unix socket, systemd and Tailscale Serve
+for HTTPS. Claude Code on the same box.
+:::
 
-- [](how-to/use-the-pwa.md): capture from your phone.
-- [](how-to/connect-claude-code.md) and [](reference/mcp.md): let Claude search and write.
-- [](reference/api.md): the HTTP API, the CLI and every setting (`SCRAP_DATA_DIR`,
-  `SCRAP_INGEST`, `SCRAP_PUBLIC_URL`, `SCRAP_MAX_UPLOAD_MB`, ...).
-- [](how-to/deploy-single-server.md): updates, backup and restore, `scrap gc`, troubleshooting.
-- [](how-to/import-a-vault.md): bring in a Thoth vault.
-- [](explanations/design.md): principles, data model, capture flow and what is deferred.
-- [](how-to/contribute.md): development setup.
+:::{grid-item-card} Kubernetes with Cloudflare
+:link: tutorials/install-kubernetes
+:link-type: doc
+The Helm chart behind a cloudflared tunnel and Cloudflare Access, with a bearer token on `/mcp`.
+:::
 
+::::
+
+To read photos with a Claude subscription instead of an API key, add
+[](tutorials/ingest-with-claude-seat.md) to any of them.
 
 How the documentation is structured
 -----------------------------------
@@ -82,7 +87,7 @@ Documentation is split into [four categories](https://diataxis.fr), also accessi
 tutorials
 ```
 +++
-A tutorial for installing scrap on a server. New users start here.
+Three install tutorials, from a quick LAN try-out to Kubernetes, and one for ingest on a Claude seat. New users start here.
 :::
 
 :::{grid-item-card} {material-regular}`directions;2em`
