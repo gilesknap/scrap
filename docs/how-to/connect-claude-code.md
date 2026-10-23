@@ -111,13 +111,14 @@ added in step 2. The first word picks the verb:
 
 | Command | What it does |
 | --- | --- |
-| `/s post` | Posts the useful findings of the conversation as one page (below). It replaces the earlier `scrap-post` skill: delete `~/.claude/skills/scrap-post` after installing `s`. "post this to scrap" works too. |
+| `/s post` | Posts the useful findings of the conversation as one page (below). "post this to scrap" works too. |
 | `/s tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
 | `/s undo` | Lists recent `revisions` and `revert`s the one you name. |
 | `/s todos` | What to do now, overdue first. |
 | `/s <anything else>` | A plain search of scrap. |
 
-Only the scrap tools are used. Both uses of `<SCRAP_URL>` in the skill are placeholders (the hint
+`/s post` replaces the earlier `scrap-post` skill: delete `~/.claude/skills/scrap-post` after
+installing `s`. Only the scrap tools are used. Both uses of `<SCRAP_URL>` in the skill are placeholders (the hint
 it gives when the tools are missing, and the shape of the page URL it reports); the real URL
 comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 
