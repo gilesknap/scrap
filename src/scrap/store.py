@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import html
 import json
+import math
 import os
 import re
 import secrets
@@ -49,7 +50,6 @@ DEFAULT_FIELDS = {
     "todo": {"status": "open"},
     "consume": {"subtype": "read", "status": "open"},
 }
-HINT_FIELDS = DEFAULT_FIELDS  # its older name, used by the importer (#47): remove later
 HINTS = ("todo", "consume")  # the older capture field, still accepted
 ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
 # kind: in a search also takes the PWA's names for kinds
@@ -367,6 +367,18 @@ def lines(text: str) -> str:
 
 
 Value = str | int | float | bool  # a field's value: flat, no nulls
+MAX_INT = 2**53  # the most a browser holds exactly: a field's number is within +-this
+
+
+def check_value(name: str, value: Any) -> None:
+    """Refuse a field value the PWA could not show as stored: a float that is not
+    finite (NaN, Infinity, or 1e400, which parses to it) or an int past +-2**53."""
+    if isinstance(value, bool):
+        return
+    if isinstance(value, float) and not math.isfinite(value):
+        raise InvalidError(f"field {name}: a number must be finite")
+    if isinstance(value, int) and abs(value) > MAX_INT:
+        raise InvalidError(f"field {name}: a whole number is at most +-2**53")
 
 
 def fields_for(kind: str | None, url: str | None) -> dict[str, Value]:
@@ -912,6 +924,8 @@ class Store:
         keeps ingest from retitling the page. Returns the slug and whether it is new.
         enqueue: send its photos to Claude, as a capture would.
         """
+        for name, value in p["fields"].items():
+            check_value(name, value)
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -1383,20 +1397,26 @@ class Store:
         the fields (None drops one), at most MAX_FIELDS in all. Neither is a new
         revision, nor moves the page up the recent list."""
         fields = json.loads(page["fields"])
-        if kind is not None and kind != page["kind"]:
-            url = conn.execute(
-                "SELECT url FROM capture WHERE page_id = ? AND url IS NOT NULL"
-                " ORDER BY received_at LIMIT 1",
-                (page["id"],),
-            ).fetchone()
-            fields = {**fields_for(kind, url and url[0]), **fields}  # the page's win
         for name, value in changes.items():
+            check_value(name, value)
             if value is None:
                 fields.pop(name, None)
             else:
                 fields[name] = value
         if len(fields) > MAX_FIELDS:
             raise InvalidError(f"a page has at most {MAX_FIELDS} fields")
+        if kind is not None and kind != page["kind"]:
+            url = conn.execute(
+                "SELECT url FROM capture WHERE page_id = ? AND url IS NOT NULL"
+                " ORDER BY received_at LIMIT 1",
+                (page["id"],),
+            ).fetchone()
+            # only defaults the page lacks and has room for: never at the cost of a
+            # field it has, nor one this request just dropped
+            for name, value in fields_for(kind, url and url[0]).items():
+                if name not in fields and name not in changes:
+                    if len(fields) < MAX_FIELDS:
+                        fields[name] = value
         conn.execute(
             "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
             (kind or page["kind"], int(kind is not None or page["kind_fixed"]),
@@ -1512,7 +1532,9 @@ class Store:
             (page_id,),
         ).fetchone()
         defaults = fields_for(kind, url and url[0])
-        return {k: v for k, v in defaults.items() if k not in fields}
+        room = max(0, MAX_FIELDS - len(fields))  # a full page gets fewer, or none
+        missing = {k: v for k, v in defaults.items() if k not in fields}
+        return dict(list(missing.items())[:room])
 
     def _record_meta(
         self,
@@ -2173,7 +2195,11 @@ class Store:
             todo_only(hit)
             if not q.positive:  # no match to show: its summary, else its start
                 summary = hit["fields"].get("summary")
-                text = summary if isinstance(summary, str) else unlink(hit["snippet"])
+                text = (
+                    summary
+                    if isinstance(summary, str)
+                    else plain(unlink(hit["snippet"][:2000]))
+                )
                 hit["snippet"] = " ".join(CONTROL.sub(" ", text).split()[:24])
             snippet = html.escape(hit["snippet"])
             hit["snippet"] = snippet.replace("\x02", "<mark>").replace(

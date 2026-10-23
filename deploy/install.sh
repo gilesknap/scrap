@@ -6,8 +6,11 @@
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
-units="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
-conf="${XDG_CONFIG_HOME:-$HOME/.config}/scrap"
+# The units name %h/.config/scrap/env and scrap-run reads $HOME/.config/scrap, and
+# a unit cannot see XDG_CONFIG_HOME, so the config dir is fixed at ~/.config
+# here too (XDG_CONFIG_HOME is deliberately ignored).
+units="$HOME/.config/systemd/user"
+conf="$HOME/.config/scrap"
 data="${XDG_DATA_HOME:-$HOME/.local/share}/scrap"
 lib="$HOME/.local/lib/scrap"
 
@@ -31,6 +34,10 @@ if ! systemctl --user show-environment >/dev/null 2>&1; then
     echo "systemctl --user does not work in this shell. Log in as $(id -un)" >&2
     echo "directly (ssh, or: sudo machinectl shell $(id -un)@) and re-run." >&2
     exit 1
+fi
+
+if [ -n "${XDG_CONFIG_HOME:-}" ] && [ "$XDG_CONFIG_HOME" != "$HOME/.config" ]; then
+    echo "Note: ignoring XDG_CONFIG_HOME=$XDG_CONFIG_HOME; scrap's units use $HOME/.config." >&2
 fi
 
 mkdir -p "$units" "$conf" "$lib" "$data/data" "$data/backups"
@@ -157,6 +164,9 @@ cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer"
     "$here/scrap-gc.service" "$here/scrap-gc.timer" \
     "$here/scrap-enrich-related.service" "$here/scrap-enrich-related.timer" "$units/"
 systemctl --user daemon-reload
+# A scrap that failed too often is held by the unit's start limit, which
+# refuses the restart and enable --now below until it is cleared.
+systemctl --user reset-failed scrap.service 2>/dev/null || true
 if dropins=$(grep -ls '^ExecStart=' "$units"/scrap.service.d/*.conf); then
     echo "Note: a drop-in sets ExecStart, so scrap.service's own command is not used:" >&2
     echo "$dropins" >&2

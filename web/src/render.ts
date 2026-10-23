@@ -135,6 +135,12 @@ function inline(children: Token[], state: StateCore): Token[] {
       opened.push(t);
     } else if (t.type === "link_close") {
       t.hidden = !!opened.pop()?.hidden;
+    } else if (t.type === "footnote_ref" && opened.some((o) => !o.hidden)) {
+      // A footnote's link in a link's text: its number only
+      const text = new state.Token("text", "", 0);
+      text.content = `[${Number(t.meta?.id) + 1}]`;
+      out.push(text);
+      continue;
     } else if (t.type === "image") {
       const src = String(t.attrGet("src") ?? "");
       const own = IMAGE.exec(src);

@@ -31,6 +31,7 @@ Backups are untouched: each backup run holds its own copy of every file its data
 refers to.
 """
 
+import fcntl
 import os
 import sqlite3
 import time
@@ -55,6 +56,7 @@ __all__ = [
 GRACE_HOURS = 24.0
 RUN_DAYS = 30.0  # model_run / enrich_run rows younger than this are kept
 TEMP = ".up-"  # put_blob's temporary files: one left over is a crashed upload
+LOCK = "gc.lock"  # in the data folder, held by a run that deletes
 ASIDE = ".gc-"  # a file being deleted
 
 
@@ -291,13 +293,44 @@ def collect(
         raise GcError("the run retention must be at least 1 day")
     if not store.db.is_file():
         raise GcError(f"no database at {store.db}")
+    if not delete:
+        return _collect(store, False, grace_hours, run_days, _between)
+    # One deleting run at a time: a run by hand cannot race the nightly one.
+    try:
+        lock = open(store.dir / LOCK, "w")  # noqa: SIM115 (closed when the run ends)
+    except OSError as error:
+        raise GcError(f"cannot take the lock {store.dir / LOCK}: {error}") from None
+    with lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise GcError(
+                f"another scrap gc is deleting (it holds {store.dir / LOCK});"
+                " try again when it has finished"
+            ) from None
+        return _collect(store, True, grace_hours, run_days, _between)
+
+
+def _collect(
+    store: Store,
+    delete: bool,
+    grace_hours: float,
+    run_days: float,
+    _between: Iterable[None],
+) -> Report:
     cutoff = time.time() - grace_hours * 3600
     report = Report()
     try:
         schema_version(store.db)  # refuses a database newer than this scrap
         if not store.files.is_dir():
             raise GcError(f"no files folder at {store.files}")
-        report.restored = _restore(store)
+        try:
+            report.restored = _restore(store)
+        except OSError as error:
+            raise GcError(
+                f"cannot put back a file left aside by an earlier run, so nothing"
+                f" was deleted: {error}"
+            ) from None
         with store.connect() as conn:
             conn.execute("BEGIN")  # one consistent snapshot of every reference
             try:

@@ -101,6 +101,16 @@ describe("markdown", () => {
     }
   });
 
+  it("draws a footnote reference in a link's text as plain [n] (#108)", () => {
+    const nested = /<a[^>]*>(?:(?!<\/a>).)*<a/s;
+    for (const text of ["[a ^[note]](https://y.z)", "[a ^[note]](/p/b)"]) {
+      const html = one(text);
+      expect(html, text).not.toMatch(nested);
+      expect(html, text).toMatch(/a ?\[1\]/);
+    }
+    expect(one("a ^[note]")).toContain('<a href="#fn1"'); // outside a link it stays one
+  });
+
   it("never nests a link, whatever links, images and page links are combined", () => {
     const SHA_SRC = `/api/blobs/${SHA}`;
     const inner = [

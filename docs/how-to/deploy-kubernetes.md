@@ -6,7 +6,7 @@ container image as the [single-server deployment](deploy-single-server.md): one 
 volume for the data and, by default, a nightly backup job.
 
 ```{warning}
-v0 of scrap has **no login**. Anyone who can reach its Service can read and change everything.
+scrap has **no login of its own**. Anyone who can reach its Service can read and change everything.
 Expose it only on your tailnet (see {ref}`k8s-tailscale`) or behind an authenticating proxy
 (see {ref}`k8s-ingress`), never directly to the internet. Inside the cluster, any pod that can
 reach the Service has full access too, and can send its own `Tailscale-User-Login` header: turn
@@ -316,7 +316,9 @@ returns and the controller copies to the request), so the author is the real log
 only that header, but most controllers do not strip a client-sent copy, so the proxy plus the
 NetworkPolicy must be the only way to the Service; a forged value only changes the recorded author.
 
-**Exposing `/mcp` (Cloudflare Access, a second ingress).** Give `/mcp` its own Ingress rule or
+**Exposing `/mcp` (Cloudflare Access, a second ingress).** For a complete walk-through with a
+Cloudflare Tunnel straight to the Service, see [](../tutorials/install-kubernetes.md). With an
+ingress controller, give `/mcp` its own Ingress rule or
 host that skips the login proxy, and guard it another way: a Cloudflare Access service token in
 front, and scrap's own bearer token behind it (below), so a leaked service token alone does not
 open scrap. Keep the PWA and API on the login-proxied host.
@@ -522,8 +524,9 @@ pending until it is back.
   `gc.enabled` defaults to following `backup.enabled` (so a release with backups off gets no gc
   Job); setting `gc.enabled: true` with backups off is refused. If you back up another way, set
   `gc.requireBackup: false` and gc deletes without that check.
-  A gc you run by hand (`kubectl exec`) takes no lock and could race the CronJob, which is
-  harmless apart from a file left on disk until the next run.
+  A deleting `scrap gc` also takes a lock of its own (`gc.lock` in the data folder), so one you
+  run by hand (`kubectl exec`) cannot overlap the CronJob: whichever starts second stops with
+  `another scrap gc is deleting`. It does not wait for a backup; only the CronJob does.
 - **`scrap enrich --related`** at `41 3 * * *`, only while `ingest.enabled` is true. It gets the
   Deployment's environment (the Claude key, the budget, `extraEnv` and `extraEnvFrom`), so
   it follows the same `SCRAP_ENRICH` and queue-pause rules and the same daily budget, and exits

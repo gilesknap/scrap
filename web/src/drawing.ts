@@ -54,13 +54,19 @@ export function drawingCard(
   let key = "";
   const show = (svg: SVGSVGElement) => {
     card.replaceChildren(svg.cloneNode(true));
+    card.classList.remove("failed");
     card.classList.add("ready");
+  };
+  // Back to the loading state: the old variant must not sit on the new paper
+  const loading = () => {
+    status.textContent = "Loading drawing…";
+    card.replaceChildren(status);
+    card.classList.remove("ready", "failed");
   };
   const render = async () => {
     const mine = key;
     const theme = currentDrawings();
-    status.textContent = "Loading drawing…";
-    card.classList.remove("failed");
+    loading();
     try {
       const board = await loadBoard();
       const drawing = await api<Drawing>(`captures/${t.cid}/photos/${t.sha}/drawing`);
@@ -68,6 +74,7 @@ export function drawingCard(
       previews.set(mine, svg);
       if (mine === key) show(svg);
     } catch {
+      if (mine !== key) return;
       card.classList.add("failed");
       status.textContent = navigator.onLine
         ? "Can't show the drawing here: tap to open it"
@@ -76,11 +83,19 @@ export function drawingCard(
   };
   let seen: IntersectionObserver | null = null;
   const update = () => {
-    key = `${d.id}:${currentDrawings()}`;
+    const theme = currentDrawings();
+    card.dataset.scheme = theme;
+    key = `${d.id}:${theme}`;
     seen?.disconnect();
     const kept = previews.get(key);
     if (kept) show(kept);
-    else if (!("IntersectionObserver" in window)) void render();
+    else {
+      loading();
+      watch();
+    }
+  };
+  const watch = () => {
+    if (!("IntersectionObserver" in window)) void render();
     else {
       seen = new IntersectionObserver(
         (entries) => {

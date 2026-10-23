@@ -181,6 +181,17 @@ def test_claim_skips_a_paused_queue_and_the_trash(store, conn):
     assert claim(conn, at(1))["capture_id"] == a["capture_id"]
 
 
+def test_status_leaves_out_jobs_of_trashed_pages(store):
+    a, b = photo(store, [b"a"]), photo(store, [b"b"])
+    assert ingest.status(store)["jobs"] == {"queued": 2}
+    store.delete_page(a["page_id"])
+    assert ingest.status(store)["jobs"] == {"queued": 1}  # waiting, not stuck
+    store.delete_page(b["page_id"])
+    assert ingest.status(store)["jobs"] == {}
+    store.delete_page(a["page_id"], undo=True)  # restored: counted, and claimable
+    assert ingest.status(store)["jobs"] == {"queued": 1}
+
+
 def _claim_all(db: str) -> list[int]:
     got = []
     with closing(connect(db)) as conn:
