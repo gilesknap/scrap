@@ -141,14 +141,25 @@ test("the editor's key bar: Task, Bullet, Number, Indent, Outdent on one line at
   await page.getByRole("button", { name: "Note" }).click();
   const keys = page.locator(".editor .keys button");
   await expect(keys).toHaveText(["Task", "Bullet", "Number", "Indent", "Outdent"]);
-  const boxes = await Promise.all((await keys.all()).map((k) => k.boundingBox()));
-  for (const b of boxes) {
-    expect(b).not.toBeNull();
-    expect(b?.x ?? -1).toBeGreaterThanOrEqual(0);
-    expect((b?.x ?? 0) + (b?.width ?? 0)).toBeLessThanOrEqual(320);
-    expect(b?.y).toBe(boxes[0]?.y); // one line
-    expect(b?.height ?? 0).toBeGreaterThanOrEqual(44);
-  }
+  // The editor is still settling when it opens (fonts, the textarea's autosize), so poll the
+  // boxes until they fit rather than reading them once.
+  await expect
+    .poll(
+      async () => {
+        const boxes = await keys.evaluateAll((ks) =>
+          ks.map((k) => {
+            const r = k.getBoundingClientRect();
+            return { x: r.x, right: r.right, y: r.y, height: r.height };
+          }),
+        );
+        const misfits = boxes.filter(
+          (b) => b.x < 0 || b.right > 320 || b.y !== boxes[0]?.y || b.height < 44,
+        );
+        return { count: boxes.length, misfits };
+      },
+      { message: "the keys on one line, inside 320 px, 44 px tall" },
+    )
+    .toEqual({ count: 5, misfits: [] });
   // What they do (listedit.ts has the rules; here, that the keys apply them)
   const text = page.getByPlaceholder("Note or link");
   const key = (name: string) => page.locator(".editor .keys").getByRole("button", { name });
