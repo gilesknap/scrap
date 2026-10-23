@@ -66,7 +66,10 @@ reasons, and where one says it supersedes the first design, the record wins.
 - **Keeping and moving data.** Import of a Thoth vault, `scrap backup`, `restore`, `export` and
   `gc` ([](decisions/0017-thoth-vault-import-through-the-store.md),
   [](decisions/0015-images-in-text-and-gc.md)).
-- **Access.** Tailscale Serve is the only way in; Funnel stays off. No login code.
+- **Access.** No login code. Tailscale Serve is the recommended way in (Funnel stays off); on
+  Kubernetes a proxy such as Cloudflare Access fronts it, with an optional bearer token on `/mcp`
+  ([](decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)). See
+  [Scope and stack](overview.md).
 - **Deployment.** A multi-arch image (`linux/amd64`, `linux/arm64`) run either under rootless
   podman and systemd on one server ([](../how-to/deploy-single-server.md)) or by the Helm chart on
   Kubernetes ([](../how-to/deploy-kubernetes.md)).
@@ -522,9 +525,11 @@ session has. Tools and limits: [](../reference/mcp.md).
 
 ## Security posture
 
-- **Tailnet only.** Serve is the only way in and Funnel stays off. The tailnet policy grants the
-  scrap device to the owner's own devices only; tagged servers (for example any internet-facing
-  box) must not be able to reach it.
+- **One gate in front.** On a server, Tailscale Serve is the only way in and Funnel stays off; the
+  tailnet policy grants the scrap device to the owner's own devices only, and tagged servers (for
+  example any internet-facing box) must not be able to reach it. On Kubernetes the gate is
+  Cloudflare Access, with a service token and `SCRAP_MCP_TOKEN` on `/mcp`
+  ([ADR 0023](decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 - **What listens where.** A single-server install listens by default only on a Unix socket (mode
   600, in a folder closed to other users; `scrap serve --uds`), with Serve proxying to it, so
   only that user, root and Serve can reach it and set the identity headers. Loopback TCP

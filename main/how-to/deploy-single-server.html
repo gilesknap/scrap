@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.2.3.dev15+g7cbdf506f documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.2.3.dev18+ge3badc02c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=78917218"></script>
+    <script src="../_static/documentation_options.js?v=d5e62e82"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -427,7 +427,7 @@
 <li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Deploy on a single server</a></li>
 <li class="toctree-l1"><a class="reference internal" href="import-a-vault.html">Import a Thoth vault</a></li>
-<li class="toctree-l1"><a class="reference internal" href="run-container.html">Run in a container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="run-on-dls-workstation.html">Run scrap on a DLS workstation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
 </ul>
 </div>
@@ -499,18 +499,18 @@ nowhere else. Why: <a class="reference internal" href="../explanations/decisions
 <p>Podman is the tested path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
 units up by hand: see <a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
 <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>. To demo it on a DLS workstation without <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, see
-<a class="reference internal" href="../tutorials/dls-workstation.html"><span class="std std-doc">Try scrap on a DLS workstation (open-source demo)</span></a>.</p>
+<a class="reference internal" href="run-on-dls-workstation.html"><span class="std std-doc">Run scrap on a DLS workstation</span></a>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>v0 of scrap has <strong>no login</strong>. Anyone who can reach it can read and change everything.
+<p>scrap has <strong>no login of its own</strong>. Anyone who can reach it can read and change everything.
 Only expose it through Tailscale Serve (tailnet only, never Funnel), or put an authenticating
 reverse proxy in front of it. Read <a class="reference internal" href="#scrap-access"><span class="std std-ref">Access and identity</span></a> first.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>On the server itself, <strong>root, anyone with <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, and anything running as the scrap user</strong> can
-open the socket, read and change all of scrap’s data, and send its own <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code>
-header to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
+open the socket, read and change all of scrap’s data, and send its own identity header (<code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code>
+by default, see <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code> in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
 connection skips Serve). Other local users cannot. Run scrap as its own user with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code>
 rights, and run nothing else as that user. With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> (below) <strong>every local account
 and process</strong> can do the same through the port: keep that for single-purpose servers.</p>
@@ -557,9 +557,9 @@ user’s systemd session.</p>
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
 <p>As the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user (podman images belong to the user who pulled or built them), pull the newest
 release from <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a>; this page uses
-0.1.0:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.1.0</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.1.0</span> <span class="o">--</span><span class="n">version</span>
+0.2.2:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="o">--</span><span class="n">version</span>
 </pre></div>
 </div>
 <p>The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
@@ -599,7 +599,7 @@ exists); the <code class="docutils literal notranslate"><span class="pre">scrap<
 <p>On its first run the script writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> naming a local build,
 <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap:dev</span></code>, and stops because that image is not there. Point it at the
 release you pulled and run the script again:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.2.2|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
@@ -647,7 +647,7 @@ only: <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN<
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code></p></td>
-<td><p>Image to run: a release such as <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.1.0</span></code>, or a local build.</p></td>
+<td><p>Image to run: a release such as <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.2.2</span></code>, or a local build.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code></p></td>
@@ -769,11 +769,11 @@ your seat until it expires or you revoke it.</p></li>
 <li><p>Build the image with the CLI added on top of the scrap image, from the clone (it uses only
 <code class="docutils literal notranslate"><span class="pre">Dockerfile.claude</span></code>, so an empty folder holding a copy of that file from the release works
 too):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.1.0</span> \
-    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.1.0</span> <span class="o">.</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> \
+    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="o">.</span>
 </pre></div>
 </div>
-<p>and set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.1.0</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is about
+<p>and set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.2.2</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is about
 240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
 image as <code class="docutils literal notranslate"><span class="pre">BASE</span></code>.</p>
 </li>
@@ -823,7 +823,8 @@ sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap
 </div>
 <p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> the target is <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790</span></code> instead.</p>
 <p>scrap is then at <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> from devices on your tailnet. <code class="docutils literal notranslate"><span class="pre">--bg</span></code>
-makes the setting persist across reboots. Check it from any tailnet device:</p>
+makes the setting persist across reboots. Check it from a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> login session on the server (<code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> also checks the local
+socket first, so on another device <code class="docutils literal notranslate"><span class="pre">curl</span></code> the <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> path of that address instead):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
 </pre></div>
 </div>
@@ -883,10 +884,11 @@ anything running unattended) no access unless you grant it. For example, with th
 </section>
 <section id="access-and-identity">
 <span id="scrap-access"></span><h2>Access and identity<a class="headerlink" href="#access-and-identity" title="Link to this heading">#</a></h2>
-<p>scrap v0 has no login code. Who may use it is decided by the network in front of it:</p>
+<p>scrap has no login code. Who may use it is decided by the network in front of it:</p>
 <ul class="simple">
 <li><p><strong>Behind Tailscale Serve</strong> (recommended): the tailnet ACL is the gate. For requests from
-devices owned by a user, Serve adds identity headers such as <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code>, and scrap
+devices owned by a user, Serve adds identity headers such as <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> (the one scrap reads
+by default; <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code> names another), and scrap
 records that login as the author of each change. Tagged devices get no identity headers, so
 their changes are recorded under a fixed fallback author.</p></li>
 <li><p><strong>Anything else</strong> (a public reverse proxy, a LAN port): put an authenticating reverse proxy in
