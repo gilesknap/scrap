@@ -26,6 +26,19 @@ jobs:
       runs-on: ${{ matrix.runs-on }}
       python-version: ${{ matrix.python-version }}
 
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck deploy scripts
+        run: shellcheck deploy/*.sh deploy/check-env deploy/scrap-run deploy/scrap-backup deploy/scrap-gc
+      - name: Run deploy shell tests
+        run: |
+          for t in deploy/test-*.sh; do
+            echo "== $t"
+            sh "$t"
+          done
+
   web:
     uses: ./.github/workflows/_web.yml
 
