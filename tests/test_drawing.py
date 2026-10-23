@@ -289,7 +289,7 @@ def test_made_ids_never_collide_with_the_models():
     assert len(ids) == len(set(ids)) == 5 and "a-label" in ids
 
 
-def test_a_legacy_row_that_cannot_be_encoded_is_still_served(board, tmp_path):
+def test_a_legacy_row_that_cannot_be_encoded_is_still_served(board, tmp_path, caplog):
     """A row stored before lone surrogates were refused: replaced, never a 500."""
     client, url, ref = board
     data = '{"format": "scene", "elements": [{"type": "text", "x": 0, "y": 0,'
@@ -304,7 +304,9 @@ def test_a_legacy_row_that_cannot_be_encoded_is_still_served(board, tmp_path):
         )
     got = client.get(url)
     assert got.status_code == 200
-    assert got.json()["data"]["elements"][0]["text"] == "bad ? half"
+    assert got.json()["data"]["elements"][0]["text"] == "bad \ufffd half"
+    assert client.get(url).status_code == 200
+    assert caplog.text.count("unencodable") == 1  # once for the row, not per request
     assert client.get(f"/api/pages/{ref['page_id']}/download").status_code == 200
 
 
