@@ -101,7 +101,12 @@ def test_hostile_text_takes_linear_time(pattern):
         rewrite(text, lambda link: None)
         return time.monotonic() - start
 
-    small, large = took(10_000), took(40_000)
+    def fastest(n: int) -> float:
+        # The minimum of several runs: a noisy CI box only ever makes a run slower
+        return min(took(n) for _ in range(5))
+
+    took(10_000)  # warm-up: imports, caches and the allocator
+    small, large = fastest(10_000), fastest(40_000)
     assert large < 8 * small + 0.5
 
 
