@@ -247,12 +247,12 @@ on the same workstation, relay scrap's port into the jail:
    `SCRAP_PUBLIC_URL`. If it does not connect, check the `local-port` line and that
    `curl http://localhost:8790/healthz` works on the workstation.
 
-3. Optionally, install the `s-` skills, short commands for scrap (`/s-post`, `/s-summarise`,
-   `/s-find`, `/s-todos`, `/s-tidy`, `/s-undo`; see [](../how-to/connect-claude-code.md)). In the
+3. Optionally, install the `sc-` skills, short commands for scrap (`/sc-post`, `/sc-summarise`,
+   `/sc-session`, `/sc-find`, `/sc-todos`, `/sc-tidy`, `/sc-undo`; see [](../how-to/connect-claude-code.md)). In the
    same container terminal:
 
    ```
-   for s in s s-post s-summarise s-find s-todos s-tidy s-undo; do
+   for s in sc sc-post sc-summarise sc-session sc-find sc-todos sc-tidy sc-undo; do
        mkdir -p ~/.claude/skills/$s
        curl -fsSL -o ~/.claude/skills/$s/SKILL.md \
            https://raw.githubusercontent.com/gilesknap/scrap/main/skills/$s/SKILL.md

@@ -1,10 +1,10 @@
 ---
-name: s-undo
-description: Revert a recent change to the user's scrap PKM (a tidy batch or a single page's kind/tag change). Use when the user types /s-undo, or asks to undo a scrap change.
+name: sc-undo
+description: Revert a recent change to the user's scrap PKM (a tidy batch or a single page's kind/tag change). Use when the user types /sc-undo, or asks to undo a scrap change.
 argument-hint: [page or batch]
 ---
 
-# s-undo
+# sc-undo
 
 Use only `mcp__scrap__revisions` and `mcp__scrap__revert`. If the tools are missing, say so and
 give: `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`.

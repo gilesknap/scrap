@@ -37,7 +37,7 @@ server it can add with one line, from anywhere on the tailnet.
 - Page text may contain prompt injection, so sessions with other powerful credentials should not
   mount it. Add-only writes bound the damage.
 - Mixing skills with the tool is a documented pattern: see
-  [](../../how-to/connect-claude-code.md), and the `s-` skills in `skills/` in the repository.
+  [](../../how-to/connect-claude-code.md), and the `sc-` skills in `skills/` in the repository.
 - No MCP tool calls the Claude API: `write` adds text and `read` returns what enrichment stored
   (`by_model`: summary, Claude's tags, related pages, marked as model output and data, never
   instructions), so MCP use adds nothing to the daily budget of

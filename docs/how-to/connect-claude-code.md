@@ -137,20 +137,21 @@ do not commit it.
 ## 3. Install the `s-` skills
 
 `skills/` in this repository holds Claude Code skills that give you short scrap commands. Each
-is a directory with a `SKILL.md`, and each is its own command, so typing `/s-` in Claude Code
+is a directory with a `SKILL.md`, and each is its own command, so typing `/sc` in Claude Code
 autocompletes the whole set. They use the server added in step 2 (the `mcp__scrap__*` tools) and
 do nothing useful without it; if the tools are missing they say so and print the `claude mcp add`
 line.
 
 | Command | What it does |
 | --- | --- |
-| `/s-post [title]` | Posts Claude's previous response to scrap verbatim, as one page. "post this to scrap" works too. |
-| `/s-summarise` | Summarises the conversation's learnings, decisions and activity into one page and posts it (below). |
-| `/s-find <words>` | Searches scrap and shows the top results as short lines. |
-| `/s-todos` | What to do now, overdue first. |
-| `/s-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
-| `/s-undo` | Lists recent `revisions` and `revert`s the one you name. |
-| `/s <words>` | An index: searches like `/s-find`, or lists the commands above. |
+| `/sc-post [title]` | Posts Claude's previous response to scrap verbatim, as one page. "post this to scrap" works too. |
+| `/sc-summarise` | Summarises the current topic (the latest activity) into one page and posts it (below). |
+| `/sc-session` | Summarises the whole conversation into one page: overview, timeline, findings, decisions, changes made and open questions. |
+| `/sc-find <words>` | Searches scrap and shows the top results as short lines. |
+| `/sc-todos` | What to do now, overdue first. |
+| `/sc-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
+| `/sc-undo` | Lists recent `revisions` and `revert`s the one you name. |
+| `/sc <words>` | An index: searches like `/sc-find`, or lists the commands above. |
 
 Install them for all your projects by copying (or symlinking) the directories into
 `~/.claude/skills/`, from a clone of this repository:
@@ -169,20 +170,21 @@ cp -r skills/* .claude/skills/
 
 To keep them up to date with the repository, symlink instead:
 `ln -sfn "$PWD"/skills/* ~/.claude/skills/`. A symlink cannot replace an existing real
-directory, so if you installed the earlier `s` skill by copying, delete `~/.claude/skills/s`
-first. Without a clone, fetch each file, for example
-`mkdir -p ~/.claude/skills/s-post` then `curl -fsSL -o ~/.claude/skills/s-post/SKILL.md
-https://raw.githubusercontent.com/gilesknap/scrap/main/skills/s-post/SKILL.md`. Start a new
-Claude Code session afterwards, and type `/s-` to check that the commands are listed. Copy the
+directory, so if you installed the earlier `s` skill by copying, delete `~/.claude/skills/s` and
+any `~/.claude/skills/s-*` first. Without a clone, fetch each file, for example
+`mkdir -p ~/.claude/skills/sc-post` then `curl -fsSL -o ~/.claude/skills/sc-post/SKILL.md
+https://raw.githubusercontent.com/gilesknap/scrap/main/skills/sc-post/SKILL.md`. Start a new
+Claude Code session afterwards, and type `/sc` to check that the commands are listed. Copy the
 files unchanged.
 
-These skills replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on) and
-the older `scrap-post` skill: copying over `~/.claude/skills/s` updates it to the index, and you
-can delete `~/.claude/skills/scrap-post`. Only the scrap tools are used. `<SCRAP_URL>` in the
+These skills replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
+`s-` set that briefly preceded them, and the older `scrap-post` skill: delete `~/.claude/skills/s`,
+`~/.claude/skills/s-*` and `~/.claude/skills/scrap-post` after installing these. Only the scrap tools are used. `<SCRAP_URL>` in the
 skills is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 
-`/s-summarise` makes Claude summarise the useful findings of the conversation into one page,
+`/sc-summarise` makes Claude summarise the useful findings of the current topic into one page (use
+`/sc-session` for the whole conversation),
 reusing existing tags and linking related pages, and show you the title and tags before it
 writes; say "just post" to skip the question.
 
