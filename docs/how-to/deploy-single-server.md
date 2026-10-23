@@ -171,7 +171,7 @@ only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
 | `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each is a full copy: see {ref}`scrap-backup-restore`. |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
-| `SCRAP_VOLUME_OPTS` | `z` | Options after the colon on every container volume. `z` relabels the folders for SELinux and does nothing elsewhere. Set it empty for no option, or e.g. `z,U`. Not in the generated file (commented out); unset means `z`. See {ref}`scrap-selinux`. |
+| `SCRAP_VOLUME_OPTS` | `z` | Options after the colon on every container volume. `z` relabels the folders for SELinux and does nothing elsewhere. Set it empty for no option, or e.g. `z,U`. Not in the generated file (commented out); unset means `z`. See [SELinux](scrap-selinux). |
 
 After changing a setting: `systemctl --user restart scrap`.
 
@@ -437,6 +437,10 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:<version>|' ~/.con
 For ingest on a Claude seat, build `localhost/scrap-claude:<version>` on the new release first
 and name that in `SCRAP_IMAGE` instead. For a local build, run
 `podman build -t localhost/scrap:dev ~/scrap` in place of the pull and leave `SCRAP_IMAGE` alone.
+
+`scrap-run`, `scrap-backup` and `scrap-gc` now require podman at `/usr/bin/podman`. If it lives
+elsewhere, `install.sh` exits early with a `sudo ln -s <path-to-podman> /usr/bin/podman` hint;
+run that, then re-run `install.sh`.
 
 `install.sh` restarts `scrap.service` when the image named in `SCRAP_IMAGE` is not the one the
 running container was started from, or when the unit or the `scrap-run` launcher changed;
