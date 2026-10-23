@@ -196,14 +196,18 @@ def seconds_between(earlier: str, later: str) -> float:
     return (end - start).total_seconds()
 
 
-def check_page(body: str) -> str:
-    """body, if it is within MAX_PAGE bytes of UTF-8; else InvalidError, saying so."""
+def too_big(size: int, most: int = MAX_PAGE) -> str:
+    """Why a page of size bytes is refused: in bytes, so the boundary is clear."""
+    mb = " (1 MB)" if most == MAX_PAGE else ""
+    return f"the page text is {size:,} bytes, and a page holds at most {most:,}{mb}"
+
+
+def check_page(body: str, was: str | None = None) -> str:
+    """body, if it is within MAX_PAGE bytes of UTF-8 or is unchanged from was (a page
+    imported over the limit can still be retitled); else InvalidError, saying so."""
     size = len(body.encode())
-    if size > MAX_PAGE:
-        raise InvalidError(
-            f"page text is {size / 1e6:.2f} MB:"
-            f" a page holds at most {MAX_PAGE / 1e6:g} MB"
-        )
+    if size > MAX_PAGE and body != was:
+        raise InvalidError(too_big(size))
     return body
 
 
@@ -1221,7 +1225,9 @@ class Store:
             ):
                 title = None  # unchanged since base_rev: keep a newer (model) title
             new_title = page["title"] if title is None else " ".join(title.split())
-            new_body: str = page["body"] if body is None else check_page(lines(body))
+            new_body: str = (
+                page["body"] if body is None else check_page(lines(body), page["body"])
+            )
             if not new_title:
                 raise InvalidError("title must not be empty")
             if (new_title, new_body) != (page["title"], page["body"]):
@@ -1409,7 +1415,7 @@ class Store:
                 self._set_todo(conn, page["id"], page["kind"], todo)
             body = "\n\n".join(x for x in (page["body"].rstrip(), text) if x)
             if len(body.encode()) > most:
-                raise InvalidError(f"the page would be over {most} bytes")
+                raise InvalidError(too_big(len(body.encode()), most))
             if text:  # none: only its due date or priority changed (no revision)
                 conn.execute(
                     "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
@@ -1908,7 +1914,7 @@ class Store:
             title, body = change(conn, page)
             if not title.strip():
                 raise InvalidError("title must not be empty")
-            body = check_page(lines(body))
+            body = check_page(lines(body), page["body"])
             changed = (title, body) != (page["title"], page["body"])
             rev, folded = page["rev"], None
             if changed and not dry_run:

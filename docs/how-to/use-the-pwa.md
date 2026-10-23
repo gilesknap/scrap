@@ -488,7 +488,7 @@ How matching works:
   copy it back into the page by hand. A change of tags or kind is kept apart from these.
   **Download** and `scrap export` hold only the current text.
 - A page's text holds at most 1 MB (about a million letters). Save says so before sending a
-  longer one, and keeps it in the editor (and the composer) for you to shorten or split.
+  longer one (counting the photo links a capture adds), and keeps it in the editor (and the composer) for you to shorten or split. A page imported over the limit can still be edited: only its text must stay as it is, or shrink, for the title, kind and tags to save.
 - Deleting a photo's line (its token, in the editor) removes the photo from the page. **Save** warns first, naming each
   photo whose line went: *no longer shown on any page*, or *still shown on N other pages*. This
   doesn't delete the stored file. **Cancel** goes back to the editor with your text as it was (undo brings the

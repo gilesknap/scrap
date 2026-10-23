@@ -33,8 +33,6 @@ export { same, tagField } from "./tagedit";
 export { todoField, todoStart } from "./todoedit";
 export { confirmRemoval } from "./unembed";
 
-const MAX_PAGE = 1_000_000; // bytes of UTF-8: a page's text at most (the server's store.MAX_PAGE)
-
 /** A rarely changed part of the editor (tags, a todo's dates) folded into one line that
  * says what it holds ("Tags 3 · #work #garden…"); tapped, it opens in place, tapped again it
  * folds. The text stays the screen's hero. A native <details>, so it is a button to
@@ -161,14 +159,6 @@ export function embedded(text: HTMLTextAreaElement) {
   text.addEventListener("input", show);
   set(text.value);
   return { chips, value: () => expand(text.value, embeds), set };
-}
-
-/** Why text can't be saved as a page's (over 1 MB), said before sending it; else null. */
-export function tooLong(text: string) {
-  const n = new TextEncoder().encode(text).length;
-  return n > MAX_PAGE
-    ? `Not saved: the text is ${(n / 1e6).toFixed(2)} MB, and a page holds at most 1 MB`
-    : null;
 }
 
 /** The kind control: a segmented radio group. suggest() picks a kind until the user picks

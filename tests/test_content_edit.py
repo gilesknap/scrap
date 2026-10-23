@@ -273,7 +273,7 @@ def test_a_replacement_over_the_page_limit_is_refused_before_it_is_built(
     monkeypatch.setattr(mcp_server, "replaced", spy)
     error = refused(store, "edit_page", page=ref["slug"], old="a",
                     new="b" * 200_000, replace_all=True)  # fmt: skip
-    assert "the page would be 199800.00 MB" in error and calls == [999_000]
+    assert "the page text is 199,800,000,000 bytes" in error and calls == [999_000]
     assert store.page(ref["slug"])["body"] == "a" * 999_000
     # over by a little: refused; under: saved
     with closing(connect(store.db)) as conn:
@@ -282,7 +282,7 @@ def test_a_replacement_over_the_page_limit_is_refused_before_it_is_built(
             ("x" * 900_000 + "b", ref["page_id"]),
         )
     error = refused(store, "edit_page", page=ref["slug"], old="b", new="c" * 100_001)
-    assert "the page would be 1.00 MB" in error
+    assert "the page text is 1,000,001 bytes" in error
     ok(store, "edit_page", page=ref["slug"], old="b", new="c" * 99_999)
     assert len(store.page(ref["slug"])["body"]) == 999_999
 

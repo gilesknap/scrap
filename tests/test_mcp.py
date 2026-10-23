@@ -208,7 +208,7 @@ def test_write_checks_sizes(store, args, error):
 def test_append_keeps_a_page_under_its_limit(store, monkeypatch):
     monkeypatch.setattr(mcp_server, "MAX_PAGE", 100)
     page = write(store, body="x" * 60)
-    assert "over 100 bytes" in refused(
+    assert "holds at most 100" in refused(
         store, "write", title="", body="y" * 60, origin="", append_to=page["id"]
     )
 

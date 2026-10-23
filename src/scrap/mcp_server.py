@@ -45,6 +45,7 @@ from .store import (
     fields_for,
     new_ulid,
     now,
+    too_big,
 )
 
 __all__ = ["server", "security", "public_urls"]
@@ -244,10 +245,7 @@ def replaced(body: str, old: str, new: str, every: bool) -> tuple[str, int]:
         )
     size = len(body.encode()) + n * (len(new.encode()) - len(old.encode()))
     if size > MAX_PAGE:
-        raise InvalidError(
-            f"the page would be {size / 1e6:.2f} MB: a page holds at most"
-            f" {MAX_PAGE / 1e6:g} MB (nothing was saved)"
-        )
+        raise InvalidError(f"{too_big(size)} (nothing was saved)")
     return body.replace(old, new), n
 
 
