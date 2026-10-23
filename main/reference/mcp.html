@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.1.1.dev5+g95b9060d9 documentation</title>
+    <title>MCP server &#8212; scrap 0.1.1.dev10+g645f566cd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1054b12b"></script>
+    <script src="../_static/documentation_options.js?v=f7a933e8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -789,6 +789,21 @@ change is attributed to the author <code class="docutils literal notranslate"><s
 reachable only over the tailnet, through Tailscale Serve, like the rest of scrap; a single-server
 install listens on a Unix socket instead, and <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> or a Kubernetes ingress changes
 the exposure (see <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a> and <a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>).</p>
+<p><strong>Bearer token (optional).</strong> Set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> (or <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN_FILE</span></code>, a file with one
+token per line) and every request to <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> must send <code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">&lt;token&gt;</span></code>; anything
+else gets <code class="docutils literal notranslate"><span class="pre">401</span></code> with <code class="docutils literal notranslate"><span class="pre">WWW-Authenticate:</span> <span class="pre">Bearer</span></code>, before the <code class="docutils literal notranslate"><span class="pre">Host</span></code> and <code class="docutils literal notranslate"><span class="pre">Origin</span></code> checks run and
+before any tool is dispatched. Several tokens may be set (comma separated, or one per line), so
+one can be rotated in without a gap and each client can have its own and be revoked by removing
+it; a restart applies the change. Tokens are compared in constant time and are never logged: a
+refused request appears in the web server’s log with its status only. Only <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> is guarded;
+<code class="docutils literal notranslate"><span class="pre">/healthz</span></code> stays open for probes, and the PWA and JSON API are left to the proxy in front. Unset,
+nothing changes, so loopback and tailnet installs need no token. A setting that holds no token (an
+empty value, a missing or empty file) stops scrap starting rather than leaving <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> open.
+A token in the file cannot start with <code class="docutils literal notranslate"><span class="pre">#</span></code> (that line is a comment) and one in <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>
+cannot contain a comma.
+Make a token with <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-c</span> <span class="pre">'import</span> <span class="pre">secrets;</span> <span class="pre">print(secrets.token_urlsafe(32))'</span></code>. The tokens are
+static; there is no token-issuing command and no rate limiting or lock-out of repeated <code class="docutils literal notranslate"><span class="pre">401</span></code>s
+(leave that to the proxy in front, such as Cloudflare). See <a class="reference internal" href="../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">/mcp</span></code> also checks the <code class="docutils literal notranslate"><span class="pre">Host</span></code> header against loopback and the hosts of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (<code class="docutils literal notranslate"><span class="pre">421</span></code>
 otherwise), and an <code class="docutils literal notranslate"><span class="pre">Origin</span></code> header, if sent, against those origins (<code class="docutils literal notranslate"><span class="pre">403</span></code>), so a web page cannot
 reach it by DNS rebinding. The rules are:</p>

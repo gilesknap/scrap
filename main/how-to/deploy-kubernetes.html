@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.1.1.dev5+g95b9060d9 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.1.1.dev10+g645f566cd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1054b12b"></script>
+    <script src="../_static/documentation_options.js?v=f7a933e8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -667,6 +667,14 @@ checked, so a typo inside them is silently ignored. The main ones:</p>
 <td><p>off</p></td>
 <td><p>Who may connect, below.</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">.key</span></code></p></td>
+<td><p>none, <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code></p></td>
+<td><p>An existing Secret and the key in it holding the bearer token(s) <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> requires (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See <a class="reference internal" href="#k8s-mcp-token"><span class="std std-ref">Bearer token on /mcp</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy.</p></td>
+</tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Anything else for the container, such as <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (see <a class="reference internal" href="#k8s-mcp"><span class="std std-ref">Claude Code (MCP)</span></a>) or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>.</p></td>
@@ -828,6 +836,28 @@ author <code class="docutils literal notranslate"><span class="pre">tagged</span
 <p>The Ingress sends every path to scrap, so the proxy covers <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> too. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> is
 called by Claude Code, not a browser, so a login page in front of it will block it unless the
 proxy exempts that path or the client can pass its check; the tailnet route avoids the problem.</p>
+<p><strong>Behind oauth2-proxy.</strong> Set <code class="docutils literal notranslate"><span class="pre">identityHeader:</span> <span class="pre">X-Auth-Request-User</span></code> (the header oauth2-proxy
+returns and the controller copies to the request), so the author is the real login. scrap trusts
+only that header, but most controllers do not strip a client-sent copy, so the proxy plus the
+NetworkPolicy must be the only way to the Service; a forged value only changes the recorded author.</p>
+<p><strong>Exposing <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (Cloudflare Access, a second ingress).</strong> Give <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> its own Ingress rule or
+host that skips the login proxy, and guard it another way: a Cloudflare Access service token in
+front, and scrap’s own bearer token behind it (below), so a leaked service token alone does not
+open scrap. Keep the PWA and API on the login-proxied host.</p>
+</section>
+<section id="bearer-token-on-mcp">
+<span id="k8s-mcp-token"></span><h3>Bearer token on /mcp<a class="headerlink" href="#bearer-token-on-mcp" title="Link to this heading">#</a></h3>
+<p>Create the Secret yourself (the chart never takes a token as a value) and name it:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">mcp</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">tokenSecret</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-secrets</span><span class="w">      </span><span class="c1"># may be the Secret that holds ANTHROPIC_API_KEY</span>
+<span class="w">    </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_MCP_TOKEN</span><span class="w">     </span><span class="c1"># one token, or several comma separated to rotate</span>
+</pre></div>
+</div>
+<p>Generate one with <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-c</span> <span class="pre">'import</span> <span class="pre">secrets;</span> <span class="pre">print(secrets.token_urlsafe(32))'</span></code>. To rotate, set
+the key to <code class="docutils literal notranslate"><span class="pre">old,new</span></code>, roll the pod, move the clients to <code class="docutils literal notranslate"><span class="pre">new</span></code>, then drop <code class="docutils literal notranslate"><span class="pre">old</span></code>. <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> stays
+open for the probes. Clients send <code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">&lt;token&gt;</span></code>: see
+<a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
 </section>
 <section id="claude-code-mcp">
 <span id="k8s-mcp"></span><h3>Claude Code (MCP)<a class="headerlink" href="#claude-code-mcp" title="Link to this heading">#</a></h3>
@@ -1150,6 +1180,7 @@ sessions (<a class="reference internal" href="connect-claude-code.html"><span cl
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#any-other-ingress-controller">Any other ingress controller</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#bearer-token-on-mcp">Bearer token on /mcp</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code-mcp">Claude Code (MCP)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#port-forward">Port-forward</a></li>
 </ul>

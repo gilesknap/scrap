@@ -254,6 +254,22 @@ reachable only over the tailnet, through Tailscale Serve, like the rest of scrap
 install listens on a Unix socket instead, and `SCRAP_LISTEN=tcp` or a Kubernetes ingress changes
 the exposure (see [](../how-to/deploy-single-server.md) and [](../how-to/deploy-kubernetes.md)).
 
+**Bearer token (optional).** Set `SCRAP_MCP_TOKEN` (or `SCRAP_MCP_TOKEN_FILE`, a file with one
+token per line) and every request to `/mcp` must send `Authorization: Bearer <token>`; anything
+else gets `401` with `WWW-Authenticate: Bearer`, before the `Host` and `Origin` checks run and
+before any tool is dispatched. Several tokens may be set (comma separated, or one per line), so
+one can be rotated in without a gap and each client can have its own and be revoked by removing
+it; a restart applies the change. Tokens are compared in constant time and are never logged: a
+refused request appears in the web server's log with its status only. Only `/mcp` is guarded;
+`/healthz` stays open for probes, and the PWA and JSON API are left to the proxy in front. Unset,
+nothing changes, so loopback and tailnet installs need no token. A setting that holds no token (an
+empty value, a missing or empty file) stops scrap starting rather than leaving `/mcp` open.
+A token in the file cannot start with `#` (that line is a comment) and one in `SCRAP_MCP_TOKEN`
+cannot contain a comma.
+Make a token with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. The tokens are
+static; there is no token-issuing command and no rate limiting or lock-out of repeated `401`s
+(leave that to the proxy in front, such as Cloudflare). See [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md).
+
 `/mcp` also checks the `Host` header against loopback and the hosts of `SCRAP_PUBLIC_URL` (`421`
 otherwise), and an `Origin` header, if sent, against those origins (`403`), so a web page cannot
 reach it by DNS rebinding. The rules are:
