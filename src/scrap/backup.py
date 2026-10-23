@@ -13,7 +13,7 @@ from typing import IO
 from urllib.parse import quote
 
 from .drawing import excalidraw_file
-from .store import NotFoundError, Store, connect, migrate, schema_version
+from .store import NoSuchPage, Store, connect, migrate, schema_version
 
 __all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
 
@@ -317,7 +317,7 @@ def download(store: Store, key: str, out: IO[bytes]) -> tuple[str, str]:
             (key, key),
         ).fetchone()
         if page is None:
-            raise NotFoundError(key)
+            raise NoSuchPage(key)
         text, files = page_markdown(conn, page, _friendly_name)
     slug = page["slug"]
     if not files:

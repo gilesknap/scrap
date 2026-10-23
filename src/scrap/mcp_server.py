@@ -37,6 +37,7 @@ from .store import (
     WIKI_LINK,
     ConflictError,
     InvalidError,
+    NoSuchRevision,
     NotFoundError,
     Store,
     check_todo,
@@ -414,10 +415,9 @@ def server(store: Store) -> MCPServer:
         try:
             return call(*args, **kwargs)
         except NotFoundError as e:
-            what = str(e)  # a slug has no spaces: "revision 9", "batch X" are not one
-            if what.startswith(("revision ", "batch ")):
-                raise ToolError(f"no such {what}") from None
-            raise ToolError(f"no such page: {what}") from None
+            if isinstance(e, NoSuchRevision):
+                raise ToolError(f"no such {e}") from None
+            raise ToolError(f"no such page: {e}") from None
         except InvalidError as e:
             raise ToolError(str(e)) from None
         except ConflictError as e:

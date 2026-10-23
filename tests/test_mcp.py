@@ -802,3 +802,10 @@ def test_mcp_bearer_with_a_root_path():
     assert asgi_status([], "/prefix/mcp/x", "/prefix") == 401
     assert asgi_status([], "/prefix/healthz", "/prefix") == 200
     assert asgi_status([], "/mcp") == 401
+
+
+def test_a_page_key_starting_with_revision_is_still_no_such_page(store):
+    """The wording follows the exception type, not the text of the key (#154)."""
+    out = refused(store, "read", page="revision 9")
+    assert "no such page: revision 9" in out
+    assert "no such revision" not in out
