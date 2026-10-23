@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Try scrap on your LAN &#8212; scrap 0.2.3 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=a47416a6"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/install-lan';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.2.3';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Install on a server with Tailscale" href="install-server.html" />
+    <link rel="prev" title="Tutorials" href="../tutorials.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.3" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Try scrap on your LAN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install-server.html">Install on a server with Tailscale</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install-kubernetes.html">Install scrap on Kubernetes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-with-claude-seat.html">Ingest on a Claude seat instead of an API key</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../tutorials.html" class="nav-link">Tutorials</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Try scrap on your LAN</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="try-scrap-on-your-lan">
+<h1>Try scrap on your LAN<a class="headerlink" href="#try-scrap-on-your-lan" title="Link to this heading">#</a></h1>
+<p>In this tutorial you run scrap as a single container on a laptop, a Raspberry Pi or a home PC,
+and open it from your phone over your home network or Tailscale. It takes a few minutes, needs no
+dedicated user and no systemd, and is the quickest way to see what scrap does. At the end you can
+browse, search, edit and capture pages from your phone, and Claude Code on the same machine can
+search and write them.</p>
+<p>This is a trial install, not a hardened one. For a lasting setup on a server, see
+<a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>; for a cluster, see <a class="reference internal" href="install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>scrap has <strong>no login</strong>. Anyone who can reach the port can read and change everything. Use this
+only on a network you trust (your home LAN, your own tailnet), never on a public address, and
+never with a port forward on your router.</p>
+</div>
+<section id="what-you-get-and-what-you-do-not">
+<h2>What you get, and what you do not<a class="headerlink" href="#what-you-get-and-what-you-do-not" title="Link to this heading">#</a></h2>
+<p>How far you get depends on how your phone reaches scrap. There are three tiers; the tutorial
+takes you through them in order and you can stop at any of them.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tier</p></th>
+<th class="head"><p>Phone reaches scrap by</p></th>
+<th class="head"><p>You get</p></th>
+<th class="head"><p>You do not get</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>A. LAN</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">http://&lt;lan-address&gt;:8000</span></code></p></td>
+<td><p>Browse, search, edit and capture in the web page</p></td>
+<td><p>Install as an app, Android share target, offline queue</p></td>
+</tr>
+<tr class="row-odd"><td><p>B. Tailscale</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">http://&lt;tailscale-address&gt;:8000</span></code></p></td>
+<td><p>The same as A, from anywhere</p></td>
+<td><p>The same limits as A</p></td>
+</tr>
+<tr class="row-even"><td><p>C. Tailscale Serve</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net</span></code></p></td>
+<td><p>Everything: install, share target, offline queue</p></td>
+<td><p>Nothing missing</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The limits in A and B come from the browser, not from scrap: the app install, the share target
+and the offline queue need a <em>secure context</em>, which means HTTPS or <code class="docutils literal notranslate"><span class="pre">localhost</span></code>. Plain HTTP to a
+LAN address is neither.</p>
+</section>
+<section id="what-you-need">
+<h2>What you need<a class="headerlink" href="#what-you-need" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>A machine with <a class="reference external" href="https://podman.io">podman</a> or Docker (the commands below use <code class="docutils literal notranslate"><span class="pre">podman</span></code>; Docker
+takes the same arguments). The image is built for amd64 and arm64, so a Raspberry Pi 4 or 5
+with a 64-bit OS works.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">curl</span></code>, and a phone on the same network.</p></li>
+<li><p>Optional, for Claude to read your photos and tag your notes: an
+<a class="reference external" href="https://console.anthropic.com/">Anthropic API key</a>. Capture, search and editing work without
+one.</p></li>
+<li><p>Optional, for tiers B and C: <a class="reference external" href="https://tailscale.com/download">Tailscale</a> on this machine and on
+your phone, both logged in to the same tailnet.</p></li>
+</ul>
+</section>
+<section id="find-your-address">
+<h2>Find your address<a class="headerlink" href="#find-your-address" title="Link to this heading">#</a></h2>
+<p>Find the machine’s LAN address, for example <code class="docutils literal notranslate"><span class="pre">192.168.1.10</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">hostname</span> <span class="o">-</span><span class="n">I</span>
+</pre></div>
+</div>
+<p>Use the address your phone can reach (usually the first one). A Tailscale address, if you have
+one, starts <code class="docutils literal notranslate"><span class="pre">100.</span></code> and is printed by <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">ip</span> <span class="pre">-4</span></code>.</p>
+</section>
+<section id="write-the-settings-file">
+<h2>Write the settings file<a class="headerlink" href="#write-the-settings-file" title="Link to this heading">#</a></h2>
+<p>scrap is configured with environment variables. Put them in a file rather than on the command
+line, so a key never shows in your shell history or in <code class="docutils literal notranslate"><span class="pre">ps</span></code>. Create it readable by you only:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span>
+<span class="n">umask</span> <span class="mi">077</span>
+<span class="n">cat</span> <span class="o">&gt;</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span> <span class="o">&lt;&lt;</span><span class="s1">'EOF'</span>
+<span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">192.168.1.10</span><span class="p">:</span><span class="mi">8000</span>
+<span class="n">TZ</span><span class="o">=</span><span class="n">Europe</span><span class="o">/</span><span class="n">London</span>
+<span class="n">EOF</span>
+</pre></div>
+</div>
+<p>Replace the address with yours (add your Tailscale address too, comma separated, if you will use
+tier B: <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000</span></code>). Replace <code class="docutils literal notranslate"><span class="pre">TZ</span></code> with
+your own time zone; without it the server runs on UTC and <code class="docutils literal notranslate"><span class="pre">due:today</span></code> follows the wrong day
+around midnight.</p>
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> matters for one thing: <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, the endpoint Claude uses, answers only the
+loopback addresses and the addresses listed there, and replies <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> to any
+other. The web page does not care. Page links that Claude gives you also start with the first
+address in it.</p>
+<p>Now the optional part, which is recommended. Add these two lines to the same file with your
+editor, as plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> lines without quotes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
+<span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>With them, a background worker sends photos to Claude for their text, a description, tags and a
+redrawing, and tags and summarises text pages. It costs money, so a daily budget pauses it
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, default 3 dollars; see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>). Without them scrap
+still captures and searches; it just does not read anything. To use a Claude subscription
+instead of a key, see <a class="reference internal" href="ingest-with-claude-seat.html"><span class="std std-doc">Ingest on a Claude seat instead of an API key</span></a>.</p>
+</section>
+<section id="run-the-container">
+<h2>Run the container<a class="headerlink" href="#run-the-container" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">run</span> <span class="o">-</span><span class="n">d</span> <span class="o">--</span><span class="n">name</span> <span class="n">scrap</span> <span class="o">--</span><span class="n">restart</span> <span class="n">unless</span><span class="o">-</span><span class="n">stopped</span> \
+    <span class="o">-</span><span class="n">p</span> <span class="mi">8000</span><span class="p">:</span><span class="mi">8000</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> <span class="o">--</span><span class="n">env</span><span class="o">-</span><span class="n">file</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span> \
+    <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="n">serve</span> <span class="o">--</span><span class="n">host</span> <span class="mf">0.0.0.0</span> <span class="o">--</span><span class="n">port</span> <span class="mi">8000</span>
+</pre></div>
+</div>
+<p>This pulls the image, which is public (no login needed), and starts scrap. In turn:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">8000:8000</span></code> publishes the port on <strong>every</strong> network interface of the machine. That is what
+lets your phone in, and it is also why the warning above matters. To keep it to one address,
+write <code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">192.168.1.10:8000:8000</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-v</span> <span class="pre">scrap-data:/data</span></code> is a named volume holding the database and your files. Always give the
+data a volume: without one it goes to an anonymous volume that is easy to lose.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--host</span> <span class="pre">0.0.0.0</span></code> is needed inside the container, because the default <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> cannot be
+reached from a published port.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--restart</span> <span class="pre">unless-stopped</span></code> brings it back after a reboot (with Docker; podman needs a systemd
+unit for that, which is what <a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a> sets up).</p></li>
+</ul>
+<p>Check it, from the machine itself:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">healthz</span>
+<span class="n">curl</span> <span class="o">-</span><span class="n">X</span> <span class="n">POST</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">captures</span> <span class="o">-</span><span class="n">H</span> <span class="s1">'Content-Type: application/json'</span> \
+  <span class="o">-</span><span class="n">d</span> <span class="s1">'{"id": "01JABCDEFGHJKMNPQRSTVWXYZ0", "text": "First note"}'</span>
+</pre></div>
+</div>
+<p>The first prints <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,&quot;version&quot;:&quot;0.2.2&quot;,...}</span></code>. The second creates a page and prints
+its id and slug; <code class="docutils literal notranslate"><span class="pre">id</span></code> is a ULID the client makes, so sending the same one again is a safe retry.</p>
+<p>On a firewalled machine, allow port 8000 from your LAN only (for example <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">ufw</span> <span class="pre">allow</span> <span class="pre">from</span> <span class="pre">192.168.1.0/24</span> <span class="pre">to</span> <span class="pre">any</span> <span class="pre">port</span> <span class="pre">8000</span></code>). Docker publishes ports around <code class="docutils literal notranslate"><span class="pre">ufw</span></code>, so check from your phone
+rather than trusting the rule.</p>
+</section>
+<section id="tier-a-open-it-on-your-phone-over-the-lan">
+<h2>Tier A: open it on your phone over the LAN<a class="headerlink" href="#tier-a-open-it-on-your-phone-over-the-lan" title="Link to this heading">#</a></h2>
+<p>On your phone, open <code class="docutils literal notranslate"><span class="pre">http://192.168.1.10:8000/</span></code> (your address). You see your first note. Try
+capturing a note and a photo, searching, and editing a page. See <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a> for
+what the web app does.</p>
+<p>Over plain HTTP the browser will not offer to install the app, the share target does not exist
+and captures made while the phone is offline are not queued: the page must be open and the
+machine reachable. That is the limit of this tier.</p>
+</section>
+<section id="tier-b-reach-it-from-anywhere-over-tailscale">
+<h2>Tier B: reach it from anywhere over Tailscale<a class="headerlink" href="#tier-b-reach-it-from-anywhere-over-tailscale" title="Link to this heading">#</a></h2>
+<p>If this machine and your phone are both on your tailnet, the same published port is already
+reachable on the machine’s Tailscale address. On your phone, open <code class="docutils literal notranslate"><span class="pre">http://100.64.0.7:8000/</span></code>
+(<code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">ip</span> <span class="pre">-4</span></code> prints yours), or <code class="docutils literal notranslate"><span class="pre">http://&lt;machine-name&gt;:8000/</span></code> with MagicDNS. Remember to
+list that address (and the MagicDNS name, <code class="docutils literal notranslate"><span class="pre">http://&lt;machine-name&gt;:8000</span></code>, if you use it) in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> if you use Claude from another machine (see the next
+section).</p>
+<p>It is still plain HTTP, so it has the same limits as tier A, but it works away from home. Tailscale
+encrypts the traffic between the devices.</p>
+</section>
+<section id="tier-c-https-with-tailscale-serve-for-the-full-phone-experience">
+<h2>Tier C: HTTPS with Tailscale Serve, for the full phone experience<a class="headerlink" href="#tier-c-https-with-tailscale-serve-for-the-full-phone-experience" title="Link to this heading">#</a></h2>
+<p><a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> gives scrap a real HTTPS address on your
+tailnet, which is a secure context. It needs <a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates and
+MagicDNS</a> enabled for the tailnet. Then:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">443</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span>
+<span class="n">tailscale</span> <span class="n">serve</span> <span class="n">status</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">status</span></code> prints the address, <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net</span></code>. Open it on your phone, and add
+the address to the settings file so <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accepts it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span>
+</pre></div>
+</div>
+<p>Then recreate the container so it reads the file (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">rm</span> <span class="pre">-f</span> <span class="pre">scrap</span></code>, then run the command from
+“Run the container” again; the data volume keeps your pages). In your phone’s browser, use <em>Add
+to Home screen</em> or <em>Install app</em>. The Android share target and the offline queue now work. Never
+use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>, which opens it to the internet.</p>
+<p>For the hardened version of this (a dedicated user, a Unix socket instead of a published port,
+systemd), follow <a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>, which does not repeat the Serve details.</p>
+</section>
+<section id="connect-claude-code">
+<h2>Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
+<p>On the same machine, loopback always works, so no <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is needed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">mcp</span>
+</pre></div>
+</div>
+<p>Start <code class="docutils literal notranslate"><span class="pre">claude</span></code> and ask it to search your pages. On another machine on the LAN or tailnet, use the
+address that machine reaches scrap at (for example <code class="docutils literal notranslate"><span class="pre">http://192.168.1.10:8000/mcp</span></code>), which must be
+in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. See <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a> for the details and
+<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> for the tools.</p>
+</section>
+<section id="keep-your-data">
+<h2>Keep your data<a class="headerlink" href="#keep-your-data" title="Link to this heading">#</a></h2>
+<p>The image runs as an unprivileged user (uid 10001). A named volume works as it is. If you would
+rather use a host folder, it must be writable by that user, or scrap fails with “Permission
+denied” on <code class="docutils literal notranslate"><span class="pre">/data</span></code>: with Docker add <code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">&quot;$(id</span> <span class="pre">-u):$(id</span> <span class="pre">-g)&quot;</span></code>, with rootless podman add
+<code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=10001,gid=10001</span></code>, and on SELinux systems (Fedora, RHEL) add <code class="docutils literal notranslate"><span class="pre">:Z</span></code> to the
+volume.</p>
+<p>To copy everything into a second volume while scrap runs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="p">:</span><span class="o">/</span><span class="n">backup</span> \
+    <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backup</span>
+</pre></div>
+</div>
+<p>That copy is local only; copy it off the machine to survive losing it. To update, pull a new
+release tag, remove the container and run it again: the volume keeps your data. Keep the env file
+out of any repository: the key shows in plain text in <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span></code>.</p>
+</section>
+<section id="running-from-a-checkout-instead">
+<h2>Running from a checkout instead<a class="headerlink" href="#running-from-a-checkout-instead" title="Link to this heading">#</a></h2>
+<p>If you would rather not use a container, from a checkout (Python 3.11 or newer, <a class="reference external" href="https://docs.astral.sh/uv/">uv</a>,
+and Node 22 to build the web app) <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--data-dir</span> <span class="pre">./data</span> <span class="pre">--host</span> <span class="pre">0.0.0.0</span> <span class="pre">--port</span> <span class="pre">8000</span></code>
+serves the same thing. The container is simpler, because the web app is already built into it.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>What has been checked.</strong> On 23 Oct 2026 the commands above were run by hand on Ubuntu with
+rootless podman and the published <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.2.2</span></code> image: the container with a
+named volume and an env file; <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and a <code class="docutils literal notranslate"><span class="pre">curl</span></code> capture (201) on both the LAN and the
+Tailscale address, with the page then listed; the home page loading from the LAN address;
+<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accepting the LAN address when it was in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> and returning 421 for the
+Tailscale address when it was not, and 200 for both once both were listed; and restarting the
+container with the same volume keeping the page, with <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> reporting ingest enabled
+(a placeholder key, so no real Claude call was made). Not checked: a phone (tiers A and B and the
+browser limits are as documented by browsers, not observed here), <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> with
+<code class="docutils literal notranslate"><span class="pre">--https=443</span></code> in tier C (the server install tutorial runs the Serve flow), <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code>
+against this container, Docker rather than podman, a Raspberry Pi, the <code class="docutils literal notranslate"><span class="pre">backup</span></code> command, and the
+checkout alternative.</p>
+</div>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>A lasting install, with its own user, a socket and systemd: <a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>.</p></li>
+<li><p>Run it on a cluster: <a class="reference internal" href="install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a>.</p></li>
+<li><p>Ingest from a Claude subscription instead of an API key: <a class="reference internal" href="ingest-with-claude-seat.html"><span class="std std-doc">Ingest on a Claude seat instead of an API key</span></a>.</p></li>
+<li><p>Every setting and the HTTP API: <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>.</p></li>
+<li><p>Update, back up and fix a single-server install: <a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>.</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../tutorials.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Tutorials</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="install-server.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Install on a server with Tailscale</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-get-and-what-you-do-not">What you get, and what you do not</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#find-your-address">Find your address</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#write-the-settings-file">Write the settings file</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-the-container">Run the container</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tier-a-open-it-on-your-phone-over-the-lan">Tier A: open it on your phone over the LAN</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tier-b-reach-it-from-anywhere-over-tailscale">Tier B: reach it from anywhere over Tailscale</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tier-c-https-with-tailscale-serve-for-the-full-phone-experience">Tier C: HTTPS with Tailscale Serve, for the full phone experience</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">Connect Claude Code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#keep-your-data">Keep your data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-from-a-checkout-instead">Running from a checkout instead</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.2.3/docs/tutorials/install-lan.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/tutorials/install-lan.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
