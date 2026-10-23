@@ -1450,6 +1450,8 @@ class Store:
                     (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
                 )
                 self._body(conn, page["id"], boxes_before(page))
+                if enrich_on() and should_enrich(conn, page["id"]):  # as for a save
+                    queue_enrich(conn, page["id"], "save", debounce())
             conn.execute(  # the retry key, even with no text
                 "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
                 (cid, text or None, MCP, author, stamp, stamp, page["id"]),

@@ -505,7 +505,11 @@ class Enricher:
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
-        if link:
+        if link and job["reason"] == "save":
+            # A text edit reads the page again without the site: the fetched text is
+            # not kept, so there is nothing to reuse, and no fetch (#147)
+            failed = "not fetched again on a save of the page's text"
+        elif link:  # capture, ask and backfill fetch
             try:
                 got = self.fetch(link)
             except fetch.FetchError as error:
@@ -618,6 +622,16 @@ class Enricher:
                 )
                 self._tags(conn, page_id, out["tags"], producer, stamp,
                            first or job["reason"] != "save")  # fmt: skip
+                source, source_title = got and got.url, got and got.title or None
+                if (
+                    link and job["reason"] == "save"
+                ):  # not fetched: keep the last source
+                    old = conn.execute(
+                        "SELECT source, source_title FROM enrichment WHERE page_id = ?",
+                        (page_id,),
+                    ).fetchone()
+                    if old is not None:
+                        source, source_title = old
                 conn.execute(
                     "INSERT INTO enrichment (page_id, run_id, producer, summary,"
                     " source, source_title, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -625,8 +639,8 @@ class Enricher:
                     " producer = excluded.producer, summary = excluded.summary,"
                     " source = excluded.source, source_title = excluded.source_title,"
                     " updated_at = excluded.updated_at",
-                    (page_id, run_id, producer, out["summary"], got and got.url,
-                     got and got.title or None, stamp),
+                    (page_id, run_id, producer, out["summary"], source,
+                     source_title, stamp),
                 )  # fmt: skip
                 if link:
                     title = out["title"] or (got.title if got else "")

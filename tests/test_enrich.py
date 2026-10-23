@@ -660,3 +660,82 @@ def test_backfill_skips_a_photo_page_of_kind_note(store, monkeypatch):
     photo_page(store, "a typed note")
     capture(store, "a plain note")
     assert enrich.backfill(store, dry_run=True) == 1
+
+
+# MCP append and saved links (#149, #147)
+
+
+def mcp_page(store, kind="note", body="written by Claude"):
+    c = {"id": new_ulid(), "kind": "note", "text": body, "url": None, "source": "mcp",
+         "created_at": "2026-01-01T00:00:00+00:00", "page_kind": kind,
+         "fields": {}, "title": "T", "body": body}  # fmt: skip
+    return store.capture(c, [], "claude", [])[0]["page_id"]
+
+
+def append(store, page_id, text="more"):
+    return store.append(page_id, new_ulid(), text, "claude", [], 10_000)
+
+
+def test_an_mcp_append_queues_one_save_job_per_page(store, monkeypatch):
+    page_id = mcp_page(store)
+    run_all(worker(store, Fake(answer())))
+    monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "3600")
+    append(store, page_id)
+    append(store, page_id, "and more")
+    assert jobs(store) == [("capture", "done", 0), ("save", "queued", 0)]
+
+
+def test_an_mcp_append_to_a_gated_page_queues_nothing(store):
+    page_id = mcp_page(store, kind="whiteboard")
+    append(store, page_id)
+    assert jobs(store) == []
+
+
+def test_an_mcp_append_queues_nothing_with_enrich_off(store, monkeypatch):
+    page_id = mcp_page(store)
+    run_all(worker(store, Fake(answer())))
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    append(store, page_id)
+    assert jobs(store) == [("capture", "done", 0)]
+
+
+def counting(calls):
+    def fetcher(url):
+        calls.append(url)
+        return page_fetch(url)
+
+    return fetcher
+
+
+def test_a_save_on_a_link_page_does_not_fetch_and_keeps_its_source(store):
+    url = "https://example.com/shed"
+    ref = capture(store, url=url)
+    calls: list[str] = []
+    w = worker(store, Fake(answer(["sheds"], "A book on sheds.")), counting(calls))
+    run_all(w)
+    assert calls == [url]
+    store.update_page(ref["page_id"], 1, None, url + "\nmy note", "me")
+    fake = Fake(answer(summary="Still about sheds."))
+    run_all(worker(store, fake, counting(calls)))
+    assert calls == [url]  # no second fetch
+    sent = fake.calls[0]["messages"][0]["content"][0]["text"]
+    assert "my note" in sent and "<fetched>" not in sent
+    page = store.page(ref["page_id"])
+    assert page["enrich"]["summary"] == "Still about sheds."
+    assert page["enrich"]["source"] == url + "?final"  # kept from the capture
+
+
+def test_ask_and_backfill_on_a_link_page_still_fetch(store):
+    url = "https://example.com/shed"
+    ref = capture(store, url=url)
+    calls: list[str] = []
+    run_all(worker(store, Fake(answer()), counting(calls)))
+    enrich.ask(store, ref["page_id"])
+    run_all(worker(store, Fake(answer()), counting(calls)))
+    assert calls == [url, url]
+    with closing(connect(store.db)) as conn:
+        conn.execute("UPDATE enrich_job SET reason = 'backfill' WHERE reason = 'ask'")
+        conn.execute("UPDATE enrich_job SET state = 'queued' WHERE reason = 'backfill'")
+        conn.commit()
+    run_all(worker(store, Fake(answer()), counting(calls)))
+    assert len(calls) == 3
