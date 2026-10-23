@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.2.1.dev17+g48bb9e537 documentation</title>
+    <title>MCP server &#8212; scrap 0.2.1.dev19+g7266ad5c7 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=36d43953"></script>
+    <script src="../_static/documentation_options.js?v=4ea35a97"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -647,7 +647,7 @@ again, so appended text is not read until the page is edited in the PWA or the u
 to read it. Related pages (<code class="docutils literal notranslate"><span class="pre">by_model.related</span></code>) are not part of this reading: they come from
 the nightly pass, or when the user asks. With enrichment off, none of this happens.</p></li>
 <li><p><strong>Limits.</strong> <code class="docutils literal notranslate"><span class="pre">title</span></code> 1 to 200 characters (whitespace collapsed); <code class="docutils literal notranslate"><span class="pre">body</span></code> at most 200,000 bytes of UTF-8
-per call, and a page, after an append, at most 1,000,000 bytes (as for any other way of
+per call, and a page, after an append, at most 1 MB (1,000,000 bytes, as for any other way of
 writing it); at most 20 tags, each 1 to 64 characters once
 normalised as imported tags are (one space between words, no leading <code class="docutils literal notranslate"><span class="pre">#</span></code>, lower case;
 <code class="docutils literal notranslate"><span class="pre">a/b</span></code> nests); <code class="docutils literal notranslate"><span class="pre">kind</span></code> one of <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code>, <code class="docutils literal notranslate"><span class="pre">doc</span></code>; <code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">open</span></code>,
