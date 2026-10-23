@@ -96,12 +96,20 @@ export function openDrawing(t: Target, onSaved: () => void) {
   const dirty = () => editing && (fromDraft || !!board?.changed());
 
   // ---- drafts
-  const keep = () => {
+  /** Whether the draft is safe (kept, or nothing to keep). */
+  const keep = (): Promise<boolean> => {
     clearTimeout(timer);
-    if (!board || !editing) return;
-    if (!dirty()) return void drafts.del(draftKey(t)).catch(() => {});
+    if (!board || !editing) return Promise.resolve(true);
+    if (!dirty())
+      return drafts.del(draftKey(t)).then(
+        () => true,
+        () => true,
+      );
     const draft: Draft = { elements: [...board.elements()], base, at: Date.now() };
-    drafts.put(draftKey(t), draft).catch(() => {}); // refused: the scene is still open
+    return drafts.put(draftKey(t), draft).then(
+      () => true,
+      () => false,
+    ); // refused: the scene is still open
   };
   const changed = () => {
     clearTimeout(timer);
@@ -311,8 +319,16 @@ export function openDrawing(t: Target, onSaved: () => void) {
   const onpop = (e: PopStateEvent) => {
     e.stopImmediatePropagation();
     if (dirty()) {
-      keep();
-      toast("Kept as a draft: open the drawing and Edit to carry on");
+      void keep().then((ok) =>
+        toast(
+          ok
+            ? "Kept as a draft: open the drawing and Edit to carry on"
+            : "Couldn't keep a draft: the phone refused to store it, so these changes are lost",
+          "",
+          undefined,
+          ok ? undefined : 10000,
+        ),
+      );
     }
     clearTimeout(timer);
     removeEventListener("popstate", onpop, true);

@@ -80,7 +80,9 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   kind.el.addEventListener("change", showTodo);
   showTodo();
   const conflict = h("div");
-  const save = async () => {
+  let busy = false; // a save in flight (or its removal question open): no second one
+  let closed = false; // saved: the editor is going, Save stays off
+  const send = async () => {
     const long = tooLong(body(), 0, body() === over);
     if (long) return toast(long, "", undefined, 8000); // still editing, as it was
     if (!(await confirmRemoval(p, over, body()))) return; // still editing, as it was
@@ -98,6 +100,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
           ...(redated() && todoNow()),
         }),
       });
+      closed = true;
       await ed.done();
       await load(saved); // its first image: the figures
       show(saved);
@@ -137,6 +140,19 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
         ),
       );
       conflict.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+  const save = async () => {
+    if (busy) return; // a double tap, or Ctrl+Enter, while the first is still on its way
+    busy = true;
+    ed.save.disabled = true;
+    try {
+      await send();
+    } finally {
+      if (!closed) {
+        busy = false; // refused, or a conflict to merge: save again
+        ed.save.disabled = false;
+      }
     }
   };
   const ed = editor({

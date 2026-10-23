@@ -399,3 +399,31 @@ test("search results stay when the queue changes offline", async ({ page, contex
   await expect(page.getByText("Search needs the server.")).toHaveCount(0);
   await context.setOffline(false);
 });
+
+test("the draft is kept the moment the app is hidden, without waiting for the pause (#16)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  const text = page.getByPlaceholder("Note or link");
+  await text.fill("Wombat last words");
+  // Hidden at once, well inside the 0.4 s pause
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const stored = () =>
+    page.evaluate(
+      () =>
+        new Promise<string>((ok) => {
+          const open = indexedDB.open("scrap");
+          open.onsuccess = () => {
+            const all = open.result.transaction("drafts").objectStore("drafts").getAll();
+            all.onsuccess = () => ok(JSON.stringify(all.result));
+          };
+        }),
+    );
+  await expect.poll(stored, { timeout: 300 }).toContain("Wombat last words");
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+});
