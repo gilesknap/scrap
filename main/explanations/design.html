@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.2.2.dev24+g8dd9f7623 documentation</title>
+    <title>scrap design &#8212; scrap 0.2.2.dev28+g7f19bfb14 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=155f0708"></script>
+    <script src="../_static/documentation_options.js?v=b0fe2111"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1155,7 +1155,19 @@ it was kept) shows the text as typed. A post-parse pass allows only http(s), mai
 in-page links (opened with <code class="docutils literal notranslate"><span class="pre">rel=noopener</span></code>), and only this server’s own images, each marked with its
 <code class="docutils literal notranslate"><span class="pre">data-sha</span></code> for <code class="docutils literal notranslate"><span class="pre">figure.ts</span></code>. A <code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block is drawn by Mermaid, a separate chunk loaded only
 for a page that has one (not kept offline: it is big), with <code class="docutils literal notranslate"><span class="pre">securityLevel:</span> <span class="pre">'strict'</span></code>; it is
-bundled, not loaded from a CDN, so the CSP needs no change.</p>
+bundled, not loaded from a CDN, so the CSP needs no change. That CSP (a <code class="docutils literal notranslate"><span class="pre">&lt;meta&gt;</span></code> in <code class="docutils literal notranslate"><span class="pre">index.html</span></code>)
+sets <code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'self'</span></code> and <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span> <span class="pre">'wasm-unsafe-eval'</span></code>: the theme is applied before first paint by
+<code class="docutils literal notranslate"><span class="pre">/theme-init.js</span></code>, not an inline script. <code class="docutils literal notranslate"><span class="pre">style-src</span></code> keeps <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code> because Mermaid and
+Excalidraw write style attributes and elements. <code class="docutils literal notranslate"><span class="pre">'wasm-unsafe-eval'</span></code> is there because the bundle
+compiles WebAssembly (pica and image-blob-reduce resize an image added to a drawing; Excalidraw’s
+font subsetting is an Emscripten module), which <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span></code> alone blocks; it allows
+WebAssembly only, not <code class="docutils literal notranslate"><span class="pre">eval()</span></code>, <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">Function()</span></code> or inline scripts, and <code class="docutils literal notranslate"><span class="pre">tests/csp.test.ts</span></code> keeps
+<code class="docutils literal notranslate"><span class="pre">'unsafe-eval'</span></code> and <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code> out of <code class="docutils literal notranslate"><span class="pre">script-src</span></code>. The font subsetting module also builds
+functions with <code class="docutils literal notranslate"><span class="pre">Function()</span></code>, which only <code class="docutils literal notranslate"><span class="pre">'unsafe-eval'</span></code> would allow; that is refused, so Excalidraw
+logs “Skipped glyph subsetting” and an SVG export embeds the whole font it uses instead of
+the glyphs drawn (about 40 kB against 13 kB for a three-box sketch); PNG exports, the stored
+drawing, which holds no fonts, and what shows on screen are unchanged
+(<a class="reference external" href="https://github.com/gilesknap/scrap/issues/105">issue 105</a>).</p>
 <p>The server parses with markdown-it-py (<code class="docutils literal notranslate"><span class="pre">scrap/markdown.py</span></code>, with mdit-py-plugins for footnotes):
 the search index holds plain text from the parse (link and image text, not addresses; a page
 link’s label; code as typed; a table’s cells; no markup), and the importer rewrites links,
