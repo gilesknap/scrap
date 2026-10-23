@@ -77,7 +77,7 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
         _restore_into(src, store, part)
     except BaseException:  # a refusal or Ctrl-C: leave no backup-sized leftover
         _discard(part)
-        if created:
+        if created and not store.db.exists():  # not once the swap has happened
             shutil.rmtree(store.dir, ignore_errors=True)
         raise
 
