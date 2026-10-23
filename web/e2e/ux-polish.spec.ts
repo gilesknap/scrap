@@ -382,3 +382,20 @@ test("search results follow the queue: a capture that uploads later appears", as
   await expect(page.locator(".hits a", { hasText: `${word} refresh note` })).toBeVisible();
   await expect(box).toHaveValue(word); // typing untouched
 });
+
+test("search results stay when the queue changes offline", async ({ page, context }) => {
+  const word = `numbat${Date.now()}`;
+  await make(page, `${word} stays`);
+  await page.goto(`/search?q=${word}`);
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  const hit = page.locator(".hits a", { hasText: `${word} stays` });
+  await expect(hit).toBeVisible();
+  await context.setOffline(true);
+  // What a capture queued offline does (main.ts, showQueue): the queue changed
+  await page.evaluate(() => document.dispatchEvent(new Event("queuechange")));
+  await page.waitForTimeout(1500); // the refresh has had its turn
+  await expect(hit).toBeVisible();
+  await expect(page.getByText("Search needs the server.")).toHaveCount(0);
+  await context.setOffline(false);
+});

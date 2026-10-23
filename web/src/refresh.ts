@@ -1,3 +1,5 @@
+import { h } from "./ui";
+
 // The search screen's refresh when the capture queue changes (a lazy chunk, so not in the shell).
 // It waits, trying again, while the user is mid-gesture: a finger down, the page scrolling,
 // focus anywhere but the search box (a panel's box, a panel, a control) or a text selection. Otherwise a swipe, tap or selection would be
@@ -11,7 +13,7 @@ export function watch(
   input: HTMLInputElement,
   restoring: () => boolean,
   go: () => void,
-) {
+): () => void {
   let down = 0; // pointers down
   let moved = 0; // when the page last scrolled
   let timer: ReturnType<typeof setTimeout>;
@@ -27,7 +29,7 @@ export function watch(
         input.value.trim() !== (new URLSearchParams(location.search).get("q") ?? "") ||
         restoring()
       )
-        return;
+        return refresh();
       const sel = getSelection();
       const busy =
         down ||
@@ -38,6 +40,14 @@ export function watch(
       go();
     }, 300);
   };
-  document.addEventListener("queuechange", refresh, { signal });
   signal.addEventListener("abort", () => clearTimeout(timer));
+  return refresh; // for the screen to call on a queue change
 }
+
+/** Whether a refresh leaves the rows be: the server out of reach is not an answer, and nothing
+ * new in the links and snippets (a row the swipe chunk has dressed has more text) is no change. */
+export const keeps = (shown: Node, now: Node) => {
+  const text = (el: Node) =>
+    [...(el as Element).querySelectorAll("a, small")].map((e) => e.textContent).join();
+  return !!h("div", {}, shown).querySelector(".failed") || text(shown) === text(now);
+};

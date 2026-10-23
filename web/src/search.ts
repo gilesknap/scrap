@@ -13,7 +13,7 @@ import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
-import { empty, h } from "./ui";
+import { empty, failed, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
 const MOST = 1000; // search results, fetched PAGE at a time
@@ -84,14 +84,12 @@ export async function search(): Promise<Node> {
   let timer: ReturnType<typeof setTimeout>;
   let saving: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
-  let quick = new AbortController(); // the refresh's
   // Leaving the view: no late debounce rewrites the address bar, no late results land.
   view.signal.addEventListener("abort", () => {
     clearTimeout(timer);
     clearTimeout(saving);
     clearTimeout(settle);
     abort.abort();
-    quick.abort();
   });
   // Where the list is scrolled to rides in its history entry, for Back
   addEventListener(
@@ -110,8 +108,10 @@ export async function search(): Promise<Node> {
   // ran (typing: its own run is coming), nor while a finger is down, the page is scrolling or
   // a scroll is being restored, nor with focus or a selection inside the results: it waits and
   // tries again, so a swipe, tap or selection is never replaced under the user.
-  void import("./refresh").then((m) =>
-    m.watch(
+  let keeps: typeof import("./refresh").keeps = () => true; // whether a refresh leaves the rows be
+  const watching = import("./refresh").then((m) => {
+    keeps = m.keeps;
+    return m.watch(
       view.signal,
       input,
       () => scroll !== 0,
@@ -119,7 +119,19 @@ export async function search(): Promise<Node> {
         scroll = scrollY;
         void run(true, true);
       },
-    ),
+    );
+  });
+  // (a change before the chunk is here waits for it; offline before it was kept: no refresh)
+  document.addEventListener(
+    "queuechange",
+    () =>
+      watching.then(
+        (kick) => kick(),
+        () => {},
+      ),
+    {
+      signal: view.signal,
+    },
   );
 
   async function run(first = false, quiet = false) {
@@ -129,14 +141,12 @@ export async function search(): Promise<Node> {
       scroll = 0;
       address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
-    // A refresh has its own signal: it never cancels the refine of a run the user started
-    quick.abort();
-    quick = new AbortController();
+    // A refresh shares the signal of the run before it: it never cancels that run's refine
     if (!quiet) {
       abort.abort();
       abort = new AbortController();
     }
-    const { signal } = quiet ? quick : abort;
+    const { signal } = abort;
     // A refresh (quiet) redraws the rows only: never the kinds, filters, chips or the timer
     if (!quiet) {
       markNav();
@@ -156,10 +166,7 @@ export async function search(): Promise<Node> {
     const shown = await list(query, signal);
     if (signal.aborted) return;
     // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
-    // (the rows' links and snippets: a row the swipe chunk has dressed has more text)
-    const same = (el: Node) =>
-      [...(el as Element).querySelectorAll("a, small")].map((e) => e.textContent).join();
-    if (quiet && same(shown) === same(results)) {
+    if (quiet && keeps(shown, results)) {
       scroll = 0;
       return;
     }
@@ -228,7 +235,7 @@ export async function search(): Promise<Node> {
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError")
-        ul.append(h("li", {}, empty("offline", "Search needs the server.")));
+        ul.append(h("li", {}, failed("Search needs the server.")));
     }
     return ul;
   }
