@@ -472,3 +472,15 @@ def test_a_pipe_in_a_table_links_text_stays_escaped(tmp_path):
     assert "| [[other\\|x\\|y]] | [[other\\|One \\| Two]] |" in body
     assert "| [[other\\|p\\|q]] | z |" in body
     assert body.endswith("[[other|x|y]]")  # outside a table, as it was
+
+
+def test_numbers_a_browser_cannot_hold_are_dropped(tmp_path):
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/n.md",
+        front(title="N", summary=".inf", personal="9007199254740993"),
+    )
+    store, plan = edge_plan(tmp_path, root)
+    assert store.page("n")["fields"] == {}
+    assert len(plan.issues["field dropped"]) == 2

@@ -15,6 +15,7 @@ from urllib.parse import quote
 import anyio
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import (
     FileResponse,
     JSONResponse,
@@ -23,7 +24,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt
+from pydantic import BaseModel, BeforeValidator, Field, StrictBool, StrictInt
 from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -101,7 +102,22 @@ class Restore(BaseModel):
 
 FIELD_NAME = Annotated[str, Field(min_length=1, max_length=40)]
 # A field's value: flat, as the importer stores them too (None in a PATCH drops it)
-FIELD = Annotated[str, Field(max_length=200)] | StrictBool | StrictInt | StrictFloat
+# Numbers a browser holds exactly: whole within +-2**53, others finite (1e400 is not)
+FIELD_INT = Annotated[StrictInt, Field(ge=-(2**53), le=2**53)]
+
+
+def _only_float(value: Any) -> Any:
+    """Not an int: pydantic would take one past FIELD_INT's range as a float."""
+    if not isinstance(value, float):
+        raise ValueError("not a decimal number")
+    return value
+
+
+FIELD_FLOAT = Annotated[
+    float, BeforeValidator(_only_float), Field(strict=True, allow_inf_nan=False)
+]
+
+FIELD = Annotated[str, Field(max_length=200)] | StrictBool | FIELD_INT | FIELD_FLOAT
 
 
 class PageEdit(BaseModel):
@@ -253,6 +269,16 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
             return JSONResponse(detail, status)
 
         app.add_exception_handler(exc, handler)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, exc: RequestValidationError):
+        """422 as FastAPI's, without each error's input: 1e400 parses to infinity, which
+        JSON cannot carry back (that would be a 500)."""
+        detail = [
+            {"type": e["type"], "loc": list(e["loc"]), "msg": e["msg"]}
+            for e in exc.errors()
+        ]
+        return JSONResponse({"detail": detail}, 422)
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:
