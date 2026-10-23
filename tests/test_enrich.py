@@ -633,12 +633,25 @@ def photo_page(store, text=None):
     return store.capture(c, [(sha, "image/jpeg", size, None)], "me")[0]
 
 
-def test_a_save_on_a_photo_page_queues_nothing(store, monkeypatch):
+def test_a_save_on_a_photo_page_queues_nothing(store):
     ref = photo_page(store, "a typed note")
-    monkeypatch.setenv("SCRAP_INGEST", "off")  # ingest off or failed: still a photo
     store.update_page(ref["page_id"], 1, None, "a typed note, edited", "me")
     assert jobs(store) == []
     store.edit_text(ref["page_id"], "me", lambda conn, p: (p["title"], "mcp edit"))
+    assert jobs(store) == []
+
+
+def test_a_page_with_a_note_and_a_photo_capture_is_left_to_ingest(store):
+    """Only an import makes one page of both (an append is to a page Claude wrote)."""
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    stamp = "2026-01-01T00:00:00.000Z"
+    p = {"slug": "both", "title": "Both", "body": "a note", "kind": "note",
+         "fields": {}, "tags": [], "created_at": stamp,
+         "updated_at": stamp}  # fmt: skip
+    caps = [(new_ulid(), "note", "a note", []),
+            (new_ulid(), "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
+    page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
+    store.update_page(page_id, 1, None, "a note, edited", "me")
     assert jobs(store) == []
 
 
