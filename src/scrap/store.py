@@ -23,7 +23,8 @@ from .markdown import plain, tasks
 from .query import CONTROL, PRIORITIES, Query, bound, day, due, parse
 
 __all__ = [
-    "Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError",
+    "Store", "NotFoundError", "NoSuchPage", "NoSuchRevision", "ConflictError",
+    "TooLargeError", "InvalidError",
     "clean_tags",
 ]  # fmt: skip
 
@@ -132,6 +133,14 @@ ON CONFLICT DO NOTHING
 
 class NotFoundError(Exception):
     """No such page or blob (or it is in the trash)."""
+
+
+class NoSuchPage(NotFoundError):  # noqa: N818
+    """No such page (or it is in the trash); the message is the key given."""
+
+
+class NoSuchRevision(NotFoundError):  # noqa: N818
+    """No such revision or batch; the message names it ("revision 9")."""
 
 
 class ConflictError(Exception):
@@ -958,7 +967,7 @@ class Store:
             (key, key),
         ).fetchone()
         if row is None:
-            raise NotFoundError(key)
+            raise NoSuchPage(key)
         return row
 
     def recent(self, limit: int, kind: str | None = None) -> list[dict[str, Any]]:
@@ -1367,7 +1376,7 @@ class Store:
                 (None if undo else now(), key, key),
             )
         if cur.rowcount == 0:
-            raise NotFoundError(key)
+            raise NoSuchPage(key)
 
     def append(
         self,
@@ -1746,7 +1755,7 @@ class Store:
         with self.connect() as conn, transaction(conn):
             row = conn.execute(f"{META_REV} WHERE id = ?", (revision,)).fetchone()
             if row is None:
-                raise NotFoundError(f"revision {revision}")
+                raise NoSuchRevision(f"revision {revision}")
             page = self._page_row(conn, row["page_id"])  # not in the trash
             out = self._revert(conn, page, row, author, source, dry_run, None)
             return {**out, "reverts": revision}
@@ -1784,7 +1793,7 @@ class Store:
                 f"{META_REV} WHERE batch_id = ? ORDER BY id", (batch,)
             ).fetchall()
             if not rows:
-                raise NotFoundError(f"batch {batch}")
+                raise NoSuchRevision(f"batch {batch}")
             pages, skipped, conflicts = [], [], []
             for row in rows:
                 try:
@@ -1872,7 +1881,7 @@ class Store:
                 (page["id"], rev),
             ).fetchone()
         if row is None:
-            raise NotFoundError(f"revision {rev} of {key}")
+            raise NoSuchRevision(f"revision {rev} of {key}")
         return dict(row)
 
     def edit_text(
@@ -1989,7 +1998,7 @@ class Store:
             (page_id, rev),
         ).fetchone()
         if row is None:
-            raise NotFoundError(f"revision {rev} of {page_id}")
+            raise NoSuchRevision(f"revision {rev} of {page_id}")
         return row
 
     def tags_of(self, ids: list[str]) -> dict[str, list[str]]:
