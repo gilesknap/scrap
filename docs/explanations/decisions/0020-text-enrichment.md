@@ -60,7 +60,7 @@ untrusted.
 - On a single server `deploy/scrap-enrich-related.timer` runs the pass nightly in the service's
   container (`podman exec scrap scrap enrich --related`), after the backup. `install.sh` enables it
   if the image has the command. With ingest or enrich off, or no API key, the command says so and
-  exits 0. The Helm chart has no such job.
+  exits 0. The Helm chart has the equivalent `enrichRelated` CronJob (only while ingest is on), which runs the command in its own pod beside the scrap pod with the Deployment's environment.
 - On a Claude seat with no API key, enrichment runs through `claude -p` instead: see
   [](0021-ingest-on-a-claude-seat-through-claude-p.md).
 

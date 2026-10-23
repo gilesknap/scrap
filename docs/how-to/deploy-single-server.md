@@ -671,6 +671,14 @@ cannot read every reference, and it is safe while scrap serves. Each run first p
 file an earlier run left renamed aside (`files/ab/.gc-<sha>`) because it stopped mid-delete. Only
 each page's current text counts: old revisions of a page do not keep a file.
 
+gc also prunes the records of Claude calls, which would otherwise grow for ever: `model_run`
+(photos) and `enrich_run` (text pages, with the stored prompts, 20 to 40 KB each). A record is
+kept while anything refers to it (a page's enrichment, a derived result, a later turn of the same
+conversation), while it is the newest for its page or photo, while it is still running, and while
+it is younger than `--run-days` (default 30, at least 1). Counts are in the report, and `--delete`
+removes the rest. A deleted model run no longer keeps the JPEG it sent, which the next gc finds
+unused.
+
 **Deleting is not erasing.** A trashed page keeps its text, its revisions, its captures, what
 Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
 no disk space and removes none of its content from the data folder or from your backups. There is
@@ -704,13 +712,15 @@ above; that skips the recent-backup check, so make sure you have a recent backup
 
 A run prints one line, for example `scrap gc: would delete (dry run: --delete deletes) 3 unused
 files and 1 leftover uploads, 12.4 MB; 3 unused file records; kept 2 unused files younger than
-the grace period`. With `--delete` it says `deleted` instead. The parts:
+the grace period; 2 model runs and 5 enrich runs older than the retention`. With `--delete` it
+says `deleted` instead (for the files; the run records are deleted too). The parts:
 
 | Part | Meaning |
 | --- | --- |
 | `N unused files` | Files nothing uses, older than the grace period. The `MB` is the size of these and of the leftover uploads together. A deleted file takes its cached 480 and 2048 previews with it. |
 | `M leftover uploads` | `files/.up-*` temporaries from uploads cut off by a crash, also deleted once older than the grace period. |
 | `R unused file records` | Database rows for files nothing uses. The row is deleted with its file, or on its own if the file is already gone, so this can be more than the files. |
+| `A model runs and B enrich runs older than the retention` | Records of Claude calls past `--run-days` that nothing refers to and that are not the latest for their page or photo. With `--delete` they were deleted. |
 | `kept Y unused files younger than the grace period` | Unused, but too new to delete: a later run takes them. |
 | `K used again meanwhile` | Only shown when above zero. Unused when gc looked, but referenced, or uploaded again, before it deleted them (it checks again inside the delete), so they were kept. |
 | `put back Z files an earlier run left aside` | Only shown when above zero. A run that stopped mid-delete left `.gc-<sha>` files; this run restored them before it began. |
@@ -724,6 +734,7 @@ it has no recent backup.
 | `no database at <path>` | The data folder is wrong or empty. Check `SCRAP_DATA`, the `/data` mount and `SCRAP_DATA_DIR` (or `--data-dir`) in the command. |
 | `no files folder at <path>` | The folder has a database but no `files/`. The wrong folder again, or the files were not restored with the database. |
 | `the grace period must not be negative` | `--grace-hours` was below 0. |
+| `the run retention must be at least 1 day` | `--run-days` was below 1. |
 | `cannot read what is in use, so nothing was deleted: ...` | The database or files could not be read after the reason given: a damaged or unreadable database, or a permission problem. If the reason is `<db> has schema N; this scrap knows M`, the database is from a newer scrap: run gc with the newer image (see {ref}`scrap-upgrade-db`). |
 | `cannot delete: ...` | The database refused the delete (read-only, disk full). Nothing in the database changed; fix the cause and run again, which removes any file left over. |
 

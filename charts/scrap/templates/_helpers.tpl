@@ -63,7 +63,83 @@ that its Jobs' names fit). A longer fullname is cut and given a short hash. */}}
 {{- .Values.backup.persistence.existingClaim | default (printf "%s-backups" (include "scrap.fullname" .)) }}
 {{- end }}
 
-{{/* Pod-level settings shared by the Deployment and the backup CronJob. */}}
+{{/* A CronJob's name for a suffix such as "-gc": at most 52 characters, cut and
+given a short hash like scrap.backupName. Call with (dict "ctx" . "suffix" "-gc"). */}}
+{{- define "scrap.cronName" -}}
+{{- $full := include "scrap.fullname" .ctx }}
+{{- $room := sub 52 (len .suffix) | int }}
+{{- if le (len $full) $room }}
+{{- printf "%s%s" $full .suffix }}
+{{- else }}
+{{- printf "%s-%s%s" ($full | trunc (sub $room 7 | int) | trimSuffix "-") ($full | sha256sum | trunc 6) .suffix }}
+{{- end }}
+{{- end }}
+
+{{/* The pod's name label for such a CronJob: at most 63 characters. */}}
+{{- define "scrap.cronLabel" -}}
+{{- printf "%s%s" (include "scrap.name" .ctx | trunc (sub 63 (len .suffix) | int) | trimSuffix "-") .suffix }}
+{{- end }}
+
+{{/* The data claim is ReadWriteOnce, and SQLite needs the server's host (its
+write-ahead log is shared memory): a CronJob's pod runs beside the scrap pod. */}}
+{{- define "scrap.sameNodeAffinity" -}}
+podAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    - topologyKey: kubernetes.io/hostname
+      labelSelector:
+        matchLabels:
+          {{- include "scrap.selectorLabels" . | nindent 10 }}
+{{- end }}
+
+{{/* The app's own settings, as the Deployment sets them. A CronJob that runs a
+scrap command which calls Claude (enrich --related) needs the same. */}}
+{{- define "scrap.appEnv" -}}
+- name: SCRAP_DATA_DIR
+  value: /data
+- name: SCRAP_MAX_UPLOAD_MB
+  value: {{ .Values.maxUploadMB | quote }}
+- name: SCRAP_INGEST
+  value: {{ ternary "on" "off" .Values.ingest.enabled | quote }}
+{{- with .Values.identityHeader }}
+- name: SCRAP_IDENTITY_HEADER
+  value: {{ . | quote }}
+{{- end }}
+{{- with .Values.mcp.tokenSecret.name }}
+- name: SCRAP_MCP_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: {{ required "mcp.tokenSecret.key is empty" $.Values.mcp.tokenSecret.key }}
+{{- end }}
+{{- if .Values.ingest.enabled }}
+- name: ANTHROPIC_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.ingest.existingSecret }}
+      key: {{ .Values.ingest.apiKeyKey }}
+{{- with .Values.ingest.notifyUrlKey }}
+- name: SCRAP_NOTIFY_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ $.Values.ingest.existingSecret }}
+      key: {{ . }}
+{{- end }}
+{{- with .Values.ingest.visionModel }}
+- name: SCRAP_VISION_MODEL
+  value: {{ . | quote }}
+{{- end }}
+{{- $budget := toString .Values.ingest.budgetDayUSD }}
+{{- if ne $budget "" }}
+- name: SCRAP_BUDGET_DAY_USD
+  value: {{ $budget | quote }}
+{{- end }}
+{{- end }}
+{{- with .Values.extraEnv }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/* Pod-level settings shared by the Deployment and the CronJobs. */}}
 {{- define "scrap.podCommon" -}}
 serviceAccountName: {{ include "scrap.serviceAccountName" . }}
 automountServiceAccountToken: false
@@ -81,4 +157,12 @@ nodeSelector:
 tolerations:
   {{- toYaml . | nindent 2 }}
 {{- end }}
+{{- end }}
+
+{{/* "true" when the gc CronJob is wanted, else empty: gc.enabled, or when that is
+unset (null) whether backup.enabled, so a release with backups off still renders. */}}
+{{- define "scrap.gcEnabled" -}}
+{{- if kindIs "invalid" .Values.gc.enabled -}}
+{{- if .Values.backup.enabled }}true{{ end -}}
+{{- else if .Values.gc.enabled }}true{{ end -}}
 {{- end }}

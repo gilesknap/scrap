@@ -27,7 +27,7 @@ listener.
   settings through.
 - **Kubernetes:** a Helm chart with exactly one replica and strategy `Recreate`, a restricted Pod
   Security profile (uid 10001, read-only root, no capabilities), no service-account token, a PVC kept
-  on uninstall, a nightly backup CronJob, and an optional NetworkPolicy and Ingress. The Tailscale
+  on uninstall, nightly CronJobs for backup, gc and (with ingest) the related-pages pass, and an optional NetworkPolicy and Ingress. The Tailscale
   operator is the recommended exposure. Argo CD notes are included.
 - Restore is a CLI command that works from a read-only backup.
 
