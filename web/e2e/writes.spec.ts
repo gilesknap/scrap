@@ -44,7 +44,7 @@ test("text over 1 MB is not saved: the editor and composer say so first (#62)", 
   await page.getByLabel("Body").fill(big);
   await page.locator(".editor").getByRole("button", { name: "Save" }).click();
   await expect(page.locator(".toast")).toHaveText(
-    "Not saved: the text is 1.02 MB, and a page holds at most 1 MB",
+    "Not saved: the text is 1,020,000 bytes, and a page holds at most 1,000,000 (1 MB)",
   );
   await expect(page.locator(".editor")).toBeVisible(); // still editing, nothing lost
   expect((await (await page.request.get(`/api/pages/${made.page_id}`)).json()).rev).toBe(1);
@@ -53,7 +53,7 @@ test("text over 1 MB is not saved: the editor and composer say so first (#62)", 
     data: { base_rev: 1, body: big },
   });
   expect(r.status()).toBe(422);
-  expect((await r.json()).detail).toContain("a page holds at most 1 MB");
+  expect((await r.json()).detail).toContain("a page holds at most 1,000,000 (1 MB)");
   // The composer: not queued
   page.once("dialog", (d) => d.accept());
   await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
@@ -61,7 +61,7 @@ test("text over 1 MB is not saved: the editor and composer say so first (#62)", 
   await page.getByRole("button", { name: "Note", exact: true }).click();
   await page.locator(".editor textarea").fill(big);
   await page.locator(".editor").getByRole("button", { name: "Save" }).click();
-  await expect(page.locator(".toast")).toContainText("a page holds at most 1 MB");
+  await expect(page.locator(".toast")).toContainText("a page holds at most 1,000,000 (1 MB)");
   await expect(page.locator(".editor")).toBeVisible();
   await expect(page.locator("#queue")).toBeHidden();
   page.once("dialog", (d) => d.accept());
