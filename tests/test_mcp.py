@@ -1,5 +1,6 @@
 """The MCP server (#37): its tools, called in process, and /mcp over ASGI."""
 
+import asyncio
 import json
 from typing import Any
 
@@ -598,7 +599,7 @@ SECRET = "s3cret-token-value"
 LOCAL = {"Host": "localhost"}
 
 
-def authed(tmp_path, monkeypatch, token=SECRET, **env):
+def authed(tmp_path, monkeypatch, token: str | None = SECRET, **env):
     monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
     if token is not None:
@@ -742,3 +743,62 @@ def test_mcp_token_is_never_logged(tmp_path, monkeypatch, caplog):
         rpc(client, "initialize", INIT, bearer(SECRET))
     assert SECRET not in caplog.text
     assert "a-wrong-one" not in caplog.text
+
+
+def test_mcp_bearer_guards_slash_head_options(tmp_path, monkeypatch):
+    with authed(tmp_path, monkeypatch) as client:
+        for method, path in (
+            ("POST", "/mcp/"),
+            ("HEAD", "/mcp"),
+            ("OPTIONS", "/mcp"),
+        ):
+            r = client.request(method, path, headers=LOCAL)
+            assert r.status_code == 401, (method, path)
+            assert r.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_mcp_token_file_with_bom(tmp_path, monkeypatch):
+    file = tmp_path / "tokens"
+    file.write_bytes(b"\xef\xbb\xbffirst-token\nsecond-token\n")
+    with authed(
+        tmp_path, monkeypatch, token=None, SCRAP_MCP_TOKEN_FILE=str(file)
+    ) as client:
+        for token in ("first-token", "second-token"):
+            assert rpc(client, "initialize", INIT, bearer(token)).status_code == 200
+
+
+def asgi_status(headers, path="/mcp", root_path=""):
+    sent = []
+
+    async def inner(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+
+    async def receive():
+        return {"type": "http.request"}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": path,
+        "root_path": root_path,
+        "headers": headers,
+    }
+    asyncio.run(mcp_server.BearerAuth(inner, [SECRET])(scope, receive, send))
+    return sent[0]["status"]
+
+
+def test_mcp_bearer_only_the_first_authorization_header_counts():
+    good = (b"authorization", f"Bearer {SECRET}".encode())
+    bad = (b"authorization", b"Bearer wrong")
+    assert asgi_status([good, bad]) == 200
+    assert asgi_status([bad, good]) == 401
+
+
+def test_mcp_bearer_with_a_root_path():
+    assert asgi_status([], "/prefix/mcp", "/prefix") == 401
+    assert asgi_status([], "/prefix/mcp/x", "/prefix") == 401
+    assert asgi_status([], "/prefix/healthz", "/prefix") == 200
+    assert asgi_status([], "/mcp") == 401

@@ -140,7 +140,7 @@ def tokens() -> list[str]:
     if (path := os.environ.get("SCRAP_MCP_TOKEN_FILE")) is not None:
         given = True
         try:
-            with open(path, encoding="utf-8") as f:
+            with open(path, encoding="utf-8-sig") as f:
                 lines = [line.strip() for line in f]
         except OSError as error:
             raise SystemExit(
@@ -179,6 +179,8 @@ class BearerAuth:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
+        if (root := scope.get("root_path", "")) and path.startswith(root):
+            path = path[len(root) :]
         guarded = path == "/mcp" or path.startswith("/mcp/")
         if scope["type"] == "http" and guarded and not self.allowed(scope):
             response = PlainTextResponse(

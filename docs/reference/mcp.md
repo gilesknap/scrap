@@ -264,6 +264,8 @@ refused request appears in the web server's log with its status only. Only `/mcp
 `/healthz` stays open for probes, and the PWA and JSON API are left to the proxy in front. Unset,
 nothing changes, so loopback and tailnet installs need no token. A setting that holds no token (an
 empty value, a missing or empty file) stops scrap starting rather than leaving `/mcp` open.
+A token in the file cannot start with `#` (that line is a comment) and one in `SCRAP_MCP_TOKEN`
+cannot contain a comma.
 Make a token with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. The tokens are
 static; there is no token-issuing command and no rate limiting or lock-out of repeated `401`s
 (leave that to the proxy in front, such as Cloudflare). See [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md).

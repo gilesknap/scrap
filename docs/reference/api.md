@@ -6,7 +6,8 @@ that sends `Accept-Encoding: gzip`; stored files, previews, downloads, fonts and
 never are.
 The service listens on `127.0.0.1`, or with `scrap serve --uds` only on a Unix socket (the
 single-server install's default), and has no login; put Tailscale Serve (or an authenticating
-proxy) in front. The author of a capture or edit is the `Tailscale-User-Login` header (or the header named by `SCRAP_IDENTITY_HEADER`), else `tagged`.
+proxy) in front. The author of a capture or edit is the `Tailscale-User-Login` header (or the header named by
+`SCRAP_IDENTITY_HEADER`), else `tagged`.
 
 ## HTTP
 
