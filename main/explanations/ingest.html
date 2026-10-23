@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.2.1.dev22+g3b31118dc documentation</title>
+    <title>Claude ingest &#8212; scrap 0.2.1.dev25+g2e7dd9aa9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4e2f587b"></script>
+    <script src="../_static/documentation_options.js?v=ac5270e8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -552,9 +552,8 @@ itself) and the optional <code class="docutils literal notranslate"><span class=
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> (default on) controls the text-page job and needs ingest on; <code class="docutils literal notranslate"><span class="pre">off</span></code> keeps ingest to
 photos. The Helm chart has no value of its own for the text model, effort or debounce, or for
-<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>; set them with <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>. It also has no CronJob for the nightly related-pages
-pass (see <a class="reference internal" href="#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>): run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> in the pod yourself, or from
-a cluster scheduler of your own.</p>
+<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>; set them with <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>. Its <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code> CronJob runs the nightly related-pages
+pass (see <a class="reference internal" href="#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>) with the same environment, while ingest is on.</p>
 <p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span></code> tries the Claude call on one image file without a database, and prints
 tokens, cost and counts only; <code class="docutils literal notranslate"><span class="pre">--save</span> <span class="pre">FILE</span></code> also writes the full result. It is the quickest way to
 check a key and a model.</p>
