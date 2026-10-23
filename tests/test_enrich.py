@@ -1,6 +1,7 @@
 # pyright: reportOptionalSubscript=false
 """Enrich (#85): text pages tagged, summarised and linked by Claude (faked)."""
 
+import io
 import json
 from contextlib import closing
 from typing import Any
@@ -594,3 +595,68 @@ def test_checked_bounds_the_output():
     assert enrich.checked_related({"related": [True, 0, 2, 2, 3, 9]}, 3) == [2, 3]
     with pytest.raises(ValueError):
         enrich.checked_related({}, 3)
+
+
+# Which kinds are read (#155)
+
+
+@pytest.mark.parametrize("kind", ["whiteboard", "document"])
+def test_a_save_on_a_whiteboard_or_document_page_queues_nothing(store, kind):
+    ref = capture(store, "a page", kind=kind)
+    store.update_page(ref["page_id"], 1, None, "a page, edited", "me")
+    assert jobs(store) == []
+
+
+@pytest.mark.parametrize("kind", ["note", "todo", "consume"])
+def test_a_save_on_a_note_todo_or_read_queues_enrich(store, kind):
+    ref = capture(store, "a page", kind=kind)
+    store.update_page(ref["page_id"], 1, None, "a page, edited", "me")
+    assert jobs(store)[-1] == ("save", "queued", 0)
+
+
+def test_backfill_skips_photo_whiteboard_and_document_pages(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    for kind in ("whiteboard", "document"):
+        capture(store, f"a {kind}", kind=kind)
+    for kind in ("note", "todo", "consume"):
+        capture(store, f"a {kind}", kind=kind)
+    capture(store, url="https://example.com/a")
+    assert enrich.backfill(store, dry_run=True) == 4
+    assert enrich.backfill(store) == 4
+    assert [j[0] for j in jobs(store)] == ["backfill"] * 4
+
+
+def photo_page(store, text=None):
+    """A photo capture: its page is a note until ingest reclassifies it."""
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    c = store.prepare({"id": new_ulid(), "text": text}, ["image/jpeg"])
+    return store.capture(c, [(sha, "image/jpeg", size, None)], "me")[0]
+
+
+def test_a_save_on_a_photo_page_queues_nothing(store):
+    ref = photo_page(store, "a typed note")
+    store.update_page(ref["page_id"], 1, None, "a typed note, edited", "me")
+    assert jobs(store) == []
+    store.edit_text(ref["page_id"], "me", lambda conn, p: (p["title"], "mcp edit"))
+    assert jobs(store) == []
+
+
+def test_a_page_with_a_note_and_a_photo_capture_is_left_to_ingest(store):
+    """Only an import makes one page of both (an append is to a page Claude wrote)."""
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    stamp = "2026-01-01T00:00:00.000Z"
+    p = {"slug": "both", "title": "Both", "body": "a note", "kind": "note",
+         "fields": {}, "tags": [], "created_at": stamp,
+         "updated_at": stamp}  # fmt: skip
+    caps = [(new_ulid(), "note", "a note", []),
+            (new_ulid(), "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
+    page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
+    store.update_page(page_id, 1, None, "a note, edited", "me")
+    assert jobs(store) == []
+
+
+def test_backfill_skips_a_photo_page_of_kind_note(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    photo_page(store, "a typed note")
+    capture(store, "a plain note")
+    assert enrich.backfill(store, dry_run=True) == 1
