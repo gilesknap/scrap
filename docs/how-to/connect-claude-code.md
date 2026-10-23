@@ -168,7 +168,9 @@ cp -r skills/* .claude/skills/
 ```
 
 To keep them up to date with the repository, symlink instead:
-`ln -s "$PWD"/skills/* ~/.claude/skills/`. Without a clone, fetch each file, for example
+`ln -sfn "$PWD"/skills/* ~/.claude/skills/`. A symlink cannot replace an existing real
+directory, so if you installed the earlier `s` skill by copying, delete `~/.claude/skills/s`
+first. Without a clone, fetch each file, for example
 `mkdir -p ~/.claude/skills/s-post` then `curl -fsSL -o ~/.claude/skills/s-post/SKILL.md
 https://raw.githubusercontent.com/gilesknap/scrap/main/skills/s-post/SKILL.md`. Start a new
 Claude Code session afterwards, and type `/s-` to check that the commands are listed. Copy the

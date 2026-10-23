@@ -43,6 +43,10 @@ leave it out and say so.
 `key`: a random value made once per post, reused only to retry that same call; never derive it
 from the title or date. Limits: title 200 characters, body 200 kB, origin 200, up to 20 tags.
 
+**Appending** (`append_to`, a Claude page only): `write` still needs `title` and `origin`; pass
+the page's own title. `body` is added as a new section at the end, so give it its own heading
+rather than a summary line. `tags` are added to the page's existing ones.
+
 ## 3. Confirm, then post
 
 Unless the user said "just post", show ONE short message:
