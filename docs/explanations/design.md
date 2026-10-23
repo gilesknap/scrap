@@ -619,7 +619,10 @@ it was kept) shows the text as typed. A post-parse pass allows only http(s), mai
 in-page links (opened with `rel=noopener`), and only this server's own images, each marked with its
 `data-sha` for `figure.ts`. A ` ```mermaid ` block is drawn by Mermaid, a separate chunk loaded only
 for a page that has one (not kept offline: it is big), with `securityLevel: 'strict'`; it is
-bundled, not loaded from a CDN, so the CSP needs no change.
+bundled, not loaded from a CDN, so the CSP needs no change. That CSP (a `<meta>` in `index.html`)
+sets `default-src 'self'` and `script-src 'self'`: the theme is applied before first paint by
+`/theme-init.js`, not an inline script. `style-src` keeps `'unsafe-inline'` because Mermaid and
+Excalidraw write style attributes and elements ([issue 105](https://github.com/gilesknap/scrap/issues/105)).
 
 The server parses with markdown-it-py (`scrap/markdown.py`, with mdit-py-plugins for footnotes):
 the search index holds plain text from the parse (link and image text, not addresses; a page

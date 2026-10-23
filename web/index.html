@@ -6,19 +6,11 @@
     <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#161411" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
-    <script>
-      // The chosen app theme before first paint (theme.ts keeps it up to date)
-      try {
-        const t = localStorage.getItem("scrap.theme");
-        if (t === "light" || t === "dark") {
-          document.documentElement.dataset.theme = t;
-          for (const m of document.querySelectorAll('meta[name="theme-color"]'))
-            m.content = t === "dark" ? "#161411" : "#f6f3ec";
-        }
-      } catch {}
-    </script>
-    <!-- Fonts and fetches stay on scrap: Excalidraw would fall back to its CDN -->
-    <meta http-equiv="Content-Security-Policy" content="font-src 'self' data:; connect-src 'self'" />
+    <script src="/theme-init.js"></script>
+    <!-- Everything comes from scrap (Excalidraw would fall back to its CDN); scripts only from
+         files, never inline. Styles keep 'unsafe-inline': Mermaid and Excalidraw write style
+         attributes and elements. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
