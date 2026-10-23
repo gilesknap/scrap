@@ -67,6 +67,11 @@ optional). The install fails if `ingest.enabled` is set without `ingest.existing
 `ingest.apiKey` value is rejected as an unknown key. Enabling ingest sets `SCRAP_INGEST=on`, which
 also turns on Claude enrichment of text pages.
 
+`/mcp` can require a bearer token: create a Secret yourself and set `mcp.tokenSecret.name` (and
+`mcp.tokenSecret.key`, default `SCRAP_MCP_TOKEN`); a token given as a value is rejected. Set
+`identityHeader` to the header your authenticating proxy sends for the user (it defaults to
+`Tailscale-User-Login`).
+
 ## Operating
 
 - Check it works without exposing it: `kubectl -n scrap port-forward svc/scrap 8000:80`, then

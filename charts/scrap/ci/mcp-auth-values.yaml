@@ -1,0 +1,5 @@
+identityHeader: X-Auth-Request-User
+mcp:
+  tokenSecret:
+    name: scrap-secrets
+    key: SCRAP_MCP_TOKEN

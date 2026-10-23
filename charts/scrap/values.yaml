@@ -39,6 +39,20 @@ ingest:
   # SCRAP_BUDGET_DAY_USD in dollars, e.g. 3 or "2.5"; empty uses the app's default.
   budgetDayUSD: ""
 
+# SCRAP_IDENTITY_HEADER: the request header recorded as the author of a change.
+# Empty uses the app's default, Tailscale-User-Login. Behind an authenticating
+# proxy set the header it adds, e.g. X-Auth-Request-User. Only this header is read.
+identityHeader: ""
+
+mcp:
+  # Bearer token(s) /mcp requires (SCRAP_MCP_TOKEN). Name an existing Secret in the
+  # release namespace and the key holding the token, or several comma separated.
+  # The chart never takes a token as a value and never creates the Secret. Empty
+  # name: /mcp needs no token. The PWA, the API and /healthz are never affected.
+  tokenSecret:
+    name: ""
+    key: SCRAP_MCP_TOKEN
+
 # Extra environment for the scrap container (list of EnvVar / EnvFromSource).
 extraEnv: []
 extraEnvFrom: []

@@ -30,6 +30,21 @@
         "budgetDayUSD": {"type": ["string", "number"], "minimum": 0, "pattern": "^([0-9]+(\\.[0-9]+)?)?$"}
       }
     },
+    "identityHeader": {"type": "string", "pattern": "^[A-Za-z0-9-]*$"},
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tokenSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string"},
+            "key": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
     "extraEnv": {"type": "array"},
     "extraEnvFrom": {"type": "array"},
     "persistence": {"$ref": "#/definitions/claim"},
