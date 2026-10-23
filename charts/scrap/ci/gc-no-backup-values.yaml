@@ -2,6 +2,7 @@
 backup:
   enabled: false
 gc:
+  enabled: true
   requireBackup: false
   schedule: "0 5 * * *"
   timeZone: Europe/London

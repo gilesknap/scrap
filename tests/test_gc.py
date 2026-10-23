@@ -359,11 +359,11 @@ def _model_run(conn, cid, sha, days, parent=None, status="ok"):
     ).fetchone()[0]
 
 
-def _enrich_run(conn, page, days, status="ok"):
+def _enrich_run(conn, page, days, status="ok", request="{}"):
     return conn.execute(
         "INSERT INTO enrich_run (page_id, model, prompt_version, request, status,"
-        " started_at) VALUES (?, 'm', 'v', '{}', ?, ?) RETURNING id",
-        (page, status, _stamp(days)),
+        " started_at) VALUES (?, 'm', 'v', ?, ?, ?) RETURNING id",
+        (page, request, status, _stamp(days)),
     ).fetchone()[0]
 
 
@@ -413,6 +413,23 @@ def test_old_runs_are_counted_then_deleted_and_the_rest_kept(client, store):
     assert _ids(store, "enrich_run") == {e_ref, e_recent, e_latest_b, e_running}
     again = gc.collect(store, delete=True)
     assert (again.model_runs, again.enrich_runs) == (0, 0)
+
+
+def test_the_newest_ok_related_run_of_a_page_is_kept(client, store):
+    a, _ = photo(client)
+    pa = a["page_id"]
+    related = '{"purpose": "related"}'
+    with store.connect() as conn:
+        r_old = _enrich_run(conn, pa, 100, request=related)
+        r_new = _enrich_run(conn, pa, 90, request=related)
+        r_failed = _enrich_run(conn, pa, 80, status="error", request=related)
+        e_latest = _enrich_run(conn, pa, 70)  # the page's newest run, not related
+    done = gc.collect(store, delete=True)
+    assert done.enrich_runs == 2
+    assert _ids(store, "enrich_run") == {r_new, e_latest}
+    assert r_old not in _ids(store, "enrich_run") and r_failed not in _ids(
+        store, "enrich_run"
+    )
 
 
 def test_a_kept_turn_keeps_the_turns_it_continues(client, store):

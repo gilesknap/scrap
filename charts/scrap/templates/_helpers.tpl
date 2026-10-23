@@ -158,3 +158,11 @@ tolerations:
   {{- toYaml . | nindent 2 }}
 {{- end }}
 {{- end }}
+
+{{/* "true" when the gc CronJob is wanted, else empty: gc.enabled, or when that is
+unset (null) whether backup.enabled, so a release with backups off still renders. */}}
+{{- define "scrap.gcEnabled" -}}
+{{- if kindIs "invalid" .Values.gc.enabled -}}
+{{- if .Values.backup.enabled }}true{{ end -}}
+{{- else if .Values.gc.enabled }}true{{ end -}}
+{{- end }}

@@ -4,7 +4,7 @@ Runs [scrap](https://github.com/gilesknap/scrap) on Kubernetes: one Deployment w
 **one replica** and the `Recreate` strategy (scrap's SQLite database has a single writer), a
 PersistentVolumeClaim for `/data`, a ClusterIP Service (port 80, container port 8000) and a
 ServiceAccount that mounts no token. On by default, a nightly backup CronJob with its own
-PersistentVolumeClaim (`backup.enabled`), and a nightly `scrap gc` CronJob (`gc.enabled`); with
+PersistentVolumeClaim (`backup.enabled`), and a nightly `scrap gc` CronJob (`gc.enabled`, default: follows `backup.enabled`); with
 ingest on, a nightly related-pages CronJob too (`enrichRelated.enabled`). An Ingress and a NetworkPolicy are optional.
 
 scrap v0 has **no login**: expose it only on a private network such as your tailnet, or behind an

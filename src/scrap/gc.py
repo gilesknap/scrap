@@ -128,7 +128,9 @@ def prune_runs(
     """Count (and with delete, delete) the model_run and enrich_run rows past retention.
 
     A row is kept while it is still running; or younger than run_days; or the newest
-    for its page (``enrich_run``) or for its photo (``model_run``); or something
+    for its page (``enrich_run``) or for its photo (``model_run``); or the newest ok
+    ``related`` enrich_run of a page (``enrich --related`` reads it as "up to date",
+    see ``enrich.STALE``); or something
     refers to it: ``enrichment.run_id`` and ``derived.run_id`` (a superseded version
     too), or a kept ``model_run`` that continues it (``parent_id``). Returns the
     counts (model_run, enrich_run). Call inside the write transaction when deleting.
@@ -168,6 +170,15 @@ def prune_runs(
     for row in enrich:
         latest[row[1]] = max(latest.get(row[1], 0), row[0])
     keep_e |= set(latest.values())
+    # enrich --related treats a page as up to date by its newest ok related run
+    # (enrich.STALE), so pruning that one would cost an extra Claude call.
+    keep_e |= {
+        row[0]
+        for row in conn.execute(
+            "SELECT MAX(id) FROM enrich_run WHERE status = 'ok'"
+            " AND json_extract(request, '$.purpose') = 'related' GROUP BY page_id"
+        )
+    }
     gone_enrich = sorted(r[0] for r in enrich if r[0] not in keep_e)
 
     if delete:

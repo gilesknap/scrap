@@ -1,6 +1,6 @@
-{{- if .Values.gc.enabled }}
+{{- if include "scrap.gcEnabled" . }}
 {{- if and .Values.gc.requireBackup (not .Values.backup.enabled) }}
-{{- fail "gc.enabled needs backup.enabled (gc deletes only after a recent backup); set gc.enabled=false, or gc.requireBackup=false to delete without one" }}
+{{- fail "gc.enabled=true needs backup.enabled (gc deletes only after a recent backup); leave gc.enabled unset or false, or gc.requireBackup=false to delete without one" }}
 {{- end }}
 {{- $suffix := "-gc" }}
 {{- /* Deleting is on only with a grace period: with none, a file an upload is still

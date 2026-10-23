@@ -126,7 +126,7 @@ checked, so a typo inside them is silently ignored. The main ones:
 | `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
-| `gc.enabled`, `.schedule`, `.timeZone` | `true`, `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
+| `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
 | `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, the cluster's default | The related-pages CronJob. It exists only while `ingest.enabled` is true. |
 | `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + 1` times the data. |
@@ -519,14 +519,16 @@ pending until it is back.
   {ref}`scrap-gc`). As `deploy/scrap-gc` does, it deletes only if the backup claim holds a run less
   than 26 hours old; otherwise it only counts, and the Job fails so a missing backup shows. It
   takes the lock the backup job holds (`/backups/.lock`) so it never runs during a backup. So
-  `gc.enabled` needs `backup.enabled` (the chart refuses the combination otherwise); if you back
-  up another way, set `gc.requireBackup: false` and gc deletes without that check.
+  `gc.enabled` defaults to following `backup.enabled` (so a release with backups off gets no gc
+  Job); setting `gc.enabled: true` with backups off is refused. If you back up another way, set
+  `gc.requireBackup: false` and gc deletes without that check.
   A gc you run by hand (`kubectl exec`) takes no lock and could race the CronJob, which is
   harmless apart from a file left on disk until the next run.
 - **`scrap enrich --related`** at `41 3 * * *`, only while `ingest.enabled` is true. It gets the
   Deployment's environment (the Claude key, the budget, `extraEnv` and `extraEnvFrom`), so
   it follows the same `SCRAP_ENRICH` and queue-pause rules and the same daily budget, and exits
-  non-zero only when it stops at a queue pause. Unlike the single server's timer, which
+  non-zero only when it stops at a queue pause. That exit shows as a failed Job (`backoffLimit: 0`,
+  so it is not retried; the next night's run carries on). Unlike the single server's timer, which
   runs it inside the service's container, this runs in its own pod, so a Secret change needs
   no restart of it.
 

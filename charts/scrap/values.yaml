@@ -110,7 +110,9 @@ backup:
 # during one), so it needs backup.enabled. It runs beside the scrap pod (the data
 # claim is ReadWriteOnce).
 gc:
-  enabled: true
+  # null: follow backup.enabled (so a release with backups off renders as before).
+  # true with backup.enabled false and requireBackup true is refused; false: off.
+  enabled: null
   schedule: "30 4 * * *"
   timeZone: ""
   # The switch for deleting. Off, or with graceHours 0 (no grace period), the Job only
