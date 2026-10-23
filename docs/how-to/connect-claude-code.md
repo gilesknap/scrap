@@ -134,11 +134,11 @@ do not commit it.
 - A tool error such as "only a page written over MCP can be appended to", or a title over 200
   characters, a body over 200 kB or more than 20 tags: the call is refused and nothing is saved.
 
-## 3. Install the `s-` skills
+## 3. Install the `sc` commands
 
-`skills/` in this repository holds Claude Code skills that give you short scrap commands. Each
-is a directory with a `SKILL.md`, and each is its own command, so typing `/sc` in Claude Code
-autocompletes the whole set. They use the server added in step 2 (the `mcp__scrap__*` tools) and
+`commands/` in this repository holds Claude Code slash commands that give you short scrap
+commands. Each is one Markdown file with a one-line description, and each is its own command, so
+typing `/sc` in Claude Code autocompletes the whole set with that description. They use the server added in step 2 (the `mcp__scrap__*` tools) and
 do nothing useful without it; if the tools are missing they say so and print the `claude mcp add`
 line.
 
@@ -153,34 +153,34 @@ line.
 | `/sc-undo` | Lists recent `revisions` and `revert`s the one you name. |
 | `/sc <words>` | An index: searches like `/sc-find`, or lists the commands above. |
 
-Install them for all your projects by copying (or symlinking) the directories into
-`~/.claude/skills/`, from a clone of this repository:
+Install them for all your projects by copying (or symlinking) the files into
+`~/.claude/commands/`, from a clone of this repository:
 
 ```
-mkdir -p ~/.claude/skills
-cp -r skills/* ~/.claude/skills/
+mkdir -p ~/.claude/commands
+cp commands/*.md ~/.claude/commands/
 ```
 
-or for one project, into `.claude/skills/` in that repository:
+or for one project, into `.claude/commands/` in that repository:
 
 ```
-mkdir -p .claude/skills
-cp -r skills/* .claude/skills/
+mkdir -p .claude/commands
+cp commands/*.md .claude/commands/
 ```
 
 To keep them up to date with the repository, symlink instead:
-`ln -sfn "$PWD"/skills/* ~/.claude/skills/`. A symlink cannot replace an existing real
-directory, so if you installed the earlier `s` skill by copying, delete `~/.claude/skills/s` and
-any `~/.claude/skills/s-*` first. Without a clone, fetch each file, for example
-`mkdir -p ~/.claude/skills/sc-post` then `curl -fsSL -o ~/.claude/skills/sc-post/SKILL.md
-https://raw.githubusercontent.com/gilesknap/scrap/main/skills/sc-post/SKILL.md`. Start a new
+`ln -sfn "$PWD"/commands/*.md ~/.claude/commands/`. Without a clone, fetch each file, for example
+`mkdir -p ~/.claude/commands` then `curl -fsSL -o ~/.claude/commands/sc-post.md
+https://raw.githubusercontent.com/gilesknap/scrap/main/commands/sc-post.md`. Start a new
 Claude Code session afterwards, and type `/sc` to check that the commands are listed. Copy the
 files unchanged.
 
-These skills replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
-`s-` set that briefly preceded them, and the older `scrap-post` skill: delete `~/.claude/skills/s`,
-`~/.claude/skills/s-*` and `~/.claude/skills/scrap-post` after installing these. Only the scrap tools are used. `<SCRAP_URL>` in the
-skills is a placeholder (the hint they give when the tools are missing, and the shape of the
+These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
+`s-` and `sc-` skill sets that briefly preceded them, and the older `scrap-post` skill. Delete
+`~/.claude/skills/s`, `~/.claude/skills/s-*`, `~/.claude/skills/sc` and `~/.claude/skills/sc-*`
+(a skill and a command of the same name clash) and `~/.claude/skills/scrap-post` after installing
+these. Only the scrap tools are used. `<SCRAP_URL>` in the
+commands is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 
 `/sc-summarise` makes Claude summarise the useful findings of the current topic into one page (use
@@ -191,7 +191,7 @@ writes; say "just post" to skip the question.
 The summary has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
 questions. It is a `note` unless it is a task (`todo`) or a longer reference (`doc`), carries
 the repository and date as its origin, and is sent with a random `key` so that a retry does not
-post twice. The skill tells Claude to leave out secrets, credentials and private data. It
+post twice. The command tells Claude to leave out secrets, credentials and private data. It
 appends to an earlier page only if that page was written by Claude (`written_by_claude` in
 `read`); otherwise it links to your page.
 
@@ -208,7 +208,7 @@ given as a search is refused if it finds more than 50 pages unless `limit` is ra
 
 ## Permissions and security
 
-Claude Code asks before using an MCP tool unless you allow it, and the `s-` skills allow none. You
+Claude Code asks before using an MCP tool unless you allow it, and the `sc` commands allow none. You
 might allow the read tools (`mcp__scrap__search`, `read`, `recent`, `todos`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
 

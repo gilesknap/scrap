@@ -1,10 +1,7 @@
 ---
-name: sc-find
-description: Search the user's scrap PKM. Use when the user types /sc-find, or asks to find, search or look up something in scrap.
+description: Search scrap, or show recent pages
 argument-hint: <search words or scrap query>
 ---
-
-# sc-find
 
 Run `mcp__scrap__search` with the arguments as the query (scrap syntax works: `tag:x`,
 `kind:todo`, `is:open`, `is:claude`, `has:image`, `after:7d`, `sort:updated`, quoted phrases). With

@@ -1,12 +1,9 @@
 ---
-name: sc
-description: Index of the user's scrap PKM commands. Use when the user types /sc. The real commands are the sc- skills (/sc-post, /sc-summarise, /sc-session, /sc-find, /sc-todos, /sc-tidy, /sc-undo), which autocomplete.
+description: Search scrap, or list the scrap commands
 argument-hint: <search words>
 ---
 
-# sc
-
-`/sc` is only an index; each command is its own skill so it autocompletes:
+`/sc` is only an index; each command is its own command so it autocompletes:
 
 - `/sc-post`: post the previous response verbatim
 - `/sc-summarise`: summarise the current topic (latest activity) into one page

@@ -1,10 +1,7 @@
 ---
-name: sc-post
-description: Post your previous response to the user's scrap PKM verbatim as one page. Use when the user types /sc-post, or says "post this to scrap", "save this to scrap" or "put this in scrap".
+description: Post my previous response to scrap verbatim
 argument-hint: [title]
 ---
-
-# sc-post
 
 Save your previous response (the last thing you wrote before this command) to scrap
 **verbatim**. Do not summarise, restructure, reword, trim, or add headings, summaries or

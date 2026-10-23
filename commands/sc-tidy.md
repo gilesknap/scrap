@@ -1,10 +1,7 @@
 ---
-name: sc-tidy
-description: Bulk-fix kinds and tags on pages in the user's scrap PKM, with a dry run and confirmation first. Use when the user types /sc-tidy, or asks to retag, re-kind or clean up scrap pages.
+description: Bulk-fix scrap kinds and tags (dry run first)
 argument-hint: <what to change>
 ---
-
-# sc-tidy
 
 Bulk kind and tag changes in scrap, using only `mcp__scrap__search`, `tags` and `edit_meta`. If
 the tools are missing, say so and give:

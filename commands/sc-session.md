@@ -1,10 +1,7 @@
 ---
-name: sc-session
-description: Summarise the WHOLE conversation (every topic, start to now) into one page in the user's scrap PKM. Use when the user types /sc-session, or asks for a full session recap in scrap. For just the current topic use /sc-summarise.
+description: Summarise the whole conversation into one scrap page
 argument-hint: [title]
 ---
-
-# sc-session
 
 Write one Markdown page covering the entire conversation from the first message to now, across
 every topic, and post it to scrap. `/sc-summarise` is the narrower sibling that covers only the

@@ -1,10 +1,7 @@
 ---
-name: sc-summarise
-description: Summarise the CURRENT topic (the latest activity in this conversation: its learnings, decisions and changes) and post it to the user's scrap PKM as one page. Use when the user types /sc-summarise, or says "write this up in scrap". For the whole conversation use /sc-session.
+description: Summarise the current topic into one scrap page
 argument-hint: [title]
 ---
-
-# sc-summarise
 
 Write one concise Markdown page summarising the current topic, meaning the latest activity in
 this conversation and what it learned and did, and post it to scrap. Do not recap earlier,
