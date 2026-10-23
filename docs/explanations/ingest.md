@@ -375,8 +375,8 @@ page's text. The schema is in
   `max_tokens` 4000. `SCRAP_ENRICH=off` turns it off while photo ingest stays on.
 - **Triggers.** A text capture (a note, todo or read) or a link capture: a link is fetched and
   read at once, a text capture after `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or
-  text of a note, todo or read (not a photo, whiteboard or document page: `should_enrich` in
-  `store.py`, #155) moves the page's one queued job that far ahead again, so a burst of edits
+  text of a note (a saved link is one), todo or read (not a page with a photo or file capture, nor
+  a whiteboard or document page: `should_enrich` in `store.py`, #155) moves the page's one queued job that far ahead again, so a burst of edits
   makes one call (a save while a job runs queues the next). These do tags and summary only.
   **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
   related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags

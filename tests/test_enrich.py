@@ -1,6 +1,7 @@
 # pyright: reportOptionalSubscript=false
 """Enrich (#85): text pages tagged, summarised and linked by Claude (faked)."""
 
+import io
 import json
 from contextlib import closing
 from typing import Any
@@ -623,3 +624,26 @@ def test_backfill_skips_photo_whiteboard_and_document_pages(store, monkeypatch):
     assert enrich.backfill(store, dry_run=True) == 4
     assert enrich.backfill(store) == 4
     assert [j[0] for j in jobs(store)] == ["backfill"] * 4
+
+
+def photo_page(store, text=None):
+    """A photo capture: its page is a note until ingest reclassifies it."""
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    c = store.prepare({"id": new_ulid(), "text": text}, ["image/jpeg"])
+    return store.capture(c, [(sha, "image/jpeg", size, None)], "me")[0]
+
+
+def test_a_save_on_a_photo_page_queues_nothing(store, monkeypatch):
+    ref = photo_page(store, "a typed note")
+    monkeypatch.setenv("SCRAP_INGEST", "off")  # ingest off or failed: still a photo
+    store.update_page(ref["page_id"], 1, None, "a typed note, edited", "me")
+    assert jobs(store) == []
+    store.edit_text(ref["page_id"], "me", lambda conn, p: (p["title"], "mcp edit"))
+    assert jobs(store) == []
+
+
+def test_backfill_skips_a_photo_page_of_kind_note(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    photo_page(store, "a typed note")
+    capture(store, "a plain note")
+    assert enrich.backfill(store, dry_run=True) == 1
