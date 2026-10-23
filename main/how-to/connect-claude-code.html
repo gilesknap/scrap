@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.1.dev376+g999393393 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.1.1.dev3+g0fce0b5b2 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d55197f0"></script>
+    <script src="../_static/documentation_options.js?v=7be70358"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -580,17 +580,44 @@ characters, a body over 200 kB or more than 20 tags: the call is refused and not
 </ul>
 </section>
 </section>
-<section id="post-findings-with-a-skill">
-<h2>3. Post findings with a skill<a class="headerlink" href="#post-findings-with-a-skill" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">skills/scrap-post/SKILL.md</span></code> in this repository is a Claude Code skill: “post this to scrap”
-(also <code class="docutils literal notranslate"><span class="pre">/scrap-post</span></code>, “save this to scrap”, “put this in scrap” or “write this up in scrap”)
-makes Claude summarise the useful findings of the conversation into one page, reusing existing
-tags and linking related pages, and show you the title and tags before it writes; say “just
-post” to skip the question. Copy it to <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-post/SKILL.md</span></code> (for all your
-projects) or <code class="docutils literal notranslate"><span class="pre">.claude/skills/scrap-post/SKILL.md</span></code> in a repository (for that project)
-unchanged: it uses the server added in step 2. Both uses of <code class="docutils literal notranslate"><span class="pre">&lt;SCRAP_URL&gt;</span></code> in it are
-placeholders (the hint it gives when the tools are missing, and the shape of the page URL it
-reports); the real URL comes from the <code class="docutils literal notranslate"><span class="pre">write</span></code> tool, built from <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>.</p>
+<section id="use-scrap-with-the-s-skill">
+<h2>3. Use scrap with the <code class="docutils literal notranslate"><span class="pre">/s</span></code> skill<a class="headerlink" href="#use-scrap-with-the-s-skill" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">skills/s/SKILL.md</span></code> in this repository is a Claude Code skill that gives you one short command,
+<code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">&lt;verb&gt;</span></code>. Copy it to <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s/SKILL.md</span></code> (for all your projects) or
+<code class="docutils literal notranslate"><span class="pre">.claude/skills/s/SKILL.md</span></code> in a repository (for that project) unchanged: it uses the server
+added in step 2. The first word picks the verb:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Command</p></th>
+<th class="head"><p>What it does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code></p></td>
+<td><p>Posts the useful findings of the conversation as one page (below). “post this to scrap” works too.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">tidy</span> <span class="pre">&lt;what&gt;</span></code></p></td>
+<td><p>Bulk kind and tag changes with <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>: a <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first, a before and after for you to approve, then the change and its batch id.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">undo</span></code></p></td>
+<td><p>Lists recent <code class="docutils literal notranslate"><span class="pre">revisions</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code>s the one you name.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">todos</span></code></p></td>
+<td><p>What to do now, overdue first.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">&lt;anything</span> <span class="pre">else&gt;</span></code></p></td>
+<td><p>A plain search of scrap.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code> replaces the earlier <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill: delete <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-post</span></code> after
+installing <code class="docutils literal notranslate"><span class="pre">s</span></code>. Only the scrap tools are used. Both uses of <code class="docutils literal notranslate"><span class="pre">&lt;SCRAP_URL&gt;</span></code> in the skill are placeholders (the hint
+it gives when the tools are missing, and the shape of the page URL it reports); the real URL
+comes from the <code class="docutils literal notranslate"><span class="pre">write</span></code> tool, built from <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code> makes Claude summarise the useful findings of the conversation into one page, reusing
+existing tags and linking related pages, and show you the title and tags before it writes; say
+“just post” to skip the question.</p>
 <p>The page has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
 questions. It is a <code class="docutils literal notranslate"><span class="pre">note</span></code> unless it is a task (<code class="docutils literal notranslate"><span class="pre">todo</span></code>) or a longer reference (<code class="docutils literal notranslate"><span class="pre">doc</span></code>), carries
 the repository and date as its origin, and is sent with a random <code class="docutils literal notranslate"><span class="pre">key</span></code> so that a retry does not
@@ -610,7 +637,7 @@ given as a search is refused if it finds more than 50 pages unless <code class="
 </section>
 <section id="permissions-and-security">
 <h2>Permissions and security<a class="headerlink" href="#permissions-and-security" title="Link to this heading">#</a></h2>
-<p>Claude Code asks before using an MCP tool unless you allow it, and the skill allows none. You
+<p>Claude Code asks before using an MCP tool unless you allow it, and the <code class="docutils literal notranslate"><span class="pre">s</span></code> skill allows none. You
 might allow the read tools (<code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">recent</span></code>, <code class="docutils literal notranslate"><span class="pre">todos</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>) and let
 <code class="docutils literal notranslate"><span class="pre">write</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and the rest keep asking.</p>
 <p>To keep Claude off the text of your pages, set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code> on the server
@@ -676,7 +703,7 @@ them.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-it-does-not-connect">If it does not connect</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#post-findings-with-a-skill">3. Post findings with a skill</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-scrap-with-the-s-skill">3. Use scrap with the <code class="docutils literal notranslate"><span class="pre">/s</span></code> skill</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#permissions-and-security">Permissions and security</a></li>
 </ul>
   </nav></div>

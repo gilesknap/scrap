@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.1.dev376+g999393393 documentation</title>
+    <title>MCP server &#8212; scrap 0.1.1.dev3+g0fce0b5b2 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d55197f0"></script>
+    <script src="../_static/documentation_options.js?v=7be70358"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -500,8 +500,8 @@ to <code class="docutils literal notranslate"><span class="pre">/mcp</span></cod
 <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> change only kinds and tags (each change a revision that <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes), and try a
 bulk change with <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first. Unless content editing is off, they also say <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and
 <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> change a page’s text as revisions, only on a page the user asked to change (see
-Page text below). To have Claude Code post a summary of a conversation, see the
-<code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill (<code class="docutils literal notranslate"><span class="pre">skills/scrap-post</span></code> in the repository).</p>
+Page text below). For a short <code class="docutils literal notranslate"><span class="pre">/s</span></code> command in Claude Code (post a summary of a conversation, tidy kinds and
+tags, undo, list todos, search), see the <code class="docutils literal notranslate"><span class="pre">s</span></code> skill (<code class="docutils literal notranslate"><span class="pre">skills/s</span></code> in the repository).</p>
 <p>Every tool result is JSON (MCP structured content, also sent as its text). Page text (titles,
 bodies, summaries, snippets, tags, what Claude read from photos) is in fields of that JSON, as
 data: the server’s instructions tell the model it is the user’s text, never instructions to it.</p>

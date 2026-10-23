@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on a DLS workstation (open-source demo) &#8212; scrap 0.1.dev376+g999393393 documentation</title>
+    <title>Try scrap on a DLS workstation (open-source demo) &#8212; scrap 0.1.1.dev3+g0fce0b5b2 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d55197f0"></script>
+    <script src="../_static/documentation_options.js?v=7be70358"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -708,11 +708,11 @@ to <code class="docutils literal notranslate"><span class="pre">localhost</span>
 <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. If it does not connect, check the <code class="docutils literal notranslate"><span class="pre">local-port</span></code> line and that
 <code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">http://localhost:8790/healthz</span></code> works on the workstation.</p>
 </li>
-<li><p>Optionally, install the <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill, which posts a summary of a conversation to scrap
-when you say “post this to scrap”. In the same container terminal:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span>
-<span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="o">-</span><span class="n">o</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span> \
-    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">post</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span>
+<li><p>Optionally, install the <code class="docutils literal notranslate"><span class="pre">s</span></code> skill, a short <code class="docutils literal notranslate"><span class="pre">/s</span></code> command for scrap (<code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code> posts a summary of a
+conversation to scrap). In the same container terminal:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">s</span>
+<span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="o">-</span><span class="n">o</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">s</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span> \
+    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">s</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span>
 </pre></div>
 </div>
 </li>
@@ -720,7 +720,7 @@ when you say “post this to scrap”. In the same container terminal:</p>
 <p>In claude-sandbox’s containers, <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code> are kept in
 <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config</span></code> on the host. So the server added with <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">user</span></code>, and the skill,
 survive <code class="docutils literal notranslate"><span class="pre">--recreate</span></code> and apply to every project you run in claude-sandbox. On the host, the skill
-is at <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.claude/skills/scrap-post</span></code>.</p>
+is at <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.claude/skills/s</span></code>.</p>
 <p>To check it all, start Claude (<code class="docutils literal notranslate"><span class="pre">claude-sandbox</span></code> in your project directory) and ask it to search
 scrap for something you have put there. It lists the pages it finds, with links such as
 <code class="docutils literal notranslate"><span class="pre">http://&lt;host&gt;.diamond.ac.uk:8790/p/&lt;slug&gt;</span></code>: open one in the workstation’s browser.</p>
