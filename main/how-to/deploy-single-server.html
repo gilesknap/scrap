@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.1.1.dev3+g0fce0b5b2 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.1.1.dev5+g95b9060d9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=7be70358"></script>
+    <script src="../_static/documentation_options.js?v=1054b12b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -551,27 +551,39 @@ user’s systemd session.</p>
 </section>
 <section id="get-the-image">
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
-<p>Until a release is published to <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code>, build the image yourself, as the
-<code class="docutils literal notranslate"><span class="pre">scrap</span></code> user (podman images belong to the user who built or pulled them). Clone into the
-user’s home directory, so the clone is <code class="docutils literal notranslate"><span class="pre">~/scrap</span></code>: the <code class="docutils literal notranslate"><span class="pre">./deploy/...</span></code> commands below run from
-it, and the update steps refer to it by that path.</p>
+<p>As the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user (podman images belong to the user who pulled or built them), pull the newest
+release from <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a>; this page uses
+0.1.0:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.1.0</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.1.0</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<p>The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
+than <code class="docutils literal notranslate"><span class="pre">latest</span></code>, which moves with every release, pre-releases included.</p>
+<p>The install script and its units are not in the image: they come from the repo’s <code class="docutils literal notranslate"><span class="pre">deploy/</span></code>
+folder. So, as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, clone the repo too, into the user’s home directory so that the clone is
+<code class="docutils literal notranslate"><span class="pre">~/scrap</span></code>: the <code class="docutils literal notranslate"><span class="pre">./deploy/...</span></code> commands below run from it, and the update steps refer to it by
+that path.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
 <span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
 <span class="n">cd</span> <span class="n">scrap</span>
-<span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>To run unreleased changes instead</strong>, build the image from the clone, and use
+<code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> wherever this page names the release image:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
 </pre></div>
 </div>
 <p>The build pulls a large build-stage image. To avoid keeping it under the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user, build as
 another user and copy only the image across (with linger on, so the user’s runtime directory
-exists). The <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user still needs its own clone of the repo for the install and update
-steps below, so run the <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span></code> above as <code class="docutils literal notranslate"><span class="pre">scrap</span></code> either way:</p>
+exists); the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user still needs its own clone for the install and update steps:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman save localhost/scrap:dev |
     sudo -u scrap -H env XDG_RUNTIME_DIR=/run/user/$(id -u scrap) podman load
 </pre></div>
 </div>
-<p>Once releases exist you can instead <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pull</span> <span class="pre">ghcr.io/gilesknap/scrap:&lt;version&gt;</span></code> and put that
-name in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> (below).</p>
+</div>
 <p>The image runs scrap as an unprivileged user (uid 10001) and keeps all its data under <code class="docutils literal notranslate"><span class="pre">/data</span></code>.</p>
 </section>
 <section id="install">
@@ -580,7 +592,14 @@ name in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p>The script:</p>
+<p>On its first run the script writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> naming a local build,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap:dev</span></code>, and stops because that image is not there. Point it at the
+release you pulled and run the script again:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
+<span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>(If you built <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> instead, the first run starts it.) The script:</p>
 <ul class="simple">
 <li><p>writes the settings files <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> if they do not
 exist yet (it never overwrites them);</p></li>
@@ -615,7 +634,7 @@ plain <code class="docutils literal notranslate"><span class="pre">KEY=value</sp
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code></p></td>
-<td><p>Image to run.</p></td>
+<td><p>Image to run: a release such as <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.1.0</span></code>, or a local build.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code></p></td>
@@ -730,13 +749,16 @@ ingest pauses until it resets.</p>
 <li><p>On your own machine, run <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code> and copy the token it prints. It is a
 long-lived credential for your <strong>whole seat</strong>, with no spend cap: anyone holding it can use
 your seat until it expires or you revoke it.</p></li>
-<li><p>Build the image with the CLI added, from the clone, on top of the scrap image:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> \
-    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
+<li><p>Build the image with the CLI added on top of the scrap image, from the clone (it uses only
+<code class="docutils literal notranslate"><span class="pre">Dockerfile.claude</span></code>, so an empty folder holding a copy of that file from the release works
+too):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.1.0</span> \
+    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.1.0</span> <span class="o">.</span>
 </pre></div>
 </div>
-<p>and set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:dev</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is about 240 MB
-larger. Rebuild it whenever you rebuild the scrap image.</p>
+<p>and set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.1.0</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is about
+240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
+image as <code class="docutils literal notranslate"><span class="pre">BASE</span></code>.</p>
 </li>
 <li><p>In <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>, instead of <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
@@ -863,13 +885,19 @@ connection to <code class="docutils literal notranslate"><span class="pre">127.0
 </section>
 <section id="update">
 <span id="scrap-update"></span><h2>Update<a class="headerlink" href="#update" title="Link to this heading">#</a></h2>
-<p>Build or pull the new image, then re-run the install script:</p>
+<p>Take a restore point first (<a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>). Then update the clone, pull the new
+release (see <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a>), point
+<code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> at it, and re-run the install script:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="o">-</span><span class="n">C</span> <span class="o">~/</span><span class="n">scrap</span> <span class="n">pull</span>
-<span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">~/</span><span class="n">scrap</span>      <span class="c1"># or: podman pull &lt;image&gt;</span>
+<span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:&lt;version&gt;|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
 <span class="o">~/</span><span class="n">scrap</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 <span class="o">~/</span><span class="n">scrap</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
+<p>For ingest on a Claude seat, build <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:&lt;version&gt;</span></code> on the new release first
+and name that in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> instead. For a local build, run
+<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">localhost/scrap:dev</span> <span class="pre">~/scrap</span></code> in place of the pull and leave <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> alone.</p>
 <p><code class="docutils literal notranslate"><span class="pre">install.sh</span></code> restarts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> when the image named in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> is not the one the
 running container was started from, or when the unit or the <code class="docutils literal notranslate"><span class="pre">scrap-run</span></code> launcher changed;
 otherwise (including when only a timer changed) it leaves it running. A restart drops requests in
@@ -880,7 +908,8 @@ After editing only a settings file, restart by hand: <code class="docutils liter
 runs instead of the unit’s, now and after every update (<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> prints a note when it finds
 one). A drop-in that only added <code class="docutils literal notranslate"><span class="pre">--env-file</span> <span class="pre">~/.config/scrap/ingest.env</span></code> is no longer needed:
 delete it, then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code> and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> pinned to a release version changes only when you edit it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> pinned to a release version changes only when you edit it, so pulling the repo
+alone never changes the running image.</p>
 <section id="database-changes-and-rolling-back">
 <span id="scrap-upgrade-db"></span><h3>Database changes and rolling back<a class="headerlink" href="#database-changes-and-rolling-back" title="Link to this heading">#</a></h3>
 <p>A new image may carry database migrations. scrap runs the missing ones when it starts, before it
@@ -891,9 +920,11 @@ scrap does not start (<code class="docutils literal notranslate"><span class="pr
 migrated: it stops with <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code>. So starting the old image again
 is not a rollback. Take a restore point before you update, and keep the old image to go back to:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">start</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span>                       <span class="c1"># returns when the backup is done</span>
-<span class="n">podman</span> <span class="n">tag</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">previous</span>   <span class="c1"># a rebuild of :dev replaces the image</span>
 </pre></div>
 </div>
+<p>A release image stays under its version tag until you remove it, so the old one is still there
+to go back to. A local build of <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> is replaced by the next build: tag it first
+with <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">tag</span> <span class="pre">localhost/scrap:dev</span> <span class="pre">localhost/scrap:previous</span></code>.</p>
 <p>To roll back, stop scrap, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code> from the <strong>old</strong> image on the backup you took
 before the update (see <a class="reference internal" href="#scrap-restore"><span class="std std-ref">Restore</span></a>; set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> to the old image first), and start
 scrap on that image. Pages added since the backup are lost from the database; their files stay.

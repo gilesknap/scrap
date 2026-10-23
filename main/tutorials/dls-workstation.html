@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on a DLS workstation (open-source demo) &#8212; scrap 0.1.1.dev3+g0fce0b5b2 documentation</title>
+    <title>Try scrap on a DLS workstation (open-source demo) &#8212; scrap 0.1.1.dev5+g95b9060d9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=7be70358"></script>
+    <script src="../_static/documentation_options.js?v=1054b12b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -548,7 +548,7 @@ claude-sandbox on another machine, you allow the workstation’s IP address inst
 <section id="what-you-need">
 <h2>What you need<a class="headerlink" href="#what-you-need" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>A DLS workstation account with rootless podman working (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">info</span></code> runs) and <code class="docutils literal notranslate"><span class="pre">git</span></code>.</p></li>
+<li><p>A DLS workstation account with rootless podman working (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">info</span></code> runs).</p></li>
 <li><p>A directory of your own on the workstation’s local disk, <code class="docutils literal notranslate"><span class="pre">/scratch/&lt;fedid&gt;</span></code>. scrap’s SQLite
 database (in WAL mode) needs a local disk, not NFS. Your home directory is on NFS and follows
 you to every machine that mounts it, so keep scrap’s data and secrets on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code>, not in
@@ -569,21 +569,25 @@ mkdir -p $base/data $base/backups
 chmod 700 $base
 </pre></div>
 </div>
-<p>The commands below use <code class="docutils literal notranslate"><span class="pre">$base</span></code>, so set it again in each new shell.</p>
 </section>
-<section id="build-the-image">
-<h2>Build the image<a class="headerlink" href="#build-the-image" title="Link to this heading">#</a></h2>
-<p>There is no published release image yet, so build it from a clone of the repo:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
-<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
-<span class="n">cd</span> <span class="n">scrap</span>
-<span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">--</span><span class="n">version</span>
+<section id="get-the-image">
+<h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
+<p>Pick the newest release from <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a>;
+this page uses 0.1.0. Name its image once, then pull it and check that it runs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>image=ghcr.io/gilesknap/scrap:0.1.0
+podman pull $image
+podman run --rm $image --version
 </pre></div>
 </div>
-<p>The first build downloads a large build-stage image, so it takes a while. Once releases exist you
-can instead <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">pull</span> <span class="pre">ghcr.io/gilesknap/scrap:&lt;version&gt;</span></code> and use that name in place of
-<code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> below.</p>
+<p>The image is public, so no login is needed, and it is built for amd64 and arm64.</p>
+<p>The commands below use <code class="docutils literal notranslate"><span class="pre">$base</span></code> and <code class="docutils literal notranslate"><span class="pre">$image</span></code>, so set both again in each new shell.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To run unreleased changes instead, build the image from a clone of the repo
+(<code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/gilesknap/scrap.git</span></code>, then <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">localhost/scrap:dev</span> <span class="pre">.</span></code>
+in it) and set <code class="docutils literal notranslate"><span class="pre">image=localhost/scrap:dev</span></code>. The first build downloads a large build-stage image,
+so it takes a while.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><strong>If you made the pod with an earlier version of this page</strong>, which published no port, keep
@@ -623,7 +627,7 @@ here too (<a class="reference internal" href="#dls-claude-other"><span class="st
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman pod create --name scrap-pod --userns=keep-id:uid=10001,gid=10001 -p 8790:8000
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
-    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
+    $image serve --host 0.0.0.0 --port 8000
 </pre></div>
 </div>
 <ul class="simple">
@@ -774,23 +778,33 @@ with it.</p>
 <section id="update-or-change-settings">
 <span id="dls-update"></span><h2>Update or change settings<a class="headerlink" href="#update-or-change-settings" title="Link to this heading">#</a></h2>
 <p>Podman reads <code class="docutils literal notranslate"><span class="pre">--env-file</span></code> only when it creates a container, so after changing <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>,
-or to run a newly built image, remove scrap’s container and run it again:</p>
+or to run a new image, remove scrap’s container and run it again:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>podman rm -f scrap-pod-app
 podman run -d --pod scrap-pod --name scrap-pod-app \
     -v $base/data:/data:z -e SCRAP_DATA_DIR=/data --env-file $base/scrap.env \
-    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
+    $image serve --host 0.0.0.0 --port 8000
 </pre></div>
 </div>
-<p>Back up first if the new image may change the database: see <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">$image</span></code> is the image you run: the release you pulled, or <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:&lt;version&gt;</span></code> if
+you turned on ingest (<a class="reference internal" href="#dls-ingest"><span class="std std-ref">Optional: ingest on your Claude seat</span></a>).</p>
+<p>To update to a new release, find it on
+<a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a> and back up first
+(<a class="reference internal" href="#dls-backup"><span class="std std-ref">Back up</span></a>; see <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>). Then pull its image and recreate scrap’s
+container as above:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>image=ghcr.io/gilesknap/scrap:&lt;version&gt;
+podman pull $image
+</pre></div>
+</div>
+<p>If you run ingest, build the <code class="docutils literal notranslate"><span class="pre">-claude</span></code> image again on the new release first, as in
+<a class="reference internal" href="#dls-ingest"><span class="std std-ref">Optional: ingest on your Claude seat</span></a>, and set <code class="docutils literal notranslate"><span class="pre">$image</span></code> to that instead.</p>
 <p>Under systemd (<a class="reference internal" href="#dls-systemd"><span class="std std-ref">Optional: start it at boot with systemd</span></a>), do not remove containers by hand. The units create each
-container afresh at every start, reading <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> again and running whatever
-<code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> now is, so after a settings change or a rebuild, restart the container’s
-unit:</p>
+container afresh at every start, reading <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code> again, so after a settings change,
+restart the container’s unit:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">restart</span> <span class="n">container</span><span class="o">-</span><span class="n">scrap</span><span class="o">-</span><span class="n">pod</span><span class="o">-</span><span class="n">app</span><span class="o">.</span><span class="n">service</span>
 </pre></div>
 </div>
-<p>To change a container’s command line, such as switching to <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:dev</span></code>,
-regenerate the units as described there.</p>
+<p>The units record the image by name, so moving to a new release, or to the <code class="docutils literal notranslate"><span class="pre">-claude</span></code> image,
+changes the container’s command line: regenerate the units as described there.</p>
 </section>
 <section id="start-it-again">
 <h2>Start it again<a class="headerlink" href="#start-it-again" title="Link to this heading">#</a></h2>
@@ -851,7 +865,7 @@ back up by hand. A backup is safe while scrap runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>stamp=$(date -u +%Y%m%dT%H%M%SZ)
 podman run --rm --userns=keep-id:uid=10001,gid=10001 --network=none \
     -v $base/data:/data:z -v $base/backups:/backups:z -e SCRAP_DATA_DIR=/data \
-    localhost/scrap:dev backup /backups/$stamp
+    $image backup /backups/$stamp
 </pre></div>
 </div>
 <p>Old backups are not deleted for you. <code class="docutils literal notranslate"><span class="pre">/scratch</span></code> is not backed up either, and the backups are on
@@ -1060,13 +1074,19 @@ on your seat: consider leaving ingest off for the demo, or keep an eye on the da
 <li><p>On any machine with Claude Code logged in to your seat, run <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code> and copy the
 token it prints: only the token, one line of about 108 characters starting <code class="docutils literal notranslate"><span class="pre">sk-ant-oat01-</span></code>,
 not the line after it.</p></li>
-<li><p>From the clone, build the image with the CLI added:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> \
-    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
+<li><p>Build the image with the CLI added, on top of the release you pulled. It needs only
+<code class="docutils literal notranslate"><span class="pre">Dockerfile.claude</span></code> from the same release, not a clone, so build it in an empty folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>mkdir -p $base/build &amp;&amp; cd $base/build
+curl -fsSL -o Dockerfile.claude \
+    https://raw.githubusercontent.com/gilesknap/scrap/0.1.0/Dockerfile.claude
+podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.1.0 \
+    -t localhost/scrap-claude:0.1.0 .
+podman run --rm --entrypoint claude localhost/scrap-claude:0.1.0 --version
 </pre></div>
 </div>
-<p>Rebuild this image whenever you rebuild <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code>, or scrap keeps running the old
-one.</p>
+<p>Use your release’s version in each place. Build it again on each new release, or scrap keeps
+running the old one (<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>). If you built scrap from a clone, run this
+<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">build</span></code> in the clone with <code class="docutils literal notranslate"><span class="pre">BASE=localhost/scrap:dev</span></code> instead.</p>
 </li>
 <li><p>Add to <code class="docutils literal notranslate"><span class="pre">$base/scrap.env</span></code>, which stays mode 600 on <code class="docutils literal notranslate"><span class="pre">/scratch</span></code> (never put the token in your NFS
 home):</p>
@@ -1078,8 +1098,8 @@ home):</p>
 <p><code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span> <span class="pre">scrap-pod-app</span></code> shows the container’s environment, token included, in plain
 text: do not paste its output anywhere.</p>
 </li>
-<li><p>Recreate scrap’s container as in <a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a>, with <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:dev</span></code> in place
-of <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> (under systemd, regenerate the units).</p></li>
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">image=localhost/scrap-claude:0.1.0</span></code> and recreate scrap’s container as in
+<a class="reference internal" href="#dls-update"><span class="std std-ref">Update or change settings</span></a> (under systemd, regenerate the units).</p></li>
 </ol>
 <p>What the token gives away, the budget and the limits are in the how-to’s “On a Claude seat, with
 no API key”, under <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>. An API key works instead: it comes from a Claude
@@ -1147,7 +1167,7 @@ of the data here can be restored there (<a class="reference internal" href="../h
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-it-fits-together">How it fits together</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#make-the-data-folder">Make the data folder</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-the-image">Build the image</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#get-the-image">Get the image</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#write-scrap-s-settings">Write scrap’s settings</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-the-pod">Create the pod</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-in-the-browser">Open it in the browser</a></li>

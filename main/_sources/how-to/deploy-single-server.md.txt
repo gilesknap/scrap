@@ -63,31 +63,46 @@ user's systemd session.
 
 ## Get the image
 
-Until a release is published to `ghcr.io/gilesknap/scrap`, build the image yourself, as the
-`scrap` user (podman images belong to the user who built or pulled them). Clone into the
-user's home directory, so the clone is `~/scrap`: the `./deploy/...` commands below run from
-it, and the update steps refer to it by that path.
+As the `scrap` user (podman images belong to the user who pulled or built them), pull the newest
+release from [scrap's releases](https://github.com/gilesknap/scrap/releases); this page uses
+0.1.0:
+
+```
+podman pull ghcr.io/gilesknap/scrap:0.1.0
+podman run --rm ghcr.io/gilesknap/scrap:0.1.0 --version
+```
+
+The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
+than `latest`, which moves with every release, pre-releases included.
+
+The install script and its units are not in the image: they come from the repo's `deploy/`
+folder. So, as `scrap`, clone the repo too, into the user's home directory so that the clone is
+`~/scrap`: the `./deploy/...` commands below run from it, and the update steps refer to it by
+that path.
 
 ```
 cd ~
 git clone https://github.com/gilesknap/scrap.git
 cd scrap
+```
+
+````{note}
+**To run unreleased changes instead**, build the image from the clone, and use
+`localhost/scrap:dev` wherever this page names the release image:
+
+```
 podman build -t localhost/scrap:dev .
-podman run --rm localhost/scrap:dev --version
 ```
 
 The build pulls a large build-stage image. To avoid keeping it under the `scrap` user, build as
 another user and copy only the image across (with linger on, so the user's runtime directory
-exists). The `scrap` user still needs its own clone of the repo for the install and update
-steps below, so run the `git clone` above as `scrap` either way:
+exists); the `scrap` user still needs its own clone for the install and update steps:
 
 ```
 podman save localhost/scrap:dev |
     sudo -u scrap -H env XDG_RUNTIME_DIR=/run/user/$(id -u scrap) podman load
 ```
-
-Once releases exist you can instead `podman pull ghcr.io/gilesknap/scrap:<version>` and put that
-name in `SCRAP_IMAGE` (below).
+````
 
 The image runs scrap as an unprivileged user (uid 10001) and keeps all its data under `/data`.
 
@@ -100,7 +115,16 @@ From the clone:
 ./deploy/install.sh
 ```
 
-The script:
+On its first run the script writes `~/.config/scrap/env` naming a local build,
+`SCRAP_IMAGE=localhost/scrap:dev`, and stops because that image is not there. Point it at the
+release you pulled and run the script again:
+
+```
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|' ~/.config/scrap/env
+./deploy/install.sh
+```
+
+(If you built `localhost/scrap:dev` instead, the first run starts it.) The script:
 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
@@ -130,7 +154,7 @@ plain `KEY=value` lines with absolute paths.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run. |
+| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:0.1.0`, or a local build. |
 | `SCRAP_LISTEN` | `socket` | `socket`: only the Unix socket `$XDG_RUNTIME_DIR/scrap/scrap.sock`. `tcp`: `SCRAP_PORT` on `127.0.0.1`. Unset means `tcp` (see {ref}`scrap-listen`). |
 | `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
@@ -237,15 +261,18 @@ ingest pauses until it resets.
 1. On your own machine, run `claude setup-token` and copy the token it prints. It is a
    long-lived credential for your **whole seat**, with no spend cap: anyone holding it can use
    your seat until it expires or you revoke it.
-2. Build the image with the CLI added, from the clone, on top of the scrap image:
+2. Build the image with the CLI added on top of the scrap image, from the clone (it uses only
+   `Dockerfile.claude`, so an empty folder holding a copy of that file from the release works
+   too):
 
    ```
-   podman build -f Dockerfile.claude --build-arg BASE=localhost/scrap:dev \
-       -t localhost/scrap-claude:dev .
+   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.1.0 \
+       -t localhost/scrap-claude:0.1.0 .
    ```
 
-   and set `SCRAP_IMAGE=localhost/scrap-claude:dev` in `~/.config/scrap/env`. It is about 240 MB
-   larger. Rebuild it whenever you rebuild the scrap image.
+   and set `SCRAP_IMAGE=localhost/scrap-claude:0.1.0` in `~/.config/scrap/env`. It is about
+   240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
+   image as `BASE`.
 3. In `ingest.env`, instead of `ANTHROPIC_API_KEY`:
 
    ```
@@ -384,14 +411,21 @@ connection to `127.0.0.1` gets full access too.
 (scrap-update)=
 ## Update
 
-Build or pull the new image, then re-run the install script:
+Take a restore point first ({ref}`scrap-upgrade-db`). Then update the clone, pull the new
+release (see [scrap's releases](https://github.com/gilesknap/scrap/releases)), point
+`SCRAP_IMAGE` at it, and re-run the install script:
 
 ```
 git -C ~/scrap pull
-podman build -t localhost/scrap:dev ~/scrap      # or: podman pull <image>
+podman pull ghcr.io/gilesknap/scrap:<version>
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:<version>|' ~/.config/scrap/env
 ~/scrap/deploy/install.sh
 ~/scrap/deploy/smoke.sh
 ```
+
+For ingest on a Claude seat, build `localhost/scrap-claude:<version>` on the new release first
+and name that in `SCRAP_IMAGE` instead. For a local build, run
+`podman build -t localhost/scrap:dev ~/scrap` in place of the pull and leave `SCRAP_IMAGE` alone.
 
 `install.sh` restarts `scrap.service` when the image named in `SCRAP_IMAGE` is not the one the
 running container was started from, or when the unit or the `scrap-run` launcher changed;
@@ -405,7 +439,8 @@ runs instead of the unit's, now and after every update (`install.sh` prints a no
 one). A drop-in that only added `--env-file ~/.config/scrap/ingest.env` is no longer needed:
 delete it, then `systemctl --user daemon-reload` and `systemctl --user restart scrap`.
 
-`SCRAP_IMAGE` pinned to a release version changes only when you edit it.
+`SCRAP_IMAGE` pinned to a release version changes only when you edit it, so pulling the repo
+alone never changes the running image.
 
 (scrap-upgrade-db)=
 ### Database changes and rolling back
@@ -421,8 +456,11 @@ is not a rollback. Take a restore point before you update, and keep the old imag
 
 ```
 systemctl --user start scrap-backup                       # returns when the backup is done
-podman tag localhost/scrap:dev localhost/scrap:previous   # a rebuild of :dev replaces the image
 ```
+
+A release image stays under its version tag until you remove it, so the old one is still there
+to go back to. A local build of `localhost/scrap:dev` is replaced by the next build: tag it first
+with `podman tag localhost/scrap:dev localhost/scrap:previous`.
 
 To roll back, stop scrap, run `scrap restore --force` from the **old** image on the backup you took
 before the update (see {ref}`scrap-restore`; set `SCRAP_IMAGE` to the old image first), and start

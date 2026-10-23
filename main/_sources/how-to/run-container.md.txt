@@ -20,7 +20,18 @@ when a release tag is pushed, for linux/amd64 and linux/arm64. The tags are the 
 newest release. Every tag moves `latest`, pre-releases included, so pin an exact version for
 anything you keep running.
 
-Until a release is published, build the image yourself:
+The images are public, so no login is needed. Pull a release (this page uses 0.1.0) and check
+that it runs:
+
+```
+docker pull ghcr.io/gilesknap/scrap:0.1.0     # or: podman pull ...
+docker run --rm ghcr.io/gilesknap/scrap:0.1.0 --version
+```
+
+It prints the version string and exits.
+
+To run unreleased changes, build the image yourself, and use its name in place of
+`ghcr.io/gilesknap/scrap:0.1.0` below:
 
 ```
 git clone https://github.com/gilesknap/scrap.git
@@ -35,21 +46,6 @@ The published multi-arch image comes from this same Dockerfile. Leave `--target`
 `developer` target is the devcontainer image, not the one to run; the default final stage is the
 runtime image.
 
-Once releases exist you can instead pull one, and use its name in place of `localhost/scrap:dev`
-below:
-
-```
-docker pull ghcr.io/gilesknap/scrap:<version>
-```
-
-Check the image runs:
-
-```
-docker run --rm localhost/scrap:dev --version
-```
-
-It prints the version string and exits.
-
 ## Run the service
 
 The image's entrypoint is `scrap`, so everything after the image name is a `scrap` subcommand
@@ -58,7 +54,7 @@ The image's entrypoint is `scrap`, so everything after the image name is a `scra
 
 ```
 docker run --rm -p 127.0.0.1:8000:8000 -v scrap-data:/data \
-    localhost/scrap:dev serve --host 0.0.0.0 --port 8000
+    ghcr.io/gilesknap/scrap:0.1.0 serve --host 0.0.0.0 --port 8000
 ```
 
 `--host 0.0.0.0` is needed because `serve` defaults to `127.0.0.1`, which inside a container is
@@ -126,7 +122,7 @@ use host directories instead):
 
 ```
 docker run --rm -v scrap-data:/data -v scrap-backup:/backup \
-    localhost/scrap:dev backup /backup
+    ghcr.io/gilesknap/scrap:0.1.0 backup /backup
 ```
 
 `backup` is safe while the service runs. `restore` into a non-empty data folder (`--force`) needs

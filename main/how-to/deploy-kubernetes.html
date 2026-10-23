@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.1.1.dev3+g0fce0b5b2 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.1.1.dev5+g95b9060d9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=7be70358"></script>
+    <script src="../_static/documentation_options.js?v=1054b12b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -549,17 +549,15 @@ profile.</p>
 recommended one.</p></li>
 <li><p>For ingest: a Claude API key.</p></li>
 </ul>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>No release or image tag exists yet (the chart is version 0.1.0), so for now build and push your
-own image as described next and set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> to it.</p>
-</div>
 </section>
 <section id="get-the-image">
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
-<p>Releases publish a multi-arch (amd64 and arm64) image to <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code>, and the
-chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> names the release it was made with. Until the first release exists, build
-and push an image to a registry your cluster can pull from, and point the chart at it:</p>
+<p>Releases publish a public, multi-arch (amd64 and arm64) image to <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code>, and
+the chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> names the release it was made with. By default the chart runs that
+release, <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:&lt;appVersion&gt;</span></code>, so there is nothing to build: set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code>
+only to run a different release.</p>
+<p>To run your own build instead, push it to a registry your cluster can pull from, and point the
+chart at it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">--</span><span class="n">platform</span> <span class="n">linux</span><span class="o">/</span><span class="n">amd64</span><span class="p">,</span><span class="n">linux</span><span class="o">/</span><span class="n">arm64</span> <span class="o">--</span><span class="n">manifest</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
 <span class="n">podman</span> <span class="n">login</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span>
 <span class="n">podman</span> <span class="n">manifest</span> <span class="n">push</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span>
@@ -580,12 +578,9 @@ and build only that.</p>
 <section id="install">
 <h2>Install<a class="headerlink" href="#install" title="Link to this heading">#</a></h2>
 <p>A minimal <code class="docutils literal notranslate"><span class="pre">my-values.yaml</span></code> for the recommended setup (the Tailscale operator for access, ingest
-on). It assumes the image from the previous section and the Secret from
-<a class="reference internal" href="#k8s-ingest"><span class="std std-ref">Secrets and ingest</span></a>; drop <code class="docutils literal notranslate"><span class="pre">image</span></code> once a release image exists, and <code class="docutils literal notranslate"><span class="pre">ingest</span></code> to run without Claude:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">image</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/scrap</span>
-<span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dev</span>
-<span class="nt">ingest</span><span class="p">:</span>
+on). It runs the release image the chart names, and assumes the Secret from <a class="reference internal" href="#k8s-ingest"><span class="std std-ref">Secrets and ingest</span></a>;
+add an <code class="docutils literal notranslate"><span class="pre">image</span></code> block as above to run your own build, and drop <code class="docutils literal notranslate"><span class="pre">ingest</span></code> to run without Claude:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">ingest</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-secrets</span>
 <span class="nt">ingress</span><span class="p">:</span>
