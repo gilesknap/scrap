@@ -84,12 +84,14 @@ export async function search(): Promise<Node> {
   let timer: ReturnType<typeof setTimeout>;
   let saving: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
+  let quick = new AbortController(); // the refresh's
   // Leaving the view: no late debounce rewrites the address bar, no late results land.
   view.signal.addEventListener("abort", () => {
     clearTimeout(timer);
     clearTimeout(saving);
     clearTimeout(settle);
     abort.abort();
+    quick.abort();
   });
   // Where the list is scrolled to rides in its history entry, for Back
   addEventListener(
@@ -108,15 +110,16 @@ export async function search(): Promise<Node> {
   // ran (typing: its own run is coming), nor while a finger is down, the page is scrolling or
   // a scroll is being restored, nor with focus or a selection inside the results: it waits and
   // tries again, so a swipe, tap or selection is never replaced under the user.
-  let ran = q.trim();
   void import("./refresh").then((m) =>
-    m.watch(view.signal, results, {
-      stale: () => input.value.trim() !== ran || scroll !== 0, // typing, or a scroll to restore
-      go: () => {
+    m.watch(
+      view.signal,
+      input,
+      () => scroll !== 0,
+      () => {
         scroll = scrollY;
         void run(true, true);
       },
-    }),
+    ),
   );
 
   async function run(first = false, quiet = false) {
@@ -126,27 +129,37 @@ export async function search(): Promise<Node> {
       scroll = 0;
       address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
-    ran = query;
-    markNav();
-    showKinds(query);
-    abort.abort();
-    abort = new AbortController();
-    const { signal } = abort;
-    clear.hidden = !input.value;
-    // Filters even before a query, then what refines its results
-    refining
-      .then((m) => m.refine(query, signal, apply, filters))
-      .then((el) => {
-        if (signal.aborted) return;
-        found.replaceChildren(el.querySelector(".found") ?? "");
-        chips.replaceChildren(el); // (refine puts focus back on the control it was on)
-      })
-      .catch(() => signal.aborted || chips.replaceChildren());
-    if (!quiet) clearTimeout(settle); // (a refresh is not a new query: it keeps the wait going)
+    // A refresh has its own signal: it never cancels the refine of a run the user started
+    quick.abort();
+    quick = new AbortController();
+    if (!quiet) {
+      abort.abort();
+      abort = new AbortController();
+    }
+    const { signal } = quiet ? quick : abort;
+    // A refresh (quiet) redraws the rows only: never the kinds, filters, chips or the timer
+    if (!quiet) {
+      markNav();
+      showKinds(query);
+      clear.hidden = !input.value;
+      // Filters even before a query, then what refines its results
+      refining
+        .then((m) => m.refine(query, signal, apply, filters))
+        .then((el) => {
+          if (signal.aborted) return;
+          found.replaceChildren(el.querySelector(".found") ?? "");
+          chips.replaceChildren(el); // (refine puts focus back on the control it was on)
+        })
+        .catch(() => signal.aborted || chips.replaceChildren());
+      clearTimeout(settle);
+    }
     const shown = await list(query, signal);
     if (signal.aborted) return;
     // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
-    if (quiet && shown.textContent === results.textContent) {
+    // (the rows' links and snippets: a row the swipe chunk has dressed has more text)
+    const same = (el: Node) =>
+      [...(el as Element).querySelectorAll("a, small")].map((e) => e.textContent).join();
+    if (quiet && same(shown) === same(results)) {
       scroll = 0;
       return;
     }
