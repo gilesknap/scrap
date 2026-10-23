@@ -223,6 +223,29 @@ test("history restores a version, and the drawing exports", async ({ page }) => 
   }
 });
 
+test("the inline drawing card follows the drawings theme, not the app's", async ({ page }) => {
+  const b = board();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(`/p/${b.slug}`);
+  const card = page.locator(".drawing-card.ready");
+  const paper = () => card.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const strokes = () => card.locator("svg").evaluate((el) => el.outerHTML.includes("#1e1e1e"));
+  // Dark app, light drawings by default: paper with dark strokes
+  await expect(card.locator("svg")).toBeVisible();
+  await expect(card).toHaveAttribute("data-scheme", "light");
+  expect(await paper()).toBe("rgb(255, 255, 255)");
+  expect(await strokes()).toBe(true);
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page
+    .getByRole("radiogroup", { name: "Drawings theme" })
+    .getByText("Dark", { exact: true })
+    .click();
+  await expect(card).toHaveAttribute("data-scheme", "dark");
+  await expect.poll(paper).toBe("rgb(18, 18, 18)"); // after the colour transition
+  await expect(card.locator("svg")).toHaveAttribute("filter", /.+/); // the dark export
+});
+
 test("dark mode, and a Reprocess that asks before replacing an edit", async ({ page }) => {
   const b = board();
   await page.emulateMedia({ colorScheme: "dark" });

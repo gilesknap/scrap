@@ -76,7 +76,9 @@ export function drawingCard(
   };
   let seen: IntersectionObserver | null = null;
   const update = () => {
-    key = `${d.id}:${currentDrawings()}`;
+    const theme = currentDrawings();
+    card.dataset.scheme = theme;
+    key = `${d.id}:${theme}`;
     seen?.disconnect();
     const kept = previews.get(key);
     if (kept) show(kept);
