@@ -50,6 +50,7 @@ const JSON_TYPE = { "Content-Type": "application/json" };
 export function untitled(body: string, title: string): string {
   const end = body.indexOf("\n");
   const first = end < 0 ? body : body.slice(0, end);
+  if (/^(?: {4}|\t)/.test(first)) return body; // indented code, not a title's line
   const said = first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/, "").trim();
   return said && said === title.trim() ? body.slice(first.length) : body;
 }

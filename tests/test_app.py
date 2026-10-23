@@ -716,6 +716,18 @@ def test_a_heading_as_the_first_line_titles_a_capture_without_its_marks(client, 
     assert title(note("#\nx")) == "#"  # nothing but the marks: kept
 
 
+def test_an_indented_first_line_is_code_and_keeps_its_marks(client, note):
+    """Four spaces make `# x` code, not a heading: the title and body keep the #."""
+    ref = note("    # indented four\nmore")
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["title"] == "# indented four"
+    assert page["body"] == "    # indented four\nmore"
+    ref = note("\n  \n    # after blank lines  \n")  # blank lines and trailing space go
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["title"] == "# after blank lines"
+    assert page["body"] == "    # after blank lines"
+
+
 def who(client, **headers):
     r = client.post(
         "/api/captures", json={"id": new_ulid(), "text": "note"}, headers=headers

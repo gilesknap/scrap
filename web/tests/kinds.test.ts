@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { KINDS, suggested, toSend } from "../src/kinds";
+import { KINDS, suggested, tidy, toSend } from "../src/kinds";
 
 it("suggests Later for a link on its own, else Note", () => {
   expect(suggested("https://example.com/a")).toBe("consume");
@@ -29,4 +29,11 @@ it("offers five kinds with short labels and full names", () => {
     ["whiteboard", "Board", "Whiteboard"],
     ["document", "Doc", "Document"],
   ]);
+});
+
+it("tidies a capture's text but keeps the first line's indent (four spaces are code)", () => {
+  expect(tidy("  hi  \n")).toBe("  hi");
+  expect(tidy("\n \n    # indented four\nx\n\n")).toBe("    # indented four\nx");
+  expect(tidy("\t# tab")).toBe("\t# tab");
+  expect(tidy(" \n\n")).toBe("");
 });

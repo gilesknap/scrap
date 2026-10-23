@@ -11,6 +11,7 @@ import {
   suggested,
   tagField,
   tagsSay,
+  tidy,
   todoField,
   todoSays,
   tooLong,
@@ -157,7 +158,7 @@ export async function compose(picked: File[], as?: string, resume = false) {
   };
   const mb = (n: number) => `${(n / 2 ** 20).toFixed(1)} MB`;
   const store = async (separately: boolean) => {
-    const body = text.value.trim();
+    const body = tidy(text.value);
     if (!body && !files.length) return text.focus();
     const long = tooLong(body);
     if (long) return toast(long, "", undefined, 8000); // kept in the composer to shorten

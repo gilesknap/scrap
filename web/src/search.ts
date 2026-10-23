@@ -103,6 +103,26 @@ export async function search(): Promise<Node> {
   const pend = async () => pending.replaceChildren(await pendingList());
   document.addEventListener("queuechange", pend, { signal: view.signal });
   void pend();
+  // A capture that uploads (or is queued) may belong in the results: run the same query again.
+  // Debounced (a queue drains in a burst); not while the box holds something other than what
+  // ran (typing: its own run is coming), nor with focus or a selection inside the results (a
+  // swipe, a tap, a text selection would be lost). A newer run aborts this one's, so a late
+  // response never lands over fresher results; the scroll position stays.
+  let ran = q.trim();
+  let again: ReturnType<typeof setTimeout>;
+  const refresh = () => {
+    clearTimeout(again);
+    again = setTimeout(() => {
+      if (input.value.trim() !== ran) return;
+      const sel = getSelection();
+      if (results.contains(document.activeElement) && document.activeElement !== results) return;
+      if (sel && !sel.isCollapsed && results.contains(sel.anchorNode)) return;
+      scroll = scrollY;
+      void run(true);
+    }, 300);
+  };
+  document.addEventListener("queuechange", refresh, { signal: view.signal });
+  view.signal.addEventListener("abort", () => clearTimeout(again));
 
   async function run(first = false) {
     const query = input.value.trim();
@@ -111,6 +131,7 @@ export async function search(): Promise<Node> {
       scroll = 0;
       address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
+    ran = query;
     markNav();
     showKinds(query);
     abort.abort();
