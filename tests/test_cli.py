@@ -147,3 +147,59 @@ def test_restore_refuses_a_bad_backup_without_touching_data(note, tmp_path):
         "scrap.db",
         "scrap.db.lock",
     ]
+
+
+def test_restore_interrupted_leaves_nothing_behind(note, tmp_path, monkeypatch):
+    from scrap import backup as backup_mod
+    from scrap.__main__ import main
+
+    data, bak = tmp_path / "data", tmp_path / "bak"
+    note("Keep me")
+    main(["backup", "--data-dir", str(data), str(bak)])
+    before = _dump(data)
+    names = sorted(p.name for p in data.iterdir())
+
+    def interrupt(*_):
+        raise KeyboardInterrupt
+
+    # Interrupted after the backup-sized copy exists, into used and new folders
+    monkeypatch.setattr(backup_mod, "schema_version", interrupt)
+    for target in [data, tmp_path / "new"]:
+        with pytest.raises(KeyboardInterrupt):
+            main(["restore", "--force", "--data-dir", str(target), str(bak)])
+    assert not (tmp_path / "new").exists()
+    assert sorted(p.name for p in data.iterdir()) == names
+    assert _dump(data) == before
+
+
+def test_refused_backup_names_the_given_folder(note, tmp_path):
+    from scrap.__main__ import main
+
+    data, bak = tmp_path / "data", tmp_path / "bak"
+    note("Keep me")
+    main(["backup", "--data-dir", str(data), str(bak)])
+    with Store(bak).connect() as conn:
+        conn.execute("PRAGMA user_version = 99")
+    with pytest.raises(SystemExit) as raised:
+        main(["restore", "--data-dir", str(tmp_path / "new"), str(bak)])
+    message = str(raised.value)
+    assert str(bak) in message and "scrap.db.restore" not in message
+
+
+def test_interrupt_after_the_swap_keeps_the_restore(note, tmp_path, monkeypatch):
+    from scrap import backup as backup_mod
+    from scrap.__main__ import main
+
+    data, bak = tmp_path / "data", tmp_path / "bak"
+    note("Keep me")
+    main(["backup", "--data-dir", str(data), str(bak)])
+    real = backup_mod._restore_into
+
+    def then_interrupt(*args):
+        real(*args)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(backup_mod, "_restore_into", then_interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        main(["restore", "--data-dir", str(tmp_path / "new"), str(bak)])
+    assert _dump(tmp_path / "new") == _dump(data)
