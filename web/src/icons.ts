@@ -35,6 +35,8 @@ const PATHS = {
   filter:
     '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   tag: '<path d="M3.5 12.5v-8h8l9 9-8 8z"/><circle cx="8" cy="9" r="1.5"/>',
+  // Settings
+  cog: '<circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2.5"/><path d="M18.5 12.0L21.0 12.0M16.6 16.6L18.4 18.4M12.0 18.5L12.0 21.0M7.4 16.6L5.6 18.4M5.5 12.0L3.0 12.0M7.4 7.4L5.6 5.6M12.0 5.5L12.0 3.0M16.6 7.4L18.4 5.6"/>',
   board:
     '<rect x="3.5" y="4.5" width="17" height="12" rx="1.5"/><path d="M8 20l2-3.5m6 3.5-2-3.5M7 9h6m-6 3h9"/>',
 };

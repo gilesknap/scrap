@@ -16,6 +16,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { createRoot } from "react-dom/client";
+import { currentDrawings, onTheme, type Theme } from "../theme";
 import {
   type Drawing,
   type Frame,
@@ -54,14 +55,12 @@ export async function elementsOf(data: Drawing["data"]): Promise<Elements> {
   return convert(data);
 }
 
-const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
-
 /** A static SVG of the drawing for the page: framed like its photo, and inert. */
-export async function preview(data: Drawing["data"]): Promise<SVGSVGElement> {
+export async function preview(data: Drawing["data"], theme: Theme): Promise<SVGSVGElement> {
   const elements = await elementsOf(data);
   const svg = await exportToSvg({
     elements,
-    appState: { exportBackground: false, exportWithDarkMode: dark() },
+    appState: { exportBackground: false, exportWithDarkMode: theme === "dark" },
     files: null,
     exportPadding: 0,
     skipInliningFonts: true, // the page has them; inlining loads a big font subsetter
@@ -122,7 +121,7 @@ export async function board(
           }}
           viewModeEnabled={!editing}
           zenModeEnabled={!editing}
-          theme={dark() ? "dark" : "light"}
+          theme={currentDrawings()}
           name="drawing"
           onChange={(els) => {
             if (editing && getSceneVersion(els) !== base) onChange();
@@ -144,9 +143,7 @@ export async function board(
     rerender = render;
     render();
   });
-  const scheme = matchMedia("(prefers-color-scheme: dark)");
-  const themed = () => rerender();
-  scheme.addEventListener("change", themed);
+  const unthemed = onTheme(() => rerender());
 
   function fitted() {
     if (!frame) return {};
@@ -254,7 +251,7 @@ export async function board(
     },
     close() {
       resized.disconnect();
-      scheme.removeEventListener("change", themed);
+      unthemed();
       root.unmount();
     },
   };

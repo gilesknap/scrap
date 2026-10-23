@@ -4,6 +4,7 @@
 // separate chunk, fetched only when a preview comes into view or the viewer opens.
 import { ApiError, api } from "./api";
 import type { Drawing, Frame } from "./board/frame";
+import { currentDrawings, onTheme } from "./theme";
 import { h, toast } from "./ui";
 
 type Chunk = typeof import("./board/excalidraw");
@@ -28,8 +29,6 @@ export interface Target {
   slug: string; // for export file names
 }
 
-const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
-
 // Rendered previews by drawing version and theme, kept while the app is open
 const previews = new Map<string, SVGSVGElement>();
 
@@ -52,20 +51,22 @@ export function drawingCard(
     status,
   );
   if (d.frame) card.style.aspectRatio = `${d.frame.width} / ${d.frame.height}`;
-  const key = `${d.id}:${dark() ? "dark" : "light"}`;
+  let key = "";
   const show = (svg: SVGSVGElement) => {
     card.replaceChildren(svg.cloneNode(true));
     card.classList.add("ready");
   };
   const render = async () => {
+    const mine = key;
+    const theme = currentDrawings();
     status.textContent = "Loading drawing…";
     card.classList.remove("failed");
     try {
       const board = await loadBoard();
       const drawing = await api<Drawing>(`captures/${t.cid}/photos/${t.sha}/drawing`);
-      const svg = await board.preview(drawing.data);
-      previews.set(key, svg);
-      show(svg);
+      const svg = await board.preview(drawing.data, theme);
+      previews.set(mine, svg);
+      if (mine === key) show(svg);
     } catch {
       card.classList.add("failed");
       status.textContent = navigator.onLine
@@ -73,19 +74,28 @@ export function drawingCard(
         : "Offline: the drawing needs the server";
     }
   };
-  const kept = previews.get(key);
-  if (kept) show(kept);
-  else if ("IntersectionObserver" in window) {
-    const seen = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        seen.disconnect();
-        void render();
-      },
-      { rootMargin: "300px" },
-    );
-    seen.observe(card);
-  } else void render();
+  let seen: IntersectionObserver | null = null;
+  const update = () => {
+    key = `${d.id}:${currentDrawings()}`;
+    seen?.disconnect();
+    const kept = previews.get(key);
+    if (kept) show(kept);
+    else if (!("IntersectionObserver" in window)) void render();
+    else {
+      seen = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          seen?.disconnect();
+          void render();
+        },
+        { rootMargin: "300px" },
+      );
+      seen.observe(card);
+    }
+  };
+  update();
+  // A theme change draws it again, until the page it is on is gone
+  const off = onTheme(() => (card.isConnected ? update() : off()));
   return card;
 }
 

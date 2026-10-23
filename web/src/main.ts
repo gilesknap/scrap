@@ -1,4 +1,4 @@
-// The app shell: a tiny router, the top bar (Back, the queue badge, New todo) and service
+// The app shell: a tiny router, the top bar (Back, the queue badge, New todo, Settings) and service
 // worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
@@ -12,6 +12,7 @@ import { whenSlow } from "./slow";
 import { today } from "./status";
 import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
+import { startTheme } from "./theme";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
@@ -23,6 +24,13 @@ add.onclick = () =>
     (m) => m.compose([], "todo"),
     () => toast("Can't open the composer: reload scrap and try again"),
   );
+document.getElementById("settings")?.addEventListener("click", () =>
+  import("./settings").then(
+    (m) => m.settings(),
+    () => toast("Can't open Settings: reload scrap and try again"),
+  ),
+);
+startTheme();
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts

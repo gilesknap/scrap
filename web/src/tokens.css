@@ -69,7 +69,7 @@
 /* Dark ("ink"): a warm near-black, cream ink, the same amber a step lighter. Its own
    values, not an inversion: surfaces get lighter as they come forward. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #161411;
     --surface: #211e1a;
     --sunk: #2b2722;
@@ -90,6 +90,34 @@
     --shadow: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-2: 0 6px 24px rgb(0 0 0 / 55%);
   }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Chosen in Settings (theme.ts): the same values, whatever the OS says. Keep both in step. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161411;
+  --surface: #211e1a;
+  --sunk: #2b2722;
+  --ink: #f2ece1;
+  --ink-2: #b8b0a2;
+  --ink-3: #958d80;
+  --line: #322d27;
+  --line-strong: #706858;
+  --accent: #f0ac4b;
+  --on-accent: #1e1b16;
+  --accent-ink: #f3b65c;
+  --accent-soft: #3a2c17;
+  --danger: #f29086;
+  --danger-soft: #3b201c;
+  --toast: #3a352d;
+  --on-toast: #f2ece1;
+  --toast-action: #f3b65c;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-2: 0 6px 24px rgb(0 0 0 / 55%);
 }
 
 @media (prefers-reduced-motion: reduce) {
