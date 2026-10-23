@@ -17,7 +17,8 @@ spec:
   {{- with .Values.gc.timeZone }}
   timeZone: {{ . | quote }}
   {{- end }}
-  # scrap gc takes no lock, so two runs could race: never start one while another runs.
+  # A deleting scrap gc refuses to run beside another (gc.lock in the data folder), but
+  # never start one while another runs anyway.
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 3600
   successfulJobsHistoryLimit: 3
