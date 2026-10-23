@@ -109,34 +109,15 @@ export async function search(): Promise<Node> {
   // a scroll is being restored, nor with focus or a selection inside the results: it waits and
   // tries again, so a swipe, tap or selection is never replaced under the user.
   let ran = q.trim();
-  let again: ReturnType<typeof setTimeout>;
-  let down = 0; // pointers down
-  let moved = 0; // when the page last scrolled
-  const note = (by: number) => () => (down = Math.max(0, down + by));
-  const on = { capture: true, passive: true, signal: view.signal };
-  addEventListener("pointerdown", note(1), on);
-  addEventListener("pointerup", note(-1), on);
-  addEventListener("pointercancel", () => (down = 0), on);
-  addEventListener("scroll", () => (moved = Date.now()), on);
-  const refresh = () => {
-    clearTimeout(again);
-    again = setTimeout(() => {
-      if (input.value.trim() !== ran) return;
-      const sel = getSelection();
-      if (
-        down ||
-        scroll ||
-        Date.now() - moved < 400 ||
-        (results.contains(document.activeElement) && document.activeElement !== results) ||
-        (sel && !sel.isCollapsed && results.contains(sel.anchorNode))
-      )
-        return refresh();
-      scroll = scrollY;
-      void run(true, true);
-    }, 300);
-  };
-  document.addEventListener("queuechange", refresh, { signal: view.signal });
-  view.signal.addEventListener("abort", () => clearTimeout(again));
+  void import("./refresh").then((m) =>
+    m.watch(view.signal, results, {
+      stale: () => input.value.trim() !== ran || scroll !== 0, // typing, or a scroll to restore
+      go: () => {
+        scroll = scrollY;
+        void run(true, true);
+      },
+    }),
+  );
 
   async function run(first = false, quiet = false) {
     const query = input.value.trim();
@@ -165,9 +146,7 @@ export async function search(): Promise<Node> {
     const shown = await list(query, signal);
     if (signal.aborted) return;
     // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
-    const same = (el: Node) =>
-      [...(el as Element).querySelectorAll("a")].map((a) => a.pathname + a.textContent).join();
-    if (quiet && same(shown) === same(results)) {
+    if (quiet && shown.textContent === results.textContent) {
       scroll = 0;
       return;
     }
