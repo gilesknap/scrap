@@ -14,11 +14,11 @@ import {
   tidy,
   todoField,
   todoSays,
-  tooLong,
   toSend,
 } from "./editor";
 import { DRAFT, FRESH, promote, recover } from "./fresh";
 import { icon } from "./icons";
+import { embedBytes, tooLong } from "./pagecap";
 import { type Capture, split } from "./queue";
 import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
@@ -160,7 +160,7 @@ export async function compose(picked: File[], as?: string, resume = false) {
   const store = async (separately: boolean) => {
     const body = tidy(text.value);
     if (!body && !files.length) return text.focus();
-    const long = tooLong(body);
+    const long = tooLong(body, embedBytes(files));
     if (long) return toast(long, "", undefined, 8000); // kept in the composer to shorten
     const tagged = tags.value();
     // The server's tag limits too: a capture it refuses would sit in the queue, unfixable.

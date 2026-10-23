@@ -1,0 +1,6 @@
+ingest:
+  enabled: true
+  existingSecret: scrap-secrets
+enrichRelated:
+  schedule: "0 2 * * *"
+  timeZone: Europe/London

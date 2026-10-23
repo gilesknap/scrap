@@ -72,6 +72,12 @@ expect_refused "an MCP token as a tokenSecret value" --set mcp.tokenSecret.value
 expect_refused "an empty tokenSecret key" --set mcp.tokenSecret.name=s --set mcp.tokenSecret.key=
 expect_refused "an identityHeader that is not a header name" --set 'identityHeader=a b'
 expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
+expect_refused "gc.enabled=true with backups off" --set backup.enabled=false --set gc.enabled=true
+# An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
+if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
+    bad "backup off still renders a gc CronJob"
+else ok "backup off renders without a gc CronJob"; fi
+if helm template scrap "$chart" | grep -q -- '-gc$'; then ok "defaults render the gc CronJob"; else bad "defaults lack the gc CronJob"; fi
 
 # The chart may set only variables the app reads (the Settings table in
 # docs/reference/api.md) or that deploy/scrap-backup reads, plus extraEnv.

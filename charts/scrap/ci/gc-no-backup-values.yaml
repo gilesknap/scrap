@@ -1,0 +1,12 @@
+# Backups kept outside the chart: gc deletes without checking for a recent one.
+backup:
+  enabled: false
+gc:
+  enabled: true
+  requireBackup: false
+  schedule: "0 5 * * *"
+  timeZone: Europe/London
+  graceHours: 48
+  runDays: 60
+enrichRelated:
+  enabled: false

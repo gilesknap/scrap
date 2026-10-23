@@ -15,7 +15,15 @@ if [ "$(id -u)" = 0 ]; then
     echo "Run this as the user that will own scrap, not as root." >&2
     exit 1
 fi
-command -v podman >/dev/null || { echo "podman is not installed." >&2; exit 1; }
+# The units and scripts run /usr/bin/podman (a unit's ExecStop needs an absolute
+# path, and a systemd user manager's PATH is not the login shell's), so that is
+# the one to check and to use here.
+podman=${PODMAN:-/usr/bin/podman} # PODMAN: a test hook, not a setting
+if [ ! -x "$podman" ]; then
+    echo "$podman not found. Install podman, or if it lives elsewhere link it:" >&2
+    echo "  sudo ln -s \$(command -v podman) $podman" >&2
+    exit 1
+fi
 if ! grep -q "^$(id -un):" /etc/subuid 2>/dev/null; then
     echo "Warning: no /etc/subuid entry for $(id -un); rootless podman needs one." >&2
 fi
@@ -55,11 +63,22 @@ SCRAP_BACKUP_KEEP=14
 
 # Memory ceiling for the container (podman --memory syntax).
 SCRAP_MEMORY_MAX=1g
+
+# Options after the colon on every container volume. z relabels the folders
+# for SELinux (Fedora, RHEL) and does nothing elsewhere; keep it lowercase, as
+# Z makes the label private to one container and locks the backup and gc
+# containers out. Set it empty (SCRAP_VOLUME_OPTS=) for no option, e.g. on a
+# filesystem that cannot be relabelled. Unset means z.
+#SCRAP_VOLUME_OPTS=z
 ENV
     echo "Wrote $conf/env"
 else
     echo "Keeping existing $conf/env"
 fi
+# The setting helper below reads line by line, which systemd does not when a line
+# ends in a backslash or leaves a quote open: refuse such a file, so what is
+# reported here is what the unit runs.
+"$here/check-env" "$conf/env"
 # setting KEY: KEY's value in the env file as systemd reads it: the last
 # KEY= line, with surrounding whitespace and one pair of quotes removed.
 setting() {
@@ -152,7 +171,7 @@ if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ];
 fi
 
 image=$(setting SCRAP_IMAGE)
-if ! podman image exists "$image"; then
+if ! "$podman" image exists "$image"; then
     echo "Image $image is not here yet: build or pull it, then re-run this script." >&2
     exit 0
 fi
@@ -162,9 +181,9 @@ fi
 started=yes
 case $(systemctl --user is-active scrap.service || true) in
 active | activating | reloading)
-    running=$(podman container inspect --format '{{.Image}}' scrap 2>/dev/null || true)
+    running=$("$podman" container inspect --format '{{.Image}}' scrap 2>/dev/null || true)
     if [ -e "$pending" ] ||
-        [ "$running" != "$(podman image inspect --format '{{.Id}}' "$image")" ]; then
+        [ "$running" != "$("$podman" image inspect --format '{{.Id}}' "$image")" ]; then
         echo "Restarting scrap onto the new image or unit."
         systemctl --user restart scrap.service || started=
     fi
@@ -173,12 +192,32 @@ esac
 [ -z "$started" ] || systemctl --user enable --now scrap.service || started=
 if [ -n "$started" ]; then
     rm -f "$pending"
+    # Check what is really running, not only what the env file says: a scrap
+    # that has not been restarted since the file changed still runs the old
+    # setting. Only the TCP mode publishes a port.
+    published=$("$podman" port scrap 2>/dev/null || true)
+    case $listen in
+    the\ Unix\ socket*)
+        if [ -n "$published" ]; then
+            echo "SCRAP_LISTEN is socket in $conf/env, but the running scrap publishes" >&2
+            echo "$published; it is reachable by any local user. Run: systemctl --user restart scrap" >&2
+            exit 1
+        fi
+        ;;
+    *)
+        if [ -z "$published" ]; then
+            echo "SCRAP_LISTEN is tcp (or unset) in $conf/env, but the running scrap" >&2
+            echo "publishes no port. Run: systemctl --user restart scrap" >&2
+            exit 1
+        fi
+        ;;
+    esac
 else
     echo "scrap did not start: journalctl --user -u scrap -n 50, and check" >&2
     echo "$conf/ingest.env and the image." >&2
 fi
 # The backup timer needs an image with the `scrap backup` command.
-if podman run --rm "$image" backup --help >/dev/null 2>&1; then
+if "$podman" run --rm "$image" backup --help >/dev/null 2>&1; then
     systemctl --user enable --now scrap-backup.timer
 else
     systemctl --user disable --now scrap-backup.timer 2>/dev/null || true
@@ -186,7 +225,7 @@ else
     echo "timer is NOT enabled. Re-run this script after updating the image." >&2
 fi
 # The gc timer needs an image with the `scrap gc` command.
-if podman run --rm "$image" gc --help >/dev/null 2>&1; then
+if "$podman" run --rm "$image" gc --help >/dev/null 2>&1; then
     systemctl --user enable --now scrap-gc.timer
 else
     systemctl --user disable --now scrap-gc.timer 2>/dev/null || true
@@ -195,7 +234,7 @@ else
 fi
 # The related-pages timer needs an image with `scrap enrich --related`. It
 # does nothing (and succeeds) while ingest is off or no key is set.
-if podman run --rm "$image" enrich --help 2>/dev/null | grep -q -- --related; then
+if "$podman" run --rm "$image" enrich --help 2>/dev/null | grep -q -- --related; then
     systemctl --user enable --now scrap-enrich-related.timer
 else
     systemctl --user disable --now scrap-enrich-related.timer 2>/dev/null || true

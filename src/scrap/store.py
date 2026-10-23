@@ -196,14 +196,18 @@ def seconds_between(earlier: str, later: str) -> float:
     return (end - start).total_seconds()
 
 
-def check_page(body: str) -> str:
-    """body, if it is within MAX_PAGE bytes of UTF-8; else InvalidError, saying so."""
+def too_big(size: int, most: int = MAX_PAGE) -> str:
+    """Why a page of size bytes is refused: in bytes, so the boundary is clear."""
+    mb = " (1 MB)" if most == MAX_PAGE else ""
+    return f"the page text is {size:,} bytes, and a page holds at most {most:,}{mb}"
+
+
+def check_page(body: str, was: str | None = None) -> str:
+    """body, if it is within MAX_PAGE bytes of UTF-8 or is unchanged from was (a page
+    imported over the limit can still be retitled); else InvalidError, saying so."""
     size = len(body.encode())
-    if size > MAX_PAGE:
-        raise InvalidError(
-            f"page text is {size / 1e6:.2f} MB:"
-            f" a page holds at most {MAX_PAGE / 1e6:g} MB"
-        )
+    if size > MAX_PAGE and body != was:
+        raise InvalidError(too_big(size))
     return body
 
 
@@ -456,6 +460,30 @@ def enrich_on() -> bool:
     on = ("on", "1", "true", "yes")
     ingest = os.environ.get("SCRAP_INGEST", "off").lower() in on
     return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
+
+
+# The page kinds Claude reads for tags and a summary: notes (a saved link is one), todos
+# and reads (consume). A photo, whiteboard or document page is not read as text (#155).
+# Ask Claude is an explicit act and still works on any page.
+ENRICH_KINDS = ("note", "todo", "consume")
+
+
+# A page with a photo or file capture is read by ingest, not enrich, whatever its kind
+# (a photo page is stored as a note until ingest reclassifies it).
+NOT_BY_INGEST = (
+    "NOT EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id"
+    " AND c.kind IN ('photo', 'file'))"
+)
+
+
+def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether enrich reads this page on a capture, save or backfill: its kind is in
+    ENRICH_KINDS and it has no photo or file capture."""
+    row = conn.execute(
+        "SELECT p.kind FROM page p WHERE p.id = ? AND " + NOT_BY_INGEST.format(p="p"),
+        (page_id,),
+    ).fetchone()
+    return row is not None and row[0] in ENRICH_KINDS
 
 
 def debounce() -> float:
@@ -861,7 +889,11 @@ class Store:
             self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
-            if enrich_on() and c["kind"] in ("note", "url"):  # a photo has ingest
+            if (
+                enrich_on()
+                and c["kind"] in ("note", "url")  # a photo has ingest
+                and should_enrich(conn, page_id)
+            ):
                 # A link is fetched at once; a note waits, in case it is edited now
                 wait = 0.0 if c["kind"] == "url" else debounce()
                 queue_enrich(conn, page_id, "capture", wait)
@@ -1234,7 +1266,9 @@ class Store:
             ):
                 title = None  # unchanged since base_rev: keep a newer (model) title
             new_title = page["title"] if title is None else " ".join(title.split())
-            new_body: str = page["body"] if body is None else check_page(lines(body))
+            new_body: str = (
+                page["body"] if body is None else check_page(lines(body), page["body"])
+            )
             if not new_title:
                 raise InvalidError("title must not be empty")
             if (new_title, new_body) != (page["title"], page["body"]):
@@ -1254,7 +1288,9 @@ class Store:
                     status_set=bool(fields and "status" in fields),
                 )
                 self.reindex(conn, page["id"])
-                if enrich_on():  # read again once the edits stop
+                if enrich_on() and should_enrich(
+                    conn, page["id"]
+                ):  # again once edits stop
                     queue_enrich(conn, page["id"], "save", debounce())
             return self.page_in(conn, page["id"])
 
@@ -1422,7 +1458,7 @@ class Store:
                 self._set_todo(conn, page["id"], page["kind"], todo)
             body = "\n\n".join(x for x in (page["body"].rstrip(), text) if x)
             if len(body.encode()) > most:
-                raise InvalidError(f"the page would be over {most} bytes")
+                raise InvalidError(too_big(len(body.encode()), most))
             if text:  # none: only its due date or priority changed (no revision)
                 conn.execute(
                     "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
@@ -1433,6 +1469,8 @@ class Store:
                     (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
                 )
                 self._body(conn, page["id"], boxes_before(page))
+                if enrich_on() and should_enrich(conn, page["id"]):  # as for a save
+                    queue_enrich(conn, page["id"], "save", debounce())
             conn.execute(  # the retry key, even with no text
                 "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
                 (cid, text or None, MCP, author, stamp, stamp, page["id"]),
@@ -1921,7 +1959,7 @@ class Store:
             title, body = change(conn, page)
             if not title.strip():
                 raise InvalidError("title must not be empty")
-            body = check_page(lines(body))
+            body = check_page(lines(body), page["body"])
             changed = (title, body) != (page["title"], page["body"])
             rev, folded = page["rev"], None
             if changed and not dry_run:
@@ -1991,7 +2029,7 @@ class Store:
         )
         self._body(conn, page["id"], boxes_before(page))
         self.reindex(conn, page["id"])
-        if enrich_on():  # read again once the edits stop, as for the PWA's saves
+        if enrich_on() and should_enrich(conn, page["id"]):  # as for the PWA's saves
             queue_enrich(conn, page["id"], "save", debounce())
         return rev, folded
 

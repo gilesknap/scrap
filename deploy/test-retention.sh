@@ -80,7 +80,7 @@ mkdir -p "$bin"
 printf '#!/bin/sh\necho 20261001T033000Z\n' >"$bin/date"
 printf '#!/bin/sh\ntouch "%s/podman-called"\nexit 1\n' "$tmp" >"$bin/podman"
 chmod +x "$bin/date" "$bin/podman"
-if PATH="$bin:$PATH" SCRAP_BACKUPS="$b" SCRAP_BACKUP_KEEP=3 SCRAP_DATA="$tmp" \
+if PODMAN="$bin/podman" PATH="$bin:$PATH" SCRAP_BACKUPS="$b" SCRAP_BACKUP_KEEP=3 SCRAP_DATA="$tmp" \
     SCRAP_IMAGE=none "$here/scrap-backup" 2>/dev/null; then
     expect "same-second run rejected" "non-zero exit" "exit 0"
 else

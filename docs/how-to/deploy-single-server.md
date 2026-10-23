@@ -32,7 +32,11 @@ and process** can do the same through the port: keep that for single-purpose ser
   one-off setup steps.
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
   units use `--userns=keep-id:uid=,gid=`, `--sdnotify=conmon` and `--cgroups=split`, and have
-  been run with podman 5.x; older versions are untested.
+  been run with podman 5.x; older versions are untested. It must be at `/usr/bin/podman`: the
+  units and the scripts they start use that path, not `PATH` (a user service does not get your
+  login shell's `PATH`, and the unit's `ExecStop` needs an absolute path). `install.sh` stops
+  if it is missing; if podman is installed elsewhere, link it with
+  `sudo ln -s "$(command -v podman)" /usr/bin/podman`.
 - cgroups v2 (the default on current distributions) for the memory and process limits. On a
   cgroups v1 host (RHEL 8, for example) scrap still runs, without `--cgroups=split`, but podman
   then ignores `--memory` and `--pids-limit`: the container has no memory cap.
@@ -150,7 +154,13 @@ It is safe to re-run after pulling a newer version of the repo.
 ### Settings
 
 The service's settings live in `~/.config/scrap/env`. It is read by systemd, not a shell, so use
-plain `KEY=value` lines with absolute paths.
+plain `KEY=value` lines with absolute paths, one setting per line. systemd joins a line that ends
+in a backslash with the next one and lets a quoted value run on over several lines, which
+`install.sh` and `smoke.sh` do not, so they could report a different `SCRAP_LISTEN` from the one
+the unit runs. They therefore refuse a file with such a line, a comment included, or an unbalanced
+quote, and name the line (`deploy/check-env`). `install.sh` also asks podman what the running
+container publishes and fails if that disagrees with `SCRAP_LISTEN`. `smoke.sh` reads the file
+only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they are by the unit.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -161,6 +171,7 @@ plain `KEY=value` lines with absolute paths.
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
 | `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each is a full copy: see {ref}`scrap-backup-restore`. |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
+| `SCRAP_VOLUME_OPTS` | `z` | Options after the colon on every container volume. `z` relabels the folders for SELinux and does nothing elsewhere. Set it empty for no option, or e.g. `z,U`. Not in the generated file (commented out); unset means `z`. See [SELinux](scrap-selinux). |
 
 After changing a setting: `systemctl --user restart scrap`.
 
@@ -225,8 +236,8 @@ default. It lists `SCRAP_PUBLIC_URL` and `TZ` commented out: uncomment and set t
 ingest on, the container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS
 to fetch saved links.
 
-Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see
-{ref}`scrap-publish`), with the scheme and, unless it is 443, the port; several addresses can be comma separated.
+Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see {ref}`scrap-publish`), with
+the scheme and, unless it is 443, the port; several addresses can be comma separated.
 `/mcp` answers only requests whose `Host` is loopback or one of these, so without it Claude Code
 gets `421 Invalid Host header` through Tailscale Serve, and the MCP tools return bare paths
 (`/p/<slug>`) instead of page URLs. See [](connect-claude-code.md).
@@ -426,6 +437,10 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:<version>|' ~/.con
 For ingest on a Claude seat, build `localhost/scrap-claude:<version>` on the new release first
 and name that in `SCRAP_IMAGE` instead. For a local build, run
 `podman build -t localhost/scrap:dev ~/scrap` in place of the pull and leave `SCRAP_IMAGE` alone.
+
+`scrap-run`, `scrap-backup` and `scrap-gc` now require podman at `/usr/bin/podman`. If it lives
+elsewhere, `install.sh` exits early with a `sudo ln -s <path-to-podman> /usr/bin/podman` hint;
+run that, then re-run `install.sh`.
 
 `install.sh` restarts `scrap.service` when the image named in `SCRAP_IMAGE` is not the one the
 running container was started from, or when the unit or the `scrap-run` launcher changed;
@@ -656,6 +671,14 @@ cannot read every reference, and it is safe while scrap serves. Each run first p
 file an earlier run left renamed aside (`files/ab/.gc-<sha>`) because it stopped mid-delete. Only
 each page's current text counts: old revisions of a page do not keep a file.
 
+gc also prunes the records of Claude calls, which would otherwise grow for ever: `model_run`
+(photos) and `enrich_run` (text pages, with the stored prompts, 20 to 40 KB each). A record is
+kept while anything refers to it (a page's enrichment, a derived result, a later turn of the same
+conversation), while it is the newest for its page or photo, while it is still running, and while
+it is younger than `--run-days` (default 30, at least 1). Counts are in the report, and `--delete`
+removes the rest. A deleted model run no longer keeps the JPEG it sent, which the next gc finds
+unused.
+
 **Deleting is not erasing.** A trashed page keeps its text, its revisions, its captures, what
 Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
 no disk space and removes none of its content from the data folder or from your backups. There is
@@ -689,13 +712,15 @@ above; that skips the recent-backup check, so make sure you have a recent backup
 
 A run prints one line, for example `scrap gc: would delete (dry run: --delete deletes) 3 unused
 files and 1 leftover uploads, 12.4 MB; 3 unused file records; kept 2 unused files younger than
-the grace period`. With `--delete` it says `deleted` instead. The parts:
+the grace period; 2 model runs and 5 enrich runs older than the retention`. With `--delete` it
+says `deleted` instead (for the files; the run records are deleted too). The parts:
 
 | Part | Meaning |
 | --- | --- |
 | `N unused files` | Files nothing uses, older than the grace period. The `MB` is the size of these and of the leftover uploads together. A deleted file takes its cached 480 and 2048 previews with it. |
 | `M leftover uploads` | `files/.up-*` temporaries from uploads cut off by a crash, also deleted once older than the grace period. |
 | `R unused file records` | Database rows for files nothing uses. The row is deleted with its file, or on its own if the file is already gone, so this can be more than the files. |
+| `A model runs and B enrich runs older than the retention` | Records of Claude calls past `--run-days` that nothing refers to and that are not the latest for their page or photo. With `--delete` they were deleted. |
 | `kept Y unused files younger than the grace period` | Unused, but too new to delete: a later run takes them. |
 | `K used again meanwhile` | Only shown when above zero. Unused when gc looked, but referenced, or uploaded again, before it deleted them (it checks again inside the delete), so they were kept. |
 | `put back Z files an earlier run left aside` | Only shown when above zero. A run that stopped mid-delete left `.gc-<sha>` files; this run restored them before it began. |
@@ -709,6 +734,7 @@ it has no recent backup.
 | `no database at <path>` | The data folder is wrong or empty. Check `SCRAP_DATA`, the `/data` mount and `SCRAP_DATA_DIR` (or `--data-dir`) in the command. |
 | `no files folder at <path>` | The folder has a database but no `files/`. The wrong folder again, or the files were not restored with the database. |
 | `the grace period must not be negative` | `--grace-hours` was below 0. |
+| `the run retention must be at least 1 day` | `--run-days` was below 1. |
 | `cannot read what is in use, so nothing was deleted: ...` | The database or files could not be read after the reason given: a damaged or unreadable database, or a permission problem. If the reason is `<db> has schema N; this scrap knows M`, the database is from a newer scrap: run gc with the newer image (see {ref}`scrap-upgrade-db`). |
 | `cannot delete: ...` | The database refused the delete (read-only, disk full). Nothing in the database changed; fix the cause and run again, which removes any file left over. |
 
@@ -744,9 +770,10 @@ with `systemctl --user enable --now`.
 
 In `scrap.service`: replace `/usr/bin/podman` with
 `/usr/bin/docker`, change `Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`,
-and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace `podman` with
-`docker` and drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`. In
-`scrap-backup` and `scrap-gc`: replace `podman` with `docker` and drop `--replace`. In all three
+and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace `/usr/bin/podman` (the `podman=` line) with
+`/usr/bin/docker` and drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`. In
+`scrap-backup` and `scrap-gc`: replace `/usr/bin/podman` (the `podman=` line) with
+`/usr/bin/docker` and drop `--replace`. In all three
 scripts, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of the user
 that owns `SCRAP_DATA`, `SCRAP_BACKUPS` and the socket's folder (`id -u`, `id -g`). In
 `scrap-enrich-related.service`, replace `/usr/bin/podman` with `/usr/bin/docker` in `ExecStart`.
@@ -786,6 +813,15 @@ nothing listens on (left by a scrap that stopped) is replaced on its own.
 the scrap user and be mode 700, which the unit's runtime folder is; the path (including
 `$XDG_RUNTIME_DIR`) must be at most 107 bytes.
 
+**systemd shows scrap as active, but it does not answer.** The unit uses `--sdnotify=conmon`,
+so systemd is told scrap is ready when the container *starts*, not when scrap listens, and
+`systemctl --user start scrap` and `install.sh` succeed before then. A scrap that then exits
+with an error (a bad setting, a socket it cannot make) is still seen as failed: podman's conmon
+process is the unit's main process and passes on the container's exit status, so
+`Restart=on-failure` restarts it after 10 s, and the failures count towards the limit below. A
+clean exit (status 0) is not restarted. Run `./deploy/smoke.sh` to see that it answers, and
+`journalctl --user -u scrap -e` and `podman logs scrap` for why not.
+
 **The service stops restarting: "start request repeated too quickly".** After 5 failed starts
 in 5 minutes (a missing image, a missing `ingest.env`, a bad setting) systemd stops trying. Fix
 the cause (`journalctl --user -u scrap -e`), then
@@ -803,11 +839,14 @@ ingest worker has stopped, and `smoke.sh` fails on any error status. Look in
 folder is removed when it stops), or the Serve target names another path or user id: compare
 `sudo tailscale serve status` with what `install.sh` printed.
 
+(scrap-selinux)=
 **Permission denied writing `/data`.** The data directory must be owned by the `scrap` user and
 the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do this). On
 SELinux systems (Fedora, RHEL) the folder must also be relabelled, which the `:z` on every
-volume does. Keep it lowercase if you write your own `podman run`: `:Z` makes the label private
-to one container, locking the backup and gc containers out of `SCRAP_DATA`.
+volume does by default. To change that, set `SCRAP_VOLUME_OPTS` in `~/.config/scrap/env` (empty
+for no option) and restart scrap; the scripts read it, so it survives re-running `install.sh`,
+which replaces them. Keep `z` lowercase if you write your own `podman run`: `:Z` makes the label
+private to one container, locking the backup and gc containers out of `SCRAP_DATA`.
 
 **The access log shows every client as the server's own address** (`SCRAP_LISTEN=tcp`).
 Rootless podman's network (pasta, the default from podman 5.0) forwards connections so that

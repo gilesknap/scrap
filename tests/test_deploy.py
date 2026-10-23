@@ -14,7 +14,7 @@ def test_backup_retention():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def _gc_run(tmp_path, backups_age_min=None):
+def _gc_run(tmp_path, backups_age_min=None, **settings):
     """deploy/scrap-gc with a fake podman that records its arguments."""
     tmp_path.mkdir()
     fake = tmp_path / "bin"
@@ -31,9 +31,11 @@ def _gc_run(tmp_path, backups_age_min=None):
     env = {
         **os.environ,
         "PATH": f"{fake}:{os.environ['PATH']}",
+        "PODMAN": str(fake / "podman"),
         "SCRAP_BACKUPS": str(backups),
         "SCRAP_DATA": str(tmp_path / "data"),
         "SCRAP_IMAGE": "localhost/scrap:test",
+        **settings,
     }
     result = subprocess.run(
         [DEPLOY / "scrap-gc"], env=env, capture_output=True, text=True
@@ -56,7 +58,7 @@ def test_gc_waits_for_a_backup_and_skips_missed_nights():
     assert "Persistent=false" in timer.splitlines()
     backup = (DEPLOY / "scrap-backup").read_text()
     assert "--network=none" in backup
-    assert '--volume "$SCRAP_DATA:/data:z"' in backup
+    assert '--volume "$SCRAP_DATA:/data$volume_opts"' in backup
 
 
 def test_gc_without_a_recent_backup_only_counts_and_fails(tmp_path):
@@ -79,6 +81,7 @@ def _run_scrap(tmp_path, **settings):
     env = {
         **{k: v for k, v in os.environ.items() if not k.startswith("SCRAP_")},
         "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}",
+        "PODMAN": str(tmp_path / "bin" / "podman"),
         "SCRAP_DATA": str(tmp_path / "data"),
         "SCRAP_IMAGE": "localhost/scrap:test",
         "SCRAP_MEMORY_MAX": "1g",
@@ -100,6 +103,45 @@ def test_socket_mode_publishes_no_port(tmp_path):
     assert f"{tmp_path / 'data'}:/data:z" in args
     assert "/run/user/1000/scrap:/run/scrap:z" in args
     assert args[-3:] == ["serve", "--uds", "/run/scrap/scrap.sock"]
+
+
+def test_volume_options_come_from_the_env_file_setting(tmp_path):
+    """SELinux relabelling: z by default, SCRAP_VOLUME_OPTS overrides (also empty)."""
+    for case, settings, suffix in (
+        ("default", {}, ":z"),
+        ("empty", {"SCRAP_VOLUME_OPTS": ""}, ""),
+        ("two", {"SCRAP_VOLUME_OPTS": "z,U"}, ":z,U"),
+    ):
+        result, args = _run_scrap(tmp_path / case, SCRAP_LISTEN="socket", **settings)
+        assert result.returncode == 0, result.stderr
+        assert f"{tmp_path / case / 'data'}:/data{suffix}" in args, case
+        assert f"/run/user/1000/scrap:/run/scrap{suffix}" in args, case
+
+
+def test_bad_volume_options_start_nothing(tmp_path):
+    result, args = _run_scrap(tmp_path, SCRAP_VOLUME_OPTS="z --privileged")
+    assert result.returncode == 1 and args == []
+    assert "SCRAP_VOLUME_OPTS must be letters and commas" in result.stderr
+
+
+def test_gc_uses_the_volume_options(tmp_path):
+    tmp_path.mkdir(exist_ok=True)
+    result, args = _gc_run(tmp_path / "g", backups_age_min=60, SCRAP_VOLUME_OPTS="")
+    assert result.returncode == 0, result.stderr
+    assert f"{tmp_path / 'g' / 'data'}:/data" in args.split()
+
+
+def test_scripts_and_units_use_the_same_podman():
+    """The units run /usr/bin/podman, so a script run by hand must too, not PATH's."""
+    for name in ("scrap-run", "scrap-backup", "scrap-gc"):
+        text = (DEPLOY / name).read_text()
+        assert "podman=${PODMAN:-/usr/bin/podman}" in text, name
+        assert not [
+            line
+            for line in text.splitlines()
+            if line.startswith(("podman ", "exec podman"))
+        ], name
+    assert "/usr/bin/podman" in (DEPLOY / "scrap.service").read_text()
 
 
 def test_cgroups_split_only_on_a_cgroups_v2_host(tmp_path):
@@ -147,6 +189,7 @@ def _install(tmp_path, env_file=None):
     _fake(bin_dir, "podman", "exit 1")
     env = {
         "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "PODMAN": str(bin_dir / "podman"),
         "HOME": str(home),
         "XDG_RUNTIME_DIR": "/run/user/1000",
     }
@@ -204,3 +247,96 @@ def test_related_timer_runs_in_the_service_container_once_a_night():
     assert "Type=oneshot" in service and "Restart=" not in service  # no flapping
     assert "Requisite=scrap.service" in service
     assert "OnCalendar=*-*-* 03:41:00" in timer
+
+
+def _install_fails(tmp_path, env_file):
+    home = tmp_path / "home"
+    (home / ".config" / "scrap").mkdir(parents=True)
+    (home / ".config" / "scrap" / "env").write_text(env_file)
+    bin_dir = tmp_path / "bin"
+    _fake(bin_dir, "systemctl", "exit 0")
+    _fake(bin_dir, "loginctl", "echo yes")
+    _fake(bin_dir, "podman", "exit 1")
+    env = {
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "PODMAN": str(bin_dir / "podman"),
+        "HOME": str(home),
+        "XDG_RUNTIME_DIR": "/run/user/1000",
+    }
+    return subprocess.run(
+        [DEPLOY / "install.sh"], env=env, capture_output=True, text=True
+    )
+
+
+def test_install_refuses_an_env_file_systemd_would_read_differently(tmp_path):
+    """systemd joins `X=bar\\` with the next line, so SCRAP_LISTEN=tcp wins there."""
+    tricky = "SCRAP_LISTEN=tcp\nX=bar\\\nSCRAP_LISTEN=socket\n"
+    result = _install_fails(tmp_path / "join", tricky)
+    assert result.returncode == 1
+    assert "env:2: line ends in a backslash" in result.stderr
+    result = _install_fails(tmp_path / "quote", 'SCRAP_IMAGE="oops\n')
+    assert result.returncode == 1 and "unbalanced double quote" in result.stderr
+
+
+def test_install_needs_podman_at_the_path_the_units_use(tmp_path):
+    (tmp_path / "home").mkdir()
+    bin_dir = tmp_path / "bin"
+    _fake(bin_dir, "systemctl", "exit 0")
+    env = {
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "PODMAN": str(tmp_path / "nowhere" / "podman"),
+        "HOME": str(tmp_path / "home"),
+    }
+    result = subprocess.run(
+        [DEPLOY / "install.sh"], env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 1
+    assert "nowhere/podman not found" in result.stderr
+
+
+def _smoke(tmp_path, env_file, **caller_env):
+    conf = tmp_path / "xdg" / "scrap"
+    conf.mkdir(parents=True)
+    (conf / "env").write_text(env_file)
+    _fake(tmp_path / "bin", "curl", f'echo "$@" > {tmp_path}/args; echo ok')
+    env = {
+        "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}",
+        "HOME": str(tmp_path),
+        "XDG_CONFIG_HOME": str(tmp_path / "xdg"),
+        "XDG_RUNTIME_DIR": "/run/user/1000",
+        **caller_env,
+    }
+    result = subprocess.run(
+        [DEPLOY / "smoke.sh"], env=env, capture_output=True, text=True
+    )
+    args = tmp_path / "args"
+    return result, args.read_text() if args.exists() else ""
+
+
+def test_smoke_checks_what_the_env_file_says_not_the_callers_shell(tmp_path):
+    result, args = _smoke(
+        tmp_path / "tcp",
+        "SCRAP_LISTEN=tcp\nSCRAP_PORT=8791\n",
+        SCRAP_LISTEN="socket",
+        SCRAP_PORT="1",
+    )
+    assert result.returncode == 0, result.stderr
+    assert "http://127.0.0.1:8791/healthz" in args and "--unix-socket" not in args
+    result, args = _smoke(
+        tmp_path / "sock", "SCRAP_LISTEN=socket\n", SCRAP_LISTEN="tcp"
+    )
+    assert "--unix-socket /run/user/1000/scrap/scrap.sock" in args
+
+
+def test_smoke_refuses_the_env_file_install_refuses(tmp_path):
+    result, args = _smoke(tmp_path, "SCRAP_LISTEN=tcp\nX=bar\\\nSCRAP_LISTEN=socket\n")
+    assert result.returncode == 1 and args == ""
+    assert "line ends in a backslash" in result.stderr
+
+
+def test_check_env_cases():
+    """deploy/test-check-env.sh runs the env-file checks on their own."""
+    result = subprocess.run(
+        [DEPLOY / "test-check-env.sh"], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

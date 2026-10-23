@@ -6,6 +6,17 @@
     <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#161411" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      // The chosen app theme before first paint (theme.ts keeps it up to date)
+      try {
+        const t = localStorage.getItem("scrap.theme");
+        if (t === "light" || t === "dark") {
+          document.documentElement.dataset.theme = t;
+          for (const m of document.querySelectorAll('meta[name="theme-color"]'))
+            m.content = t === "dark" ? "#161411" : "#f6f3ec";
+        }
+      } catch {}
+    </script>
     <!-- Fonts and fetches stay on scrap: Excalidraw would fall back to its CDN -->
     <meta http-equiv="Content-Security-Policy" content="font-src 'self' data:; connect-src 'self'" />
     <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
@@ -27,6 +38,9 @@
       <button type="button" id="queue" class="badge" hidden></button>
       <button type="button" id="new" class="ghost" aria-label="New todo" hidden
         ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg
+      ></button>
+      <button type="button" id="settings" class="ghost" aria-label="Settings"
+        ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2.5"/><path d="M18.5 12.0L21.0 12.0M16.6 16.6L18.4 18.4M12.0 18.5L12.0 21.0M7.4 16.6L5.6 18.4M5.5 12.0L3.0 12.0M7.4 7.4L5.6 5.6M12.0 5.5L12.0 3.0M16.6 7.4L18.4 5.6"/></svg
       ></button>
     </header>
     <main id="view"></main>

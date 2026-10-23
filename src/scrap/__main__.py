@@ -89,6 +89,14 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Keep files younger than this, used or not: an upload may be on its way"
         " (default 24)",
     )
+    gc.add_argument(
+        "--run-days",
+        type=float,
+        default=30.0,
+        help="Keep model and enrich run records younger than this many days (at least"
+        " 1); older ones are deleted unless something refers to them or they are the"
+        " latest for their page (default 30)",
+    )
     once = subparsers.add_parser(
         "ingest-once",
         help="Send one image to Claude as ingest would (no database) and print the"
@@ -172,7 +180,10 @@ def main(args: Sequence[str] | None = None) -> None:
 
             try:
                 report = collect(
-                    store, parsed.delete and not parsed.dry_run, parsed.grace_hours
+                    store,
+                    parsed.delete and not parsed.dry_run,
+                    parsed.grace_hours,
+                    parsed.run_days,
                 )
             except GcError as error:
                 raise SystemExit(f"scrap gc: {error}") from None

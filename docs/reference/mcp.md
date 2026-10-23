@@ -118,7 +118,7 @@ that way (480 px JPEGs, so a few hundred kB each).
   to read it. Related pages (`by_model.related`) are not part of this reading: they come from
   the nightly pass, or when the user asks. With enrichment off, none of this happens.
 - **Limits.** `title` 1 to 200 characters (whitespace collapsed); `body` at most 200,000 bytes of UTF-8
-  per call, and a page, after an append, at most 1,000,000 bytes (as for any other way of
+  per call, and a page, after an append, at most 1 MB (1,000,000 bytes, as for any other way of
   writing it); at most 20 tags, each 1 to 64 characters once
   normalised as imported tags are (one space between words, no leading `#`, lower case;
   `a/b` nests); `kind` one of `note`, `todo`, `read`, `board`, `doc`; `status` (`open`,

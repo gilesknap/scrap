@@ -33,6 +33,9 @@ and shared, so deleting one safely is harder than deleting a row.
 - A manual gc takes no lock and can race the nightly run harmlessly.
 - `scrap gc` is a **dry run unless `--delete`** is given (`--dry-run` forces it): it only counts
   what it would remove. `--grace-hours` (default 24) sets the age below which a file is kept.
+- It also prunes the `model_run` and `enrich_run` records (issue #151): those older than
+  `--run-days` (default 30) that nothing refers to and that are not the latest for their page or
+  photo, so the stored prompts and responses do not grow for ever.
 - The nightly timer's script (`deploy/scrap-gc`) takes the lock it shares with `scrap-backup`,
   so the two never run at once, and passes `--delete` only if a backup run directory younger than
   26 hours exists in the backups folder. Without one it counts only, says so, and exits non-zero.

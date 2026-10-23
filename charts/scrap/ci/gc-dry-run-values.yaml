@@ -1,0 +1,3 @@
+# gc only counts: deletion switched off.
+gc:
+  delete: false

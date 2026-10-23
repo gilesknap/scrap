@@ -39,49 +39,7 @@ spec:
             - name: http
               containerPort: 8000
           env:
-            - name: SCRAP_DATA_DIR
-              value: /data
-            - name: SCRAP_MAX_UPLOAD_MB
-              value: {{ .Values.maxUploadMB | quote }}
-            - name: SCRAP_INGEST
-              value: {{ ternary "on" "off" .Values.ingest.enabled | quote }}
-            {{- with .Values.identityHeader }}
-            - name: SCRAP_IDENTITY_HEADER
-              value: {{ . | quote }}
-            {{- end }}
-            {{- with .Values.mcp.tokenSecret.name }}
-            - name: SCRAP_MCP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: {{ required "mcp.tokenSecret.key is empty" $.Values.mcp.tokenSecret.key }}
-            {{- end }}
-            {{- if .Values.ingest.enabled }}
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.ingest.existingSecret }}
-                  key: {{ .Values.ingest.apiKeyKey }}
-            {{- with .Values.ingest.notifyUrlKey }}
-            - name: SCRAP_NOTIFY_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $.Values.ingest.existingSecret }}
-                  key: {{ . }}
-            {{- end }}
-            {{- with .Values.ingest.visionModel }}
-            - name: SCRAP_VISION_MODEL
-              value: {{ . | quote }}
-            {{- end }}
-            {{- $budget := toString .Values.ingest.budgetDayUSD }}
-            {{- if ne $budget "" }}
-            - name: SCRAP_BUDGET_DAY_USD
-              value: {{ $budget | quote }}
-            {{- end }}
-            {{- end }}
-            {{- with .Values.extraEnv }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- include "scrap.appEnv" . | nindent 12 }}
           {{- with .Values.extraEnvFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

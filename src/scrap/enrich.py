@@ -39,8 +39,10 @@ from .ingest import (
 from .markdown import plain
 from .query import CONTROL
 from .store import (
+    ENRICH_KINDS,
     MAX_TAG,
     MAX_TAGS,
+    NOT_BY_INGEST,
     Store,
     fields_for,
     model_summary,
@@ -244,6 +246,10 @@ def related_message(page: sqlite3.Row, tags: list[str], summary: str) -> list[di
     return [{"role": "user", "content": [{"type": "text", "text": text}]}]
 
 
+# The run's fetch field for a save's re-reading of a link page: skipped, not failed
+SAVE_REREAD = "skipped: save re-read"
+
+
 def page_message(
     page: sqlite3.Row,
     tags: list[str],
@@ -282,7 +288,13 @@ def page_message(
                 "</fetched>",
             ]
         else:
-            parts.append(f"It could not be fetched: {failed}")
+            if failed == SAVE_REREAD:
+                parts.append(
+                    "The link was not fetched again; summarise from the page text"
+                    " and address."
+                )
+            else:
+                parts.append(f"It could not be fetched: {failed}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
 
@@ -503,7 +515,11 @@ class Enricher:
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
-        if link:
+        if link and job["reason"] == "save":
+            # A text edit reads the page again without the site: the fetched text is
+            # not kept, so there is nothing to reuse, and no fetch (#147)
+            failed = SAVE_REREAD
+        elif link:  # capture, ask and backfill fetch
             try:
                 got = self.fetch(link)
             except fetch.FetchError as error:
@@ -616,6 +632,16 @@ class Enricher:
                 )
                 self._tags(conn, page_id, out["tags"], producer, stamp,
                            first or job["reason"] != "save")  # fmt: skip
+                source, source_title = got and got.url, got and got.title or None
+                if (
+                    link and job["reason"] == "save"
+                ):  # not fetched: keep the last source
+                    old = conn.execute(
+                        "SELECT source, source_title FROM enrichment WHERE page_id = ?",
+                        (page_id,),
+                    ).fetchone()
+                    if old is not None:
+                        source, source_title = old
                 conn.execute(
                     "INSERT INTO enrichment (page_id, run_id, producer, summary,"
                     " source, source_title, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -623,8 +649,8 @@ class Enricher:
                     " producer = excluded.producer, summary = excluded.summary,"
                     " source = excluded.source, source_title = excluded.source_title,"
                     " updated_at = excluded.updated_at",
-                    (page_id, run_id, producer, out["summary"], got and got.url,
-                     got and got.title or None, stamp),
+                    (page_id, run_id, producer, out["summary"], source,
+                     source_title, stamp),
                 )  # fmt: skip
                 if link:
                     title = out["title"] or (got.title if got else "")
@@ -689,14 +715,18 @@ def ask(store: Store, key: str) -> dict[str, Any]:
 
 
 def backfill(store: Store, limit: int | None = None, dry_run: bool = False) -> int:
-    """Queue every page with no tags that Claude has not read (not in the trash),
-    oldest first: a one-off command. Returns how many (would be) queued."""
+    """Queue every note, todo, read or link with no tags that Claude has not read (not
+    in the trash, and not a photo, whiteboard or document page, nor one with a photo or
+    file), oldest first: a one-off command. Returns how many (would be) queued."""
     with store.connect() as conn, transaction(conn):
         ids = [r[0] for r in conn.execute(
             "SELECT p.id FROM page p WHERE p.deleted_at IS NULL"
+            f" AND p.kind IN ({','.join('?' * len(ENRICH_KINDS))})"
             " AND NOT EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id)"
+            f" AND {NOT_BY_INGEST.format(p='p')}"
             " AND NOT EXISTS (SELECT 1 FROM enrichment e WHERE e.page_id = p.id)"
-            " ORDER BY p.created_at LIMIT ?", (-1 if limit is None else limit,),
+            " ORDER BY p.created_at LIMIT ?",
+            (*ENRICH_KINDS, -1 if limit is None else limit),
         )]  # fmt: skip
         if not dry_run:
             for page_id in ids:
