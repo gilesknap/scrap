@@ -2,6 +2,7 @@
 text revision that can be listed and restored, and the switch that turns them off."""
 
 import random
+import subprocess
 import time
 from contextlib import closing
 
@@ -445,9 +446,9 @@ def test_a_long_overlapping_old_is_refused_quickly(store):
 def patched(diff: str, before: str) -> str:
     """Apply a unified diff to before, checking every context and removed line is at
     the line its hunk header says."""
-    lines = before.splitlines(keepends=True)
+    lines = mcp_server.split_lines(before)
     out, at = [], 0
-    rows = diff.splitlines(keepends=True)[2:]
+    rows = mcp_server.split_lines(diff)[2:]
     i = 0
     while i < len(rows):
         head = mcp_server.HUNK.match(rows[i])
@@ -500,6 +501,45 @@ def test_the_diff_is_right_and_quick_on_large_pages():
     diff, cut = mcp_server.unified("p", 1, big, edited)
     assert not cut and "@@ -29998,7 +29998,7 @@" in diff
     assert patched(diff, big) == edited
+
+
+def test_the_diff_applies_with_git_apply(tmp_path):
+    """Repeated blank lines and bullets (where difflib matches inside a slice
+    differently) still give a diff with full trailing context that git apply takes,
+    and a form feed does not split a line."""
+    rng = random.Random(160)
+    for _n in range(300):
+        a = [
+            rng.choice(["", "- x", "- y", "para", "\x0c"])
+            for _ in range(rng.randint(5, 40))
+        ]
+        b = list(a)
+        for _ in range(rng.randint(1, 3)):
+            at = rng.randint(0, len(b))
+            if rng.random() < 0.5 and b:
+                del b[min(at, len(b) - 1)]
+            else:
+                b.insert(at, rng.choice(["", "- x", "- y", "new"]))
+        before, after = "\n".join(a) + "\n", "\n".join(b) + "\n"
+        diff, _ = mcp_server.unified("p", 1, before, after)
+        if before == after:
+            assert diff == ""
+            continue
+        assert "No newline" not in diff, (a, b)
+        (tmp_path / "p").write_bytes(before.encode())
+        body = diff.split("\n", 2)[2]  # git apply wants plain file names
+        (tmp_path / "d.patch").write_bytes(f"--- p\n+++ p\n{body}".encode())
+        run = subprocess.run(
+            ["git", "apply", "-p0", "d.patch"],
+            cwd=tmp_path, capture_output=True, text=True,
+        )  # fmt: skip
+        assert run.returncode == 0, (a, b, diff, run.stderr)
+        assert (tmp_path / "p").read_bytes().decode() == after
+
+
+def test_the_diff_splits_lines_on_newline_only():
+    diff, _ = mcp_server.unified("p", 1, "a\x0cb\nc", "a\x0cb\nd")
+    assert diff.count("\n\\ No newline") == 2 and " a\x0cb\n" in diff
 
 
 def enrich_jobs(store) -> list[tuple[str, str, str]]:

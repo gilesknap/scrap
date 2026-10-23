@@ -259,13 +259,23 @@ def emptied(before: str, after: str, allow_empty: bool) -> None:
         )
 
 
+def split_lines(value: str) -> list[str]:
+    """Lines of a text, each keeping its \\n, split on \\n only (str.splitlines also
+    splits on form feed, U+2028 and the like, which a diff reader does not)."""
+    lines = [x + "\n" for x in value.split("\n")]
+    lines[-1] = lines[-1][:-1]
+    return lines if lines[-1] else lines[:-1]
+
+
 def unified(slug: str, rev: int, before: str, after: str) -> tuple[str, bool]:
     """A unified diff of a page's text, and whether it was cut at MAX_DIFF. difflib
     is quadratic in the worst case, so it compares only the lines between the
-    common start and end (with their context), or, if those are many, the diff is
-    one hunk replacing them all. The result is the same diff difflib makes of the
-    whole text whenever it is the one comparing."""
-    a, b = before.splitlines(keepends=True), after.splitlines(keepends=True)
+    common start and end; the common start and end are added as equal runs, so each
+    hunk has its full context (a patch tool reads a hunk with less trailing than
+    leading context as ending the file). If the lines between are many, the diff is
+    one hunk replacing them all. The result can differ from the diff difflib makes
+    of the whole text where repeated lines let it match them differently."""
+    a, b = split_lines(before), split_lines(after)
     if a == b:
         return "", False
     top, most = 0, min(len(a), len(b))
@@ -274,13 +284,35 @@ def unified(slug: str, rev: int, before: str, after: str) -> tuple[str, bool]:
     end = 0
     while end < most - top and a[-1 - end] == b[-1 - end]:
         end += 1
-    start, tail = max(top - CONTEXT, 0), max(end - CONTEXT, 0)
-    a_part, b_part = a[start : len(a) - tail], b[start : len(b) - tail]
     head = [f"--- {slug} (rev {rev})\n", f"+++ {slug} (edited)\n"]
     if (len(a) - top - end) * (len(b) - top - end) <= DIFF_WORK:
-        hunks = list(difflib.unified_diff(a_part, b_part, n=CONTEXT))[2:]
-        lines = head + [HUNK.sub(lambda m: shifted(m, start), x) for x in hunks]
+        a_end, b_end = len(a) - end, len(b) - end
+        matcher = difflib.SequenceMatcher(None, a[top:a_end], b[top:b_end])
+        codes = [("equal", 0, top, 0, top)] if top else []
+        codes += [
+            (tag, i1 + top, i2 + top, j1 + top, j2 + top)
+            for tag, i1, i2, j1, j2 in matcher.get_opcodes()
+        ]
+        if end:
+            codes.append(("equal", a_end, len(a), b_end, len(b)))
+        matcher.opcodes = codes  # type: ignore[assignment]  # grouped as if whole
+        lines = head
+        for group in matcher.get_grouped_opcodes(CONTEXT):
+            first, last = group[0], group[-1]
+            lines.append(
+                f"@@ -{span(first[1], last[2])} +{span(first[3], last[4])} @@\n"
+            )
+            for tag, i1, i2, j1, j2 in group:
+                if tag == "equal":
+                    lines += (" " + x for x in a[i1:i2])
+                    continue
+                if tag in ("replace", "delete"):
+                    lines += ("-" + x for x in a[i1:i2])
+                if tag in ("replace", "insert"):
+                    lines += ("+" + x for x in b[j1:j2])
     else:  # one hunk: its context, then every line between removed, then added
+        start, tail = max(top - CONTEXT, 0), max(end - CONTEXT, 0)
+        a_part, b_part = a[start : len(a) - tail], b[start : len(b) - tail]
         lines = [
             *head,
             f"@@ -{start + 1},{len(a_part)} +{start + 1},{len(b_part)} @@\n",
@@ -292,16 +324,19 @@ def unified(slug: str, rev: int, before: str, after: str) -> tuple[str, bool]:
     return diff[:MAX_DIFF], len(diff) > MAX_DIFF
 
 
+def span(start: int, stop: int) -> str:
+    """A hunk header range for lines start..stop (0-based, stop excluded): its first
+    line and, unless it is one line, its count (an empty range is the line before)."""
+    count = stop - start
+    if count == 1:
+        return str(start + 1)
+    return f"{start + (1 if count else 0)},{count}"
+
+
 def lines_ended(lines: list[str]) -> Iterator[str]:
     """Diff lines, each ending a line: one the text ended without is marked."""
     for line in lines:
         yield line if line.endswith("\n") else f"{line}\n\\ No newline at end of file\n"
-
-
-def shifted(m: re.Match[str], by: int) -> str:
-    """A difflib hunk header of a slice moved to where the slice starts in the text
-    (a range is its first line, or the line before when empty, and maybe a count)."""
-    return f"@@ -{int(m[1]) + by}{m[2] or ''} +{int(m[3]) + by}{m[4] or ''} @@"
 
 
 def key_id(key: str, target: str = "") -> str:
