@@ -30,9 +30,10 @@ published port; `/healthz` on `localhost`, on the workstation's IP address and o
 MCP (`initialize` and a search) through `http://<host>:8790/mcp`, with page links on the
 hostname; claude-sandbox's network jail (in its 5.0.0-beta.1 image, with the launcher's default
 host networking) reaching scrap at `http://localhost:8790` with `local-port`, while the
-workstation's IP address stayed blocked; and the jail reaching scrap by IP address with
-`allow-ip`, and blocked without it. Earlier, on 22 Oct: a phone on the tailnet opening the web app through
-Tailscale Serve, installing it as an app and capturing photos, and ingest on a Claude seat
+workstation's IP address stayed blocked; the jail reaching scrap by IP address with `allow-ip`,
+and blocked without it; and systemd units generated from the pod, started, restarted and
+stopped. Earlier, on 22 Oct: a phone on the tailnet opening the web app through Tailscale
+Serve, installing it as an app and capturing photos, and ingest on a Claude seat
 ({ref}`dls-ingest`) reading two photos in about 10 seconds. Not yet checked: opening scrap from
 another machine on the DLS network, a real Claude Code session in claude-sandbox end to end
 ({ref}`dls-claude-code`), starting at boot with systemd ({ref}`dls-systemd`), and automatic
@@ -105,6 +106,17 @@ The first build downloads a large build-stage image, so it takes a while. Once r
 can instead `podman pull ghcr.io/gilesknap/scrap:<version>` and use that name in place of
 `localhost/scrap:dev` below.
 
+```{note}
+**If you made the pod with an earlier version of this page**, which published no port, keep
+your `$base`. Do not rewrite `$base/scrap.env` below: edit it instead, so that it keeps your
+seat token, the other ingest settings and the `ts.net` address. Make `SCRAP_PUBLIC_URL` start
+with the two addresses below, hostname first, and keep the `ts.net` address after them. If you
+used systemd, run `systemctl --user disable --now pod-scrap-pod.service` first. Then remove the
+old pod with `podman pod rm -f scrap-pod`, create the new one ({ref}`dls-pod`), and run the
+`scrap-pod-ts` container again ({ref}`dls-tailscale-add`): its login and Serve setting come back
+from `$base/tailscale`.
+```
+
 ## Write scrap's settings
 
 Find the workstation's full hostname, such as `pc0126.diamond.ac.uk`, with `hostname -f`, and
@@ -126,8 +138,9 @@ EOF
   here too ({ref}`dls-claude-other`).
 - `TZ` makes `due:today` follow your day rather than UTC.
 
-See {ref}`scrap-ingest-settings`.
+Every setting is described in {ref}`scrap-ingest-settings`.
 
+(dls-pod)=
 ## Create the pod
 
 ```
@@ -148,9 +161,6 @@ podman run -d --pod scrap-pod --name scrap-pod-app \
 - `:z` relabels the folder so that the container can write to it with SELinux enforcing.
 - There is no memory cap: on cgroups v1, as on DLS workstations, rootless podman ignores
   `--memory`.
-
-If you made the pod with an earlier version of this page, which published no port, remove it
-first with `podman pod rm -f scrap-pod`; `$base`, and Tailscale's login in it, are kept.
 
 Check that scrap answers:
 
@@ -206,11 +216,19 @@ on the same workstation, relay scrap's port into the jail:
    `local-port` relays the workstation's `localhost:8790`, and only that port, to the same
    address inside the jail; the rest of the workstation and the network stay blocked. It relies
    on the launcher's default host networking: a container made with `--bridge` has its own
-   `localhost` and does not see scrap. If the file is new, run `claude-sandbox --recreate` in
-   your project directory so that the container mounts it; recreating drops forge logins, so run
-   `claude-sandbox gh-auth` again if you use it. Edits to an existing file apply at the next
-   launch. See claude-sandbox's
+   `localhost` and does not see scrap.
+
+   The container mounts the file on its own, as it was when the container was made. If the file
+   is new, run `claude-sandbox --recreate` in each project directory whose container already
+   exists; recreating drops forge logins, so run `claude-sandbox gh-auth` again if you use it.
+   Edits to an existing file apply at the next launch, unless your editor saves by writing a new
+   file and renaming it over the old one: the container then keeps the old copy, so recreate.
+   See claude-sandbox's
    [network access](https://diamondlightsource.github.io/claude-sandbox/how-to/network-egress-jail.html).
+
+   If you run claude-sandbox in your own devcontainer instead, put these lines in its
+   `.devcontainer/claude-sandbox.conf`, which is installed as `/etc/claude-sandbox.conf`;
+   `local-port` reaches scrap only if that devcontainer uses host networking.
 
 2. In a container terminal (`claude-sandbox shell` in your project directory), add scrap for all
    your projects, and check that it connects:
@@ -340,9 +358,9 @@ below). That alone keeps a pod you started by hand alive; to start it at boot to
 ### Optional: start it at boot with systemd
 
 ```{warning}
-Not yet run end to end at DLS. Units generated from an earlier version of this pod, without a
-published port, have been checked with `systemd-analyze --user verify` on a DLS workstation, but
-not enabled there.
+Not yet run end to end at DLS. On a DLS workstation, units generated from this pod, published
+port included, have been verified, started, restarted and stopped, and scrap answered while they
+ran; enabling them, `enable-linger` and starting at boot have not been checked.
 ```
 
 Podman 4.9 has no Quadlet `.pod` units, so generate systemd user units from the running pod
@@ -490,6 +508,7 @@ else. Replacing the policy wipes whatever was there, which is fine only because 
 new; it also drops the default policy's `nodeAttrs` that allow Funnel, so scrap cannot be put on
 the internet by mistake.
 
+(dls-tailscale-add)=
 ### Add Tailscale to the pod
 
 Pick a name for the pod on your tailnet, such as `scrap`; it becomes
@@ -618,7 +637,9 @@ Photos are queued but not sent to Claude until you turn ingest on. On a Claude T
 Enterprise seat it runs through Claude Code with a long-lived token
 ([ADR 0021](../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)). First
 check with your organisation's Claude admin that unattended use of your seat is allowed. The
-token can use your whole seat, and calls count against your seat's usage limits.
+token can use your whole seat, and calls count against your seat's usage limits. With no login,
+anyone on the DLS network can upload photos while the port is published, and each is ingested
+on your seat: consider leaving ingest off for the demo, or keep an eye on the daily budget.
 
 1. On any machine with Claude Code logged in to your seat, run `claude setup-token` and copy the
    token it prints: only the token, one line of about 108 characters starting `sk-ant-oat01-`,
