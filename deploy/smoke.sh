@@ -12,8 +12,11 @@ setting() {
         tail -n 1 | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
         -e "s/^'\\(.*\\)'$/\\1/"
 }
-listen=${SCRAP_LISTEN:-$(setting SCRAP_LISTEN)}
-port=${SCRAP_PORT:-$(setting SCRAP_PORT)}
+# From the env file only, as the unit reads it: SCRAP_LISTEN or SCRAP_PORT exported
+# in this shell must not make the test look at a listener the unit does not use.
+"$(dirname "$0")/check-env" "$env"
+listen=$(setting SCRAP_LISTEN)
+port=$(setting SCRAP_PORT)
 
 check() { # check URL [curl options]
     url=$1

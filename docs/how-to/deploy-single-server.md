@@ -32,7 +32,11 @@ and process** can do the same through the port: keep that for single-purpose ser
   one-off setup steps.
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
   units use `--userns=keep-id:uid=,gid=`, `--sdnotify=conmon` and `--cgroups=split`, and have
-  been run with podman 5.x; older versions are untested.
+  been run with podman 5.x; older versions are untested. It must be at `/usr/bin/podman`: the
+  units and the scripts they start use that path, not `PATH` (a user service does not get your
+  login shell's `PATH`, and the unit's `ExecStop` needs an absolute path). `install.sh` stops
+  if it is missing; if podman is installed elsewhere, link it with
+  `sudo ln -s "$(command -v podman)" /usr/bin/podman`.
 - cgroups v2 (the default on current distributions) for the memory and process limits. On a
   cgroups v1 host (RHEL 8, for example) scrap still runs, without `--cgroups=split`, but podman
   then ignores `--memory` and `--pids-limit`: the container has no memory cap.
@@ -150,7 +154,13 @@ It is safe to re-run after pulling a newer version of the repo.
 ### Settings
 
 The service's settings live in `~/.config/scrap/env`. It is read by systemd, not a shell, so use
-plain `KEY=value` lines with absolute paths.
+plain `KEY=value` lines with absolute paths, one setting per line. systemd joins a line that ends
+in a backslash with the next one and lets a quoted value run on over several lines, which
+`install.sh` and `smoke.sh` do not, so they could report a different `SCRAP_LISTEN` from the one
+the unit runs. They therefore refuse a file with such a line, a comment included, or an unbalanced
+quote, and name the line (`deploy/check-env`). `install.sh` also asks podman what the running
+container publishes and fails if that disagrees with `SCRAP_LISTEN`. `smoke.sh` reads the file
+only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they are by the unit.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -161,6 +171,7 @@ plain `KEY=value` lines with absolute paths.
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
 | `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each is a full copy: see {ref}`scrap-backup-restore`. |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
+| `SCRAP_VOLUME_OPTS` | `z` | Options after the colon on every container volume. `z` relabels the folders for SELinux and does nothing elsewhere. Set it empty for no option, or e.g. `z,U`. Not in the generated file (commented out); unset means `z`. See [SELinux](scrap-selinux). |
 
 After changing a setting: `systemctl --user restart scrap`.
 
@@ -225,8 +236,8 @@ default. It lists `SCRAP_PUBLIC_URL` and `TZ` commented out: uncomment and set t
 ingest on, the container needs outbound network access: HTTPS to reach Claude, and HTTP or HTTPS
 to fetch saved links.
 
-Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see
-{ref}`scrap-publish`), with the scheme and, unless it is 443, the port; several addresses can be comma separated.
+Set `SCRAP_PUBLIC_URL` to the address you publish scrap at (see {ref}`scrap-publish`), with
+the scheme and, unless it is 443, the port; several addresses can be comma separated.
 `/mcp` answers only requests whose `Host` is loopback or one of these, so without it Claude Code
 gets `421 Invalid Host header` through Tailscale Serve, and the MCP tools return bare paths
 (`/p/<slug>`) instead of page URLs. See [](connect-claude-code.md).
@@ -426,6 +437,10 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:<version>|' ~/.con
 For ingest on a Claude seat, build `localhost/scrap-claude:<version>` on the new release first
 and name that in `SCRAP_IMAGE` instead. For a local build, run
 `podman build -t localhost/scrap:dev ~/scrap` in place of the pull and leave `SCRAP_IMAGE` alone.
+
+`scrap-run`, `scrap-backup` and `scrap-gc` now require podman at `/usr/bin/podman`. If it lives
+elsewhere, `install.sh` exits early with a `sudo ln -s <path-to-podman> /usr/bin/podman` hint;
+run that, then re-run `install.sh`.
 
 `install.sh` restarts `scrap.service` when the image named in `SCRAP_IMAGE` is not the one the
 running container was started from, or when the unit or the `scrap-run` launcher changed;
@@ -744,9 +759,10 @@ with `systemctl --user enable --now`.
 
 In `scrap.service`: replace `/usr/bin/podman` with
 `/usr/bin/docker`, change `Type=notify` to `Type=simple`, remove `NotifyAccess` and `Delegate`,
-and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace `podman` with
-`docker` and drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`. In
-`scrap-backup` and `scrap-gc`: replace `podman` with `docker` and drop `--replace`. In all three
+and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace `/usr/bin/podman` (the `podman=` line) with
+`/usr/bin/docker` and drop `--replace`, `-d`, `--cgroups=split` and `--sdnotify=conmon`. In
+`scrap-backup` and `scrap-gc`: replace `/usr/bin/podman` (the `podman=` line) with
+`/usr/bin/docker` and drop `--replace`. In all three
 scripts, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of the user
 that owns `SCRAP_DATA`, `SCRAP_BACKUPS` and the socket's folder (`id -u`, `id -g`). In
 `scrap-enrich-related.service`, replace `/usr/bin/podman` with `/usr/bin/docker` in `ExecStart`.
@@ -786,6 +802,15 @@ nothing listens on (left by a scrap that stopped) is replaced on its own.
 the scrap user and be mode 700, which the unit's runtime folder is; the path (including
 `$XDG_RUNTIME_DIR`) must be at most 107 bytes.
 
+**systemd shows scrap as active, but it does not answer.** The unit uses `--sdnotify=conmon`,
+so systemd is told scrap is ready when the container *starts*, not when scrap listens, and
+`systemctl --user start scrap` and `install.sh` succeed before then. A scrap that then exits
+with an error (a bad setting, a socket it cannot make) is still seen as failed: podman's conmon
+process is the unit's main process and passes on the container's exit status, so
+`Restart=on-failure` restarts it after 10 s, and the failures count towards the limit below. A
+clean exit (status 0) is not restarted. Run `./deploy/smoke.sh` to see that it answers, and
+`journalctl --user -u scrap -e` and `podman logs scrap` for why not.
+
 **The service stops restarting: "start request repeated too quickly".** After 5 failed starts
 in 5 minutes (a missing image, a missing `ingest.env`, a bad setting) systemd stops trying. Fix
 the cause (`journalctl --user -u scrap -e`), then
@@ -803,11 +828,14 @@ ingest worker has stopped, and `smoke.sh` fails on any error status. Look in
 folder is removed when it stops), or the Serve target names another path or user id: compare
 `sudo tailscale serve status` with what `install.sh` printed.
 
+(scrap-selinux)=
 **Permission denied writing `/data`.** The data directory must be owned by the `scrap` user and
 the container started with `--userns=keep-id:uid=10001,gid=10001` (the units do this). On
 SELinux systems (Fedora, RHEL) the folder must also be relabelled, which the `:z` on every
-volume does. Keep it lowercase if you write your own `podman run`: `:Z` makes the label private
-to one container, locking the backup and gc containers out of `SCRAP_DATA`.
+volume does by default. To change that, set `SCRAP_VOLUME_OPTS` in `~/.config/scrap/env` (empty
+for no option) and restart scrap; the scripts read it, so it survives re-running `install.sh`,
+which replaces them. Keep `z` lowercase if you write your own `podman run`: `:Z` makes the label
+private to one container, locking the backup and gc containers out of `SCRAP_DATA`.
 
 **The access log shows every client as the server's own address** (`SCRAP_LISTEN=tcp`).
 Rootless podman's network (pasta, the default from podman 5.0) forwards connections so that

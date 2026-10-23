@@ -123,8 +123,9 @@ pull request.
 ## Deployment scripts and the Helm chart
 
 The scripts in `deploy/` are covered by `tests/test_deploy.py`, which runs under
-pytest. Its tests put a fake `podman` (or `systemctl`) on `PATH` that records its
-arguments, so none of them needs podman or root. When you change a script, add
+pytest. Its tests put a fake `podman` (or `systemctl`) in a temporary folder that records its
+arguments (the scripts call `/usr/bin/podman`, so the tests point `PODMAN` at the
+fake; it is a test hook, not a setting), so none of them needs podman or root. When you change a script, add
 a test of that kind instead of trying it on a live install.
 
 `./deploy/test-retention.sh` runs the `scrap-backup` pruning checks on their
@@ -134,7 +135,9 @@ that symlinks and other directories are left alone, that a bad `KEEP` value
 (`0`, `00`, empty, `abc`, `-1`, `2x`) is refused, and that a second run in the
 same second stops before it calls podman. `tests/test_deploy.py` runs it as
 `test_backup_retention`, and also tests the `scrap-gc` wrapper. Extend these
-when you change `scrap-backup` or `scrap-gc`.
+when you change `scrap-backup` or `scrap-gc`. `./deploy/test-check-env.sh` does the
+same for `deploy/check-env`, which `install.sh` and `smoke.sh` use to refuse env
+files that systemd and the shell would read differently.
 
 After a change to `charts/`, run `./charts/test-chart.sh` (needs `helm` and
 `kubeconform` on your PATH). For every `charts/scrap/ci/*-values.yaml` it:
