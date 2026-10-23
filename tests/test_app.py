@@ -846,5 +846,8 @@ def test_the_shell_shows_the_server_version_in_the_title_bar(tmp_path, monkeypat
     monkeypatch.setattr("scrap.app.STATIC", static)
     client = TestClient(create_app(tmp_path / "data"))
     page = client.get("/")
-    assert f'<small id="ver" aria-hidden="true">v{__version__}</small>' in page.text
+    assert (
+        f'<small id="ver" aria-hidden="true">v{__version__.split("+")[0]}</small>'
+        in page.text
+    )
     assert page.headers["cache-control"] == "no-cache"

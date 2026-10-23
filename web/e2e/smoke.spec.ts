@@ -445,5 +445,5 @@ test("opening the app sends what waits now, not when its backoff says", async ({
 test("the title bar shows the server's version", async ({ page }) => {
   const { version } = await (await page.request.get("/healthz")).json();
   await page.goto("/");
-  await expect(page.locator("#ver")).toHaveText(`v${version}`);
+  await expect(page.locator("#ver")).toHaveText(`v${String(version).split("+")[0]}`);
 });

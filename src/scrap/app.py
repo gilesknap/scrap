@@ -608,7 +608,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         """The PWA: every app route loads index.html and routes in the browser."""
         if not index.is_file():
             return PlainTextResponse(NOT_BUILT, 503)
-        slot = VERSION_SLOT.replace("></", f">v{__version__}</")
+        slot = VERSION_SLOT.replace("></", f">v{__version__.split('+')[0]}</")
         html = index.read_text(encoding="utf-8").replace(VERSION_SLOT, slot)
         return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
