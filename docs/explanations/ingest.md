@@ -479,7 +479,7 @@ a page its owner saved)` (`fetch.AGENT`; match it in a site's logs or an egress 
 because its owner saved the link. A reading fetches the link again from **Ask Claude**, a
 retry or a backfill, but not on a save of the page's text: the fetched text is not kept, so a
 save's re-reading summarises from the page's own text and the address, keeps the source and its
-title from the last fetch, and never touches the site (the run's `fetch` says so).
+title from the last fetch, and never touches the site (the run's `fetch` is `skipped: save re-read`, not a failure reason).
 
 **When it fails.** The reason is not shown in the PWA. The job still succeeds: the page is tagged
 from the link and the text the user typed, with no title or summary taken from the site, and

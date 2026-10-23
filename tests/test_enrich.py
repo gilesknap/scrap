@@ -699,6 +699,27 @@ def test_an_mcp_append_queues_nothing_with_enrich_off(store, monkeypatch):
     assert jobs(store) == [("capture", "done", 0)]
 
 
+def test_an_mcp_append_to_a_photo_page_queues_nothing(store):
+    page_id = mcp_page(store)
+    run_all(worker(store, Fake(answer())))
+    stamp = "2030-01-01T00:00:00.000Z"  # after the MCP capture: it stays the first
+    with closing(connect(store.db)) as conn:
+        conn.execute(
+            "INSERT INTO capture VALUES (?, 'photo', NULL, NULL, 'pwa', 'me', ?, ?, ?)",
+            (new_ulid(), stamp, stamp, page_id),
+        )
+        conn.commit()
+    append(store, page_id)
+    assert jobs(store) == [("capture", "done", 0)]
+
+
+def test_an_mcp_append_with_no_text_queues_nothing(store):
+    page_id = mcp_page(store, kind="todo")
+    run_all(worker(store, Fake(answer())))
+    store.append(page_id, new_ulid(), "", "claude", [], 10_000, {"priority": "high"})
+    assert jobs(store) == [("capture", "done", 0)]
+
+
 def counting(calls):
     def fetcher(url):
         calls.append(url)

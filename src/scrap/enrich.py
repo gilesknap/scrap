@@ -246,6 +246,10 @@ def related_message(page: sqlite3.Row, tags: list[str], summary: str) -> list[di
     return [{"role": "user", "content": [{"type": "text", "text": text}]}]
 
 
+# The run's fetch field for a save's re-reading of a link page: skipped, not failed
+SAVE_REREAD = "skipped: save re-read"
+
+
 def page_message(
     page: sqlite3.Row,
     tags: list[str],
@@ -284,7 +288,13 @@ def page_message(
                 "</fetched>",
             ]
         else:
-            parts.append(f"It could not be fetched: {failed}")
+            if failed == SAVE_REREAD:
+                parts.append(
+                    "The link was not fetched again; summarise from the page text"
+                    " and address."
+                )
+            else:
+                parts.append(f"It could not be fetched: {failed}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
 
@@ -508,7 +518,7 @@ class Enricher:
         if link and job["reason"] == "save":
             # A text edit reads the page again without the site: the fetched text is
             # not kept, so there is nothing to reuse, and no fetch (#147)
-            failed = "not fetched again on a save of the page's text"
+            failed = SAVE_REREAD
         elif link:  # capture, ask and backfill fetch
             try:
                 got = self.fetch(link)
