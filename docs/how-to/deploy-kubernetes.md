@@ -39,16 +39,15 @@ profile.
   recommended one.
 - For ingest: a Claude API key.
 
-```{note}
-No release or image tag exists yet (the chart is version 0.1.0), so for now build and push your
-own image as described next and set `image.tag` to it.
-```
-
 ## Get the image
 
-Releases publish a multi-arch (amd64 and arm64) image to `ghcr.io/gilesknap/scrap`, and the
-chart's `appVersion` names the release it was made with. Until the first release exists, build
-and push an image to a registry your cluster can pull from, and point the chart at it:
+Releases publish a public, multi-arch (amd64 and arm64) image to `ghcr.io/gilesknap/scrap`, and
+the chart's `appVersion` names the release it was made with. By default the chart runs that
+release, `ghcr.io/gilesknap/scrap:<appVersion>`, so there is nothing to build: set `image.tag`
+only to run a different release.
+
+To run your own build instead, push it to a registry your cluster can pull from, and point the
+chart at it:
 
 ```
 podman build --platform linux/amd64,linux/arm64 --manifest registry.example.com/scrap:dev .
@@ -72,13 +71,10 @@ and build only that.
 ## Install
 
 A minimal `my-values.yaml` for the recommended setup (the Tailscale operator for access, ingest
-on). It assumes the image from the previous section and the Secret from
-{ref}`k8s-ingest`; drop `image` once a release image exists, and `ingest` to run without Claude:
+on). It runs the release image the chart names, and assumes the Secret from {ref}`k8s-ingest`;
+add an `image` block as above to run your own build, and drop `ingest` to run without Claude:
 
 ```yaml
-image:
-  repository: registry.example.com/scrap
-  tag: dev
 ingest:
   enabled: true
   existingSecret: scrap-secrets
