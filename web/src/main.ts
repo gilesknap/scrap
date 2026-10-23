@@ -12,7 +12,6 @@ import { whenSlow } from "./slow";
 import { today } from "./status";
 import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
-import { startTheme } from "./theme";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
@@ -30,7 +29,6 @@ document.getElementById("settings")?.addEventListener("click", () =>
     () => toast("Can't open Settings: reload scrap and try again"),
   ),
 );
-startTheme();
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts

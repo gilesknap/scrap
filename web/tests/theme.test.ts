@@ -1,14 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
-import {
-  appPref,
-  appTheme,
-  drawingTheme,
-  drawPref,
-  getAppPref,
-  getDrawPref,
-  setAppPref,
-  setDrawPref,
-} from "../src/theme";
+import { setAppPref, setDrawPref } from "../src/settings";
+import { appPref, appTheme, drawingTheme, drawPref, getAppPref, getDrawPref } from "../src/theme";
 
 describe("app theme", () => {
   test("system follows the OS, a choice overrides it", () => {

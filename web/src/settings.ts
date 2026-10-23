@@ -1,15 +1,49 @@
 // Settings: a sheet from the top bar's cog, over the app like the editor. What it holds is
 // kept on this device and applied at once (theme.ts).
+import { kept } from "./api";
 import {
+  APP_KEY,
+  type AppPref,
   appPref,
+  changed,
+  DRAW_KEY,
   type DrawPref,
   drawPref,
   getAppPref,
   getDrawPref,
-  setAppPref,
-  setDrawPref,
+  held,
+  type Theme,
 } from "./theme";
 import { h } from "./ui";
+
+// theme-color per theme: the page background of each (tokens.css --bg)
+const CHROME: Record<Theme, string> = { light: "#f6f3ec", dark: "#161411" };
+
+/** Show the app theme: the attribute, the form-control scheme and the browser's bar colour. */
+export function applyTheme() {
+  const pref = getAppPref();
+  const root = document.documentElement;
+  if (pref === "system") root.removeAttribute("data-theme");
+  else root.dataset.theme = pref;
+  const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+  const colours = [CHROME.light, CHROME.dark];
+  metas.forEach((m, i) => {
+    m.content = pref === "system" ? colours[i] : CHROME[pref];
+  });
+}
+
+export function setAppPref(pref: AppPref) {
+  held.app = pref;
+  kept(APP_KEY, pref === "system" ? null : pref);
+  applyTheme();
+  changed();
+}
+
+export function setDrawPref(pref: DrawPref) {
+  held.draw = pref;
+  kept(DRAW_KEY, pref === "light" ? null : pref);
+  changed();
+}
 
 /** A segmented radio group (the kind row's look) calling set with the chosen value. */
 function choice(
