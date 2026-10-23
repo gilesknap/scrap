@@ -116,6 +116,25 @@ test("the preview is an inert image, the viewer is lazy and Back closes it", asy
   await open(page);
   await expect(page.getByTitle(/^Rectangle/)).toHaveCount(0);
   await expect(tool(page, "Save")).toHaveCount(0);
+  // The bar's buttons side by side inside the screen (More once stretched over the rest),
+  // and none of Excalidraw's own menu, whose links lead off to its site
+  const boxes = await dialog(page)
+    .locator(".drawing-bar > *")
+    .evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return [r.left, r.right, r.width];
+      }),
+    );
+  expect(boxes).toHaveLength(5);
+  const vw = page.viewportSize()?.width ?? 0;
+  for (const [i, [left, right, width]] of boxes.entries()) {
+    expect(left).toBeGreaterThanOrEqual(0);
+    expect(right).toBeLessThanOrEqual(vw);
+    expect(width).toBeLessThan(vw / 2);
+    if (i) expect(left).toBeGreaterThanOrEqual(boxes[i - 1][1]);
+  }
+  await expect(dialog(page).locator(".main-menu-trigger")).toBeHidden();
   await page.goBack(); // the phone's Back
   await expect(dialog(page)).toHaveCount(0);
   expect(new URL(page.url()).pathname).toBe(`/p/${b.slug}`);
@@ -207,6 +226,7 @@ test("history restores a version, and the drawing exports", async ({ page }) => 
 test("dark mode, and a Reprocess that asks before replacing an edit", async ({ page }) => {
   const b = board();
   await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => localStorage.setItem("scrap.drawings_theme", "app")); // Same as app
   await page.request.put(drawingUrl(b), {
     data: { base_version: 1, scene: { elements: [{ type: "text", x: 1, y: 1, text: "mine" }] } },
   });
