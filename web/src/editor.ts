@@ -13,7 +13,6 @@
 import { previewUrl } from "./api";
 import { drafts } from "./db";
 import { expand, found, tokenise } from "./embeds";
-import { NOT_KEPT, stash } from "./fresh";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
 import {
@@ -27,6 +26,7 @@ import {
   numbered,
   outdent,
 } from "./listedit";
+import { NOT_KEPT, stash } from "./stash";
 import { h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, tidy, toSend } from "./kinds";

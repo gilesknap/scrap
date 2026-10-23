@@ -1,7 +1,8 @@
 import "fake-indexeddb/auto";
 import { beforeEach, expect, it, vi } from "vitest";
 import { drafts } from "../src/db";
-import { DRAFT, FRESH, promote, recover, stash } from "../src/fresh";
+import { DRAFT, FRESH, promote, recover } from "../src/fresh";
+import { stash } from "../src/stash";
 import { toast } from "../src/ui";
 
 vi.mock("../src/ui", () => ({ toast: vi.fn() }));
