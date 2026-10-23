@@ -129,6 +129,8 @@ checked, so a typo inside them is silently ignored. The main ones:
 | `ingress.*`, `service.annotations` | off | Exposure, below. |
 | `service.type`, `service.port` | `ClusterIP`, `80` | The Service. |
 | `networkPolicy.enabled`, `.from` | off | Who may connect, below. |
+| `mcp.tokenSecret.name`, `.key` | none, `SCRAP_MCP_TOKEN` | An existing Secret and the key in it holding the bearer token(s) `/mcp` requires (`SCRAP_MCP_TOKEN`, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See {ref}`k8s-mcp-token`. |
+| `identityHeader` | `Tailscale-User-Login` | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. |
 | `extraEnv`, `extraEnvFrom` | none | Anything else for the container, such as `SCRAP_PUBLIC_URL` (see {ref}`k8s-mcp`) or `SCRAP_ENRICH`. |
 | `nodeSelector`, `tolerations`, `affinity`, `podAnnotations` | none | Scheduling and annotations. |
 | `nameOverride`, `fullnameOverride`, `serviceAccount.*`, `terminationGracePeriodSeconds`, `backup.resources` | see `values.yaml` | Naming, the ServiceAccount, the stop timeout (`30`) and the backup job's resources. |
@@ -303,6 +305,33 @@ author `tagged`. Never expose the Service without authentication.
 The Ingress sends every path to scrap, so the proxy covers `/mcp` and `/healthz` too. `/mcp` is
 called by Claude Code, not a browser, so a login page in front of it will block it unless the
 proxy exempts that path or the client can pass its check; the tailnet route avoids the problem.
+
+**Behind oauth2-proxy.** Set `identityHeader: X-Auth-Request-User` (the header oauth2-proxy
+returns and the controller copies to the request), so the author is the real login. scrap trusts
+only that header, but most controllers do not strip a client-sent copy, so the proxy plus the
+NetworkPolicy must be the only way to the Service; a forged value only changes the recorded author.
+
+**Exposing `/mcp` (Cloudflare Access, a second ingress).** Give `/mcp` its own Ingress rule or
+host that skips the login proxy, and guard it another way: a Cloudflare Access service token in
+front, and scrap's own bearer token behind it (below), so a leaked service token alone does not
+open scrap. Keep the PWA and API on the login-proxied host.
+
+(k8s-mcp-token)=
+### Bearer token on /mcp
+
+Create the Secret yourself (the chart never takes a token as a value) and name it:
+
+```yaml
+mcp:
+  tokenSecret:
+    name: scrap-secrets      # may be the Secret that holds ANTHROPIC_API_KEY
+    key: SCRAP_MCP_TOKEN     # one token, or several comma separated to rotate
+```
+
+Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. To rotate, set
+the key to `old,new`, roll the pod, move the clients to `new`, then drop `old`. `/healthz` stays
+open for the probes. Clients send `Authorization: Bearer <token>`: see
+[](connect-claude-code.md).
 
 (k8s-mcp)=
 ### Claude Code (MCP)

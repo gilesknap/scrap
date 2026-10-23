@@ -41,7 +41,7 @@ for values in "$chart"/ci/*-values.yaml; do
     # The chart never creates Secrets or ConfigMaps, and the key only ever
     # comes from a secretKeyRef.
     if grep -Eq '^kind: (Secret|ConfigMap)$' "$m"; then bad "$name: renders a Secret/ConfigMap"; fi
-    if grep -A1 -E 'name: (ANTHROPIC_API_KEY|SCRAP_NOTIFY_URL)$' "$m" | grep -Eq 'value:'; then
+    if grep -A1 -E 'name: (ANTHROPIC_API_KEY|SCRAP_NOTIFY_URL|SCRAP_MCP_TOKEN)$' "$m" | grep -Eq 'value:'; then
         bad "$name: a secret setting rendered as a plain value"
     fi
     if ! { grep -q '^  replicas: 1$' "$m" && grep -q 'type: Recreate' "$m"; }; then
@@ -67,13 +67,20 @@ expect_refused "an unknown top-level key" --set replicas=2
 expect_refused "backup.keep=0" --set backup.keep=0
 expect_refused "backup.keep=-1" --set backup.keep=-1
 expect_refused "a non-numeric budget" --set ingest.budgetDayUSD=lots
+expect_refused "an MCP token as a value" --set mcp.token=not-a-token
+expect_refused "an MCP token as a tokenSecret value" --set mcp.tokenSecret.value=not-a-token
+expect_refused "an empty tokenSecret key" --set mcp.tokenSecret.name=s --set mcp.tokenSecret.key=
+expect_refused "an identityHeader that is not a header name" --set 'identityHeader=a b'
 expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
 
 # The chart may set only variables the app reads (the Settings table in
 # docs/reference/api.md) or that deploy/scrap-backup reads, plus extraEnv.
 repo=$(dirname "$chart")/..
 docs=$repo/docs/reference/api.md
-helm template scrap "$chart" -f "$chart/ci/ingest-values.yaml" |
+{
+    helm template scrap "$chart" -f "$chart/ci/ingest-values.yaml"
+    helm template scrap "$chart" -f "$chart/ci/mcp-auth-values.yaml"
+} |
     grep -oE 'name: (SCRAP|ANTHROPIC)_[A-Z_]+' | sed 's/name: //' | sort -u >"$out/env"
 while read -r var; do
     if grep -q "| \`$var\` |" "$docs"; then

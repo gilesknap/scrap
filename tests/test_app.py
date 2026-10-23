@@ -714,3 +714,33 @@ def test_a_heading_as_the_first_line_titles_a_capture_without_its_marks(client, 
     assert title(note("   ### Deep heading  \nx")) == "Deep heading"
     assert title(note("#hashtag first\nx")) == "#hashtag first"  # no space: no heading
     assert title(note("#\nx")) == "#"  # nothing but the marks: kept
+
+
+def who(client, **headers):
+    r = client.post(
+        "/api/captures", json={"id": new_ulid(), "text": "note"}, headers=headers
+    )
+    assert r.status_code == 201
+    page = client.get(f"/api/pages/{r.json()['page_id']}").json()
+    return page["captures"][0]["author"]
+
+
+def test_author_defaults_to_the_tailscale_header(client, monkeypatch):
+    monkeypatch.delenv("SCRAP_IDENTITY_HEADER", raising=False)
+    assert who(client, **{"Tailscale-User-Login": "me@example.com"}) == "me@example.com"
+    assert who(client, **{"X-Auth-Request-User": "gh-user"}) == "tagged"
+    assert who(client) == "tagged"
+
+
+def test_author_from_a_custom_identity_header(client, monkeypatch):
+    monkeypatch.setenv("SCRAP_IDENTITY_HEADER", "X-Auth-Request-User")
+    assert who(client, **{"X-Auth-Request-User": "gh-user"}) == "gh-user"
+    # the default header is no longer trusted, nor any other
+    assert who(client, **{"Tailscale-User-Login": "forged"}) == "tagged"
+    assert who(client, **{"X-Auth-Request-Email": "a@b.c"}) == "tagged"
+    assert who(client) == "tagged"
+
+
+def test_blank_identity_header_means_the_default(client, monkeypatch):
+    monkeypatch.setenv("SCRAP_IDENTITY_HEADER", " ")
+    assert who(client, **{"Tailscale-User-Login": "me@example.com"}) == "me@example.com"

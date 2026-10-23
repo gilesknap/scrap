@@ -1,5 +1,6 @@
 """The MCP server (#37): its tools, called in process, and /mcp over ASGI."""
 
+import asyncio
 import json
 from typing import Any
 
@@ -592,3 +593,212 @@ def test_append_sets_due_and_priority_on_a_claude_todo_only(store):
         priority="low",
     )  # fmt: skip
     assert store.page(human_todo["page_id"])["priority"] is None
+
+
+SECRET = "s3cret-token-value"
+LOCAL = {"Host": "localhost"}
+
+
+def authed(tmp_path, monkeypatch, token: str | None = SECRET, **env):
+    monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
+    if token is not None:
+        monkeypatch.setenv("SCRAP_MCP_TOKEN", token)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    return TestClient(create_app(tmp_path / "data"))
+
+
+def bearer(token):
+    return {**LOCAL, "Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.parametrize(
+    "headers, status",
+    [
+        (LOCAL, 401),
+        ({**LOCAL, "Authorization": "Bearer wrong"}, 401),
+        ({**LOCAL, "Authorization": "Bearer"}, 401),
+        ({**LOCAL, "Authorization": f"Basic {SECRET}"}, 401),
+        ({**LOCAL, "Authorization": SECRET}, 401),
+        (bearer(SECRET), 200),
+        ({**LOCAL, "Authorization": f"bearer {SECRET}"}, 200),
+    ],
+)
+def test_mcp_token_is_required(tmp_path, monkeypatch, headers, status):
+    with authed(tmp_path, monkeypatch) as client:
+        r = rpc(client, "initialize", INIT, headers)
+        assert r.status_code == status
+        if status == 401:
+            assert r.headers["WWW-Authenticate"] == "Bearer"
+            assert SECRET not in r.text
+
+
+def test_mcp_token_is_checked_before_host_and_origin(tmp_path, monkeypatch):
+    with authed(tmp_path, monkeypatch) as client:
+        # a bad Host or Origin without the token is a 401, not a 421 or 403
+        assert (
+            rpc(client, "initialize", INIT, {"Host": "evil.example"}).status_code == 401
+        )
+        bad_origin = {"Origin": "https://evil.example"}
+        assert (
+            rpc(client, "initialize", INIT, {**LOCAL, **bad_origin}).status_code == 401
+        )
+        # with it, Host and Origin still apply
+        good = {"Authorization": f"Bearer {SECRET}"}
+        r = rpc(client, "initialize", INIT, {"Host": "evil.example", **good})
+        assert r.status_code == 421
+        r = rpc(client, "initialize", INIT, {**LOCAL, **good, **bad_origin})
+        assert r.status_code == 403
+
+
+def test_mcp_token_dispatches_no_tool_without_it(tmp_path, monkeypatch):
+    with authed(tmp_path, monkeypatch) as client:
+        args = {"title": "T", "body": "B", "origin": "o"}
+        r = rpc(client, "tools/call", {"name": "write", "arguments": args}, LOCAL)
+        assert r.status_code == 401
+        assert client.get("/api/search", params={"q": "is:claude"}).json() == []
+        r = rpc(
+            client, "tools/call", {"name": "write", "arguments": args}, bearer(SECRET)
+        )
+        assert r.status_code == 200
+        assert len(client.get("/api/search", params={"q": "is:claude"}).json()) == 1
+
+
+def test_mcp_token_leaves_the_rest_open(tmp_path, monkeypatch):
+    with authed(tmp_path, monkeypatch) as client:
+        assert client.get("/healthz").status_code == 200
+        assert client.get("/api/search", params={"q": "x"}).status_code == 200
+        assert client.get("/").status_code in (200, 503)  # the PWA, built or not
+
+
+def test_mcp_without_a_token_is_unchanged(tmp_path, monkeypatch):
+    monkeypatch.delenv("SCRAP_MCP_TOKEN", raising=False)
+    monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
+    with TestClient(create_app(tmp_path / "data")) as client:
+        assert rpc(client, "initialize", INIT, LOCAL).status_code == 200
+        r = rpc(client, "initialize", INIT, {**LOCAL, "Authorization": "Bearer x"})
+        assert r.status_code == 200
+
+
+def test_mcp_takes_several_tokens(tmp_path, monkeypatch):
+    with authed(tmp_path, monkeypatch, token=" old , new ,") as client:
+        for token, status in (("old", 200), ("new", 200), ("older", 401)):
+            assert rpc(client, "initialize", INIT, bearer(token)).status_code == status
+
+
+def test_mcp_tokens_from_a_file(tmp_path, monkeypatch):
+    file = tmp_path / "tokens"
+    file.write_text("# laptop\nlaptop-token\n\n  phone-token  \n")
+    with authed(
+        tmp_path, monkeypatch, token="env-token", SCRAP_MCP_TOKEN_FILE=str(file)
+    ) as client:
+        for token, status in (
+            ("laptop-token", 200),
+            ("phone-token", 200),
+            ("env-token", 200),
+            ("# laptop", 401),
+            ("", 401),
+        ):
+            assert rpc(client, "initialize", INIT, bearer(token)).status_code == status
+
+
+@pytest.mark.parametrize("env", [{"SCRAP_MCP_TOKEN": ""}, {"SCRAP_MCP_TOKEN": " , "}])
+def test_mcp_empty_token_stops_scrap(tmp_path, monkeypatch, env):
+    monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    with pytest.raises(SystemExit, match="holds no token"):
+        create_app(tmp_path / "data")
+
+
+@pytest.mark.parametrize("content", [None, "", "# only a comment\n"])
+def test_mcp_bad_token_file_stops_scrap(tmp_path, monkeypatch, content):
+    file = tmp_path / "tokens"
+    if content is not None:
+        file.write_text(content)
+    monkeypatch.delenv("SCRAP_MCP_TOKEN", raising=False)
+    monkeypatch.setenv("SCRAP_MCP_TOKEN_FILE", str(file))
+    with pytest.raises(SystemExit, match="SCRAP_MCP_TOKEN"):
+        create_app(tmp_path / "data")
+
+
+def test_mcp_token_compare_is_constant_time(tmp_path, monkeypatch):
+    seen = []
+    real = mcp_server.hmac.compare_digest
+    monkeypatch.setattr(
+        mcp_server.hmac,
+        "compare_digest",
+        lambda a, b: seen.append((a, b)) or real(a, b),
+    )
+    with authed(tmp_path, monkeypatch, token="one,two") as client:
+        assert rpc(client, "initialize", INIT, bearer("wrong")).status_code == 401
+    assert seen == [(b"wrong", b"one"), (b"wrong", b"two")]  # none skipped
+
+
+def test_mcp_token_is_never_logged(tmp_path, monkeypatch, caplog):
+    caplog.set_level("DEBUG")
+    with authed(tmp_path, monkeypatch) as client:
+        rpc(client, "initialize", INIT, bearer("a-wrong-one"))
+        rpc(client, "initialize", INIT, bearer(SECRET))
+    assert SECRET not in caplog.text
+    assert "a-wrong-one" not in caplog.text
+
+
+def test_mcp_bearer_guards_slash_head_options(tmp_path, monkeypatch):
+    with authed(tmp_path, monkeypatch) as client:
+        for method, path in (
+            ("POST", "/mcp/"),
+            ("HEAD", "/mcp"),
+            ("OPTIONS", "/mcp"),
+        ):
+            r = client.request(method, path, headers=LOCAL)
+            assert r.status_code == 401, (method, path)
+            assert r.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_mcp_token_file_with_bom(tmp_path, monkeypatch):
+    file = tmp_path / "tokens"
+    file.write_bytes(b"\xef\xbb\xbffirst-token\nsecond-token\n")
+    with authed(
+        tmp_path, monkeypatch, token=None, SCRAP_MCP_TOKEN_FILE=str(file)
+    ) as client:
+        for token in ("first-token", "second-token"):
+            assert rpc(client, "initialize", INIT, bearer(token)).status_code == 200
+
+
+def asgi_status(headers, path="/mcp", root_path=""):
+    sent = []
+
+    async def inner(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+
+    async def receive():
+        return {"type": "http.request"}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": path,
+        "root_path": root_path,
+        "headers": headers,
+    }
+    asyncio.run(mcp_server.BearerAuth(inner, [SECRET])(scope, receive, send))
+    return sent[0]["status"]
+
+
+def test_mcp_bearer_only_the_first_authorization_header_counts():
+    good = (b"authorization", f"Bearer {SECRET}".encode())
+    bad = (b"authorization", b"Bearer wrong")
+    assert asgi_status([good, bad]) == 200
+    assert asgi_status([bad, good]) == 401
+
+
+def test_mcp_bearer_with_a_root_path():
+    assert asgi_status([], "/prefix/mcp", "/prefix") == 401
+    assert asgi_status([], "/prefix/mcp/x", "/prefix") == 401
+    assert asgi_status([], "/prefix/healthz", "/prefix") == 200
+    assert asgi_status([], "/mcp") == 401
