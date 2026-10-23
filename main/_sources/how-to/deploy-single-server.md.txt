@@ -643,7 +643,7 @@ systemctl --user stop scrap
 set -a; . ~/.config/scrap/env; set +a
 ls "$SCRAP_BACKUPS"
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:z" -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:ro,z" -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" restore /backups/<timestamp> --force
 systemctl --user start scrap
 ```
@@ -652,7 +652,8 @@ systemctl --user start scrap
 scrap and use `--force`"). Drop `--force` only for a data directory scrap has never run in. With
 `--force` the whole database is replaced by the backup's, so pages added since the backup are
 lost; files are only ever added, never removed. It checks the backup's integrity first, refuses
-one made by a newer scrap, and leaves the data as it was if the backup is refused.
+one made by a newer scrap, and leaves the data as it was if the backup is refused. It works on
+a copy and never writes to the backup, so the backups mount can be read-only (`:ro`), as above.
 `scrap restore --help` lists the arguments.
 
 The same pattern runs any other `scrap` command (for example `scrap export`) against the data.

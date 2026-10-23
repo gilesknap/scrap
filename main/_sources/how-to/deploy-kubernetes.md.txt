@@ -438,8 +438,8 @@ kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":false}}'
 
 With Argo CD or another GitOps controller, pause its automatic sync first, or it scales scrap
 straight back up. `restore.yaml`, with the run to restore, the image of the scrap version you
-want (the version that wrote the backup, or a newer one: restore refuses a backup from a newer
-scrap) and, for a non-empty data volume, `--force` (which replaces the whole database; see
+want (the chart's `image.repository` and tag of the release that wrote the backup, or a newer
+one: restore refuses a backup from a newer scrap) and, for a non-empty data volume, `--force` (which replaces the whole database; see
 `scrap restore --help`):
 
 ```yaml
