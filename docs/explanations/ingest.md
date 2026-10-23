@@ -43,9 +43,8 @@ installed:
 
 `SCRAP_ENRICH` (default on) controls the text-page job and needs ingest on; `off` keeps ingest to
 photos. The Helm chart has no value of its own for the text model, effort or debounce, or for
-`SCRAP_ENRICH`; set them with `extraEnv`. It also has no CronJob for the nightly related-pages
-pass (see {ref}`ingest-enrich-related`): run `scrap enrich --related` in the pod yourself, or from
-a cluster scheduler of your own.
+`SCRAP_ENRICH`; set them with `extraEnv`. Its `enrichRelated` CronJob runs the nightly related-pages
+pass (see {ref}`ingest-enrich-related`) with the same environment, while ingest is on.
 
 `scrap ingest-once IMAGE` tries the Claude call on one image file without a database, and prints
 tokens, cost and counts only; `--save FILE` also writes the full result. It is the quickest way to

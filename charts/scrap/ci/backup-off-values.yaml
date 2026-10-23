@@ -23,3 +23,5 @@ serviceAccount:
   name: default
 networkPolicy:
   enabled: true
+gc:
+  enabled: false

@@ -60,6 +60,30 @@
         "resources": {"type": "object"}
       }
     },
+    "gc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "schedule": {"type": "string", "minLength": 1},
+        "timeZone": {"type": "string"},
+        "delete": {"type": "boolean"},
+        "graceHours": {"type": "number", "minimum": 0},
+        "runDays": {"type": "number", "minimum": 1},
+        "requireBackup": {"type": "boolean"},
+        "resources": {"type": "object"}
+      }
+    },
+    "enrichRelated": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "schedule": {"type": "string", "minLength": 1},
+        "timeZone": {"type": "string"},
+        "resources": {"type": "object"}
+      }
+    },
     "service": {"type": "object"},
     "ingress": {
       "type": "object",

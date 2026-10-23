@@ -342,3 +342,124 @@ def test_an_aside_whose_name_is_taken_goes_and_an_unused_one_is_deleted(store):
     assert sorted(report.shas) == sorted([taken, unused])  # then both are unused
     assert not path.exists() and not upath.exists()
     assert not list(store.files.rglob(f"{gc.ASIDE}*"))
+
+
+def _stamp(days):
+    return time.strftime(
+        "%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() - days * DAY)
+    )
+
+
+def _model_run(conn, cid, sha, days, parent=None, status="ok"):
+    return conn.execute(
+        "INSERT INTO model_run (capture_id, source_sha256, parent_id, purpose, model,"
+        " prompt_version, request, status, started_at)"
+        " VALUES (?, ?, ?, 'ingest', 'm', 'v', '{}', ?, ?) RETURNING id",
+        (cid, sha, parent, status, _stamp(days)),
+    ).fetchone()[0]
+
+
+def _enrich_run(conn, page, days, status="ok"):
+    return conn.execute(
+        "INSERT INTO enrich_run (page_id, model, prompt_version, request, status,"
+        " started_at) VALUES (?, 'm', 'v', '{}', ?, ?) RETURNING id",
+        (page, status, _stamp(days)),
+    ).fetchone()[0]
+
+
+def _ids(store, table):
+    with store.connect() as conn:
+        return {r[0] for r in conn.execute(f"SELECT id FROM {table}")}
+
+
+def test_old_runs_are_counted_then_deleted_and_the_rest_kept(client, store):
+    a, sha_a = photo(client, b"photo a", "A")
+    b, sha_b = photo(client, b"photo b", "B")
+    pa, pb = a["page_id"], b["page_id"]
+    with store.connect() as conn:
+        # model runs: a has an old unreferenced one, an old derived-referenced one,
+        # a recent one, and a newest-but-old one; b has only one old run (its latest)
+        m_old = _model_run(conn, a["capture_id"], sha_a, 90)
+        m_derived = _model_run(conn, a["capture_id"], sha_a, 80)
+        m_old2 = _model_run(conn, a["capture_id"], sha_a, 70)
+        m_recent = _model_run(conn, a["capture_id"], sha_a, 5)
+        m_latest_b = _model_run(conn, b["capture_id"], sha_b, 200)
+        conn.execute(
+            "INSERT INTO derived (capture_id, source_sha256, kind, version, producer,"
+            " run_id, text, created_at) VALUES (?, ?, 'ocr', 1, 'm', ?, 'x', ?)",
+            (a["capture_id"], sha_a, m_derived, now()),
+        )
+        # enrich runs: page a: old, referenced, running, recent; page b: old, latest
+        e_old = _enrich_run(conn, pa, 90)
+        e_ref = _enrich_run(conn, pa, 60)
+        e_running = _enrich_run(conn, pa, 99, status="running")
+        e_recent = _enrich_run(conn, pa, 3)
+        e_old_b = _enrich_run(conn, pb, 100)
+        e_latest_b = _enrich_run(conn, pb, 95)
+        conn.execute(
+            "INSERT INTO enrichment (page_id, run_id, producer, updated_at)"
+            " VALUES (?, ?, 'm', ?)",
+            (pa, e_ref, now()),
+        )
+    dry = gc.collect(store)
+    assert (dry.model_runs, dry.enrich_runs) == (2, 2)
+    assert "2 model runs and 2 enrich runs older than the retention" in dry.text()
+    assert _ids(store, "model_run") >= {m_old, m_old2}  # a dry run deletes nothing
+    assert _ids(store, "enrich_run") >= {e_old, e_old_b}
+
+    done = gc.collect(store, delete=True)
+    assert (done.model_runs, done.enrich_runs) == (2, 2)
+    assert _ids(store, "model_run") == {m_derived, m_recent, m_latest_b}
+    assert _ids(store, "enrich_run") == {e_ref, e_recent, e_latest_b, e_running}
+    again = gc.collect(store, delete=True)
+    assert (again.model_runs, again.enrich_runs) == (0, 0)
+
+
+def test_a_kept_turn_keeps_the_turns_it_continues(client, store):
+    a, sha = photo(client)
+    with store.connect() as conn:
+        first = _model_run(conn, a["capture_id"], sha, 100)
+        second = _model_run(conn, a["capture_id"], sha, 90, parent=first)
+        third = _model_run(conn, a["capture_id"], sha, 80, parent=second)
+        unrelated = _model_run(conn, a["capture_id"], "other", 100)
+        _model_run(conn, a["capture_id"], "other", 99)  # the latest of "other"
+    done = gc.collect(store, delete=True)
+    assert done.model_runs == 1
+    assert {first, second, third}.isdisjoint({unrelated}) and unrelated not in _ids(
+        store, "model_run"
+    )
+    assert {first, second, third} <= _ids(store, "model_run")
+
+
+def test_deleted_runs_free_the_jpeg_they_sent_for_the_next_run(client, store):
+    a, sha = photo(client)
+    sent = put(store, b"sent jpeg")
+    with store.connect() as conn:
+        conn.execute(
+            "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
+            " prompt_version, sent_sha256, request, status, started_at)"
+            " VALUES (?, ?, 'ingest', 'm', 'v', ?, '{}', 'ok', ?)",
+            (a["capture_id"], sha, sent, _stamp(90)),
+        )
+        _model_run(conn, a["capture_id"], sha, 80)  # newer: the old one is not latest
+    age_all(store)
+    assert gc.collect(store, delete=True).model_runs == 1
+    assert store.blob_path(sent).is_file()  # still referenced when files were counted
+    assert gc.collect(store, delete=True).shas == [sent]
+
+
+def test_run_retention_is_a_setting(client, store, capsys):
+    a, sha = photo(client)
+    with store.connect() as conn:
+        _model_run(conn, a["capture_id"], sha, 10)
+        _model_run(conn, a["capture_id"], sha, 9)
+    assert gc.collect(store, run_days=30).model_runs == 0
+    assert gc.collect(store, run_days=5).model_runs == 1
+    assert gc.collect(store).model_runs == 0
+    with pytest.raises(gc.GcError, match="at least 1 day"):
+        gc.collect(store, run_days=0)
+    main(["gc", "--run-days", "5", "--data-dir", str(store.dir)])
+    assert "1 model runs and 0 enrich runs older" in capsys.readouterr().out
+    assert len(_ids(store, "model_run")) == 2
+    main(["gc", "--delete", "--run-days", "5", "--data-dir", str(store.dir)])
+    assert len(_ids(store, "model_run")) == 1

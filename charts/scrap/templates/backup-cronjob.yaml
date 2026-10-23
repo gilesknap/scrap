@@ -30,12 +30,7 @@ spec:
           # The data claim is ReadWriteOnce, and SQLite's online backup needs
           # the same host as the server: run beside the scrap pod.
           affinity:
-            podAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - topologyKey: kubernetes.io/hostname
-                  labelSelector:
-                    matchLabels:
-                      {{- include "scrap.selectorLabels" . | nindent 22 }}
+            {{- include "scrap.sameNodeAffinity" . | nindent 12 }}
           containers:
             - name: backup
               image: {{ include "scrap.image" . }}
@@ -47,6 +42,10 @@ spec:
                 - /bin/sh
                 - -ec
                 - |
+                  # Never at the same time as the gc CronJob: a file it deletes
+                  # mid-backup could be one the backup's database still names.
+                  exec 9>"$SCRAP_BACKUPS/.lock"
+                  flock 9
                   dest="$SCRAP_BACKUPS/$(date -u +%Y%m%dT%H%M%SZ)"
                   mkdir "$dest"  # fails, touching nothing, if that run exists
                   if ! scrap backup "$dest"; then
