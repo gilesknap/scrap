@@ -8,7 +8,7 @@ nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-serv
 
 Podman is the tested path. Docker is possible, but `install.sh` needs podman, so you wire the
 units up by hand: see {ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
-[](deploy-kubernetes.md). To try it on a DLS workstation without `sudo`, see
+[](deploy-kubernetes.md). To demo it on a DLS workstation without `sudo`, see
 [](../tutorials/dls-workstation.md).
 
 ```{warning}
