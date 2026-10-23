@@ -28,8 +28,10 @@ steps, are in [](../how-to/deploy-single-server.md).
 (RHEL 8.10, cgroups v1, SELinux enforcing, podman 4.9.4, Tailscale 1.104.2): the pod with its
 published port; `/healthz` on `localhost`, on the workstation's IP address and on its hostname;
 MCP (`initialize` and a search) through `http://<host>:8790/mcp`, with page links on the
-hostname; and claude-sandbox's network jail reaching scrap by IP address with `allow-ip`, and
-blocked without it. Earlier, on 22 Oct: a phone on the tailnet opening the web app through
+hostname; claude-sandbox's network jail (in its 5.0.0-beta.1 image, with the launcher's default
+host networking) reaching scrap at `http://localhost:8790` with `local-port`, while the
+workstation's IP address stayed blocked; and the jail reaching scrap by IP address with
+`allow-ip`, and blocked without it. Earlier, on 22 Oct: a phone on the tailnet opening the web app through
 Tailscale Serve, installing it as an app and capturing photos, and ingest on a Claude seat
 ({ref}`dls-ingest`) reading two photos in about 10 seconds. Not yet checked: opening scrap from
 another machine on the DLS network, a real Claude Code session in claude-sandbox end to end
@@ -54,10 +56,11 @@ Nothing here needs `sudo`. The pod maps user 10001 in its containers to you on t
 workstation, and the containers run as that user, so their processes and files are yours, not
 in the subordinate id range that every DLS user shares.
 
-Claude Code at DLS runs inside claude-sandbox, whose network jail blocks the DLS network except
-for addresses you allow. You allow the workstation's IP address there, and Claude Code reaches
-scrap at `http://<IP address>:8790/mcp`, whether claude-sandbox runs on the same workstation or
-on another machine on the network ({ref}`dls-claude-code`).
+Claude Code at DLS runs inside claude-sandbox, whose network jail blocks the workstation's own
+ports and the DLS network unless you open them. On the same workstation, you relay scrap's one
+port into the jail, and Claude Code reaches scrap at `http://localhost:8790/mcp`. From
+claude-sandbox on another machine, you allow the workstation's IP address instead
+({ref}`dls-claude-code`).
 
 ## What you need
 
@@ -104,20 +107,12 @@ can instead `podman pull ghcr.io/gilesknap/scrap:<version>` and use that name in
 
 ## Write scrap's settings
 
-Find the workstation's hostname and IP address:
-
-```
-getent hosts $(hostname -f)
-```
-
-It prints the IP address, such as `172.23.244.126`, then the hostname, such as
-`pc0126.diamond.ac.uk`. (`hostname -I` is less reliable: it also lists the addresses of local
-bridges, such as libvirt's `192.168.122.1`.) Put them in a settings file for scrap, readable
-only by you:
+Find the workstation's full hostname, such as `pc0126.diamond.ac.uk`, with `hostname -f`, and
+put it in a settings file for scrap, readable only by you:
 
 ```
 (umask 077; cat >$base/scrap.env <<'EOF'
-SCRAP_PUBLIC_URL=http://<host>.diamond.ac.uk:8790,http://localhost:8790,http://<IP address>:8790
+SCRAP_PUBLIC_URL=http://<host>.diamond.ac.uk:8790,http://localhost:8790
 TZ=Europe/London
 EOF
 )
@@ -127,8 +122,8 @@ EOF
   only requests addressed to one of them (or to loopback); any other gets
   `421 Invalid Host header`. The **first** makes the page links that Claude Code shows you, so
   put the hostname first: those links then open on any machine on the network, the workstation
-  included. The IP address is there for claude-sandbox, which reaches scrap by IP address for
-  now ({ref}`dls-claude-code`).
+  included. Claude Code in claude-sandbox on another machine needs the workstation's IP address
+  here too ({ref}`dls-claude-other`).
 - `TZ` makes `due:today` follow your day rather than UTC.
 
 See {ref}`scrap-ingest-settings`.
@@ -187,19 +182,17 @@ claude-sandbox on the same workstation, still work.
 ## Connect Claude Code
 
 ```{warning}
-claude-sandbox's jail reaching scrap with `allow-ip` has been checked, but not a whole Claude
-Code session.
+claude-sandbox's jail reaching scrap, with `local-port` and with `allow-ip`, has been checked,
+but not a whole Claude Code session.
 ```
 
 Claude Code sessions can search, read and write scrap through its MCP server at `/mcp`. At DLS,
 Claude Code runs inside
 [claude-sandbox](https://diamondlightsource.github.io/claude-sandbox/dls/claude-at-dls.html),
-whose network jail blocks every address on the DLS network that you have not allowed. The steps
-are the same whether claude-sandbox runs on this workstation or on another machine on the
-network: in both, allow the scrap workstation's IP address.
+whose network jail gives the agent its own `localhost` and blocks the DLS network. To reach scrap
+on the same workstation, relay scrap's port into the jail:
 
-1. On the machine where you run claude-sandbox, outside any container, add the scrap
-   workstation's IP address (from `getent hosts` above) to `~/.config/claude-sandbox.conf`.
+1. On the workstation, outside any container, add the port to `~/.config/claude-sandbox.conf`.
    That file **replaces** claude-sandbox's shipped configuration, so if you are creating it,
    keep the shipped defaults too:
 
@@ -207,12 +200,14 @@ network: in both, allow the scrap workstation's IP address.
    allow-write = /cache
    allow-ip = 172.23.142.119   # Diamond GitLab
    local-model-port = 1920
-   allow-ip = <IP address>     # scrap
+   local-port = 8790           # scrap
    ```
 
-   `allow-ip` takes a bare IP address, and lets Claude reach every service on that address, not
-   only scrap. If the file is new, run `claude-sandbox --recreate` in your project directory so
-   that the container mounts it; recreating drops forge logins, so run
+   `local-port` relays the workstation's `localhost:8790`, and only that port, to the same
+   address inside the jail; the rest of the workstation and the network stay blocked. It relies
+   on the launcher's default host networking: a container made with `--bridge` has its own
+   `localhost` and does not see scrap. If the file is new, run `claude-sandbox --recreate` in
+   your project directory so that the container mounts it; recreating drops forge logins, so run
    `claude-sandbox gh-auth` again if you use it. Edits to an existing file apply at the next
    launch. See claude-sandbox's
    [network access](https://diamondlightsource.github.io/claude-sandbox/how-to/network-egress-jail.html).
@@ -221,18 +216,14 @@ network: in both, allow the scrap workstation's IP address.
    your projects, and check that it connects:
 
    ```
-   claude mcp add --transport http --scope user scrap http://<IP address>:8790/mcp
+   claude mcp add --transport http --scope user scrap http://localhost:8790/mcp
    claude mcp list
    ```
 
-   `claude mcp list` should show `scrap` as connected. The address must be one of those in
-   `SCRAP_PUBLIC_URL`, or `/mcp` answers `421 Invalid Host header`. If it does not connect,
-   check the `allow-ip` line, and that a browser on that machine can open
-   `http://<host>.diamond.ac.uk:8790/healthz` ({ref}`dls-browser`).
-
-   Use the IP address, not the hostname, for now: claude-sandbox does not yet resolve hostnames
-   for `allow-ip`. Once it does, `http://<host>.diamond.ac.uk:8790/mcp` works directly, and the
-   IP address can come out of `SCRAP_PUBLIC_URL`.
+   `claude mcp list` should show `scrap` as connected. `/mcp` always answers requests addressed
+   to `localhost`; the page links in its answers still use the hostname, the first address in
+   `SCRAP_PUBLIC_URL`. If it does not connect, check the `local-port` line and that
+   `curl http://localhost:8790/healthz` works on the workstation.
 
 3. Optionally, install the `scrap-post` skill, which posts a summary of a conversation to scrap
    when you say "post this to scrap". In the same container terminal:
@@ -256,6 +247,41 @@ What the tools do, which to allow without asking, and how to check `/mcp` with `
 [](../how-to/connect-claude-code.md). Its steps for setting the address and restarting scrap
 (`systemctl --user restart scrap`, the `scrap` user) are for the single-server install and do
 not apply here: change `$base/scrap.env` and recreate the container instead ({ref}`dls-update`).
+
+(dls-claude-other)=
+### From claude-sandbox on another machine
+
+`local-port` reaches only the machine claude-sandbox runs on. From claude-sandbox on another
+machine on the DLS network, allow the scrap workstation's IP address through the jail instead.
+
+1. On the scrap workstation, find its IP address:
+
+   ```
+   getent hosts $(hostname -f)
+   ```
+
+   It prints the IP address, such as `172.23.244.126`, then the hostname. (`hostname -I` is less
+   reliable: it also lists the addresses of local bridges, such as libvirt's `192.168.122.1`.)
+   Add `http://<IP address>:8790` to the end of `SCRAP_PUBLIC_URL` in `$base/scrap.env`, after a
+   comma, keeping the hostname first, and recreate scrap's container ({ref}`dls-update`).
+2. On the other machine, put `allow-ip = <IP address>` in `~/.config/claude-sandbox.conf`, in
+   place of the `local-port` line above (with the same shipped defaults), and recreate if the
+   file is new. `allow-ip` takes a bare IP address, and lets Claude reach every service on that
+   machine, not only scrap.
+3. In a container terminal there, add scrap by IP address, then the skill as above:
+
+   ```
+   claude mcp add --transport http --scope user scrap http://<IP address>:8790/mcp
+   ```
+
+   The address must be one of those in `SCRAP_PUBLIC_URL`, or `/mcp` answers
+   `421 Invalid Host header`. Use the IP address, not the hostname, for now: claude-sandbox does
+   not yet resolve hostnames for `allow-ip`. Once it does, `http://<host>.diamond.ac.uk:8790/mcp`
+   works directly, and the IP address can come out of `SCRAP_PUBLIC_URL`.
+
+If it does not connect, check that a browser on that machine can open
+`http://<host>.diamond.ac.uk:8790/healthz` ({ref}`dls-browser`): if not, the workstation's
+firewall blocks the port.
 
 ## Logs
 
@@ -388,7 +414,7 @@ podman pod rm scrap-pod
 Under systemd, run `systemctl --user disable --now pod-scrap-pod.service` instead, remove the
 `*scrap-pod*` files and folders from `~/.config/systemd/user`, and run
 `systemctl --user daemon-reload`. Take scrap out of Claude Code with `claude mcp remove scrap`
-in a claude-sandbox container terminal, and remove its `allow-ip` line.
+in a claude-sandbox container terminal, and remove its `local-port` (or `allow-ip`) line.
 
 Your data in `/scratch/$USER/scrap-pod` stays until you delete it.
 
@@ -472,12 +498,13 @@ Pick a name for the pod on your tailnet, such as `scrap`; it becomes
 through it too:
 
 ```
-SCRAP_PUBLIC_URL=http://<host>.diamond.ac.uk:8790,http://localhost:8790,http://<IP address>:8790,https://scrap.<tailnet>.ts.net
+SCRAP_PUBLIC_URL=http://<host>.diamond.ac.uk:8790,http://localhost:8790,https://scrap.<tailnet>.ts.net
 ```
 
 Keep the hostname first, so that the links Claude Code gives you still open in the workstation's
-browser, and recreate scrap's container ({ref}`dls-update`). Then fetch Tailscale's image, make a
-folder for its state, and start it in the pod:
+browser, and keep any IP address you added for {ref}`dls-claude-other`. Recreate scrap's
+container ({ref}`dls-update`). Then fetch Tailscale's image, make a folder for its state, and
+start it in the pod:
 
 ```
 podman pull docker.io/tailscale/tailscale:stable
