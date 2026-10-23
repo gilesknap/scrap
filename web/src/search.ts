@@ -142,7 +142,7 @@ export async function search(): Promise<Node> {
         chips.replaceChildren(el); // (refine puts focus back on the control it was on)
       })
       .catch(() => signal.aborted || chips.replaceChildren());
-    clearTimeout(settle);
+    if (!quiet) clearTimeout(settle); // (a refresh is not a new query: it keeps the wait going)
     const shown = await list(query, signal);
     if (signal.aborted) return;
     // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
