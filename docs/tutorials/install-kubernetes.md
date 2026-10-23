@@ -15,8 +15,8 @@ upgrades, backup and restore, and troubleshooting are in [](../how-to/deploy-kub
 
 ```{warning}
 scrap has **no login of its own**. Anyone who can reach it can read and change everything.
-Here, Cloudflare Access is the login, and a NetworkPolicy makes the tunnel the only way in. Do
-not skip either.
+Here, Cloudflare Access is the login, and a NetworkPolicy stops other pods and LAN hosts reaching scrap
+directly. Do not skip either.
 ```
 
 ## What you need
@@ -107,10 +107,11 @@ What each part does:
   and `/healthz` are not affected.
 - `identityHeader` records the signed-in email, which Cloudflare Access adds to each request,
   as the author of a change. Changes made through `/mcp` are always author `claude`.
-- `SCRAP_PUBLIC_URL` is the address you reach scrap at. scrap answers `421` to any other `Host`.
+- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp` answers `421` to any other `Host`.
 - `networkPolicy` admits only the cloudflared pods, in the `cloudflared` namespace you create in
   the next step. Without it, any pod in the cluster could reach scrap directly and send its own
-  identity header. With it, nothing on your LAN or in the cluster goes around Cloudflare.
+  identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around
+  Cloudflare. Cluster admins, node access and `kubectl port-forward` are outside that guarantee.
 - `backup.enabled` is already the default. It runs a nightly `scrap backup` onto a second volume.
 
 Install it:
@@ -254,7 +255,7 @@ Then the edge, from your own machine:
 
 ```
 curl -sI https://scrap.example.com/                 # redirected to the Cloudflare login
-curl -sI https://scrap.example.com/mcp              # refused by Cloudflare, scrap never sees it
+curl -sI https://scrap.example.com/mcp              # refused by Cloudflare (302 or 403), scrap never sees it
 curl -sI https://scrap.example.com/mcp \
     -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>"
                                                     # 401, scrap wants the bearer token

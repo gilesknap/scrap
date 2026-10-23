@@ -95,7 +95,8 @@ read -rs TOKEN && kubectl -n scrap create secret generic scrap-claude \
     --from-literal=ANTHROPIC_API_KEY= --from-literal=CLAUDE_CODE_OAUTH_TOKEN="$TOKEN"; unset TOKEN
 ```
 
-Add to your values, with your own image from the build section:
+If your registry needs credentials, create an image pull Secret and list it under
+`imagePullSecrets` in the values. Add to your values, with your own image from the build section:
 
 ```yaml
 image:

@@ -2,7 +2,7 @@
 
 Claude Code sessions can search, read and write scrap through its MCP server (see
 [](../reference/mcp.md)). Nothing is installed on the session's machine: it talks to `/mcp`
-over HTTPS: on the tailnet, or, on the Kubernetes install, through Cloudflare Access with a
+over HTTPS on the tailnet, over plain HTTP on a home network ([](../tutorials/install-lan.md)), or, on the Kubernetes install, through Cloudflare Access with a
 bearer token (see "If `/mcp` needs a token" below, [](../tutorials/install-kubernetes.md) and
 [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 
@@ -12,7 +12,8 @@ workstation, not over the tailnet, and setting the address and restarting scrap 
 
 Before you start you need:
 
-- scrap running and reachable from the machine running Claude Code: published on your tailnet
+- scrap running and reachable from the machine running Claude Code: on the same machine or LAN
+  ([](../tutorials/install-lan.md)), published on your tailnet
   (see [](../tutorials/install-server.md), [](deploy-single-server.md), "Publish on your
   tailnet", or {ref}`k8s-tailscale`), or on Kubernetes behind Cloudflare Access
   ([](../tutorials/install-kubernetes.md));
@@ -94,7 +95,7 @@ the token as a header. With `claude mcp add`:
 
 ```
 claude mcp add --transport http scrap https://myhost.my-tailnet.ts.net:8446/mcp \
-  --header "Authorization: Bearer ${SCRAP_MCP_TOKEN}"
+  --header 'Authorization: Bearer ${SCRAP_MCP_TOKEN}'
 ```
 
 or in `.mcp.json`, where Claude Code expands `${VAR}` in header values, so the token can stay in

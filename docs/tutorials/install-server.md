@@ -68,7 +68,7 @@ too:
 
 ```
 cd ~
-git clone https://github.com/gilesknap/scrap.git
+git clone --branch 0.2.2 --depth 1 https://github.com/gilesknap/scrap.git
 cd scrap
 ```
 
@@ -106,7 +106,7 @@ logs with `journalctl --user -u scrap -n 50`.
 
 ## Publish it on your tailnet
 
-Leave the `scrap` session. As an admin on the server, check what Serve already publishes, then add
+Log out of the `scrap` session. As an admin on the server, check what Serve already publishes, then add
 scrap on a port that is free (the port is yours to choose; this tutorial uses 8446):
 
 ```

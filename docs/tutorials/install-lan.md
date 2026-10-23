@@ -141,7 +141,7 @@ machine reachable. That is the limit of this tier.
 If this machine and your phone are both on your tailnet, the same published port is already
 reachable on the machine's Tailscale address. On your phone, open `http://100.64.0.7:8000/`
 (`tailscale ip -4` prints yours), or `http://<machine-name>:8000/` with MagicDNS. Remember to
-list that address in `SCRAP_PUBLIC_URL` if you use Claude from another machine (see the next
+list that address (and the MagicDNS name, `http://<machine-name>:8000`, if you use it) in `SCRAP_PUBLIC_URL` if you use Claude from another machine (see the next
 section).
 
 It is still plain HTTP, so it has the same limits as tier A, but it works away from home. Tailscale
