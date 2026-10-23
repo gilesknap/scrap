@@ -375,7 +375,9 @@ page's text. The schema is in
 - **Triggers.** A text capture (a note, todo or read) or a link capture: a link is fetched and
   read at once, a text capture after `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or
   text of a note (a saved link is one), todo or read moves the page's one queued job that far
-  ahead again, so a burst of edits makes one call (a save while a job runs queues the next). These do tags and summary
+  ahead again, so a burst of edits makes one call (a save while a job runs queues the next). Text
+  added over MCP with `append` counts as a save. A saved link is fetched on a capture, Ask or
+  backfill only, never on a save. These do tags and summary
   only.
   **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
   related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags
@@ -473,8 +475,10 @@ so it cannot name a page that is not there.
 a page its owner saved)` (`fetch.AGENT`; match it in a site's logs or an egress allow-list),
 `Accept: text/html,application/xhtml+xml,text/plain;q=0.8`, `Accept-Encoding: gzip, deflate` and
 `Accept-Language: en`. scrap does not read `robots.txt`: it fetches one page, once per reading,
-because its owner saved the link. A reading fetches the link again, whether from **Ask Claude**,
-a save or a retry.
+because its owner saved the link. A reading fetches the link again from **Ask Claude**, a
+retry or a backfill, but not on a save of the page's text: the fetched text is not kept, so a
+save's re-reading summarises from the page's own text and the address, keeps the source and its
+title from the last fetch, and never touches the site (the run's `fetch` is `skipped: save re-read`, not a failure reason).
 
 **When it fails.** The reason is not shown in the PWA. The job still succeeds: the page is tagged
 from the link and the text the user typed, with no title or summary taken from the site, and
