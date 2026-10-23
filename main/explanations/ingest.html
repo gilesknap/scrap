@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.2.1.dev25+g2e7dd9aa9 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.2.1.dev28+g4edbb6fa6 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=ac5270e8"></script>
+    <script src="../_static/documentation_options.js?v=2a63e251"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -972,7 +972,9 @@ page’s text. The schema is in
 <li><p><strong>Triggers.</strong> A text capture (a note, todo or read) or a link capture: a link is fetched and
 read at once, a text capture after <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds (60). A save of the title or
 text of a note (a saved link is one), todo or read moves the page’s one queued job that far
-ahead again, so a burst of edits makes one call (a save while a job runs queues the next). These do tags and summary
+ahead again, so a burst of edits makes one call (a save while a job runs queues the next). Text
+added over MCP with <code class="docutils literal notranslate"><span class="pre">append</span></code> counts as a save. A saved link is fetched on a capture, Ask or
+backfill only, never on a save. These do tags and summary
 only.
 <strong>Ask Claude</strong> on the page (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/enrich</span></code>) queues it now and also picks its
 related pages. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> queues every note, todo or read with no tags
@@ -1070,8 +1072,10 @@ characters, with the page’s title and description.</p></li>
 <p><strong>The request.</strong> A plain <code class="docutils literal notranslate"><span class="pre">GET</span></code> with these headers: <code class="docutils literal notranslate"><span class="pre">User-Agent:</span> <span class="pre">scrap/1</span> <span class="pre">(personal</span> <span class="pre">notes;</span> <span class="pre">fetches</span> <span class="pre">a</span> <span class="pre">page</span> <span class="pre">its</span> <span class="pre">owner</span> <span class="pre">saved)</span></code> (<code class="docutils literal notranslate"><span class="pre">fetch.AGENT</span></code>; match it in a site’s logs or an egress allow-list),
 <code class="docutils literal notranslate"><span class="pre">Accept:</span> <span class="pre">text/html,application/xhtml+xml,text/plain;q=0.8</span></code>, <code class="docutils literal notranslate"><span class="pre">Accept-Encoding:</span> <span class="pre">gzip,</span> <span class="pre">deflate</span></code> and
 <code class="docutils literal notranslate"><span class="pre">Accept-Language:</span> <span class="pre">en</span></code>. scrap does not read <code class="docutils literal notranslate"><span class="pre">robots.txt</span></code>: it fetches one page, once per reading,
-because its owner saved the link. A reading fetches the link again, whether from <strong>Ask Claude</strong>,
-a save or a retry.</p>
+because its owner saved the link. A reading fetches the link again from <strong>Ask Claude</strong>, a
+retry or a backfill, but not on a save of the page’s text: the fetched text is not kept, so a
+save’s re-reading summarises from the page’s own text and the address, keeps the source and its
+title from the last fetch, and never touches the site (the run’s <code class="docutils literal notranslate"><span class="pre">fetch</span></code> is <code class="docutils literal notranslate"><span class="pre">skipped:</span> <span class="pre">save</span> <span class="pre">re-read</span></code>, not a failure reason).</p>
 <p><strong>When it fails.</strong> The reason is not shown in the PWA. The job still succeeds: the page is tagged
 from the link and the text the user typed, with no title or summary taken from the site, and
 the reason is kept only in the run’s <code class="docutils literal notranslate"><span class="pre">request</span></code> under <code class="docutils literal notranslate"><span class="pre">fetch</span></code> (read it as in
