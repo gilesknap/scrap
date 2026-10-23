@@ -65,6 +65,11 @@ export function menuSpot(button: DOMRect, width: number, screenW: number, screen
   return { left: Math.round(Math.max(left, gap)), bottom: Math.round(screenH - button.top + gap) };
 }
 
+/** Whether a share failed because the tap's permission ran out (a slow download outlasts
+ * it), not for a reason a fresh tap would not fix (a blocked file type, a permissions policy). */
+export const tapExpired = (err: unknown) =>
+  (err as Error).name === "NotAllowedError" && navigator.userActivation?.isActive === false;
+
 /** Whether this phone can share a file like this, asked before downloading it. */
 function canShareFile(name: string, type: string) {
   try {
@@ -100,7 +105,7 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
         await navigator.share({ title, files });
       } catch (err) {
         // A slow download outlasts the tap (Chrome allows ~5 s): share it on a fresh one.
-        if ((err as Error).name !== "NotAllowedError") throw err;
+        if (!tapExpired(err)) throw err;
         toast("Photo ready", "Share", () => void send({ title, files }), 30_000);
       }
     });

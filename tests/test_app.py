@@ -359,6 +359,37 @@ def test_edit_rejects_bad_tags(client, note, tags):
     assert client.get(url).json()["tags"] == ["keep"]
 
 
+@pytest.mark.parametrize("field", ["text", "url", "hint", "created_at"])
+def test_capture_rejects_a_lone_surrogate(client, field):
+    body = json.dumps({"id": new_ulid(), "text": "x", field: "a\ud800b"})
+    sent = client.post(
+        "/api/captures", content=body, headers={"content-type": "application/json"}
+    )
+    assert sent.status_code == 422
+    assert "ud800" not in sent.text
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        {"base_rev": 1, "title": "a\ud800"},
+        {"base_rev": 1, "body": "a\ud800"},
+        {"kind": "\ud800"},
+        {"due": "\ud800"},
+        {"fields": {"zzkey\ud800": "x"}},
+        {"fields": {"k": "\ud800"}},
+        {"tags_shown": ["\ud800"]},
+    ],
+)
+def test_edit_rejects_a_lone_surrogate_without_echoing_it(client, note, edit):
+    url = f"/api/pages/{note()['page_id']}"
+    body = json.dumps(edit)
+    sent = client.patch(url, content=body, headers={"content-type": "application/json"})
+    assert sent.status_code == 422
+    assert "ud800" not in sent.text
+    assert "zzkey" not in sent.text  # not even in loc
+
+
 def test_capture_with_tags_is_tagged_and_indexed_at_once(client):
     data = {"id": new_ulid(), "text": "seed trays", "tags": ["#Garden  Tools", "diy"]}
     ref = client.post("/api/captures", json=data).json()

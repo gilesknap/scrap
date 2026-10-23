@@ -24,7 +24,14 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, BeforeValidator, Field, StrictBool, StrictInt
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    Field,
+    StrictBool,
+    StrictInt,
+)
 from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -33,6 +40,7 @@ from . import __version__, backup, drawing, enrich, ingest, mcp_server, preview
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
+    SURROGATE,
     ConflictError,
     InvalidError,
     NotFoundError,
@@ -73,26 +81,51 @@ NOT_BUILT = (
 )
 
 
+SURROGATE_MSG = "a lone surrogate"
+
+
+def _encodable(value: str) -> str:
+    """Refuse a lone surrogate: JSON can escape one, but the database cannot store it
+    (a 500). The error does not carry the text, as invalid_request omits the input."""
+    if value.isascii() or SURROGATE.search(value) is None:
+        return value
+    raise ValueError(f"must be valid Unicode ({SURROGATE_MSG})")
+
+
+# Every request string that can reach the database goes through this
+Text = Annotated[str, AfterValidator(_encodable)]
+
+
 class Reprocess(BaseModel):
-    photo: str | None = None  # one photo's sha256; default all of the capture's
+    photo: Text | None = None  # one photo's sha256; default all of the capture's
     replace_human: bool = False  # the user confirmed replacing their own drawing
 
 
 VERSION_NUMBER = Annotated[StrictInt, Field(ge=1, le=2**31)]
 
 
+WARNED: set[int] = set()  # the unencodable rows already logged
+
+
 class Drawing(JSONResponse):
     """A drawing as JSON. A stored row that cannot be encoded (rows made before the
-    sanitiser refused lone surrogates) is served with them replaced, and logged,
+    sanitiser refused lone surrogates) is served with them replaced, and logged once,
     rather than failing every request for it."""
 
     def render(self, content: Any) -> bytes:
         try:
             return super().render(content)
         except UnicodeEncodeError:
-            logging.getLogger(__name__).warning("drawing with unencodable text served")
             text = json.dumps(content, ensure_ascii=False, separators=(",", ":"))
-            return text.encode("utf-8", errors="replace")
+            seen = hash(text)
+            if seen not in WARNED:  # once per row, not on every request for it
+                if len(WARNED) >= 1000:
+                    WARNED.clear()
+                WARNED.add(seen)
+                logging.getLogger(__name__).warning(
+                    "drawing with unencodable text served"
+                )
+            return SURROGATE.sub("\ufffd", text).encode()
 
 
 class Restore(BaseModel):
@@ -100,7 +133,7 @@ class Restore(BaseModel):
     base_version: VERSION_NUMBER  # the current one as the client saw it, else 409
 
 
-FIELD_NAME = Annotated[str, Field(min_length=1, max_length=40)]
+FIELD_NAME = Annotated[Text, Field(min_length=1, max_length=40)]
 # A field's value: flat, as the importer stores them too (None in a PATCH drops it)
 # Numbers a browser holds exactly: whole within +-2**53, others finite (1e400 is not)
 FIELD_INT = Annotated[StrictInt, Field(ge=-(2**53), le=2**53)]
@@ -117,24 +150,24 @@ FIELD_FLOAT = Annotated[
     float, BeforeValidator(_only_float), Field(strict=True, allow_inf_nan=False)
 ]
 
-FIELD = Annotated[str, Field(max_length=200)] | StrictBool | FIELD_INT | FIELD_FLOAT
+FIELD = Annotated[Text, Field(max_length=200)] | StrictBool | FIELD_INT | FIELD_FLOAT
 
 
 class PageEdit(BaseModel):
     base_rev: int | None = None  # needed with a title or body
-    title: str | None = None
-    body: str | None = None
-    kind: str | None = None  # one the user chose: fixed, ingest keeps it
+    title: Text | None = None
+    body: Text | None = None
+    kind: Text | None = None  # one the user chose: fixed, ingest keeps it
     fields: (
         Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
     ) = None
-    tags: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None  # all of them
+    tags: Annotated[list[Text], Field(max_length=MAX_TAGS)] | None = None  # all of them
     # The tags the editor started from: Claude's added since are kept, not retired
-    tags_shown: Annotated[list[str], Field(max_length=MAX_TAGS)] | None = None
+    tags_shown: Annotated[list[Text], Field(max_length=MAX_TAGS)] | None = None
     # A todo's (null clears one): sent or not tells apart, see todo()
-    due: Annotated[str, Field(max_length=10)] | None = None  # YYYY-MM-DD
-    priority: Annotated[str, Field(max_length=10)] | None = None  # high, medium, low
-    snoozed_until: Annotated[str, Field(max_length=10)] | None = None  # YYYY-MM-DD
+    due: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
+    priority: Annotated[Text, Field(max_length=10)] | None = None  # high, medium, low
+    snoozed_until: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
 
     def todo(self) -> dict[str, str | None]:
         """The due date and priority sent, null too (it clears one)."""
@@ -270,13 +303,19 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
         app.add_exception_handler(exc, handler)
 
+    def place(error: Any) -> list[Any]:
+        """Where an error is; a map key that is itself the bad text is not named."""
+        loc = list(error["loc"])
+        if SURROGATE_MSG in error["msg"] and "fields" in loc:
+            loc = loc[: loc.index("fields") + 1] + ["*"]
+        return loc
+
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):
         """422 as FastAPI's, without each error's input: 1e400 parses to infinity, which
         JSON cannot carry back (that would be a 500)."""
         detail = [
-            {"type": e["type"], "loc": list(e["loc"]), "msg": e["msg"]}
-            for e in exc.errors()
+            {"type": e["type"], "loc": place(e), "msg": e["msg"]} for e in exc.errors()
         ]
         return JSONResponse({"detail": detail}, 422)
 

@@ -342,6 +342,9 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     conn.execute("COMMIT")
 
 
+SURROGATE = re.compile(r"[\ud800-\udfff]")  # half a UTF-16 pair: no UTF-8 for it
+
+
 def _text(data: dict[str, Any], key: str, indent: bool = False) -> str | None:
     """A string field, tidied: None if blank.
 
@@ -353,6 +356,8 @@ def _text(data: dict[str, Any], key: str, indent: bool = False) -> str | None:
         raise InvalidError(f"{key} must be a string")
     if not value:
         return None
+    if SURROGATE.search(value):
+        raise InvalidError(f"{key} must be valid Unicode (a lone surrogate)")
     value = lines(value)
     if indent:
         value = re.sub(r"\A(?:[ \t]*\n)+", "", value).rstrip()
