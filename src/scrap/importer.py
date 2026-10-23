@@ -275,9 +275,11 @@ class _Linker:
         self.plan, self.files, self.pages = plan, files, pages
         self.by_name: dict[str, list[str]] = {}
         self.by_slug: dict[str, Page] = {}
+        self.by_path: dict[str, list[str]] = {}  # lower-cased path -> vault paths
         self.bad: set[str] = set()  # images and PDFs too large or unreadable
         for rel in sorted(files, key=lambda r: (r.count("/"), r)):
             self.by_name.setdefault(posixpath.basename(rel).lower(), []).append(rel)
+            self.by_path.setdefault(rel.lower(), []).append(rel)
         for page in pages.values():
             for key in (Path(page.path).stem, page.title):
                 self.by_slug.setdefault(slug_base(key), page)
@@ -285,11 +287,21 @@ class _Linker:
     def find(self, src: str, target: str, wiki: bool) -> tuple[str | None, bool]:
         """The vault path a link names, and whether it was only found by its name."""
         if wiki and "/" in target:  # a path: from the top, else from here
-            for base in ("", posixpath.dirname(src)):
-                path = posixpath.normpath(posixpath.join(base, target))
+            paths = [
+                posixpath.normpath(posixpath.join(base, target.lstrip("/")))
+                for base in ("", posixpath.dirname(src))
+            ]
+            for path in paths:  # exact case first
                 for rel in (path, path + ".md"):
                     if rel in self.files:
                         return rel, False
+            for path in paths:  # then any case
+                low = path.lower()
+                got = self.by_path.get(low) or self.by_path.get(low + ".md") or []
+                if got:
+                    if len(got) > 1:
+                        self.plan.note("ambiguous link", src, f"{target} -> {got[0]}")
+                    return got[0], False
         if wiki:  # Obsidian: by name, wherever it is
             name = posixpath.basename(target).lower()
             got = self.by_name.get(name) or self.by_name.get(name + ".md") or []

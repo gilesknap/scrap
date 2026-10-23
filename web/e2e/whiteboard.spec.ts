@@ -223,6 +223,77 @@ test("history restores a version, and the drawing exports", async ({ page }) => 
   }
 });
 
+test("the inline drawing card follows the drawings theme, not the app's", async ({ page }) => {
+  const b = board();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(`/p/${b.slug}`);
+  const card = page.locator(".drawing-card.ready");
+  const paper = () => card.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const strokes = () => card.locator("svg").evaluate((el) => el.outerHTML.includes("#1e1e1e"));
+  // Dark app, light drawings by default: paper with dark strokes
+  await expect(card.locator("svg")).toBeVisible();
+  await expect(card).toHaveAttribute("data-scheme", "light");
+  expect(await paper()).toBe("rgb(255, 255, 255)");
+  expect(await strokes()).toBe(true);
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page
+    .getByRole("radiogroup", { name: "Drawings theme" })
+    .getByText("Dark", { exact: true })
+    .click();
+  await expect(card).toHaveAttribute("data-scheme", "dark");
+  await expect.poll(paper).toBe("rgb(18, 18, 18)"); // after the colour transition
+  await expect(card.locator("svg")).toHaveAttribute("filter", /.+/); // the dark export
+});
+
+test("a failed render leaves no stale preview on the new paper", async ({ page }) => {
+  const b = board();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(`/p/${b.slug}`);
+  const card = page.locator(".drawing-card");
+  await expect(card.locator("svg")).toBeVisible();
+  await page.route("**/photos/*/drawing", (r) => r.abort());
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page
+    .getByRole("radiogroup", { name: "Drawings theme" })
+    .getByText("Dark", { exact: true })
+    .click();
+  await expect(card).toHaveAttribute("data-scheme", "dark");
+  await expect(card).toHaveClass(/failed/);
+  await expect(card).not.toHaveClass(/ready/);
+  await expect(card.locator("svg")).toHaveCount(0);
+  await expect(card.locator(".drawing-status")).toContainText("Can't show the drawing");
+  // Back to Light: its preview is cached, and the earlier failure leaves no mark
+  await page
+    .getByRole("radiogroup", { name: "Drawings theme" })
+    .getByText("Light", { exact: true })
+    .click();
+  await expect(card).toHaveAttribute("data-scheme", "light");
+  await expect(card.locator("svg")).toBeVisible();
+  await expect(card).not.toHaveClass(/failed/);
+
+  // A failure that lands after the switch back is no longer about this card
+  await page.unroute("**/photos/*/drawing");
+  let hold: (() => void) | undefined;
+  await page.route("**/photos/*/drawing", (r) => {
+    hold = () => void r.abort();
+  });
+  await page
+    .getByRole("radiogroup", { name: "Drawings theme" })
+    .getByText("Dark", { exact: true })
+    .click();
+  await expect.poll(() => hold).toBeDefined();
+  await page
+    .getByRole("radiogroup", { name: "Drawings theme" })
+    .getByText("Light", { exact: true })
+    .click();
+  await expect(card.locator("svg")).toBeVisible();
+  hold?.();
+  await page.waitForTimeout(300);
+  await expect(card).not.toHaveClass(/failed/);
+  await expect(card.locator("svg")).toBeVisible();
+});
+
 test("dark mode, and a Reprocess that asks before replacing an edit", async ({ page }) => {
   const b = board();
   await page.emulateMedia({ colorScheme: "dark" });
@@ -290,8 +361,11 @@ test("every text of the drawing screens meets AA contrast, in both themes", asyn
   // Excalidraw's own interface is its own; ours around it is checked
   const check = async (where: string) =>
     expect(await page.evaluate(lowContrast, ".excalidraw"), where).toEqual([]);
-  for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme });
+  for (const colorScheme of ["light", "dark", "dark, drawings dark"] as const) {
+    await page.emulateMedia({ colorScheme: colorScheme === "light" ? "light" : "dark" });
+    if (colorScheme.includes("drawings")) {
+      await page.addInitScript(() => localStorage.setItem("scrap.drawings_theme", "dark"));
+    }
     await page.goto(`/p/${b.slug}`);
     await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
     await check(`${colorScheme} page: done, preview, tabs`);

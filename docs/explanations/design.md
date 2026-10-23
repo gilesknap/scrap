@@ -619,7 +619,19 @@ it was kept) shows the text as typed. A post-parse pass allows only http(s), mai
 in-page links (opened with `rel=noopener`), and only this server's own images, each marked with its
 `data-sha` for `figure.ts`. A ` ```mermaid ` block is drawn by Mermaid, a separate chunk loaded only
 for a page that has one (not kept offline: it is big), with `securityLevel: 'strict'`; it is
-bundled, not loaded from a CDN, so the CSP needs no change.
+bundled, not loaded from a CDN, so the CSP needs no change. That CSP (a `<meta>` in `index.html`)
+sets `default-src 'self'` and `script-src 'self' 'wasm-unsafe-eval'`: the theme is applied before first paint by
+`/theme-init.js`, not an inline script. `style-src` keeps `'unsafe-inline'` because Mermaid and
+Excalidraw write style attributes and elements. `'wasm-unsafe-eval'` is there because the bundle
+compiles WebAssembly (pica and image-blob-reduce resize an image added to a drawing; Excalidraw's
+font subsetting is an Emscripten module), which `script-src 'self'` alone blocks; it allows
+WebAssembly only, not `eval()`, `new Function()` or inline scripts, and `tests/csp.test.ts` keeps
+`'unsafe-eval'` and `'unsafe-inline'` out of `script-src`. The font subsetting module also builds
+functions with `Function()`, which only `'unsafe-eval'` would allow; that is refused, so Excalidraw
+logs "Skipped glyph subsetting" and an SVG export embeds the whole font it uses instead of
+the glyphs drawn (about 40 kB against 13 kB for a three-box sketch); PNG exports, the stored
+drawing, which holds no fonts, and what shows on screen are unchanged
+([issue 105](https://github.com/gilesknap/scrap/issues/105)).
 
 The server parses with markdown-it-py (`scrap/markdown.py`, with mdit-py-plugins for footnotes):
 the search index holds plain text from the parse (link and image text, not addresses; a page

@@ -128,7 +128,10 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|' ~/.config/
 ./deploy/install.sh
 ```
 
-(If you built `localhost/scrap:dev` instead, the first run starts it.) The script:
+(If you built `localhost/scrap:dev` instead, the first run starts it.) If the file names
+`SCRAP_IMAGE` more than once the last line wins, as it does for systemd. The settings and units
+always live under `~/.config`: the units name `%h/.config/scrap/env` and a unit cannot see
+`XDG_CONFIG_HOME`, so `install.sh` ignores that variable (and says so). The script:
 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
@@ -532,6 +535,7 @@ only moves a page to the trash (see {ref}`scrap-gc`).
 - `scrap.db`: the database. It is in WAL mode, so while scrap runs, recent changes are in
   `scrap.db-wal` (with `scrap.db-shm` beside it), not yet in `scrap.db`.
 - `scrap.db.lock`: the lock that serialises migrations (empty; leave it alone).
+- `gc.lock`: the lock a deleting `scrap gc` holds so two do not run at once (empty; leave it alone).
 - `files/<ab>/<sha256>`: every stored file (photos, uploads), named by the SHA-256 of its bytes.
   `files/.up-*` are leftovers of uploads that were cut off by a crash.
 - `cache/previews/`: the 480 and 2048 pixel JPEG previews, made again on demand.
@@ -693,8 +697,9 @@ and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap
 `scrap-gc.service` is ordered `After=scrap-backup.service`. The gc timer is not `Persistent`: a
 night missed while the machine was off is skipped rather than run at boot, where it could take
 the lock before the catch-up backup and fail for want of a recent backup. Both containers run with
-`--network=none`. A `scrap gc` you run by hand takes no lock, so it can race the nightly run; the
-worst case is a file left on disk after its record is deleted, which the next run removes. To see
+`--network=none`. A `scrap gc --delete` you run by hand takes a lock of its own (`gc.lock` in
+`SCRAP_DATA`), so it cannot overlap the nightly run: whichever starts second stops with `another
+scrap gc is deleting`. It does not wait for a backup, so do not run it during one. To see
 what it would delete now, without deleting:
 
 ```
@@ -825,7 +830,8 @@ clean exit (status 0) is not restarted. Run `./deploy/smoke.sh` to see that it a
 **The service stops restarting: "start request repeated too quickly".** After 5 failed starts
 in 5 minutes (a missing image, a missing `ingest.env`, a bad setting) systemd stops trying. Fix
 the cause (`journalctl --user -u scrap -e`), then
-`systemctl --user reset-failed scrap && systemctl --user start scrap`.
+`systemctl --user reset-failed scrap && systemctl --user start scrap`. Re-running `install.sh`
+does the `reset-failed` for you.
 
 **scrap will not start and `ingest.env` is missing or a dangling symlink.** The launcher passes
 `~/.config/scrap/ingest.env` to podman unconditionally. `install.sh` only warns about a

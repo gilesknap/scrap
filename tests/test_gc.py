@@ -480,3 +480,28 @@ def test_run_retention_is_a_setting(client, store, capsys):
     assert len(_ids(store, "model_run")) == 2
     main(["gc", "--delete", "--run-days", "5", "--data-dir", str(store.dir)])
     assert len(_ids(store, "model_run")) == 1
+
+
+def test_a_deleting_run_refuses_while_another_holds_the_lock(client, store, capsys):
+    import fcntl
+
+    sha = put(store, b"unused")
+    with open(store.dir / gc.LOCK, "w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        with pytest.raises(SystemExit, match="another scrap gc is deleting"):
+            main(["gc", "--delete", "--data-dir", str(store.dir)])
+        assert store.blob_path(sha).exists()
+        main(["gc", "--data-dir", str(store.dir)])  # counting needs no lock
+    main(["gc", "--delete", "--data-dir", str(store.dir)])
+    assert not store.blob_path(sha).exists()
+
+
+def test_a_failed_put_back_is_not_reported_as_unreadable_references(
+    client, store, monkeypatch
+):
+    def boom(_store):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(gc, "_restore", boom)
+    with pytest.raises(gc.GcError, match="cannot put back a file"):
+        gc.collect(store)

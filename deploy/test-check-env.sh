@@ -24,8 +24,10 @@ expect ok 'A="it'"'"'s"'
 expect ok 'A="say \"hi\""'
 expect ok 'A='
 expect ok '  SCRAP_PORT = 8790  '
+# shellcheck disable=SC1003 # the backslash before the quote is the test input
 expect bad 'A=bar\'
 expect bad 'A=bar\  '
+# shellcheck disable=SC1003
 expect bad '# comment ending in a backslash \'
 expect bad 'A="open'
 expect bad "A='open"

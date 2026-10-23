@@ -10,6 +10,6 @@ sources:
 # the chart workflow fails a tag whose name differs. image.tag defaults to
 # appVersion. Before the first release no image with this tag exists: set
 # image.tag (see docs/how-to/deploy-kubernetes.md).
-version: 0.2.0
-appVersion: "0.2.0"
+version: 0.2.2
+appVersion: "0.2.2"
 kubeVersion: ">=1.27.0-0"

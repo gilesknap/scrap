@@ -2182,7 +2182,11 @@ class Store:
             todo_only(hit)
             if not q.positive:  # no match to show: its summary, else its start
                 summary = hit["fields"].get("summary")
-                text = summary if isinstance(summary, str) else unlink(hit["snippet"])
+                text = (
+                    summary
+                    if isinstance(summary, str)
+                    else plain(unlink(hit["snippet"][:2000]))
+                )
                 hit["snippet"] = " ".join(CONTROL.sub(" ", text).split()[:24])
             snippet = html.escape(hit["snippet"])
             hit["snippet"] = snippet.replace("\x02", "<mark>").replace(

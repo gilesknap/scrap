@@ -75,6 +75,19 @@
   font-weight: 400;
   touch-action: manipulation;
 }
+/* The card is the drawing's canvas, in the drawings' theme (Settings; drawing.ts sets the
+   scheme) whatever the app's: Excalidraw's own canvas colours and the app's text tokens for
+   each scheme, so the strokes and the status text stay legible on it */
+.drawing-card[data-scheme="light"] {
+  --surface: #ffffff;
+  --ink-2: #5c564c;
+  --line: #d9d3c7;
+}
+.drawing-card[data-scheme="dark"] {
+  --surface: #121212;
+  --ink-2: #b8b0a2;
+  --line: #322d27;
+}
 .drawing-card svg {
   display: block;
   width: 100%;

@@ -154,6 +154,13 @@ def test_snippet_of_a_filter_only_hit(store):
     assert hits == {"Plain": "a link then words", "Summed": "the &lt;gist&gt;"}
 
 
+def test_filter_only_snippet_has_no_markdown_markup(store):
+    body = "# Heading\n\n**bold** and `code` with *emphasis*"
+    page(store, "Marked", body, tags=["t"])
+    (hit,) = store.search("tag:t", 5)
+    assert hit["snippet"] == "Heading bold and code with emphasis"
+
+
 def test_facets(store):
     page(store, "Fence one", kind="todo", personal=True, tags=["home/garden", "diy"])
     page(store, "Fence two", kind="todo", tags=["home/garden"])

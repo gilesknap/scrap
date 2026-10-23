@@ -484,3 +484,27 @@ def test_numbers_a_browser_cannot_hold_are_dropped(tmp_path):
     store, plan = edge_plan(tmp_path, root)
     assert store.page("n")["fields"] == {}
     assert len(plan.issues["field dropped"]) == 2
+
+
+def test_folder_links_ignore_case_and_leading_slash(tmp_path):
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "[[Memories/Dup]] [[/memories/dup]] [[both/Same]] [[Both/same]]"
+        " [[/NOTES/Sub/Deep]] [[Sub/DEEP]] [[/B/X]]\n",
+    )
+    write(root, "memories/dup.md", front(title="Dup in memories", type="memory"))
+    write(root, "both/Same.md", front(title="Exact"))
+    write(root, "BOTH/same.md", front(title="Other case"))
+    write(root, "notes/sub/deep.md", front(title="Deep"))
+    write(root, "a/x.md", front(title="A"))
+    write(root, "b/x.md", front(title="Bee"))
+    store, plan = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    assert body.count("[[dup|Dup in memories]]") == 2
+    assert body.count("[[deep|Deep]]") == 2
+    assert body.endswith("[[x-2|Bee]]")
+    assert "[[same-2|Exact]] [[same|Other case]]" in body
+    assert plan.issues["ambiguous link"] == ["notes/page.md: Both/same -> BOTH/same.md"]

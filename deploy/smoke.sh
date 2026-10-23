@@ -4,7 +4,7 @@
 #   ./deploy/smoke.sh [https://<host>.<tailnet>.ts.net:<port>]
 set -eu
 
-env="${XDG_CONFIG_HOME:-$HOME/.config}/scrap/env"
+env="$HOME/.config/scrap/env"
 # setting KEY: KEY's value in the env file as systemd reads it: the last
 # KEY= line, with surrounding whitespace and one pair of quotes removed.
 setting() {
