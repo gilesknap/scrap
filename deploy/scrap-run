@@ -15,10 +15,25 @@ set -eu
 : "${SCRAP_DATA:?SCRAP_DATA is not set}"
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
 : "${SCRAP_MEMORY_MAX:?SCRAP_MEMORY_MAX is not set}"
+# SCRAP_VOLUME_OPTS: the options after the colon on every --volume (SELinux
+# relabelling); z (shared label) unless the env file sets it, empty for none.
+# Lowercase: an uppercase Z makes the label private to one container and locks
+# the backup and gc containers out of SCRAP_DATA.
+volume_opts=${SCRAP_VOLUME_OPTS-z}
+case $volume_opts in
+*[!A-Za-z,]*)
+    echo "SCRAP_VOLUME_OPTS must be letters and commas (e.g. z), not '$volume_opts'" >&2
+    exit 1
+    ;;
+esac
+[ -z "$volume_opts" ] || volume_opts=":$volume_opts"
+# The path the units use (/usr/bin/podman), not whatever PATH finds first, so
+# a script run by hand does what the unit does. PODMAN is a test hook, not a setting.
+podman=${PODMAN:-/usr/bin/podman}
 case ${SCRAP_LISTEN:-tcp} in
 socket)
     : "${RUNTIME_DIRECTORY:?RUNTIME_DIRECTORY is not set (RuntimeDirectory= in the unit)}"
-    set -- --volume "$RUNTIME_DIRECTORY:/run/scrap:z" \
+    set -- --volume "$RUNTIME_DIRECTORY:/run/scrap$volume_opts" \
         "$SCRAP_IMAGE" serve --uds /run/scrap/scrap.sock
     ;;
 tcp)
@@ -37,11 +52,11 @@ if [ -e /sys/fs/cgroup/cgroup.controllers ]; then
 fi
 # The image runs as uid 10001; keep-id maps it to this user so the files
 # under SCRAP_DATA, and the socket, stay owned by this user on the host.
-exec podman run --name scrap --replace --rm -d \
+exec "$podman" run --name scrap --replace --rm -d \
     --sdnotify=conmon \
     --userns=keep-id:uid=10001,gid=10001 \
     --memory="$SCRAP_MEMORY_MAX" --pids-limit=512 \
-    --volume "$SCRAP_DATA:/data:z" \
+    --volume "$SCRAP_DATA:/data$volume_opts" \
     --env-file "$HOME/.config/scrap/ingest.env" \
     --env SCRAP_DATA_DIR=/data \
     "$@"

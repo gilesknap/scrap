@@ -1,0 +1,31 @@
+#!/bin/sh
+# check-env FILE: refuse an env file whose lines systemd and a line-by-line shell
+# reader would split differently. systemd joins a line ending in a backslash with
+# the next one (comments too), and lets a quoted value run over several lines, so
+# `SCRAP_LISTEN=tcp`, `X=bar\`, `SCRAP_LISTEN=socket` is one setting to the unit
+# and three to install.sh and smoke.sh. Exits 1 with the line numbers and why.
+# A missing file is fine. Run by install.sh and smoke.sh from the clone.
+set -eu
+
+file=${1:?usage: check-env FILE}
+[ -e "$file" ] || exit 0
+awk -v file="$file" '
+    function bad(why) { print file ":" NR ": " why > "/dev/stderr"; failed = 1 }
+    /\\[ \t\r]*$/ { bad("line ends in a backslash: systemd joins it with the next line; put the value on one line"); next }
+    /^[ \t]*[#;]/ || /^[ \t]*$/ { next }
+    {
+        q = ""
+        for (i = 1; i <= length($0); i++) {
+            c = substr($0, i, 1)
+            if (q == "'"'"'") { if (c == q) q = ""; continue }
+            if (c == "\\") { i++; continue }
+            if (q == "") { if (c == "\"" || c == "'"'"'") q = c }
+            else if (c == q) q = ""
+        }
+        if (q != "") bad("unbalanced " (q == "\"" ? "double" : "single") " quote: systemd would read on into the next line")
+    }
+    END { exit failed }
+' "$file" || {
+    echo "Fix $file (plain KEY=value lines, one per line) and re-run." >&2
+    exit 1
+}
