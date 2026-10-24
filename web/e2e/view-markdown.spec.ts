@@ -138,6 +138,24 @@ test("an image in a link is not taken into a figure (#82)", async ({ page }) => 
   await expect(page.locator(".body.md p a[href='https://example.com/'] img")).toBeVisible();
 });
 
+test("a paragraph with an image in a link, emphasis or a spaced link keeps all of it (#82)", async ({
+  page,
+}) => {
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Mixed photos");
+  form.append("file", new Blob([new Uint8Array(png(30, 20))], { type: "image/png" }), "b.png");
+  const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const p = await (await page.request.get(`/api/pages/${ref.slug}`)).json();
+  const e = /!\[\]\([^)]+\)/.exec(p.body)?.[0];
+  const body = `${e}\n[${e}](https://example.com/a)\n\n${e}\n*${e}*\n\n${e}\n[ ](https://example.com/c)`;
+  await page.request.patch(`/api/pages/${p.id}`, { data: { base_rev: p.rev, body } });
+  await page.goto(`/p/${ref.slug}`);
+  await expect(page.locator(".body.md a[href='https://example.com/a'] img")).toBeVisible();
+  await expect(page.locator(".body.md em img")).toBeVisible();
+  await expect(page.locator(".body.md a[href='https://example.com/c']")).toHaveCount(1);
+});
+
 test("a figure's Download stays whole beside a long file name, at 360 and 412 px", async ({
   page,
 }) => {

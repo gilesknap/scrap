@@ -7,7 +7,7 @@ import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
 import { echoes } from "./snippet";
-import { chipOf, dueOf, partly, statusOf } from "./status";
+import { chipOf, dueOf, partly, statusOf, untick } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
 import { h, toast } from "./ui";
 
@@ -101,8 +101,10 @@ export function swipeRow(li: HTMLLIElement, p: RowPage) {
  * pressed when done; pressing it sets done (a cancelled one, too), or open again. The chip
  * follows. */
 function tickBox(li: HTMLLIElement, p: RowPage) {
-  let status = statusOf(p.kind, p.fields);
-  if (status === null) return null;
+  const first = statusOf(p.kind, p.fields);
+  if (first === null) return null;
+  let status: string = first;
+  let before: string | undefined; // its status before the tick: an untick restores it
   const b = h(
     "button",
     { type: "button", className: "tick", "aria-label": `Done: ${p.title}` },
@@ -131,10 +133,15 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
   b.onclick = () => {
     if (busy) return;
     busy = true;
-    setStatus(p.id, status === "done" ? "open" : "done")
+    setStatus(p.id, untick(status, before))
       .then(
         (page) => {
-          status = statusOf(page.kind, page.fields);
+          const now = statusOf(page.kind, page.fields);
+          // Its kind changed since the list loaded, to one with no status: not ticked, so
+          // the list is shown again as it is now (no empty chip, no stuck tick)
+          if (now === null) return rerender();
+          before = status;
+          status = now;
           show();
         },
         (err) => toast(`Not changed: ${why(err)}`),

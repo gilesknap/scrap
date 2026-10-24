@@ -1,5 +1,15 @@
 import { expect, it } from "vitest";
-import { chipOf, dueOf, pageChip, partly, snoozed, statusOf, ticks, today } from "../src/status";
+import {
+  chipOf,
+  dueOf,
+  pageChip,
+  partly,
+  snoozed,
+  statusOf,
+  ticks,
+  today,
+  untick,
+} from "../src/status";
 
 it("gives todos and Laters a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
@@ -83,4 +93,13 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   expect(dueOf(boxes(2, 5, "done"), now)).toBeNull();
   expect(dueOf({ ...boxes(1, 2), priority: "high" }, now)?.[0]).toBe("high · 1 of 2");
   expect(dueOf(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);
+});
+
+it("unticks to the status it had before the tick: in progress is not lost (#80)", () => {
+  expect(untick("open")).toBe("done");
+  expect(untick("in_progress")).toBe("done");
+  expect(untick("done", "in_progress")).toBe("in_progress");
+  expect(untick("done", "cancelled")).toBe("cancelled");
+  expect(untick("done")).toBe("open"); // it was done when the list loaded
+  expect(untick("done", "done")).toBe("open");
 });
