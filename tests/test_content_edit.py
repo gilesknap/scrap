@@ -1,6 +1,7 @@
 """Page text edited over MCP (edit_page, revert_text): narrow edits of any page, each a
 text revision that can be listed and restored, and the switch that turns them off."""
 
+import difflib
 import random
 import re
 import subprocess
@@ -579,3 +580,28 @@ def test_text_edits_queue_enrichment_like_a_pwa_save(store, monkeypatch):
         conn.execute("DELETE FROM enrich_job")
     ok(store, "edit_page", page=ref["slug"], old="milk", new="oat milk")
     assert enrich_jobs(store) == []
+
+
+def test_unified_matches_difflib_on_varied_inputs():
+    """The diff is what difflib makes of the whole text (lines distinct, so trimming
+    the common start and end cannot change how they match)."""
+    rng = random.Random(178)
+    for _n in range(400):
+        a = [f"line {i}\n" for i in range(rng.randint(0, 60))]
+        b = list(a)
+        for _ in range(rng.randint(0, 6)):
+            at = rng.randint(0, len(b))
+            roll = rng.random()
+            if roll < 0.35 and b:
+                del b[min(at, len(b) - 1)]
+            elif roll < 0.7 and b:
+                b[min(at, len(b) - 1)] = f"changed {rng.random()}\n"
+            else:
+                b.insert(at, f"new {rng.random()}\n")
+        before, after = "".join(a), "".join(b)
+        expected = "".join(
+            difflib.unified_diff(a, b, "p (rev 1)", "p (edited)", n=mcp_server.CONTEXT)
+        )
+        diff, cut = mcp_server.unified("p", 1, before, after)
+        assert not cut
+        assert diff == expected, (a, b)
