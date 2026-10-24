@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on your LAN &#8212; scrap 0.4.1.dev5+g597c05169 documentation</title>
+    <title>Try scrap on your LAN &#8212; scrap 0.5.1.dev1+gca50f579a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=95d3d9d0"></script>
+    <script src="../_static/documentation_options.js?v=80aa283c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -643,21 +643,20 @@ encrypts the traffic between the devices.</p>
 <section id="tier-c-https-with-tailscale-serve-for-the-full-phone-experience">
 <h2>Tier C: HTTPS with Tailscale Serve, for the full phone experience<a class="headerlink" href="#tier-c-https-with-tailscale-serve-for-the-full-phone-experience" title="Link to this heading">#</a></h2>
 <p><a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> gives scrap a real HTTPS address on your
-tailnet, which is a secure context. It needs <a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates and
-MagicDNS</a> enabled for the tailnet. Then:</p>
+tailnet, which is a secure context. The steps are in <a class="reference internal" href="../how-to/use-scrap-on-your-phone.html"><span class="std std-doc">Use scrap on your phone over Tailscale</span></a>: it
+needs HTTPS certificates and MagicDNS enabled for the tailnet, then:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">443</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span>
 <span class="n">tailscale</span> <span class="n">serve</span> <span class="n">status</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">status</span></code> prints the address, <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net</span></code>. Open it on your phone, and add
-the address to the settings file so <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accepts it:</p>
+<p>Open the printed address, <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net</span></code>, on your phone and use <em>Add to Home
+screen</em> or <em>Install app</em>. To make <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accept that address too, add it to the settings file:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span>
 </pre></div>
 </div>
 <p>Then recreate the container so it reads the file (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">rm</span> <span class="pre">-f</span> <span class="pre">scrap</span></code>, then run the command from
-“Run the container” again; the data volume keeps your pages). In your phone’s browser, use <em>Add
-to Home screen</em> or <em>Install app</em>. The Android share target and the offline queue now work. Never
-use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>, which opens it to the internet.</p>
+“Run the container” again; the data volume keeps your pages). The Android share target and the
+offline queue now work. Never use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>, which opens it to the internet.</p>
 <p>For the hardened version of this (a dedicated user, a Unix socket instead of a published port,
 systemd), follow <a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>, which does not repeat the Serve details.</p>
 </section>

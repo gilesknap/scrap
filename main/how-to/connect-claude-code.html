@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.4.1.dev5+g597c05169 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.5.1.dev1+gca50f579a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=95d3d9d0"></script>
+    <script src="../_static/documentation_options.js?v=80aa283c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -58,7 +58,7 @@
     <link rel="icon" href="../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Contribute to the project" href="contribute.html" />
+    <link rel="next" title="Connect Claude Code in claude-sandbox" href="connect-claude-sandbox.html" />
     <link rel="prev" title="How-to Guides" href="../how-to.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
@@ -423,11 +423,12 @@
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Connect a Claude Code session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
 <li class="toctree-l1"><a class="reference internal" href="import-a-vault.html">Import a Thoth vault</a></li>
-<li class="toctree-l1"><a class="reference internal" href="run-on-dls-workstation.html">Run scrap on a DLS workstation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
 </ul>
 </div>
@@ -496,9 +497,10 @@
 over HTTPS on the tailnet, over plain HTTP on a home network (<a class="reference internal" href="../tutorials/install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a>), or, on the Kubernetes install, through Cloudflare Access with a
 bearer token (see “If <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token” below, <a class="reference internal" href="../tutorials/install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a> and
 <a class="reference internal" href="../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>).</p>
-<p>If scrap runs in a podman pod on a DLS workstation, follow <a class="reference internal" href="run-on-dls-workstation.html"><span class="std std-doc">Run scrap on a DLS workstation</span></a>
-instead: there Claude Code runs in claude-sandbox and reaches scrap on a port of the
-workstation, not over the tailnet, and setting the address and restarting scrap work differently.</p>
+<p>If Claude Code runs in claude-sandbox, follow <a class="reference internal" href="connect-claude-sandbox.html"><span class="std std-doc">Connect Claude Code in claude-sandbox</span></a> instead: it
+reaches scrap on a port of the host, not over the tailnet.</p>
+<p>To try it on your own machine, run scrap as in “Try it” in the README and add
+<code class="docutils literal notranslate"><span class="pre">http://localhost:8000/mcp</span></code> in step 2; step 1 is not needed on loopback.</p>
 <p>Before you start you need:</p>
 <ul class="simple">
 <li><p>scrap running and reachable from the machine running Claude Code: on the same machine or LAN
@@ -654,22 +656,15 @@ line.</p>
 </tbody>
 </table>
 </div>
-<p>Install them for all your projects by copying (or symlinking) the files into
-<code class="docutils literal notranslate"><span class="pre">~/.claude/commands/</span></code>, from a clone of this repository:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">commands</span>
-<span class="n">cp</span> <span class="n">commands</span><span class="o">/*.</span><span class="n">md</span> <span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">commands</span><span class="o">/</span>
+<p>Install them for all your projects with one command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">commands</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">sh</span>
 </pre></div>
 </div>
-<p>or for one project, into <code class="docutils literal notranslate"><span class="pre">.claude/commands/</span></code> in that repository:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">commands</span>
-<span class="n">cp</span> <span class="n">commands</span><span class="o">/*.</span><span class="n">md</span> <span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">commands</span><span class="o">/</span>
-</pre></div>
-</div>
-<p>To keep them up to date with the repository, symlink instead:
-<code class="docutils literal notranslate"><span class="pre">ln</span> <span class="pre">-sfn</span> <span class="pre">&quot;$PWD&quot;/commands/*.md</span> <span class="pre">~/.claude/commands/</span></code>. Without a clone, fetch each file, for example
-<code class="docutils literal notranslate"><span class="pre">mkdir</span> <span class="pre">-p</span> <span class="pre">~/.claude/commands</span></code> then <code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">-fsSL</span> <span class="pre">-o</span> <span class="pre">~/.claude/commands/sc-post.md</span> <span class="pre">https://raw.githubusercontent.com/gilesknap/scrap/main/commands/sc-post.md</span></code>. Start a new
-Claude Code session afterwards, and type <code class="docutils literal notranslate"><span class="pre">/sc</span></code> to check that the commands are listed. Copy the
-files unchanged.</p>
+<p>It copies the files into <code class="docutils literal notranslate"><span class="pre">~/.claude/commands</span></code> (set <code class="docutils literal notranslate"><span class="pre">CLAUDE_COMMANDS_DIR</span></code> to put them elsewhere, such
+as <code class="docutils literal notranslate"><span class="pre">.claude/commands</span></code> for one project). From a clone of this repository you can instead copy
+<code class="docutils literal notranslate"><span class="pre">commands/*.md</span></code> yourself, or symlink them to keep up to date with the repository:
+<code class="docutils literal notranslate"><span class="pre">ln</span> <span class="pre">-sfn</span> <span class="pre">&quot;$PWD&quot;/commands/*.md</span> <span class="pre">~/.claude/commands/</span></code>. Start a new Claude Code session afterwards,
+and type <code class="docutils literal notranslate"><span class="pre">/sc</span></code> to check that the commands are listed. Copy the files unchanged.</p>
 <p>These commands replace the earlier single <code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">&lt;verb&gt;</span></code> skill (<code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code>, <code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">tidy</span></code>, and so on), the
 <code class="docutils literal notranslate"><span class="pre">s-</span></code> and <code class="docutils literal notranslate"><span class="pre">sc-</span></code> skill sets that briefly preceded them, and the older <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill. Delete
 <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s</span></code>, <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s-*</span></code>, <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/sc</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/sc-*</span></code>
@@ -736,11 +731,11 @@ them.</p>
       </div>
     </a>
     <a class="right-next"
-       href="contribute.html"
+       href="connect-claude-sandbox.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Contribute to the project</p>
+        <p class="prev-next-title">Connect Claude Code in claude-sandbox</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

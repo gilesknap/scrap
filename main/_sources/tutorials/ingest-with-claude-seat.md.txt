@@ -136,6 +136,6 @@ anything you are charged. Set `SCRAP_ENRICH=off` to keep the seat to photos.
 2.1.281. The Helm values above were rendered with `helm template` and give the three environment
 variables, the image and the CronJob settings shown; they have not been installed on a cluster.
 Ingest on a seat reading two photos in about 10 seconds was checked by hand on 22 Oct 2026 on a
-DLS workstation (see [](../how-to/run-on-dls-workstation.md)). The steps for the LAN and server
+DLS workstation. The steps for the LAN and server
 installs, and the empty `ANTHROPIC_API_KEY` Secret key, have not been run in full.
 ```
