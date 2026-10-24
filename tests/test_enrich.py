@@ -550,7 +550,9 @@ def test_the_api_asks_claude_and_shows_its_state(tmp_path):
     assert client.post("/api/pages/NOPE/enrich").status_code == 404
 
 
-def test_a_paused_queue_shows_on_the_page_and_in_healthz_until_resumed(tmp_path):
+def test_a_paused_queue_shows_on_the_page_and_in_healthz_until_resumed(
+    tmp_path, monkeypatch
+):
     client = TestClient(create_app(tmp_path / "data"))
     page_id = client.post("/api/captures", json={"id": new_ulid(), "text": "x"}).json()[
         "page_id"
@@ -563,6 +565,9 @@ def test_a_paused_queue_shows_on_the_page_and_in_healthz_until_resumed(tmp_path)
         )
     got = client.get(f"/api/pages/{page_id}").json()["enrich"]
     assert got["state"] == "paused" and got["reason"] == "budget"
+    monkeypatch.setenv("SCRAP_ENRICH", "off")  # Claude off: nothing to resume
+    assert client.get(f"/api/pages/{page_id}").json()["enrich"]["state"] == "queued"
+    monkeypatch.delenv("SCRAP_ENRICH")
     assert client.get("/healthz").json()["paused"] == "budget"
     client.post("/api/ingest/resume")
     got = client.get(f"/api/pages/{page_id}").json()["enrich"]

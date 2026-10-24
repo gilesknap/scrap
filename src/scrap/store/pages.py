@@ -332,9 +332,8 @@ class PagesMixin(Core):
             state = job and {"running": "processing", "dead": "failed"}.get(
                 job["state"], job["state"]
             )
-            held = (
-                state == "queued" and job["paused"]
-            )  # the queue is shared with ingest
+            # the queue is shared with ingest; with Claude off nothing would resume
+            held = state == "queued" and job["paused"] and enrich_on()
             if held:
                 state = "paused"
             enrich = {

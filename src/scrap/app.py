@@ -332,11 +332,16 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         status, code = "ok", 200
         if app.state.worker and not app.state.worker.alive():
             status, code = "ingest worker stopped", 503
-        with store.connect() as conn:
-            q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
-        paused = (
-            q["reason"] if q["paused_until"] and q["paused_until"] > now() else None
-        )
+        paused = None
+        try:  # a probe must not fail on the queue: only say why it is paused
+            with store.connect() as conn:
+                q = conn.execute(
+                    "SELECT paused_until, reason FROM queue_state"
+                ).fetchone()
+            if q["paused_until"] and q["paused_until"] > now():
+                paused = q["reason"]
+        except Exception:
+            logging.getLogger(__name__).exception("healthz: queue state unreadable")
         body = {"status": status, "version": __version__, "max_upload_bytes": limit,
                 "paused": paused}  # fmt: skip
         return JSONResponse(body, code)

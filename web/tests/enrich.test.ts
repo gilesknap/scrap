@@ -29,6 +29,7 @@ it("says what Claude is doing, and nothing once done", () => {
 it("polls only while Claude has the page and is on", () => {
   expect(reading(page({ enrich: e({ state: "queued" }) }))).toBe(true);
   expect(reading(page({ enrich: e({ state: "processing" }) }))).toBe(true);
+  expect(reading(page({ enrich: e({ state: "paused" }) }))).toBe(true);
   expect(reading(page({ enrich: e({ state: "done" }) }))).toBe(false);
   expect(reading(page({ enrich: e({ state: "queued", on: false }) }))).toBe(false);
   expect(reading(page({ enrich: null }))).toBe(false);

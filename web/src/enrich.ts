@@ -23,9 +23,10 @@ export function stateText(e: Enrich): string | null {
   }
 }
 
-/** Whether to look again soon: Claude has it queued or is reading it. */
+/** Whether to look again soon: Claude has it queued or is reading it, or the queue is paused
+ * (a backoff ends by itself, or Resume is pressed elsewhere). */
 export const reading = (p: Page) =>
-  !!p.enrich?.on && ["queued", "processing"].includes(p.enrich.state ?? "");
+  !!p.enrich?.on && ["queued", "processing", "paused"].includes(p.enrich.state ?? "");
 
 /** The related pages to list, Claude's picks first, each once (the server merged them). */
 export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
