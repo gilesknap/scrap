@@ -14,6 +14,8 @@ header {
 }
 .logo {
   display: inline-flex;
+  flex-wrap: wrap; /* one line, so align-content can centre it in the bar's height */
+  align-content: center;
   align-items: baseline; /* the version sits on scrap's line */
   gap: var(--s-2);
   min-height: var(--tap);
