@@ -66,7 +66,7 @@ def test_tools_are_listed(store):
 
     tools = anyio.run(main)
     assert sorted(tools) == [
-        "edit_meta", "edit_page", "read", "recent", "rename_tag", "revert",
+        "drawing", "edit_meta", "edit_page", "read", "recent", "rename_tag", "revert",
         "revert_text", "revisions", "search", "tags", "todos", "write",
     ]  # fmt: skip
 
@@ -384,7 +384,7 @@ def test_mcp_over_http(tmp_path, monkeypatch):
         assert r.status_code == 200, r.text
         assert r.json()["result"]["serverInfo"]["name"] == "scrap"
         tools = rpc(client, "tools/list", headers=good).json()["result"]["tools"]
-        assert len(tools) == 12
+        assert len(tools) == 13
         args = {"title": "Over HTTP", "body": "via /mcp", "origin": "test"}
         r = rpc(client, "tools/call", {"name": "write", "arguments": args}, good)
         written = r.json()["result"]["structuredContent"]
@@ -809,3 +809,94 @@ def test_a_page_key_starting_with_revision_is_still_no_such_page(store):
     out = refused(store, "read", page="revision 9")
     assert "no such page: revision 9" in out
     assert "no such revision" not in out
+
+
+def with_drawing(store, ref, sha, elements, producer="model", **extra):
+    """Give a photo (on the page `ref`) a current drawing."""
+    cid = store.page(ref["page_id"])["captures"][0]["id"]
+    data = {"format": "skeleton", "width": 800, "height": 600,
+            "elements": elements, **extra}  # fmt: skip
+    with store.connect() as conn:
+        put_derived(conn, cid, sha, "excalidraw", producer, now(), data=data)
+
+
+BOX = {"type": "rectangle", "x": 1, "y": 2, "width": 3, "height": 4}
+
+
+def test_read_shows_drawing_metadata(store):
+    sha = "ab" * 32
+    ref = photo_page(store, sha)
+    [image] = ok(store, "read", page=ref["page_id"])["images"]
+    assert image["drawing"] is None and image["has_drawing"] is False
+    with_drawing(store, ref, sha, [BOX, BOX])
+    [image] = ok(store, "read", page=ref["page_id"])["images"]
+    assert image["has_drawing"] is True
+    assert image["drawing"] == {
+        "version": 1, "producer": "model", "width": 800, "height": 600,
+        "element_count": 2,
+    }  # fmt: skip
+
+
+def test_drawing_by_sha_prefix_or_alone(store):
+    sha = "ab" * 32
+    ref = photo_page(store, sha)
+    with_drawing(store, ref, sha, [BOX])
+    for args in ({"image": sha}, {"image": sha[:6]}, {}):
+        out = ok(store, "drawing", page=ref["page_id"], **args)
+        assert out == {
+            "version": 1,
+            "producer": "model",
+            "format": "skeleton",
+            "width": 800,
+            "height": 600,
+            "elements": [BOX],
+            "truncated": False,
+        }
+
+
+def test_drawing_says_a_human_scene_is_a_scene(store):
+    sha = "ab" * 32
+    ref = photo_page(store, sha)
+    with_drawing(store, ref, sha, [BOX], producer="human", format="scene")
+    out = ok(store, "drawing", page=ref["page_id"])
+    assert out["format"] == "scene" and out["producer"] == "human"
+
+
+def test_drawing_needs_an_image_when_there_are_several(store):
+    a, b = "ab" * 32, "ac" * 32
+    c = store.prepare({"id": new_ulid()}, ["image/png", "image/png"])
+    ref = store.capture(
+        c, [(a, "image/png", 3, "a.png"), (b, "image/png", 3, "b.png")], "me"
+    )[0]
+    with_drawing(store, ref, a, [BOX])
+    with_drawing(store, ref, b, [BOX])
+    error = refused(store, "drawing", page=ref["page_id"])
+    assert a in error and b in error
+    assert a in refused(store, "drawing", page=ref["page_id"], image="a")  # ambiguous
+    assert ok(store, "drawing", page=ref["page_id"], image="ab")["elements"] == [BOX]
+
+
+def test_drawing_errors(store):
+    sha = "ab" * 32
+    ref = photo_page(store, sha)
+    assert "no image with a drawing" in refused(store, "drawing", page=ref["page_id"])
+    with_drawing(store, ref, sha, [BOX])
+    assert "no drawing for image" in refused(
+        store, "drawing", page=ref["page_id"], image="ff"
+    )
+    other = photo_page(store, "cd" * 32)  # a page whose photo has no drawing
+    assert "no drawing for image" in refused(
+        store, "drawing", page=other["page_id"], image=sha
+    )
+    assert "no such page" in refused(store, "drawing", page="nope")
+
+
+def test_drawing_is_cut_at_the_size_cap(store):
+    sha = "ab" * 32
+    ref = photo_page(store, sha)
+    big = {"type": "text", "x": 0, "y": 0, "text": "x" * 50_000}
+    with_drawing(store, ref, sha, [big] * 10)
+    out = ok(store, "drawing", page=ref["page_id"])
+    assert out["truncated"] is True
+    assert 0 < len(out["elements"]) < 10
+    assert len(json.dumps(out["elements"])) <= mcp_server.MAX_DRAWING
