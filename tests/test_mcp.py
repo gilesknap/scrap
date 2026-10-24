@@ -67,7 +67,8 @@ def test_tools_are_listed(store):
     tools = anyio.run(main)
     assert sorted(tools) == [
         "drawing", "edit_meta", "edit_page", "read", "recent", "rename_tag", "revert",
-        "revert_text", "revisions", "search", "tags", "todos", "write",
+        "revert_text", "revisions", "search", "tags", "todos", "trash", "undelete",
+        "write",
     ]  # fmt: skip
 
 
@@ -323,8 +324,9 @@ def test_read_lists_images_as_urls(store, monkeypatch):
 
 def test_read_of_a_missing_or_trashed_page(store):
     page = write(store)
+    assert "no such page" in refused(store, "read", page="missing")
     store.delete_page(page["id"])
-    assert "no such page" in refused(store, "read", page=page["id"])
+    assert ok(store, "read", page=page["id"])["page"]["trashed"] is True  # read only
 
 
 def test_recent_and_todos(store):
@@ -384,7 +386,7 @@ def test_mcp_over_http(tmp_path, monkeypatch):
         assert r.status_code == 200, r.text
         assert r.json()["result"]["serverInfo"]["name"] == "scrap"
         tools = rpc(client, "tools/list", headers=good).json()["result"]["tools"]
-        assert len(tools) == 13
+        assert len(tools) == 15
         args = {"title": "Over HTTP", "body": "via /mcp", "origin": "test"}
         r = rpc(client, "tools/call", {"name": "write", "arguments": args}, good)
         written = r.json()["result"]["structuredContent"]
@@ -924,3 +926,138 @@ def test_image_count_counts_a_repeated_image_once(store):
     )
     [row] = ok(store, "recent")["results"]
     assert row["image_count"] == 1 and row["image_url"].endswith(sha)
+
+
+def trashed(store, **args):
+    """A page written over MCP, then deleted (in the PWA, say)."""
+    page = write(store, **args)
+    store.delete_page(page["id"])
+    return page
+
+
+def test_revisions_without_page_or_batch_is_the_recent_changes_feed(store):
+    old = human(store, "an old page")
+    gone = human(store, "going page")
+    new = write(store, title="Fresh", body="b")
+    ok(store, "edit_meta", pages=[old["slug"]], add_tags=["x"])
+    ok(store, "edit_page", page=new["slug"], old="b", new="c")
+    ok(store, "edit_meta", pages=[gone["slug"]], add_tags=["z"])
+    store.delete_page(gone["slug"])
+    out = ok(store, "revisions", limit=50)
+    assert [m["slug"] for m in out["meta"]] == [old["slug"]]  # not gone's
+    meta = out["meta"][0]
+    assert (meta["author"], meta["source"]) == ("claude", "mcp")
+    assert meta["batch_id"] is None and meta["tags_added"] == ["x"]
+    slugs = [t["slug"] for t in out["text"]]
+    assert gone["slug"] not in slugs  # the trash is absent from the feed
+    assert set(slugs) == {old["slug"], new["slug"]}
+    assert {t["author"] for t in out["text"]} >= {"claude"}
+    assert all(t["url"].endswith(f"/p/{t['slug']}") for t in out["text"])
+    assert len(ok(store, "revisions", limit=1)["text"]) == 1
+    assert "text_rev needs a page" in refused(store, "revisions", text_rev=1)
+
+
+def test_feed_is_newest_first_and_empty_on_a_quiet_store(store):
+    assert ok(store, "revisions")["meta"] == []
+    a, b = human(store, "first"), human(store, "second")
+    ok(store, "edit_meta", pages=[a["slug"]], add_tags=["x"])
+    ok(store, "edit_meta", pages=[b["slug"]], add_tags=["y"])
+    assert [m["slug"] for m in ok(store, "revisions")["meta"]] == [b["slug"], a["slug"]]
+
+
+def test_trash_lists_deleted_pages_newest_first(store):
+    assert ok(store, "trash")["results"] == []
+    a, b = write(store, title="Alpha"), write(store, title="Beta")
+    keep = write(store, title="Kept")
+    store.delete_page(a["id"])
+    store.delete_page(b["id"])
+    results = ok(store, "trash")["results"]
+    assert [r["title"] for r in results] == ["Beta", "Alpha"]
+    first = results[0]
+    assert first["id"] == b["id"] and first["slug"] == b["slug"]
+    assert first["kind"] == "note" and first["deleted_at"]
+    assert first["url"].endswith(f"/p/{b['slug']}")
+    assert len(ok(store, "trash", limit=1)["results"]) == 1
+    assert keep["id"] not in {r["id"] for r in results}
+
+
+def test_read_and_revisions_of_a_trashed_page_are_read_only(store):
+    page = trashed(store, title="Doomed", body="last words", tags=["t"])
+    out = ok(store, "read", page=page["slug"])
+    assert out["page"]["trashed"] is True and out["page"]["deleted_at"]
+    assert out["content"]["body_markdown"] == "last words"
+    live = write(store, title="Live")
+    assert ok(store, "read", page=live["slug"])["page"]["trashed"] is False
+    assert ok(store, "read", page=live["slug"])["page"]["deleted_at"] is None
+    revs = ok(store, "revisions", page=page["id"], text_rev=1)
+    assert revs["trashed"] is True and revs["deleted_at"] == out["page"]["deleted_at"]
+    assert revs["text_revision"]["body"] == "last words"
+    assert ok(store, "revisions", page=live["slug"])["trashed"] is False
+
+
+def test_every_other_tool_still_treats_the_trash_as_absent(store):
+    page = trashed(store, title="Doomed zebra", body="b")
+    key = page["slug"]
+    assert ok(store, "search", query="zebra")["results"] == []
+    assert ok(store, "recent")["results"] == []
+    assert ok(store, "todos")["results"] == []
+    assert ok(store, "tags")["total"] == 0
+    for tool, args in (
+        ("edit_meta", {"pages": [key], "add_tags": ["x"]}),
+        ("edit_page", {"page": key, "old": "b", "new": "c"}),
+        ("revert_text", {"page": key, "to_rev": 1, "dry_run": True}),
+        ("write", {"title": "", "body": "more", "origin": "", "append_to": key}),
+        ("drawing", {"page": key}),
+    ):
+        assert "no such page" in refused(store, tool, **args), tool
+    assert ok(store, "revisions")["text"] == []
+
+
+def test_undelete_brings_a_page_back(store):
+    page = trashed(store, title="Doomed", body="words", tags=["t"])
+    dry = ok(store, "undelete", page=page["slug"], dry_run=True)
+    assert dry["dry_run"] is True and dry["restored"] is False
+    assert dry["id"] == page["id"] and dry["url"].endswith(f"/p/{page['slug']}")
+    assert ok(store, "read", page=page["id"])["page"]["trashed"] is True
+    out = ok(store, "undelete", page=page["slug"])
+    assert out["restored"] is True and out["title"] == "Doomed"
+    back = ok(store, "read", page=page["id"])
+    assert back["page"]["trashed"] is False and back["page"]["tags"] == ["t"]
+    assert back["content"]["body_markdown"] == "words"
+    assert ok(store, "trash")["results"] == []
+    assert [r["id"] for r in ok(store, "recent")["results"]] == [page["id"]]
+
+
+def test_undelete_of_a_page_not_in_the_trash(store):
+    live = write(store)
+    assert "not in the trash" not in refused(store, "undelete", page="missing")
+    assert "no such page in the trash" in refused(store, "undelete", page=live["slug"])
+    assert "no such page in the trash" in refused(store, "undelete", page="missing")
+
+
+def test_undelete_follows_the_content_edit_switch(store, monkeypatch):
+    page = trashed(store)
+
+    async def listed():
+        async with Client(mcp_server.server(store)) as client:
+            return [t.name for t in (await client.list_tools()).tools]
+
+    assert "undelete" in anyio.run(listed)
+    monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
+    names = anyio.run(listed)
+    assert "undelete" not in names and "trash" in names  # listing stays
+    assert "undelete" in refused(store, "undelete", page=page["id"])
+    assert ok(store, "trash")["results"][0]["id"] == page["id"]
+    assert "nothing here brings one back" in (
+        mcp_server.server(store).instructions or ""
+    )
+    monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "1")
+    assert "undelete brings one page back" in (
+        mcp_server.server(store).instructions or ""
+    )
+
+
+def test_instructions_describe_the_trash_and_what_revisions_omit(store):
+    text = " ".join((mcp_server.server(store).instructions or "").split())
+    assert "deletes go to a trash" in text.replace("the user's ", "")
+    assert "enrichment" in text and "not in them" in text
