@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.3.1.dev16+g5ec3c9f42 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.3.1.dev17+g849c3bd09 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=ad44b077"></script>
+    <script src="../_static/documentation_options.js?v=520d1e7b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -802,8 +802,8 @@ Back from a page, or deleting it, comes back to the same list, scrolled where it
 <ul class="simple">
 <li><p>Words match as the start of a word. <code class="docutils literal notranslate"><span class="pre">-word</span></code> or <code class="docutils literal notranslate"><span class="pre">!word</span></code> leaves out pages with the word, and
 <code class="docutils literal notranslate"><span class="pre">&quot;a</span> <span class="pre">phrase&quot;</span></code> matches those words together, in order. A <code class="docutils literal notranslate"><span class="pre">-</span></code> or <code class="docutils literal notranslate"><span class="pre">!</span></code> in front of any filter below
-leaves out the pages it matches. At most 16 terms and 16 filters count, and a word with no
-letter or digit in it (<code class="docutils literal notranslate"><span class="pre">&amp;</span></code>, <code class="docutils literal notranslate"><span class="pre">?</span></code>) is ignored.</p></li>
+leaves out the pages it matches. A query may have at most 64 terms and 64 filters (more is
+refused, not cut short), and a word with no letter or digit in it (<code class="docutils literal notranslate"><span class="pre">&amp;</span></code>, <code class="docutils literal notranslate"><span class="pre">?</span></code>) is ignored.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> (or <code class="docutils literal notranslate"><span class="pre">kind:later</span></code>, also <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:doc</span></code>…).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code> too).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">is:STATUS</span></code> for a todo’s or Later page’s status: <code class="docutils literal notranslate"><span class="pre">is:open</span></code>, <code class="docutils literal notranslate"><span class="pre">is:in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">is:done</span></code>,

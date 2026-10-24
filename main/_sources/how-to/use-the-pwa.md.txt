@@ -275,8 +275,8 @@ The chips and panels only write the query, which you can also type:
 
 - Words match as the start of a word. `-word` or `!word` leaves out pages with the word, and
   `"a phrase"` matches those words together, in order. A `-` or `!` in front of any filter below
-  leaves out the pages it matches. At most 16 terms and 16 filters count, and a word with no
-  letter or digit in it (`&`, `?`) is ignored.
+  leaves out the pages it matches. A query may have at most 64 terms and 64 filters (more is
+  refused, not cut short), and a word with no letter or digit in it (`&`, `?`) is ignored.
 - `kind:todo` (or `kind:later`, also `kind:read`, `kind:board`, `kind:doc`...).
 - `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics` too).
 - `is:STATUS` for a todo's or Later page's status: `is:open`, `is:in_progress`, `is:done`,
