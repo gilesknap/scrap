@@ -1,6 +1,7 @@
 """Kinds and tags edited over MCP (edit_meta, rename_tag), on any page, and the
 metadata revisions that make every such edit visible and revertible."""
 
+import re
 from contextlib import closing
 
 import anyio
@@ -300,10 +301,8 @@ def test_no_mcp_tool_can_delete_or_overwrite_text(store):
 
     tools = {t.name: set(t.input_schema["properties"]) for t in anyio.run(main)}
     # the trash can be listed and a page brought back, never emptied or deleted
-    assert not [
-        n for n in tools if n in ("delete", "delete_page", "purge", "empty_trash")
-    ]
-    assert "undelete" in tools and "trash" in tools
+    risky = {n for n in tools if re.search("delete|trash|purge|remove|empty", n)}
+    assert risky == {"trash", "undelete"}
     for name, args in tools.items():
         if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "fields", "status"}, name

@@ -940,9 +940,10 @@ def test_revisions_without_page_or_batch_is_the_recent_changes_feed(store):
     new = write(store, title="Fresh", body="b")
     ok(store, "edit_meta", pages=[old["slug"]], add_tags=["x"])
     ok(store, "edit_page", page=new["slug"], old="b", new="c")
+    ok(store, "edit_meta", pages=[gone["slug"]], add_tags=["z"])
     store.delete_page(gone["slug"])
     out = ok(store, "revisions", limit=50)
-    assert [m["slug"] for m in out["meta"]] == [old["slug"]]
+    assert [m["slug"] for m in out["meta"]] == [old["slug"]]  # not gone's
     meta = out["meta"][0]
     assert (meta["author"], meta["source"]) == ("claude", "mcp")
     assert meta["batch_id"] is None and meta["tags_added"] == ["x"]
