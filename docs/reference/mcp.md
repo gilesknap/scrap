@@ -12,8 +12,9 @@ to `/mcp`, sending `Accept: application/json, text/event-stream` as the MCP spec
 bulk change with `dry_run` first. They also say deletes go to a trash (see The trash below), and
 that enrichment is not in revision history. Unless content editing is off, they also say `edit_page` and
 `revert_text` change a page's text as revisions, only on a page the user asked to change (see
-Page text below). For a short `/s` command in Claude Code (post a summary of a conversation, tidy kinds and
-tags, undo, list todos, search), see the `s` skill (`skills/s` in the repository).
+Page text below). For short commands in Claude Code (`/sc-post`, `/sc-summarise`, `/sc-session`, `/sc-find`, `/sc-todos`,
+`/sc-tidy`, `/sc-undo`), see the `sc` commands (`commands/` in the repository, installed as in
+[](../how-to/connect-claude-code.md)).
 
 Every tool result is JSON (MCP structured content, also sent as its text). Page text (titles,
 bodies, summaries, snippets, tags, what Claude read from photos) is in fields of that JSON, as
