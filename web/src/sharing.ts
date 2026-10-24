@@ -167,7 +167,17 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     const spot = menuSpot(b.getBoundingClientRect(), menu.offsetWidth, innerWidth, innerHeight);
     menu.style.left = `${spot.left}px`;
     menu.style.bottom = `${spot.bottom}px`;
+    // The menu comes last in the page's tab order: put focus in it (Escape or a choice
+    // returns it to Share, as a popover does)
+    menu.querySelector("button")?.focus();
   };
+  menu.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const rows = [...menu.querySelectorAll<HTMLElement>("button, a")];
+    const at = rows.indexOf(document.activeElement as HTMLElement);
+    rows[(at + (e.key === "ArrowDown" ? 1 : rows.length - 1)) % rows.length]?.focus();
+    e.preventDefault();
+  });
   b.onclick = tap;
   return tap;
 }
