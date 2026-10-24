@@ -4,7 +4,7 @@ html_theme.sidebar_secondary.remove: true
 
 # scrap
 
-scrap is a tiny personal knowledge store: a "second brain" you feed from your phone and query
+scrap is a personal knowledge store: a "second brain" you feed from your phone and query
 through Claude. Snap a whiteboard, jot a note or share a link; scrap keeps the original at once and
 can later read, summarise, redraw and index it in the background. Claude reaches it over MCP to
 search, read and add pages; a small PWA is where you capture and look at things, because chat is
