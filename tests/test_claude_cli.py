@@ -444,7 +444,7 @@ def test_a_failed_run_stores_no_token(cli, tmp_path, caplog, monkeypatch, token)
     assert ingest.status(store)["reason"] == "auth"
 
 
-# Text enrichment (enrich.py) on a seat: tags, summary, Ask Claude and related pages
+# Text enrichment (enrich/) on a seat: tags, summary, Ask Claude and related pages
 # are the same shape of call (one user turn, a schema, no tools) with text only
 TAGGED = {"tags": ["garden"], "summary": "A larch shed, planned.", "title": ""}
 TEXT_MODEL_SERVED = "claude-haiku-5-5"

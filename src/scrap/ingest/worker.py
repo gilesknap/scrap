@@ -44,7 +44,7 @@ class Worker:
         self.call = call or claude.complete
         self.budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
         self.current: int | None = None  # the job in flight
-        # Text pages (enrich.py), when there is no photo to read
+        # Text pages (enrich/), when there is no photo to read
         self.enricher = Enricher(store, self.call, self.budget, fetcher)
         self.enrich = enrich_on()
         self._wake, self._stop = threading.Event(), threading.Event()

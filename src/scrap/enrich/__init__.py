@@ -1,0 +1,114 @@
+"""Enrich: Claude reads a text page and adds tags and a summary; related pages (#85).
+
+A page's text is the user's and is never edited. On capture, save, backfill or Ask,
+one tool-less, schema-checked call per page, on a small model (claude.text_model()),
+gives tags (preferring the vocabulary in use), a summary, and for a saved link a
+title; a link is fetched first (fetch.py: public addresses only, size and time
+limits). Related pages are a call of their own (relate): on Ask, and in the nightly
+pass (related_pass, scrap enrich --related) for every page changed since its last
+picks, from candidates found by shared tags and full-text search, so the library's
+size does not matter. What it adds is kept apart from the text (enrichment,
+model_tag, related) and the user wins: a tag the user took off never comes back,
+their tags are never removed, a title is replaced only while it is still the link as
+captured, the kind only while it is an unfixed note. Jobs run on the ingest worker's
+thread; everything shares its queue pause and daily budget. See
+docs/explanations/ingest.md.
+"""
+
+from .checking import (
+    checked,
+    checked_related,
+    clean_tag,
+    record,
+)
+from .constants import (
+    BY_TAGS,
+    BY_WORDS,
+    CLAIM,
+    MAX_BODY,
+    MAX_CANDIDATES,
+    MAX_INVENTED,
+    MAX_NEW_TAGS,
+    MAX_RELATED,
+    MAX_SUMMARY,
+    MAX_TITLE,
+    MAX_VOCAB,
+    RELATED_SCHEMA,
+    SAVE_REREAD,
+    SCHEMA,
+    SHORT,
+    STALE,
+    TITLE_CAS,
+    WORD,
+)
+from .enricher import (
+    Enricher,
+    log,
+)
+from .finding import (
+    CANDIDATES,
+    candidates,
+)
+from .prompts import (
+    index_lines,
+    one_line,
+    page_message,
+    related_message,
+    related_prompt,
+    system_prompt,
+    vocabulary,
+)
+from .queueing import (
+    ask,
+    backfill,
+)
+from .relating import (
+    relate,
+    related_pass,
+)
+from .types import (
+    Call,
+    Fetch,
+)
+
+__all__ = [
+    "Enricher",
+    "SCHEMA",
+    "RELATED_SCHEMA",
+    "backfill",
+    "ask",
+    "candidates",
+    "relate",
+    "related_pass",
+    "BY_TAGS",
+    "BY_WORDS",
+    "CANDIDATES",
+    "CLAIM",
+    "Call",
+    "Fetch",
+    "MAX_BODY",
+    "MAX_CANDIDATES",
+    "MAX_INVENTED",
+    "MAX_NEW_TAGS",
+    "MAX_RELATED",
+    "MAX_SUMMARY",
+    "MAX_TITLE",
+    "MAX_VOCAB",
+    "SAVE_REREAD",
+    "SHORT",
+    "STALE",
+    "TITLE_CAS",
+    "WORD",
+    "checked",
+    "checked_related",
+    "clean_tag",
+    "index_lines",
+    "log",
+    "one_line",
+    "page_message",
+    "record",
+    "related_message",
+    "related_prompt",
+    "system_prompt",
+    "vocabulary",
+]

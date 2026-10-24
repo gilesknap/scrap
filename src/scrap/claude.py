@@ -45,7 +45,7 @@ PRICES = {
     # dearer: $0.50 / $2.50)
     "claude-haiku-5-5": (0.1, 0.5, 0.125, 0.01),
 }
-# Text enrichment (enrich.py): a small model, a little thinking
+# Text enrichment (enrich/): a small model, a little thinking
 TEXT_MODEL = "claude-haiku-5-5"
 TEXT_EFFORT = "low"
 TEXT_MAX_TOKENS = 4000
