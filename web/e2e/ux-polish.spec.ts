@@ -468,4 +468,30 @@ test.describe("on a computer (a mouse, a wide window)", () => {
     const del = await tools.getByRole("button", { name: "Delete" }).boundingBox();
     expect(del && bar && Math.abs(del.x + del.width - (bar.x + bar.width)) < 2).toBe(true);
   });
+
+  test("the nav is tabs in the top bar, and Capture's tiles sit over the list", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const header = await page.locator("header").boundingBox();
+    const nav = await page.locator("nav").boundingBox();
+    // In the top bar's height, not at the window's foot
+    expect(nav && header && nav.y < header.y + header.height && nav.y + nav.height <= 900 / 2).toBe(
+      true,
+    );
+    await expect(page.locator("nav a[aria-current]")).toHaveText("Capture");
+    const tiles = await page.locator(".capture .actions").boundingBox();
+    const list = await page.locator(".capture .strip").boundingBox();
+    expect(tiles && list && tiles.y < list.y).toBe(true);
+  });
+
+  test("a toast sits at the window's foot", async ({ page }) => {
+    const note = await make(page, `Desk toast ${ulid().slice(-6)}`);
+    await page.goto(`/p/${note.slug}`);
+    await page.locator(".page > .tools").getByRole("button", { name: "Delete" }).click();
+    const toast = page.locator(".toast").first();
+    await expect(toast).toBeVisible();
+    const box = await toast.boundingBox();
+    expect(box && box.y + box.height > 900 - 80).toBe(true);
+  });
 });

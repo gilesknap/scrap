@@ -388,59 +388,6 @@ div.orig .save {
   color: var(--on-accent);
   font-size: var(--t-sm);
 }
-/* A computer (a mouse, a wide window): the page's actions are a row of buttons under what it
-   is (title, tags, due line, meta), kept in view under the top bar as the page scrolls, not a
-   bar at the window's foot, far below a short page. A phone or a touch tablet keeps the bar
-   under the thumb. */
-@media (min-width: 720px) and (hover: hover) and (pointer: fine) {
-  .page > * {
-    order: 2;
-  }
-  .page > h1,
-  .page > .tags,
-  .page > .todoline,
-  .page > .tagform,
-  .page > .meta {
-    order: 0;
-  }
-  .page > .tools {
-    order: 1;
-    top: calc(var(--bar-h) + env(safe-area-inset-top));
-    bottom: auto;
-    gap: var(--s-2);
-    margin: calc(-1 * var(--s-3)) 0 var(--s-5);
-    padding: var(--s-2) 0;
-    border-top: none;
-    border-bottom: 1px solid var(--line);
-  }
-  .page > .tools > * {
-    flex: none;
-    flex-direction: row;
-    gap: var(--s-2);
-    min-height: 40px;
-    padding: 0 var(--s-3);
-    border-radius: var(--r-md);
-    font-size: var(--t-sm);
-  }
-  .page > .tools > :hover {
-    background: var(--sunk);
-  }
-  .page > .tools > .primary {
-    padding: 0 var(--s-4);
-  }
-  .page > .tools > .primary:hover {
-    background: var(--accent);
-    filter: brightness(1.05);
-  }
-  .page > .tools > :last-child {
-    margin-inline-start: auto; /* Delete, apart at the end */
-  }
-  .page > .tools .i {
-    width: 20px;
-    height: 20px;
-  }
-}
-
 /* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
    page Download (a link drawn as its rows are) */
 .share-menu {
