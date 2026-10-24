@@ -159,8 +159,9 @@ It also checks that the chart refuses values such as `ingest.enabled` without
 
 To add a chart option, update `values.yaml` and `values.schema.json` (which
 refuses unknown keys) and add a `ci/<name>-values.yaml` that sets it. A release
-tag must equal the chart's `version` and `appVersion` in
-`charts/scrap/Chart.yaml`. CI runs the script under Helm 3 and Helm 4.
+tag sets the chart's `version` and `appVersion` when CI publishes it, so
+`charts/scrap/Chart.yaml` keeps the placeholder `0.0.0`. CI runs the script
+under Helm 3 and Helm 4.
 
 ## Pull requests
 
@@ -187,11 +188,9 @@ Releases are cut by pushing a tag. The tag is the version, with no `v` prefix
 `setuptools_scm`, so there is no version to edit in `pyproject.toml`
 (`src/scrap/_version.py` is generated).
 
-1. On `main`, with CI green, set `version` and `appVersion: "X.Y.Z"` in
-   [`charts/scrap/Chart.yaml`](https://github.com/gilesknap/scrap/blob/main/charts/scrap/Chart.yaml)
-   to the same string as the tag, and merge that.
-2. Tag the merge commit and push the tag (the tag, not a branch, starts the
-   release):
+1. On `main`, with CI green, tag the merge commit and push the tag (the tag,
+   not a branch, starts the release). The chart version needs no edit: CI sets
+   it from the tag.
 
    ```sh
    git tag X.Y.Z
@@ -212,9 +211,13 @@ Things to know:
 
 - A tag containing `a`, `b` or `rc` (such as `0.2.0rc1`) is marked as a
   pre-release on GitHub, but the image is still also tagged `latest`.
-- The **Chart** workflow is separate. It checks that the tag equals the chart's
-  `version` and `appVersion`, but a mismatch only fails that check: the image
-  and the release are still published. Bump `Chart.yaml` before tagging.
+- The **Chart** workflow is separate. On a tag it packages the chart with
+  `version` and `appVersion` taken from the tag and pushes it to
+  `oci://ghcr.io/gilesknap/charts/scrap`. A pre-release tag `X.Y.ZrcN` (or `aN`,
+  `bN`) is published as chart version `X.Y.Z-rc.N`, with `appVersion` the tag as
+  written so the image resolves. A tag in any other form fails the publish
+  only; the image and the release are still published. The first time, make the
+  `charts/scrap` package public in the GitHub package settings.
 - The release job does not wait for the `container` job, so check that the
   image was pushed.
 - Nothing is published to PyPI.

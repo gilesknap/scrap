@@ -46,8 +46,9 @@ install instead of being ignored.
 ## Image
 
 Releases publish a multi-arch (amd64 and arm64) image to `ghcr.io/gilesknap/scrap`, and
-`image.tag` defaults to the chart's `appVersion`. Until the first release no image with that tag
-exists: build and push your own and set `image.repository` and `image.tag` (see the guide).
+`image.tag` defaults to the chart's `appVersion`, which is set from the git tag when a release is
+published to `oci://ghcr.io/gilesknap/charts/scrap`. A checkout has the placeholder `0.0.0`, with no
+image: set `image.tag` to a release (or build your own and set `image.repository` too; see the guide).
 
 ## Exposure
 
@@ -83,7 +84,9 @@ also turns on Claude enrichment of text pages.
   backup; the related-pages CronJob (`enrichRelated.*`, 03:41) exists while ingest is on. Both
   run beside the scrap pod. See the guide below.
 - The backup CronJob runs at `30 3 * * *` by default, keeps the newest 7 runs on a 20Gi claim and
-  is a local copy only: copy it off the cluster as well.
+  is a local copy only: copy it off the cluster as well. A monthly CronJob (`backup.monthly.*`,
+  `50 3 1 * *`) adds a full copy on the 1st into the claim's `monthly/` folder and keeps the newest
+  12, so a destructive change noticed after a week can still be undone.
 - Database migrations are forward only, so rolling back to an older version also needs a restore
   of the database.
 

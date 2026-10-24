@@ -86,6 +86,15 @@ backup:
   # controller's (usually UTC).
   timeZone: ""
   keep: 7
+  # A second, longer-lived tier: a full copy on the 1st of each month in the claim's
+  # monthly/ folder, keeping the newest `keep`. The daily runs only reach back `keep`
+  # days, so a destructive change noticed later can still be undone from here. The
+  # claim then holds about backup.keep + monthly.keep + 1 copies.
+  monthly:
+    enabled: true
+    schedule: "50 3 1 * *"
+    timeZone: ""
+    keep: 12
   persistence:
     existingClaim: ""
     storageClass: ""
