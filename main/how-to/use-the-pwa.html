@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.4.1.dev4+g65b5a3951 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.4.1.dev5+g597c05169 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0fd888ba"></script>
+    <script src="../_static/documentation_options.js?v=95d3d9d0"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -709,14 +709,16 @@ nothing in the search box it lists every page newest first, with a thumbnail of 
 photo (<strong>Show more</strong> at the end for older ones). The keyboard only comes up when you tap the
 box. There is no separate Recent screen: the empty box is it.</p></li>
 <li><p>A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
-bottom. Use the phone’s or the browser’s Back. On an iPhone, installed to the home screen
-(which has no Back of its own), the top bar has a back arrow in place of the wordmark
-(<strong>Tags</strong> has it too, with its title). It goes back to where you were in the app, as the phone’s Back does; opened from a
-link or a share, it goes up instead: to the Todos screen for a todo, to Capture for any other
-page, and to Search from Tags.</p></li>
+bottom. In the top bar, in place of the wordmark, Back names where it goes: <strong>‹ Search</strong>,
+<strong>‹ Todos</strong> or <strong>‹ Capture</strong>, the list you opened the page from (<strong>Tags</strong> has it too, with its
+title, going to Search). It goes straight back to that list as you left it, even after you
+have stepped through its pages or followed links from page to page; the phone’s or the
+browser’s own Back still goes back one step at a time. A page opened from a link or a share
+has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Capture
+for any other page.</p></li>
 <li><p>On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
 wide.</p></li>
-<li><p>Every row, a page’s tags, its <code class="docutils literal notranslate"><span class="pre">[[links]]</span></code> and the pager’s ‹ › are ordinary links with their own
+<li><p>Every row, a page’s tags, its <code class="docutils literal notranslate"><span class="pre">[[links]]</span></code> and the pager’s ∧ ∨ are ordinary links with their own
 address, so you can open one in a new tab: on a phone, long-press it and choose <em>Open in new
 tab</em> (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
 Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
@@ -724,12 +726,11 @@ wasn’t opened from a list. A plain tap opens it in place.</p></li>
 <li><p>A row in a list shows a page’s kind by its icon (a checklist for a todo, a bookmark for
 Later); a page says it in a chip at the start of its line under the title, with its status
 if it has one: <em>Todo · open</em>, <em>Later · done</em>, <em>Note</em>.</p></li>
-<li><p>A page opened from the list or a search shows where it is in that list (<em>3 of 23 ·
-Search results</em>; the capture screen’s list, and the search screen’s newest-first list, say
-<em>Latest</em>, or the kind chosen): swipe left for the next one and right for the previous one, or
-use the ‹ › beside it (or the arrow keys). The page follows your finger and slides away to the next one; a short
-drag settles back, and at the first or last it only gives a little and says so. Back (the
-top bar’s arrow or the phone’s) returns to the list. Swipes start
+<li><p>A page opened from the list or a search shows where it is in that list at the right of the
+top bar, as a mail app does: <em>3 of 23</em> with <strong>∧</strong> (previous) and <strong>∨</strong> (next). Swipe left for
+the next one and right for the previous one, or use the arrows (or the arrow keys). The page
+follows your finger and slides away to the next one; a short drag settles back, and at the
+first or last it only gives a little and says so. Back returns to the list. Swipes start
 away from the screen’s edges (the phone’s own Back gesture lives there) and are ignored on
 text that scrolls sideways, while zoomed in or while selecting text. The pager needs the
 server’s list, so a page has none when it is opened offline from a list (and a page cannot be
@@ -896,7 +897,8 @@ one opens a done todo again; otherwise a todo marked done by hand stays done. <s
 ticks no box, and a cancelled todo is left as it is.</p></li>
 <li><p><strong>Snooze</strong> a todo to put it out of the way until a day: on its page, tap the line under its
 tags and pick a <strong>Snooze until</strong> date, or <strong>Tomorrow</strong> or <strong>Next week</strong> (<strong>No snooze</strong> wakes
-it), then <strong>Save</strong>. Until that day it is out of <strong>Now</strong> and <strong>Upcoming</strong> and the Todos
+it), then <strong>Save</strong>. A snooze later than the todo’s due date asks first whether the due date
+moves with it: <strong>Move due date</strong> (to the snooze’s day) or <strong>Keep due date</strong>. Until that day it is out of <strong>Now</strong> and <strong>Upcoming</strong> and the Todos
 tab’s count (Now’s count says how many are snoozed: tap <em>1 snoozed</em> for a search of them,
 <code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">is:snoozed</span> <span class="pre">sort:due</span></code>); <strong>All</strong> shows it, marked <em>snoozed till 3 Nov</em>, and
 <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> finds them (open ones only: a done or cancelled todo’s snooze no longer hides
@@ -919,10 +921,9 @@ To search todos, use <strong>Todos</strong> in the search screen’s kind row (<
 <li><p><strong>New todo</strong>, the <strong>+</strong> at the right of the top bar on the Todos screen (its accessible name
 is <em>New todo</em>), opens the composer on <strong>Todo</strong>; save, and you are back on the list with the
 new todo in it once it has uploaded.</p></li>
-<li><p>Opened from the Todos screen, <strong>Mark done</strong> moves on to the next todo in that list (the pager
-says <em>3 of 9 · Todos · Now</em>) with <strong>Undo</strong> for a few seconds; on the last one it stays, and
-offers <strong>Back to list</strong>. Back (the top bar’s arrow on an iPhone) goes back to the list at any
-time.
+<li><p>Opened from the Todos screen, <strong>Mark done</strong> moves on to the next todo in that list (the top
+bar says <em>3 of 9</em>) with <strong>Undo</strong> for a few seconds; on the last one it stays, and offers
+<strong>Back to list</strong>. <strong>‹ Todos</strong> in the top bar goes back to the list at any time.
 Opened from anywhere else, Mark done stays on the page.</p></li>
 </ul>
 </section>
@@ -1092,15 +1093,17 @@ or link page gets a <strong>Claude</strong> panel on its page view, under its te
 default once <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>; without ingest the panel is not shown unless the page already
 has a summary or related pages. The panel has:</p>
 <ul class="simple">
-<li><p>Its state: <em>Waiting for Claude</em> (or <em>Waiting: Claude is off</em>), <em>Claude is reading it…</em>, or
-<em>Claude couldn’t read it</em> with the reason, or <em>Paused</em> with the reason and <strong>Resume</strong> (the
-queue is shared with photos; nothing is lost while paused). Nothing is shown when it is done.</p></li>
+<li><p>Its state, as a photo’s is said: <em>Read by Claude</em> once it has read the page, with
+<strong>Reprocess</strong> at the end of the line to have it read the page again (a saved link is fetched
+again); while it works, <em>Waiting for Claude</em> (or <em>Waiting: Claude is off</em>) or <em>Claude is
+reading it…</em>; <em>Paused</em> with the reason and <strong>Resume</strong> (the queue is shared with photos;
+nothing is lost while paused); <em>Claude couldn’t read it</em> with the reason, and <strong>Retry</strong>.</p></li>
+<li><p>A line saying what Claude did: <em>Claude wrote the summary, added the dashed tags and found
+the related pages</em> (its tags are marked with a dashed outline in the tag line). Before Claude
+has read the page, the line says what it would do instead, with <strong>Ask Claude to read it</strong>.</p></li>
 <li><p>Claude’s one-line summary of the page, which search also looks in.</p></li>
 <li><p><strong>Related</strong>: pages Claude picked, merged with the pages that link here (marked <em>· links
 here</em>).</p></li>
-<li><p><strong>Ask Claude</strong> (<strong>Ask again</strong> once it has read the page), which queues the page for Claude now;
-a saved link is fetched again. Claude also tags the page: its tags are marked in the tag
-line.</p></li>
 </ul>
 <p>Reading a page needs the server, like opening it; the page checks again while Claude has it
 queued or is reading it.</p>
