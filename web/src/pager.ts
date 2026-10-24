@@ -49,15 +49,16 @@ export function pager(
           step(d);
         },
       },
-      icon(d > 0 ? "next" : "back"),
+      icon(d > 0 ? "down" : "up"),
     );
   swipePages(step, at, signal);
   const el = h(
     "div",
     { className: "pager", role: "group", "aria-label": `In ${trail.label}` },
+    // In the top bar, as a mail app has it: where it is, then ∧ ∨ (Back, beside it, names the
+    // list)
+    h("span", { className: "at" }, `${at.i + 1} of ${at.n}`),
     link(-1, "Previous", at.prev),
-    // Where it is: a label (the top bar's Back goes back to the list)
-    h("span", { className: "at" }, `${at.i + 1} of ${at.n} · ${trail.label}`),
     link(1, "Next", at.next),
   );
   /** Marked done (p as saved; was: its status before): from the Todos screen, on to the next
@@ -65,7 +66,12 @@ export function pager(
   const done = (p: Page, was: string) => {
     if (!trail.label.startsWith("Todos ·")) return false;
     if (!at.next) {
-      toast("Done: that was the last in the list", "Back to list", () => history.back(), 6000);
+      toast(
+        "Done: that was the last in the list",
+        "Back to list",
+        () => document.getElementById("back")?.click(),
+        6000,
+      );
       return false;
     }
     step(1);

@@ -89,6 +89,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A todo's priority, due date and tasks: a line of their own under the date, on every row
+   alike (beside it, they fitted on some rows and not others) */
+.sub small.due {
+  flex-basis: 100%;
+}
 .list small {
   min-width: 0;
   color: var(--ink-2);

@@ -63,17 +63,33 @@ function recent() {
 const view = document.getElementById("view") as HTMLElement;
 const logo = document.querySelector(".logo") as HTMLElement;
 const up = document.getElementById("back") as HTMLButtonElement;
+const backTo = document.getElementById("backto") as HTMLElement;
+const pos = document.getElementById("pos") as HTMLElement; // a page's place in its list
 const where = document.getElementById("where") as HTMLElement;
-// An iPhone's home-screen app: no Back of its own, so the top bar gives one
-const ios = (navigator as { standalone?: boolean }).standalone === true;
-// Back: to the app's entry before this one, else up to a parent (back.ts, a chunk of its own)
-up.onclick = () =>
-  history.state?.at
-    ? history.back()
-    : void import("./back").then(
-        (m) => m.up(go),
-        () => go("/", true), // the chunk is not here (offline): Capture
-      );
+// Back, named for where it goes: straight to the list the page was opened from (past the
+// pages stepped through or followed meanwhile; the phone's own Back goes one at a time), else
+// up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's Capture
+up.onclick = () => {
+  const s = history.state;
+  if (s?.back && s.at > s.back.at) return history.go(s.back.at - s.at);
+  void import("./back").then(
+    (m) => m.up(go),
+    () => go("/", true), // the chunk is not here (offline): Capture
+  );
+};
+/** The top bar's Back says where it goes: the list, else the parent (for a page, once its
+ * kind is known). */
+const nameBack = (path: string) => {
+  const to =
+    history.state?.back?.name ??
+    (path === "/tags"
+      ? "Search"
+      : document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind === "todo"
+        ? "Todos"
+        : "Capture");
+  backTo.textContent = to;
+  up.ariaLabel = `Back to ${to}`;
+};
 const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
 let shown = ""; // the path on screen
@@ -88,9 +104,11 @@ async function render() {
   const path = location.pathname;
   markNav();
   // A page and Tags are reached from elsewhere: Back in the top bar instead of the wordmark,
-  // where nothing else offers one (an iPhone's home-screen app: Android and browsers have Back)
+  // on every phone and browser (named for where it goes: nameBack)
   const sub = path.startsWith("/p/") ? "" : path === "/tags" ? "Tags" : null;
-  const arrow = sub !== null && ios;
+  const arrow = sub !== null;
+  pos.replaceChildren(); // a page puts its pager here
+  if (arrow) nameBack(path);
   logo.hidden = arrow;
   up.hidden = !arrow;
   where.hidden = !(arrow && sub);
@@ -136,6 +154,7 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
+    if (arrow) nameBack(path); // a page opened cold: its kind is known now
     add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
     placeToasts(); // e.g. one placed for the view before
     return;

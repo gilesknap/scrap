@@ -22,11 +22,13 @@
         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h14v15l-2.3-1.5-2.4 1.5-2.3-1.5-2.3 1.5-2.4-1.5L5 18.5z" /></svg
         >scrap<small id="ver" aria-hidden="true"></small></a
       >
-      <button type="button" id="back" class="ghost" aria-label="Back" hidden
+      <button type="button" id="back" class="ghost" hidden
         ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg
+        ><span id="backto"></span
       ></button>
       <!-- biome-ignore lint/a11y/useHeadingContent: the screen's name, set by main.ts when shown -->
       <h1 id="where" hidden></h1>
+      <span id="pos"></span>
       <button type="button" id="queue" class="badge" hidden></button>
       <button type="button" id="new" class="ghost" aria-label="New todo" hidden
         ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg

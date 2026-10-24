@@ -13,11 +13,23 @@ export const queue = new Queue(
 
 /** Navigate inside the app; main.ts renders on popstate. The state rides in the history
  * entry (e.g. the list a page was opened from). */
+/** The screens a page is opened from: the name the top bar's Back gives each. */
+export const LISTS: Record<string, string> = {
+  "/": "Capture",
+  "/search": "Search",
+  "/todos": "Todos",
+  "/tags": "Tags",
+};
+
 export function go(path: string, replace = false, state: object | null = null) {
-  // Marked as pushed by the app, so the top bar's Back knows an entry of the app's is behind
-  // it (main.ts); a replace keeps the mark
-  const at = replace ? history.state?.at : 1;
-  history[replace ? "replaceState" : "pushState"]({ ...state, at }, "", path);
+  // Each entry the app pushes says how deep it is (at) and which list it was opened from
+  // (back: that list's name and depth; a page opened from a page keeps its list), so the top
+  // bar's Back goes straight to the list (main.ts); a replace keeps both
+  const now = history.state ?? {};
+  const list = LISTS[location.pathname];
+  const at = replace ? now.at : (now.at ?? 0) + 1;
+  const back = replace ? now.back : list ? { name: list, at: now.at ?? 0 } : now.back;
+  history[replace ? "replaceState" : "pushState"]({ ...state, at, back }, "", path);
   window.scrollTo(0, 0);
   rerender();
 }
@@ -25,7 +37,7 @@ export function go(path: string, replace = false, state: object | null = null) {
 /** Write the current entry's address (a new query, say), keeping go()'s mark on it (the top
  * bar's Back reads it). */
 export function address(path: string) {
-  history.replaceState({ at: history.state?.at }, "", path);
+  history.replaceState({ at: history.state?.at, back: history.state?.back }, "", path);
 }
 
 /** A plain click (or tap) the app may route itself: not one meant for a new tab or window

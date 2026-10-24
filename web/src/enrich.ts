@@ -30,20 +30,38 @@ export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** The panel, or null when there is nothing to show and Claude is off. */
+/** What Claude did, in a line, so Read again says what it would redo (or, never read, what
+ * asking would do). */
+function did(p: Page, read: boolean): string {
+  if (!read) return "Claude can summarise it, suggest tags and find related pages.";
+  const parts = [
+    p.enrich?.summary && "wrote the summary",
+    p.model_tags?.length && "added the dashed tags",
+    p.related?.some((r) => r.via !== "link") && "found the related pages",
+  ].filter(Boolean) as string[];
+  if (!parts.length) return "Claude found nothing to add.";
+  const last = parts.pop();
+  return `Claude ${parts.length ? `${parts.join(", ")} and ${last}` : last}.`;
+}
+
+/** The panel, or null when there is nothing to show and Claude is off. Its row says it as a
+ * photo's does: Read by Claude (or where it is up to), then Read again. */
 export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | null {
   const e = p.enrich;
   const related = relatedOf(p);
   if (!e?.on && !e?.summary && !related.length) return null;
-  const said = e && stateText(e);
+  const read = !!e?.summary || e?.state === "done";
+  const busy = e?.state === "queued" || e?.state === "processing";
+  // Never read: no state to show, only what asking would do, then the button under it
+  const said = (e && e.state !== "done" && stateText(e)) || (read ? "Read by Claude" : null);
   const ask =
     e?.on &&
+    !busy &&
     h(
       "button",
       {
         type: "button",
-        className: "ghost",
-        disabled: e.state === "queued" || e.state === "processing",
+        className: read && e.state !== "failed" ? "link" : "",
         onclick: async (ev: Event) => {
           const b = ev.currentTarget as HTMLButtonElement;
           b.disabled = true;
@@ -55,18 +73,22 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
           }
         },
       },
-      e.summary || e.state === "done" ? "Ask again" : "Ask Claude",
+      e.state === "failed" ? "Retry" : read ? "Read again" : "Ask Claude to read it",
     );
+  const state = e?.state === "failed" ? "failed" : read ? "done" : "";
   return h(
     "section",
     { className: "enrich" },
-    h(
-      "div",
-      { className: "row" },
-      h("b", {}, "Claude"),
-      said && h("span", { className: e?.state === "failed" ? "err" : "" }, said),
-      ask,
-    ),
+    said
+      ? h(
+          "div",
+          { className: "ingest" },
+          h("span", { className: `state ${state}`, role: "status" }, said),
+          ask,
+        )
+      : "",
+    !busy && e?.on && h("p", { className: "did" }, did(p, read)),
+    !said && ask ? h("div", { className: "ask" }, ask) : "",
     e?.summary && h("p", { className: "summary", dir: "auto" }, e.summary),
     related.length > 0 &&
       h(

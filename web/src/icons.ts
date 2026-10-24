@@ -23,6 +23,8 @@ const PATHS = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  up: '<path d="m5 15 7-7 7 7"/>',
+  down: '<path d="m5 9 7 7 7-7"/>',
   next: '<path d="m9 5 7 7-7 7"/>',
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   retry: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v5h-5"/>',

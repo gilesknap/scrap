@@ -4,29 +4,25 @@
   display: flex;
   flex-direction: column;
 }
-/* Opened from a list: where it is in it, and the previous and next (swipe.ts) */
+/* Opened from a list: where it is in it, and the previous and next (pager.ts), in the top
+   bar beside Settings */
 .pager {
   display: flex;
   align-items: center;
-  gap: var(--s-1);
-  margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0;
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-/* Where it is in the list: a label, muted, between the ‹ › */
 .pager .at {
-  flex: 1;
-  min-width: 0;
-  padding: 0 var(--s-1);
-  overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
+  padding-inline-end: var(--s-1);
   white-space: nowrap;
 }
 .pager .button {
-  width: var(--tap);
+  width: 40px;
   padding: 0;
-  color: var(--ink-2);
+  color: var(--ink);
+}
+.pager .button[aria-disabled="true"] {
+  opacity: 0.35; /* the first or last: nothing that way */
 }
 #view > .from-next:not(.still) {
   animation-name: from-next;
@@ -53,10 +49,23 @@
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
+/* What it is, then its dates: each a phrase that never breaks, the line breaking between them
+   (a · between those on one line) */
 .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--s-2);
+  row-gap: 2px;
   margin: 0 0 var(--s-5);
   color: var(--ink-2);
   font-size: var(--t-sm);
+}
+.meta > span {
+  white-space: nowrap;
+}
+.meta > span + span::before {
+  content: "· ";
 }
 .meta .badge {
   margin-inline-start: var(--s-2);
