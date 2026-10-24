@@ -34,10 +34,12 @@ Open the address it prints, `https://scrap.<tailnet>.ts.net`, in your phone's br
 issued. If a device called `scrap` already exists, the new one is `scrap-1`; use the address
 `serve status` prints.
 
-The key works once and the volume remembers the login, so `podman start scrap-ts` brings it back
-after a reboot.
+The key works once and the volume remembers the login. After a reboot, start scrap again as in
+"Try it", then run `podman start scrap-ts`.
 
+```{warning}
 Never use `tailscale funnel`: it publishes scrap to the internet.
+```
 
 Claude Code on the same computer needs nothing: it keeps using `http://localhost:8000/mcp`.
 
@@ -45,11 +47,9 @@ This is a trial setup for one computer and your phone. For a lasting install tha
 Claude Code can use, see [](../tutorials/install-server.md).
 
 ```{note}
-**What has been checked.** Tested on ws03 with rootless podman: joining with a single-use,
-non-ephemeral auth key; `serve`; the HTTPS address from another device on the tailnet; `/mcp`
-answering 421 `Invalid Host header` through the tailnet address without `SCRAP_PUBLIC_URL`; the
-first-visit certificate delay (about 90 seconds); and `podman restart` and `podman stop` then
-`start` bringing it back on the same address with no key. This needs `TS_STATE_DIR`: without it the
-login is kept in memory and a restart fails with "invalid key". Not tested: a phone, the Add to Home
-screen step, and a real reboot.
+**What has been checked.** On a Linux workstation with rootless podman: joining with a
+single-use auth key, `serve`, the HTTPS address from another device on the tailnet, and the sidecar
+coming back on the same address after `podman restart` and after `podman stop` then `start`, with no
+key. Without `TS_STATE_DIR` the login is lost on restart. Not checked: a phone, the Add to Home
+screen step, and a reboot.
 ```
