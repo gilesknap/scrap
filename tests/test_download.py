@@ -137,3 +137,45 @@ def test_download_leaves_code_alone_and_shows_each_photo_once(client):
     for f in ("a", "b", "c"):
         assert md.count(f"![{f}.png](files/{f}.png)") == 1
     assert "a again" not in md
+
+
+def test_code_spans_in_export_text_are_linear_and_unchanged():
+    import re
+    import time
+
+    from scrap.backup import CODE_SPAN, _outside_code
+
+    # A long run of backticks and no closer: every start inside it used to be tried
+    # against the rest of the line (quadratic). A generous bound (the old pattern needs
+    # about 50 s here, this takes milliseconds), so a slow machine cannot fail it (#178)
+    line = "x " + "`" * 100_000 + " a"
+    started = time.monotonic()
+    assert _outside_code(line, str.upper) == line.upper()
+    assert time.monotonic() - started < 5
+    # normal text comes out as it did
+    old = re.compile(r"(`+)(?!`).+?(?<!`)\1(?!`)")
+    for text in (
+        "a `b` c `d`",
+        "``a ` b`` and `c`",
+        "x ```y``` z",
+        "no code",
+    ):
+        assert [m[0] for m in CODE_SPAN.finditer(text)] == [
+            m[0] for m in old.finditer(text)
+        ]
+
+
+def test_export_alt_text_is_never_a_hex_name(client):
+    ref = client.post(
+        "/api/captures",
+        data={"id": new_ulid(), "text": "x"},
+        files=[("file", ("named.png", PNG, "image/png"))],
+    ).json()
+    url = f"/api/pages/{ref['page_id']}"
+    sha = client.get(url).json()["captures"][0]["blobs"][0]["sha256"]
+    client.patch(
+        url, json={"base_rev": 1, "body": f"![](/api/blobs/{sha}) [](/api/blobs/{sha})"}
+    )
+    zf = zipfile.ZipFile(io.BytesIO(client.get(f"{url}/download").content))
+    md = zf.read(zf.namelist()[0]).decode()
+    assert "![named.png](files/named.png) [named.png](files/named.png)" in md
