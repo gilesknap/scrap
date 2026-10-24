@@ -137,7 +137,7 @@ def test_migration_7_counts_again_what_an_older_scrap_left(tmp_path):
 
 
 def test_migration_7_upgrades_a_version_6_scrap(tmp_path, monkeypatch):
-    import scrap.store as store_module
+    import scrap.store.db as store_module
 
     every = migrations()
     monkeypatch.setattr(store_module, "migrations", lambda: every[:6])
@@ -194,7 +194,7 @@ def test_a_migrated_note_with_every_box_ticked_is_filed_done(tmp_path, monkeypat
     """A version 6 note whose boxes are all ticked is counted 3 of 3 by migration 7;
     its next edit files it as a todo, done, as a new capture of its text would be
     (not open: its boxes were a note's, not a todo's)."""
-    import scrap.store as store_module
+    import scrap.store.db as store_module
 
     every = migrations()
     monkeypatch.setattr(store_module, "migrations", lambda: every[:6])

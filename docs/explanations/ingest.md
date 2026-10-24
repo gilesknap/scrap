@@ -421,7 +421,7 @@ page's text, except that a confident list of actions gets task boxes appended
   **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
   related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags
   that Claude has not read, once, by hand (never automatic). Some things queue nothing:
-  - A photo or file capture, even with a typed note (`should_enrich` in `store.py`, #155): photo ingest reads the photo, and the
+  - A photo or file capture, even with a typed note (`should_enrich` in `store/indexing.py`, #155): photo ingest reads the photo, and the
     page's first text reading comes with a later save of its title or text (or Ask Claude).
   - A whiteboard or document page: it is not read as text (#155).
   - Pages Claude Code adds with the MCP `write` tool count as notes, whatever their kind, so a
