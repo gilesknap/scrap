@@ -79,7 +79,7 @@
   align-items: center;
   gap: var(--s-2);
 }
-/* Read again, as a text button at the row's end */
+/* Reprocess, as a text button at the row's end */
 .ingest > button.link {
   margin: 0 calc(-1 * var(--s-3)) 0 auto;
 }
@@ -104,7 +104,7 @@
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
-/* A question asked in place, with its answers (a photo's Read again, a snooze past the due
+/* A question asked in place, with its answers (a photo's Reprocess, a snooze past the due
    date) */
 .choice {
   display: flex;
