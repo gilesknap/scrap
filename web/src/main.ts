@@ -63,7 +63,12 @@ const where = document.getElementById("where") as HTMLElement;
 const ios = (navigator as { standalone?: boolean }).standalone === true;
 // Back: to the app's entry before this one, else up to a parent (back.ts, a chunk of its own)
 up.onclick = () =>
-  history.state?.at ? history.back() : void import("./back").then((m) => m.up(go));
+  history.state?.at
+    ? history.back()
+    : void import("./back").then(
+        (m) => m.up(go),
+        () => go("/", true), // the chunk is not here (offline): Capture
+      );
 const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
 let shown = ""; // the path on screen
@@ -99,12 +104,20 @@ async function render() {
       shown = ""; // no page on screen now
       view.replaceChildren(h("p", { className: "empty", role: "status" }, "Loading…"));
     };
-    // A view the server never answers ends in the problem state, with Retry
+    // A view the server never answers ends in the problem state, with Retry (and its requests
+    // and listeners end: aborted)
+    const c = controller;
+    let giveUp = 0;
     try {
       el = await whenSlow(
         Promise.race([
           Promise.resolve().then(() => fn(m)),
-          new Promise<never>((_, no) => setTimeout(no, VIEW_MS, new TypeError("timed out"))),
+          new Promise<never>((_, no) => {
+            giveUp = window.setTimeout(() => {
+              no(new TypeError("timed out"));
+              c.abort();
+            }, VIEW_MS);
+          }),
         ]),
         150,
         loading,
@@ -112,6 +125,7 @@ async function render() {
     } catch (e) {
       el = problem(e);
     }
+    clearTimeout(giveUp);
     if (n !== rendering) return;
     // The same page again (back from the editor, a retry): no fade-in, it is already here.
     if (path === shown && el instanceof Element) el.classList.add("still");

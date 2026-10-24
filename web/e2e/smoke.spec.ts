@@ -454,3 +454,33 @@ test("the title bar shows the server's version", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#ver")).toHaveText(`v${String(version).split("+")[0]}`);
 });
+
+test("a view the server never answers ends in an error with Retry", async ({ page }) => {
+  const made = await page.request.post("/api/captures", {
+    data: { id: `01${"ABCDEFGHJKMNPQRS".repeat(2).slice(0, 24)}`, text: "Never answered" },
+  });
+  const { slug } = await made.json();
+  await page.clock.install();
+  await page.goto("/");
+  await expect(page.locator(".capture")).toBeVisible();
+  let hold = true;
+  await page.route(`**/api/pages/${slug}`, (r) => (hold ? new Promise(() => {}) : r.continue()));
+  await page.goto(`/p/${slug}`);
+  await page.clock.runFor(31_000);
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  hold = false;
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.locator(".page h1")).toBeVisible();
+});
+
+test.describe("without the service worker", () => {
+  test.use({ serviceWorkers: "block" }); // it would answer from its cache
+
+  test("Back in the top bar still goes up when its chunk will not load", async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true }));
+    await page.route("**/assets/back-*.js", (r) => r.abort());
+    await page.goto("/tags"); // opened directly: nothing of the app's behind it
+    await page.locator("#back").click();
+    await expect(page).toHaveURL("/");
+  });
+});

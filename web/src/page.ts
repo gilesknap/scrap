@@ -63,6 +63,7 @@ export async function page(key: string): Promise<Node> {
     api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
     renderer(),
   ]);
+  signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
   const root = h("article", { className: "page" });
   // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
   const pager = state?.trail

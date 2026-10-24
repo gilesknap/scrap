@@ -80,11 +80,8 @@ export async function pendingList(): Promise<Node> {
     ...items.map((i) => {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
       const title = i.text?.split("\n")[0] || i.url || i.files[0]?.name || "capture";
-      // "connection lost" / "offline" as the phone is now, not as when the upload failed
-      const why = (i.error ?? (navigator.onLine ? "uploading" : "offline")).replace(
-        /^(connection lost|offline)$/,
-        navigator.onLine ? "connection lost" : "offline",
-      );
+      const lost = i.error === "connection lost" && !navigator.onLine; // as now, not as it failed
+      const why = lost ? "offline" : (i.error ?? (navigator.onLine ? "uploading" : "offline"));
       const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;
       // Each waits for an upload in progress (maybe in another tab), so say so.
       const act = (label: string, run: () => Promise<void>, sure = "") =>
