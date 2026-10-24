@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.3.4.dev1+gc62b77d55 documentation</title>
+    <title>MCP server &#8212; scrap 0.3.4.dev2+g60630184b documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=21d4823b"></script>
+    <script src="../_static/documentation_options.js?v=a172fdad"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -501,8 +501,9 @@ to <code class="docutils literal notranslate"><span class="pre">/mcp</span></cod
 bulk change with <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first. They also say deletes go to a trash (see The trash below), and
 that enrichment is not in revision history. Unless content editing is off, they also say <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and
 <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> change a page’s text as revisions, only on a page the user asked to change (see
-Page text below). For a short <code class="docutils literal notranslate"><span class="pre">/s</span></code> command in Claude Code (post a summary of a conversation, tidy kinds and
-tags, undo, list todos, search), see the <code class="docutils literal notranslate"><span class="pre">s</span></code> skill (<code class="docutils literal notranslate"><span class="pre">skills/s</span></code> in the repository).</p>
+Page text below). For short commands in Claude Code (<code class="docutils literal notranslate"><span class="pre">/sc-post</span></code>, <code class="docutils literal notranslate"><span class="pre">/sc-summarise</span></code>, <code class="docutils literal notranslate"><span class="pre">/sc-session</span></code>, <code class="docutils literal notranslate"><span class="pre">/sc-find</span></code>, <code class="docutils literal notranslate"><span class="pre">/sc-todos</span></code>,
+<code class="docutils literal notranslate"><span class="pre">/sc-tidy</span></code>, <code class="docutils literal notranslate"><span class="pre">/sc-undo</span></code>), see the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands (<code class="docutils literal notranslate"><span class="pre">commands/</span></code> in the repository, installed as in
+<a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>).</p>
 <p>Every tool result is JSON (MCP structured content, also sent as its text). Page text (titles,
 bodies, summaries, snippets, tags, what Claude read from photos) is in fields of that JSON, as
 data: the server’s instructions tell the model it is the user’s text, never instructions to it.</p>
