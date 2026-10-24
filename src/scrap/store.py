@@ -512,6 +512,12 @@ def enrich_on() -> bool:
 # and reads (consume). A photo, whiteboard or document page is not read as text (#155).
 # Ask Claude is an explicit act and still works on any page.
 ENRICH_KINDS = ("note", "todo", "consume")
+# The page kind photo ingest files an image of each kind as (a note nobody filed)
+PAGE_KINDS = {
+    "whiteboard": "whiteboard",
+    "diagram": "whiteboard",
+    "document": "document",
+}
 
 
 # A page with a photo or file capture is read by ingest, not enrich, whatever its kind
@@ -2164,10 +2170,42 @@ class Store:
             (page["id"], rev, title, body, author, created),
         )
         self._body(conn, page["id"], boxes_before(page))
+        if author == CLAUDE:
+            self._unbox(conn, page)
         self.reindex(conn, page["id"])
         if enrich_on() and should_enrich(conn, page["id"]):  # as for the PWA's saves
             queue_enrich(conn, page["id"], "save", debounce())
         return rev, folded
+
+    def _unbox(self, conn: sqlite3.Connection, page: sqlite3.Row) -> None:
+        """Claude's text revision (a revert_text) took away the boxes of a todo that
+        its own boxes made (ADR 26): an unfixed todo, still with its default status,
+        whose previous text had boxes and no revision by anyone but Claude ever had
+        (so the boxes are Claude's, even if a fold deleted the revision that added
+        them). It goes back to what it was filed as before: for a photo page, the kind
+        photo ingest chose, else a note. A todo the user filed or touched stays."""
+        now_ = conn.execute(
+            "SELECT body, kind, kind_fixed, fields FROM page WHERE id = ?",
+            (page["id"],),
+        ).fetchone()
+        theirs = conn.execute(
+            "SELECT body FROM page_rev WHERE page_id = ? AND author <> ?",
+            (page["id"], CLAUDE),
+        ).fetchall()
+        if (
+            now_["kind"] != "todo" or now_["kind_fixed"] or tasks(now_["body"])[1]
+            or not tasks(page["body"])[1] or any(tasks(r[0])[1] for r in theirs)
+            or json.loads(now_["fields"]).get("status", "open") != "open"
+        ):  # fmt: skip
+            return
+        seen = conn.execute(
+            "SELECT json_extract(d.data, '$.kind') FROM derived d JOIN capture c"
+            " ON c.id = d.capture_id WHERE c.page_id = ? AND d.kind = 'description'"
+            " AND d.superseded_at IS NULL ORDER BY d.id LIMIT 1",
+            (page["id"],),
+        ).fetchone()
+        kind = PAGE_KINDS.get(seen[0], "note") if seen else "note"
+        conn.execute("UPDATE page SET kind = ? WHERE id = ?", (kind, page["id"]))
 
     def edited_by_claude(self, page_id: str) -> bool:
         """Whether Claude changed a page's text over MCP after it was made (is:
