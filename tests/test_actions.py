@@ -4,6 +4,7 @@
 import io
 import json
 from contextlib import closing
+from typing import Any
 
 import pytest
 
@@ -49,12 +50,12 @@ def text_answer(**more):
 
 
 class Fake:
-    def __init__(self, out):
+    def __init__(self, out: Any):
         self.out, self.calls = out, 0
 
     def __call__(self, model, system, messages, schema, blob, **kw):
         self.calls += 1
-        out = self.out(messages) if callable(self.out) else self.out
+        out: Any = self.out(messages) if callable(self.out) else self.out
         content = [{"type": "text", "text": json.dumps(out)}]
         return claude.Completion(out, content, USAGE, model, "end_turn")
 
