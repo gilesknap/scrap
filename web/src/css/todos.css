@@ -1,0 +1,114 @@
+/* ---- Todos: Now / Upcoming / All, a ranked list in groups ---- */
+.todos .count {
+  margin: 0 0 var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.todos section + section,
+.todos section + .donefold {
+  margin-top: var(--s-4);
+}
+.todos h2.label {
+  margin-top: var(--s-2);
+}
+/* A todo's row: what to do and when, not when it was last edited (two lines, not three). Its
+   priority and due date lead the line, a done or cancelled chip after them */
+.todos .sub > small:not([class]) {
+  display: none;
+}
+.todos .sub .due {
+  order: -1;
+}
+.todos .noimg {
+  display: none; /* every row here is a todo: the room goes to its title */
+}
+.donefold {
+  margin-top: var(--s-4);
+}
+.donefold summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  list-style: none;
+}
+.donefold summary::-webkit-details-marker {
+  display: none;
+}
+/* A chevron: points right when folded, down when open */
+.donefold summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 3px var(--s-1);
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: -45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.donefold[open] summary::before {
+  rotate: 45deg;
+}
+
+/* A wide window (a laptop, a tablet on its side): one centred column of about 720px, the
+   background still to the edges, so lines stay readable and bars don't spread out. Phones are
+   narrower than this, so it never applies there. */
+@media (min-width: 760px) {
+  header,
+  main,
+  nav,
+  .editor {
+    padding-inline: calc((100% - 720px) / 2);
+  }
+}
+/* Claude's tags in a page's tag line: dashed, so the user's own stand apart */
+.tags a.ai {
+  outline: 1.5px dashed var(--line-strong);
+  outline-offset: -9.5px; /* on the pill drawn inside the 48 px target */
+  background: var(--surface) padding-box;
+}
+/* What Claude added under a page's text (enrich.ts): its state, summary and related pages */
+.enrich {
+  margin: var(--s-4) 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+}
+.enrich .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.enrich .row span {
+  color: var(--ink-2);
+}
+.enrich .row .err {
+  color: var(--danger);
+}
+.enrich .row button {
+  margin-inline-start: auto;
+}
+.enrich .summary {
+  margin: var(--s-2) 0 0;
+}
+.enrich h2 {
+  margin: var(--s-3) 0 var(--s-1);
+  font-size: var(--t-sm);
+}
+.enrich ul {
+  margin: 0;
+  padding-inline-start: var(--s-4);
+}
+.enrich li {
+  padding: 6px 0;
+}
+.enrich small {
+  color: var(--ink-2);
+}

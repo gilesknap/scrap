@@ -1,6 +1,6 @@
 // The design system's text/background pairs meet WCAG AA in both themes (4.5:1 for text, 3:1
 // for control edges), read straight from src/tokens.css.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 const css = readFileSync(new URL("../src/tokens.css", import.meta.url), "utf8");
@@ -46,10 +46,13 @@ const PAIRS: [string, string, number][] = [
   ["line-strong", "surface", 3],
 ];
 
-// And every rule in style.css that sets both a text colour and a background from tokens. Text
+// And every rule in the component CSS (style.css and src/css/) that sets both a text colour and a background from tokens. Text
 // that inherits its colour onto another element's background is covered by PAIRS above and,
 // on the real pixels, by the computed-colour sweep in e2e/view.spec.ts.
-const style = readFileSync(new URL("../src/style.css", import.meta.url), "utf8");
+const cssDir = new URL("../src/css/", import.meta.url);
+const style = readdirSync(cssDir)
+  .map((f) => readFileSync(new URL(f, cssDir), "utf8"))
+  .join("\n");
 const DRAWN: [string, string, number][] = [];
 for (const [, body] of style.matchAll(/[^{}]+\{([^{}]*)\}/g)) {
   const fg = body.match(/(?:^|[\s;])color:\s*var\(--([\w-]+)\)/)?.[1];
@@ -66,12 +69,12 @@ describe.each([
     expect(t[bg], bg).toBeDefined();
     expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
   });
-  test.each(DRAWN)("a style.css rule sets %s on %s: at least %d:1", (fg, bg, min) => {
+  test.each(DRAWN)("a component CSS rule sets %s on %s: at least %d:1", (fg, bg, min) => {
     expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
   });
 });
 
-test("style.css rules set some token pairs", () => {
+test("component CSS rules set some token pairs", () => {
   expect(DRAWN.length).toBeGreaterThan(5);
 });
 

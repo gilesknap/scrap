@@ -7,7 +7,7 @@ gzipped (`npm run size`, `web/scripts/size.mjs`). The one exception is the drawi
 photo's drawing: a separate chunk, fetched only when a drawing is shown, built on React and
 Excalidraw with Excalidraw's own fonts (served by scrap from `/excalidraw/fonts/`), and outside
 that budget. Everything visual is defined once, in `web/src/tokens.css`; the components in
-`web/src/style.css` and `web/src/excalidraw.css` (the photo panel and the drawing viewer) use
+`web/src/style.css` (which imports `web/src/css/*.css`) and `web/src/excalidraw.css` (the photo panel and the drawing viewer) use
 nothing else. This page is the portable description, for carrying the design into another tool
 and back.
 
@@ -52,7 +52,7 @@ and back.
 
 Light / dark values, held to WCAG AA (4.5:1 for text, 3:1 for control edges) twice:
 `web/tests/contrast.test.ts` reads `tokens.css` and checks the listed text/background pairs,
-every `style.css` rule that sets both a text colour and a background from tokens, and white
+every rule in `web/src/css/` that sets both a text colour and a background from tokens, and white
 text on `--overlay` over a white photo; and an end-to-end sweep (the `lowContrast` helper in
 `web/e2e/contrast.ts`, run by `web/e2e/view.spec.ts` on each screen in both themes and by
 several other e2e specs) computes the real colour of every visible piece of text and of what

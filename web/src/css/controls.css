@@ -1,0 +1,113 @@
+/* ---- Buttons: secondary by default; .primary, .ghost, .danger ---- */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 0; /* shrink rather than push the page wider than the phone */
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform var(--d-1) var(--ease),
+    background-color var(--d-1) linear;
+}
+button:active,
+.button:active {
+  transform: scale(0.97);
+  background-color: var(--sunk);
+}
+button .i,
+.button .i {
+  width: 20px;
+  height: 20px;
+}
+.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  font-weight: 600;
+}
+.primary:active {
+  background: var(--accent);
+  filter: brightness(0.94);
+}
+.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.danger {
+  color: var(--danger);
+}
+button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.5;
+}
+.button[aria-disabled="true"] {
+  pointer-events: none;
+}
+a.button {
+  user-select: auto; /* a link: a long press offers the phone's own menu (open in a new tab) */
+}
+[aria-busy="true"] {
+  pointer-events: none; /* its label says "Preparing…": no dimming, which would fail contrast */
+  cursor: progress;
+}
+[aria-busy="true"] .i {
+  animation: busy 0.8s ease-in-out infinite alternate; /* seen even where labels are hidden */
+}
+@keyframes busy {
+  to {
+    opacity: 0.3;
+  }
+}
+button.link {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  margin-block: var(--s-2) var(--s-4);
+  margin-inline: calc(-1 * var(--s-3)) 0;
+  border: none;
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+}
+
+/* ---- Fields ---- */
+input,
+textarea {
+  width: 100%;
+  padding: var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+::placeholder {
+  color: var(--ink-3);
+}
+textarea {
+  resize: vertical;
+}

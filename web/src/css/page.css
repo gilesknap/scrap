@@ -1,0 +1,418 @@
+/* ---- Page ---- */
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+/* Opened from a list: where it is in it, and the previous and next (swipe.ts) */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+/* Where it is in the list: a label, muted, between the ‹ › */
+.pager .at {
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--s-1);
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pager .button {
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
+#view > .from-next:not(.still) {
+  animation-name: from-next;
+}
+#view > .from-prev:not(.still) {
+  animation-name: from-prev;
+}
+@keyframes from-next {
+  from {
+    opacity: 0;
+    translate: 32px 0;
+  }
+}
+@keyframes from-prev {
+  from {
+    opacity: 0;
+    translate: -32px 0;
+  }
+}
+.page h1 {
+  margin: var(--s-2) 0 var(--s-1);
+  font-size: var(--t-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.meta {
+  margin: 0 0 var(--s-5);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.meta .badge {
+  margin-inline-start: var(--s-2);
+  padding: 0 var(--s-2);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.body {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.body.raw {
+  white-space: pre-wrap;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md :is(h1, h2, h3) {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--t-lg);
+  line-height: var(--lh-tight);
+}
+/* A step between each level, all under the page title (--t-xl), so a page's sections show */
+.md h1 {
+  font-size: 1.3125rem;
+}
+.md h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.md :is(h4, h5, h6) {
+  font-size: var(--t-md);
+}
+.md pre {
+  overflow-x: auto;
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+}
+.md code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+}
+.md :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--sunk);
+}
+.md blockquote {
+  margin: var(--s-3) 0;
+  padding-inline-start: var(--s-3);
+  border-inline-start: 3px solid var(--accent);
+  color: var(--ink-2);
+}
+.md :is(ul, ol) {
+  padding-inline-start: 1.4rem;
+}
+.md li + li {
+  margin-top: var(--s-1);
+}
+.md img {
+  max-width: 100%;
+  border-radius: var(--r-sm);
+}
+.md hr {
+  border: none;
+  border-top: 1px solid var(--line);
+}
+/* A table scrolls sideways in its own box: the page never does, even at 320 px */
+.md .table {
+  max-width: 100%;
+  margin: var(--s-3) 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.md table {
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+  overflow-wrap: normal;
+}
+.md :is(th, td) {
+  min-width: 4rem;
+  max-width: 20rem;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.md :is(th, td) + :is(th, td) {
+  border-inline-start: 1px solid var(--line);
+}
+.md th {
+  background: var(--sunk);
+  font-weight: 600;
+}
+.md tbody tr:last-child td {
+  border-bottom: none;
+}
+.md li.task {
+  list-style: none;
+}
+/* A task's box, in the bullet's place, the list as tight as a bulleted one. On a page it
+   ticks (tasks.ts): its target is --tap wide and one line high, so no two overlap */
+.md li + li.task,
+.md li.task + li {
+  margin-top: 0;
+}
+.md li.task .taskbox {
+  position: relative;
+  margin-inline: calc(-1em - var(--s-1)) var(--s-1);
+}
+.md li.task .taskbox::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--tap);
+  height: calc(var(--lh) * 1em);
+  translate: -50% -50%;
+}
+.md li.task input {
+  position: relative;
+  z-index: 1; /* over its own target: a tap on the box is the box's */
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  vertical-align: -0.125em;
+  accent-color: var(--accent);
+}
+.md li.task input:enabled {
+  cursor: pointer;
+}
+.md s {
+  color: var(--ink-2);
+}
+.md .diagram {
+  margin: var(--s-3) 0;
+  overflow-x: auto;
+  text-align: center;
+}
+.md .diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+.md .footnotes {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.md .footnote-ref a,
+.md .footnote-backref {
+  text-decoration: none;
+}
+.originals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+.orig {
+  margin: 0;
+}
+.md > .orig,
+.md > .photo-panel {
+  margin: var(--s-4) 0; /* a figure in the text: a paragraph's spacing */
+}
+.md > .orig:first-child,
+.md > .photo-panel:first-child {
+  margin-top: 0;
+}
+.originals img,
+.md .orig img {
+  display: block;
+  width: 100%;
+  aspect-ratio: auto 4 / 3; /* 4:3 held while it loads, then the photo's own shape */
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: var(--r-lg);
+  background: var(--sunk);
+}
+.orig figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}
+.orig figcaption span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A figure's Download (an <a>, not a .button) and Ask Claude: whole words beside a file name
+   of any length. The page text's overflow-wrap: anywhere let a long name squeeze "Download"
+   to one letter wide, broken over three lines; the icon is a button's 20, not 24 */
+.save {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  white-space: nowrap;
+  overflow-wrap: normal;
+  text-decoration: none;
+  font-weight: 500;
+  min-height: var(--tap);
+  margin-inline-end: calc(-1 * var(--s-3));
+  padding: 0 var(--s-3);
+  border: none;
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.save .i {
+  width: 20px;
+  height: 20px;
+}
+div.orig {
+  display: flex;
+  flex-direction: column;
+}
+div.orig .save {
+  align-self: flex-end;
+}
+.file {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 64px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.file .i {
+  color: var(--ink-2);
+}
+/* A Later page's link on its own line (render.ts cards()): a file card, its site over its
+   path, each cut to one line, and Open, a button's look, at its end */
+.md > .linkcard {
+  margin: var(--s-4) 0;
+  line-height: var(--lh-tight);
+}
+.md > .linkcard:first-child {
+  margin-top: 0;
+}
+.linkcard .words {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.linkcard :is(.site, .path) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.linkcard .site {
+  font-weight: 600;
+}
+.linkcard .path {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.linkcard .button {
+  flex: none;
+  overflow-wrap: normal;
+}
+.linkcard .button .i {
+  color: inherit;
+}
+.linkcard:active .button {
+  transform: scale(0.97);
+  background-color: var(--sunk);
+}
+
+/* Toolbars: equal icon-over-label tiles (the page's actions, the viewer's tools) */
+.tools {
+  display: flex;
+  gap: var(--s-1);
+}
+.tools > * {
+  flex: 1 1 auto; /* shares of the width by label, so a long word (Download) is never cut */
+  flex-direction: column;
+  gap: 2px;
+  min-height: 60px;
+  padding: var(--s-1) 2px;
+  border: none;
+  background: transparent;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page > .tools {
+  position: sticky;
+  z-index: 2; /* over the page text scrolling under it, task boxes (z-index 1) too */
+  bottom: 0;
+  gap: 0;
+  margin: auto calc(-1 * var(--s-4)) calc(-1 * var(--s-4));
+  padding: var(--s-1) var(--s-2) calc(var(--s-1) + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+/* A todo's or a Read's Mark done: the page's hero, filled and wider than the other tools */
+.tools > .primary {
+  flex: 1.6 1 auto;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--t-sm);
+}
+/* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
+   page Download (a link drawn as its rows are) */
+.share-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 10rem;
+  padding: var(--s-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+}
+.share-menu:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+.share-menu :is(button, .button) {
+  justify-content: flex-start;
+  border: none;
+  background: transparent;
+}
+.dot {
+  position: relative;
+}
+.dot::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: calc(50% + 8px);
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+}

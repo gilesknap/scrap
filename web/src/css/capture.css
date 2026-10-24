@@ -1,0 +1,77 @@
+/* ---- Capture home: the list, then the capture cluster under the thumb ---- */
+.capture {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.strip {
+  flex: 1;
+}
+.strip .offline {
+  margin: var(--s-2) 0 0;
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  text-align: center;
+}
+/* The capture actions: equal tiles, no hero (amber is for Save) */
+.actions {
+  position: sticky; /* stays under the thumb however long the list above */
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  margin: var(--s-2) calc(-1 * var(--s-2)) 0;
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--r-lg) + var(--s-2));
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.tile {
+  flex-direction: column;
+  gap: var(--s-1);
+  min-height: 72px;
+  padding: var(--s-2) var(--s-1);
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  text-align: center;
+  white-space: nowrap;
+}
+.tile:active {
+  background: var(--accent-soft);
+}
+/* A kept draft: one quiet line over the tiles, the whole width; ✕ at its end */
+.draft {
+  grid-column: 1 / -1;
+  display: flex;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+}
+.draft button {
+  border: none;
+  background: transparent;
+  padding: 0 var(--s-3);
+}
+.draft button:first-child {
+  flex: 1;
+  justify-content: flex-start;
+}
+.draft span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.draft button:last-child {
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
+.tile .i {
+  width: 24px;
+  height: 24px;
+}

@@ -1,0 +1,391 @@
+/* ---- Composer and editor: a full-screen sheet sized to the visual viewport ---- */
+.editing {
+  overflow: hidden;
+}
+.editing nav {
+  display: none;
+}
+.editor {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--vv-top, 0);
+  height: var(--vv-h, 100dvh);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  animation: rise var(--d-3) var(--ease);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.editor > .bar {
+  flex: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-height: calc(var(--bar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(env(safe-area-inset-right), var(--s-2)) 0
+    max(env(safe-area-inset-left), var(--s-2));
+  border-bottom: 1px solid var(--line);
+}
+.editor > .bar > :first-child {
+  margin-inline-end: auto;
+}
+.editor > .bar > :last-child {
+  min-width: 88px;
+}
+.fields {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto; /* only if the extras (photos, a conflict) need more than the room */
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3) max(env(safe-area-inset-right), var(--s-4)) var(--s-3)
+    max(env(safe-area-inset-left), var(--s-4));
+}
+/* The text is the hero: at least 60 % of what is visible (the keyboard's room taken off:
+   --vv-h follows the visual viewport), however many tags or dates; the fields scroll */
+.fields > textarea,
+.fields > .preview {
+  flex: 1 0 auto;
+  min-height: calc(var(--vv-h, 100dvh) * 0.6);
+  resize: none;
+  overflow-y: auto;
+}
+/* The title: big and bold, on a line rather than in a second box */
+.fields > input {
+  padding-inline: 0;
+  border-color: transparent;
+  border-bottom-color: var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+/* The composer's Camera and Gallery (more photos: now and then): text buttons, not boxes */
+.fields > .bar .add {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+/* Cancel and Preview: text buttons beside Save, the bar's one fill */
+.editor > .bar > button:not(.primary) {
+  border-color: transparent;
+  background: transparent;
+}
+/* Just above the keyboard, the editor's keys: Task, Bullet, Number, Indent, Outdent (the
+   line becomes a task, a bullet or a numbered item, or moves in or out). One line of equal
+   keys, an icon over a word; narrower than any phone, icons alone (they have aria-labels).
+   Not while the text is previewed */
+.editor > .keys {
+  flex: none;
+  display: flex;
+  padding: 0 max(env(safe-area-inset-right), var(--s-2)) env(safe-area-inset-bottom)
+    max(env(safe-area-inset-left), var(--s-2));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.editor > .keys button {
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+@media (max-width: 299px) {
+  .editor > .keys button > span {
+    display: none;
+  }
+}
+.editor:has(> .fields > textarea[hidden]) > .keys {
+  display: none;
+}
+/* A fold (editor.ts fold): tags or a todo's dates as one line saying what they hold; tapped,
+   the controls open under it */
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  list-style: none;
+  cursor: pointer;
+}
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+.fold > summary .i {
+  width: 18px;
+  height: 18px;
+}
+.fold > summary b {
+  flex: none;
+  color: var(--ink);
+  font-weight: 600;
+}
+.fold > summary .says {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fold > summary::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: var(--s-1) 3px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: 45deg; /* down: opens */
+  transition: rotate var(--d-1) var(--ease);
+}
+.fold[open] > summary::after {
+  rotate: -135deg;
+}
+.fold[open] > summary {
+  color: var(--ink);
+}
+.fold > :not(summary) {
+  padding-bottom: var(--s-2);
+}
+.fields > .fold + .fold,
+.fields > .fold:has(+ .fold) {
+  margin-block: calc(-1 * var(--s-2)) 0; /* two folds read as one group */
+}
+.preview {
+  padding: var(--s-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+}
+
+/* Segmented control: a page's kind, in the editor */
+.chips {
+  display: flex;
+  flex-wrap: wrap; /* at a large text size, a second line rather than words over each other */
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+}
+.chips label {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: min-content; /* equal shares while the words fit, else the row wraps */
+  min-height: 42px;
+  border-radius: 10px;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--d-2) var(--ease);
+}
+.chips .i {
+  width: 18px;
+  height: 18px;
+}
+.filters {
+  margin-bottom: var(--s-3); /* Tags: by name, by count */
+}
+.kindrow {
+  margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Later, Boards, Docs */
+}
+/* The search screen's kinds: each its icon over its word, so six fit the row from 320 px */
+.kindrow label {
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 0 4px;
+  font-size: var(--t-xs);
+}
+.chips.kindrow .i {
+  display: block; /* also on a small phone: over the word, it takes no width */
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 379px) {
+  .kindrow {
+    margin-inline: calc(-1 * var(--s-2)); /* six whole words in one row from 320 px */
+  }
+  .kindrow label {
+    font-size: var(--t-xs);
+  }
+}
+button.more {
+  width: 100%;
+  margin-top: var(--s-3);
+}
+/* The editor's kind picker: the icon over the word, as the kind rows, so every kind bar
+   shows its icons, also on a small phone */
+.kinds label {
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 0 4px;
+  font-size: var(--t-xs);
+}
+.chips.kinds .i {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 379px) {
+  .chips .i {
+    display: none; /* the words alone fit a small phone */
+  }
+}
+.chips label::after {
+  content: ""; /* a 48 px target: the 42 px segment and the track around it */
+  position: absolute;
+  inset: -3px 0;
+}
+.chips input {
+  /* hidden, yet still focusable and announced as a radio group */
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.chips label:has(input:focus-visible) {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 1px;
+}
+.chips label:has(input:checked) {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.chips label:has(input:checked) .i {
+  color: var(--accent-ink);
+}
+
+/* Photo strip */
+.thumbs {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-top: var(--s-1);
+}
+.thumbs:empty {
+  display: none;
+}
+.thumb {
+  position: relative;
+  flex: none;
+}
+.thumbs img {
+  display: block;
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+}
+.thumb button {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  min-height: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--overlay);
+  color: var(--on-overlay);
+}
+.thumb button::after {
+  content: ""; /* a 48 px target */
+  position: absolute;
+  inset: -9px;
+}
+.thumb .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
+.bar .add {
+  flex: 1;
+}
+/* The page editor's embeds (editor.ts embedded()): a chip each for the token that stands for
+   it in the text, on one line under the fields that scrolls sideways, never taller. Its own
+   item in the editor's column, so it stays in sight above the keys while the fields scroll.
+   Not while the text is previewed */
+.editor > .embeds {
+  flex: none;
+  display: flex;
+  gap: var(--s-2);
+  padding: var(--s-2) max(env(safe-area-inset-right), var(--s-4)) var(--s-2)
+    max(env(safe-area-inset-left), var(--s-4));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.embeds:empty,
+.editor:has(> .fields > textarea[hidden]) > .embeds {
+  display: none;
+}
+.embed {
+  flex: none;
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: var(--r-md);
+  background: var(--sunk);
+}
+.embed button {
+  min-height: var(--tap);
+  border: none;
+  background: transparent;
+}
+.embed .pick {
+  min-width: 0;
+  padding: 0 0 0 var(--s-1);
+  font-size: var(--t-sm);
+}
+.embed .pick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.embed img,
+.embed .pick .i {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.embed .pick .i {
+  padding: 8px;
+  color: var(--ink-2);
+}
+.embed .ghost {
+  flex: none;
+  width: 40px;
+  padding: 0;
+  color: var(--ink-2);
+}
+.embed .ghost .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}

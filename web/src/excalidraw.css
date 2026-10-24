@@ -1,6 +1,6 @@
 /* What Claude made of a photo (ingest.ts) and its drawing (drawing.ts, board/). Built only
-   from tokens.css, like style.css; buttons, banners (.conflict, .restored) and links
-   (button.link) are style.css's own. */
+   from tokens.css, like src/css/*.css; buttons (css/controls.css), banners (.conflict, .restored;
+   css/banners-toast.css) and links (button.link) are theirs. */
 
 .photo-panel {
   display: flex;

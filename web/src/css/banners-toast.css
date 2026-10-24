@@ -1,0 +1,75 @@
+/* ---- Banners: the conflict, a restored draft ---- */
+.conflict {
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--danger-soft);
+  border-inline-start: 4px solid var(--danger);
+}
+.conflict p {
+  margin: 0 0 var(--s-3);
+  font-weight: 500;
+}
+.conflict blockquote {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.conflict pre {
+  margin: var(--s-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  color: var(--ink-2);
+}
+.restored {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0;
+  padding-inline-start: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  font-size: var(--t-sm);
+}
+.restored .link {
+  margin: 0;
+  color: var(--ink);
+}
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  left: max(env(safe-area-inset-left), var(--s-3));
+  right: max(env(safe-area-inset-right), var(--s-3));
+  top: calc(env(safe-area-inset-top) + var(--bar-h) + var(--s-2)); /* clear of the thumb */
+  z-index: 4; /* over the editor and the viewer */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 52px;
+  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--toast);
+  color: var(--on-toast);
+  box-shadow: var(--shadow-2);
+  font-size: var(--t-sm);
+  animation: drop var(--d-2) var(--ease);
+}
+@keyframes drop {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+.toast button {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--toast-action);
+  font-weight: 700;
+}
+.toast button:active {
+  background: color-mix(in srgb, var(--on-toast) 12%, transparent);
+}

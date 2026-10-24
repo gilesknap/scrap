@@ -1,0 +1,60 @@
+/* ---- Empty and problem states ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-6) var(--s-4);
+  color: var(--ink-2);
+  text-align: center;
+}
+.empty > .i {
+  width: 52px;
+  height: 52px;
+  padding: 13px;
+  border-radius: 50%;
+  background: var(--sunk);
+  color: var(--ink-2);
+}
+.empty p {
+  margin: 0;
+  color: var(--ink);
+}
+.empty small {
+  font-size: var(--t-sm);
+}
+.empty > :is(button, a) {
+  margin-top: var(--s-2);
+}
+.hits li:has(.empty) {
+  border: none;
+}
+.list:has(.empty) {
+  border: none;
+  background: none;
+}
+/* On the capture screen a problem is a quiet line, not a whole screen. */
+.capture .empty {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: var(--s-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  font-size: var(--t-sm);
+}
+.capture .empty > .i {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+}
+.capture .empty > :is(button, a) {
+  margin: 0;
+  min-height: var(--tap);
+}
+.build {
+  margin: var(--s-4) 0 0;
+  color: var(--ink-2); /* --ink-3 is 4.5:1 only just: small text needs the margin */
+  font-size: var(--t-xs);
+  text-align: center;
+}
