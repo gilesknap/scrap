@@ -9,7 +9,15 @@ from fastapi.testclient import TestClient
 
 from scrap.app import create_app
 from scrap.query import SORTS, Filter, Term, bound, due, parse
-from scrap.store import SORT_SQL, Store, connect, migrations, new_ulid, slug_base
+from scrap.store import (
+    SORT_SQL,
+    Store,
+    connect,
+    fix_tag_paths,
+    migrations,
+    new_ulid,
+    slug_base,
+)
 
 # ---- the parser
 
@@ -476,3 +484,65 @@ def test_sort_by_due_and_priority(store):
     assert slugs(store, "kind:todo sort:priority") == [c, d, a, b]  # high first
     assert slugs(store, "kind:todo -sort:priority") == [a, d, c, b]
     assert slugs(store, "sort:due")[-2:] in ([c, n], [n, c])  # a note has none
+
+
+def test_a_query_past_the_caps_is_refused_not_cut_short(store):
+    from scrap.store import InvalidError
+
+    page(store, "Alpha", "keep")
+    page(store, "Beta", "keep drop")
+    words = " ".join(f"w{n}" for n in range(16))
+    assert slugs(store, words) == []  # 16 words: fine
+    with pytest.raises(InvalidError, match="too many"):
+        store.search(f"{words} -drop", 20)  # the NOT word would have been lost
+    with pytest.raises(InvalidError, match="too many"):
+        store.search(" ".join(f"is:open tag:t{n}" for n in range(9)) + " -tag:x", 20)
+    with pytest.raises(InvalidError, match="too many"):
+        store.facets(f"{words} -drop")
+    assert slugs(store, "keep -drop") == ["alpha-0"]
+
+
+def test_empty_tag_segments_are_normalised_on_write(store):
+    from scrap.store import clean_tags
+
+    assert clean_tags(["/lead", "trail/", "a//b", "x / y", "a/b"]) == [
+        "lead", "trail", "a/b", "x / y",
+    ]  # fmt: skip
+    for bad in ("/", "//", " / "):
+        with pytest.raises(Exception, match="1 to 64"):
+            clean_tags([bad])
+    store.capture(store.prepare(
+        {"id": new_ulid(), "text": "T", "tags": ["/lead", "trail/", "a//b"]}, []
+    ), [], "me")  # fmt: skip
+    assert [t[0] for t in store.tags()] == ["a", "a/b", "lead", "trail"]
+    assert slugs(store, "tag:/") == [] and slugs(store, "tag://") == []
+    assert slugs(store, "tag:a/b") == [store.recent(1)[0]["slug"]]
+    assert len(slugs(store, "-tag:/")) == 1
+
+
+def test_migration_10_cleans_existing_tags(tmp_path):
+    db = tmp_path / "scrap.db"
+    with closing(connect(db)) as conn:
+        script = "".join(migrations()[:2])
+        conn.executescript(f"BEGIN; {script} PRAGMA user_version = 2; COMMIT;")
+        for pid in ("P", "Q"):
+            conn.execute(
+                "INSERT INTO page (id, slug, title, body, fields, created_at,"
+                f" updated_at) VALUES ('{pid}', '{pid.lower()}', 'T', 'b', '{{}}',"
+                " 'x', 'x')"
+            )
+        for pid, tag in (("P", "a//b"), ("P", "a/b"), ("P", "trail/"), ("P", "ok"),
+                         ("Q", "/"), ("Q", "/lead")):  # fmt: skip
+            conn.execute("INSERT INTO tag VALUES (?, ?)", (pid, tag))
+    store = Store(tmp_path)
+    store.migrate()
+    with closing(connect(db)) as conn:
+        got = conn.execute("SELECT page_id, tag FROM tag ORDER BY 1, 2").fetchall()
+        assert [tuple(r) for r in got] == [
+            ("P", "a/b"), ("P", "ok"), ("P", "trail"), ("Q", "lead"),
+        ]  # fmt: skip
+        conn.execute("INSERT INTO model_tag VALUES ('P', '/m', 'on', 'x', 'x')")
+        fix_tag_paths(conn)  # the model's tags too
+        assert conn.execute("SELECT tag FROM model_tag").fetchone()[0] == "m"
+    assert [t[0] for t in store.tags()] == ["a", "a/b", "lead", "ok", "trail"]
+    assert slugs(store, "lead") == ["q"]

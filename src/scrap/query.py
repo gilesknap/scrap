@@ -56,6 +56,9 @@ class Filter:
 class Query:
     terms: list[Term] = field(default_factory=list)
     filters: list[Filter] = field(default_factory=list)
+    # Terms and filters past MAX_TERMS and MAX_FILTERS, left out. The store refuses such
+    # a query (a NOT word or -tag: left out would show more pages than asked for).
+    dropped: int = 0
 
     @property
     def sort(self) -> tuple[str, bool] | None:
@@ -118,6 +121,8 @@ def parse(text: str) -> Query:
             value = " ".join(value.split()).lower()
             if value and len(q.filters) < MAX_FILTERS:
                 q.filters.append(Filter(key, value, neg, s[start:i]))
+            elif value:
+                q.dropped += 1
             continue
         i = j
         add(q, seen, Term(word, False, neg))
@@ -125,8 +130,12 @@ def parse(text: str) -> Query:
 
 
 def add(q: Query, seen: set[Term], term: Term) -> bool:
-    """Keep a term FTS can match (a letter or digit in it), once, at most MAX_TERMS."""
-    if not WORD.search(term.text) or term in seen or len(q.terms) >= MAX_TERMS:
+    """Keep a term FTS can match (a letter or digit in it), once, at most MAX_TERMS (the
+    rest are counted in q.dropped)."""
+    if not WORD.search(term.text) or term in seen:
+        return False
+    if len(q.terms) >= MAX_TERMS:
+        q.dropped += 1
         return False
     seen.add(term)
     q.terms.append(term)
