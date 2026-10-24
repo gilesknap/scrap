@@ -6,7 +6,9 @@ Date: 2026-10-22 (#85, migration 9)
 
 Accepted. Extends [](0009-claude-ingest-via-messages-api.md), which sent only photos to Claude,
 and shares the queue pause and daily budget of
-[](0010-job-queue-pauses-instead-of-failing.md).
+[](0010-job-queue-pauses-instead-of-failing.md). Amended by
+[](0026-claude-appends-task-boxes-to-a-list-of-actions.md): enrich may now append task boxes
+to a list of actions, as a revision of Claude's own, so "never edits the text" no longer holds.
 
 ## Context
 

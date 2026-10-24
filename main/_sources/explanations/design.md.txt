@@ -305,6 +305,10 @@ rewrites the user's words or fits them to templates.
   box marks it done, and unticking one (or adding an unticked one) reopens a todo that was done
   with all boxes ticked. A `cancelled` todo is left alone, and a status set by hand in the same
   edit wins. None of it is a revision.
+  Claude can add the boxes: when photo ingest or text enrich reads an unfixed note as a list of
+  actions, with high confidence, and it has no boxes yet, one text revision by `claude` appends
+  `- [ ] item` lines below the user's text, and this rule then files it as a todo
+  ([](decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.md)).
 - **Status** is one lifecycle for todo and consume, Thoth's: `open`, `in_progress`, `done`,
   `cancelled`. New pages start `open`; ticking a todo toggles `open` and `done`, and the other two
   are stored and shown (set by an import, richer controls later).

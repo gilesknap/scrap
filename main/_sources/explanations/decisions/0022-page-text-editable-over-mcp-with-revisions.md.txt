@@ -73,7 +73,9 @@ edits can be made as visible and as undoable as the kind and tag edits of ADR 19
   name the page's current `rev`. Turning the switch off restores the add-only posture.
 - A folded burst keeps only its final text: the text between two edits of a burst is not kept.
 - As in the PWA, a task box Claude adds to a note nobody filed makes it a todo; that kind is
-  derived, not a revision, and `revert_text` restores text only.
+  derived, not a revision, and `revert_text` restores text only. Scrap's own Claude does the
+  same through ingest and enrich for a confident list of actions
+  ([](0026-claude-appends-task-boxes-to-a-list-of-actions.md)).
 - `page_rev` grows by a full snapshot per edit (per burst over MCP). Thinning old snapshots,
   or storing deltas, is not built.
 - Revision numbers of a page may have gaps; nothing relies on them being contiguous (the PWA

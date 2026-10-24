@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.3.1.dev23+g5690dfa68 documentation</title>
+    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.3.3.dev1+g7320158a5 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=543af20c"></script>
+    <script src="../../_static/documentation_options.js?v=5187023e"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -448,6 +448,7 @@
 <li class="toctree-l2"><a class="reference internal" href="0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../design.html">scrap design</a></li>
@@ -525,7 +526,9 @@
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
 <p>Accepted. Extends <a class="reference internal" href="0009-claude-ingest-via-messages-api.html"><span class="std std-doc">9. Claude ingest: Messages API, no tools, one structured call per photo</span></a>, which sent only photos to Claude,
 and shares the queue pause and daily budget of
-<a class="reference internal" href="0010-job-queue-pauses-instead-of-failing.html"><span class="std std-doc">10. Queue error classes: outages pause, charged failures count, spend is capped</span></a>.</p>
+<a class="reference internal" href="0010-job-queue-pauses-instead-of-failing.html"><span class="std std-doc">10. Queue error classes: outages pause, charged failures count, spend is capped</span></a>. Amended by
+<a class="reference internal" href="0026-claude-appends-task-boxes-to-a-list-of-actions.html"><span class="std std-doc">26. Claude appends task boxes to a list of actions</span></a>: enrich may now append task boxes
+to a list of actions, as a revision of Claude’s own, so “never edits the text” no longer holds.</p>
 </section>
 <section id="context">
 <h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>

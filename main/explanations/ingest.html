@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.3.1.dev23+g5690dfa68 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.3.3.dev1+g7320158a5 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=543af20c"></script>
+    <script src="../_static/documentation_options.js?v=5187023e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -448,6 +448,7 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
@@ -860,7 +861,45 @@ the editor keeps its state.</p>
 <p><strong>Prompt injection.</strong> The image is data: no tools, no network, output schema-checked and
 sanitised. It can change only its page’s versions, a provisional title, its tags (adding up to
 10 on the first reading, alongside the user’s, which it cannot remove; none on a later one unless
-the page has none) and an unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code> kind.</p>
+the page has none), an unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code> kind and, for a list of actions, task boxes appended to
+the text (<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>).</p>
+</section>
+<section id="a-list-of-actions-becomes-task-boxes">
+<span id="ingest-actions"></span><h2>A list of actions becomes task boxes<a class="headerlink" href="#a-list-of-actions-becomes-task-boxes" title="Link to this heading">#</a></h2>
+<p>Photo ingest and enrich share one prompt section (<code class="docutils literal notranslate"><span class="pre">prompts/items.md</span></code>, added to both prompts by
+<code class="docutils literal notranslate"><span class="pre">claude.prompt</span></code>), one schema fragment (<code class="docutils literal notranslate"><span class="pre">claude.INTENT_PROPERTIES</span></code>) and one writer
+(<code class="docutils literal notranslate"><span class="pre">src/scrap/actions.py</span></code>), so a photographed sticky and a typed note behave alike
+(<a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html"><span class="std std-doc">26. Claude appends task boxes to a list of actions</span></a>).</p>
+<ul class="simple">
+<li><p><strong>Output.</strong> <code class="docutils literal notranslate"><span class="pre">intent</span></code> (<code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code>, <code class="docutils literal notranslate"><span class="pre">reference</span></code> or <code class="docutils literal notranslate"><span class="pre">other</span></code>), <code class="docutils literal notranslate"><span class="pre">confidence</span></code> (<code class="docutils literal notranslate"><span class="pre">high</span></code>,
+<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>) and <code class="docutils literal notranslate"><span class="pre">items</span></code>, each <code class="docutils literal notranslate"><span class="pre">{text,</span> <span class="pre">done}</span></code> in reading order (<code class="docutils literal notranslate"><span class="pre">done</span></code> for an entry crossed
+out or ticked). Only a page that is mainly a list of things to do is <code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code>; the
+prompt says to answer <code class="docutils literal notranslate"><span class="pre">reference</span></code> or <code class="docutils literal notranslate"><span class="pre">other</span></code> when unsure. A heading such as “CURRENT ACTIONS” is
+not an item. Output without these fields counts as <code class="docutils literal notranslate"><span class="pre">other</span></code>.</p></li>
+<li><p><strong>Checked</strong> (<code class="docutils literal notranslate"><span class="pre">actions.clean_items</span></code>): each entry is one line of plain text of at most 200
+characters, with control characters, leading list, heading, quote or checkbox marks, links
+(kept as their label), URL schemes and <code class="docutils literal notranslate"><span class="pre">www.</span></code> (nothing autolinks), character references,
+code, emphasis marks, backslashes, brackets and angle brackets removed; empty and repeated entries
+are dropped, and at most 30 are kept.</p></li>
+<li><p><strong>When it writes.</strong> Only when the intent is <code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code> with <code class="docutils literal notranslate"><span class="pre">high</span></code> confidence and
+entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
+text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
+and is a <code class="docutils literal notranslate"><span class="pre">note</span></code> with <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> 0 (for a photo also a <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> that ingest, not the user,
+chose, which becomes a note and then a todo). A saved link is never written to. For a photo
+it is the capture’s first image. A fixed kind, a page with boxes and any other reading change
+nothing.</p></li>
+<li><p><strong>How.</strong> The entries are appended below the user’s text as <code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> <span class="pre">item</span></code> (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[x]</span></code> for done),
+separated by a blank line, in one text revision by <code class="docutils literal notranslate"><span class="pre">claude</span></code> that never folds into another
+(<code class="docutils literal notranslate"><span class="pre">edit_text</span></code>, as MCP’s <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>). The user’s words are never rewritten, even when they are
+already plain bullets: the boxes go below them and the original list stays above. The task-box
+rule then files the page as a todo. <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> (to the revision before) restores the text;
+when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
+photo’s whiteboard or document, else a note), unless the user filed or changed the todo.</p></li>
+<li><p><strong>Reprocess and Ask Claude</strong> read again, but a page that has boxes is skipped, so boxes are
+never added twice. A photo page is read again for its drawing and tags, as before.</p></li>
+<li><p><strong>Enrich runs once more.</strong> The revision is a text save, so a saved text page queues one more
+enrich job after the debounce, which finds the boxes and adds none.</p></li>
+</ul>
 </section>
 <section id="spend-and-outage-control">
 <span id="ingest-spend"></span><h2>Spend and outage control<a class="headerlink" href="#spend-and-outage-control" title="Link to this heading">#</a></h2>
@@ -966,7 +1005,8 @@ covered by the same backups as the pages.</p>
 second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">src/scrap/enrich.py</span></code>), on the same worker thread, queue pause and
 daily budget (<a class="reference internal" href="decisions/0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
-page’s text. The schema is in
+page’s text, except that a confident list of actions gets task boxes appended
+(<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>). The schema is in
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql"><code class="docutils literal notranslate"><span class="pre">0009_enrich.sql</span></code></a>.</p>
 <ul class="simple">
 <li><p><strong>Model.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code>, default <code class="docutils literal notranslate"><span class="pre">claude-haiku-5-5</span></code>; <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code>, default <code class="docutils literal notranslate"><span class="pre">low</span></code>;
@@ -1367,6 +1407,7 @@ effort if drawings fall short); Excalidraw API drift (the version is pinned); mo
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#derived-results-and-versions">Derived results and versions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw-in-the-pwa">Excalidraw in the PWA</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sanitising">Sanitising</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-list-of-actions-becomes-task-boxes">A list of actions becomes task boxes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spend-and-outage-control">Spend and outage control</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-sent-to-anthropic">What is sent to Anthropic</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enrich-text-pages-and-links">Enrich: text pages and links</a><ul class="nav section-nav flex-column">

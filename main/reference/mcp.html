@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.3.1.dev23+g5690dfa68 documentation</title>
+    <title>MCP server &#8212; scrap 0.3.3.dev1+g7320158a5 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=543af20c"></script>
+    <script src="../_static/documentation_options.js?v=5187023e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -781,7 +781,10 @@ Claude wrote: <code class="docutils literal notranslate"><span class="pre">is:cl
 says <code class="docutils literal notranslate"><span class="pre">edited_by_claude</span></code>. Task boxes follow the new text as they do for the PWA’s edits: a
 box added to a note nobody filed makes it a todo, and <code class="docutils literal notranslate"><span class="pre">revert_text</span></code> restores text only, not
 that kind (<code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> sets a kind). With enrichment on, a save queues the page to be read again
-once the edits stop, as a PWA save does, so its summary and related pages follow the new text.</p></li>
+once the edits stop, as a PWA save does, so its summary and related pages follow the new text.
+The same author, <code class="docutils literal notranslate"><span class="pre">claude</span></code>, is used by scrap’s own photo ingest and enrich when they append task
+boxes to a confident list of actions (<a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a>, <a class="reference internal" href="../explanations/ingest.html#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>), so
+<code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds those pages too.</p></li>
 <li><p><strong>Coalescing.</strong> An <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds (default 300) of
 Claude’s previous text revision of that page folds into it, so a burst of small edits is one
 snapshot, not many: the burst’s text replaces that revision, keeping when it was made, <strong>under
