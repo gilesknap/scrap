@@ -316,9 +316,11 @@ class PagesMixin(Core):
             else:
                 related[b["id"]] = {**b, "via": "link"}
         job = conn.execute(
-            "SELECT state, last_error, reason FROM enrich_job WHERE page_id = ?"
-            " ORDER BY id DESC LIMIT 1",
-            (page_id,),
+            "SELECT state, last_error, reason,"
+            " (SELECT paused_until > :now FROM queue_state) AS paused,"
+            " (SELECT reason FROM queue_state) AS pause_reason"
+            " FROM enrich_job WHERE page_id = :page ORDER BY id DESC LIMIT 1",
+            {"now": now(), "page": page_id},
         ).fetchone()
         done = conn.execute(
             "SELECT summary, producer, source, source_title, updated_at"
@@ -330,10 +332,15 @@ class PagesMixin(Core):
             state = job and {"running": "processing", "dead": "failed"}.get(
                 job["state"], job["state"]
             )
+            # the queue is shared with ingest; with Claude off nothing would resume
+            held = state == "queued" and job["paused"] and enrich_on()
+            if held:
+                state = "paused"
             enrich = {
                 "on": enrich_on(),
                 "state": state,  # None: never queued
                 "error": job and job["state"] == "dead" and job["last_error"] or None,
+                "reason": job["pause_reason"] if held else None,  # why it is paused
                 "summary": done and done["summary"] or None,
                 "producer": done and done["producer"],
                 "source": done and done["source"],

@@ -20,6 +20,7 @@ def test_healthz(client):
         "status": "ok",
         "version": __version__,
         "max_upload_bytes": 50 * 2**20,
+        "paused": None,
     }
 
 

@@ -18,6 +18,10 @@ it("says what Claude is doing, and nothing once done", () => {
   expect(stateText(e({ state: "failed", error: "content: the model refused" }))).toBe(
     "Claude couldn't read it: the model refused",
   );
+  expect(stateText(e({ state: "paused", reason: "budget" }))).toBe(
+    "Paused (budget): nothing is lost",
+  );
+  expect(stateText(e({ state: "paused" }))).toBe("Paused: nothing is lost");
   expect(stateText(e({ state: "done" }))).toBeNull();
   expect(stateText(e({}))).toBeNull();
 });
@@ -25,6 +29,7 @@ it("says what Claude is doing, and nothing once done", () => {
 it("polls only while Claude has the page and is on", () => {
   expect(reading(page({ enrich: e({ state: "queued" }) }))).toBe(true);
   expect(reading(page({ enrich: e({ state: "processing" }) }))).toBe(true);
+  expect(reading(page({ enrich: e({ state: "paused" }) }))).toBe(true);
   expect(reading(page({ enrich: e({ state: "done" }) }))).toBe(false);
   expect(reading(page({ enrich: e({ state: "queued", on: false }) }))).toBe(false);
   expect(reading(page({ enrich: null }))).toBe(false);
