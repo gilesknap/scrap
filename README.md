@@ -46,7 +46,7 @@ More: [connect Claude Code and the `sc` commands](https://gilesknap.github.io/sc
 
 ## Install
 
-- [Try it on your LAN](https://gilesknap.github.io/scrap/tutorials/install-lan.html): a container on a laptop, Pi or home PC.
+- [Use it from other devices on your LAN](https://gilesknap.github.io/scrap/tutorials/install-lan.html): the same container, reachable from your phone or another machine.
 - [Install on a server](https://gilesknap.github.io/scrap/tutorials/install-server.html): rootless podman, systemd and Tailscale Serve.
 - [Install on Kubernetes](https://gilesknap.github.io/scrap/tutorials/install-kubernetes.html): Helm, Cloudflare tunnel and Access.
 
