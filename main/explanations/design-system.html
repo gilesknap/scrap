@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.3.4.dev6+g3f541e06e documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.3.4.dev7+g94ed714a0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=8753d3b6"></script>
+    <script src="../_static/documentation_options.js?v=7b26f33d"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -525,7 +525,7 @@ gzipped (<code class="docutils literal notranslate"><span class="pre">npm</span>
 photo’s drawing: a separate chunk, fetched only when a drawing is shown, built on React and
 Excalidraw with Excalidraw’s own fonts (served by scrap from <code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>), and outside
 that budget. Everything visual is defined once, in <code class="docutils literal notranslate"><span class="pre">web/src/tokens.css</span></code>; the components in
-<code class="docutils literal notranslate"><span class="pre">web/src/style.css</span></code> and <code class="docutils literal notranslate"><span class="pre">web/src/excalidraw.css</span></code> (the photo panel and the drawing viewer) use
+<code class="docutils literal notranslate"><span class="pre">web/src/style.css</span></code> (which imports <code class="docutils literal notranslate"><span class="pre">web/src/css/*.css</span></code>) and <code class="docutils literal notranslate"><span class="pre">web/src/excalidraw.css</span></code> (the photo panel and the drawing viewer) use
 nothing else. This page is the portable description, for carrying the design into another tool
 and back.</p>
 <section id="principles">
@@ -571,7 +571,7 @@ two looping indicators (busy, loading image) are the only motion that runs longe
 <h2>Tokens<a class="headerlink" href="#tokens" title="Link to this heading">#</a></h2>
 <p>Light / dark values, held to WCAG AA (4.5:1 for text, 3:1 for control edges) twice:
 <code class="docutils literal notranslate"><span class="pre">web/tests/contrast.test.ts</span></code> reads <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code> and checks the listed text/background pairs,
-every <code class="docutils literal notranslate"><span class="pre">style.css</span></code> rule that sets both a text colour and a background from tokens, and white
+every rule in <code class="docutils literal notranslate"><span class="pre">web/src/css/</span></code> that sets both a text colour and a background from tokens, and white
 text on <code class="docutils literal notranslate"><span class="pre">--overlay</span></code> over a white photo; and an end-to-end sweep (the <code class="docutils literal notranslate"><span class="pre">lowContrast</span></code> helper in
 <code class="docutils literal notranslate"><span class="pre">web/e2e/contrast.ts</span></code>, run by <code class="docutils literal notranslate"><span class="pre">web/e2e/view.spec.ts</span></code> on each screen in both themes and by
 several other e2e specs) computes the real colour of every visible piece of text and of what
