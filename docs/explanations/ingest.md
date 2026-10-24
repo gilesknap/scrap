@@ -293,7 +293,43 @@ the editor keeps its state.
 **Prompt injection.** The image is data: no tools, no network, output schema-checked and
 sanitised. It can change only its page's versions, a provisional title, its tags (adding up to
 10 on the first reading, alongside the user's, which it cannot remove; none on a later one unless
-the page has none) and an unfixed `note` kind.
+the page has none), an unfixed `note` kind and, for a list of actions, task boxes appended to
+the text ({ref}`ingest-actions`).
+
+(ingest-actions)=
+## A list of actions becomes task boxes
+
+Photo ingest and enrich share one prompt section (`prompts/items.md`, added to both prompts by
+`claude.prompt`), one schema fragment (`claude.INTENT_PROPERTIES`) and one writer
+(`src/scrap/actions.py`), so a photographed sticky and a typed note behave alike
+([](decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.md)).
+
+- **Output.** `intent` (`list-of-actions`, `reference` or `other`), `confidence` (`high`,
+  `medium`, `low`) and `items`, each `{text, done}` in reading order (`done` for an entry crossed
+  out or ticked). Only a page that is mainly a list of things to do is `list-of-actions`; the
+  prompt says to answer `reference` or `other` when unsure. A heading such as "CURRENT ACTIONS" is
+  not an item. Output without these fields counts as `other`.
+- **Checked** (`actions.clean_items`): each entry is one line of plain text of at most 200
+  characters, with control characters, leading list, heading, quote or checkbox marks, links
+  (kept as their label), code, brackets and angle brackets removed; empty and repeated entries
+  are dropped, and at most 30 are kept.
+- **When it writes.** Only when the intent is `list-of-actions` with `high` confidence and
+  entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
+  text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
+  and is a `note` with `kind_fixed` 0 (for a photo also a `whiteboard` that ingest, not the user,
+  chose, which becomes a note and then a todo). A saved link is never written to. For a photo
+  it is the capture's first image. A fixed kind, a page with boxes and any other reading change
+  nothing.
+- **How.** The entries are appended below the user's text as `- [ ] item` (`- [x]` for done),
+  separated by a blank line, in one text revision by `claude` that never folds into another
+  (`edit_text`, as MCP's `edit_page`). The user's words are never rewritten, even when they are
+  already plain bullets: the boxes go below them and the original list stays above. The task-box
+  rule then files the page as a todo. `revert_text` (to the revision before) restores the text;
+  as with any box-made todo the kind is not changed back.
+- **Reprocess and Ask Claude** read again, but a page that has boxes is skipped, so boxes are
+  never added twice. A photo page is read again for its drawing and tags, as before.
+- **Enrich runs once more.** The revision is a text save, so a saved text page queues one more
+  enrich job after the debounce, which finds the boxes and adds none.
 
 (ingest-spend)=
 ## Spend and outage control
@@ -367,7 +403,8 @@ Photos get tags from their own reading; notes, todos, reads and saved links get 
 second job kind, `enrich` (`src/scrap/enrich.py`), on the same worker thread, queue pause and
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
-page's text. The schema is in
+page's text, except that a confident list of actions gets task boxes appended
+({ref}`ingest-actions`). The schema is in
 [`0009_enrich.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql).
 
 - **Model.** `SCRAP_TEXT_MODEL`, default `claude-haiku-5-5`; `SCRAP_TEXT_EFFORT`, default `low`;

@@ -239,6 +239,9 @@ only while content editing is on, first).
   box added to a note nobody filed makes it a todo, and `revert_text` restores text only, not
   that kind (`edit_meta` sets a kind). With enrichment on, a save queues the page to be read again
   once the edits stop, as a PWA save does, so its summary and related pages follow the new text.
+  The same author, `claude`, is used by scrap's own photo ingest and enrich when they append task
+  boxes to a confident list of actions ([](../explanations/ingest.md), {ref}`ingest-actions`), so
+  `is:claude-edited` finds those pages too.
 - **Coalescing.** An `edit_page` within `SCRAP_REVISION_WINDOW` seconds (default 300) of
   Claude's previous text revision of that page folds into it, so a burst of small edits is one
   snapshot, not many: the burst's text replaces that revision, keeping when it was made, **under

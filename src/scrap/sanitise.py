@@ -10,6 +10,7 @@ import math
 import re
 from typing import Any, TypeGuard
 
+from .actions import clean_intent, clean_items
 from .claude import ELEMENT_TYPES, KINDS
 from .store import CONTROL, SURROGATE, InvalidError
 
@@ -107,6 +108,18 @@ def _element(e: Any, width: int, height: int) -> dict[str, Any]:
     return out
 
 
+def intent_fields(raw: dict[str, Any]) -> dict[str, Any]:
+    """Whether the page is a list of actions (actions.py), cleaned; a model that gave
+    none (an older prompt) says other, with no items."""
+    intent, confidence = clean_intent(raw)
+    items = clean_items(raw.get("items")) if intent == "list-of-actions" else []
+    return {
+        "intent": intent,
+        "confidence": confidence,
+        "items": [{"text": t, "done": d} for t, d in items],
+    }
+
+
 def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]:
     """The model's structured output, checked: page fields cleaned, elements turned
     into Excalidraw skeletons (bad ones dropped), and the warnings. Raises ValueError
@@ -151,6 +164,7 @@ def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]
         "text": text,
         "elements": elements,
         "warnings": warnings,
+        **intent_fields(raw),
     }
 
 

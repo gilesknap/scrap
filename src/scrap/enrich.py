@@ -25,7 +25,7 @@ import unicodedata
 from collections.abc import Callable
 from typing import Any
 
-from . import claude, fetch
+from . import actions, claude, fetch
 from .ingest import (
     MAX_FAILURES,
     PAUSES,
@@ -62,8 +62,9 @@ log = logging.getLogger(__name__)
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["tags", "summary", "title"],
+    "required": ["tags", "summary", "title", *claude.INTENT_PROPERTIES],
     "properties": {
+        **claude.INTENT_PROPERTIES,
         "tags": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
         "title": {"type": "string"},
@@ -311,7 +312,7 @@ def checked(
     out: dict[str, Any], vocab: set[str], want_summary: bool, link: bool
 ) -> dict[str, Any]:
     """The model's output within bounds (ValueError if not an answer at all)."""
-    if not all(k in out for k in SCHEMA["required"]):
+    if not all(k in out for k in ("tags", "summary", "title")):
         raise ValueError("output lacks a field")
     tags: list[str] = []
     invented = 0
@@ -328,10 +329,15 @@ def checked(
     summary = " ".join(CONTROL.sub(" ", summary).split())[:MAX_SUMMARY]
     title = out["title"] if isinstance(out["title"], str) else ""
     title = " ".join(CONTROL.sub(" ", title).split())[:MAX_TITLE] if link else ""
+    intent, confidence = actions.clean_intent(out)
+    items = actions.clean_items(out.get("items")) if intent == actions.INTENT else []
     return {
         "tags": tags[: MAX_NEW_TAGS * 2],
         "summary": summary if want_summary else "",
         "title": title,
+        "intent": intent,
+        "confidence": confidence,
+        "items": [{"text": t, "done": d} for t, d in items],
     }
 
 
@@ -493,7 +499,9 @@ class Enricher:
             return
         with self.store.connect() as conn:
             page = conn.execute(
-                "SELECT * FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
+                "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id)"
+                " AS rev FROM page WHERE id = ? AND deleted_at IS NULL",
+                (page_id,),
             ).fetchone()
             if page is None:  # trashed meanwhile: nothing to do
                 with transaction(conn):
@@ -557,6 +565,10 @@ class Enricher:
             return
         if not self.succeeded(job, run_id, done, out, link, got):
             return
+        items = [(i["text"], i["done"]) for i in out["items"]]
+        if not link and actions.accepted(out["intent"], out["confidence"], items):
+            # as the page was read: an edit since wins (a revision of Claude's own)
+            actions.append(self.store, page_id, page["rev"], items)
         if job["reason"] == "ask":  # Ask Claude: its related pages too, now
             error = relate(self.store, self.call, page_id, jid)
             if error is not None:
