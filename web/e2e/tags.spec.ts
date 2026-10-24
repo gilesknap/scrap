@@ -37,7 +37,7 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   const chip = panel.getByRole("button", { name: "Filter by #zephyr/garden" });
   await expect(chip).toHaveText("#zephyr/garden2");
   const box = await chip.boundingBox();
-  expect(box?.height).toBeGreaterThanOrEqual(44);
+  expect(box?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout: 43.99998
   await chip.click();
   await expect(page).toHaveURL(/q=zephyr%20fence%20tag%3Azephyr%2Fgarden$/);
   await expect(hits(page)).toHaveCount(2);
@@ -65,7 +65,7 @@ test("a page's tag searches for it, children too", async ({ page }) => {
   const row = page.locator(".page h1 + .tags");
   await expect(row.getByRole("link")).toHaveText(["#zephyr/garden", "#diy"]);
   const [line, chip] = [await row.boundingBox(), await row.getByRole("link").first().boundingBox()];
-  expect(chip?.height).toBeGreaterThanOrEqual(44);
+  expect(chip?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout
   expect(line?.height).toBeLessThan(50);
   await page.locator(".page .tags").getByRole("link", { name: "#zephyr/garden" }).click();
   await expect(page).toHaveURL(/\/search\?q=tag%3Azephyr%2Fgarden$/);

@@ -59,7 +59,10 @@ export async function page(key: string): Promise<Node> {
   const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
   const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
-  const [p] = await Promise.all([api<Page>(`pages/${encodeURIComponent(key)}`), renderer()]);
+  const [p] = await Promise.all([
+    api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
+    renderer(),
+  ]);
   const root = h("article", { className: "page" });
   // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
   const pager = state?.trail

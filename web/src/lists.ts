@@ -1,7 +1,7 @@
 // The lists of pages (newest first, with anything still waiting to upload above them) that
 // the search screen (an empty box) and the capture screen show.
 import { api, previewUrl, type Summary } from "./api";
-import { queue } from "./app";
+import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
 import { chipOf, dueOf } from "./status";
@@ -80,7 +80,11 @@ export async function pendingList(): Promise<Node> {
     ...items.map((i) => {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
       const title = i.text?.split("\n")[0] || i.url || i.files[0]?.name || "capture";
-      const why = i.error ?? (navigator.onLine ? "uploading" : "offline");
+      // "connection lost" / "offline" as the phone is now, not as when the upload failed
+      const why = (i.error ?? (navigator.onLine ? "uploading" : "offline")).replace(
+        /^(connection lost|offline)$/,
+        navigator.onLine ? "connection lost" : "offline",
+      );
       const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;
       // Each waits for an upload in progress (maybe in another tab), so say so.
       const act = (label: string, run: () => Promise<void>, sure = "") =>
@@ -132,7 +136,9 @@ export async function pageList(
 ): Promise<Node> {
   try {
     if (!navigator.onLine) throw new TypeError("offline");
-    const list = await api<Summary[]>(`pages?limit=${limit}&${filter}`);
+    const list = await api<Summary[]>(`pages?limit=${limit}&${filter}`, {
+      signal: view.signal,
+    });
     if (!list.length)
       return filter
         ? empty("note", "Nothing here.")

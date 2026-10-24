@@ -61,25 +61,10 @@ const up = document.getElementById("back") as HTMLButtonElement;
 const where = document.getElementById("where") as HTMLElement;
 // An iPhone's home-screen app: no Back of its own, so the top bar gives one
 const ios = (navigator as { standalone?: boolean }).standalone === true;
-// Back to the app's entry before this one (go() marks the entries it pushes), else (opened
-// from a link or a share) up to a parent: a todo's is Todos, Tags' is Search, any other
-// page's is Capture
-up.onclick = async () => {
-  if (history.state?.at) return history.back();
-  const from = location.pathname;
-  const to = from === "/tags" ? "/search" : (await kindShown()) === "todo" ? "/todos" : "/";
-  if (location.pathname === from) go(to, true); // unless gone elsewhere meanwhile
-};
-/** The kind of the page on screen: as drawn, else (still loading) asked for; "" unknown. */
-async function kindShown() {
-  const drawn = view.querySelector<HTMLElement>(".page[data-kind]")?.dataset.kind;
-  if (drawn) return drawn;
-  const key = decodeURIComponent(location.pathname.slice("/p/".length));
-  return api<{ kind: string }>(`pages/${encodeURIComponent(key)}`).then(
-    (p) => p.kind,
-    () => "",
-  );
-}
+// Back: to the app's entry before this one, else up to a parent (back.ts, a chunk of its own)
+up.onclick = () =>
+  history.state?.at ? history.back() : void import("./back").then((m) => m.up(go));
+const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
 let shown = ""; // the path on screen
 let controller = new AbortController();
@@ -114,9 +99,13 @@ async function render() {
       shown = ""; // no page on screen now
       view.replaceChildren(h("p", { className: "empty", role: "status" }, "Loading…"));
     };
+    // A view the server never answers ends in the problem state, with Retry
     try {
       el = await whenSlow(
-        Promise.resolve().then(() => fn(m)),
+        Promise.race([
+          Promise.resolve().then(() => fn(m)),
+          new Promise<never>((_, no) => setTimeout(no, VIEW_MS, new TypeError("timed out"))),
+        ]),
         150,
         loading,
       );
@@ -132,6 +121,7 @@ async function render() {
     placeToasts(); // e.g. one placed for the view before
     return;
   }
+  shown = "";
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));
 }
 

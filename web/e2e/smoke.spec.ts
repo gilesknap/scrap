@@ -361,6 +361,10 @@ test("a slow view says Loading at once, and a newer tap wins", async ({ page }) 
   await page.goto("/");
   await expect(page.locator(".capture")).toBeVisible();
   let hold = true;
+  let aborted = false;
+  page.on("requestfailed", (r) => {
+    if (r.url().endsWith(`/api/pages/${slug}`)) aborted = true;
+  });
   await page.route(`**/api/pages/${slug}`, async (r) => {
     while (hold) await new Promise((ok) => setTimeout(ok, 100));
     await r.continue();
@@ -373,9 +377,8 @@ test("a slow view says Loading at once, and a newer tap wins", async ({ page }) 
   await expect(page.locator(".capture")).toHaveCount(0); // not the old view, as if stuck
   await page.locator("#back").click(); // a page has no nav: the top bar's Back
   await expect(page.locator(".capture")).toBeVisible();
-  hold = false; // the page's answer comes late: it must not cover Capture
-  await page.waitForResponse(`**/api/pages/${slug}`);
-  await page.waitForTimeout(300);
+  await expect.poll(() => aborted).toBe(true); // the superseded request is given up, not left open
+  hold = false; // had its answer come late, it must not cover Capture
   await expect(page.locator(".capture")).toBeVisible();
   await expect(page.locator("#view > .page")).toHaveCount(0);
   await expect(page.getByText("Loading…")).toHaveCount(0);
@@ -401,8 +404,12 @@ test("opening the app while another tab holds the upload lock: sent once it is f
   });
   await other.waitForFunction(async () => (await navigator.locks.query()).held?.length === 1);
   refuse = false;
+  const posts: string[] = [];
+  page.on("request", (r) => r.url().endsWith("/api/captures") && posts.push(r.method()));
   await page.reload(); // no timer left from before: only the nudge on open
-  await page.waitForTimeout(1000);
+  await expect(page.getByText("waiting to upload (connection lost)")).toBeVisible();
+  await page.waitForLoadState("networkidle"); // the app has opened and its nudge has had its turn
+  expect(posts).toEqual([]); // it did not try, the other tab holds the lock
   await expect(page.locator("#queue")).toBeVisible(); // not on top of the other tab's upload
   await other.close(); // its lock comes free
   await expect(page.locator("#queue")).toBeHidden({ timeout: 10_000 });
