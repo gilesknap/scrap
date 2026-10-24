@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Use scrap on your phone over Tailscale &#8212; scrap 0.5.2.dev1+gfb864cb7b documentation</title>
+    <title>Use scrap on your phone over Tailscale &#8212; scrap 0.5.2.dev2+g2522a0a10 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=7a9294b2"></script>
+    <script src="../_static/documentation_options.js?v=f669fb9a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -492,26 +492,55 @@
                   
   <section id="use-scrap-on-your-phone-over-tailscale">
 <h1>Use scrap on your phone over Tailscale<a class="headerlink" href="#use-scrap-on-your-phone-over-tailscale" title="Link to this heading">#</a></h1>
-<p><a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> gives scrap an HTTPS address on your
-tailnet, which is what lets the phone install it as an app (<a class="reference internal" href="use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>).</p>
-<p>You need <a class="reference external" href="https://tailscale.com/download">Tailscale</a> on the computer running scrap and on the
-phone, both on the same tailnet, with <a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS and
-MagicDNS</a> enabled for it.</p>
-<ol class="arabic">
-<li><p>With scrap listening on <code class="docutils literal notranslate"><span class="pre">127.0.0.1:8000</span></code>, as in “Try it” in the README, run on that computer:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">443</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span>
-<span class="n">tailscale</span> <span class="n">serve</span> <span class="n">status</span>
+<p><a class="reference external" href="https://tailscale.com">Tailscale</a> gives scrap a private HTTPS address that only your own devices
+can open, which is what lets your phone install it as an app (<a class="reference internal" href="use-the-pwa.html"><span class="std std-doc">how to use the PWA</span></a>).
+Everything here runs without <code class="docutils literal notranslate"><span class="pre">sudo</span></code>.</p>
+<section id="make-a-tailnet-and-add-your-phone">
+<h2>Make a tailnet and add your phone<a class="headerlink" href="#make-a-tailnet-and-add-your-phone" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Sign up, free, at <a class="reference external" href="https://login.tailscale.com">https://login.tailscale.com</a> with a Google, Microsoft, GitHub or Apple
+account. That account is your tailnet.</p></li>
+<li><p>Open <a class="reference external" href="https://login.tailscale.com/admin/dns">DNS</a> in the admin console and click <strong>Enable
+HTTPS</strong> (turn on MagicDNS first if it is off).</p></li>
+<li><p>Install the Tailscale app on your phone and sign in with the same account.</p></li>
+<li><p>Open <a class="reference external" href="https://login.tailscale.com/admin/settings/keys">Keys</a>, click <strong>Generate auth key</strong>, and
+leave <strong>Reusable</strong> and <strong>Ephemeral</strong> off. Keep the page open: the key is shown once.</p></li>
+</ol>
+</section>
+<section id="put-scrap-on-the-tailnet">
+<h2>Put scrap on the tailnet<a class="headerlink" href="#put-scrap-on-the-tailnet" title="Link to this heading">#</a></h2>
+<p>With scrap running as in “Try it” in the README, paste the key when prompted (it is not echoed or
+kept in your shell history):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">printf</span> <span class="s1">'Tailscale auth key: '</span><span class="p">;</span> <span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">TS_AUTHKEY</span><span class="p">;</span> <span class="n">export</span> <span class="n">TS_AUTHKEY</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">-</span><span class="n">d</span> <span class="o">--</span><span class="n">name</span> <span class="n">scrap</span><span class="o">-</span><span class="n">ts</span> <span class="o">--</span><span class="n">network</span><span class="o">=</span><span class="n">host</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">ts</span><span class="p">:</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">tailscale</span> \
+  <span class="o">-</span><span class="n">e</span> <span class="n">TS_AUTHKEY</span> <span class="o">-</span><span class="n">e</span> <span class="n">TS_HOSTNAME</span><span class="o">=</span><span class="n">scrap</span> <span class="o">-</span><span class="n">e</span> <span class="n">TS_USERSPACE</span><span class="o">=</span><span class="n">true</span> <span class="o">-</span><span class="n">e</span> <span class="n">TS_STATE_DIR</span><span class="o">=/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">tailscale</span> \
+  <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">tailscale</span><span class="o">/</span><span class="n">tailscale</span>
+<span class="n">unset</span> <span class="n">TS_AUTHKEY</span>
+<span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="o">--</span><span class="n">bg</span> <span class="o">--</span><span class="n">https</span><span class="o">=</span><span class="mi">443</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">127.0.0.1</span><span class="p">:</span><span class="mi">8000</span>
+<span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="n">status</span>
 </pre></div>
 </div>
-</li>
-<li><p>Open the address it prints, <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net</span></code>, in your phone’s browser and
-choose <em>Add to Home screen</em> or <em>Install app</em>.</p></li>
-</ol>
+<p>Open the address it prints, <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code>, in your phone’s browser and choose
+<em>Add to Home screen</em> or <em>Install app</em>. The first visit can take a minute while the certificate is
+issued. If a device called <code class="docutils literal notranslate"><span class="pre">scrap</span></code> already exists, the new one is <code class="docutils literal notranslate"><span class="pre">scrap-1</span></code>; use the address
+<code class="docutils literal notranslate"><span class="pre">serve</span> <span class="pre">status</span></code> prints.</p>
+<p>The key works once and the volume remembers the login. After a reboot, start scrap again as in
+“Try it”, then run <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">start</span> <span class="pre">scrap-ts</span></code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Never use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>: it publishes scrap to the internet.</p>
-<section id="use-the-same-address-for-claude-code">
-<h2>Use the same address for Claude Code<a class="headerlink" href="#use-the-same-address-for-claude-code" title="Link to this heading">#</a></h2>
-<p>Add the address to <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> and restart scrap, otherwise <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> (<a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>). On the same computer, Claude Code can keep using
-<code class="docutils literal notranslate"><span class="pre">http://localhost:8000/mcp</span></code>.</p>
+</div>
+<p>Claude Code on the same computer needs nothing: it keeps using <code class="docutils literal notranslate"><span class="pre">http://localhost:8000/mcp</span></code>.</p>
+<p>This is a trial setup for one computer and your phone. For a lasting install that other devices and
+Claude Code can use, see <a class="reference internal" href="../tutorials/install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>What has been checked.</strong> On a Linux workstation with rootless podman: joining with a
+single-use auth key, <code class="docutils literal notranslate"><span class="pre">serve</span></code>, the HTTPS address from another device on the tailnet, and the sidecar
+coming back on the same address after <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">restart</span></code> and after <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">stop</span></code> then <code class="docutils literal notranslate"><span class="pre">start</span></code>, with no
+key. Without <code class="docutils literal notranslate"><span class="pre">TS_STATE_DIR</span></code> the login is lost on restart. Not checked: a phone, the Add to Home
+screen step, and a reboot.</p>
+</div>
 </section>
 </section>
 
@@ -562,7 +591,8 @@ choose <em>Add to Home screen</em> or <em>Install app</em>.</p></li>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-the-same-address-for-claude-code">Use the same address for Claude Code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#make-a-tailnet-and-add-your-phone">Make a tailnet and add your phone</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#put-scrap-on-the-tailnet">Put scrap on the tailnet</a></li>
 </ul>
   </nav></div>
 
