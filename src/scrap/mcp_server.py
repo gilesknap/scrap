@@ -279,6 +279,28 @@ def split_lines(value: str) -> list[str]:
     return lines if lines[-1] else lines[:-1]
 
 
+class _WholeFileMatcher(difflib.SequenceMatcher):
+    """Compares only the lines between the common start (top) and end of a and b,
+    but reports opcodes for the whole files, so get_grouped_opcodes sees the common
+    start and end as equal runs and gives each hunk its full context."""
+
+    def __init__(self, a: list[str], b: list[str], top: int, end: int):
+        super().__init__(None, a[top : len(a) - end], b[top : len(b) - end])
+        self._a_len, self._b_len, self._top, self._end = len(a), len(b), top, end
+
+    def get_opcodes(self):
+        top, end = self._top, self._end
+        codes = [("equal", 0, top, 0, top)] if top else []
+        codes += [
+            (tag, i1 + top, i2 + top, j1 + top, j2 + top)
+            for tag, i1, i2, j1, j2 in super().get_opcodes()
+        ]
+        if end:
+            a_end, b_end = self._a_len - end, self._b_len - end
+            codes.append(("equal", a_end, self._a_len, b_end, self._b_len))
+        return codes
+
+
 def unified(slug: str, rev: int, before: str, after: str) -> tuple[str, bool]:
     """A unified diff of a page's text, and whether it was cut at MAX_DIFF. difflib
     is quadratic in the worst case, so it compares only the lines between the
@@ -298,16 +320,7 @@ def unified(slug: str, rev: int, before: str, after: str) -> tuple[str, bool]:
         end += 1
     head = [f"--- {slug} (rev {rev})\n", f"+++ {slug} (edited)\n"]
     if (len(a) - top - end) * (len(b) - top - end) <= DIFF_WORK:
-        a_end, b_end = len(a) - end, len(b) - end
-        matcher = difflib.SequenceMatcher(None, a[top:a_end], b[top:b_end])
-        codes = [("equal", 0, top, 0, top)] if top else []
-        codes += [
-            (tag, i1 + top, i2 + top, j1 + top, j2 + top)
-            for tag, i1, i2, j1, j2 in matcher.get_opcodes()
-        ]
-        if end:
-            codes.append(("equal", a_end, len(a), b_end, len(b)))
-        matcher.opcodes = codes  # type: ignore[assignment]  # grouped as if whole
+        matcher = _WholeFileMatcher(a, b, top, end)
         lines = head
         for group in matcher.get_grouped_opcodes(CONTEXT):
             first, last = group[0], group[-1]
