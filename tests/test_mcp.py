@@ -12,6 +12,7 @@ from mcp.client.client import Client
 from scrap import mcp_server
 from scrap.app import create_app
 from scrap.ingest import put_derived
+from scrap.mcp_tools import writing
 from scrap.store import Store, new_ulid, now
 
 ACCEPT = {"Accept": "application/json, text/event-stream"}
@@ -207,7 +208,7 @@ def test_write_checks_sizes(store, args, error):
 
 
 def test_append_keeps_a_page_under_its_limit(store, monkeypatch):
-    monkeypatch.setattr(mcp_server, "MAX_PAGE", 100)
+    monkeypatch.setattr(writing, "MAX_PAGE", 100)
     page = write(store, body="x" * 60)
     assert "holds at most 100" in refused(
         store, "write", title="", body="y" * 60, origin="", append_to=page["id"]
