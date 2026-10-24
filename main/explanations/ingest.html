@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.3.3.dev2+g2e1b06edc documentation</title>
+    <title>Claude ingest &#8212; scrap 0.3.4.dev1+gc62b77d55 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0a430c59"></script>
+    <script src="../_static/documentation_options.js?v=21d4823b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1022,7 +1022,7 @@ only.
 related pages. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> queues every note, todo or read with no tags
 that Claude has not read, once, by hand (never automatic). Some things queue nothing:</p>
 <ul>
-<li><p>A photo or file capture, even with a typed note (<code class="docutils literal notranslate"><span class="pre">should_enrich</span></code> in <code class="docutils literal notranslate"><span class="pre">store.py</span></code>, #155): photo ingest reads the photo, and the
+<li><p>A photo or file capture, even with a typed note (<code class="docutils literal notranslate"><span class="pre">should_enrich</span></code> in <code class="docutils literal notranslate"><span class="pre">store/indexing.py</span></code>, #155): photo ingest reads the photo, and the
 page’s first text reading comes with a later save of its title or text (or Ask Claude).</p></li>
 <li><p>A whiteboard or document page: it is not read as text (#155).</p></li>
 <li><p>Pages Claude Code adds with the MCP <code class="docutils literal notranslate"><span class="pre">write</span></code> tool count as notes, whatever their kind, so a

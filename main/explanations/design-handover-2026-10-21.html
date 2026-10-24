@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Design handover, 2026-10-21 (superseded) &#8212; scrap 0.3.3.dev2+g2e1b06edc documentation</title>
+    <title>Design handover, 2026-10-21 (superseded) &#8212; scrap 0.3.4.dev1+gc62b77d55 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=0a430c59"></script>
+    <script src="../_static/documentation_options.js?v=21d4823b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -806,7 +806,7 @@ priority first, and the Snooze line only once snooze landed.</p>
 <p>These went through normal pull requests, not Design. They are listed so Design doesn’t redo them.
 All have landed on <code class="docutils literal notranslate"><span class="pre">main</span></code>.</p>
 <ul class="simple">
-<li><p><strong>Page cap</strong> (landed, #125): a page holds at most 1 MB of text; the API answers 422 (the limit is <code class="docutils literal notranslate"><span class="pre">MAX_PAGE</span></code> in <code class="docutils literal notranslate"><span class="pre">src/scrap/store.py</span></code>).
+<li><p><strong>Page cap</strong> (landed, #125): a page holds at most 1 MB of text; the API answers 422 (the limit is <code class="docutils literal notranslate"><span class="pre">MAX_PAGE</span></code> in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/constants.py</span></code>).
 Vault import is not capped (#62, open).</p></li>
 <li><p><strong>Snooze data</strong> (landed, #130): <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> on todos (an additive migration), <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code>, snoozed todos
 out of Now, Upcoming and the nav count until their day, “· snoozed till 3 Nov” in All. Only the

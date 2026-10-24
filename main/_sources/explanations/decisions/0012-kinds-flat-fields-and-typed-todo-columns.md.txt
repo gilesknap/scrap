@@ -37,7 +37,7 @@ the vocabulary.
 - Fields are only as validated as the code that writes them; the schema checks the JSON type only.
 - Migration 0005 moved imported `due` and `priority` out of `fields`.
 - The `consume` kind shipped in the PWA as "Later", not "Read": `web/src/kinds.ts` names it Later,
-  and a search's `kind:` also accepts `later` and `read` (`KIND_NAMES` in `store.py`) beside
+  and a search's `kind:` also accepts `later` and `read` (`KIND_NAMES` in `store/constants.py`) beside
   `consume`.
 - Tags are no longer set only on the first successful model run. Photo ingest adds its tags to the
   user's on the first reading of the first photo (and on a later one only to a page with none),
