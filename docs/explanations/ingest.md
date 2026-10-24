@@ -402,7 +402,7 @@ covered by the same backups as the pages.
 ## Enrich: text pages and links
 
 Photos get tags from their own reading; notes, todos, reads and saved links get them from a
-second job kind, `enrich` (`src/scrap/enrich.py`), on the same worker thread, queue pause and
+second job kind, `enrich` (`src/scrap/enrich/`), on the same worker thread, queue pause and
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page's text, except that a confident list of actions gets task boxes appended

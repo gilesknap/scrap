@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from scrap import claude, enrich, fetch
 from scrap.app import create_app
+from scrap.enrich import finding
 from scrap.ingest import Worker, spent_today
 from scrap.store import Store, connect, new_ulid
 
@@ -267,7 +268,7 @@ def test_the_related_pass_stops_at_a_pause_and_the_budget(store, monkeypatch):
 
 def test_candidates_find_pages_by_tags_and_words_within_the_cap(store, monkeypatch):
     monkeypatch.setenv("SCRAP_INGEST", "off")
-    monkeypatch.setattr(enrich, "BY_TAGS", 2)
+    monkeypatch.setattr(finding, "BY_TAGS", 2)
     me = capture(store, "Larch cladding for the shed", tags=["shed"])
     tagged = [capture(store, f"tagged {n}", tags=["shed"]) for n in range(3)]
     worded = capture(store, "Where to buy larch boards")

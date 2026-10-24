@@ -21,7 +21,7 @@ untrusted.
 
 ## Decision
 
-- A second job kind, `enrich` (`enrich.py`), for notes, todos, reads and saved links. It runs on
+- A second job kind, `enrich` (`enrich/`), for notes, todos, reads and saved links. It runs on
   the ingest worker's thread, whenever there is no photo job to run, so there is still no second
   process. It is on when ingest is on (`SCRAP_INGEST`) unless `SCRAP_ENRICH=off`.
 - One tool-less, schema-checked Messages API call per page, on a small text model
