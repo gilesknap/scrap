@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.3.4.dev4+gb58e8c875 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.3.4.dev5+g590360b35 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a2fc2026"></script>
+    <script src="../_static/documentation_options.js?v=41eb07fd"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1002,7 +1002,7 @@ covered by the same backups as the pages.</p>
 <section id="enrich-text-pages-and-links">
 <span id="ingest-enrich"></span><h2>Enrich: text pages and links<a class="headerlink" href="#enrich-text-pages-and-links" title="Link to this heading">#</a></h2>
 <p>Photos get tags from their own reading; notes, todos, reads and saved links get them from a
-second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">src/scrap/enrich.py</span></code>), on the same worker thread, queue pause and
+second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">src/scrap/enrich/</span></code>), on the same worker thread, queue pause and
 daily budget (<a class="reference internal" href="decisions/0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page’s text, except that a confident list of actions gets task boxes appended

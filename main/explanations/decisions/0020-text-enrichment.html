@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.3.4.dev4+gb58e8c875 documentation</title>
+    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.3.4.dev5+g590360b35 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=a2fc2026"></script>
+    <script src="../../_static/documentation_options.js?v=41eb07fd"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -542,7 +542,7 @@ untrusted.</p>
 <section id="decision">
 <h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>A second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">enrich.py</span></code>), for notes, todos, reads and saved links. It runs on
+<li><p>A second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">enrich/</span></code>), for notes, todos, reads and saved links. It runs on
 the ingest worker’s thread, whenever there is no photo job to run, so there is still no second
 process. It is on when ingest is on (<code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code>) unless <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code>.</p></li>
 <li><p>One tool-less, schema-checked Messages API call per page, on a small text model
