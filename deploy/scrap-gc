@@ -31,7 +31,7 @@ podman=${PODMAN:-/usr/bin/podman}
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
 exec 9>"$SCRAP_BACKUPS/.lock" # never during a backup run
 flock 9
-recent=$(find "$SCRAP_BACKUPS" -mindepth 2 -maxdepth 2 -type f -name COMPLETE -mmin -1560 \
+recent=$(find -H "$SCRAP_BACKUPS" -mindepth 2 -maxdepth 2 -type f -name COMPLETE -mmin -1560 \
     -path '*/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z/COMPLETE' |
     head -n 1)
 mode=--delete
