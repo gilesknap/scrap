@@ -1,6 +1,8 @@
 #!/bin/sh
 # Delete the stored files nothing uses any more (`scrap gc --delete`), in a
-# throwaway container, but only after a backup in the last 26 hours: every file
+# throwaway container, but only after a backup in the last 26 hours (a run
+# directory holding the COMPLETE marker `scrap backup` writes once the copy has
+# passed an integrity check; a partial run does not count): every file
 # a backup's database names is in that backup, so deleting the live copy never
 # loses the only one. Files younger than 24 hours are kept (uploads in flight).
 # Started by scrap-gc.timer, after the nightly backup.
@@ -29,8 +31,8 @@ podman=${PODMAN:-/usr/bin/podman}
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
 exec 9>"$SCRAP_BACKUPS/.lock" # never during a backup run
 flock 9
-recent=$(find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d -mmin -1560 \
-    -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' |
+recent=$(find "$SCRAP_BACKUPS" -mindepth 2 -maxdepth 2 -type f -name COMPLETE -mmin -1560 \
+    -path '*/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z/COMPLETE' |
     head -n 1)
 mode=--delete
 if [ -z "$recent" ]; then

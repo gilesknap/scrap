@@ -38,4 +38,5 @@ and shared, so deleting one safely is harder than deleting a row.
   photo, so the stored prompts and responses do not grow for ever.
 - The nightly timer's script (`deploy/scrap-gc`) takes the lock it shares with `scrap-backup`,
   so the two never run at once, and passes `--delete` only if a backup run directory younger than
-  26 hours exists in the backups folder. Without one it counts only, says so, and exits non-zero.
+  26 hours holding the `COMPLETE` marker (written after an integrity check) exists in the
+  backups folder. Without one it counts only, says so, and exits non-zero.
