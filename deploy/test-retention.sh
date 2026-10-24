@@ -59,8 +59,40 @@ make_runs "$b" 2
 prune "$b" 14
 expect "fewer than keep" "./20261001T033000Z ./20261002T033000Z " "$(listing "$b")"
 
+# Leading zeros are decimal, including 08 and 09; the result is the number.
+b="$tmp/zeros"
+make_runs "$b" 9
+prune "$b" 07
+expect "KEEP=07 keeps 7" "7" "$(find "$b" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
+prune "$b" 08
+expect "KEEP=08 accepted, keeps all 7" "7" "$(find "$b" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
+prune "$b" 009
+expect "KEEP=009 accepted, keeps all 7" "7" "$(find "$b" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
+prune "$b" 02
+expect "KEEP=02 keeps newest 2" "./20261008T033000Z ./20261009T033000Z " "$(listing "$b")"
+
+# SCRAP_BACKUPS may itself be a symlink; it is pruned, links inside still are not.
+make_runs "$tmp/disk2" 4
+ln -s "$tmp/disk2" "$tmp/backups-link"
+prune "$tmp/backups-link" 2
+expect "symlinked SCRAP_BACKUPS pruned" "./20261003T033000Z ./20261004T033000Z " \
+    "$(listing "$tmp/disk2")"
+
+# A missing directory (or dangling symlink) fails loudly.
+ln -s "$tmp/nowhere" "$tmp/dangling"
+for d in "$tmp/nowhere" "$tmp/dangling"; do
+    if err=$(prune "$d" 3 2>&1); then
+        expect "missing dir '$d' rejected" "non-zero exit" "exit 0"
+    else
+        case $err in
+        *"is not a directory"*) expect "missing dir rejected with message" ok ok ;;
+        *) expect "missing dir rejected with message" "message" "$err" ;;
+        esac
+    fi
+done
+
 # Bad KEEP values fail loudly and remove nothing.
-for keep in 0 00 "" abc -1 2x; do
+for keep in 0 00 000 "" abc -1 2x 0x1; do
     b="$tmp/bad"
     rm -rf "$b"
     make_runs "$b" 3
