@@ -15,6 +15,7 @@ from mcp.client.client import Client
 
 from scrap import mcp_server
 from scrap.app import create_app
+from scrap.mcp_tools import editing
 from scrap.store import Store, connect
 from test_mcp import human, ok, refused, write
 
@@ -272,7 +273,7 @@ def test_a_replacement_over_the_page_limit_is_refused_before_it_is_built(
         calls.append(len(body))
         return real(body, old, new, every)
 
-    monkeypatch.setattr(mcp_server, "replaced", spy)
+    monkeypatch.setattr(editing, "replaced", spy)
     error = refused(store, "edit_page", page=ref["slug"], old="a",
                     new="b" * 200_000, replace_all=True)  # fmt: skip
     assert "the page text is 199,800,000,000 bytes" in error and calls == [999_000]
