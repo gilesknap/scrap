@@ -72,7 +72,55 @@
   outline-offset: -9.5px; /* on the pill drawn inside the 48 px target */
   background: var(--surface) padding-box;
 }
-/* What Claude added under a page's text (enrich.ts): its state, summary and related pages */
+/* Ingest state: a pill, then what can be done about it */
+.ingest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+/* Reprocess, as a text button at the row's end */
+.ingest > button.link {
+  margin: 0 calc(-1 * var(--s-3)) 0 auto;
+}
+.state {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--sunk);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.state.done {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.state.failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.state.paused {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+/* A question asked in place, with its answers (a photo's Reprocess, a snooze past the due
+   date) */
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+}
+.choice p {
+  flex-basis: 100%;
+  margin: 0;
+  font-weight: 500;
+}
+/* What Claude added under a page's text (enrich.ts): its state, what it did, its summary and
+   related pages */
 .enrich {
   margin: var(--s-4) 0;
   padding: var(--s-3) var(--s-4);
@@ -80,23 +128,22 @@
   background: var(--sunk);
   font-size: var(--t-sm);
 }
-.enrich .row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
+.enrich .ingest > button:not(.link) {
+  margin-inline-start: auto;
 }
-.enrich .row span {
+.enrich .did {
+  margin: var(--s-2) 0 0;
   color: var(--ink-2);
 }
-.enrich .row .err {
-  color: var(--danger);
+.enrich > .did:first-child {
+  margin-top: 0;
 }
-.enrich .row button {
-  margin-inline-start: auto;
+.enrich .ask {
+  margin-top: var(--s-2);
 }
 .enrich .summary {
   margin: var(--s-2) 0 0;
+  font-size: var(--t-md);
 }
 .enrich h2 {
   margin: var(--s-3) 0 var(--s-1);

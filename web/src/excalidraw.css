@@ -99,51 +99,6 @@
   text-align: center;
 }
 
-/* Ingest state: a pill, then what can be done about it */
-.ingest {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-}
-/* Reprocess, as a text button at the row's end */
-.ingest > button.link {
-  margin: 0 calc(-1 * var(--s-3)) 0 auto;
-}
-.state {
-  padding: var(--s-1) var(--s-3);
-  border-radius: var(--r-pill);
-  background: var(--sunk);
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-.state.done {
-  background: var(--accent-soft);
-  color: var(--ink);
-}
-.state.failed {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-.state.paused {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-}
-.choice {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  padding: var(--s-3);
-  border-radius: var(--r-lg);
-  background: var(--accent-soft);
-}
-.choice p {
-  flex-basis: 100%;
-  margin: 0;
-  font-weight: 500;
-}
 .claude-text {
   border-top: 1px solid var(--line);
 }

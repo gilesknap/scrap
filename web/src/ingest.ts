@@ -119,7 +119,8 @@ export function photoPanel(o: {
   const button = (label: string, onclick: () => void) =>
     h("button", { type: "button", onclick }, label);
   if (i.state === "failed") actions.append(button("Retry", () => void reprocess(false)));
-  // Reprocess is rarely wanted: a quiet text button at the row's end, not a full one
+  // Reprocess is rarely wanted: a quiet text button at the row's end, not a full one (a text
+  // page's Claude row says the same: enrich.ts)
   else if (i.state === "done")
     actions.append(h("button", { type: "button", className: "link", onclick: ask }, "Reprocess"));
   else if (i.state === "paused") {

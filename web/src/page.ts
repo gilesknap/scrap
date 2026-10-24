@@ -69,6 +69,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   const pager = state?.trail
     ? (await import("./pager").catch(() => null))?.pager(state, p.slug, root, signal)
     : null;
+  // In the top bar, beside Back (main.ts empties it when the view changes)
+  if (pager && !signal.aborted) document.getElementById("pos")?.replaceChildren(pager);
   let shown = p;
   let queue: Queue | null = null;
   let poll = 0;
@@ -144,7 +146,6 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const saved = download(`/api/pages/${p.id}/download`); // the page as a file
     const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
-      pager ?? "",
       h("h1", { dir: "auto" }, p.title),
       // Its tags, most used first, in one line that scrolls; each one tapped searches for it
       // (with its children: tag:a finds a/b). First, Tags: tapped, edits them in place
@@ -199,8 +200,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
         { className: "meta" },
         // What it is, first (its row has only the icon): its kind, and its status if it has one
         kindChip(p),
-        `Created ${whenShort(p.created_at)}`,
-        p.updated_at !== p.created_at && ` · edited ${whenShort(p.updated_at)}`,
+        h("span", {}, `Created ${whenShort(p.created_at)}`),
+        p.updated_at !== p.created_at && h("span", {}, `Edited ${whenShort(p.updated_at)}`),
         // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
         p.captures[0]?.source === "mcp" &&
           h(

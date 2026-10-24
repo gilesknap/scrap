@@ -187,14 +187,16 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. There is no separate Recent screen: the empty box is it.
 - A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
-  bottom. Use the phone's or the browser's Back. On an iPhone, installed to the home screen
-  (which has no Back of its own), the top bar has a back arrow in place of the wordmark
-  (**Tags** has it too, with its title). It goes back to where you were in the app, as the phone's Back does; opened from a
-  link or a share, it goes up instead: to the Todos screen for a todo, to Capture for any other
-  page, and to Search from Tags.
+  bottom. In the top bar, in place of the wordmark, Back names where it goes: **‹ Search**,
+  **‹ Todos** or **‹ Capture**, the list you opened the page from (**Tags** has it too, with its
+  title, going to Search). It goes straight back to that list as you left it, even after you
+  have stepped through its pages or followed links from page to page; the phone's or the
+  browser's own Back still goes back one step at a time. A page opened from a link or a share
+  has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Capture
+  for any other page.
 - On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
   wide.
-- Every row, a page's tags, its `[[links]]` and the pager's ‹ › are ordinary links with their own
+- Every row, a page's tags, its `[[links]]` and the pager's ∧ ∨ are ordinary links with their own
   address, so you can open one in a new tab: on a phone, long-press it and choose *Open in new
   tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
   Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
@@ -202,12 +204,11 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
 - A row in a list shows a page's kind by its icon (a checklist for a todo, a bookmark for
   Later); a page says it in a chip at the start of its line under the title, with its status
   if it has one: *Todo · open*, *Later · done*, *Note*.
-- A page opened from the list or a search shows where it is in that list (*3 of 23 ·
-  Search results*; the capture screen's list, and the search screen's newest-first list, say
-  *Latest*, or the kind chosen): swipe left for the next one and right for the previous one, or
-  use the ‹ › beside it (or the arrow keys). The page follows your finger and slides away to the next one; a short
-  drag settles back, and at the first or last it only gives a little and says so. Back (the
-  top bar's arrow or the phone's) returns to the list. Swipes start
+- A page opened from the list or a search shows where it is in that list at the right of the
+  top bar, as a mail app does: *3 of 23* with **∧** (previous) and **∨** (next). Swipe left for
+  the next one and right for the previous one, or use the arrows (or the arrow keys). The page
+  follows your finger and slides away to the next one; a short drag settles back, and at the
+  first or last it only gives a little and says so. Back returns to the list. Swipes start
   away from the screen's edges (the phone's own Back gesture lives there) and are ignored on
   text that scrolls sideways, while zoomed in or while selecting text. The pager needs the
   server's list, so a page has none when it is opened offline from a list (and a page cannot be
@@ -365,7 +366,8 @@ How matching works:
   ticks no box, and a cancelled todo is left as it is.
 - **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
   tags and pick a **Snooze until** date, or **Tomorrow** or **Next week** (**No snooze** wakes
-  it), then **Save**. Until that day it is out of **Now** and **Upcoming** and the Todos
+  it), then **Save**. A snooze later than the todo's due date asks first whether the due date
+  moves with it: **Move due date** (to the snooze's day) or **Keep due date**. Until that day it is out of **Now** and **Upcoming** and the Todos
   tab's count (Now's count says how many are snoozed: tap *1 snoozed* for a search of them,
   `kind:todo is:snoozed sort:due`); **All** shows it, marked *snoozed till 3 Nov*, and
   `is:snoozed` finds them (open ones only: a done or cancelled todo's snooze no longer hides
@@ -388,10 +390,9 @@ How matching works:
 - **New todo**, the **+** at the right of the top bar on the Todos screen (its accessible name
   is *New todo*), opens the composer on **Todo**; save, and you are back on the list with the
   new todo in it once it has uploaded.
-- Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the pager
-  says *3 of 9 · Todos · Now*) with **Undo** for a few seconds; on the last one it stays, and
-  offers **Back to list**. Back (the top bar's arrow on an iPhone) goes back to the list at any
-  time.
+- Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the top
+  bar says *3 of 9*) with **Undo** for a few seconds; on the last one it stays, and offers
+  **Back to list**. **‹ Todos** in the top bar goes back to the list at any time.
   Opened from anywhere else, Mark done stays on the page.
 
 ### The page view
@@ -555,15 +556,17 @@ or link page gets a **Claude** panel on its page view, under its text. Enrichmen
 default once `SCRAP_INGEST=on`; without ingest the panel is not shown unless the page already
 has a summary or related pages. The panel has:
 
-- Its state: *Waiting for Claude* (or *Waiting: Claude is off*), *Claude is reading it…*, or
-  *Claude couldn't read it* with the reason, or *Paused* with the reason and **Resume** (the
-  queue is shared with photos; nothing is lost while paused). Nothing is shown when it is done.
+- Its state, as a photo's is said: *Read by Claude* once it has read the page, with
+  **Reprocess** at the end of the line to have it read the page again (a saved link is fetched
+  again); while it works, *Waiting for Claude* (or *Waiting: Claude is off*) or *Claude is
+  reading it…*; *Paused* with the reason and **Resume** (the queue is shared with photos;
+  nothing is lost while paused); *Claude couldn't read it* with the reason, and **Retry**.
+- A line saying what Claude did: *Claude wrote the summary, added the dashed tags and found
+  the related pages* (its tags are marked with a dashed outline in the tag line). Before Claude
+  has read the page, the line says what it would do instead, with **Ask Claude to read it**.
 - Claude's one-line summary of the page, which search also looks in.
 - **Related**: pages Claude picked, merged with the pages that link here (marked *· links
   here*).
-- **Ask Claude** (**Ask again** once it has read the page), which queues the page for Claude now;
-  a saved link is fetched again. Claude also tags the page: its tags are marked in the tag
-  line.
 
 Reading a page needs the server, like opening it; the page checks again while Claude has it
 queued or is reading it.

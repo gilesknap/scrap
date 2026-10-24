@@ -89,7 +89,8 @@ test("deleting an opened page returns to its search, filters kept; Back too", as
   await page.goto("/"); // from elsewhere, so Back has somewhere wrong to go
   await page.goto(url);
   await page.locator(`a[href="/p/${keep}"]`).click();
-  await expect(page.locator(".pager")).toContainText("Search results");
+  await expect(page.locator("header .pager")).toHaveAttribute("aria-label", "In Search results");
+  await expect(page.locator("#backto")).toHaveText("Search");
   await page.goBack();
   await expect(page).toHaveURL(url);
   await expect(page.getByRole("searchbox")).toHaveValue(q);

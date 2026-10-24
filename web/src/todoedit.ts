@@ -58,15 +58,16 @@ function soon(date: HTMLInputElement, days: [string, number][], name: string) {
   };
 }
 
-/** A day field: a native date picker and a ghost button that empties it. Each change is an
- * input event (the editor keeps a draft). */
+/** A day field: a native date picker and a chip that empties it (a chip, as Today and
+ * Tomorrow are, so it reads as a button). Each change is an input event (the editor keeps a
+ * draft). */
 function dayField(label: string, none: string) {
   const date = h("input", { type: "date", min: "0001-01-01", max: "9999-12-31" });
   const clear = h(
     "button",
     {
       type: "button",
-      className: "ghost",
+      className: "facet",
       onclick: () => {
         date.value = "";
         date.dispatchEvent(new Event("input", { bubbles: true }));
@@ -138,15 +139,10 @@ export function todoForm(p: Page, close: (p?: Page) => void) {
       },
       onsubmit: (e: Event) => {
         e.preventDefault();
-        save.disabled = true;
-        api<Page>(`pages/${p.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(field.value()),
-        }).then(close, (err) => {
-          save.disabled = false;
-          toast(`Not saved: ${why(err)}`);
-        });
+        const v = field.value();
+        // Snoozed past its due date: asked first whether the due date moves with it
+        if (v.due && v.snoozed_until && v.snoozed_until > v.due) return ask(v);
+        send(v);
       },
     },
     field.el,
@@ -157,5 +153,40 @@ export function todoForm(p: Page, close: (p?: Page) => void) {
       save,
     ),
   );
+  type Value = ReturnType<typeof field.value>;
+  const send = (v: Value) => {
+    save.disabled = true;
+    api<Page>(`pages/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(v),
+    }).then(close, (err) => {
+      save.disabled = false;
+      toast(`Not saved: ${why(err)}`);
+    });
+  };
+  const day = (d: string) =>
+    new Date(`${d}T12:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const ask = (v: Value) => {
+    form.querySelector(".choice")?.remove();
+    const until = v.snoozed_until as string;
+    const choice = h(
+      "div",
+      { className: "choice", role: "group", "aria-label": "Due date" },
+      h(
+        "p",
+        {},
+        `Snoozed past its due date (${day(v.due as string)}). Move the due date to ${day(until)} too?`,
+      ),
+      h(
+        "button",
+        { type: "button", className: "primary", onclick: () => send({ ...v, due: until }) },
+        "Move due date",
+      ),
+      h("button", { type: "button", onclick: () => send(v) }, "Keep due date"),
+    );
+    form.querySelector(".row")?.before(choice);
+    (choice.querySelector("button") as HTMLButtonElement).focus();
+  };
   return { form, focus: () => field.date.focus() };
 }

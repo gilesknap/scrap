@@ -14,7 +14,9 @@ header {
 }
 .logo {
   display: inline-flex;
-  align-items: center;
+  flex-wrap: wrap; /* one line, so align-content can centre it in the bar's height */
+  align-content: center;
+  align-items: baseline; /* the version sits on scrap's line */
   gap: var(--s-2);
   min-height: var(--tap);
   font-size: var(--t-lg);
@@ -24,8 +26,6 @@ header {
   text-decoration: none;
 }
 .logo small {
-  align-self: flex-end;
-  padding-bottom: var(--s-2);
   font-size: var(--t-sm);
   font-weight: 400;
   letter-spacing: 0;
@@ -39,16 +39,36 @@ header {
   stroke-width: 1.2;
   stroke-linejoin: round;
   rotate: -6deg;
+  align-self: center;
 }
-/* A page's and Tags' Back, in the wordmark's place; Tags' title beside it */
+/* A page's and Tags' Back, in the wordmark's place, named for where it goes (‹ Search);
+   Tags' title beside it */
 #back {
-  width: var(--tap);
-  padding: 0;
-  margin-inline-start: calc(-1 * var(--s-3)); /* its arrow on the gutter's line */
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--s-2) 0 0;
+  margin-inline-start: calc(-1 * var(--s-2)); /* its arrow on the gutter's line */
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+#back[hidden] {
+  display: none;
 }
 #back .i {
+  flex: none;
   width: 24px;
   height: 24px;
+}
+#backto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A page's place in its list, at the right as a mail app has it: 2 of 5 ∧ ∨ */
+#pos:empty {
+  display: none;
 }
 #where {
   flex: 1;
@@ -57,8 +77,12 @@ header {
 }
 /* At the right: the queue badge, when up, the Todos screen's New todo, then Settings, always */
 .logo,
-#back {
+#back,
+#where {
   margin-inline-end: auto;
+}
+#back:has(~ #where:not([hidden])) {
+  margin-inline-end: 0;
 }
 #new,
 #settings {
