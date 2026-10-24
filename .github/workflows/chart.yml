@@ -50,10 +50,43 @@ jobs:
       - name: Lint, render and validate
         run: ./charts/test-chart.sh
 
-      - name: A release tag matches the chart's version and appVersion
-        if: github.ref_type == 'tag'
-        env:
-          TAG: ${{ github.ref_name }}
+  publish:
+    name: publish chart
+    if: github.ref_type == 'tag'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The tag is the app version and names the image (0.2.0, 0.2.0rc1). Helm
+      # needs semver for the chart version, so 0.2.0rc1 becomes 0.2.0-rc.1.
+      - name: Work out the chart version from the tag
         run: |
-          grep -qx "version: $TAG" charts/scrap/Chart.yaml
-          grep -qx "appVersion: \"$TAG\"" charts/scrap/Chart.yaml
+          if [[ "$TAG" =~ ^([0-9]+\.[0-9]+\.[0-9]+)((a|b|rc)([0-9]+))?$ ]]; then
+              version="${BASH_REMATCH[1]}"
+              [ -z "${BASH_REMATCH[2]}" ] || version="$version-${BASH_REMATCH[3]}.${BASH_REMATCH[4]}"
+              echo "CHART_VERSION=$version" >> "$GITHUB_ENV"
+          else
+              echo "Invalid tag '$TAG': expected X.Y.Z, or X.Y.ZaN, X.Y.ZbN, X.Y.ZrcN" >&2
+              exit 1
+          fi
+
+      - name: Package the chart
+        run: helm package charts/scrap --version "$CHART_VERSION" --app-version "$TAG"
+
+      - name: Push the chart to ghcr.io
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          owner="${OWNER,,}"
+          echo "$GH_TOKEN" | helm registry login ghcr.io --username "$OWNER" --password-stdin
+          helm push "scrap-$CHART_VERSION.tgz" "oci://ghcr.io/$owner/charts"

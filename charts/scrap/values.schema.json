@@ -56,6 +56,16 @@
         "schedule": {"type": "string", "minLength": 1},
         "timeZone": {"type": "string"},
         "keep": {"type": "integer", "minimum": 1},
+        "monthly": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "schedule": {"type": "string", "minLength": 1},
+            "timeZone": {"type": "string"},
+            "keep": {"type": "integer", "minimum": 1}
+          }
+        },
         "persistence": {"$ref": "#/definitions/claim"},
         "resources": {"type": "object"}
       }

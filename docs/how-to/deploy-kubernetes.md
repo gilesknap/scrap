@@ -44,7 +44,8 @@ profile.
 ## Get the image
 
 Releases publish a public, multi-arch (amd64 and arm64) image to `ghcr.io/gilesknap/scrap`, and
-the chart's `appVersion` names the release it was made with. By default the chart runs that
+the chart's `appVersion` names the release it was made with (set from the git tag when the chart is
+published; a checkout has the placeholder `0.0.0`, so set `image.tag` with one). By default the chart runs that
 release, `ghcr.io/gilesknap/scrap:<appVersion>`, so there is nothing to build: set `image.tag`
 only to run a different release.
 
@@ -87,11 +88,11 @@ ingress:
     - hosts: [scrap]
 ```
 
-From a checkout of the repository:
+From the released chart (version = the release tag, with a pre-release `0.4.0rc1` as `0.4.0-rc.1`):
 
 ```
 kubectl create namespace scrap
-helm install scrap ./charts/scrap --namespace scrap -f my-values.yaml
+helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version <release> --namespace scrap -f my-values.yaml
 kubectl -n scrap rollout status deploy/scrap
 ```
 
@@ -360,7 +361,7 @@ For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is e
 
 ## Upgrades
 
-Back up first, then change the image (or update the chart and its `appVersion`):
+Back up first, then change the image (or install a newer chart version):
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-pre-upgrade
@@ -564,8 +565,12 @@ kubectl -n scrap logs -f job/scrap-gc-now
 
 ## Argo CD
 
-A generic Application that installs the chart from this repository (replace the placeholders,
-and pin `targetRevision` to a release tag):
+A generic Application that installs the released chart from `ghcr.io` (replace the placeholders,
+and pin `targetRevision` to a release version; a pre-release `0.4.0rc1` is chart version
+`0.4.0-rc.1`). The chart version and `appVersion` come from the git tag, so the image tag
+follows with no `image.tag` set. A Git source (`repoURL: https://github.com/gilesknap/scrap.git`,
+`path: charts/scrap`) also works, but the checked-in chart has `appVersion` `0.0.0`, so set
+`image.tag` too:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -576,9 +581,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/gilesknap/scrap.git
-    targetRevision: <release-tag>
-    path: charts/scrap
+    repoURL: ghcr.io/gilesknap/charts
+    chart: scrap
+    targetRevision: <release-version>
     helm:
       valuesObject:
         ingress:
@@ -649,7 +654,9 @@ PersistentVolume by hand.
   while `SCRAP_ENRICH` is on; notifications need your notify URL).
 - Run gc or the related pass anywhere but beside the scrap pod, or without the pod running (see
   {ref}`k8s-gc`).
-- Publish a Helm repository or OCI chart: install from a checkout or a Git source.
+- Publish a Helm repository: releases publish the chart as an OCI artifact only
+  (`oci://ghcr.io/gilesknap/charts/scrap`); a checkout or a Git source also works, with
+  `image.tag` set.
 
 ## Next steps
 

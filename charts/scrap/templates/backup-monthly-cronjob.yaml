@@ -1,0 +1,87 @@
+{{- if and .Values.backup.enabled .Values.backup.monthly.enabled }}
+{{- $suffix := "-backup-monthly" }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "scrap.cronName" (dict "ctx" . "suffix" $suffix) }}
+  labels:
+    {{- include "scrap.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.monthly.schedule | quote }}
+  {{- with .Values.backup.monthly.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      # A run waiting for the scrap pod's node (below) gives up after an hour.
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "scrap.cronLabel" (dict "ctx" . "suffix" $suffix) }}
+            app.kubernetes.io/instance: {{ .Release.Name }}
+        spec:
+          {{- include "scrap.podCommon" . | nindent 10 }}
+          restartPolicy: Never
+          # The data claim is ReadWriteOnce, and SQLite's online backup needs
+          # the same host as the server: run beside the scrap pod.
+          affinity:
+            {{- include "scrap.sameNodeAffinity" . | nindent 12 }}
+          containers:
+            - name: backup-monthly
+              image: {{ include "scrap.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              # Runs go in the monthly/ folder of the backup claim. The daily
+              # backup, its prune and gc only look at runs directly in the claim,
+              # so none of them touches these. scrap-backup prune is pointed at
+              # monthly/ and keeps the newest SCRAP_BACKUP_KEEP runs there.
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  # Same lock as the daily backup and gc: never during either.
+                  exec 9>"$SCRAP_BACKUPS/.lock"
+                  flock 9
+                  mkdir -p "$SCRAP_BACKUPS/monthly"
+                  dest="$SCRAP_BACKUPS/monthly/$(date -u +%Y%m%dT%H%M%SZ)"
+                  mkdir "$dest"  # fails, touching nothing, if that run exists
+                  if ! scrap backup "$dest"; then
+                      rm -rf -- "$dest"
+                      echo "Monthly backup failed; kept the existing backups untouched." >&2
+                      exit 1
+                  fi
+                  SCRAP_BACKUPS="$SCRAP_BACKUPS/monthly" scrap-backup prune
+                  echo "monthly backup: $dest"
+              env:
+                - name: SCRAP_DATA_DIR
+                  value: /data
+                - name: SCRAP_BACKUPS
+                  value: /backups
+                - name: SCRAP_BACKUP_KEEP
+                  value: {{ .Values.backup.monthly.keep | quote }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: backups
+                  mountPath: /backups
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "scrap.dataClaim" . }}
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ include "scrap.backupClaim" . }}
+            - name: tmp
+              emptyDir: {}
+{{- end }}
