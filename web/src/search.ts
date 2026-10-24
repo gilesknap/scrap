@@ -26,7 +26,8 @@ interface State {
 export async function search(): Promise<Node> {
   const q = new URLSearchParams(location.search).get("q") ?? "";
   const saved = (history.state ?? {}) as State;
-  let limit = saved.limit ?? PAGE;
+  // (a stale or hand-edited entry: -5 or "abc" is the first page)
+  let limit = saved.limit && saved.limit > 0 ? Math.min(Math.ceil(saved.limit), MOST) : PAGE;
   let scroll = saved.scroll ?? 0; // to scroll back to, once the list is here
   const keep = (s: State) => history.replaceState({ ...history.state, ...s }, "");
   const input = h("input", {
@@ -138,6 +139,7 @@ export async function search(): Promise<Node> {
 
   async function run(first = false, quiet = false) {
     const query = input.value.trim();
+    pending.hidden = query !== ""; // waiting uploads pin on the empty box only
     if (!first) {
       limit = PAGE; // a new query: from the top
       scroll = 0;
@@ -193,7 +195,12 @@ export async function search(): Promise<Node> {
         keep({ limit });
         void run(true);
       };
-      return pageList(limit, filter, kind ? kind[0] : "Latest", limit < 500 ? more : undefined);
+      return pageList(
+        Math.min(limit, 500),
+        filter,
+        kind ? kind[0] : "Latest",
+        limit < 500 ? more : undefined,
+      );
     }
     const ul = h("ul", { className: "list hits" });
     try {

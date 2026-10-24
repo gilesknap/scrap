@@ -546,3 +546,34 @@ def test_migration_10_cleans_existing_tags(tmp_path):
         assert conn.execute("SELECT tag FROM model_tag").fetchone()[0] == "m"
     assert [t[0] for t in store.tags()] == ["a", "a/b", "lead", "ok", "trail"]
     assert slugs(store, "lead") == ["q"]
+
+
+def test_equally_ranked_hits_keep_one_order_for_paging(store):
+    """Identical pages tie on every rank: the chunk id settles it, so a page of
+    results never repeats or skips a hit (and the same query answers the same way)."""
+    for _ in range(6):
+        page(store, "Tied", "same words")
+    whole = [h["slug"] for h in store.search("same", 10)]
+    with store.connect() as conn:  # the order the tiebreak gives
+        by_chunk = [
+            r[0]
+            for r in conn.execute(
+                "SELECT p.slug FROM chunk c JOIN page p ON p.id = c.page_id"
+                " ORDER BY c.id"
+            )
+        ]
+    assert whole == by_chunk
+    paged = []
+    for n in range(0, 6, 2):
+        paged += [h["slug"] for h in store.search("same", 2, n)]
+    assert paged == whole
+
+
+def test_a_tag_with_a_quote_is_found_by_what_the_tapped_query_keeps(store):
+    """The web app (terms.ts token) asks for a/b"c as tag:a, and say "hi" as the words
+    say hi: both go through this parser and find the page."""
+    slug = page(store, "Quoted", "x", tags=['a/b"c'])
+    other = page(store, "Quoted too", "y", tags=['say "hi" now'])
+    assert parse("tag:a").filters == [Filter("tag", "a", False, "tag:a")]
+    assert slugs(store, "tag:a") == [slug]
+    assert slugs(store, "say hi now") == [other]
