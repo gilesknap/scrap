@@ -1189,7 +1189,8 @@ class Store:
             for row in conn.execute(
                 "SELECT id, kind, version, producer, text, data,"
                 " json_extract(data, '$.width') AS width,"
-                " json_extract(data, '$.height') AS height FROM derived"
+                " json_extract(data, '$.height') AS height,"
+                " json_array_length(data, '$.elements') AS element_count FROM derived"
                 " WHERE capture_id = ? AND source_sha256 = ? AND superseded_at IS NULL",
                 (cid, sha),
             )
@@ -1209,6 +1210,7 @@ class Store:
                 "producer": drawing["producer"],
                 "width": drawing["width"],  # its frame: the photo as sent to Claude
                 "height": drawing["height"],
+                "element_count": drawing["element_count"],
             },
         }
 
