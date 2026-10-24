@@ -900,3 +900,27 @@ def test_drawing_is_cut_at_the_size_cap(store):
     assert out["truncated"] is True
     assert 0 < len(out["elements"]) < 10
     assert len(json.dumps(out["elements"])) <= mcp_server.MAX_DRAWING
+
+
+def test_read_lists_only_images_under_images_and_other_files_apart(store):
+    img, doc = "44" * 32, "55" * 32
+    c = store.prepare({"id": new_ulid()}, ["image/png", "application/pdf"])
+    ref = store.capture(
+        c, [(img, "image/png", 3, "a.png"), (doc, "application/pdf", 3, "d.pdf")], "me"
+    )[0]
+    out = ok(store, "read", page=ref["page_id"])
+    assert [i["sha256"] for i in out["images"]] == [img]
+    assert out["images"][0]["thumbnail_url"] is not None
+    [other] = out["files"]
+    assert other["sha256"] == doc and other["filename"] == "d.pdf"
+    assert other["thumbnail_url"] is None
+
+
+def test_image_count_counts_a_repeated_image_once(store):
+    sha = "66" * 32
+    c = store.prepare({"id": new_ulid()}, ["image/png", "image/png"])
+    store.capture(
+        c, [(sha, "image/png", 3, "a.png"), (sha, "image/png", 3, "again.png")], "me"
+    )
+    [row] = ok(store, "recent")["results"]
+    assert row["image_count"] == 1 and row["image_url"].endswith(sha)

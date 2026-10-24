@@ -21,7 +21,17 @@ from pathlib import Path
 from typing import IO, Any, NamedTuple
 
 from .markdown import plain, tasks
-from .query import CONTROL, PRIORITIES, Query, bound, day, due, parse
+from .query import (
+    CONTROL,
+    MAX_FILTERS,
+    MAX_TERMS,
+    PRIORITIES,
+    Query,
+    bound,
+    day,
+    due,
+    parse,
+)
 
 __all__ = [
     "Store", "NotFoundError", "NoSuchPage", "NoSuchRevision", "ConflictError",
@@ -241,6 +251,25 @@ def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str
     ]
 
 
+def checked_query(query: str) -> Query:
+    """parse(query), refused if it has more words or filters than a search takes: one
+    left out could be a NOT word or -tag:, and the results would be broader than
+    asked."""
+    q = parse(query)
+    if q.dropped:
+        raise InvalidError(
+            f"too many search terms: at most {MAX_TERMS} distinct words and"
+            f" {MAX_FILTERS} filters ({q.dropped} too many); nothing was searched"
+        )
+    return q
+
+
+def tag_path(tag: str) -> str:
+    """A tag without empty path segments: /lead, trail/ and a//b become lead, trail and
+    a/b (#87), so no blank tag or parent reaches the tag tree, and tag:/ finds none."""
+    return "/".join(part for part in tag.split("/") if part.strip())
+
+
 def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
     """Tags as imported ones are: one space between words, no leading #, lower case;
     each 1 to 64 characters, at most most of them, each once, in order."""
@@ -253,7 +282,7 @@ def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
         except UnicodeEncodeError:
             raise InvalidError("a tag must be valid Unicode") from None
         new = " ".join(CONTROL.sub(" ", tag).split()).lstrip("#").lower().strip()
-        new = unicodedata.normalize("NFC", new)
+        new = tag_path(unicodedata.normalize("NFC", new))
         if not new or len(new) > MAX_TAG:
             raise InvalidError(f"a tag must be 1 to {MAX_TAG} characters: {tag[:80]!r}")
         if new not in out:
@@ -696,10 +725,37 @@ def add_enrich(conn: sqlite3.Connection) -> None:
             conn.execute(statement)
 
 
+def fix_tag_paths(conn: sqlite3.Connection) -> None:
+    """Migration 10 (#87): tags with an empty path segment (/lead, trail/, a//b) as
+    clean_tags now writes them, and the pages concerned indexed again. Cost: a scan of
+    the tag tables and a reindex of those pages only (normally none). Revision history
+    keeps the old names."""
+    bad = "tag LIKE '/%' OR tag LIKE '%/' OR tag LIKE '%//%'"
+    touched: set[str] = set()
+    for table in ("tag", "model_tag"):
+        for page_id, tag in conn.execute(
+            f"SELECT page_id, tag FROM {table} WHERE {bad}"
+        ).fetchall():
+            new = tag_path(tag)
+            if new:  # a page that has the new name already keeps one row
+                conn.execute(
+                    f"UPDATE OR IGNORE {table} SET tag = ?"
+                    " WHERE page_id = ? AND tag = ?",
+                    (new, page_id, tag),
+                )
+            conn.execute(
+                f"DELETE FROM {table} WHERE page_id = ? AND tag = ?", (page_id, tag)
+            )
+            touched.add(page_id)
+    for page_id in touched:
+        index_page(conn, page_id)
+
+
 AFTER = {
     3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks,
     8: add_meta_revs,
     9: add_enrich,
+    10: fix_tag_paths,
 }  # fmt: skip
 
 
@@ -2095,19 +2151,24 @@ class Store:
         return out
 
     def images_of(self, ids: list[str]) -> dict[str, dict[str, Any]]:
-        """Each page's images, for list rows: how many (image files of its captures)
-        and its first one's SHA-256 and what Claude made of it (its current
-        description and kind; None if not read yet). A page with none is left out."""
+        """Each page's images, for list rows: how many (distinct image files of its
+        captures, one per SHA-256) and its first one's SHA-256 and what Claude made of
+        it (its current description and kind; None if not read yet). A page with none
+        is left out."""
         out: dict[str, dict[str, Any]] = {}
         with self.connect() as conn:
             for row in conn.execute(
-                "WITH image AS (SELECT c.page_id, c.id AS capture_id, cb.sha256,"
-                " row_number() OVER (PARTITION BY c.page_id"
-                "  ORDER BY c.received_at, cb.ord) AS n,"
-                " count(*) OVER (PARTITION BY c.page_id) AS total"
-                " FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id"
+                "WITH once AS (SELECT c.page_id, c.id AS capture_id, cb.sha256,"
+                " c.received_at, cb.ord, row_number() OVER (PARTITION BY c.page_id,"
+                "  cb.sha256 ORDER BY c.received_at, cb.ord) AS copy"  # the same file
+                " FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id"  # again
                 " JOIN blob b USING (sha256) WHERE b.mime LIKE 'image/%'"
-                " AND c.page_id IN (SELECT value FROM json_each(?)))"
+                " AND c.page_id IN (SELECT value FROM json_each(?))),"
+                " image AS (SELECT page_id, capture_id, sha256,"
+                " row_number() OVER (PARTITION BY page_id"
+                "  ORDER BY received_at, ord) AS n,"
+                " count(*) OVER (PARTITION BY page_id) AS total"
+                " FROM once WHERE copy = 1)"
                 " SELECT i.page_id, i.total, i.sha256, d.text,"
                 " json_extract(d.data, '$.kind') FROM image i LEFT JOIN derived d"
                 " ON d.capture_id = i.capture_id AND d.source_sha256 = i.sha256"
@@ -2145,7 +2206,7 @@ class Store:
         the page's best chunk, title, tag and summary matches weighing most; a query
         of filters alone lists its pages newest first; sort: orders either its own
         way. offset: skip that many hits (the next page of results)."""
-        q = parse(query)
+        q = checked_query(query)
         if not q.terms and not q.filters:
             return []
         where, args = self._where(q)
@@ -2218,7 +2279,7 @@ class Store:
         """What the pages a query matches have in common, to narrow it with a tap: how
         many there are, their kinds, their most used tags (a/b counts for a too) and
         how many are personal or work; and the query's filters, as typed."""
-        q = parse(query)
+        q = checked_query(query)
         out: dict[str, Any] = {
             "total": 0, "kinds": [], "tags": [], "personal": {"work": 0, "personal": 0},
             "active": [{"token": f.token, "key": f.key, "value": f.value, "neg": f.neg}
@@ -2302,6 +2363,8 @@ class Store:
             elif f.key == "kind" and f.neg:
                 sql.append("p.kind <> ?")
                 args.append(KIND_NAMES.get(f.value, f.value))
+            elif f.key == "tag" and not f.value.strip("/"):  # tag:/ is no tag
+                sql.append(f"{no}0")
             elif f.key == "tag":  # whole segments: tag:b finds a/b, tag:a finds a/b
                 sql.append(
                     f"{no}EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id"

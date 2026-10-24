@@ -121,7 +121,9 @@ def test_export_markdown(client, note, tmp_path, capsys):
     client.delete(f"/api/pages/{client.get('/api/pages/photo').json()['id']}")
     again = tmp_path / "again"  # its own page in the trash: copied for this one
     main(["export", "--data-dir", str(tmp_path / "data"), str(again)])
-    assert f"![{png.name}](files/{png.name})" in (again / "elsewhere.md").read_text()
+    assert (
+        f"![](files/{png.name})" in (again / "elsewhere.md").read_text()
+    )  # no hex alt
     assert (again / "files" / png.name).read_bytes() == b"png bytes"
 
 

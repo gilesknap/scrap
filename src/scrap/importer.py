@@ -252,6 +252,7 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
             plan.note("tag dropped", rel, type(tag).__name__)
             continue
         new = " ".join(str(tag).split()).lstrip("#").lower()[:64].strip()
+        new = "/".join(part for part in new.split("/") if part.strip())
         if new != str(tag):
             plan.note("tag changed", rel, f"{tag!r} -> {new!r}")
         if new and new not in tags:
