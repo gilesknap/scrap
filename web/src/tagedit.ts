@@ -14,7 +14,7 @@ import { h } from "./ui";
 export const clean = (t: string) =>
   t.split(/\s+/).join(" ").trim().replace(/^#+/, "").trim().toLowerCase();
 
-// The server's limits on a page's tags: MAX_TAGS and MAX_TAG in src/scrap/store.py.
+// The server's limits on a page's tags: MAX_TAGS and MAX_TAG in src/scrap/store/constants.py.
 export const MAX_TAGS = 64;
 export const MAX_TAG = 64; // characters (code points, after NFC)
 
