@@ -34,7 +34,13 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/search$/, () => search()],
   [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
   [/^\/todos$/, () => todos()],
-  [/^\/p\/([^/]+)$/, (m) => import("./page").then((p) => p.page(decodeURIComponent(m[1])))],
+  [
+    /^\/p\/([^/]+)$/,
+    (m) => {
+      const signal = current.signal; // this view's, taken before the chunk loads
+      return import("./page").then((p) => p.page(decodeURIComponent(m[1]), signal));
+    },
+  ],
 ];
 
 /** /recent (?kind=consume) as the search screen's address, ?kind=todo as the Todos screen's;

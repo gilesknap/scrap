@@ -1,7 +1,7 @@
 // One page: its text (its images as figures) and other files, edit (pageedit.ts, with conflict handling)
 // and delete with undo.
 import { api, blobUrl, type Page, type Queue, setStatus } from "./api";
-import { go, view } from "./app";
+import { go } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
@@ -55,8 +55,8 @@ export function untitled(body: string, title: string): string {
   return said && said === title.trim() ? body.slice(first.length) : body;
 }
 
-export async function page(key: string): Promise<Node> {
-  const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
+export async function page(key: string, signal: AbortSignal): Promise<Node> {
+  // signal: this view's, taken before any wait (even the chunk's): Back may come meanwhile
   const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
   const [p] = await Promise.all([
