@@ -6,6 +6,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
+from ..mcp_page import page_key
 from ..store import MCP
 from .context import Ctx, text
 from .limits import AUTHOR, MAX_BULK, Batch
@@ -20,7 +21,7 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
     @mcp.tool()
     def revisions(
         page: Annotated[
-            str | None, Field(description="Id or slug (a page in the trash too)")
+            str | None, Field(description="Id, slug or URL (a page in the trash too)")
         ] = None,
         batch: Batch = None,
         limit: Annotated[
@@ -46,7 +47,7 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         title, author: claude for one made over MCP, when, bytes), which
         revert_text restores; text_rev returns one's text, the user's data. more:
         there are more meta revisions than limit (up to 200, a whole batch)."""
-        key = text(page, "page") if page is not None else None
+        key = text(page_key(page), "page") if page is not None else None
         if key is None and text_rev is not None:
             raise ToolError("text_rev needs a page")
         found = checked(store.revisions, key, limit, batch, True)

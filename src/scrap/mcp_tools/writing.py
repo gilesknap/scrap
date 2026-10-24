@@ -6,6 +6,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
+from ..mcp_page import page_key
 from ..store import (
     KIND_NAMES,
     KINDS,
@@ -71,7 +72,9 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
         ] = None,
         append_to: Annotated[
             str | None,
-            Field(description="Id or slug of a page written over MCP to append to"),
+            Field(
+                description="Id, slug or URL of a page written over MCP to append to"
+            ),
         ] = None,
         key: Annotated[
             str | None,
@@ -100,6 +103,7 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
         given = (("due", due), ("priority", priority), ("snoozed_until", snoozed_until))
         todo = {k: None if v == "none" else v for k, v in given if v}
         if append_to:
+            append_to = text(page_key(append_to), "append_to")
             if not body and not todo:
                 raise ToolError("nothing to append")
             if key:  # keyed by the page itself, whether named by id or slug

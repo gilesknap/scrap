@@ -58,7 +58,9 @@ revisions tool; with no page or batch it lists what changed recently, across pag
 that revert undoes. Revisions cover only the user's and your changes to text, kinds and
 tags: what scrap's Claude enrichment adds (summary, model tags, related pages; read's
 by_model) is not in them, and revert cannot undo it. Try a bulk change with dry_run
-first."""
+first.
+A page URL (https://<host>/p/<slug>) names the page <slug>: give the URL, or the slug,
+as a tool's page."""
 UNDELETE = "undelete brings one page back from it (try dry_run first), "
 NO_UNDELETE = "nothing here brings one back, "
 TEXT_EDIT = """\
