@@ -6,9 +6,11 @@ over HTTPS on the tailnet, over plain HTTP on a home network ([](../tutorials/in
 bearer token (see "If `/mcp` needs a token" below, [](../tutorials/install-kubernetes.md) and
 [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 
-If scrap runs in a podman pod on a DLS workstation, follow [](run-on-dls-workstation.md)
-instead: there Claude Code runs in claude-sandbox and reaches scrap on a port of the
-workstation, not over the tailnet, and setting the address and restarting scrap work differently.
+If Claude Code runs in claude-sandbox, follow [](connect-claude-sandbox.md) instead: it
+reaches scrap on a port of the host, not over the tailnet.
+
+To try it on your own machine, run scrap as in "Try it" in the README and add
+`http://localhost:8000/mcp` in step 2; step 1 is not needed on loopback.
 
 Before you start you need:
 
@@ -158,27 +160,17 @@ line.
 | `/sc-undo` | Lists recent `revisions` and `revert`s the one you name. |
 | `/sc <words>` | An index: searches like `/sc-find`, or lists the commands above. |
 
-Install them for all your projects by copying (or symlinking) the files into
-`~/.claude/commands/`, from a clone of this repository:
+Install them for all your projects with one command:
 
 ```
-mkdir -p ~/.claude/commands
-cp commands/*.md ~/.claude/commands/
+curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/commands/install.sh | sh
 ```
 
-or for one project, into `.claude/commands/` in that repository:
-
-```
-mkdir -p .claude/commands
-cp commands/*.md .claude/commands/
-```
-
-To keep them up to date with the repository, symlink instead:
-`ln -sfn "$PWD"/commands/*.md ~/.claude/commands/`. Without a clone, fetch each file, for example
-`mkdir -p ~/.claude/commands` then `curl -fsSL -o ~/.claude/commands/sc-post.md
-https://raw.githubusercontent.com/gilesknap/scrap/main/commands/sc-post.md`. Start a new
-Claude Code session afterwards, and type `/sc` to check that the commands are listed. Copy the
-files unchanged.
+It copies the files into `~/.claude/commands` (set `CLAUDE_COMMANDS_DIR` to put them elsewhere, such
+as `.claude/commands` for one project). From a clone of this repository you can instead copy
+`commands/*.md` yourself, or symlink them to keep up to date with the repository:
+`ln -sfn "$PWD"/commands/*.md ~/.claude/commands/`. Start a new Claude Code session afterwards,
+and type `/sc` to check that the commands are listed. Copy the files unchanged.
 
 These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
 `s-` and `sc-` skill sets that briefly preceded them, and the older `scrap-post` skill. Delete
