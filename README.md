@@ -23,8 +23,11 @@ and a small PWA is where you capture and look at things.
 ## Try it
 
 ```
-podman run --network=host -v scrap-data:/data ghcr.io/gilesknap/scrap:0.5.0 serve
+printf 'Anthropic API key (Enter to skip): '; read -rs ANTHROPIC_API_KEY; export ANTHROPIC_API_KEY
+podman run --network=host -v scrap-data:/data -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY ghcr.io/gilesknap/scrap:0.5.0 serve
 ```
+
+The key is optional: it lets Claude read your photos and tag your notes.
 
 Open <http://localhost:8000/>. Then add scrap to Claude Code and install the `sc` commands:
 
