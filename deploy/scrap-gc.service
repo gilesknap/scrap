@@ -10,4 +10,6 @@ RequiresMountsFor=%t/containers
 [Service]
 Type=oneshot
 EnvironmentFile=%h/.config/scrap/env
+# oneshot has no default timeout: stop a hung gc from holding the backup lock forever.
+TimeoutStartSec=1h
 ExecStart=%h/.local/lib/scrap/scrap-gc

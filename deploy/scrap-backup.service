@@ -9,4 +9,7 @@ RequiresMountsFor=%t/containers
 [Service]
 Type=oneshot
 EnvironmentFile=%h/.config/scrap/env
+# A full copy of a large store can take a long time; the limit only stops a hung
+# run from blocking every later timer run (and scrap-gc) silently.
+TimeoutStartSec=1h
 ExecStart=%h/.local/lib/scrap/scrap-backup

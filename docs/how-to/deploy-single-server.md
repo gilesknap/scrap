@@ -495,8 +495,10 @@ machine was off). Each run starts a throwaway container from the same image that
 `scrap backup` into a new timestamped directory under `SCRAP_BACKUPS`, then deletes all but the
 newest `SCRAP_BACKUP_KEEP` runs. Only real directories named like a run
 (`20261019T033000Z`) directly in `SCRAP_BACKUPS` are ever deleted; anything else there, including
-symlinks, is left alone. A failed run removes its own directory and deletes nothing else. A
-`SCRAP_BACKUP_KEEP` that is not a whole number of at least 1 fails the run. To back up now:
+symlinks, is left alone (`SCRAP_BACKUPS` itself may be a symlink, e.g. to another disk). A failed run removes its own directory and deletes nothing else. A
+`SCRAP_BACKUP_KEEP` that is not a whole number of at least 1 (leading zeros such as `07` are fine)
+fails the run, as does a `SCRAP_BACKUPS` that is not an existing directory. A run is stopped after
+an hour (`TimeoutStartSec`) so a hung backup cannot block later ones. To back up now:
 
 ```
 systemctl --user start scrap-backup
