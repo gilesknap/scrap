@@ -14,6 +14,8 @@ export function stateText(e: Enrich): string | null {
       return e.on ? "Waiting for Claude" : "Waiting: Claude is off";
     case "processing":
       return "Claude is reading it…";
+    case "paused":
+      return `Paused${e.reason ? ` (${e.reason})` : ""}: nothing is lost`;
     case "failed":
       return `Claude couldn't read it${e.error ? `: ${e.error.replace(/^\w+: /, "")}` : ""}`;
     default:
@@ -43,7 +45,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
       {
         type: "button",
         className: "ghost",
-        disabled: e.state === "queued" || e.state === "processing",
+        disabled: ["queued", "processing", "paused"].includes(e.state ?? ""),
         onclick: async (ev: Event) => {
           const b = ev.currentTarget as HTMLButtonElement;
           b.disabled = true;
@@ -57,6 +59,27 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
       },
       e.summary || e.state === "done" ? "Ask again" : "Ask Claude",
     );
+  // The queue is the photos' too: its Resume (api/ingest/resume) ends the pause for both
+  const resume =
+    e?.state === "paused" &&
+    h(
+      "button",
+      {
+        type: "button",
+        onclick: async (ev: Event) => {
+          const b = ev.currentTarget as HTMLButtonElement;
+          b.disabled = true;
+          try {
+            await api("ingest/resume", { method: "POST" });
+            show(await api<Page>(`pages/${p.id}`));
+          } catch (err) {
+            b.disabled = false;
+            toast(`Not resumed: ${why(err)}`);
+          }
+        },
+      },
+      "Resume",
+    );
   return h(
     "section",
     { className: "enrich" },
@@ -65,6 +88,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
       { className: "row" },
       h("b", {}, "Claude"),
       said && h("span", { className: e?.state === "failed" ? "err" : "" }, said),
+      resume,
       ask,
     ),
     e?.summary && h("p", { className: "summary", dir: "auto" }, e.summary),

@@ -556,7 +556,8 @@ default once `SCRAP_INGEST=on`; without ingest the panel is not shown unless the
 has a summary or related pages. The panel has:
 
 - Its state: *Waiting for Claude* (or *Waiting: Claude is off*), *Claude is reading it…*, or
-  *Claude couldn't read it* with the reason. Nothing is shown when it is done.
+  *Claude couldn't read it* with the reason, or *Paused* with the reason and **Resume** (the
+  queue is shared with photos; nothing is lost while paused). Nothing is shown when it is done.
 - Claude's one-line summary of the page, which search also looks in.
 - **Related**: pages Claude picked, merged with the pages that link here (marked *· links
   here*).

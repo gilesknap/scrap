@@ -18,6 +18,10 @@ it("says what Claude is doing, and nothing once done", () => {
   expect(stateText(e({ state: "failed", error: "content: the model refused" }))).toBe(
     "Claude couldn't read it: the model refused",
   );
+  expect(stateText(e({ state: "paused", reason: "budget" }))).toBe(
+    "Paused (budget): nothing is lost",
+  );
+  expect(stateText(e({ state: "paused" }))).toBe("Paused: nothing is lost");
   expect(stateText(e({ state: "done" }))).toBeNull();
   expect(stateText(e({}))).toBeNull();
 });

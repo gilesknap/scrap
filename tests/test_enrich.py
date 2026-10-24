@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
-from scrap.ingest import Worker, spent_today
+from scrap.ingest import FAR, Worker, spent_today
 from scrap.store import Store, connect, new_ulid
 
 LONG = "Plans for the garden shed.\n\n" + "We will build it from larch. " * 12
@@ -548,6 +548,26 @@ def test_the_api_asks_claude_and_shows_its_state(tmp_path):
     status = client.get("/api/ingest").json()
     assert status["enrich"] == {"enabled": True, "jobs": {"queued": 1}}
     assert client.post("/api/pages/NOPE/enrich").status_code == 404
+
+
+def test_a_paused_queue_shows_on_the_page_and_in_healthz_until_resumed(tmp_path):
+    client = TestClient(create_app(tmp_path / "data"))
+    page_id = client.post("/api/captures", json={"id": new_ulid(), "text": "x"}).json()[
+        "page_id"
+    ]
+    client.post(f"/api/pages/{page_id}/enrich")
+    assert client.get("/healthz").json()["paused"] is None
+    with closing(connect(Store(tmp_path / "data").db)) as conn, conn:
+        conn.execute(
+            "UPDATE queue_state SET paused_until = ?, reason = 'budget'", (FAR,)
+        )
+    got = client.get(f"/api/pages/{page_id}").json()["enrich"]
+    assert got["state"] == "paused" and got["reason"] == "budget"
+    assert client.get("/healthz").json()["paused"] == "budget"
+    client.post("/api/ingest/resume")
+    got = client.get(f"/api/pages/{page_id}").json()["enrich"]
+    assert got["state"] == "queued" and got["reason"] is None
+    assert client.get("/healthz").json()["paused"] is None
 
 
 def test_the_api_refuses_to_ask_claude_while_enrichment_is_off(tmp_path, monkeypatch):

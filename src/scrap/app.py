@@ -49,6 +49,7 @@ from .store import (
     TooLargeError,
     enrich_on,
     new_ulid,
+    now,
     upload_limit,
 )
 
@@ -326,11 +327,18 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     @app.get("/healthz")
     def healthz() -> JSONResponse:
         """Liveness check, plus the upload limit so the PWA can check before sending.
-        503 if the ingest worker has stopped."""
+        503 if the ingest worker has stopped. `paused` is why the Claude queue is
+        paused (credit, auth, budget, outage), else null."""
         status, code = "ok", 200
         if app.state.worker and not app.state.worker.alive():
             status, code = "ingest worker stopped", 503
-        body = {"status": status, "version": __version__, "max_upload_bytes": limit}
+        with store.connect() as conn:
+            q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
+        paused = (
+            q["reason"] if q["paused_until"] and q["paused_until"] > now() else None
+        )
+        body = {"status": status, "version": __version__, "max_upload_bytes": limit,
+                "paused": paused}  # fmt: skip
         return JSONResponse(body, code)
 
     def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
