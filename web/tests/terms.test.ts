@@ -1,21 +1,15 @@
 import { describe, expect, it } from "vitest";
-import {
-  adding,
-  day,
-  has,
-  kindsIn,
-  listing,
-  removing,
-  sortsIn,
-  token,
-  tree,
-  unsorted,
-  withKind,
-} from "../src/terms";
+import { day, sortsIn, tree, unsorted } from "../src/filters";
+import { adding, has, kindsIn, listing, removing, token, unkinded, withKind } from "../src/terms";
 
 it("writes a filter, quoting a value with spaces", () => {
   expect(token("tag", "tech/epics")).toBe("tag:tech/epics");
-  expect(token("tag", 'two "odd" words')).toBe('tag:"two odd words"');
+  expect(token("tag", "two odd words")).toBe('tag:"two odd words"');
+  // the query has no escape for a quote: a tag with one is asked for by what the parser keeps
+  expect(token("tag", 'a/b"c')).toBe("tag:a");
+  expect(token("tag", 'a/b/c"d/e')).toBe("tag:a/b");
+  expect(token("tag", 'say "hi" now')).toBe("say hi now");
+  expect(token("tag", '"')).toBe("");
 });
 
 it("adds a token once, at the end", () => {
@@ -81,9 +75,20 @@ it("clamps a picked date to what after: and before: take", () => {
   expect(day("+275760-09-13")).toBe("9999-12-31");
   expect(day("")).toBe("");
   expect(day("junk")).toBe("");
+  // a 10-character date that is no day passes through (the server answers nothing for it)
+  expect(day("2026-02-30")).toBe("2026-02-30");
+  expect(day("2026-13-45")).toBe("2026-13-45");
 });
 
 describe("the kind row", () => {
+  it("leaves kind: inside a quoted phrase alone", () => {
+    expect(unkinded('"see kind:todo here" kind:todo')).toBe('"see kind:todo here"');
+    expect(unkinded('kind:"x y" kind:note')).toBe('kind:"x y"');
+    expect(kindsIn('"a kind:todo b"')).toEqual([]);
+    expect(listing('"a kind:todo b"')).toBeNull();
+    expect(withKind('"a kind:todo b" kind:note', "later")).toBe('"a kind:todo b" kind:later');
+  });
+
   it("sets a kind with one tap, and clears it with another", () => {
     expect(withKind("", "todo")).toBe("kind:todo");
     expect(withKind("kind:todo", "todo")).toBe("");
