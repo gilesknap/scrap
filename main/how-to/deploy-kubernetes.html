@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.3.1.dev20+g871b2164c documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.3.1.dev23+g5690dfa68 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3764ce5d"></script>
+    <script src="../_static/documentation_options.js?v=543af20c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -559,7 +559,8 @@ recommended one.</p></li>
 <section id="get-the-image">
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
 <p>Releases publish a public, multi-arch (amd64 and arm64) image to <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code>, and
-the chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> names the release it was made with. By default the chart runs that
+the chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> names the release it was made with (set from the git tag when the chart is
+published; a checkout has the placeholder <code class="docutils literal notranslate"><span class="pre">0.0.0</span></code>, so set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> with one). By default the chart runs that
 release, <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:&lt;appVersion&gt;</span></code>, so there is nothing to build: set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code>
 only to run a different release.</p>
 <p>To run your own build instead, push it to a registry your cluster can pull from, and point the
@@ -596,9 +597,9 @@ add an <code class="docutils literal notranslate"><span class="pre">image</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">hosts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">scrap</span><span class="p p-Indicator">]</span>
 </pre></div>
 </div>
-<p>From a checkout of the repository:</p>
+<p>From the released chart (version = the release tag, with a pre-release <code class="docutils literal notranslate"><span class="pre">0.4.0rc1</span></code> as <code class="docutils literal notranslate"><span class="pre">0.4.0-rc.1</span></code>):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">create</span> <span class="n">namespace</span> <span class="n">scrap</span>
-<span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="o">./</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">namespace</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
+<span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="o">&lt;</span><span class="n">release</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">namespace</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">rollout</span> <span class="n">status</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span>
 </pre></div>
 </div>
@@ -899,7 +900,7 @@ you reach scrap at:</p>
 </section>
 <section id="upgrades">
 <h2>Upgrades<a class="headerlink" href="#upgrades" title="Link to this heading">#</a></h2>
-<p>Back up first, then change the image (or update the chart and its <code class="docutils literal notranslate"><span class="pre">appVersion</span></code>):</p>
+<p>Back up first, then change the image (or install a newer chart version):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">job</span> <span class="o">--</span><span class="n">from</span><span class="o">=</span><span class="n">cronjob</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">pre</span><span class="o">-</span><span class="n">upgrade</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">wait</span> <span class="o">--</span><span class="k">for</span><span class="o">=</span><span class="n">condition</span><span class="o">=</span><span class="n">complete</span> <span class="n">job</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">pre</span><span class="o">-</span><span class="n">upgrade</span> <span class="o">--</span><span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="n">m</span>
 <span class="n">helm</span> <span class="n">upgrade</span> <span class="n">scrap</span> <span class="o">./</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span> <span class="o">--</span><span class="nb">set</span> <span class="n">image</span><span class="o">.</span><span class="n">tag</span><span class="o">=&lt;</span><span class="n">new</span><span class="o">&gt;</span>
@@ -1087,8 +1088,12 @@ multi-arch. Use <code class="docutils literal notranslate"><span class="pre">nod
 </section>
 <section id="argo-cd">
 <h2>Argo CD<a class="headerlink" href="#argo-cd" title="Link to this heading">#</a></h2>
-<p>A generic Application that installs the chart from this repository (replace the placeholders,
-and pin <code class="docutils literal notranslate"><span class="pre">targetRevision</span></code> to a release tag):</p>
+<p>A generic Application that installs the released chart from <code class="docutils literal notranslate"><span class="pre">ghcr.io</span></code> (replace the placeholders,
+and pin <code class="docutils literal notranslate"><span class="pre">targetRevision</span></code> to a release version; a pre-release <code class="docutils literal notranslate"><span class="pre">0.4.0rc1</span></code> is chart version
+<code class="docutils literal notranslate"><span class="pre">0.4.0-rc.1</span></code>). The chart version and <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> come from the git tag, so the image tag
+follows with no <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> set. A Git source (<code class="docutils literal notranslate"><span class="pre">repoURL:</span> <span class="pre">https://github.com/gilesknap/scrap.git</span></code>,
+<code class="docutils literal notranslate"><span class="pre">path:</span> <span class="pre">charts/scrap</span></code>) also works, but the checked-in chart has <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> <code class="docutils literal notranslate"><span class="pre">0.0.0</span></code>, so set
+<code class="docutils literal notranslate"><span class="pre">image.tag</span></code> too:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1097,9 +1102,9 @@ and pin <code class="docutils literal notranslate"><span class="pre">targetRevis
 <span class="nt">spec</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">project</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
 <span class="w">  </span><span class="nt">source</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">repoURL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/gilesknap/scrap.git</span>
-<span class="w">    </span><span class="nt">targetRevision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;release-tag&gt;</span>
-<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">charts/scrap</span>
+<span class="w">    </span><span class="nt">repoURL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/gilesknap/charts</span>
+<span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap</span>
+<span class="w">    </span><span class="nt">targetRevision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;release-version&gt;</span>
 <span class="w">    </span><span class="nt">helm</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">valuesObject</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">ingress</span><span class="p">:</span>
@@ -1167,7 +1172,9 @@ PersistentVolume by hand.</p>
 while <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> is on; notifications need your notify URL).</p></li>
 <li><p>Run gc or the related pass anywhere but beside the scrap pod, or without the pod running (see
 <a class="reference internal" href="#k8s-gc"><span class="std std-ref">Scheduled gc and related pages</span></a>).</p></li>
-<li><p>Publish a Helm repository or OCI chart: install from a checkout or a Git source.</p></li>
+<li><p>Publish a Helm repository: releases publish the chart as an OCI artifact only
+(<code class="docutils literal notranslate"><span class="pre">oci://ghcr.io/gilesknap/charts/scrap</span></code>); a checkout or a Git source also works, with
+<code class="docutils literal notranslate"><span class="pre">image.tag</span></code> set.</p></li>
 </ul>
 </section>
 <section id="next-steps">
