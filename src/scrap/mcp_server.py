@@ -288,9 +288,9 @@ class _WholeFileMatcher(difflib.SequenceMatcher):
         super().__init__(None, a[top : len(a) - end], b[top : len(b) - end])
         self._a_len, self._b_len, self._top, self._end = len(a), len(b), top, end
 
-    def get_opcodes(self):
+    def get_opcodes(self) -> list[Any]:
         top, end = self._top, self._end
-        codes = [("equal", 0, top, 0, top)] if top else []
+        codes: list[Any] = [("equal", 0, top, 0, top)] if top else []
         codes += [
             (tag, i1 + top, i2 + top, j1 + top, j2 + top)
             for tag, i1, i2, j1, j2 in super().get_opcodes()
