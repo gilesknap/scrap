@@ -116,7 +116,8 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   // A page opened from the list steps through it, and Back comes back to the same view
   await page.getByText("Upcoming", { exact: true }).click();
   await page.locator(".list a", { hasText: "Quoll later medium" }).click();
-  await expect(page.locator(".pager")).toContainText("Todos · Upcoming");
+  await expect(page.locator("header .pager")).toHaveAttribute("aria-label", "In Todos · Upcoming");
+  await expect(page.locator("#backto")).toHaveText("Todos");
   await page.goBack();
   await expect(page).toHaveURL(/\/todos\?view=upcoming$/);
   await expect(page.getByRole("radio", { name: "Upcoming" })).toBeChecked();
@@ -220,7 +221,12 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   await line.click();
   await page.getByLabel("Snooze until").fill(day(1));
   await page.getByRole("button", { name: "Save" }).click();
+  // Past its due date (yesterday): asked whether the due date moves too; kept here
+  const ask = page.getByRole("group", { name: "Due date" });
+  await expect(ask).toContainText("Snoozed past its due date");
+  await ask.getByRole("button", { name: "Keep due date" }).click();
   await expect(line).toHaveText(/ · snoozed till /);
+  expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(day(-1));
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).snoozed_until).toBe(
     day(1),
   );
@@ -338,13 +344,14 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   await page.goto("/todos");
   await page.locator(".list a", { hasText: "Dunnart first" }).click();
   await expect(page.locator(".page h1")).toHaveText("Dunnart first");
-  const where = page.locator(".pager .at"); // a label: Back is in the top bar
-  await expect(where).toHaveText(/^1 of \d+ · Todos · Now$/);
+  const where = page.locator("header .pager .at"); // beside Back, which names the list
+  await expect(where).toHaveText(/^1 of \d+$/);
+  await expect(page.locator(".pager")).toHaveAttribute("aria-label", "In Todos · Now");
   await tools.getByRole("button", { name: "Mark done" }).click();
   // On to the next, saying so
   await expect(page).toHaveURL(`/p/${b.slug}`);
   await expect(page.locator(".page h1")).toHaveText("Dunnart second");
-  await expect(where).toHaveText(/^2 of \d+ · Todos · Now$/);
+  await expect(where).toHaveText(/^2 of \d+$/);
   await expect(page.locator(".toast")).toContainText("Done: Dunnart first. Next todo, 2 of");
   expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
     "done",
@@ -387,5 +394,23 @@ test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) =>
   const nap = await page.getByLabel("Snooze until").boundingBox();
   expect(nap && pri && nap.y > pri.y + pri.height - 1).toBe(true);
   await page.getByRole("button", { name: "Save" }).click();
+  // Snoozed past today's due date: Move due date takes the due date to the snooze's day
+  await page
+    .getByRole("group", { name: "Due date" })
+    .getByRole("button", { name: "Move due date" })
+    .click();
   await expect(page.locator(".todoline > button")).toHaveText(/ · snoozed till /);
+  const saved = await (await page.request.get(`/api/pages/${t.page_id}`)).json();
+  expect([saved.due, saved.snoozed_until]).toEqual([day(7), day(7)]);
+});
+
+test("a snooze on or before the due date saves without asking", async ({ page }) => {
+  const t = await todo(page, "Bilby no ask", { due: day(9) });
+  await page.goto(`/p/${t.slug}`);
+  await page.locator(".todoline > button").click();
+  await page.getByLabel("Snooze until").fill(day(2));
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".todoline > button")).toHaveText(/ · snoozed till /);
+  await expect(page.getByRole("group", { name: "Due date" })).toHaveCount(0);
+  expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(day(9));
 });

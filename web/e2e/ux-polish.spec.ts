@@ -13,25 +13,41 @@ async function make(page: Page, text: string, kind = "note") {
 }
 
 const back = (page: Page) => page.locator("header #back");
-// An iPhone's home-screen app (navigator.standalone): the only place the top bar has Back
-const iphoneApp = (page: Page) =>
-  page
-    .context()
-    .addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true }));
 
-test("elsewhere (Android, a browser) a page keeps the wordmark: no Back in the top bar", async ({
+test("every phone and browser: a page's top bar has Back, named for where it goes", async ({
   page,
 }) => {
-  const note = await make(page, `No arrow ${ulid().slice(-6)}`);
+  const note = await make(page, `Named back ${ulid().slice(-6)}`);
   await page.goto(`/p/${note.slug}`);
   await expect(page.locator(".page h1")).toBeVisible();
-  await expect(back(page)).toBeHidden();
+  await expect(back(page)).toBeVisible();
+  await expect(back(page)).toHaveAccessibleName("Back to Capture");
+  await expect(page.locator("header .logo")).toBeHidden();
+  await expect(page.locator("nav")).toBeHidden(); // the page's toolbar is the bottom bar
+  await page.goto("/");
+  await expect(back(page)).toBeHidden(); // a list has the wordmark
   await expect(page.locator("header .logo")).toBeVisible();
-  await expect(page.locator("nav")).toBeHidden(); // still: the page's toolbar is the bottom bar
+});
+
+test("Back goes straight to the list, past the pages followed from it", async ({ page }) => {
+  const tag = ulid().slice(-6);
+  const far = await make(page, `Far page ${tag}`);
+  const near = await make(page, `Near page ${tag}\n\nSee [the far one](/p/${far.slug}).`);
+  await page.goto(`/search?q=${encodeURIComponent(`Near page ${tag}`)}`);
+  await page.locator(".hits a", { hasText: `Near page ${tag}` }).click();
+  await expect(page).toHaveURL(`/p/${near.slug}`);
+  await page.locator(".page .body a", { hasText: "the far one" }).click();
+  await expect(page).toHaveURL(`/p/${far.slug}`);
+  await expect(page.locator("#backto")).toHaveText("Search"); // the list it came from
+  await back(page).click();
+  await expect(page).toHaveURL(/\/search\?q=/);
+  await expect(page.getByRole("searchbox")).toHaveValue(`Near page ${tag}`);
+  // The phone's own Back still goes one at a time
+  await page.goForward();
+  await expect(page).toHaveURL(`/p/${near.slug}`);
 });
 
 test("Back on a page opened cold goes to its parent; from a list, back to it", async ({ page }) => {
-  await iphoneApp(page);
   const tag = ulid().slice(-6);
   const todo = await make(page, `Back todo ${tag}`, "todo");
   const note = await make(page, `Back note ${tag}`);
@@ -40,6 +56,7 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   await page.goto(`/p/${todo.slug}`);
   await expect(page.locator(".page h1")).toHaveText(`Back todo ${tag}`);
   await expect(back(page)).toBeVisible();
+  await expect(page.locator("#backto")).toHaveText("Todos");
   await expect(page.locator("header .logo")).toBeHidden(); // Back in its place
   await expect(page.locator("nav")).toBeHidden(); // the page's toolbar is the only bottom bar
   await back(page).click();
@@ -63,6 +80,7 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
 
   // Any other page's parent is Capture
   await page.goto(`/p/${note.slug}`);
+  await expect(page.locator("#backto")).toHaveText("Capture");
   await back(page).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("button", { name: "Camera" })).toBeVisible();
@@ -70,6 +88,7 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   // Tags: titled in the top bar, its parent Search
   await page.goto("/tags");
   await expect(page.locator("header #where")).toHaveText("Tags");
+  await expect(page.locator("#backto")).toHaveText("Search");
   await back(page).click();
   await expect(page).toHaveURL(/\/search$/);
 
@@ -77,6 +96,7 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   await page.goto(`/search?q=${tag}`);
   await page.locator(".hits a", { hasText: `Back note ${tag}` }).click();
   await expect(page).toHaveURL(`/p/${note.slug}`);
+  await expect(page.locator("#backto")).toHaveText("Search");
   await back(page).click();
   await expect(page).toHaveURL(new RegExp(`/search\\?q=${tag}$`));
   await expect(page.getByRole("searchbox")).toHaveValue(tag);

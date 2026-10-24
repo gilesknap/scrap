@@ -32,7 +32,7 @@ const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't re
 
 /** What Claude did, in a line, so Reprocess says what it would redo (or, never read, what
  * asking would do). */
-function did(p: Page, read: boolean): string {
+export function did(p: Page, read: boolean): string {
   if (!read) return "Claude can summarise it, suggest tags and find related pages.";
   const parts = [
     p.enrich?.summary && "wrote the summary",

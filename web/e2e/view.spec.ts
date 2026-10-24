@@ -832,7 +832,7 @@ test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind r
   await expect(kinds.getByRole("radio", { name: "All" })).toBeChecked();
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(1);
   await rows.filter({ hasText: "an unfiled note" }).getByRole("link").click();
-  await expect(page.locator(".pager")).toContainText("Latest"); // not "All"
+  await expect(page.locator(".pager")).toHaveAttribute("aria-label", "In Latest"); // not "All"
   for (const width of [320, 360]) {
     await page.goto("/search");
     await page.setViewportSize({ width, height: 800 });
