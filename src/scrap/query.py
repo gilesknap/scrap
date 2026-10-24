@@ -32,8 +32,8 @@ MAX_AGO = 100  # 100y at most
 END = "~"  # after every ISO 8601 timestamp, as text
 WORD = re.compile(r"[^\W_]")  # a letter or digit: something FTS indexes (one character)
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
-MAX_TERMS = 16  # every term adds a subquery
-MAX_FILTERS = 16
+MAX_TERMS = 64  # every term adds a subquery; only abuse gets here
+MAX_FILTERS = 64
 NOT = "-!"
 
 

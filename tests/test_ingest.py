@@ -782,7 +782,7 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     assert found(" ".join(["common"] * 100)) == 20
     words = " ".join(f"w{n}" for n in range(999))
     started = time.monotonic()
-    # past 16 words: refused, not cut short (a dropped NOT word would broaden it)
+    # past 64 words: refused, not cut short (a dropped NOT word would broaden it)
     for q in (words, "salt " + words, f"common words {words}"):
         assert "too many" in str(found(q, 422))
     assert time.monotonic() - started < 2

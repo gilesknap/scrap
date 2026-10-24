@@ -72,7 +72,7 @@ def test_parsing_is_linear():
                 "a:" * 100_000, " x" * 100_000, '-"a' * 70_000):  # fmt: skip
         parse(bad)
     assert time.monotonic() - started < 2
-    assert len(parse(" ".join(f"w{n}" for n in range(999))).terms) == 16
+    assert len(parse(" ".join(f"w{n}" for n in range(999))).terms) == 64
 
 
 # ---- the store
@@ -491,12 +491,12 @@ def test_a_query_past_the_caps_is_refused_not_cut_short(store):
 
     page(store, "Alpha", "keep")
     page(store, "Beta", "keep drop")
-    words = " ".join(f"w{n}" for n in range(16))
-    assert slugs(store, words) == []  # 16 words: fine
+    words = " ".join(f"w{n}" for n in range(64))
+    assert slugs(store, words) == []  # 64 words: fine
     with pytest.raises(InvalidError, match="too many"):
         store.search(f"{words} -drop", 20)  # the NOT word would have been lost
     with pytest.raises(InvalidError, match="too many"):
-        store.search(" ".join(f"is:open tag:t{n}" for n in range(9)) + " -tag:x", 20)
+        store.search(" ".join(f"is:open tag:t{n}" for n in range(33)) + " -tag:x", 20)
     with pytest.raises(InvalidError, match="too many"):
         store.facets(f"{words} -drop")
     assert slugs(store, "keep -drop") == ["alpha-0"]
