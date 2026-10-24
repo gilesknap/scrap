@@ -6,7 +6,6 @@ import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
-import { page } from "./page";
 import { search } from "./search";
 import { whenSlow } from "./slow";
 import { today } from "./status";
@@ -35,7 +34,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/search$/, () => search()],
   [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
   [/^\/todos$/, () => todos()],
-  [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
+  [/^\/p\/([^/]+)$/, (m) => import("./page").then((p) => p.page(decodeURIComponent(m[1])))],
 ];
 
 /** /recent (?kind=consume) as the search screen's address, ?kind=todo as the Todos screen's;
