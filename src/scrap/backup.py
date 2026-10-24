@@ -8,6 +8,7 @@ import sqlite3
 import zipfile
 from collections.abc import Callable
 from contextlib import closing
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
 from urllib.parse import quote, unquote
@@ -16,6 +17,9 @@ from .drawing import excalidraw_file
 from .store import NoSuchPage, Store, connect, migrate, schema_version
 
 __all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
+
+# Written last into a backup run; gc deletes only after a run that has one
+COMPLETE = "COMPLETE"
 
 Namer = Callable[[sqlite3.Row, set[str]], str]
 
@@ -42,17 +46,36 @@ def _snapshot(src: Path, dest: Path) -> None:
     part.replace(dest)
 
 
+def _check(db: Path) -> None:
+    """Refuse a snapshot SQLite finds damaged (read-only: it leaves no -wal behind)."""
+    uri = f"{db.resolve().as_uri()}?immutable=1"
+    try:
+        with closing(sqlite3.connect(uri, uri=True)) as conn:
+            check = conn.execute("PRAGMA integrity_check").fetchone()[0]
+    except sqlite3.DatabaseError as error:
+        check = str(error)
+    if check != "ok":
+        raise SystemExit(f"backup in {db.parent} is damaged: integrity_check: {check}")
+
+
 def backup(store: Store, dest: Path) -> None:
     """Snapshot the database, then copy files/; safe while scrap is serving.
 
     Blobs are written before the transaction that records them, so every blob the
-    snapshot names is already in files/ when the copy starts.
+    snapshot names is already in files/ when the copy starts. The snapshot is then
+    checked, and only a good one gets a COMPLETE marker: deploy/scrap-gc and the gc
+    CronJob count a run without it as no backup. A refused backup leaves no marker.
     """
     if not store.db.is_file():
         raise SystemExit(f"no database at {store.db}")
     dest.mkdir(parents=True, exist_ok=True)
+    (dest / COMPLETE).unlink(missing_ok=True)  # a re-run into a run dir starts unproven
     _snapshot(store.db, dest / "scrap.db")
     _copy_files(store.files, dest / "files")
+    _check(dest / "scrap.db")
+    part = dest / f"{COMPLETE}.part"
+    part.write_text(f"{datetime.now(UTC).isoformat()}\n")
+    part.replace(dest / COMPLETE)
 
 
 def restore(src: Path, store: Store, force: bool = False) -> None:

@@ -46,7 +46,7 @@ spec:
               image: {{ include "scrap.image" . }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               # Same rules as deploy/scrap-gc on the single server: delete only when
-              # a backup run less than 26 hours old exists; otherwise count only
+              # a completed backup run (with its COMPLETE marker) less than 26 hours old exists; otherwise count only
               # and fail, so a missing backup shows as a failed Job.
               command:
                 - /bin/sh
@@ -59,8 +59,8 @@ spec:
                   {{- end }}
                   {{- if $delete }}
                   {{- if .Values.gc.requireBackup }}
-                  recent=$(find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d -mmin -1560 \
-                      -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' |
+                  recent=$(find "$SCRAP_BACKUPS" -mindepth 2 -maxdepth 2 -type f -name COMPLETE -mmin -1560 \
+                      -path '*/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z/COMPLETE' |
                       head -n 1)
                   {{- else }}
                   recent=unchecked

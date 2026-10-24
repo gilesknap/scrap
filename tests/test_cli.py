@@ -78,7 +78,7 @@ def test_restore_from_a_read_only_backup(client, note, tmp_path):
         files=[("file", ("b.png", b"png bytes", "image/png"))],
     )
     main(["backup", "--data-dir", str(data), str(bak)])
-    assert sorted(p.name for p in bak.iterdir()) == ["files", "scrap.db"]
+    assert sorted(p.name for p in bak.iterdir()) == ["COMPLETE", "files", "scrap.db"]
     dirs = [bak, *(p for p in bak.rglob("*") if p.is_dir())]
     for path in dirs:
         path.chmod(0o555)
@@ -90,6 +90,42 @@ def test_restore_from_a_read_only_backup(client, note, tmp_path):
             path.chmod(0o755)
     assert _dump(tmp_path / "new") == _dump(data)
     assert sorted(p.name for p in (tmp_path / "new").iterdir()) == ["files", "scrap.db"]
+
+
+def test_backup_writes_the_complete_marker_last(client, note, tmp_path):
+    from scrap.__main__ import main
+
+    note("Kept")
+    bak = tmp_path / "bak"
+    main(["backup", "--data-dir", str(tmp_path / "data"), str(bak)])
+    assert (bak / "COMPLETE").is_file()
+    assert not (bak / "COMPLETE.part").exists()
+    assert not (bak / "scrap.db-wal").exists()
+
+
+def test_a_damaged_backup_exits_non_zero_without_the_marker(
+    client, note, tmp_path, monkeypatch
+):
+    from scrap import backup
+    from scrap.__main__ import main
+
+    note("Kept")
+    bak = tmp_path / "bak"
+    bak.mkdir()
+    (bak / "COMPLETE").write_text("from an earlier run\n")  # a re-run into a run dir
+    real = backup._snapshot
+
+    def damaged(src, dest):
+        real(src, dest)
+        data = bytearray(dest.read_bytes())
+        data[4096:8192] = b"\xff" * 4096  # trash the first page after the header
+        dest.write_bytes(bytes(data))
+
+    monkeypatch.setattr(backup, "_snapshot", damaged)
+    with pytest.raises(SystemExit) as raised:
+        main(["backup", "--data-dir", str(tmp_path / "data"), str(bak)])
+    assert raised.value.code != 0
+    assert not (bak / "COMPLETE").exists()
 
 
 def test_export_markdown(client, note, tmp_path, capsys):

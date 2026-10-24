@@ -597,7 +597,8 @@ renamed aside and its age checked again, because `Store.put_blob` touches a file
 stored, so an upload of the same bytes in flight keeps it. Its previews go with it. A run that
 stops between the rename and the delete or relink leaves the file aside; the next run puts back
 every such file whose name is free before it looks at anything. On a single server a nightly timer
-runs it, after the backup, and only deletes if there was a backup in the last 26 hours. See
+runs it, after the backup, and only deletes if there was a completed backup (one that passed an integrity check and
+wrote its `COMPLETE` marker) in the last 26 hours. See
 {ref}`the deploy guide <scrap-gc>`.
 
 ## Import
