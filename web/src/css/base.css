@@ -1,0 +1,54 @@
+/* ---- Base ---- */
+:root {
+  font: 17px / var(--lh) var(--font);
+}
+/* iPhone: the root follows the phone's text size (Larger Text too), which only reaches a page
+   through the system body font; at the default setting it is 17 px. The shorthand also sets the
+   face and line height: ours again. Only where the callout exists (iOS, not a Mac, where the body
+   font is 13 px); main.ts keeps it from going under 17 px (the smaller settings). */
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  :root {
+    /* biome-ignore lint/a11y/useGenericFontNames: a system font keyword; the family is set next */
+    font: -apple-system-body;
+    font-family: var(--font);
+    line-height: var(--lh);
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  -webkit-tap-highlight-color: transparent; /* every control draws its own press */
+}
+a {
+  color: var(--accent-ink);
+  text-underline-offset: 0.15em;
+}
+:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+.i {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+h2.label {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}

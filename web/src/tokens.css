@@ -30,7 +30,7 @@
   --shadow-2: 0 4px 12px rgb(40 30 10 / 14%), 0 12px 32px rgb(40 30 10 / 12%);
 
   /* Type: the system UI face; sizes off the root: 17 px, or iPhone's text size if larger
-     (style.css). */
+     (css/base.css). */
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --t-xs: 0.75rem; /* 12.75: labels under icons, chips */

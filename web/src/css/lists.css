@@ -1,0 +1,253 @@
+/* ---- Lists: a grouped card of rows ---- */
+.list {
+  list-style: none;
+  margin: 0 0 var(--s-4);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+.list:empty {
+  display: none;
+}
+.list li + li {
+  border-top: 1px solid var(--line);
+}
+.list li > :is(a, div) {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+  min-height: 68px;
+  padding: var(--s-2) var(--s-3);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--d-1) linear;
+}
+.list li > a:active {
+  background: var(--sunk);
+}
+.list li > a:focus-visible {
+  outline-offset: -2px; /* inside the card, which clips what is outside it */
+}
+.list img,
+.noimg {
+  flex: none;
+  align-self: flex-start;
+  width: 48px;
+  height: 48px;
+  margin-top: 2px;
+  border-radius: var(--r-sm);
+}
+.list img {
+  object-fit: cover;
+  outline: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); /* white photos on white */
+  outline-offset: -1px;
+  background: var(--sunk); /* the placeholder while it loads */
+}
+.list img:not(.loaded),
+.originals img:not(.loaded),
+.md .orig img:not(.loaded) {
+  animation: shimmer 1.2s linear infinite alternate; /* only until it loads or fails */
+}
+@keyframes shimmer {
+  to {
+    background-color: var(--line);
+  }
+}
+.noimg {
+  display: grid;
+  place-items: center;
+  background: var(--sunk);
+  color: var(--ink-2);
+}
+.list li > * > span:not(.noimg) {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.list strong {
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sub {
+  display: flex;
+  flex-wrap: wrap; /* a chip that doesn't fit goes under the date, not over it */
+  align-items: center;
+  gap: 0 var(--s-2);
+  min-width: 0;
+}
+.sub small {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list small {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+/* A row follows the finger sideways (swipe.ts): right to edit, left to delete, said behind it */
+.list li.swipe {
+  position: relative;
+  isolation: isolate; /* the row's layers stay under the capture cluster */
+  touch-action: pan-y pinch-zoom; /* the page scrolls and zooms; sideways is the row's */
+}
+.list li.swipe > a {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  transition:
+    transform var(--d-2) var(--ease),
+    background-color var(--d-1) linear;
+}
+.list li > .row-under {
+  position: absolute;
+  inset: 0;
+  justify-content: space-between;
+  padding: 0 var(--s-5);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.row-under span {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.list li:not(.to-edit, .to-delete) > .row-under,
+.to-edit .row-under span + span,
+.to-delete .row-under span:first-child {
+  visibility: hidden;
+}
+.list li.to-edit > .row-under {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.list li.to-delete > .row-under {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.list li.armed.to-edit > .row-under {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.row-under .i {
+  transition: scale var(--d-1) var(--ease);
+}
+.armed .row-under .i {
+  scale: 1.3; /* far enough: letting go does it */
+}
+/* A todo's or a Read's tick (rows.ts): beside the row's link, not in it; moves with it */
+.list li.ticks > a {
+  padding-inline-end: calc(var(--s-1) + var(--tap));
+}
+.list .tick {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  inset-inline-end: var(--s-1);
+  width: var(--tap);
+  min-height: var(--tap);
+  margin-block: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  transition: transform var(--d-2) var(--ease);
+}
+.list .tick:focus-visible {
+  outline-offset: -2px; /* inside the row: the list clips what is outside it */
+}
+.list .tick .i {
+  width: 24px;
+  height: 24px;
+}
+.tick:not([aria-pressed="true"]) path {
+  visibility: hidden; /* an empty box; done: ticked, in amber */
+}
+.tick[aria-pressed="true"] {
+  color: var(--accent-ink);
+}
+/* Some of its task boxes ticked: a bar across the box, in amber (the row says "2 of 5") */
+.tick[aria-pressed="mixed"] {
+  color: var(--accent-ink);
+}
+/* Cancelled: closed but not done, so its title struck and a grey dash in its box */
+.list li.cancelled strong {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.tick[aria-pressed="mixed"]::after,
+.cancelled > .tick::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 2.4px;
+  border-radius: 1px;
+  background: currentColor;
+  translate: -50% -50%;
+}
+.list em {
+  flex: none;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--t-xs);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.pending {
+  border-style: dashed;
+  border-color: var(--line-strong);
+}
+.pending small {
+  color: var(--accent-ink);
+}
+.pending .failed small {
+  color: var(--danger);
+}
+.pending .sub small {
+  white-space: normal; /* the reason, in full */
+}
+.rowbar {
+  display: flex;
+  flex-wrap: wrap; /* a second line rather than a label broken over two */
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.rowbar button {
+  flex: 1 1 auto;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.snip {
+  display: -webkit-box; /* a search hit's snippet, under its date: two lines at most */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  white-space: normal;
+}
+mark {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  box-shadow: inset 0 -2px var(--accent);
+}

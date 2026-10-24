@@ -1,0 +1,407 @@
+/* ---- Search ---- */
+.field-search {
+  position: relative;
+  display: block;
+  margin-bottom: var(--s-4);
+}
+.field-search > .i {
+  position: absolute;
+  inset-inline-start: 14px;
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.field-search input {
+  min-height: var(--tap);
+  padding-inline-start: 46px;
+  border-radius: var(--r-pill);
+}
+/* Recent searches, under the empty box while it has focus: "Recent" and Clear all, then the
+   last ten as one list group, each a row that runs it again (start-aligned, cut with … on one
+   line) and a 48 px ✕ that forgets it */
+.recents-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: calc(-1 * var(--s-2));
+}
+.recents-top h2.label {
+  margin: 0;
+}
+.recents-top button.link {
+  margin: 0 calc(-1 * var(--s-3)) 0 0;
+}
+.list.recents li {
+  display: flex;
+  align-items: center;
+}
+.list.recents .again {
+  flex: 1;
+  justify-content: flex-start;
+  text-align: start;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+}
+.list.recents .again span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list.recents .again .i {
+  flex: none;
+  color: var(--ink-2);
+}
+.list.recents .again:active {
+  background: var(--sunk);
+}
+.list.recents .forget {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
+/* The box's ✕ (the search screen's: one tap back to every page); the browser's own is hidden */
+.field-search .clear {
+  position: absolute;
+  inset-inline-end: var(--tap); /* beside Filters, at the box's end */
+  top: 50%; /* centred on the box, whatever its height */
+  translate: 0 -50%;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+}
+.field-search .clear[hidden] {
+  display: none;
+}
+.field-search:has(.clear) input {
+  padding-inline-end: calc(2 * var(--tap));
+}
+.field-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+/* Refine chips: one row that scrolls sideways, the query's own filters first */
+/* Filters: a slider at the search box's end, beside its ✕ (how many are on, in a dot); the
+   filters on are a row of their own under the kinds, scrolling sideways; the panel opens under
+   that, in place, over the results, which stay in view and follow each tap */
+.field-search .ffield {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--tap);
+  padding: 0;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+}
+.field-search .ffield[aria-expanded="true"] {
+  color: var(--accent-ink);
+  background: var(--sunk);
+}
+.ffield b {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.7rem;
+  line-height: 18px;
+  text-align: center;
+}
+.refine {
+  margin: 0 0 var(--s-3);
+}
+.fon {
+  display: flex;
+  gap: var(--s-2);
+  margin-inline: calc(-1 * var(--s-4)); /* the screen's width, scrolling to its edges */
+  padding: 2px var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  padding: var(--s-1) 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.fpanel[hidden] {
+  display: none;
+}
+/* A row: its label, then its chips on one line that scrolls sideways (never a wall of chips) */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-inline-start: var(--s-3);
+}
+.flabel {
+  flex: none;
+  width: 4.2em;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.frow .opts,
+.frow.ftags > .opts {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: var(--s-2);
+  padding: 2px var(--s-3) 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fpanel .facet[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+/* Tags: those on and the box on one line, what it offers on the next (under the box) */
+.frow.ftags {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: var(--s-2);
+}
+.frow.ftags > .flabel {
+  line-height: 44px; /* level with the first line of chips and the box */
+}
+
+.frow.ftags .tagline {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-inline-end: var(--s-3);
+}
+.frow.ftags .tagline input {
+  flex: 1;
+  min-width: min(8rem, 100%); /* never wider than the panel at a large text size */
+  min-height: 44px;
+  border-radius: var(--r-pill);
+}
+.frow.ftags > .opts {
+  flex-basis: 100%;
+  padding-inline-start: calc(4.2em + var(--s-2));
+}
+.fpanel .opts .none {
+  align-self: center;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.fpanel .range {
+  margin: 0;
+  padding-inline: calc(4.2em + var(--s-2) + var(--s-3)) var(--s-3);
+}
+.fpanel > button.link {
+  align-self: flex-start;
+  margin: 0 0 0 var(--s-3);
+}
+/* Above the list, no filters on: how many were found, in a tight line that takes some of the
+   kinds' margin (with filters on, the count leads their row: .fon) */
+.found {
+  margin: calc(-1 * var(--s-1)) 0 var(--s-1);
+  font-size: var(--t-sm);
+  line-height: 1.25; /* the line costs under 20 px */
+}
+:is(.found, .fon) .count {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.fon .count {
+  flex: none;
+  align-self: center;
+  white-space: nowrap;
+}
+.facet {
+  flex: none;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.facet small {
+  line-height: calc(var(--t-sm) * var(--lh)); /* the label's: on its baseline, not raised */
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+}
+.facet.on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.facet.on .i {
+  width: 16px;
+  height: 16px;
+}
+.range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.range label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.range input {
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+}
+.range small {
+  flex-basis: 100%;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+}
+/* A page's tags, each a search: one line under the title that scrolls, like the chips */
+.tags {
+  display: flex;
+  gap: var(--s-1);
+  margin: calc(-1 * var(--s-2)) calc(-1 * var(--s-4)) 0;
+  padding: 0 var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tags a {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap); /* the touch target; the pill drawn inside it is 32 px */
+  padding: 0 var(--s-3);
+  border-block: 8px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--sunk) padding-box;
+  color: var(--ink);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+/* Tags, first in the line: edits them. Outlined, the tags filled; 32 px drawn in 48 */
+.tags > button {
+  flex: none;
+  gap: 6px;
+  padding: 0 var(--s-3);
+  border: 8px solid transparent;
+  border-inline-width: 0;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: var(--surface) padding-box;
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.tags > button .i {
+  width: 16px;
+  height: 16px;
+}
+/* Editing tags: chips (tap to remove) that wrap, then the box with suggestions */
+.tagedit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.tagchips {
+  display: contents;
+}
+.tagedit .facet {
+  max-width: 100%;
+}
+.tagedit .facet span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tagedit input {
+  flex: 1 1 10rem;
+  min-height: 44px;
+}
+/* The most used tags not on it yet, one tap each: one line under the box that scrolls */
+.toptags {
+  display: flex;
+  flex-basis: 100%;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--s-4));
+  padding: 0 var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toptags .facet {
+  border-style: dashed; /* offered, not chosen: the chosen ones are filled */
+  border-color: var(--line-strong);
+}
+.tagform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.tagform .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+/* More to the right: the row fades out at its end */
+:is(.tags, .refine, .toptags) {
+  mask-image: linear-gradient(to left, transparent, #000 var(--s-6));
+}
+/* Browse tags: a tree, a parent's chevron opens it */
+.tagtree li {
+  display: flex;
+  align-items: center;
+}
+.list.tagtree li > a {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding-inline-start: calc(var(--s-3) + var(--depth, 0) * var(--s-5));
+}
+.tagtree a > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tagtree a > small {
+  flex: none;
+  margin-inline-start: auto;
+}
+.tagtree button {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+}
+.tagtree button .i {
+  transition: rotate var(--d-2) var(--ease);
+}
+.tagtree button[aria-expanded="true"] .i {
+  rotate: 90deg;
+}

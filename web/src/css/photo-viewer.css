@@ -1,0 +1,340 @@
+/* ---- Photo viewer ---- */
+.viewing {
+  overflow: hidden;
+}
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: var(--viewer);
+  color: var(--on-overlay);
+  animation: fade var(--d-3) var(--ease);
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none; /* the viewer handles every gesture; the page must not move */
+  user-select: none;
+}
+.stage img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.stage img.anim {
+  transition: transform var(--d-2) ease-out;
+}
+.viewer .tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--s-6) max(env(safe-area-inset-right), var(--s-2))
+    calc(env(safe-area-inset-bottom) + var(--s-2)) max(env(safe-area-inset-left), var(--s-2));
+  background: linear-gradient(transparent, var(--overlay) 45%);
+}
+.viewer button,
+.viewer .button {
+  color: var(--on-overlay);
+}
+.viewer button:active,
+.viewer .button:active {
+  background: color-mix(in srgb, var(--on-overlay) 14%, transparent);
+}
+.viewer .share-menu :is(button, .button) {
+  color: var(--ink); /* the menu is a light surface, not the dark viewer */
+}
+.viewer .share-menu :is(button, .button):active {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.viewer .tools b {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  font-size: 0.8rem;
+}
+.viewer .step,
+.viewer .close {
+  position: absolute;
+  width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--overlay);
+}
+.viewer .close {
+  top: calc(env(safe-area-inset-top) + var(--s-2));
+  right: max(env(safe-area-inset-right), var(--s-2));
+}
+.viewer .step {
+  top: 50%;
+  translate: 0 -50%;
+}
+.viewer [aria-label="Previous photo"] {
+  left: max(env(safe-area-inset-left), var(--s-2));
+}
+.viewer [aria-label="Next photo"] {
+  right: max(env(safe-area-inset-right), var(--s-2));
+}
+.viewer .note {
+  position: absolute;
+  top: 40%;
+  left: var(--s-4);
+  right: var(--s-4);
+  text-align: center;
+}
+.viewer .count {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--s-2) + 12px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 2px var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--overlay);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.viewer .count:empty {
+  display: none;
+}
+
+/* Durations are 0 under reduced motion (tokens.css); the loops stop too. */
+@media (prefers-reduced-motion: reduce) {
+  .list img,
+  .originals img,
+  .md .orig img,
+  [aria-busy="true"] .i {
+    animation: none;
+  }
+}
+
+/* Landscape and other short screens: less fixed chrome. The nav puts its label beside the
+   icon, the page's tools scroll with the page, and the capture cluster is one row. */
+@media (max-height: 500px) {
+  :root {
+    --nav-h: 48px;
+    --bar-h: 48px;
+  }
+  .page > .tools {
+    position: static;
+    margin-top: var(--s-4);
+  }
+}
+@media (max-height: 500px) and (min-width: 560px) {
+  nav a {
+    flex-direction: row;
+    gap: var(--s-1);
+  }
+  nav .i {
+    width: 44px;
+    height: 28px;
+    padding: 2px 10px;
+  }
+  nav .due-n {
+    position: static; /* in the row, between the icon and the label */
+  }
+  .tile {
+    min-height: 64px;
+  }
+}
+
+/* Very narrow (a small phone at its largest text size): the cluster scrolls with the list
+   instead of covering it, tiles go two by two, and labels may wrap rather than clip. */
+@media (max-width: 299px) {
+  .actions {
+    position: static;
+    order: -1; /* first, so Camera is on the first screen; the list follows */
+    margin: 0 calc(-1 * var(--s-2)) var(--s-4);
+    grid-template-columns: 1fr 1fr;
+  }
+  .tools > * {
+    font-size: 0; /* icons only; the words stay as their accessible names */
+  }
+  .list img,
+  .noimg {
+    width: 32px;
+    height: 32px;
+  }
+  .list li > :is(a, div) {
+    gap: var(--s-2);
+  }
+  .tile,
+  .chips label,
+  .sub small {
+    white-space: normal;
+    text-align: center;
+  }
+  .sub small {
+    text-align: start;
+  }
+  .sub {
+    flex-wrap: wrap;
+    gap: 0 var(--s-2);
+  }
+  .list strong {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+  .bar .add {
+    flex-basis: 100%;
+  }
+  .chips label {
+    font-size: var(--t-xs);
+    line-height: var(--lh-tight);
+  }
+  .editor > .bar {
+    gap: var(--s-1);
+  }
+  .toast {
+    flex-wrap: wrap;
+    padding-block: var(--s-2);
+  }
+  .toast button {
+    margin-inline-start: auto; /* under the message, at the end */
+  }
+  .editor > .bar > * {
+    padding: 0 var(--s-2);
+  }
+  .editor > .bar > :last-child {
+    min-width: 0;
+  }
+}
+
+/* Forced colours (high contrast): fills and shadows are dropped, so selection and the
+   borderless controls get system-colour edges. */
+@media (forced-colors: active) {
+  .chips label:has(input:checked),
+  nav a[aria-current] .i {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .tile,
+  .badge {
+    border: 1px solid ButtonText;
+  }
+}
+
+/* Last, so it wins over any component's display. */
+[hidden] {
+  display: none;
+}
+
+/* Debug aid (debug.ts), off by default */
+.debug {
+  position: fixed;
+  left: 0;
+  top: calc(var(--vv-top, 0px) + 35%); /* in sight with the keyboard up */
+  z-index: 5;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.3rem;
+  font-size: 10px;
+  white-space: pre-wrap;
+  background: rgb(0 0 0 / 75%);
+  color: #0f0;
+  pointer-events: none;
+}
+/* A todo's priority and due date (#104), on its row and its page; overdue in --danger */
+.list .due {
+  color: var(--ink-2);
+  white-space: normal; /* when it is due matters more than one line: never cut */
+}
+/* A page's kind (and status, if it has one) leads its meta line: "Todo · done", "Note" */
+.meta .state {
+  margin-inline-end: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--t-xs);
+  font-style: normal;
+  font-weight: 600;
+}
+.list .due.late,
+.todoline .late {
+  color: var(--danger);
+  font-weight: 600;
+}
+/* Done or cancelled: its due date kept, greyed */
+.list .due.closed,
+.todoline .closed {
+  color: var(--ink-3);
+}
+.todoline {
+  margin: calc(-1 * var(--s-2)) 0 0; /* under the tag line, in its rhythm: 32 px drawn in 48 */
+}
+.todoline > button {
+  gap: 6px;
+  padding: 0 var(--s-3);
+  border: 8px solid transparent; /* like Tags: a 32 px pill drawn in a 48 px target */
+  border-inline-width: 0;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: var(--surface) padding-box;
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.todoline .i {
+  width: 16px;
+  height: 16px;
+}
+.todoedit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--s-2) var(--s-3);
+}
+.todoedit[hidden] {
+  display: none; /* the editor's, while the kind is not Todo */
+}
+.todoedit label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.todoedit :is(input, select) {
+  min-height: 48px;
+}
+.todoedit select {
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.todoedit select:focus {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: -1px;
+}
+/* Due soon: Today, Tomorrow, Next week, on a line of their own under the date; the one set is
+   pressed, as in the Filters panel */
+.todoedit .soon {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: var(--s-2);
+}
+.todoedit .facet[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+/* Snooze starts a line of its own, under the priority */
+.todoedit .break {
+  flex-basis: 100%;
+  height: 0;
+}

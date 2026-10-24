@@ -1,0 +1,123 @@
+/* ---- Top bar ---- */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: calc(var(--bar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(env(safe-area-inset-right), var(--s-4)) 0
+    max(env(safe-area-inset-left), var(--s-4));
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.logo small {
+  align-self: flex-end;
+  padding-bottom: var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+.logo svg {
+  width: 22px;
+  height: 22px;
+  fill: var(--accent);
+  stroke: var(--on-accent);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  rotate: -6deg;
+}
+/* A page's and Tags' Back, in the wordmark's place; Tags' title beside it */
+#back {
+  width: var(--tap);
+  padding: 0;
+  margin-inline-start: calc(-1 * var(--s-3)); /* its arrow on the gutter's line */
+}
+#back .i {
+  width: 24px;
+  height: 24px;
+}
+#where {
+  flex: 1;
+  margin: 0;
+  font-size: var(--t-lg);
+}
+/* At the right: the queue badge, when up, the Todos screen's New todo, then Settings, always */
+.logo,
+#back {
+  margin-inline-end: auto;
+}
+#new,
+#settings {
+  width: var(--tap);
+  padding: 0;
+}
+#new {
+  margin-inline-start: var(--s-1);
+}
+#settings {
+  margin-inline: var(--s-1) calc(-1 * var(--s-3)); /* its cog on the gutter's line */
+}
+#new .i,
+#settings .i {
+  width: 24px;
+  height: 24px;
+}
+.settings h2 {
+  margin: 0 var(--s-2);
+  font-size: var(--t-lg);
+}
+.settings .fields {
+  gap: var(--s-2);
+}
+.settings h3.label {
+  margin: var(--s-3) 0 0;
+}
+.settings .hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.badge {
+  position: relative;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.badge::after {
+  content: ""; /* a 48 px target around the 36 px pill */
+  position: absolute;
+  inset: -6px;
+}
+.badge.failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.badge.failed::before {
+  background: var(--danger);
+}
