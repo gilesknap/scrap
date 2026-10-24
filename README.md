@@ -4,7 +4,7 @@
 
 # scrap
 
-scrap is a tiny personal knowledge store: a "second brain" you feed from your phone and query
+scrap is a personal knowledge store: a "second brain" you feed from your phone and query
 through Claude. Snap a whiteboard, jot a note or share a link; scrap keeps the original at once and
 reads, summarises and indexes it in the background. Claude searches, reads and adds pages over MCP,
 and a small PWA is where you capture and look at things.
@@ -13,7 +13,7 @@ and a small PWA is where you capture and look at things.
 
 ## Goals
 
-- Tiny: one service, one process, one SQLite file; small enough to read.
+- Simple: one service, one process, one SQLite file.
 - Off-the-shelf parts wherever they exist: Claude for chat and reasoning, SQLite for storage and
   search, Tailscale for access and identity, Excalidraw for drawings.
 - Quick capture from a phone that never waits on an LLM.
