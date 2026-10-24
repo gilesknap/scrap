@@ -14,7 +14,7 @@ def test_backup_retention():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def _gc_run(tmp_path, backups_age_min=None, **settings):
+def _gc_run(tmp_path, backups_age_min=None, marker=True, **settings):
     """deploy/scrap-gc with a fake podman that records its arguments."""
     tmp_path.mkdir()
     fake = tmp_path / "bin"
@@ -26,8 +26,12 @@ def _gc_run(tmp_path, backups_age_min=None, **settings):
     if backups_age_min is not None:
         run = backups / "20261019T033000Z"
         run.mkdir()
+        if marker:
+            (run / "COMPLETE").write_text("done\n")
         t = time.time() - backups_age_min * 60
-        os.utime(run, (t, t))
+        for path in (run / "COMPLETE", run):
+            if path.exists():
+                os.utime(path, (t, t))
     env = {
         **os.environ,
         "PATH": f"{fake}:{os.environ['PATH']}",
@@ -67,6 +71,14 @@ def test_gc_without_a_recent_backup_only_counts_and_fails(tmp_path):
         assert result.returncode == 1
         assert "--dry-run" in args.split() and "--delete" not in args.split()
         assert "No backup in the last 26 hours" in result.stderr
+
+
+def test_gc_ignores_a_run_without_the_complete_marker(tmp_path):
+    """A partial or pre-marker run directory does not authorise --delete."""
+    result, args = _gc_run(tmp_path / "x", backups_age_min=60, marker=False)
+    assert result.returncode == 1
+    assert "--dry-run" in args.split() and "--delete" not in args.split()
+    assert "No backup in the last 26 hours" in result.stderr
 
 
 def _fake(bin_dir, name, script):

@@ -519,8 +519,10 @@ pending until it is back.
 
 - **`scrap gc`** at `30 4 * * *`, an hour after the backup. It deletes the stored files nothing
   uses and the model and enrich run records older than `gc.runDays` that nothing refers to (see
-  {ref}`scrap-gc`). As `deploy/scrap-gc` does, it deletes only if the backup claim holds a run less
-  than 26 hours old; otherwise it only counts, and the Job fails so a missing backup shows. It
+  {ref}`scrap-gc`). As `deploy/scrap-gc` does, it deletes only if the backup claim holds a completed run
+  (one with the `COMPLETE` file written once the backup passed an integrity check) less than 26
+  hours old; otherwise it only counts, and the Job fails so a missing backup shows. Backups from
+  before the marker existed lack it, so gc only counts until the next backup runs. It
   takes the lock the backup job holds (`/backups/.lock`) so it never runs during a backup. So
   `gc.enabled` defaults to following `backup.enabled` (so a release with backups off gets no gc
   Job); setting `gc.enabled: true` with backups off is refused. If you back up another way, set

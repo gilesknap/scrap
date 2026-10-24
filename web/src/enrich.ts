@@ -14,6 +14,8 @@ export function stateText(e: Enrich): string | null {
       return e.on ? "Waiting for Claude" : "Waiting: Claude is off";
     case "processing":
       return "Claude is reading it…";
+    case "paused":
+      return `Paused${e.reason ? ` (${e.reason})` : ""}: nothing is lost`;
     case "failed":
       return `Claude couldn't read it${e.error ? `: ${e.error.replace(/^\w+: /, "")}` : ""}`;
     default:
@@ -21,9 +23,10 @@ export function stateText(e: Enrich): string | null {
   }
 }
 
-/** Whether to look again soon: Claude has it queued or is reading it. */
+/** Whether to look again soon: Claude has it queued or is reading it, or the queue is paused
+ * (a backoff ends by itself, or Resume is pressed elsewhere). */
 export const reading = (p: Page) =>
-  !!p.enrich?.on && ["queued", "processing"].includes(p.enrich.state ?? "");
+  !!p.enrich?.on && ["queued", "processing", "paused"].includes(p.enrich.state ?? "");
 
 /** The related pages to list, Claude's picks first, each once (the server merged them). */
 export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
@@ -51,7 +54,8 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
   const related = relatedOf(p);
   if (!e?.on && !e?.summary && !related.length) return null;
   const read = !!e?.summary || e?.state === "done";
-  const busy = e?.state === "queued" || e?.state === "processing";
+  // Waiting, reading or paused: nothing to ask for meanwhile (paused offers Resume instead)
+  const busy = ["queued", "processing", "paused"].includes(e?.state ?? "");
   // Never read: no state to show, only what asking would do, then the button under it
   const said = (e && e.state !== "done" && stateText(e)) || (read ? "Read by Claude" : null);
   const ask =
@@ -75,7 +79,28 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
       },
       e.state === "failed" ? "Retry" : read ? "Reprocess" : "Ask Claude to read it",
     );
-  const state = e?.state === "failed" ? "failed" : read ? "done" : "";
+  // The queue is the photos' too: its Resume (api/ingest/resume) ends the pause for both
+  const resume =
+    e?.state === "paused" &&
+    h(
+      "button",
+      {
+        type: "button",
+        onclick: async (ev: Event) => {
+          const b = ev.currentTarget as HTMLButtonElement;
+          b.disabled = true;
+          try {
+            await api("ingest/resume", { method: "POST" });
+            show(await api<Page>(`pages/${p.id}`));
+          } catch (err) {
+            b.disabled = false;
+            toast(`Not resumed: ${why(err)}`);
+          }
+        },
+      },
+      "Resume",
+    );
+  const state = e?.state === "failed" || e?.state === "paused" ? e.state : read ? "done" : "";
   return h(
     "section",
     { className: "enrich" },
@@ -84,7 +109,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
           "div",
           { className: "ingest" },
           h("span", { className: `state ${state}`, role: "status" }, said),
-          ask,
+          resume || ask,
         )
       : "",
     !busy && e?.on && h("p", { className: "did" }, did(p, read)),

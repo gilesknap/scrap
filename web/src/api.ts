@@ -54,8 +54,9 @@ export interface Page extends Summary {
   related?: { id: string; slug: string; title: string; kind: string; via: string }[];
   enrich?: {
     on: boolean; // Claude reads text pages
-    state: "queued" | "processing" | "done" | "failed" | null;
+    state: "queued" | "processing" | "done" | "failed" | "paused" | null;
     error: string | null;
+    reason?: string | null; // why the queue is paused (state "paused")
     summary: string | null;
   } | null;
 }

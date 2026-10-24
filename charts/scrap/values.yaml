@@ -113,8 +113,8 @@ backup:
 
 # A CronJob running `scrap gc`: it deletes the stored files nothing uses and the
 # model/enrich run records past retention, as the single-server deploy does nightly.
-# Like deploy/scrap-gc it deletes only when the backup claim holds a backup run less
-# than 26 hours old; otherwise it only counts and the Job fails, so a missing backup
+# Like deploy/scrap-gc it deletes only when the backup claim holds a completed backup run
+# (with its COMPLETE marker) less than 26 hours old; otherwise it only counts and the Job fails, so a missing backup
 # shows. It runs an hour after the backup (and takes the backup's lock, so never
 # during one), so it needs backup.enabled. It runs beside the scrap pod (the data
 # claim is ReadWriteOnce).

@@ -573,9 +573,11 @@ podman run --rm --userns=keep-id:uid=10001,gid=10001 --network=none \
     "$SCRAP_IMAGE" backup /backups/pre-import
 ```
 
-A directory named like a run is pruned by the retention step, and counts as a recent backup for
-gc, which looks only at the name and modification time of such a directory, never at what is
-inside it, so even an unfinished backup would pass. (`ls` lists `pre-import` after the runs.)
+A directory named like a run is pruned by the retention step. It counts as a recent backup for gc
+only if it holds the `COMPLETE` file that `scrap backup` writes as its last step, after checking
+the copied database with SQLite's `integrity_check`; a backup that fails the check exits non-zero
+and leaves no `COMPLETE`, and neither does one that stopped part way. (`ls` lists `pre-import`
+after the runs.)
 You can instead keep hand backups outside `SCRAP_BACKUPS`, in a folder you mount on its own.
 
 ### Checking the timers
@@ -598,7 +600,7 @@ which the journal keeps:
   could not run, or `scrap backup` failed: the lines above it in the journal say why). Its
   half-written directory was removed and nothing was pruned.
 - `No backup in the last 26 hours: counting only, deleting nothing.` `scrap-gc` found no run
-  directory in `SCRAP_BACKUPS` modified in the last 26 hours, so it did a dry run and then failed
+  directory in `SCRAP_BACKUPS` holding a `COMPLETE` file written in the last 26 hours, so it did a dry run and then failed
   on purpose. Usually last night's backup failed or did not run. Fix the cause, then
   `systemctl --user start scrap-backup`, and when that succeeds `systemctl --user start scrap-gc`.
 
@@ -695,7 +697,9 @@ no purge or empty-trash command; a page comes back with `POST /api/pages/{id}/un
 [](../reference/api.md)).
 
 `scrap-gc.timer` runs `scrap-gc.service` nightly (about 04:30, after the backup) with
-`--delete`, but only if a backup run in `SCRAP_BACKUPS` is less than 26 hours old; otherwise it
+`--delete`, but only if a completed backup run in `SCRAP_BACKUPS` (one holding the `COMPLETE`
+file that `scrap backup` writes once the copy passes an integrity check) is less than 26 hours
+old; otherwise it
 only counts and the service fails, so a missing backup shows. Every file a backup's database names
 is in that backup, so gc never deletes the only copy of a file a backup can restore. The backup
 and gc scripts take the same lock (`SCRAP_BACKUPS/.lock`), so they never overlap, and
@@ -717,6 +721,10 @@ journalctl --user -u scrap-gc   # what the nightly runs deleted
 To run the nightly job now, with its recent-backup check and lock, use
 `systemctl --user start scrap-gc`. To delete by hand, add `--delete` after `gc` in the command
 above; that skips the recent-backup check, so make sure you have a recent backup first.
+
+Backups made before `COMPLETE` existed lack it, so after upgrading `scrap-gc` counts only (and
+fails) until the next `scrap-backup` run succeeds. Run `systemctl --user start scrap-backup` to
+make one straight away.
 
 ### Reading the report
 
@@ -870,7 +878,8 @@ forward. Run the newer image again, or roll back with the old image and `scrap r
 from a backup taken before the update (see {ref}`scrap-upgrade-db`).
 
 **`scrap-gc` fails with "No backup in the last 26 hours".** There is no run directory in
-`SCRAP_BACKUPS` modified in the last 26 hours, so gc only counted. Find out why the backup did not
+`SCRAP_BACKUPS` with a `COMPLETE` file written in the last 26 hours (the last backup failed its
+integrity check or stopped part way, or predates the marker), so gc only counted. Find out why the backup did not
 run (`journalctl --user -u scrap-backup`), then `systemctl --user start scrap-backup` and, once
 that succeeds, `systemctl --user start scrap-gc`. See {ref}`scrap-backup-restore`.
 

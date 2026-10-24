@@ -559,7 +559,8 @@ has a summary or related pages. The panel has:
 - Its state, as a photo's is said: *Read by Claude* once it has read the page, with
   **Reprocess** at the end of the line to have it read the page again (a saved link is fetched
   again); while it works, *Waiting for Claude* (or *Waiting: Claude is off*) or *Claude is
-  reading it…*; *Claude couldn't read it* with the reason, and **Retry**.
+  reading it…*; *Paused* with the reason and **Resume** (the queue is shared with photos;
+  nothing is lost while paused); *Claude couldn't read it* with the reason, and **Retry**.
 - A line saying what Claude did: *Claude wrote the summary, added the dashed tags and found
   the related pages* (its tags are marked with a dashed outline in the tag line). Before Claude
   has read the page, the line says what it would do instead, with **Ask Claude to read it**.

@@ -12,6 +12,8 @@ from mcp.client.client import Client
 from scrap import mcp_server
 from scrap.app import create_app
 from scrap.ingest import put_derived
+from scrap.mcp_page import page_key
+from scrap.mcp_tools import writing
 from scrap.store import Store, new_ulid, now
 
 ACCEPT = {"Accept": "application/json, text/event-stream"}
@@ -207,7 +209,7 @@ def test_write_checks_sizes(store, args, error):
 
 
 def test_append_keeps_a_page_under_its_limit(store, monkeypatch):
-    monkeypatch.setattr(mcp_server, "MAX_PAGE", 100)
+    monkeypatch.setattr(writing, "MAX_PAGE", 100)
     page = write(store, body="x" * 60)
     assert "holds at most 100" in refused(
         store, "write", title="", body="y" * 60, origin="", append_to=page["id"]
@@ -1061,3 +1063,50 @@ def test_instructions_describe_the_trash_and_what_revisions_omit(store):
     text = " ".join((mcp_server.server(store).instructions or "").split())
     assert "deletes go to a trash" in text.replace("the user's ", "")
     assert "enrichment" in text and "not in them" in text
+
+
+@pytest.mark.parametrize(
+    ("value", "key"),
+    [
+        ("https://scrap.example/p/milk-list", "milk-list"),
+        ("http://localhost:8000/p/milk-list/", "milk-list"),
+        ("  https://x/p/milk-list?a=1#h ", "milk-list"),
+        ("https://x/p/caf%C3%A9", "café"),
+        ("milk-list", "milk-list"),
+        ("01M5PFFZ50HX558ZG4S84NP0T6", "01M5PFFZ50HX558ZG4S84NP0T6"),
+        ("https://x/api/pages/milk", "https://x/api/pages/milk"),
+        ("https://x/p/a/b", "https://x/p/a/b"),
+        ("HTTPS://x/p/a", "a"),
+        ("https://[bad/p/a", "https://[bad/p/a"),
+        ("httpsy-notes", "httpsy-notes"),
+    ],
+)
+def test_page_key(value, key):
+    assert page_key(value) == key
+
+
+def test_tools_take_a_page_url(store):
+    slug = human(store)["slug"]
+    url = f"https://elsewhere.example/p/{slug}"
+    err, read = call(store, "read", page=url)
+    assert not err
+    assert read["page"]["slug"] == slug
+    err, edited = call(
+        store, "edit_page", page=url, old="eggs", new="flour", rev=read["page"]["rev"]
+    )
+    assert not err
+    assert "flour" in call(store, "read", page=slug)[1]["content"]["body_markdown"]
+    err, _ = call(store, "write", body="more", append_to=url)
+    assert err  # a page the user made is not appended to, as with its slug
+
+
+def test_every_page_tool_takes_a_page_url(store):
+    page = write(store, title="Mine", body="one")
+    url = f"https://elsewhere.example/p/{page['slug']}"
+    assert write(store, body="two", append_to=url)["id"] == page["id"]
+    assert not call(store, "revisions", page=url)[0]
+    assert not call(store, "edit_meta", pages=[url], add_tags=["x"])[0]
+    rev = call(store, "read", page=url)[1]["page"]["rev"]
+    assert not call(store, "revert_text", page=url, to_rev=1, rev=rev)[0]
+    assert call(store, "undelete", page=url)[0]  # not in the trash: refused, found
+    assert call(store, "drawing", page=url)[0]  # no drawing: refused, found
