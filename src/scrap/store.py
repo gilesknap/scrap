@@ -2172,7 +2172,7 @@ class Store:
                     " JOIN page p ON p.id = c.page_id"
                     f" WHERE chunk_fts MATCH ? AND {where}"
                     f" ORDER BY {order}{tier} DESC, {tier} DESC,"
-                    f" bm25(chunk_fts, {WEIGHTS})",
+                    f" bm25(chunk_fts, {WEIGHTS}), c.id",
                     (" OR ".join(q.fts(t) for t in q.positive), *args,
                      f"title : ({every})", f"{{title tags summary}} : ({every})"),
                 )  # fmt: skip

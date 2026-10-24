@@ -850,7 +850,10 @@ test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind r
       Math.max(...tops.map((t) => t[2])),
       `no label clipped at ${width} px`,
     ).toBeLessThanOrEqual(0);
-    expect(Math.min(...tops.map((t) => t[1])), "44 px targets").toBeGreaterThanOrEqual(42);
+    expect(
+      Math.min(...tops.map((t) => t[1])),
+      "42 px kind segments (their ::after makes the 48 px target)",
+    ).toBeGreaterThanOrEqual(42);
   }
 
   // A slow answer for a kind left meanwhile is dropped, not shown

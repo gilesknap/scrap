@@ -9,8 +9,9 @@
 // Back, a reload or a link keep it. In the app chunk of its own (search.ts loads it with the
 // screen; the service worker keeps it offline).
 import { api } from "./api";
+import { day, unsorted } from "./filters";
 import { icon } from "./icons";
-import { adding, day, has, KIND_ROW, kindsIn, removing, token, unsorted } from "./terms";
+import { adding, has, KIND_ROW, kindsIn, listing, removing, token } from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -43,6 +44,11 @@ const facets = (q: string, signal?: AbortSignal) =>
 /** The query's filters, but the kind row's kind (not a "not" one: -kind:todo). */
 const filtersOf = (f: Facets) => f.active.filter((a) => a.key !== "kind" || a.neg);
 const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
+// The most the list shows (search.ts: 500 newest first, 1000 search results)
+const shown = (q: string, n: number) => {
+  const cap = listing(q) === null ? 1000 : 500;
+  return n > cap ? `${pages(n)}, showing the first ${cap}: refine the search` : pages(n);
+};
 
 let open = false; // the panel, open or folded: kept while the app is (the next search too)
 let typed = ""; // what is in its tag box, kept as the panel is drawn again
@@ -121,7 +127,7 @@ export async function refine(
   // The filters on, as chips on a row of their own that scrolls sideways, the count at its
   // start, so the two cost one line (none: no row, and the count is over the list): each says
   // what it is ("#home", "past month") and a tap takes it off
-  const count = q && h("span", { className: "count" }, pages(f.total));
+  const count = q && h("span", { className: "count" }, shown(q, f.total));
   const chips = on.map((a) => {
     const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
@@ -331,6 +337,9 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     });
   from.onchange = to.onchange = setDates; // applied as picked: no Apply to find
   range.append(h("label", {}, "From", from), h("label", {}, "To", to));
+  // A year past 9999 was clamped to this day: from it, nothing is found
+  if (ranged.some((a) => a.key === "after" && a.value === "9999-12-31"))
+    range.append(h("p", { className: "hint" }, "Dates run to 9999-12-31: nothing is after it."));
 
   const clear = filtersOf(f).length
     ? Object.assign(h("button", { type: "button", className: "link" }, "Clear filters"), {

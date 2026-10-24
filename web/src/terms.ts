@@ -2,8 +2,17 @@
 // the tree of tags. No DOM here, so the unit tests run it; no regular expressions over the
 // query, so any input is handled in linear time.
 
-/** A filter as typed: kind:todo, tag:tech/epics, tag:"two words". */
+/** A filter as typed: kind:todo, tag:tech/epics, tag:"two words". The query has no escape
+ * for a quote, so a tag with one is asked for by its segments before the quote (tag:a for
+ * a/b"c), or else by its words as text (tags are searched too). */
 export function token(key: string, value: string): string {
+  if (key === "tag" && value.includes('"')) {
+    const kept = value.split("/");
+    kept.length = kept.findIndex((s) => s.includes('"'));
+    return kept.length
+      ? token(key, kept.join("/"))
+      : value.replaceAll('"', " ").split(" ").filter(Boolean).join(" ");
+  }
   const v = value.replaceAll('"', "");
   return v.includes(" ") ? `${key}:"${v}"` : `${key}:${v}`;
 }
@@ -31,15 +40,15 @@ export function removing(q: string, t: string): string {
   return `${q.slice(0, i).trimEnd()} ${q.slice(i + t.length).trimStart()}`.trim();
 }
 
-/** Where the query's orders stand ([start, end) of sort:due, -SORT:created, sort:"a b"),
- * read the way the server reads a query (scrap/query.py parse): a quoted phrase is text,
- * the key is any case, - or ! negates. */
-function sortSpans(q: string): [number, number][] {
+/** Where the query's words stand ([start, end) and the key before a colon, any case, or ""),
+ * read the way the server reads a query (scrap/query.py parse): a quoted phrase is one word
+ * (its own text, no key), - or ! negates, key:"a b" is one word. */
+export function words(q: string): [number, number, string][] {
   const s = q;
   const n = s.length;
   // a space, or a control character (the server reads those as spaces)
   const gap = (c: string) => c < " " || c === "\x7f" || isSpace(c);
-  const spans: [number, number][] = [];
+  const out: [number, number, string][] = [];
   let i = 0;
   while (i < n) {
     if (gap(s[i])) {
@@ -52,59 +61,28 @@ function sortSpans(q: string): [number, number][] {
       // a phrase, to the next quote (or the end)
       const end = s.indexOf('"', i + 1);
       i = end < 0 ? n : end + 1;
+      out.push([start, i, ""]);
       continue;
     }
     let j = i;
     while (j < n && !gap(s[j]) && s[j] !== '"') j++;
     const word = s.slice(i, j);
     const colon = word.indexOf(":");
-    if (colon >= 0 && word.slice(0, colon).toLowerCase() === "sort") {
-      if (colon === word.length - 1 && s[j] === '"') {
-        const end = s.indexOf('"', j + 1);
-        j = end < 0 ? n : end + 1;
-      }
-      spans.push([start, j]);
+    if (colon === word.length - 1 && s[j] === '"') {
+      const end = s.indexOf('"', j + 1);
+      j = end < 0 ? n : end + 1;
     }
+    out.push([start, j, colon >= 0 ? word.slice(0, colon).toLowerCase() : ""]);
     i = j;
   }
-  return spans;
+  return out;
 }
 
-/** The orders a query has, as typed. */
-export const sortsIn = (q: string) => sortSpans(q).map(([a, b]) => q.slice(a, b));
-
-/** The query without its orders, its spaces tidied (a phrase's own spaces kept). */
-export const unsorted = (q: string) =>
-  sortSpans(q)
+/** The query without some of its words, its spaces tidied (a phrase's own spaces kept). */
+export const without = (q: string, spans: [number, number, string][]) =>
+  spans
     .reduceRight((rest, [a, b]) => `${rest.slice(0, a).trimEnd()} ${rest.slice(b).trimStart()}`, q)
     .trim();
-
-/** A date picker's value as after:/before: take it (YYYY-MM-DD, years 1 to 9999), or ""
- * (a typed year past 9999 is clamped to 9999-12-31). */
-export function day(v: string): string {
-  if (v.length === 10 && v[4] === "-" && v[7] === "-") return v;
-  return v.length > 10 && /^\+?\d{5,}-/.test(v) ? "9999-12-31" : "";
-}
-
-export interface TagNode {
-  path: string;
-  name: string; // its last part
-  n: number; // pages with it or a tag under it
-  kids: TagNode[];
-}
-
-/** The tree of tags; the server lists a/b's parent a too, in order. */
-export function tree(list: [string, number][]): TagNode[] {
-  const top: TagNode[] = [];
-  const at = new Map<string, TagNode>();
-  for (const [path, n] of list) {
-    const cut = path.lastIndexOf("/");
-    const node = { path, name: path.slice(cut + 1), n, kids: [] };
-    at.set(path, node);
-    (at.get(path.slice(0, Math.max(cut, 0)))?.kids ?? top).push(node);
-  }
-  return top;
-}
 
 // ---- the search screen's kind row: All, Notes, Todos, Later, Boards, Docs
 
@@ -122,16 +100,16 @@ const ROW_KINDS = new Set(KIND_ROW.flatMap(([, , names]) => names.map((n) => `ki
 /** A token the kind row stands for, in any case as the server takes it (kind:Todo too). */
 const rowKind = (t: string) => ROW_KINDS.has(t.toLowerCase());
 
-/** The query without the kind row's kinds (kind:todo, kind:consume; not -kind:todo). */
-export const unkinded = (q: string) =>
-  q
-    .split(/\s+/)
-    .filter((t) => t && !rowKind(t))
-    .join(" ");
+/** The words the kind row stands for (kind:todo, kind:consume; not -kind:todo, nor inside a
+ * quoted phrase). */
+const kindWords = (q: string) => words(q).filter(([a, b]) => rowKind(q.slice(a, b)));
+
+/** The query without the kind row's kinds. */
+export const unkinded = (q: string) => without(q, kindWords(q));
 
 /** The kinds of the row a query asks for (two kinds mean either). */
 export function kindsIn(q: string) {
-  const asked = new Set(q.toLowerCase().split(/\s+/).filter(rowKind));
+  const asked = new Set(kindWords(q).map(([a, b]) => q.slice(a, b).toLowerCase()));
   return KIND_ROW.filter(([, , names]) => names.some((n) => asked.has(`kind:${n}`)));
 }
 
