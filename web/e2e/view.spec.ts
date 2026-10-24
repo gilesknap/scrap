@@ -556,6 +556,20 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
   await page.keyboard.press("Escape");
   await expect(page.locator(".share-menu")).toHaveCount(0);
   expect(await shared()).toHaveLength(1);
+  // By keyboard: focus moves to the first row, arrows move between rows, Escape returns to Share
+  await shareBtn.focus();
+  await page.keyboard.press("Enter");
+  const rows = page.locator(".share-menu button");
+  await expect(rows.first()).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(rows.nth(1)).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(rows.first()).toBeFocused();
+  await page.keyboard.press("ArrowUp"); // wraps to the last row (Download)
+  await expect(page.locator(".share-menu > :last-child")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".share-menu")).toHaveCount(0);
+  await expect(shareBtn).toBeFocused();
   let asked = 0;
   page.on("request", () => asked++);
   await shareAs(".page > .bar", "Link");
@@ -566,10 +580,14 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
 
   await page.locator("figure.orig img").click();
   // In the viewer the menu is inside its dialog, and Escape closes the menu, not the viewer
-  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  const viewerShare = page.getByRole("dialog").getByRole("button", { name: "Share" });
+  await viewerShare.focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog").locator(".share-menu")).toBeVisible();
+  await expect(page.locator(".share-menu button").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.locator(".share-menu")).toHaveCount(0);
+  await expect(viewerShare).toBeFocused();
   await expect(page.getByRole("dialog")).toBeVisible();
   await shareAs('[role="dialog"]', "Link");
   await expect.poll(async () => (await shared()).length).toBe(3);
