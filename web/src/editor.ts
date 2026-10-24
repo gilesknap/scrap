@@ -26,10 +26,11 @@ import {
   numbered,
   outdent,
 } from "./listedit";
+import { NOT_KEPT, stash } from "./stash";
 import { h, previewer, saveKey, toast } from "./ui";
 
-export { suggested, toSend } from "./kinds";
-export { same, tagField } from "./tagedit";
+export { suggested, tidy, toSend } from "./kinds";
+export { mergeTags, same, tagField } from "./tagedit";
 export { todoField, todoStart } from "./todoedit";
 export { confirmRemoval } from "./unembed";
 
@@ -276,17 +277,35 @@ export function editor(o: {
   let timer = 0;
   let finished = false; // saved or discarded: no more drafts
   const drop = () => drafts.del(o.key).catch(() => {});
-  const keep = () => {
+  let warned = false; // the last save was refused and said so: not again until one works
+  /** Keep the draft now; whether it is safe (kept, or nothing to keep). Storage that is full
+   * or refuses it is said once, not on every keystroke: the editor itself still has it all. */
+  const keep = async (): Promise<boolean> => {
     clearTimeout(timer);
-    if (finished) return;
-    if (!o.dirty()) return void drop();
-    // Storage full or refused: the editor itself still has it all
-    drafts.put(o.key, { ...o.draft(), at: Date.now() }).catch(() => {});
+    if (finished) return true;
+    if (!o.dirty()) {
+      drop();
+      return true;
+    }
+    const ok = await stash(o.key, { ...o.draft(), at: Date.now() });
+    if (ok) warned = false;
+    else if (!warned) {
+      warned = true;
+      toast(NOT_KEPT, "", undefined, 10000);
+    }
+    return ok;
   };
+
+  // Hidden or closed by the system: the last moments of typing are kept now, not after the
+  // 0.4 s pause (the app may be killed before it)
+  const flush = () => void keep();
+  const onhide = () => document.visibilityState === "hidden" && flush();
 
   let closing: (() => void) | null = null;
   const teardown = () => {
     removeEventListener("popstate", onpop, true);
+    removeEventListener("pagehide", flush);
+    document.removeEventListener("visibilitychange", onhide);
     form.remove();
     for (const el of behind) el.inert = false;
     document.body.classList.remove("editing");
@@ -297,10 +316,15 @@ export function editor(o: {
   };
   // Closing pops the editor's history entry. The phone's Back pops it too: that keeps the
   // draft, and the page under the editor stays as it is.
-  const onpop = (e: PopStateEvent) => {
+  // If storage refuses the draft, Back must not discard it silently: the editor stays open
+  // (its history entry put back) with the refusal said; Cancel is the way to discard.
+  const onpop = async (e: PopStateEvent) => {
     e.stopImmediatePropagation();
     const kept = !closing && o.dirty();
-    if (!closing) keep();
+    if (kept) {
+      warned = false; // say it again for this Back, though a typing save said it
+      if (!(await keep())) return void history.pushState({ editor: true }, "");
+    } else if (!closing) void keep();
     teardown();
     if (kept) (o.left ?? (() => toast("Kept as a draft")))(); // placed for the page under it
   };
@@ -344,7 +368,7 @@ export function editor(o: {
       onkeydown: saveKey,
       oninput: () => {
         clearTimeout(timer);
-        timer = window.setTimeout(keep, 400);
+        timer = window.setTimeout(() => void keep(), 400);
       },
       onsubmit: (e: Event) => {
         e.preventDefault();
@@ -376,6 +400,8 @@ export function editor(o: {
   document.body.append(form);
   history.pushState({ editor: true }, "");
   addEventListener("popstate", onpop, true);
-  keep(); // e.g. photos just picked
-  return { form, save, keep, done };
+  addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", onhide);
+  void keep(); // e.g. photos just picked
+  return { form, save, keep: () => void keep(), done };
 }

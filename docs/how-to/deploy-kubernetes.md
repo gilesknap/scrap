@@ -6,7 +6,7 @@ container image as the [single-server deployment](deploy-single-server.md): one 
 volume for the data and, by default, a nightly backup job.
 
 ```{warning}
-v0 of scrap has **no login**. Anyone who can reach its Service can read and change everything.
+scrap has **no login of its own**. Anyone who can reach its Service can read and change everything.
 Expose it only on your tailnet (see {ref}`k8s-tailscale`) or behind an authenticating proxy
 (see {ref}`k8s-ingress`), never directly to the internet. Inside the cluster, any pod that can
 reach the Service has full access too, and can send its own `Tailscale-User-Login` header: turn
@@ -317,7 +317,9 @@ returns and the controller copies to the request), so the author is the real log
 only that header, but most controllers do not strip a client-sent copy, so the proxy plus the
 NetworkPolicy must be the only way to the Service; a forged value only changes the recorded author.
 
-**Exposing `/mcp` (Cloudflare Access, a second ingress).** Give `/mcp` its own Ingress rule or
+**Exposing `/mcp` (Cloudflare Access, a second ingress).** For a complete walk-through with a
+Cloudflare Tunnel straight to the Service, see [](../tutorials/install-kubernetes.md). With an
+ingress controller, give `/mcp` its own Ingress rule or
 host that skips the login proxy, and guard it another way: a Cloudflare Access service token in
 front, and scrap's own bearer token behind it (below), so a leaked service token alone does not
 open scrap. Keep the PWA and API on the login-proxied host.
@@ -437,8 +439,8 @@ kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":false}}'
 
 With Argo CD or another GitOps controller, pause its automatic sync first, or it scales scrap
 straight back up. `restore.yaml`, with the run to restore, the image of the scrap version you
-want (the version that wrote the backup, or a newer one: restore refuses a backup from a newer
-scrap) and, for a non-empty data volume, `--force` (which replaces the whole database; see
+want (the chart's `image.repository` and tag of the release that wrote the backup, or a newer
+one: restore refuses a backup from a newer scrap) and, for a non-empty data volume, `--force` (which replaces the whole database; see
 `scrap restore --help`):
 
 ```yaml

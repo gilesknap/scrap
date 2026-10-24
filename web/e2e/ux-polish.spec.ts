@@ -298,3 +298,132 @@ test("a search row drops a snippet that only says its title again", async ({ pag
   // Open notes and todos have no chip: their icon says the kind
   await expect(hit(`Wombat echo ${tag}`).locator("em")).toHaveCount(0);
 });
+
+test("a draft storage refuses is said, and Back keeps the editor open rather than lose it", async ({
+  page,
+}) => {
+  // IndexedDB refusing a draft (full, say): puts to the drafts store throw once the flag is set
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...a: [unknown, IDBValidKey?]) {
+      if (this.name === "drafts" && (window as { refuse?: boolean }).refuse)
+        throw new DOMException("full", "QuotaExceededError");
+      return put.apply(this, a);
+    };
+  });
+  await page.goto("/");
+  const text = page.getByPlaceholder("Note or link");
+  await page.getByRole("button", { name: "Note" }).click();
+  await text.fill("Quoll early text");
+  await page.waitForTimeout(800); // kept: an older save
+  await page.evaluate(() => ((window as { refuse?: boolean }).refuse = true));
+  await text.fill("Quoll early text and much more");
+  const refused = page.locator(".toast", { hasText: "Couldn't keep a draft" });
+  await expect(refused).toBeVisible(); // said as it is typed, once
+
+  // Back would leave only the older save: it stays, the text with it
+  await page.evaluate(() => {
+    for (const t of document.querySelectorAll(".toast")) t.remove();
+  });
+  await page.goBack();
+  await expect(page.locator(".editor")).toBeVisible();
+  await expect(text).toHaveValue("Quoll early text and much more");
+  await expect(refused).toBeVisible();
+
+  // Storage works again: Back keeps the draft as typed
+  await page.evaluate(() => ((window as { refuse?: boolean }).refuse = false));
+  await page.goBack();
+  await expect(page.locator(".editor")).toBeHidden();
+  await expect(page.locator(".toast")).toContainText("Kept as a draft");
+  await expect(
+    page
+      .locator(".capture .draft")
+      .getByRole("button", { name: /Draft: Quoll early text and much more/ }),
+  ).toBeVisible();
+  await page.locator(".capture .draft").getByRole("button", { name: "Discard draft" }).click();
+});
+
+test("a capture whose first line is indented code keeps its # in the title", async ({ page }) => {
+  const word = `indented${Date.now()}`; // unique: the data lasts across repeats
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill(`    # ${word}\nsecond line`);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect
+    .poll(async () => {
+      const hits = await (await page.request.get(`/api/search?q=${word}`)).json();
+      return hits.map((h: { title: string }) => h.title);
+    })
+    .toEqual([`# ${word}`]);
+  const [hit] = await (await page.request.get(`/api/search?q=${word}`)).json();
+  const body = (await (await page.request.get(`/api/pages/${hit.id}`)).json()).body;
+  expect(body).toBe(`    # ${word}\nsecond line`);
+});
+
+test("search results follow the queue: a capture that uploads later appears", async ({ page }) => {
+  const word = `quokka${Date.now()}`;
+  let release: () => void = () => {};
+  const gate = new Promise<void>((ok) => (release = ok));
+  await page.route("**/api/captures", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    await gate; // the upload waits: the capture is queued
+    return route.continue();
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill(`${word} refresh note`);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator("#queue")).toHaveText("1 waiting");
+  await page.getByRole("link", { name: "Search", exact: true }).click();
+  const box = page.getByRole("searchbox");
+  await box.fill(word);
+  await expect(page.getByText("No matches")).toBeVisible(); // not uploaded yet
+  release();
+  await expect(page.locator(".hits a", { hasText: `${word} refresh note` })).toBeVisible();
+  await expect(box).toHaveValue(word); // typing untouched
+});
+
+test("search results stay when the queue changes offline", async ({ page, context }) => {
+  const word = `numbat${Date.now()}`;
+  await make(page, `${word} stays`);
+  await page.goto(`/search?q=${word}`);
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  const hit = page.locator(".hits a", { hasText: `${word} stays` });
+  await expect(hit).toBeVisible();
+  await context.setOffline(true);
+  // What a capture queued offline does (main.ts, showQueue): the queue changed
+  await page.evaluate(() => document.dispatchEvent(new Event("queuechange")));
+  await page.waitForTimeout(1500); // the refresh has had its turn
+  await expect(hit).toBeVisible();
+  await expect(page.getByText("Search needs the server.")).toHaveCount(0);
+  await context.setOffline(false);
+});
+
+test("the draft is kept the moment the app is hidden, without waiting for the pause (#16)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  const text = page.getByPlaceholder("Note or link");
+  await text.fill("Wombat last words");
+  // Hidden at once, well inside the 0.4 s pause
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const stored = () =>
+    page.evaluate(
+      () =>
+        new Promise<string>((ok) => {
+          const open = indexedDB.open("scrap");
+          open.onsuccess = () => {
+            const all = open.result.transaction("drafts").objectStore("drafts").getAll();
+            all.onsuccess = () => ok(JSON.stringify(all.result));
+          };
+        }),
+    );
+  await expect.poll(stored, { timeout: 300 }).toContain("Wombat last words");
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
+});

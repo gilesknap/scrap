@@ -5,7 +5,7 @@ import os
 import pytest
 
 from scrap import importer
-from scrap.store import Store
+from scrap.store import MAX_PAGE, Store
 
 PNG = b"synthetic png bytes"
 SHA = hashlib.sha256(PNG).hexdigest()
@@ -365,6 +365,18 @@ def test_symlinks_unreadable_and_large_files_are_skipped(tmp_path, monkeypatch):
         assert conn.execute("SELECT count(*) FROM blob").fetchone()[0] == 0
 
 
+def test_a_huge_page_is_skipped_and_links_to_it_reported(tmp_path):
+    root = tmp_path / "v"
+    write(root, "notes/huge.md", "x" * (MAX_PAGE + 1))
+    write(root, "notes/ok.md", "see [huge](huge.md)\n")
+    _, plan = edge_plan(tmp_path, root)
+    assert [p.path for p in plan.pages] == ["notes/ok.md"]
+    assert plan.issues["too large"] == [
+        f"notes/huge.md: {MAX_PAGE + 1:,} bytes, over {MAX_PAGE:,}"
+    ]
+    assert plan.issues["link to dropped page"] == ["notes/ok.md: notes/huge.md"]
+
+
 @pytest.mark.skipif(os.geteuid() == 0, reason="root reads anything")
 def test_an_unreadable_page_is_reported(tmp_path):
     root = tmp_path / "v"
@@ -472,3 +484,39 @@ def test_a_pipe_in_a_table_links_text_stays_escaped(tmp_path):
     assert "| [[other\\|x\\|y]] | [[other\\|One \\| Two]] |" in body
     assert "| [[other\\|p\\|q]] | z |" in body
     assert body.endswith("[[other|x|y]]")  # outside a table, as it was
+
+
+def test_numbers_a_browser_cannot_hold_are_dropped(tmp_path):
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/n.md",
+        front(title="N", summary=".inf", personal="9007199254740993"),
+    )
+    store, plan = edge_plan(tmp_path, root)
+    assert store.page("n")["fields"] == {}
+    assert len(plan.issues["field dropped"]) == 2
+
+
+def test_folder_links_ignore_case_and_leading_slash(tmp_path):
+    root = tmp_path / "v"
+    write(
+        root,
+        "notes/page.md",
+        front(title="Page")
+        + "[[Memories/Dup]] [[/memories/dup]] [[both/Same]] [[Both/same]]"
+        " [[/NOTES/Sub/Deep]] [[Sub/DEEP]] [[/B/X]]\n",
+    )
+    write(root, "memories/dup.md", front(title="Dup in memories", type="memory"))
+    write(root, "both/Same.md", front(title="Exact"))
+    write(root, "BOTH/same.md", front(title="Other case"))
+    write(root, "notes/sub/deep.md", front(title="Deep"))
+    write(root, "a/x.md", front(title="A"))
+    write(root, "b/x.md", front(title="Bee"))
+    store, plan = edge_plan(tmp_path, root)
+    body = store.page("page")["body"]
+    assert body.count("[[dup|Dup in memories]]") == 2
+    assert body.count("[[deep|Deep]]") == 2
+    assert body.endswith("[[x-2|Bee]]")
+    assert "[[same-2|Exact]] [[same|Other case]]" in body
+    assert plan.issues["ambiguous link"] == ["notes/page.md: Both/same -> BOTH/same.md"]

@@ -23,3 +23,11 @@ it("finds tags the server would refuse, before the composer queues them", () => 
   expect(tagProblem(many)).toBeUndefined();
   expect(tagProblem([...many, "one more"])).toMatch(/At most 64 tags/);
 });
+
+it("merges a draft's tag changes onto the page's tags now", async () => {
+  const { mergeTags } = await import("../src/tagedit");
+  // set elsewhere: kept; the draft's add and removal applied
+  expect(mergeTags(["a", "b", "claude"], ["a", "b"], ["a", "new"])).toEqual(["a", "claude", "new"]);
+  expect(mergeTags(["a"], ["a"], ["a"])).toEqual(["a"]);
+  expect(mergeTags(["a", "new"], ["a"], ["a", "new"])).toEqual(["a", "new"]);
+});

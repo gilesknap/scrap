@@ -9,18 +9,18 @@ nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-serv
 Podman is the tested path. Docker is possible, but `install.sh` needs podman, so you wire the
 units up by hand: see {ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
 [](deploy-kubernetes.md). To demo it on a DLS workstation without `sudo`, see
-[](../tutorials/dls-workstation.md).
+[](run-on-dls-workstation.md).
 
 ```{warning}
-v0 of scrap has **no login**. Anyone who can reach it can read and change everything.
+scrap has **no login of its own**. Anyone who can reach it can read and change everything.
 Only expose it through Tailscale Serve (tailnet only, never Funnel), or put an authenticating
 reverse proxy in front of it. Read {ref}`scrap-access` first.
 ```
 
 ```{warning}
 On the server itself, **root, anyone with `sudo`, and anything running as the scrap user** can
-open the socket, read and change all of scrap's data, and send its own `Tailscale-User-Login`
-header to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
+open the socket, read and change all of scrap's data, and send its own identity header (`Tailscale-User-Login`
+by default, see `SCRAP_IDENTITY_HEADER` in [](../reference/api.md)) to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
 connection skips Serve). Other local users cannot. Run scrap as its own user with no `sudo`
 rights, and run nothing else as that user. With `SCRAP_LISTEN=tcp` (below) **every local account
 and process** can do the same through the port: keep that for single-purpose servers.
@@ -69,11 +69,11 @@ user's systemd session.
 
 As the `scrap` user (podman images belong to the user who pulled or built them), pull the newest
 release from [scrap's releases](https://github.com/gilesknap/scrap/releases); this page uses
-0.1.0:
+0.2.2:
 
 ```
-podman pull ghcr.io/gilesknap/scrap:0.1.0
-podman run --rm ghcr.io/gilesknap/scrap:0.1.0 --version
+podman pull ghcr.io/gilesknap/scrap:0.2.2
+podman run --rm ghcr.io/gilesknap/scrap:0.2.2 --version
 ```
 
 The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
@@ -124,7 +124,7 @@ On its first run the script writes `~/.config/scrap/env` naming a local build,
 release you pulled and run the script again:
 
 ```
-sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.1.0|' ~/.config/scrap/env
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.2.2|' ~/.config/scrap/env
 ./deploy/install.sh
 ```
 
@@ -167,7 +167,7 @@ only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:0.1.0`, or a local build. |
+| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:0.2.2`, or a local build. |
 | `SCRAP_LISTEN` | `socket` | `socket`: only the Unix socket `$XDG_RUNTIME_DIR/scrap/scrap.sock`. `tcp`: `SCRAP_PORT` on `127.0.0.1`. Unset means `tcp` (see {ref}`scrap-listen`). |
 | `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
@@ -280,11 +280,11 @@ ingest pauses until it resets.
    too):
 
    ```
-   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.1.0 \
-       -t localhost/scrap-claude:0.1.0 .
+   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.2.2 \
+       -t localhost/scrap-claude:0.2.2 .
    ```
 
-   and set `SCRAP_IMAGE=localhost/scrap-claude:0.1.0` in `~/.config/scrap/env`. It is about
+   and set `SCRAP_IMAGE=localhost/scrap-claude:0.2.2` in `~/.config/scrap/env`. It is about
    240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
    image as `BASE`.
 3. In `ingest.env`, instead of `ANTHROPIC_API_KEY`:
@@ -338,7 +338,8 @@ sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap
 With `SCRAP_LISTEN=tcp` the target is `http://127.0.0.1:8790` instead.
 
 scrap is then at `https://<host>.<tailnet>.ts.net:8446` from devices on your tailnet. `--bg`
-makes the setting persist across reboots. Check it from any tailnet device:
+makes the setting persist across reboots. Check it from a `scrap` login session on the server (`smoke.sh` also checks the local
+socket first, so on another device `curl` the `/healthz` path of that address instead):
 
 ```
 ./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446
@@ -405,10 +406,11 @@ Then a compromised server elsewhere on your tailnet cannot reach scrap.
 (scrap-access)=
 ## Access and identity
 
-scrap v0 has no login code. Who may use it is decided by the network in front of it:
+scrap has no login code. Who may use it is decided by the network in front of it:
 
 - **Behind Tailscale Serve** (recommended): the tailnet ACL is the gate. For requests from
-  devices owned by a user, Serve adds identity headers such as `Tailscale-User-Login`, and scrap
+  devices owned by a user, Serve adds identity headers such as `Tailscale-User-Login` (the one scrap reads
+  by default; `SCRAP_IDENTITY_HEADER` names another), and scrap
   records that login as the author of each change. Tagged devices get no identity headers, so
   their changes are recorded under a fixed fallback author.
 - **Anything else** (a public reverse proxy, a LAN port): put an authenticating reverse proxy in
@@ -493,8 +495,10 @@ machine was off). Each run starts a throwaway container from the same image that
 `scrap backup` into a new timestamped directory under `SCRAP_BACKUPS`, then deletes all but the
 newest `SCRAP_BACKUP_KEEP` runs. Only real directories named like a run
 (`20261019T033000Z`) directly in `SCRAP_BACKUPS` are ever deleted; anything else there, including
-symlinks, is left alone. A failed run removes its own directory and deletes nothing else. A
-`SCRAP_BACKUP_KEEP` that is not a whole number of at least 1 fails the run. To back up now:
+symlinks, is left alone (`SCRAP_BACKUPS` itself may be a symlink, e.g. to another disk). A failed run removes its own directory and deletes nothing else. A
+`SCRAP_BACKUP_KEEP` that is not a whole number of at least 1 (leading zeros such as `07` are fine)
+fails the run, as does a `SCRAP_BACKUPS` that is not an existing directory. A run is stopped after
+an hour (`TimeoutStartSec`) so a hung backup cannot block later ones. To back up now:
 
 ```
 systemctl --user start scrap-backup
@@ -641,7 +645,7 @@ systemctl --user stop scrap
 set -a; . ~/.config/scrap/env; set +a
 ls "$SCRAP_BACKUPS"
 podman run --rm --userns=keep-id:uid=10001,gid=10001 \
-    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:z" -e SCRAP_DATA_DIR=/data \
+    -v "$SCRAP_DATA:/data:z" -v "$SCRAP_BACKUPS:/backups:ro,z" -e SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" restore /backups/<timestamp> --force
 systemctl --user start scrap
 ```
@@ -650,7 +654,8 @@ systemctl --user start scrap
 scrap and use `--force`"). Drop `--force` only for a data directory scrap has never run in. With
 `--force` the whole database is replaced by the backup's, so pages added since the backup are
 lost; files are only ever added, never removed. It checks the backup's integrity first, refuses
-one made by a newer scrap, and leaves the data as it was if the backup is refused.
+one made by a newer scrap, and leaves the data as it was if the backup is refused. It works on
+a copy and never writes to the backup, so the backups mount can be read-only (`:ro`), as above.
 `scrap restore --help` lists the arguments.
 
 The same pattern runs any other `scrap` command (for example `scrap export`) against the data.

@@ -7,6 +7,7 @@ SCHEMA pages, and anything else that is not a page. See docs/how-to/import-a-vau
 """
 
 import hashlib
+import math
 import mimetypes
 import posixpath
 import re
@@ -23,17 +24,15 @@ from . import markdown
 from .markdown import Link, wiki_parts
 from .store import (
     CROCKFORD,
+    DEFAULT_FIELDS,
+    MAX_INT,
+    MAX_PAGE,
     BlobRef,
     Store,
     lines,
     slug_base,
     upload_limit,
 )
-
-try:  # TODO: once #46 and this are both merged, import DEFAULT_FIELDS only
-    from .store import DEFAULT_FIELDS  # type: ignore[attr-defined]
-except ImportError:
-    from .store import HINT_FIELDS as DEFAULT_FIELDS
 
 __all__ = ["plan", "run", "report", "Plan"]
 
@@ -185,8 +184,12 @@ def _skipped_dir(part: str) -> bool:
 
 def _read(plan: Plan, rel: str, path: Path) -> Page | None:
     try:
+        stat = path.stat()
+        if stat.st_size > MAX_PAGE:  # as for a page saved through the API (#62)
+            plan.note("too large", rel, f"{stat.st_size:,} bytes, over {MAX_PAGE:,}")
+            return None
         text = lines(path.read_text(encoding="utf-8", errors="replace"))
-        mtime = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+        mtime = datetime.fromtimestamp(stat.st_mtime, UTC)
     except OSError as e:
         plan.note("unreadable", rel, e.strerror or type(e).__name__)
         return None
@@ -218,6 +221,12 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
         if name is None or not isinstance(value, str | bool | int | float):
             plan.note("unmapped field", rel, key)
             continue
+        if isinstance(value, float) and not math.isfinite(value) or (
+            isinstance(value, int) and not isinstance(value, bool)
+            and abs(value) > MAX_INT
+        ):  # fmt: skip
+            plan.note("field dropped", rel, f"{key}: number out of range")
+            continue
         if isinstance(value, str):
             value = " ".join(value.split())
             if len(value) > MAX_VALUE:  # the whole of it stays in the capture's text
@@ -243,6 +252,7 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
             plan.note("tag dropped", rel, type(tag).__name__)
             continue
         new = " ".join(str(tag).split()).lstrip("#").lower()[:64].strip()
+        new = "/".join(part for part in new.split("/") if part.strip())
         if new != str(tag):
             plan.note("tag changed", rel, f"{tag!r} -> {new!r}")
         if new and new not in tags:
@@ -271,9 +281,11 @@ class _Linker:
         self.plan, self.files, self.pages = plan, files, pages
         self.by_name: dict[str, list[str]] = {}
         self.by_slug: dict[str, Page] = {}
+        self.by_path: dict[str, list[str]] = {}  # lower-cased path -> vault paths
         self.bad: set[str] = set()  # images and PDFs too large or unreadable
         for rel in sorted(files, key=lambda r: (r.count("/"), r)):
             self.by_name.setdefault(posixpath.basename(rel).lower(), []).append(rel)
+            self.by_path.setdefault(rel.lower(), []).append(rel)
         for page in pages.values():
             for key in (Path(page.path).stem, page.title):
                 self.by_slug.setdefault(slug_base(key), page)
@@ -281,11 +293,21 @@ class _Linker:
     def find(self, src: str, target: str, wiki: bool) -> tuple[str | None, bool]:
         """The vault path a link names, and whether it was only found by its name."""
         if wiki and "/" in target:  # a path: from the top, else from here
-            for base in ("", posixpath.dirname(src)):
-                path = posixpath.normpath(posixpath.join(base, target))
+            paths = [
+                posixpath.normpath(posixpath.join(base, target.lstrip("/")))
+                for base in ("", posixpath.dirname(src))
+            ]
+            for path in paths:  # exact case first
                 for rel in (path, path + ".md"):
                     if rel in self.files:
                         return rel, False
+            for path in paths:  # then any case
+                low = path.lower()
+                got = self.by_path.get(low) or self.by_path.get(low + ".md") or []
+                if got:
+                    if len(got) > 1:
+                        self.plan.note("ambiguous link", src, f"{target} -> {got[0]}")
+                    return got[0], False
         if wiki:  # Obsidian: by name, wherever it is
             name = posixpath.basename(target).lower()
             got = self.by_name.get(name) or self.by_name.get(name + ".md") or []

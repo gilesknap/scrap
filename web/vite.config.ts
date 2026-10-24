@@ -12,6 +12,7 @@ import { defineConfig } from "vitest/config";
 export const OFFLINE = [
   "composer",
   "editor",
+  "page",
   "pageedit",
   "render",
   "sharing",

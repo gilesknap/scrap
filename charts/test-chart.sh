@@ -80,6 +80,18 @@ if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; 
 else ok "backup off renders without a gc CronJob"; fi
 if helm template scrap "$chart" | grep -q -- '-gc$'; then ok "defaults render the gc CronJob"; else bad "defaults lack the gc CronJob"; fi
 
+# By default both claims (data and backups) carry the annotations that keep them
+# through helm uninstall and an Argo CD prune.
+pvcs=$(helm template scrap "$chart" | awk '
+    function end_doc() { if (kind == "PersistentVolumeClaim") { n++; if (keep && prune) good++ } }
+    /^---/ { end_doc(); kind = ""; keep = 0; prune = 0; next }
+    /^kind: / { kind = $2 }
+    /^    helm\.sh\/resource-policy: keep$/ { keep = 1 }
+    /^    argocd\.argoproj\.io\/sync-options: Prune=false$/ { prune = 1 }
+    END { end_doc(); print n + 0, good + 0 }')
+if [ "$pvcs" = "2 2" ]; then ok "data and backup claims carry the keep and Prune=false annotations"
+else bad "data and backup claims lack the keep/Prune=false annotations (claims, protected: $pvcs)"; fi
+
 # The chart may set only variables the app reads (the Settings table in
 # docs/reference/api.md) or that deploy/scrap-backup reads, plus extraEnv.
 repo=$(dirname "$chart")/..

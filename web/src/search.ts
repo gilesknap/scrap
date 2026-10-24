@@ -13,7 +13,7 @@ import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
-import { empty, h } from "./ui";
+import { empty, failed, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
 const MOST = 1000; // search results, fetched PAGE at a time
@@ -26,7 +26,8 @@ interface State {
 export async function search(): Promise<Node> {
   const q = new URLSearchParams(location.search).get("q") ?? "";
   const saved = (history.state ?? {}) as State;
-  let limit = saved.limit ?? PAGE;
+  // (a stale or hand-edited entry: -5 or "abc" is the first page)
+  let limit = saved.limit && saved.limit > 0 ? Math.min(Math.ceil(saved.limit), MOST) : PAGE;
   let scroll = saved.scroll ?? 0; // to scroll back to, once the list is here
   const keep = (s: State) => history.replaceState({ ...history.state, ...s }, "");
   const input = h("input", {
@@ -82,6 +83,8 @@ export async function search(): Promise<Node> {
     for (const [radio] of radios) radio.checked = radio.value === value;
   };
   let timer: ReturnType<typeof setTimeout>;
+  let typed = false; // typed, and its run not yet started
+  let busy: Promise<void> | undefined; // the run for what was typed, until it ends
   let saving: ReturnType<typeof setTimeout>;
   let abort = new AbortController();
   // Leaving the view: no late debounce rewrites the address bar, no late results land.
@@ -103,32 +106,74 @@ export async function search(): Promise<Node> {
   const pend = async () => pending.replaceChildren(await pendingList());
   document.addEventListener("queuechange", pend, { signal: view.signal });
   void pend();
+  // A capture that uploads (or is queued) may belong in the results: run the same query again.
+  // Debounced (a queue drains in a burst); not while the box holds something other than what
+  // ran (typing: its own run is coming), nor while a finger is down, the page is scrolling or
+  // a scroll is being restored, nor with focus or a selection inside the results: it waits and
+  // tries again, so a swipe, tap or selection is never replaced under the user.
+  let keeps: typeof import("./refresh").keeps = () => true; // whether a refresh leaves the rows be
+  const watching = import("./refresh").then((m) => {
+    keeps = m.keeps;
+    return m.watch(
+      view.signal,
+      input,
+      () => scroll !== 0,
+      () => {
+        scroll = scrollY;
+        void run(true, true);
+      },
+    );
+  });
+  // (a change before the chunk is here waits for it; offline before it was kept: no refresh)
+  document.addEventListener(
+    "queuechange",
+    () =>
+      watching.then(
+        (kick) => kick(),
+        () => {},
+      ),
+    {
+      signal: view.signal,
+    },
+  );
 
-  async function run(first = false) {
+  async function run(first = false, quiet = false) {
     const query = input.value.trim();
+    pending.hidden = query !== ""; // waiting uploads pin on the empty box only
     if (!first) {
       limit = PAGE; // a new query: from the top
       scroll = 0;
       address(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
     }
-    markNav();
-    showKinds(query);
-    abort.abort();
-    abort = new AbortController();
+    // A refresh shares the signal of the run before it: it never cancels that run's refine
+    if (!quiet) {
+      abort.abort();
+      abort = new AbortController();
+    }
     const { signal } = abort;
-    clear.hidden = !input.value;
-    // Filters even before a query, then what refines its results
-    refining
-      .then((m) => m.refine(query, signal, apply, filters))
-      .then((el) => {
-        if (signal.aborted) return;
-        found.replaceChildren(el.querySelector(".found") ?? "");
-        chips.replaceChildren(el); // (refine puts focus back on the control it was on)
-      })
-      .catch(() => signal.aborted || chips.replaceChildren());
-    clearTimeout(settle);
+    // A refresh (quiet) redraws the rows only: never the kinds, filters, chips or the timer
+    if (!quiet) {
+      markNav();
+      showKinds(query);
+      clear.hidden = !input.value;
+      // Filters even before a query, then what refines its results
+      refining
+        .then((m) => m.refine(query, signal, apply, filters))
+        .then((el) => {
+          if (signal.aborted) return;
+          found.replaceChildren(el.querySelector(".found") ?? "");
+          chips.replaceChildren(el); // (refine puts focus back on the control it was on)
+        })
+        .catch(() => signal.aborted || chips.replaceChildren());
+      clearTimeout(settle);
+    }
     const shown = await list(query, signal);
     if (signal.aborted) return;
+    // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
+    if (quiet && keeps(shown, results)) {
+      scroll = 0;
+      return;
+    }
     results.replaceChildren(shown);
     // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
     if (!first && query && results.querySelector(".hits a"))
@@ -150,7 +195,12 @@ export async function search(): Promise<Node> {
         keep({ limit });
         void run(true);
       };
-      return pageList(limit, filter, kind ? kind[0] : "Latest", limit < 500 ? more : undefined);
+      return pageList(
+        Math.min(limit, 500),
+        filter,
+        kind ? kind[0] : "Latest",
+        limit < 500 ? more : undefined,
+      );
     }
     const ul = h("ul", { className: "list hits" });
     try {
@@ -194,7 +244,7 @@ export async function search(): Promise<Node> {
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError")
-        ul.append(h("li", {}, empty("offline", "Search needs the server.")));
+        ul.append(h("li", {}, failed("Search needs the server.")));
     }
     return ul;
   }
@@ -223,13 +273,28 @@ export async function search(): Promise<Node> {
     clearTimeout(settle); // typed on: not settled
     clear.hidden = !input.value;
     clearTimeout(timer);
-    timer = setTimeout(run, 250);
+    typed = true;
+    timer = setTimeout(() => {
+      typed = false;
+      busy = run();
+    }, 250);
   };
   // A statement body: an on* handler that returns false cancels the key (Backspace too).
   input.onkeydown = (e) => {
-    const first = results.querySelector("a");
-    if (e.key === "Enter") remember();
-    if (e.key === "Enter" && first) go(first.pathname, false, trailOf(first));
+    if (e.key !== "Enter") return;
+    remember();
+    const open = () => {
+      const first = results.querySelector("a");
+      if (first) go(first.pathname, false, trailOf(first));
+    };
+    // Typed within the debounce, or its run still going: open the typed query's first hit
+    if (typed) {
+      clearTimeout(timer);
+      typed = false;
+      busy = run();
+    }
+    if (busy) void busy.then(open);
+    else open();
   };
   results.addEventListener("click", (e) => (e.target as Element).closest("a") && remember());
   const first = run(true);

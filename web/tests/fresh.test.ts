@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, expect, it, vi } from "vitest";
 import { drafts } from "../src/db";
 import { DRAFT, FRESH, promote, recover } from "../src/fresh";
+import { stash } from "../src/stash";
 import { toast } from "../src/ui";
 
 vi.mock("../src/ui", () => ({ toast: vi.fn() }));
@@ -54,4 +55,24 @@ it("says only that it is kept when there was no older draft, and nothing with no
   expect(await promote((older) => (older ? "replaced" : "kept"))).toBe(true);
   expect(said.mock.calls[0]).toEqual(["kept"]);
   expect(await drafts.get(DRAFT)).toEqual({ text: "fresh" });
+});
+
+it("says whether a draft was kept: storage that refuses it is not a silent success", async () => {
+  await drafts.put(DRAFT, { text: "older" });
+  expect(await stash(DRAFT, { text: "newer" })).toBe(true);
+  expect(await drafts.get(DRAFT)).toEqual({ text: "newer" });
+  const full = vi
+    .spyOn(drafts, "put")
+    .mockRejectedValueOnce(new DOMException("", "QuotaExceededError"));
+  expect(await stash(DRAFT, { text: "newest" })).toBe(false);
+  full.mockRestore();
+  expect(await drafts.get(DRAFT)).toEqual({ text: "newer" }); // the old save, which Back must not trust
+});
+
+it("says a draft was not kept when storage refuses it, so no one claims 'Kept as a draft'", async () => {
+  const put = vi.spyOn(drafts, "put").mockRejectedValueOnce(new DOMException("full"));
+  expect(await stash("k", { text: "x" })).toBe(false);
+  put.mockRestore();
+  expect(await stash("k", { text: "x" })).toBe(true);
+  await drafts.del("k");
 });

@@ -22,3 +22,8 @@ export const suggested = (text: string): Kind => (BARE_URL.test(text.trim()) ? "
  * suggestion that differs from what the page is now ("note" for a new capture). */
 export const toSend = (value: string, picked: boolean, current: string): Kind | undefined =>
   picked || value !== current ? (value as Kind) : undefined;
+
+/** A capture's text as it is sent: blank lines before it and white space after it dropped, but
+ * the first line's own indent kept (four spaces make it code, so "    # x" is no heading).
+ * The server tidies the same way (store.py's _text). */
+export const tidy = (text: string) => text.replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();

@@ -181,3 +181,26 @@ test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's
   await page.goto(`/p/${slug}`);
   await expect.poll(names).toEqual(["Mark done", "Edit", "Share", "Download", "Delete"]);
 });
+
+test("unticking an in-progress row restores in_progress; a kind changed meanwhile is not ticked (#80)", async ({
+  page,
+}) => {
+  const [title, slug, id] = await make(page, "todo", "in_progress");
+  await page.goto("/recent");
+  const row = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${slug}"]`) });
+  const tick = row.getByRole("button", { name: `Done: ${title}` });
+  await tick.click();
+  await expect(tick).toHaveAttribute("aria-pressed", "true");
+  await tick.click();
+  await expect(tick).toHaveAttribute("aria-pressed", "false");
+  expect(await statusOf(page, id)).toBe("in_progress");
+
+  // Its kind changes elsewhere to one with no status: the tick leaves no chip and no pressed tick
+  const [t2, s2, id2] = await make(page, "todo");
+  await page.goto("/recent");
+  const row2 = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${s2}"]`) });
+  await page.request.patch(`/api/pages/${id2}`, { data: { kind: "note" } });
+  await row2.getByRole("button", { name: `Done: ${t2}` }).click();
+  await expect(row2.getByRole("button", { name: `Done: ${t2}` })).toHaveCount(0);
+  await expect(row2.locator("em")).toHaveCount(0);
+});

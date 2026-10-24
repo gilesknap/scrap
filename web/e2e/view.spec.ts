@@ -493,18 +493,26 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
 test("Share sends a page's link or text, or a photo file, to the share sheet", async ({ page }) => {
   // A stand-in share sheet: records what it was given; "abort" acts as closing it.
   await page.addInitScript(() => {
-    const w = window as unknown as { shared: unknown[]; canFiles: boolean; abort: boolean };
+    const w = window as unknown as {
+      shared: unknown[];
+      canFiles: boolean;
+      abort: boolean;
+      block: boolean;
+    };
     w.shared = [];
     w.canFiles = true;
     w.abort = false;
+    w.block = false; // a refusal that is not the tap's expiry (a blocked file type)
     let tapped = 0;
     addEventListener("click", () => (tapped = performance.now()), true);
+    // As Chrome: a tap's permission lasts ~5 s (the real userActivation is renewed by
+    // Playwright's own evaluate calls, so it is stood in for)
+    const live = () => performance.now() - tapped <= 5000;
+    Object.defineProperty(navigator, "userActivation", { get: () => ({ isActive: live() }) });
     navigator.share = async (d?: ShareData) => {
       if (w.abort) throw new DOMException("closed", "AbortError");
-      // As Chrome: only within ~5 s of a tap (not navigator.userActivation, which
-      // Playwright's own evaluate calls renew)
-      if (performance.now() - tapped > 5000)
-        throw new DOMException("Must be handling a user gesture", "NotAllowedError");
+      if (w.block) throw new DOMException("blocked type", "NotAllowedError");
+      if (!live()) throw new DOMException("Must be handling a user gesture", "NotAllowedError");
       w.shared.push({ ...d, files: d?.files?.map((f) => [f.name, f.type, f.size]) });
     };
     navigator.canShare = () => w.canFiles;
@@ -548,6 +556,20 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
   await page.keyboard.press("Escape");
   await expect(page.locator(".share-menu")).toHaveCount(0);
   expect(await shared()).toHaveLength(1);
+  // By keyboard: focus moves to the first row, arrows move between rows, Escape returns to Share
+  await shareBtn.focus();
+  await page.keyboard.press("Enter");
+  const rows = page.locator(".share-menu button");
+  await expect(rows.first()).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(rows.nth(1)).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(rows.first()).toBeFocused();
+  await page.keyboard.press("ArrowUp"); // wraps to the last row (Download)
+  await expect(page.locator(".share-menu > :last-child")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".share-menu")).toHaveCount(0);
+  await expect(shareBtn).toBeFocused();
   let asked = 0;
   page.on("request", () => asked++);
   await shareAs(".page > .bar", "Link");
@@ -558,10 +580,14 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
 
   await page.locator("figure.orig img").click();
   // In the viewer the menu is inside its dialog, and Escape closes the menu, not the viewer
-  await page.getByRole("dialog").getByRole("button", { name: "Share" }).click();
+  const viewerShare = page.getByRole("dialog").getByRole("button", { name: "Share" });
+  await viewerShare.focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog").locator(".share-menu")).toBeVisible();
+  await expect(page.locator(".share-menu button").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.locator(".share-menu")).toHaveCount(0);
+  await expect(viewerShare).toBeFocused();
   await expect(page.getByRole("dialog")).toBeVisible();
   await shareAs('[role="dialog"]', "Link");
   await expect.poll(async () => (await shared()).length).toBe(3);
@@ -604,6 +630,13 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
   await expect.poll(async () => (await shared()).length).toBe(5);
   expect(fetched).toBe(1); // not downloaded again
   await page.unroute("**/api/blobs/*");
+  // A refusal while the tap is live is the real error, not "Photo ready"
+  await page.evaluate(() => {
+    (window as unknown as { block: boolean }).block = true;
+  });
+  await shareAs('[role="dialog"]', "Photo");
+  await expect(page.locator(".toast", { hasText: "Share failed: blocked type" })).toBeVisible();
+  await expect(ready).toHaveCount(0);
 
   await page.setViewportSize({ width: 320, height: 640 }); // five tools still fit
   for (const name of ["Fit", "100%", "Share", "Close"])
@@ -817,7 +850,10 @@ test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind r
       Math.max(...tops.map((t) => t[2])),
       `no label clipped at ${width} px`,
     ).toBeLessThanOrEqual(0);
-    expect(Math.min(...tops.map((t) => t[1])), "44 px targets").toBeGreaterThanOrEqual(42);
+    expect(
+      Math.min(...tops.map((t) => t[1])),
+      "42 px kind segments (their ::after makes the 48 px target)",
+    ).toBeGreaterThanOrEqual(42);
   }
 
   // A slow answer for a kind left meanwhile is dropped, not shown

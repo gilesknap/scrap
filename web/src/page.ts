@@ -1,7 +1,7 @@
 // One page: its text (its images as figures) and other files, edit (pageedit.ts, with conflict handling)
 // and delete with undo.
 import { api, blobUrl, type Page, type Queue, setStatus } from "./api";
-import { go, view } from "./app";
+import { go } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
@@ -50,15 +50,20 @@ const JSON_TYPE = { "Content-Type": "application/json" };
 export function untitled(body: string, title: string): string {
   const end = body.indexOf("\n");
   const first = end < 0 ? body : body.slice(0, end);
+  if (/^(?: {4}|\t)/.test(first)) return body; // indented code, not a title's line
   const said = first.replace(/^ {0,3}#{1,6}(?:[ \t]+|$)/, "").trim();
   return said && said === title.trim() ? body.slice(first.length) : body;
 }
 
-export async function page(key: string): Promise<Node> {
-  const signal = view.signal; // this view's, taken before any wait: Back may come meanwhile
+export async function page(key: string, signal: AbortSignal): Promise<Node> {
+  // signal: this view's, taken before any wait (even the chunk's): Back may come meanwhile
   const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
-  const [p] = await Promise.all([api<Page>(`pages/${encodeURIComponent(key)}`), renderer()]);
+  const [p] = await Promise.all([
+    api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
+    renderer(),
+  ]);
+  signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
   const root = h("article", { className: "page" });
   // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
   const pager = state?.trail
@@ -69,15 +74,18 @@ export async function page(key: string): Promise<Node> {
   let poll = 0;
   signal.addEventListener("abort", () => clearTimeout(poll));
   // Fetch the page again and show it if what Claude did changed (a new state or drawing)
+  let drawn = 0; // how many times the page has been drawn
   const refresh = async (force = true) => {
     clearTimeout(poll);
+    const was = drawn;
     try {
       const [fresh, q] = await Promise.all([
         api<Page>(`pages/${p.id}`),
         api<Queue>("ingest").catch(() => queue),
       ]);
       await load(fresh);
-      if (signal.aborted) return;
+      // A poll that a save or tick has drawn over meanwhile is stale: not drawn over it
+      if (signal.aborted || (!force && drawn !== was)) return;
       const changed =
         ingestOf(fresh) !== ingestOf(shown) ||
         q?.paused !== queue?.paused ||
@@ -119,6 +127,7 @@ export async function page(key: string): Promise<Node> {
   let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
   const show = (p: Page) => {
     shown = p;
+    drawn++;
     root.dataset.kind = p.kind; // for the top bar's Back: a todo's parent is the Todos screen
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);

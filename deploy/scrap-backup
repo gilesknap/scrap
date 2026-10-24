@@ -8,11 +8,21 @@ set -eu
 
 : "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
 case "${SCRAP_BACKUP_KEEP:-}" in
-'' | *[!0-9]* | 0 | 0*)
+'' | *[!0-9]*)
     echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '${SCRAP_BACKUP_KEEP:-}'" >&2
     exit 1
     ;;
 esac
+# Strip leading zeros so 07 is plain decimal 7 (never octal) for head -n.
+keep=${SCRAP_BACKUP_KEEP#"${SCRAP_BACKUP_KEEP%%[!0]*}"}
+if [ -z "$keep" ]; then
+    echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '$SCRAP_BACKUP_KEEP'" >&2
+    exit 1
+fi
+if [ ! -d "$SCRAP_BACKUPS" ]; then
+    echo "SCRAP_BACKUPS '$SCRAP_BACKUPS' is not a directory (missing, or a dangling symlink)" >&2
+    exit 1
+fi
 
 # SCRAP_VOLUME_OPTS: the options after the colon on every --volume (SELinux
 # relabelling); z (shared label) unless the env file sets it, empty for none.
@@ -32,12 +42,13 @@ podman=${PODMAN:-/usr/bin/podman}
 
 # Delete all but the newest SCRAP_BACKUP_KEEP backup runs. Only real
 # directories directly in SCRAP_BACKUPS named like a run (20261019T033000Z)
-# are candidates: symlinks and anything else are never touched.
+# are candidates: symlinks and anything else are never touched. SCRAP_BACKUPS
+# itself may be a symlink (e.g. to another disk): -H follows only that one.
 prune() {
-    find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d \
+    find -H "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d \
         -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' \
         -print0 |
-        sort -z | head -z -n -"$SCRAP_BACKUP_KEEP" | xargs -0r rm -rf --
+        sort -z | head -z -n -"$keep" | xargs -0r rm -rf --
 }
 
 if [ "${1:-}" = prune ]; then

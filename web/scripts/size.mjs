@@ -53,6 +53,11 @@ console.log(`app shell:      ${kb(shellJs)} JS + ${kb(shellCss)} CSS (budget ${k
 const offline = assets.filter((f) => /^(composer|editor|pageedit)-[\w-]+\.js$/.test(f));
 const offlineJs = offline.reduce((n, f) => n + gz(`assets/${f}`), 0);
 console.log(`editor:         ${kb(offlineJs)} JS, loaded when the composer or editor opens`);
+// The page view: lazy (its own file; what it imports is counted below), kept for offline use
+const pageJs = assets
+  .filter((f) => /^page-[\w-]+\.js$/.test(f))
+  .reduce((n, f) => n + gz(`assets/${f}`), 0);
+console.log(`page view:      ${kb(pageJs)} JS, loaded when a page opens`);
 // The Markdown renderer: lazy, kept by the service worker; Mermaid only for a diagram
 const lazy = (re) => {
   const f = assets.find((a) => re.test(a));

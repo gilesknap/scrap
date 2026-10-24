@@ -602,9 +602,20 @@ def status(store: Store) -> dict[str, Any]:
     """The queue: whether it is paused (and why, until when) and its jobs by state."""
     with store.connect() as conn:
         q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
-        jobs = dict(conn.execute("SELECT state, count(*) FROM job GROUP BY state"))
+        # Jobs of pages in the trash wait there (restoring resumes them): not counted.
+        jobs = dict(
+            conn.execute(
+                "SELECT j.state, count(*) FROM job j"
+                " JOIN capture c ON c.id = j.capture_id"
+                " JOIN page p ON p.id = c.page_id WHERE p.deleted_at IS NULL"
+                " GROUP BY j.state"
+            )
+        )
         texts = dict(
-            conn.execute("SELECT state, count(*) FROM enrich_job GROUP BY state")
+            conn.execute(
+                "SELECT j.state, count(*) FROM enrich_job j JOIN page p"
+                " ON p.id = j.page_id WHERE p.deleted_at IS NULL GROUP BY j.state"
+            )
         )
         spent = spent_today(conn, now())
     paused = q["paused_until"] is not None and q["paused_until"] > now()

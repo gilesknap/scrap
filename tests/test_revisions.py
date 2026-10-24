@@ -1,6 +1,7 @@
 """Kinds and tags edited over MCP (edit_meta, rename_tag), on any page, and the
 metadata revisions that make every such edit visible and revertible."""
 
+import re
 from contextlib import closing
 
 import anyio
@@ -299,7 +300,9 @@ def test_no_mcp_tool_can_delete_or_overwrite_text(store):
             return (await client.list_tools()).tools
 
     tools = {t.name: set(t.input_schema["properties"]) for t in anyio.run(main)}
-    assert not [n for n in tools if any(w in n for w in ("delete", "trash", "purge"))]
+    # the trash can be listed and a page brought back, never emptied or deleted
+    risky = {n for n in tools if re.search("delete|trash|purge|remove|empty", n)}
+    assert risky == {"trash", "undelete"}
     for name, args in tools.items():
         if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "fields", "status"}, name
@@ -496,3 +499,12 @@ def test_rename_into_a_tag_only_in_the_trash_needs_merge(store):
     store.delete_page(gone["slug"])
     assert "only in the trash" in refused(store, "rename_tag", old="a", new="b")
     assert ok(store, "rename_tag", old="a", new="b", merge=True)["changed"] == 1
+
+
+def test_edit_meta_kind_change_on_a_full_page_loses_nothing(store):
+    ref = human(store, "Crowded")
+    full = {f"k{n}": "x" for n in range(32)}
+    store.update_page(ref["slug"], None, None, None, "giles", fields=full)
+    out = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")
+    assert out["changed"] == 1
+    assert store.page(ref["page_id"])["fields"] == full

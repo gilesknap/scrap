@@ -111,9 +111,16 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
             type: "button",
             className: "facet on",
             "aria-label": `Remove #${t}`,
-            onclick: () => {
+            onclick: (e: Event) => {
+              // The button is replaced: if it had focus, the next chip (else the last) or the box
+              const at = tags.indexOf(t);
+              const had =
+                chips.contains(document.activeElement) &&
+                e.currentTarget === document.activeElement;
               tags = tags.filter((x) => x !== t);
               draw();
+              if (had)
+                ((chips.children[at] ?? chips.lastElementChild ?? input) as HTMLElement).focus();
               onchange();
             },
           },
@@ -164,3 +171,10 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
 /** Whether two lists hold the same tags, in any order. */
 export const same = (a: string[], b: string[]) =>
   a.length === b.length && a.every((t) => b.includes(t));
+
+/** A draft's tags on the page's now: theirs (the server's), plus what the draft added to
+ * `from` (the tags it started from), less what it took off. */
+export const mergeTags = (server: string[], from: string[], ours: string[]) => [
+  ...server.filter((t) => !from.includes(t) || ours.includes(t)),
+  ...ours.filter((t) => !from.includes(t) && !server.includes(t)),
+];

@@ -11,7 +11,7 @@ import re
 from typing import Any, TypeGuard
 
 from .claude import ELEMENT_TYPES, KINDS
-from .store import CONTROL, InvalidError
+from .store import CONTROL, SURROGATE, InvalidError
 
 __all__ = ["model_output", "scene", "scene_text"]
 
@@ -30,9 +30,6 @@ def _finite(value: Any) -> TypeGuard[float]:
         return math.isfinite(value)
     except OverflowError:  # an integer too big for a float
         return False
-
-
-SURROGATE = re.compile(r"[\ud800-\udfff]")  # half a UTF-16 pair: no UTF-8 for it
 
 
 def _clean(text: Any) -> str:

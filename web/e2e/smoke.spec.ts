@@ -12,12 +12,7 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Buy oat milk\nfrom the corner shop");
   await page.getByRole("button", { name: "Save" }).click();
-  // Uploaded (the badge may not have shown yet, and Search lists what waits too)
-  await expect
-    .poll(async () => (await (await page.request.get("/api/pages")).json()).length)
-    .toBe(1);
-  await expect(page.locator("#queue")).toBeHidden();
-
+  // Straight to Search, whether or not the upload has landed: its results follow the queue
   await page.getByRole("link", { name: "Search", exact: true }).click();
   await expect(page.getByText("Buy oat milk")).toBeVisible(); // newest first
   await page.getByRole("searchbox").fill("corner sho");
@@ -366,6 +361,10 @@ test("a slow view says Loading at once, and a newer tap wins", async ({ page }) 
   await page.goto("/");
   await expect(page.locator(".capture")).toBeVisible();
   let hold = true;
+  let aborted = false;
+  page.on("requestfailed", (r) => {
+    if (r.url().endsWith(`/api/pages/${slug}`)) aborted = true;
+  });
   await page.route(`**/api/pages/${slug}`, async (r) => {
     while (hold) await new Promise((ok) => setTimeout(ok, 100));
     await r.continue();
@@ -378,9 +377,8 @@ test("a slow view says Loading at once, and a newer tap wins", async ({ page }) 
   await expect(page.locator(".capture")).toHaveCount(0); // not the old view, as if stuck
   await page.locator("#back").click(); // a page has no nav: the top bar's Back
   await expect(page.locator(".capture")).toBeVisible();
-  hold = false; // the page's answer comes late: it must not cover Capture
-  await page.waitForResponse(`**/api/pages/${slug}`);
-  await page.waitForTimeout(300);
+  await expect.poll(() => aborted).toBe(true); // the superseded request is given up, not left open
+  hold = false; // had its answer come late, it must not cover Capture
   await expect(page.locator(".capture")).toBeVisible();
   await expect(page.locator("#view > .page")).toHaveCount(0);
   await expect(page.getByText("Loading…")).toHaveCount(0);
@@ -406,8 +404,12 @@ test("opening the app while another tab holds the upload lock: sent once it is f
   });
   await other.waitForFunction(async () => (await navigator.locks.query()).held?.length === 1);
   refuse = false;
+  const posts: string[] = [];
+  page.on("request", (r) => r.url().endsWith("/api/captures") && posts.push(r.method()));
   await page.reload(); // no timer left from before: only the nudge on open
-  await page.waitForTimeout(1000);
+  await expect(page.getByText("waiting to upload (connection lost)")).toBeVisible();
+  await page.waitForLoadState("networkidle"); // the app has opened and its nudge has had its turn
+  expect(posts).toEqual([]); // it did not try, the other tab holds the lock
   await expect(page.locator("#queue")).toBeVisible(); // not on top of the other tab's upload
   await other.close(); // its lock comes free
   await expect(page.locator("#queue")).toBeHidden({ timeout: 10_000 });
@@ -445,4 +447,40 @@ test("opening the app sends what waits now, not when its backoff says", async ({
   await expect(page.locator("#queue")).toBeHidden({ timeout: 10_000 });
   const pages = await (await page.request.get("/api/pages")).json();
   expect(pages.map((p: { title: string }) => p.title)).toContain("Sent on open");
+});
+
+test("the title bar shows the server's version", async ({ page }) => {
+  const { version } = await (await page.request.get("/healthz")).json();
+  await page.goto("/");
+  await expect(page.locator("#ver")).toHaveText(`v${String(version).split("+")[0]}`);
+});
+
+test("a view the server never answers ends in an error with Retry", async ({ page }) => {
+  const made = await page.request.post("/api/captures", {
+    data: { id: `01${"ABCDEFGHJKMNPQRS".repeat(2).slice(0, 24)}`, text: "Never answered" },
+  });
+  const { slug } = await made.json();
+  await page.clock.install();
+  await page.goto("/");
+  await expect(page.locator(".capture")).toBeVisible();
+  let hold = true;
+  await page.route(`**/api/pages/${slug}`, (r) => (hold ? new Promise(() => {}) : r.continue()));
+  await page.goto(`/p/${slug}`);
+  await page.clock.runFor(31_000);
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  hold = false;
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.locator(".page h1")).toBeVisible();
+});
+
+test.describe("without the service worker", () => {
+  test.use({ serviceWorkers: "block" }); // it would answer from its cache
+
+  test("Back in the top bar still goes up when its chunk will not load", async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true }));
+    await page.route("**/assets/back-*.js", (r) => r.abort());
+    await page.goto("/tags"); // opened directly: nothing of the app's behind it
+    await page.locator("#back").click();
+    await expect(page).toHaveURL("/");
+  });
 });

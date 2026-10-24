@@ -247,7 +247,9 @@ describe("queue", () => {
     await q.add({ text: "big photo", source: "pwa", files: [] }); // starts sending
     await vi.waitFor(() => expect(calls).toBe(1));
     const nudged = q.nudge();
-    await Promise.resolve();
+    // Whole macrotasks (setTimeout is faked, setImmediate is what fake-indexeddb runs on), not one
+    // microtask: the store has had time to answer
+    for (let i = 0; i < 20; i++) await new Promise((ok) => setImmediate(ok));
     expect(calls).toBe(1);
     finish();
     await nudged;
