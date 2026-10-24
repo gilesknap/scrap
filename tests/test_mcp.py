@@ -927,6 +927,7 @@ def test_image_count_counts_a_repeated_image_once(store):
     [row] = ok(store, "recent")["results"]
     assert row["image_count"] == 1 and row["image_url"].endswith(sha)
 
+
 def trashed(store, **args):
     """A page written over MCP, then deleted (in the PWA, say)."""
     page = write(store, **args)
