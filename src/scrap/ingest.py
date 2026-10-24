@@ -24,6 +24,7 @@ from .store import (
     ENQUEUE,
     MAX_PAGE,
     MAX_TAGS,
+    PAGE_KINDS,
     NotFoundError,
     Store,
     enrich_on,
@@ -40,11 +41,6 @@ MAX_FAILURES = 3
 RETRY = 600  # seconds after a charged failure (invalid output: at once)
 POLL = 30  # seconds the idle worker sleeps unless woken
 PAUSES = ("credit", "auth", "outage", "budget")
-PAGE_KINDS = {
-    "whiteboard": "whiteboard",
-    "diagram": "whiteboard",
-    "document": "document",
-}
 
 REV = "(SELECT max(rev) FROM page_rev WHERE page_id = p.id)"  # a page's text rev
 CLAIM = """

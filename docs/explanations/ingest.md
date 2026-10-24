@@ -311,7 +311,8 @@ Photo ingest and enrich share one prompt section (`prompts/items.md`, added to b
   not an item. Output without these fields counts as `other`.
 - **Checked** (`actions.clean_items`): each entry is one line of plain text of at most 200
   characters, with control characters, leading list, heading, quote or checkbox marks, links
-  (kept as their label), code, brackets and angle brackets removed; empty and repeated entries
+  (kept as their label), URL schemes and `www.` (nothing autolinks), character references,
+  code, emphasis marks, backslashes, brackets and angle brackets removed; empty and repeated entries
   are dropped, and at most 30 are kept.
 - **When it writes.** Only when the intent is `list-of-actions` with `high` confidence and
   entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
@@ -325,7 +326,8 @@ Photo ingest and enrich share one prompt section (`prompts/items.md`, added to b
   (`edit_text`, as MCP's `edit_page`). The user's words are never rewritten, even when they are
   already plain bullets: the boxes go below them and the original list stays above. The task-box
   rule then files the page as a todo. `revert_text` (to the revision before) restores the text;
-  as with any box-made todo the kind is not changed back.
+  when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
+  photo's whiteboard or document, else a note), unless the user filed or changed the todo.
 - **Reprocess and Ask Claude** read again, but a page that has boxes is skipped, so boxes are
   never added twice. A photo page is read again for its drawing and tags, as before.
 - **Enrich runs once more.** The revision is a text save, so a saved text page queues one more

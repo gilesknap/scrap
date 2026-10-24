@@ -131,8 +131,30 @@ def test_revert_restores_the_image_only_body(store):
     store.edit_text(  # what revert_text does: the body of text revision 1
         ref["page_id"], CLAUDE,
         lambda c, p: (p["title"], store.text_at(c, p["id"], 1)["body"]),
+        fold=False,
     )  # fmt: skip
-    assert store.page(ref["page_id"])["body"] == before
+    page = store.page(ref["page_id"])
+    assert (page["body"], page["kind"]) == (before, "whiteboard")  # as ingest filed it
+
+
+def test_reverting_a_typed_list_makes_it_a_note_again(store):
+    ref = note(store, "call the dentist\nbook MOT")
+    read_text(store, Fake(text_answer(**listing([("call the dentist", False)]))))
+    assert store.page(ref["page_id"])["kind"] == "todo"
+    store.edit_text(
+        ref["page_id"], CLAUDE,
+        lambda c, p: (p["title"], store.text_at(c, p["id"], 1)["body"]),
+        fold=False,
+    )  # fmt: skip
+    assert store.page(ref["page_id"])["kind"] == "note"
+
+
+def test_a_todo_the_user_filed_stays_when_claude_removes_boxes(store):
+    ref = note(store, "- [ ] mine")
+    assert store.page(ref["page_id"])["kind"] == "todo"
+    change = lambda c, p: (p["title"], "none\n")  # noqa: E731
+    store.edit_text(ref["page_id"], CLAUDE, change, fold=False)
+    assert store.page(ref["page_id"])["kind"] == "todo"
 
 
 @pytest.mark.parametrize(
@@ -360,3 +382,22 @@ def test_sanitise_gives_the_cleaned_intent():
         {**raw, "intent": "nonsense", "confidence": "sure"}, 1, 1
     )
     assert (odd["intent"], odd["confidence"], odd["items"]) == ("other", "low", [])
+
+
+def test_urls_entities_emphasis_and_backslashes_are_neutralised():
+    raw = [{"text": t, "done": False} for t in (
+        "visit https://evil.example/x now", "see www.evil.example", "mail mailto:a@b.c",
+        "R &amp; D &#35; x", "do *this* and _that_", "back\\slash \\[x]",
+    )]  # fmt: skip
+    texts = [t for t, _ in actions.clean_items(raw)]
+    assert texts == [
+        "visit evil.example/x now",
+        "see evil.example",
+        "mail a@b.c",
+        "R amp D #35 x",
+        "do this and that",
+        "backslash x",
+    ]
+    for t in texts:
+        assert not any(m in t for m in ("://", "www.", "mailto:", "&", "*", "\\"))
+    assert tasks(actions.boxes(actions.clean_items(raw))) == (0, 6)

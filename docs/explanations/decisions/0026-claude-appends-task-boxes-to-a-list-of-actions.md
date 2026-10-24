@@ -30,7 +30,8 @@ note: neither could be ticked.
   revert away. A photo's transcription is not copied into the body: its boxes come from the
   extracted items, and the image stays above them.
 - Items are untrusted: plain single-line text, at most 30 of at most 200 characters, with list
-  marks, links, code and tags removed. They are never read as instructions.
+  marks, links (and URL schemes and `www.`, so nothing autolinks), code, tags, emphasis marks,
+  backslashes and character references removed. They are never read as instructions.
 - Never a fixed kind, a saved link, or a page with boxes, so a second reading (Reprocess, Ask
   Claude, a save) adds nothing. Priority and due dates read from the sticky are not parsed.
 
@@ -41,7 +42,11 @@ note: neither could be ticked.
   revert away, and the prompt tells the model to answer `reference` or `other` when unsure.
 - A saved text page queues one further enrich job after the revision (a save), which adds no
   boxes: one more cheap call per converted note.
-- `revert_text` restores text only; the page stays a todo with no boxes, as with any todo made by
-  boxes.
+- A `revert_text` that takes the boxes away from a todo that Claude's own boxes made returns it
+  to the kind it was filed as before: the kind photo ingest chose for a photo page (whiteboard
+  or document), else a note. The kind is derived, not part of the revision, so `Store._unbox`
+  does this only for an unfixed todo with its default `open` status whose previous revision was
+  Claude's; a todo the user filed or changed stays a todo. The `status: open` field the todo
+  kind added is left on the page.
 - Intent gating for Slack-style prose, standing directives and relative due dates stay out of
   scope.
