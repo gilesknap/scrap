@@ -1080,11 +1080,14 @@ class Store:
         """Index a page's current title, tags, summary and body again."""
         index_page(conn, page_id)
 
-    def _page_row(self, conn: sqlite3.Connection, key: str) -> sqlite3.Row:
+    def _page_row(
+        self, conn: sqlite3.Connection, key: str, trashed: bool = False
+    ) -> sqlite3.Row:
+        """A page by id or slug; one in the trash is NoSuchPage unless trashed."""
         row = conn.execute(
             "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id) AS rev"
-            " FROM page WHERE (id = ? OR slug = ?) AND deleted_at IS NULL",
-            (key, key),
+            " FROM page WHERE (id = ? OR slug = ?) AND (deleted_at IS NULL OR ?)",
+            (key, key, trashed),
         ).fetchone()
         if row is None:
             raise NoSuchPage(key)
@@ -1107,14 +1110,17 @@ class Store:
             )  # fmt: skip
         return [todo_only({**r, "fields": json.loads(r["fields"])}) for r in rows]
 
-    def page(self, key: str) -> dict[str, Any]:
-        """A page with its current revision and its captures and their blobs."""
+    def page(self, key: str, trashed: bool = False) -> dict[str, Any]:
+        """A page with its current revision and its captures and their blobs. With
+        trashed, one in the trash too, with its deleted_at (None for any other)."""
         with self.connect() as conn:
-            return self.page_in(conn, key)
+            return self.page_in(conn, key, trashed)
 
-    def page_in(self, conn: sqlite3.Connection, key: str) -> dict[str, Any]:
+    def page_in(
+        self, conn: sqlite3.Connection, key: str, trashed: bool = False
+    ) -> dict[str, Any]:
         """page(), on an open connection (e.g. in the transaction that changed it)."""
-        page = dict(self._page_row(conn, key))
+        page = dict(self._page_row(conn, key, trashed))
         captures = _rows(
             conn,
             "SELECT id, kind, text, url, source, author, created_at,"
@@ -1135,7 +1141,9 @@ class Store:
             " (SELECT count(*) FROM tag t WHERE t.tag = tag.tag) DESC, tag",
             (page["id"],),
         )]  # fmt: skip
-        del page["deleted_at"]
+        deleted_at = page.pop("deleted_at")
+        if trashed:
+            page["deleted_at"] = deleted_at
         fields = json.loads(page["fields"])
         removed = sorted(self.removed(conn, page["id"], page["body"]))
         extra = self._enriched(conn, page["id"], page["slug"])
@@ -1498,6 +1506,29 @@ class Store:
             raise InvalidError("due and priority are for todos")
         sets = ", ".join(f"{k} = ?" for k in todo)  # names from TODO only
         conn.execute(f"UPDATE page SET {sets} WHERE id = ?", (*todo.values(), page_id))
+
+    def trash(self, limit: int) -> list[dict[str, Any]]:
+        """The pages in the trash, most recently deleted first."""
+        with self.connect() as conn:
+            return _rows(
+                conn,
+                "SELECT id, slug, title, kind, deleted_at, updated_at FROM page"
+                " WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC, id DESC"
+                " LIMIT ?",
+                limit,
+            )
+
+    def trashed(self, key: str) -> dict[str, Any] | None:
+        """A page in the trash by id or slug (id, slug, title, kind, deleted_at),
+        None if there is none."""
+        with self.connect() as conn:
+            rows = _rows(
+                conn,
+                "SELECT id, slug, title, kind, deleted_at FROM page"
+                " WHERE (id = ? OR slug = ?) AND deleted_at IS NOT NULL",
+                key, key,
+            )  # fmt: skip
+        return rows[0] if rows else None
 
     def delete_page(self, key: str, undo: bool = False) -> None:
         """Move a page to the trash (or back); captures and files stay until a purge."""
@@ -1961,24 +1992,34 @@ class Store:
         }  # fmt: skip
 
     def revisions(
-        self, key: str | None = None, limit: int = 20, batch: str | None = None
+        self,
+        key: str | None = None,
+        limit: int = 20,
+        batch: str | None = None,
+        trashed: bool = False,
     ) -> dict[str, Any]:
         """A page's history, newest first: its metadata revisions (kind, fixed or
         not, and tags, before and after, each with who made it, when, and its batch)
         and its text revisions (page_rev: rev, title, author, when and size, not the
         text). With batch, only that batch's revisions, of every page (with key, of
-        that page)."""
+        that page). With neither, the recent changes of every page not in the trash:
+        the latest metadata revisions and the latest text revisions (each with its
+        page's id and slug), newest first. With trashed, key may be a page in the
+        trash (then deleted_at is returned)."""
         with self.connect() as conn:
-            page = self._page_row(conn, key) if key else None
+            page = self._page_row(conn, key, trashed) if key else None
+            feed = page is None and batch is None
             where, args = [], []
+            if feed:
+                where.append(
+                    "page_id IN (SELECT id FROM page WHERE deleted_at IS NULL)"
+                )
             if page is not None:
                 where.append("page_id = ?")
                 args.append(page["id"])
             if batch is not None:
                 where.append("batch_id = ?")
                 args.append(batch)
-            if not where:
-                raise InvalidError("give a page or a batch")
             meta = conn.execute(
                 f"{META_REV} WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT ?",
                 (*args, limit + 1),
@@ -1989,12 +2030,19 @@ class Store:
                 " WHERE id IN (SELECT value FROM json_each(?))",
                 (json.dumps([r["page_id"] for r in meta]),),
             ).fetchall())  # fmt: skip
-            text = [] if page is None else _rows(
+            text = _rows(
                 conn,
                 "SELECT rev, title, author, created_at, length(CAST(body AS BLOB))"
                 " AS bytes FROM page_rev WHERE page_id = ? ORDER BY rev DESC LIMIT ?",
                 page["id"], limit,
-            )  # fmt: skip
+            ) if page is not None else _rows(
+                conn,
+                "SELECT r.page_id, p.slug, r.rev, r.title, r.author, r.created_at,"
+                " length(CAST(r.body AS BLOB)) AS bytes FROM page_rev r"
+                " JOIN page p ON p.id = r.page_id WHERE p.deleted_at IS NULL"
+                " ORDER BY r.created_at DESC, r.page_id DESC, r.rev DESC LIMIT ?",
+                limit,
+            ) if feed else []  # fmt: skip
         out: dict[str, Any] = {
             "meta": [{**meta_row(r), "slug": slugs.get(r["page_id"])} for r in meta],
             "more": more,  # older revisions than limit allows
@@ -2004,13 +2052,16 @@ class Store:
             out |= {
                 "id": page["id"], "slug": page["slug"], "title": page["title"],
                 "kind": page["kind"], "rev": page["rev"],
+                "deleted_at": page["deleted_at"],
             }  # fmt: skip
         return out
 
-    def text_revision(self, key: str, rev: int) -> dict[str, Any]:
+    def text_revision(
+        self, key: str, rev: int, trashed: bool = False
+    ) -> dict[str, Any]:
         """One text revision of a page: its title and body then, who wrote it, when."""
         with self.connect() as conn:
-            page = self._page_row(conn, key)
+            page = self._page_row(conn, key, trashed)
             row = conn.execute(
                 "SELECT rev, title, body, author, created_at FROM page_rev"
                 " WHERE page_id = ? AND rev = ?",

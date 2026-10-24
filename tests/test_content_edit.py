@@ -388,7 +388,11 @@ def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
     pages and appends), edit_page and revert_text take text, and every text change
     they make is a revision; a whole body needs the current rev."""
     names = tools(store)
-    assert not [n for n in names if any(w in n for w in ("delete", "trash", "purge"))]
+    # the trash can be listed and a page brought back, never emptied or deleted
+    assert not [
+        n for n in names if n in ("delete", "delete_page", "purge", "empty_trash")
+    ]
+    assert "undelete" in names and "trash" in names
     for name, args in names.items():
         if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "fields", "status"}, name
