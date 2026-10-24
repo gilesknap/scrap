@@ -7,7 +7,7 @@ import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
 import { echoes } from "./snippet";
-import { chipOf, dueOf, partly, statusOf, untick } from "./status";
+import { chipOf, dueOf, partly, statusOf } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
 import { h, toast } from "./ui";
 
@@ -104,7 +104,7 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
   const first = statusOf(p.kind, p.fields);
   if (first === null) return null;
   let status: string = first;
-  let before: string | undefined; // its status before the tick: an untick restores it
+  let before = "open"; // its status before the tick: an untick restores it (in progress stays so)
   const b = h(
     "button",
     { type: "button", className: "tick", "aria-label": `Done: ${p.title}` },
@@ -133,7 +133,7 @@ function tickBox(li: HTMLLIElement, p: RowPage) {
   b.onclick = () => {
     if (busy) return;
     busy = true;
-    setStatus(p.id, untick(status, before))
+    setStatus(p.id, status === "done" ? before : "done")
       .then(
         (page) => {
           const now = statusOf(page.kind, page.fields);

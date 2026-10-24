@@ -17,11 +17,6 @@ export const ticks = (status: string | null): [string, string][] =>
       ? [["Reopen", "open"]]
       : [["Mark done", "done"]];
 
-/** The status a row's tick sets from its status (before: the one it had before the last tick):
- * done, or on an untick what it was (in progress stays so), else open. */
-export const untick = (status: string, before?: string): string =>
-  status !== "done" ? "done" : before && before !== "done" ? before : "open";
-
 /** A list row's chip: only a status that ends it (done, cancelled); its icon says its kind. */
 export const chipOf = (kind: string, fields: Fields): string => {
   const s = statusOf(kind, fields);
