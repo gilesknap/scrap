@@ -6,6 +6,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
+from ..mcp_page import page_key
 from ..store import KINDS, MCP
 from .context import Ctx, text
 from .limits import (
@@ -28,7 +29,7 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
     @mcp.tool()
     def edit_meta(
         pages: Annotated[
-            list[str], Field(max_length=MAX_BULK, description="Ids or slugs")
+            list[str], Field(max_length=MAX_BULK, description="Ids, slugs or page URLs")
         ] = [],  # noqa: B006
         query: Annotated[
             str | None,
@@ -74,7 +75,7 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
                 )
             keys = [h["id"] for h in hits]
         else:
-            keys = [text(p, "page") for p in pages]
+            keys = [text(page_key(p), "page") for p in pages]
         found = checked(
             store.edit_meta, keys, AUTHOR, MCP, kind,
             tag_list(add_tags, "a tag"), tag_list(remove_tags, "a tag"),
