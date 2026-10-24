@@ -150,25 +150,24 @@ encrypts the traffic between the devices.
 ## Tier C: HTTPS with Tailscale Serve, for the full phone experience
 
 [Tailscale Serve](https://tailscale.com/kb/1312/serve) gives scrap a real HTTPS address on your
-tailnet, which is a secure context. It needs [HTTPS certificates and
-MagicDNS](https://tailscale.com/kb/1153/enabling-https) enabled for the tailnet. Then:
+tailnet, which is a secure context. The steps are in [](../how-to/use-scrap-on-your-phone.md): it
+needs HTTPS certificates and MagicDNS enabled for the tailnet, then:
 
 ```
 sudo tailscale serve --bg --https=443 http://127.0.0.1:8000
 tailscale serve status
 ```
 
-`status` prints the address, `https://<host>.<tailnet>.ts.net`. Open it on your phone, and add
-the address to the settings file so `/mcp` accepts it:
+Open the printed address, `https://<host>.<tailnet>.ts.net`, on your phone and use *Add to Home
+screen* or *Install app*. To make `/mcp` accept that address too, add it to the settings file:
 
 ```
 SCRAP_PUBLIC_URL=https://<host>.<tailnet>.ts.net
 ```
 
 Then recreate the container so it reads the file (`podman rm -f scrap`, then run the command from
-"Run the container" again; the data volume keeps your pages). In your phone's browser, use *Add
-to Home screen* or *Install app*. The Android share target and the offline queue now work. Never
-use `tailscale funnel`, which opens it to the internet.
+"Run the container" again; the data volume keeps your pages). The Android share target and the
+offline queue now work. Never use `tailscale funnel`, which opens it to the internet.
 
 For the hardened version of this (a dedicated user, a Unix socket instead of a published port,
 systemd), follow [](install-server.md), which does not repeat the Serve details.

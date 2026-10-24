@@ -23,11 +23,23 @@ and a small PWA is where you capture and look at things.
 ## Try it
 
 ```
-docker run -p 127.0.0.1:8000:8000 -v scrap-data:/data ghcr.io/gilesknap/scrap:0.2.2 serve --host 0.0.0.0 --port 8000
+podman run --network=host -v scrap-data:/data ghcr.io/gilesknap/scrap:0.5.0 serve
 ```
 
-Then open <http://127.0.0.1:8000/>. There is no login, so keep it on loopback unless you follow an
-install tutorial.
+Open <http://localhost:8000/>. Then add scrap to Claude Code and install the `sc` commands:
+
+```
+claude mcp add --transport http --scope user scrap http://localhost:8000/mcp
+curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/commands/install.sh | sh
+```
+
+Start a new Claude Code session, save a note in the browser, then try `/sc-find <word>` or "search scrap for ...".
+
+On your phone, over your tailnet? See [use scrap on your phone over Tailscale](https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html).
+
+Claude Code in a sandbox? See [connecting Claude Code in claude-sandbox](https://gilesknap.github.io/scrap/main/how-to/connect-claude-sandbox.html).
+
+More: [connect Claude Code and the `sc` commands](https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html), [MCP reference](https://gilesknap.github.io/scrap/main/reference/mcp.html).
 
 ## Install
 
