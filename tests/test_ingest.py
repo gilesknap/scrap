@@ -318,7 +318,7 @@ def test_a_pause_is_announced_once_per_episode(store, conn, monkeypatch):
     sent = []
     monkeypatch.setenv("SCRAP_NOTIFY_URL", "http://notify.invalid/topic")
     monkeypatch.setattr(
-        ingest.urllib.request,
+        ingest.jobs.urllib.request,
         "urlopen",
         lambda *a, **k: sent.append(a[1]) or io.BytesIO(),
     )
