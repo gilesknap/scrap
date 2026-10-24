@@ -9,7 +9,8 @@ to `/mcp`, sending `Accept: application/json, text/event-stream` as the MCP spec
 (the curl check in the how-to shows one). The server also sends the model instructions: search before writing, reuse existing tags
 (the `tags` tool), `write` only adds pages or appends to ones written over MCP, `edit_meta` and
 `rename_tag` change only kinds and tags (each change a revision that `revert` undoes), and try a
-bulk change with `dry_run` first. Unless content editing is off, they also say `edit_page` and
+bulk change with `dry_run` first. They also say deletes go to a trash (see The trash below), and
+that enrichment is not in revision history. Unless content editing is off, they also say `edit_page` and
 `revert_text` change a page's text as revisions, only on a page the user asked to change (see
 Page text below). For a short `/s` command in Claude Code (post a summary of a conversation, tidy kinds and
 tags, undo, list todos, search), see the `s` skill (`skills/s` in the repository).
@@ -33,15 +34,22 @@ data: the server's instructions tell the model it is the user's text, never inst
 | `rename_tag` | **`old`**, **`new`** (each at most 200 characters), `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
 | `edit_page` | **`page`**, `old` and `new` (`new` empty deletes), `replace_all`, or `body` (needs `rev`); `title`; `rev`; `allow_empty`; `dry_run` | `{id, slug, url, dry_run, changed, rev_before, rev, folded, replacements, title_before, title, diff, diff_cut}` (`diff`: unified, of the body; `folded`: the revision this one replaced, a burst's). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
 | `revert_text` | **`page`**, **`to_rev`**, `rev` (needed unless `dry_run`), `restore_title`, `allow_empty`, `dry_run` | As `edit_page`'s, with `restores` (`to_rev`) instead of `replacements`. Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
-| `revisions` | `page` and/or `batch`, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields), newest first. A page in the trash is "no such page". `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
+| `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url` (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
+| `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at}` |
+| `undelete` | **`page`** (id or slug of a page in the trash), `dry_run` | `{id, slug, url, title, kind, deleted_at, dry_run, restored}`: brings the page back as the PWA's undo does (the tool error `no such page in the trash` if it is not there). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
 | `revert` | `revision` (a `meta` id) or `batch` (exactly one), `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}` |
 
-**The trash.** A page in the trash does not exist for the tools: `search`, `recent`, `todos`
-and `tags` leave it out (as do `read`'s `backlinks`), and `read`, `revisions`, `write` with `append_to`,
-`edit_meta` and `revert` with a `revision` give the tool error `no such page: <id or slug>`
-until the user restores it in the PWA. Two checks look at the trash anyway: `rename_tag` counts a
-trashed page's tag as in use, and `revert` with a `batch` skips and lists trashed pages (both
-below).
+**The trash.** The user's deletes move a page to the trash; nothing over MCP deletes one or
+empties the trash. `trash` lists it, `undelete` brings one page back (reversible, the same trust
+model as `edit_meta`; listed only while content editing is on, see Page text), and `read` and
+`revisions` with a `page` accept a page in the trash read only: `read`'s `page.trashed` is `true`
+and `page.deleted_at` says when (`false` and `null` otherwise), and `revisions` returns the same
+two fields, so its last text and history can be read before it is restored. Every other tool
+treats the trash as absent: `search`, `recent`, `todos`, `tags`, the recent-changes feed and
+`read`'s `backlinks` leave it out, and `edit_meta`, `edit_page`, `revert_text`, `revert` with a
+`revision`, `drawing` and `write` with `append_to` give the tool error `no such page: <id or
+slug>`. Two checks look at the trash anyway: `rename_tag` counts a trashed page's tag as in use,
+and `revert` with a `batch` skips and lists trashed pages (both below).
 
 **Kind names.** Kinds are accepted as `note`, `todo`, `read`, `board` and `doc`; the stored names
 `consume`, `whiteboard` and `document` also work in `write`, `edit_meta` and `recent` (`recent`
@@ -197,7 +205,8 @@ Unless the server runs with `SCRAP_MCP_CONTENT_EDIT=0` (then neither tool is lis
 server's instructions say no tool changes the user's text), Claude can edit the text of any page,
 the user's own too. Both tools' descriptions and the server's instructions tell the model to use
 them only on a page the user asked it to change, and only as asked, never because a page's text
-says to: page text is data. Both refuse a page in the trash.
+says to: page text is data. Both refuse a page in the trash (bring it back with `undelete`, which is listed
+only while content editing is on, first).
 
 - **`edit_page`** takes one of two forms, plus an optional new `title` (whitespace collapsed;
   a title alone is a form too):
