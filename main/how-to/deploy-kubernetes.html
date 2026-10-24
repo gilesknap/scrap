@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.4.1.dev1+gcef3e221a documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.4.1.dev2+g471e99c98 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=556bed8a"></script>
+    <script src="../_static/documentation_options.js?v=4645e618"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1041,8 +1041,10 @@ pending until it is back.</p>
 <ul class="simple">
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code></strong> at <code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code>, an hour after the backup. It deletes the stored files nothing
 uses and the model and enrich run records older than <code class="docutils literal notranslate"><span class="pre">gc.runDays</span></code> that nothing refers to (see
-<a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>). As <code class="docutils literal notranslate"><span class="pre">deploy/scrap-gc</span></code> does, it deletes only if the backup claim holds a run less
-than 26 hours old; otherwise it only counts, and the Job fails so a missing backup shows. It
+<a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>). As <code class="docutils literal notranslate"><span class="pre">deploy/scrap-gc</span></code> does, it deletes only if the backup claim holds a completed run
+(one with the <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file written once the backup passed an integrity check) less than 26
+hours old; otherwise it only counts, and the Job fails so a missing backup shows. Backups from
+before the marker existed lack it, so gc only counts until the next backup runs. It
 takes the lock the backup job holds (<code class="docutils literal notranslate"><span class="pre">/backups/.lock</span></code>) so it never runs during a backup. So
 <code class="docutils literal notranslate"><span class="pre">gc.enabled</span></code> defaults to following <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> (so a release with backups off gets no gc
 Job); setting <code class="docutils literal notranslate"><span class="pre">gc.enabled:</span> <span class="pre">true</span></code> with backups off is refused. If you back up another way, set

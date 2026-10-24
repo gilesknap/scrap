@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>15. Images are embedded in the page text; scrap gc is conservative &#8212; scrap 0.4.1.dev1+gcef3e221a documentation</title>
+    <title>15. Images are embedded in the page text; scrap gc is conservative &#8212; scrap 0.4.1.dev2+g471e99c98 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=556bed8a"></script>
+    <script src="../../_static/documentation_options.js?v=4645e618"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -561,7 +561,8 @@ what it would remove. <code class="docutils literal notranslate"><span class="pr
 photo, so the stored prompts and responses do not grow for ever.</p></li>
 <li><p>The nightly timer’s script (<code class="docutils literal notranslate"><span class="pre">deploy/scrap-gc</span></code>) takes the lock it shares with <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code>,
 so the two never run at once, and passes <code class="docutils literal notranslate"><span class="pre">--delete</span></code> only if a backup run directory younger than
-26 hours exists in the backups folder. Without one it counts only, says so, and exits non-zero.</p></li>
+26 hours holding the <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> marker (written after an integrity check) exists in the
+backups folder. Without one it counts only, says so, and exits non-zero.</p></li>
 </ul>
 </section>
 </section>

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.4.1.dev1+gcef3e221a documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.4.1.dev2+g471e99c98 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=556bed8a"></script>
+    <script src="../_static/documentation_options.js?v=4645e618"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1028,9 +1028,11 @@ the directory anything but a run’s <code class="docutils literal notranslate">
     <span class="s2">"$SCRAP_IMAGE"</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backups</span><span class="o">/</span><span class="n">pre</span><span class="o">-</span><span class="kn">import</span>
 </pre></div>
 </div>
-<p>A directory named like a run is pruned by the retention step, and counts as a recent backup for
-gc, which looks only at the name and modification time of such a directory, never at what is
-inside it, so even an unfinished backup would pass. (<code class="docutils literal notranslate"><span class="pre">ls</span></code> lists <code class="docutils literal notranslate"><span class="pre">pre-import</span></code> after the runs.)
+<p>A directory named like a run is pruned by the retention step. It counts as a recent backup for gc
+only if it holds the <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file that <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> writes as its last step, after checking
+the copied database with SQLite’s <code class="docutils literal notranslate"><span class="pre">integrity_check</span></code>; a backup that fails the check exits non-zero
+and leaves no <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>, and neither does one that stopped part way. (<code class="docutils literal notranslate"><span class="pre">ls</span></code> lists <code class="docutils literal notranslate"><span class="pre">pre-import</span></code>
+after the runs.)
 You can instead keep hand backups outside <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>, in a folder you mount on its own.</p>
 </section>
 <section id="checking-the-timers">
@@ -1051,7 +1053,7 @@ which the journal keeps:</p>
 could not run, or <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> failed: the lines above it in the journal say why). Its
 half-written directory was removed and nothing was pruned.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">No</span> <span class="pre">backup</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">last</span> <span class="pre">26</span> <span class="pre">hours:</span> <span class="pre">counting</span> <span class="pre">only,</span> <span class="pre">deleting</span> <span class="pre">nothing.</span></code> <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> found no run
-directory in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> modified in the last 26 hours, so it did a dry run and then failed
+directory in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> holding a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file written in the last 26 hours, so it did a dry run and then failed
 on purpose. Usually last night’s backup failed or did not run. Fix the cause, then
 <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code>, and when that succeeds <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>.</p></li>
 </ul>
@@ -1136,7 +1138,9 @@ no disk space and removes none of its content from the data folder or from your 
 no purge or empty-trash command; a page comes back with <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/undelete</span></code> (see
 <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
 <p><code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> runs <code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code> nightly (about 04:30, after the backup) with
-<code class="docutils literal notranslate"><span class="pre">--delete</span></code>, but only if a backup run in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> is less than 26 hours old; otherwise it
+<code class="docutils literal notranslate"><span class="pre">--delete</span></code>, but only if a completed backup run in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> (one holding the <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>
+file that <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> writes once the copy passes an integrity check) is less than 26 hours
+old; otherwise it
 only counts and the service fails, so a missing backup shows. Every file a backup’s database names
 is in that backup, so gc never deletes the only copy of a file a backup can restore. The backup
 and gc scripts take the same lock (<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS/.lock</span></code>), so they never overlap, and
@@ -1155,6 +1159,9 @@ what it would delete now, without deleting:</p>
 <p>To run the nightly job now, with its recent-backup check and lock, use
 <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>. To delete by hand, add <code class="docutils literal notranslate"><span class="pre">--delete</span></code> after <code class="docutils literal notranslate"><span class="pre">gc</span></code> in the command
 above; that skips the recent-backup check, so make sure you have a recent backup first.</p>
+<p>Backups made before <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> existed lack it, so after upgrading <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> counts only (and
+fails) until the next <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> run succeeds. Run <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code> to
+make one straight away.</p>
 <section id="reading-the-report">
 <h3>Reading the report<a class="headerlink" href="#reading-the-report" title="Link to this heading">#</a></h3>
 <p>A run prints one line, for example <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">would</span> <span class="pre">delete</span> <span class="pre">(dry</span> <span class="pre">run:</span> <span class="pre">--delete</span> <span class="pre">deletes)</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">and</span> <span class="pre">1</span> <span class="pre">leftover</span> <span class="pre">uploads,</span> <span class="pre">12.4</span> <span class="pre">MB;</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">file</span> <span class="pre">records;</span> <span class="pre">kept</span> <span class="pre">2</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period;</span> <span class="pre">2</span> <span class="pre">model</span> <span class="pre">runs</span> <span class="pre">and</span> <span class="pre">5</span> <span class="pre">enrich</span> <span class="pre">runs</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">retention</span></code>. With <code class="docutils literal notranslate"><span class="pre">--delete</span></code> it
@@ -1324,7 +1331,8 @@ is older than the database: a newer scrap has already migrated it, and migration
 forward. Run the newer image again, or roll back with the old image and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code>
 from a backup taken before the update (see <a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>).</p>
 <p><strong><code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> fails with “No backup in the last 26 hours”.</strong> There is no run directory in
-<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> modified in the last 26 hours, so gc only counted. Find out why the backup did not
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> with a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file written in the last 26 hours (the last backup failed its
+integrity check or stopped part way, or predates the marker), so gc only counted. Find out why the backup did not
 run (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap-backup</span></code>), then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code> and, once
 that succeeds, <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>. See <a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p>
 <p><strong><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> prints <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">...</span></code> and exits non-zero.</strong> See the table of messages under
