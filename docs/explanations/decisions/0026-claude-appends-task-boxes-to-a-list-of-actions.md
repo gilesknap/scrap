@@ -45,8 +45,11 @@ note: neither could be ticked.
 - A `revert_text` that takes the boxes away from a todo that Claude's own boxes made returns it
   to the kind it was filed as before: the kind photo ingest chose for a photo page (whiteboard
   or document), else a note. The kind is derived, not part of the revision, so `Store._unbox`
-  does this only for an unfixed todo with its default `open` status whose previous revision was
-  Claude's; a todo the user filed or changed stays a todo. The `status: open` field the todo
+  does this only for an unfixed todo with its default `open` status whose previous text had
+  boxes and where no revision by anyone but Claude ever had a box, so the boxes can only be
+  Claude's (no marker is stored; it is derived from the history, so it holds when a quick MCP
+  `edit_page` folds the revision that added them). A todo the user filed or edited with boxes,
+  an import, or a page whose own text had boxes stays a todo. The `status: open` field the todo
   kind added is left on the page.
 - Intent gating for Slack-style prose, standing directives and relative due dates stay out of
   scope.

@@ -10,6 +10,7 @@ with boxes are never touched, and a page edited since Claude read it is left alo
 Entries come from untrusted text and images: they are cut down to plain one-line text.
 """
 
+import html
 import logging
 import re
 import sqlite3
@@ -30,11 +31,11 @@ LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")  # [label](address): label only
 # List, quote and heading marks, numbers, checkbox marks and strike-through, leading
 LEAD = re.compile(r"^(?:[-+*#>|=]+|\d{1,3}[.)]|\[[ xX]?\]|~~|\s)+")
 # Markup that would make more of an entry than text: brackets, code, tags
-MARKUP = re.compile(r"[\[\]`<>\\*]|~~")
+MARKUP = re.compile(r"[\[\]`<>]|~~|(?<!\w)\*+|\*+(?!\w)")
+ESCAPE = re.compile(r"\\(?=[!-/:-@\[-`{-~])")  # a backslash that escapes punctuation
 # What would autolink or decode: a scheme and "://", "www.", and character references
 SCHEME = re.compile(r"\b[a-z][a-z0-9+.-]*://|\bwww\.|\bmailto:", re.IGNORECASE)
 EDGE = re.compile(r"(?<!\w)_+|_+(?!\w)")  # emphasis underscores at word edges
-ENTITY = re.compile(r"&(#?\w{1,10});")
 
 
 def clean_intent(raw: dict[str, Any]) -> tuple[str, str]:
@@ -57,7 +58,7 @@ def clean_items(raw: Any) -> list[tuple[str, bool]]:
             continue
         text = LINK.sub(r"\1", CONTROL.sub(" ", entry["text"]))
         text = " ".join(text.replace(" ", " ").replace(" ", " ").split())
-        text = ENTITY.sub(r"\1", SCHEME.sub("", text))
+        text = SCHEME.sub("", ESCAPE.sub("", html.unescape(text)))
         text = EDGE.sub("", LEAD.sub("", text))
         text = " ".join(MARKUP.sub("", text).split())[:MAX_ITEM].strip()
         if text and text not in [t for t, _ in out]:

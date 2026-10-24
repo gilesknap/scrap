@@ -388,16 +388,68 @@ def test_urls_entities_emphasis_and_backslashes_are_neutralised():
     raw = [{"text": t, "done": False} for t in (
         "visit https://evil.example/x now", "see www.evil.example", "mail mailto:a@b.c",
         "R &amp; D &#35; x", "do *this* and _that_", "back\\slash \\[x]",
+        "buy 2*3 screws", "C:\\temp\\f", "&#104;ttps&#58;//evil.example",
     )]  # fmt: skip
     texts = [t for t, _ in actions.clean_items(raw)]
     assert texts == [
         "visit evil.example/x now",
         "see evil.example",
         "mail a@b.c",
-        "R amp D #35 x",
+        "R & D # x",
         "do this and that",
-        "backslash x",
+        "back\\slash x",
+        "buy 2*3 screws",
+        "C:\\temp\\f",
+        "evil.example",
     ]
     for t in texts:
-        assert not any(m in t for m in ("://", "www.", "mailto:", "&", "*", "\\"))
-    assert tasks(actions.boxes(actions.clean_items(raw))) == (0, 6)
+        assert not any(m in t for m in ("://", "www.", "mailto:", "&amp;", "[", "]"))
+    assert tasks(actions.boxes(actions.clean_items(raw))) == (0, 9)
+
+
+def box_made(store, ref):
+    """A note Claude's boxes made a todo (the typed path)."""
+    read_text(store, Fake(text_answer(**listing([("a", False)]))))
+    assert store.page(ref["page_id"])["kind"] == "todo"
+
+
+def claude_edit(store, page_id, body):
+    store.edit_text(page_id, CLAUDE, lambda c, p: (p["title"], body), fold=False)
+
+
+def test_claude_removing_the_boxes_it_added_restores_the_kind_even_after_more_edits(
+    store,
+):
+    ref = note(store, "call the dentist")
+    box_made(store, ref)
+    claude_edit(store, ref["page_id"], "call the dentist\n\n- [ ] a\n- [ ] b\n")
+    claude_edit(store, ref["page_id"], "call the dentist\n")
+    assert store.page(ref["page_id"])["kind"] == "note"
+
+
+def test_a_user_todo_claude_touched_twice_stays_a_todo(store):
+    ref = note(store, "- [ ] mine")
+    claude_edit(store, ref["page_id"], "- [ ] mine\n- [ ] more\n")
+    claude_edit(store, ref["page_id"], "gone\n")
+    assert store.page(ref["page_id"])["kind"] == "todo"
+
+
+def test_a_todo_with_boxes_in_its_own_text_stays_after_ingest_and_claude(store):
+    ref = photo_page(store)
+    store.edit_text(  # the user adds their own boxes under the image
+        ref["page_id"], "me", lambda c, p: (p["title"], p["body"] + "\n- [ ] x\n")
+    )
+    read_photo(store, Fake(picture()))
+    assert store.page(ref["page_id"])["kind"] == "todo"
+    claude_edit(store, ref["page_id"], "- [ ] x\n- [ ] y\n")
+    claude_edit(store, ref["page_id"], "plain\n")
+    assert store.page(ref["page_id"])["kind"] == "todo"
+
+
+def test_a_folded_claude_revision_still_restores_the_kind(store):
+    ref = note(store, "call the dentist")
+    box_made(store, ref)
+    store.edit_text(  # fold=True, as MCP's edit_page: the last Claude revision folds
+        ref["page_id"], CLAUDE, lambda c, p: (p["title"], "call the dentist\n")
+    )
+    assert store.page(ref["page_id"])["kind"] == "note"

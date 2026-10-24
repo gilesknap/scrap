@@ -2180,20 +2180,21 @@ class Store:
     def _unbox(self, conn: sqlite3.Connection, page: sqlite3.Row) -> None:
         """Claude's text revision (a revert_text) took away the boxes of a todo that
         its own boxes made (ADR 26): an unfixed todo, still with its default status,
-        whose previous text had boxes and whose latest revision before was Claude's.
-        It goes back to what it was filed as before: for a photo page, the kind photo
-        ingest chose, else a note. A todo the user filed or touched is left alone."""
+        whose previous text had boxes and no revision by anyone but Claude ever had
+        (so the boxes are Claude's, even if a fold deleted the revision that added
+        them). It goes back to what it was filed as before: for a photo page, the kind
+        photo ingest chose, else a note. A todo the user filed or touched stays."""
         now_ = conn.execute(
             "SELECT body, kind, kind_fixed, fields FROM page WHERE id = ?",
             (page["id"],),
         ).fetchone()
-        was = conn.execute(
-            "SELECT author FROM page_rev WHERE page_id = ? AND rev = ?",
-            (page["id"], page["rev"]),
-        ).fetchone()
+        theirs = conn.execute(
+            "SELECT body FROM page_rev WHERE page_id = ? AND author <> ?",
+            (page["id"], CLAUDE),
+        ).fetchall()
         if (
             now_["kind"] != "todo" or now_["kind_fixed"] or tasks(now_["body"])[1]
-            or not tasks(page["body"])[1] or was is None or was["author"] != CLAUDE
+            or not tasks(page["body"])[1] or any(tasks(r[0])[1] for r in theirs)
             or json.loads(now_["fields"]).get("status", "open") != "open"
         ):  # fmt: skip
             return
