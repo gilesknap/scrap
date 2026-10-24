@@ -230,7 +230,7 @@ def test_put_blob_writes_the_file_again_if_gc_deleted_it(store, monkeypatch):
             raise FileNotFoundError(p)
         return utime(p, *a, **kw)
 
-    monkeypatch.setattr("scrap.store.os.utime", deleted_meanwhile)
+    monkeypatch.setattr("os.utime", deleted_meanwhile)
     assert store.put_blob(BytesIO(b"gone"))[0] == sha
     assert path.read_bytes() == b"gone"
 

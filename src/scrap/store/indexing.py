@@ -1,0 +1,103 @@
+"""Search indexing and the enrich queue."""
+
+import json
+import os
+import sqlite3
+from datetime import UTC, datetime
+
+from ..markdown import plain
+from ..query import (
+    CONTROL,
+)
+from .constants import ENRICH_ENQUEUE, ENRICH_KINDS, NOT_BY_INGEST
+from .helpers import now, unlink
+
+
+def index_page(conn: sqlite3.Connection, page_id: str) -> None:
+    """(Re)make a page's own search chunk from its title, tags, summary and body (its
+    derived text has chunks of its own). No control characters: snippets mark hits
+    with \x02 and \x03. Each becomes a space, so a lone \r or \v still separates two
+    words."""
+    title, body, fields = conn.execute(
+        "SELECT title, body, fields FROM page WHERE id = ?", (page_id,)
+    ).fetchone()
+    tags = " ".join(
+        r[0] for r in conn.execute("SELECT tag FROM tag WHERE page_id = ?", (page_id,))
+    )
+    summary = json.loads(fields).get("summary")
+    summary = summary if isinstance(summary, str) else model_summary(conn, page_id)
+    # The text as words (markdown.py); the others are short, and not Markdown
+    parts = (unlink(title), tags, unlink(summary), plain(body))
+    clean = [CONTROL.sub(" ", x) for x in parts]
+    conn.execute(
+        "DELETE FROM chunk WHERE page_id = ? AND derived_id IS NULL", (page_id,)
+    )
+    conn.execute(
+        "INSERT INTO chunk (page_id, ord, title, tags, summary, text)"
+        " VALUES (?, 0, ?, ?, ?, ?)",
+        (page_id, *clean),
+    )
+
+
+def model_summary(conn: sqlite3.Connection, page_id: str) -> str:
+    """The summary Claude wrote for a page (enrich), else ''. Before migration 9 there
+    is no enrichment table: ''."""
+    try:
+        row = conn.execute(
+            "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return ""
+    return row[0] if row else ""
+
+
+def enrich_on() -> bool:
+    """Whether Claude enriches text pages: with ingest on (SCRAP_INGEST), unless
+    SCRAP_ENRICH is off."""
+    on = ("on", "1", "true", "yes")
+    ingest = os.environ.get("SCRAP_INGEST", "off").lower() in on
+    return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
+
+
+def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether enrich reads this page on a capture, save or backfill: its kind is in
+    ENRICH_KINDS and it has no photo or file capture."""
+    row = conn.execute(
+        "SELECT p.kind FROM page p WHERE p.id = ? AND " + NOT_BY_INGEST.format(p="p"),
+        (page_id,),
+    ).fetchone()
+    return row is not None and row[0] in ENRICH_KINDS
+
+
+def debounce() -> float:
+    """Seconds an enrich job waits after a save, so a burst of edits makes one call."""
+    try:
+        return max(0.0, float(os.environ.get("SCRAP_ENRICH_DEBOUNCE", "60")))
+    except ValueError:
+        return 60.0
+
+
+def stamp_after(seconds: float) -> str:
+    t = datetime.now(UTC).timestamp() + seconds
+    return (
+        datetime.fromtimestamp(t, UTC)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+
+def queue_enrich(
+    conn: sqlite3.Connection, page_id: str, reason: str, delay: float = 0.0
+) -> None:
+    """Queue (or move) a page's enrich job, to run in delay seconds."""
+    conn.execute(
+        ENRICH_ENQUEUE,
+        {"page": page_id, "reason": reason, "run_after": stamp_after(delay),
+         "now": now()},
+    )  # fmt: skip
+
+
+def index_all(conn: sqlite3.Connection) -> None:
+    """Every page's own chunk again (the trash's too: undo brings a page back)."""
+    for (page_id,) in conn.execute("SELECT id FROM page").fetchall():
+        index_page(conn, page_id)

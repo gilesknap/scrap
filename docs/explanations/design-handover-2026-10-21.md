@@ -302,7 +302,7 @@ priority first, and the Snooze line only once snooze landed.
 These went through normal pull requests, not Design. They are listed so Design doesn't redo them.
 All have landed on `main`.
 
-- **Page cap** (landed, #125): a page holds at most 1 MB of text; the API answers 422 (the limit is `MAX_PAGE` in `src/scrap/store.py`).
+- **Page cap** (landed, #125): a page holds at most 1 MB of text; the API answers 422 (the limit is `MAX_PAGE` in `src/scrap/store/constants.py`).
   Vault import is not capped (#62, open).
 - **Snooze data** (landed, #130): `snoozed_until` on todos (an additive migration), `is:snoozed`, snoozed todos
   out of Now, Upcoming and the nav count until their day, "· snoozed till 3 Nov" in All. Only the

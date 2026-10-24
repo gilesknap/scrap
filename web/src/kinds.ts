@@ -25,5 +25,5 @@ export const toSend = (value: string, picked: boolean, current: string): Kind | 
 
 /** A capture's text as it is sent: blank lines before it and white space after it dropped, but
  * the first line's own indent kept (four spaces make it code, so "    # x" is no heading).
- * The server tidies the same way (store.py's _text). */
+ * The server tidies the same way (store/helpers.py's _text). */
 export const tidy = (text: string) => text.replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
