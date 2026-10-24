@@ -66,12 +66,31 @@ expect_refused "an API key as a value" --set ingest.apiKey=not-a-key
 expect_refused "an unknown top-level key" --set replicas=2
 expect_refused "backup.keep=0" --set backup.keep=0
 expect_refused "backup.keep=-1" --set backup.keep=-1
+expect_refused "backup.monthly.keep=0" --set backup.monthly.keep=0
 expect_refused "a non-numeric budget" --set ingest.budgetDayUSD=lots
 expect_refused "an MCP token as a value" --set mcp.token=not-a-token
 expect_refused "an MCP token as a tokenSecret value" --set mcp.tokenSecret.value=not-a-token
 expect_refused "an empty tokenSecret key" --set mcp.tokenSecret.name=s --set mcp.tokenSecret.key=
 expect_refused "an identityHeader that is not a header name" --set 'identityHeader=a b'
 expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
+expect_refused "gc.enabled=true with backups off" --set backup.enabled=false --set gc.enabled=true
+# An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
+if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
+    bad "backup off still renders a gc CronJob"
+else ok "backup off renders without a gc CronJob"; fi
+if helm template scrap "$chart" | grep -q -- '-gc$'; then ok "defaults render the gc CronJob"; else bad "defaults lack the gc CronJob"; fi
+
+# By default both claims (data and backups) carry the annotations that keep them
+# through helm uninstall and an Argo CD prune.
+pvcs=$(helm template scrap "$chart" | awk '
+    function end_doc() { if (kind == "PersistentVolumeClaim") { n++; if (keep && prune) good++ } }
+    /^---/ { end_doc(); kind = ""; keep = 0; prune = 0; next }
+    /^kind: / { kind = $2 }
+    /^    helm\.sh\/resource-policy: keep$/ { keep = 1 }
+    /^    argocd\.argoproj\.io\/sync-options: Prune=false$/ { prune = 1 }
+    END { end_doc(); print n + 0, good + 0 }')
+if [ "$pvcs" = "2 2" ]; then ok "data and backup claims carry the keep and Prune=false annotations"
+else bad "data and backup claims lack the keep/Prune=false annotations (claims, protected: $pvcs)"; fi
 
 # The chart may set only variables the app reads (the Settings table in
 # docs/reference/api.md) or that deploy/scrap-backup reads, plus extraEnv.

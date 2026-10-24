@@ -8,6 +8,22 @@
 # Installed by install.sh to ~/.local/lib/scrap/.
 set -eu
 
+# SCRAP_VOLUME_OPTS: the options after the colon on every --volume (SELinux
+# relabelling); z (shared label) unless the env file sets it, empty for none.
+# Lowercase: an uppercase Z makes the label private to one container and locks
+# the backup and gc containers out of SCRAP_DATA.
+volume_opts=${SCRAP_VOLUME_OPTS-z}
+case $volume_opts in
+*[!A-Za-z,]*)
+    echo "SCRAP_VOLUME_OPTS must be letters and commas (e.g. z), not '$volume_opts'" >&2
+    exit 1
+    ;;
+esac
+[ -z "$volume_opts" ] || volume_opts=":$volume_opts"
+# The path the units use (/usr/bin/podman), not whatever PATH finds first, so
+# a script run by hand does what the unit does. PODMAN is a test hook, not a setting.
+podman=${PODMAN:-/usr/bin/podman}
+
 : "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
 : "${SCRAP_DATA:?SCRAP_DATA is not set}"
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
@@ -21,8 +37,8 @@ if [ -z "$recent" ]; then
     echo "No backup in the last 26 hours: counting only, deleting nothing." >&2
     mode=--dry-run
 fi
-podman run --rm --replace --name scrap-gc \
+"$podman" run --rm --replace --name scrap-gc \
     --userns=keep-id:uid=10001,gid=10001 --network=none \
-    --volume "$SCRAP_DATA:/data:z" --env SCRAP_DATA_DIR=/data \
+    --volume "$SCRAP_DATA:/data$volume_opts" --env SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" gc "$mode" --grace-hours 24
 [ -n "$recent" ] || exit 1

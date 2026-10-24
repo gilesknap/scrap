@@ -21,3 +21,11 @@ After changing that Secret: kubectl -n {{ .Release.Namespace }} rollout restart 
 Backups: CronJob {{ include "scrap.backupName" . }} ({{ .Values.backup.schedule }}) keeps {{ .Values.backup.keep }} runs on claim {{ include "scrap.backupClaim" . }}.
 Run one now: kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "scrap.backupName" . }} {{ include "scrap.fullname" . | trunc 45 | trimSuffix "-" }}-backup-now
 {{- end }}
+{{- if include "scrap.gcEnabled" . }}
+
+GC: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-gc") }} ({{ .Values.gc.schedule }}) deletes unused files and run records older than {{ .Values.gc.runDays }} days{{ if .Values.gc.requireBackup }}, only after a backup less than 26 hours old{{ end }}.
+{{- end }}
+{{- if and .Values.enrichRelated.enabled .Values.ingest.enabled }}
+
+Related pages: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-related") }} ({{ .Values.enrichRelated.schedule }}) runs `scrap enrich --related`.
+{{- end }}

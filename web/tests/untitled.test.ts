@@ -15,3 +15,8 @@ it("keeps a first line that says more, or something else", () => {
   expect(untitled("#\nx", "#")).toBe("#\nx"); // an empty heading says nothing
   expect(untitled("", "Untitled")).toBe("");
 });
+
+it("leaves an indented first line, which is code with its # kept, alone", () => {
+  expect(untitled("    # indented four\nx", "# indented four")).toBe("    # indented four\nx");
+  expect(untitled("\t# tab\nx", "# tab")).toBe("\t# tab\nx");
+});

@@ -1,7 +1,10 @@
 """Page text edited over MCP (edit_page, revert_text): narrow edits of any page, each a
 text revision that can be listed and restored, and the switch that turns them off."""
 
+import difflib
 import random
+import re
+import subprocess
 import time
 from contextlib import closing
 
@@ -272,7 +275,7 @@ def test_a_replacement_over_the_page_limit_is_refused_before_it_is_built(
     monkeypatch.setattr(mcp_server, "replaced", spy)
     error = refused(store, "edit_page", page=ref["slug"], old="a",
                     new="b" * 200_000, replace_all=True)  # fmt: skip
-    assert "the page would be 199800.00 MB" in error and calls == [999_000]
+    assert "the page text is 199,800,000,000 bytes" in error and calls == [999_000]
     assert store.page(ref["slug"])["body"] == "a" * 999_000
     # over by a little: refused; under: saved
     with closing(connect(store.db)) as conn:
@@ -281,7 +284,7 @@ def test_a_replacement_over_the_page_limit_is_refused_before_it_is_built(
             ("x" * 900_000 + "b", ref["page_id"]),
         )
     error = refused(store, "edit_page", page=ref["slug"], old="b", new="c" * 100_001)
-    assert "the page would be 1.00 MB" in error
+    assert "the page text is 1,000,001 bytes" in error
     ok(store, "edit_page", page=ref["slug"], old="b", new="c" * 99_999)
     assert len(store.page(ref["slug"])["body"]) == 999_999
 
@@ -387,7 +390,9 @@ def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
     pages and appends), edit_page and revert_text take text, and every text change
     they make is a revision; a whole body needs the current rev."""
     names = tools(store)
-    assert not [n for n in names if any(w in n for w in ("delete", "trash", "purge"))]
+    # the trash can be listed and a page brought back, never emptied or deleted
+    risky = {n for n in names if re.search("delete|trash|purge|remove|empty", n)}
+    assert risky == {"trash", "undelete"}
     for name, args in names.items():
         if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "fields", "status"}, name
@@ -445,9 +450,9 @@ def test_a_long_overlapping_old_is_refused_quickly(store):
 def patched(diff: str, before: str) -> str:
     """Apply a unified diff to before, checking every context and removed line is at
     the line its hunk header says."""
-    lines = before.splitlines(keepends=True)
+    lines = mcp_server.split_lines(before)
     out, at = [], 0
-    rows = diff.splitlines(keepends=True)[2:]
+    rows = mcp_server.split_lines(diff)[2:]
     i = 0
     while i < len(rows):
         head = mcp_server.HUNK.match(rows[i])
@@ -502,6 +507,45 @@ def test_the_diff_is_right_and_quick_on_large_pages():
     assert patched(diff, big) == edited
 
 
+def test_the_diff_applies_with_git_apply(tmp_path):
+    """Repeated blank lines and bullets (where difflib matches inside a slice
+    differently) still give a diff with full trailing context that git apply takes,
+    and a form feed does not split a line."""
+    rng = random.Random(160)
+    for _n in range(300):
+        a = [
+            rng.choice(["", "- x", "- y", "para", "\x0c"])
+            for _ in range(rng.randint(5, 40))
+        ]
+        b = list(a)
+        for _ in range(rng.randint(1, 3)):
+            at = rng.randint(0, len(b))
+            if rng.random() < 0.5 and b:
+                del b[min(at, len(b) - 1)]
+            else:
+                b.insert(at, rng.choice(["", "- x", "- y", "new"]))
+        before, after = "\n".join(a) + "\n", "\n".join(b) + "\n"
+        diff, _ = mcp_server.unified("p", 1, before, after)
+        if before == after:
+            assert diff == ""
+            continue
+        assert "No newline" not in diff, (a, b)
+        (tmp_path / "p").write_bytes(before.encode())
+        body = diff.split("\n", 2)[2]  # git apply wants plain file names
+        (tmp_path / "d.patch").write_bytes(f"--- p\n+++ p\n{body}".encode())
+        run = subprocess.run(
+            ["git", "apply", "-p0", "d.patch"],
+            cwd=tmp_path, capture_output=True, text=True,
+        )  # fmt: skip
+        assert run.returncode == 0, (a, b, diff, run.stderr)
+        assert (tmp_path / "p").read_bytes().decode() == after
+
+
+def test_the_diff_splits_lines_on_newline_only():
+    diff, _ = mcp_server.unified("p", 1, "a\x0cb\nc", "a\x0cb\nd")
+    assert diff.count("\n\\ No newline") == 2 and " a\x0cb\n" in diff
+
+
 def enrich_jobs(store) -> list[tuple[str, str, str]]:
     with closing(connect(store.db)) as conn:
         return [tuple(r) for r in conn.execute(
@@ -536,3 +580,28 @@ def test_text_edits_queue_enrichment_like_a_pwa_save(store, monkeypatch):
         conn.execute("DELETE FROM enrich_job")
     ok(store, "edit_page", page=ref["slug"], old="milk", new="oat milk")
     assert enrich_jobs(store) == []
+
+
+def test_unified_matches_difflib_on_varied_inputs():
+    """The diff is what difflib makes of the whole text (lines distinct, so trimming
+    the common start and end cannot change how they match)."""
+    rng = random.Random(178)
+    for _n in range(400):
+        a = [f"line {i}\n" for i in range(rng.randint(0, 60))]
+        b = list(a)
+        for _ in range(rng.randint(0, 6)):
+            at = rng.randint(0, len(b))
+            roll = rng.random()
+            if roll < 0.35 and b:
+                del b[min(at, len(b) - 1)]
+            elif roll < 0.7 and b:
+                b[min(at, len(b) - 1)] = f"changed {rng.random()}\n"
+            else:
+                b.insert(at, f"new {rng.random()}\n")
+        before, after = "".join(a), "".join(b)
+        expected = "".join(
+            difflib.unified_diff(a, b, "p (rev 1)", "p (edited)", n=mcp_server.CONTEXT)
+        )
+        diff, cut = mcp_server.unified("p", 1, before, after)
+        assert not cut
+        assert diff == expected, (a, b)

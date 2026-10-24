@@ -3,8 +3,9 @@
 // searches for it (tag:tech finds tech/epics too). A chunk of its own (needs the server).
 import { api } from "./api";
 import { view } from "./app";
+import { type TagNode, tree } from "./filters";
 import { icon } from "./icons";
-import { type TagNode, token, tree } from "./terms";
+import { token } from "./terms";
 import { empty, h, problem } from "./ui";
 
 const SORTS = [

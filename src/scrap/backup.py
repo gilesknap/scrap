@@ -10,10 +10,10 @@ from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
 from typing import IO
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from .drawing import excalidraw_file
-from .store import NotFoundError, Store, connect, migrate, schema_version
+from .store import NoSuchPage, Store, connect, migrate, schema_version
 
 __all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
 
@@ -74,7 +74,18 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
     store.dir.mkdir(parents=True, exist_ok=True)
     part = store.dir / "scrap.db.restore"
     try:
+        _restore_into(src, store, part)
+    except BaseException:  # a refusal or Ctrl-C: leave no backup-sized leftover
         _discard(part)
+        if created and not store.db.exists():  # not once the swap has happened
+            shutil.rmtree(store.dir, ignore_errors=True)
+        raise
+
+
+def _restore_into(src: Path, store: Store, part: Path) -> None:
+    backup_db = src / "scrap.db"
+    _discard(part)
+    try:
         shutil.copyfile(backup_db, part)
         # A backup is a closed snapshot with no -wal; copy one if it is there
         if Path(f"{backup_db}-wal").is_file():
@@ -85,11 +96,10 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
         if check != "ok":
             raise sqlite3.DatabaseError(f"integrity_check says {check}")
     except (RuntimeError, sqlite3.DatabaseError, OSError) as error:
-        _discard(part)
-        if created:
-            store.dir.rmdir()
         what = "cannot copy the backup" if isinstance(error, OSError) else "bad backup"
-        raise SystemExit(f"{what}: {error}") from None
+        # Name the folder the user gave, not the temporary copy
+        reason = str(error).replace(str(part), str(src))
+        raise SystemExit(f"{what}: {reason}") from None
     store.files.mkdir(parents=True, exist_ok=True)
     _copy_files(src / "files", store.files)
     migrate(part)
@@ -110,7 +120,9 @@ OWN_BLOB = re.compile(
     r"(?:/preview\?size=\d+|\?download=1)?\)"
 )
 FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
-CODE_SPAN = re.compile(r"(`+)(?!`).+?(?<!`)\1(?!`)")
+# (?<!`) first: a run of backticks is tried from its start only, so many unmatched runs
+# cost linear time, not quadratic (as web/src/md.ts)
+CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`).+?(?<!`)\1(?!`)")
 
 
 def _outside_code(text: str, change: Callable[[str], str]) -> str:
@@ -193,7 +205,7 @@ def page_markdown(
             names[sha] = file = name(blob, taken)
             taken.add(file)
             files.append((file, sha))
-            label = (blob["filename"] or file).replace("[", "(").replace("]", ")")
+            label = (blob["filename"] or "").replace("[", "(").replace("]", ")")
             local[sha] = (f"files/{quote(file)}", label)
 
     shown: set[str] = set()  # files the text shows as images
@@ -210,13 +222,17 @@ def page_markdown(
             if row:
                 file = name(row, taken)
                 files.append((file, sha))
-                local[sha] = (f"files/{quote(file)}", file)
+                local[sha] = (f"files/{quote(file)}", "")
         if sha not in local:
             return m[0]
         if m[1]:
             shown.add(sha)
         address, label = local[sha]
-        return f"{m[1]}[{m[2] or label}]({address})"
+        # No alt: the name it was uploaded under; if the file has none (another page's,
+        # or a bare sha) an image keeps its alt empty, not a 64-hex name, while a link
+        # (which needs text to show) gets the file's name
+        text = m[2] or label or ("" if m[1] else unquote(address.split("/", 1)[1]))
+        return f"{m[1]}[{text}]({address})"
 
     body = _outside_code(page["body"], lambda t: OWN_BLOB.sub(here, t))
     lines += ["---", "", body, ""]
@@ -317,7 +333,7 @@ def download(store: Store, key: str, out: IO[bytes]) -> tuple[str, str]:
             (key, key),
         ).fetchone()
         if page is None:
-            raise NotFoundError(key)
+            raise NoSuchPage(key)
         text, files = page_markdown(conn, page, _friendly_name)
     slug = page["slug"]
     if not files:

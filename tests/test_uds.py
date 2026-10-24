@@ -166,3 +166,68 @@ def test_app_answers_over_the_socket(tmp_path):
         finally:
             server.terminate()
             server.communicate(timeout=10)
+
+
+needs_non_root = pytest.mark.skipif(
+    os.geteuid() == 0, reason="root ignores directory permissions"
+)
+
+
+@needs_non_root
+def test_folder_without_write_permission_is_an_error(tmp_path):
+    (tmp_path / "run").mkdir(mode=0o500)
+    with pytest.raises(UdsError, match=r"cannot open .*\.scrap\.sock\.lock"):
+        bind(tmp_path / "run" / "scrap.sock")
+
+
+def test_lock_path_that_is_a_folder_is_an_error(tmp_path):
+    (tmp_path / "run").mkdir(mode=0o700)
+    (tmp_path / "run" / ".scrap.sock.lock").mkdir()
+    with pytest.raises(UdsError, match=r"cannot open .*\.scrap\.sock\.lock"):
+        bind(tmp_path / "run" / "scrap.sock")
+
+
+def test_symlinked_lock_is_not_followed(tmp_path):
+    (tmp_path / "run").mkdir(mode=0o700)
+    target = tmp_path / "elsewhere"
+    (tmp_path / "run" / ".scrap.sock.lock").symlink_to(target)
+    with pytest.raises(UdsError, match="symbolic link"):
+        bind(tmp_path / "run" / "scrap.sock")
+    assert not target.exists()
+
+
+@needs_non_root
+def test_stale_socket_that_cannot_be_removed_is_an_error(tmp_path):
+    folder = tmp_path / "run"
+    folder.mkdir(mode=0o700)
+    path = folder / "scrap.sock"
+    (folder / ".scrap.sock.lock").touch()  # so the lock opens in a read-only folder
+    with socket.socket(socket.AF_UNIX) as old:
+        old.bind(str(path))
+    folder.chmod(0o500)
+    try:
+        with pytest.raises(UdsError, match="cannot remove the old socket"):
+            bind(path)
+    finally:
+        folder.chmod(0o700)
+    assert stat.S_ISSOCK(path.lstat().st_mode)
+
+
+def test_chmod_failure_is_an_error_and_leaves_no_socket(tmp_path, monkeypatch):
+    def refuse(path, mode):
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr("scrap.uds.os.chmod", refuse)
+    path = tmp_path / "run" / "scrap.sock"
+    with pytest.raises(UdsError, match="cannot set the mode"):
+        bind(path)
+    assert not path.exists()
+
+
+def test_lock_error_reaches_serve_as_a_message(tmp_path, monkeypatch):
+    monkeypatch.setattr("uvicorn.run", lambda *a, **kw: pytest.fail("ran uvicorn"))
+    (tmp_path / "run").mkdir(mode=0o700)
+    (tmp_path / "run" / ".scrap.sock.lock").mkdir()
+    with pytest.raises(SystemExit) as exit:
+        main(["serve", "--uds", str(tmp_path / "run" / "scrap.sock")])
+    assert str(exit.value).startswith("scrap serve: cannot open")

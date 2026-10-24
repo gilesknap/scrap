@@ -275,8 +275,8 @@ The chips and panels only write the query, which you can also type:
 
 - Words match as the start of a word. `-word` or `!word` leaves out pages with the word, and
   `"a phrase"` matches those words together, in order. A `-` or `!` in front of any filter below
-  leaves out the pages it matches. At most 16 terms and 16 filters count, and a word with no
-  letter or digit in it (`&`, `?`) is ignored.
+  leaves out the pages it matches. A query may have at most 64 terms and 64 filters (more is
+  refused, not cut short), and a word with no letter or digit in it (`&`, `?`) is ignored.
 - `kind:todo` (or `kind:later`, also `kind:read`, `kind:board`, `kind:doc`...).
 - `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics` too).
 - `is:STATUS` for a todo's or Later page's status: `is:open`, `is:in_progress`, `is:done`,
@@ -488,7 +488,7 @@ How matching works:
   copy it back into the page by hand. A change of tags or kind is kept apart from these.
   **Download** and `scrap export` hold only the current text.
 - A page's text holds at most 1 MB (about a million letters). Save says so before sending a
-  longer one, and keeps it in the editor (and the composer) for you to shorten or split.
+  longer one (counting the photo links a capture adds), and keeps it in the editor (and the composer) for you to shorten or split. A page imported over the limit can still be edited: only its text must stay as it is, or shrink, for the title, kind and tags to save.
 - Deleting a photo's line (its token, in the editor) removes the photo from the page. **Save** warns first, naming each
   photo whose line went: *no longer shown on any page*, or *still shown on N other pages*. This
   doesn't delete the stored file. **Cancel** goes back to the editor with your text as it was (undo brings the

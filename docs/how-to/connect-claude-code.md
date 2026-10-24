@@ -2,16 +2,21 @@
 
 Claude Code sessions can search, read and write scrap through its MCP server (see
 [](../reference/mcp.md)). Nothing is installed on the session's machine: it talks to `/mcp`
-over HTTPS on the tailnet.
+over HTTPS on the tailnet, over plain HTTP on a home network ([](../tutorials/install-lan.md)), or, on the Kubernetes install, through Cloudflare Access with a
+bearer token (see "If `/mcp` needs a token" below, [](../tutorials/install-kubernetes.md) and
+[ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 
-If scrap runs in a podman pod on a DLS workstation, follow {ref}`dls-claude-code` in the DLS
-tutorial instead: there Claude Code runs in claude-sandbox and reaches scrap on a port of the
+If scrap runs in a podman pod on a DLS workstation, follow [](run-on-dls-workstation.md)
+instead: there Claude Code runs in claude-sandbox and reaches scrap on a port of the
 workstation, not over the tailnet, and setting the address and restarting scrap work differently.
 
 Before you start you need:
 
-- scrap running and published on your tailnet, so that the machine running Claude Code can open
-  it (see [](deploy-single-server.md), "Publish on your tailnet", or {ref}`k8s-tailscale`);
+- scrap running and reachable from the machine running Claude Code: on the same machine or LAN
+  ([](../tutorials/install-lan.md)), published on your tailnet
+  (see [](../tutorials/install-server.md), [](deploy-single-server.md), "Publish on your
+  tailnet", or {ref}`k8s-tailscale`), or on Kubernetes behind Cloudflare Access
+  ([](../tutorials/install-kubernetes.md));
 - the Claude Code CLI on that machine;
 - optionally, ingest on (`SCRAP_INGEST=on`) if you want Claude to describe photos (see step 2).
 
@@ -80,7 +85,8 @@ It should print an HTTP `200` status and JSON with ten tools in `result.tools`.
 
 Off the tailnet, or for a quick test, use the SSH tunnel fallback ({ref}`scrap-ssh-tunnel`) and
 add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A session that
-cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way.
+cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
+unless scrap is published through Cloudflare Access with a service token and a bearer token (below).
 
 ### If `/mcp` needs a token
 
@@ -89,7 +95,7 @@ the token as a header. With `claude mcp add`:
 
 ```
 claude mcp add --transport http scrap https://myhost.my-tailnet.ts.net:8446/mcp \
-  --header "Authorization: Bearer ${SCRAP_MCP_TOKEN}"
+  --header 'Authorization: Bearer ${SCRAP_MCP_TOKEN}'
 ```
 
 or in `.mcp.json`, where Claude Code expands `${VAR}` in header values, so the token can stay in
@@ -109,8 +115,7 @@ the environment (or an env file you do not commit):
 
 Behind Cloudflare Access, add its service-token headers too, so the request carries
 `CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}`, `CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}`
-and the `Authorization` header. In the DLS claude-sandbox, keep all of these in an env file and
-do not commit it.
+and the `Authorization` header. Keep all of these in an env file and do not commit it.
 
 ### If it does not connect
 
@@ -218,7 +223,9 @@ client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page",
 "mcp__scrap__revert_text"]}`.
 
 scrap has no login: any device on the tailnet that can reach the port can use `/mcp`, so
-restrict that with the tailnet ACL (see [](deploy-single-server.md)).
+restrict that with the tailnet ACL (see [](deploy-single-server.md)). Off the tailnet, `/mcp`
+can require a bearer token (`SCRAP_MCP_TOKEN`, ADR 0023), behind Cloudflare Access on
+Kubernetes.
 
 Mount scrap only in sessions where reading untrusted text is acceptable: pages may hold
 injected instructions, and a session that runs with bypassed permissions could be steered by

@@ -1,6 +1,7 @@
 # pyright: reportOptionalSubscript=false
 """Enrich (#85): text pages tagged, summarised and linked by Claude (faked)."""
 
+import io
 import json
 from contextlib import closing
 from typing import Any
@@ -594,3 +595,168 @@ def test_checked_bounds_the_output():
     assert enrich.checked_related({"related": [True, 0, 2, 2, 3, 9]}, 3) == [2, 3]
     with pytest.raises(ValueError):
         enrich.checked_related({}, 3)
+
+
+# Which kinds are read (#155)
+
+
+@pytest.mark.parametrize("kind", ["whiteboard", "document"])
+def test_a_save_on_a_whiteboard_or_document_page_queues_nothing(store, kind):
+    ref = capture(store, "a page", kind=kind)
+    store.update_page(ref["page_id"], 1, None, "a page, edited", "me")
+    assert jobs(store) == []
+
+
+@pytest.mark.parametrize("kind", ["note", "todo", "consume"])
+def test_a_save_on_a_note_todo_or_read_queues_enrich(store, kind):
+    ref = capture(store, "a page", kind=kind)
+    store.update_page(ref["page_id"], 1, None, "a page, edited", "me")
+    assert jobs(store)[-1] == ("save", "queued", 0)
+
+
+def test_backfill_skips_photo_whiteboard_and_document_pages(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    for kind in ("whiteboard", "document"):
+        capture(store, f"a {kind}", kind=kind)
+    for kind in ("note", "todo", "consume"):
+        capture(store, f"a {kind}", kind=kind)
+    capture(store, url="https://example.com/a")
+    assert enrich.backfill(store, dry_run=True) == 4
+    assert enrich.backfill(store) == 4
+    assert [j[0] for j in jobs(store)] == ["backfill"] * 4
+
+
+def photo_page(store, text=None):
+    """A photo capture: its page is a note until ingest reclassifies it."""
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    c = store.prepare({"id": new_ulid(), "text": text}, ["image/jpeg"])
+    return store.capture(c, [(sha, "image/jpeg", size, None)], "me")[0]
+
+
+def test_a_save_on_a_photo_page_queues_nothing(store):
+    ref = photo_page(store, "a typed note")
+    store.update_page(ref["page_id"], 1, None, "a typed note, edited", "me")
+    assert jobs(store) == []
+    store.edit_text(ref["page_id"], "me", lambda conn, p: (p["title"], "mcp edit"))
+    assert jobs(store) == []
+
+
+def test_a_page_with_a_note_and_a_photo_capture_is_left_to_ingest(store):
+    """Only an import makes one page of both (an append is to a page Claude wrote)."""
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    stamp = "2026-01-01T00:00:00.000Z"
+    p = {"slug": "both", "title": "Both", "body": "a note", "kind": "note",
+         "fields": {}, "tags": [], "created_at": stamp,
+         "updated_at": stamp}  # fmt: skip
+    caps = [(new_ulid(), "note", "a note", []),
+            (new_ulid(), "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
+    page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
+    store.update_page(page_id, 1, None, "a note, edited", "me")
+    assert jobs(store) == []
+
+
+def test_backfill_skips_a_photo_page_of_kind_note(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    photo_page(store, "a typed note")
+    capture(store, "a plain note")
+    assert enrich.backfill(store, dry_run=True) == 1
+
+
+# MCP append and saved links (#149, #147)
+
+
+def mcp_page(store, kind="note", body="written by Claude"):
+    c = {"id": new_ulid(), "kind": "note", "text": body, "url": None, "source": "mcp",
+         "created_at": "2026-01-01T00:00:00+00:00", "page_kind": kind,
+         "fields": {}, "title": "T", "body": body}  # fmt: skip
+    return store.capture(c, [], "claude", [])[0]["page_id"]
+
+
+def append(store, page_id, text="more"):
+    return store.append(page_id, new_ulid(), text, "claude", [], 10_000)
+
+
+def test_an_mcp_append_queues_one_save_job_per_page(store, monkeypatch):
+    page_id = mcp_page(store)
+    run_all(worker(store, Fake(answer())))
+    monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "3600")
+    append(store, page_id)
+    append(store, page_id, "and more")
+    assert jobs(store) == [("capture", "done", 0), ("save", "queued", 0)]
+
+
+def test_an_mcp_append_to_a_gated_page_queues_nothing(store):
+    page_id = mcp_page(store, kind="whiteboard")
+    append(store, page_id)
+    assert jobs(store) == []
+
+
+def test_an_mcp_append_queues_nothing_with_enrich_off(store, monkeypatch):
+    page_id = mcp_page(store)
+    run_all(worker(store, Fake(answer())))
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    append(store, page_id)
+    assert jobs(store) == [("capture", "done", 0)]
+
+
+def test_an_mcp_append_to_a_photo_page_queues_nothing(store):
+    page_id = mcp_page(store)
+    run_all(worker(store, Fake(answer())))
+    stamp = "2030-01-01T00:00:00.000Z"  # after the MCP capture: it stays the first
+    with closing(connect(store.db)) as conn:
+        conn.execute(
+            "INSERT INTO capture VALUES (?, 'photo', NULL, NULL, 'pwa', 'me', ?, ?, ?)",
+            (new_ulid(), stamp, stamp, page_id),
+        )
+        conn.commit()
+    append(store, page_id)
+    assert jobs(store) == [("capture", "done", 0)]
+
+
+def test_an_mcp_append_with_no_text_queues_nothing(store):
+    page_id = mcp_page(store, kind="todo")
+    run_all(worker(store, Fake(answer())))
+    store.append(page_id, new_ulid(), "", "claude", [], 10_000, {"priority": "high"})
+    assert jobs(store) == [("capture", "done", 0)]
+
+
+def counting(calls):
+    def fetcher(url):
+        calls.append(url)
+        return page_fetch(url)
+
+    return fetcher
+
+
+def test_a_save_on_a_link_page_does_not_fetch_and_keeps_its_source(store):
+    url = "https://example.com/shed"
+    ref = capture(store, url=url)
+    calls: list[str] = []
+    w = worker(store, Fake(answer(["sheds"], "A book on sheds.")), counting(calls))
+    run_all(w)
+    assert calls == [url]
+    store.update_page(ref["page_id"], 1, None, url + "\nmy note", "me")
+    fake = Fake(answer(summary="Still about sheds."))
+    run_all(worker(store, fake, counting(calls)))
+    assert calls == [url]  # no second fetch
+    sent = fake.calls[0]["messages"][0]["content"][0]["text"]
+    assert "my note" in sent and "<fetched>" not in sent
+    page = store.page(ref["page_id"])
+    assert page["enrich"]["summary"] == "Still about sheds."
+    assert page["enrich"]["source"] == url + "?final"  # kept from the capture
+
+
+def test_ask_and_backfill_on_a_link_page_still_fetch(store):
+    url = "https://example.com/shed"
+    ref = capture(store, url=url)
+    calls: list[str] = []
+    run_all(worker(store, Fake(answer()), counting(calls)))
+    enrich.ask(store, ref["page_id"])
+    run_all(worker(store, Fake(answer()), counting(calls)))
+    assert calls == [url, url]
+    with closing(connect(store.db)) as conn:
+        conn.execute("UPDATE enrich_job SET reason = 'backfill' WHERE reason = 'ask'")
+        conn.execute("UPDATE enrich_job SET state = 'queued' WHERE reason = 'backfill'")
+        conn.commit()
+    run_all(worker(store, Fake(answer()), counting(calls)))
+    assert len(calls) == 3

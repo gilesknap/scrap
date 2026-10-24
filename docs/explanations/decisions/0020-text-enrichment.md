@@ -6,7 +6,9 @@ Date: 2026-10-22 (#85, migration 9)
 
 Accepted. Extends [](0009-claude-ingest-via-messages-api.md), which sent only photos to Claude,
 and shares the queue pause and daily budget of
-[](0010-job-queue-pauses-instead-of-failing.md).
+[](0010-job-queue-pauses-instead-of-failing.md). Amended by
+[](0026-claude-appends-task-boxes-to-a-list-of-actions.md): enrich may now append task boxes
+to a list of actions, as a revision of Claude's own, so "never edits the text" no longer holds.
 
 ## Context
 
@@ -60,7 +62,7 @@ untrusted.
 - On a single server `deploy/scrap-enrich-related.timer` runs the pass nightly in the service's
   container (`podman exec scrap scrap enrich --related`), after the backup. `install.sh` enables it
   if the image has the command. With ingest or enrich off, or no API key, the command says so and
-  exits 0. The Helm chart has no such job.
+  exits 0. The Helm chart has the equivalent `enrichRelated` CronJob (only while ingest is on), which runs the command in its own pod beside the scrap pod with the Deployment's environment.
 - On a Claude seat with no API key, enrichment runs through `claude -p` instead: see
   [](0021-ingest-on-a-claude-seat-through-claude-p.md).
 

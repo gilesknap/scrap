@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import html
 import json
+import math
 import os
 import re
 import secrets
@@ -20,10 +21,21 @@ from pathlib import Path
 from typing import IO, Any, NamedTuple
 
 from .markdown import plain, tasks
-from .query import CONTROL, PRIORITIES, Query, bound, day, due, parse
+from .query import (
+    CONTROL,
+    MAX_FILTERS,
+    MAX_TERMS,
+    PRIORITIES,
+    Query,
+    bound,
+    day,
+    due,
+    parse,
+)
 
 __all__ = [
-    "Store", "NotFoundError", "ConflictError", "TooLargeError", "InvalidError",
+    "Store", "NotFoundError", "NoSuchPage", "NoSuchRevision", "ConflictError",
+    "TooLargeError", "InvalidError",
     "clean_tags",
 ]  # fmt: skip
 
@@ -48,7 +60,6 @@ DEFAULT_FIELDS = {
     "todo": {"status": "open"},
     "consume": {"subtype": "read", "status": "open"},
 }
-HINT_FIELDS = DEFAULT_FIELDS  # its older name, used by the importer (#47): remove later
 HINTS = ("todo", "consume")  # the older capture field, still accepted
 ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
 # kind: in a search also takes the PWA's names for kinds
@@ -134,6 +145,14 @@ class NotFoundError(Exception):
     """No such page or blob (or it is in the trash)."""
 
 
+class NoSuchPage(NotFoundError):  # noqa: N818
+    """No such page (or it is in the trash); the message is the key given."""
+
+
+class NoSuchRevision(NotFoundError):  # noqa: N818
+    """No such revision or batch; the message names it ("revision 9")."""
+
+
 class ConflictError(Exception):
     """A page edit was based on an older revision."""
 
@@ -187,14 +206,18 @@ def seconds_between(earlier: str, later: str) -> float:
     return (end - start).total_seconds()
 
 
-def check_page(body: str) -> str:
-    """body, if it is within MAX_PAGE bytes of UTF-8; else InvalidError, saying so."""
+def too_big(size: int, most: int = MAX_PAGE) -> str:
+    """Why a page of size bytes is refused: in bytes, so the boundary is clear."""
+    mb = " (1 MB)" if most == MAX_PAGE else ""
+    return f"the page text is {size:,} bytes, and a page holds at most {most:,}{mb}"
+
+
+def check_page(body: str, was: str | None = None) -> str:
+    """body, if it is within MAX_PAGE bytes of UTF-8 or is unchanged from was (a page
+    imported over the limit can still be retitled); else InvalidError, saying so."""
     size = len(body.encode())
-    if size > MAX_PAGE:
-        raise InvalidError(
-            f"page text is {size / 1e6:.2f} MB:"
-            f" a page holds at most {MAX_PAGE / 1e6:g} MB"
-        )
+    if size > MAX_PAGE and body != was:
+        raise InvalidError(too_big(size))
     return body
 
 
@@ -228,6 +251,25 @@ def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str
     ]
 
 
+def checked_query(query: str) -> Query:
+    """parse(query), refused if it has more words or filters than a search takes: one
+    left out could be a NOT word or -tag:, and the results would be broader than
+    asked."""
+    q = parse(query)
+    if q.dropped:
+        raise InvalidError(
+            f"too many search terms: at most {MAX_TERMS} distinct words and"
+            f" {MAX_FILTERS} filters ({q.dropped} too many); nothing was searched"
+        )
+    return q
+
+
+def tag_path(tag: str) -> str:
+    """A tag without empty path segments: /lead, trail/ and a//b become lead, trail and
+    a/b (#87), so no blank tag or parent reaches the tag tree, and tag:/ finds none."""
+    return "/".join(part for part in tag.split("/") if part.strip())
+
+
 def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
     """Tags as imported ones are: one space between words, no leading #, lower case;
     each 1 to 64 characters, at most most of them, each once, in order."""
@@ -240,7 +282,7 @@ def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
         except UnicodeEncodeError:
             raise InvalidError("a tag must be valid Unicode") from None
         new = " ".join(CONTROL.sub(" ", tag).split()).lstrip("#").lower().strip()
-        new = unicodedata.normalize("NFC", new)
+        new = tag_path(unicodedata.normalize("NFC", new))
         if not new or len(new) > MAX_TAG:
             raise InvalidError(f"a tag must be 1 to {MAX_TAG} characters: {tag[:80]!r}")
         if new not in out:
@@ -329,11 +371,28 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     conn.execute("COMMIT")
 
 
-def _text(data: dict[str, Any], key: str) -> str | None:
+SURROGATE = re.compile(r"[\ud800-\udfff]")  # half a UTF-16 pair: no UTF-8 for it
+
+
+def _text(data: dict[str, Any], key: str, indent: bool = False) -> str | None:
+    """A string field, tidied: None if blank.
+
+    indent keeps the first line's own indent (only blank lines before it go): four
+    spaces make it code, and `    # x` is no heading.
+    """
     value = data.get(key)
     if value is not None and not isinstance(value, str):
         raise InvalidError(f"{key} must be a string")
-    return lines(value).strip() or None if value else None
+    if not value:
+        return None
+    if SURROGATE.search(value):
+        raise InvalidError(f"{key} must be valid Unicode (a lone surrogate)")
+    value = lines(value)
+    if indent:
+        value = re.sub(r"\A(?:[ \t]*\n)+", "", value).rstrip()
+    else:
+        value = value.strip()
+    return value or None
 
 
 def lines(text: str) -> str:
@@ -342,6 +401,18 @@ def lines(text: str) -> str:
 
 
 Value = str | int | float | bool  # a field's value: flat, no nulls
+MAX_INT = 2**53  # the most a browser holds exactly: a field's number is within +-this
+
+
+def check_value(name: str, value: Any) -> None:
+    """Refuse a field value the PWA could not show as stored: a float that is not
+    finite (NaN, Infinity, or 1e400, which parses to it) or an int past +-2**53."""
+    if isinstance(value, bool):
+        return
+    if isinstance(value, float) and not math.isfinite(value):
+        raise InvalidError(f"field {name}: a number must be finite")
+    if isinstance(value, int) and abs(value) > MAX_INT:
+        raise InvalidError(f"field {name}: a whole number is at most +-2**53")
 
 
 def fields_for(kind: str | None, url: str | None) -> dict[str, Value]:
@@ -435,6 +506,36 @@ def enrich_on() -> bool:
     on = ("on", "1", "true", "yes")
     ingest = os.environ.get("SCRAP_INGEST", "off").lower() in on
     return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
+
+
+# The page kinds Claude reads for tags and a summary: notes (a saved link is one), todos
+# and reads (consume). A photo, whiteboard or document page is not read as text (#155).
+# Ask Claude is an explicit act and still works on any page.
+ENRICH_KINDS = ("note", "todo", "consume")
+# The page kind photo ingest files an image of each kind as (a note nobody filed)
+PAGE_KINDS = {
+    "whiteboard": "whiteboard",
+    "diagram": "whiteboard",
+    "document": "document",
+}
+
+
+# A page with a photo or file capture is read by ingest, not enrich, whatever its kind
+# (a photo page is stored as a note until ingest reclassifies it).
+NOT_BY_INGEST = (
+    "NOT EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id"
+    " AND c.kind IN ('photo', 'file'))"
+)
+
+
+def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether enrich reads this page on a capture, save or backfill: its kind is in
+    ENRICH_KINDS and it has no photo or file capture."""
+    row = conn.execute(
+        "SELECT p.kind FROM page p WHERE p.id = ? AND " + NOT_BY_INGEST.format(p="p"),
+        (page_id,),
+    ).fetchone()
+    return row is not None and row[0] in ENRICH_KINDS
 
 
 def debounce() -> float:
@@ -630,10 +731,37 @@ def add_enrich(conn: sqlite3.Connection) -> None:
             conn.execute(statement)
 
 
+def fix_tag_paths(conn: sqlite3.Connection) -> None:
+    """Migration 10 (#87): tags with an empty path segment (/lead, trail/, a//b) as
+    clean_tags now writes them, and the pages concerned indexed again. Cost: a scan of
+    the tag tables and a reindex of those pages only (normally none). Revision history
+    keeps the old names."""
+    bad = "tag LIKE '/%' OR tag LIKE '%/' OR tag LIKE '%//%'"
+    touched: set[str] = set()
+    for table in ("tag", "model_tag"):
+        for page_id, tag in conn.execute(
+            f"SELECT page_id, tag FROM {table} WHERE {bad}"
+        ).fetchall():
+            new = tag_path(tag)
+            if new:  # a page that has the new name already keeps one row
+                conn.execute(
+                    f"UPDATE OR IGNORE {table} SET tag = ?"
+                    " WHERE page_id = ? AND tag = ?",
+                    (new, page_id, tag),
+                )
+            conn.execute(
+                f"DELETE FROM {table} WHERE page_id = ? AND tag = ?", (page_id, tag)
+            )
+            touched.add(page_id)
+    for page_id in touched:
+        index_page(conn, page_id)
+
+
 AFTER = {
     3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks,
     8: add_meta_revs,
     9: add_enrich,
+    10: fix_tag_paths,
 }  # fmt: skip
 
 
@@ -740,7 +868,8 @@ class Store:
         cid = (_text(data, "id") or "").upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")
-        text, url, hint = _text(data, "text"), _text(data, "url"), _text(data, "hint")
+        text = _text(data, "text", indent=True)
+        url, hint = _text(data, "url"), _text(data, "hint")
         kind = _text(data, "kind")
         source = _text(data, "source") or "pwa"
         created = _text(data, "created_at") or now()
@@ -758,8 +887,8 @@ class Store:
         todo = {k: check_todo(k, _text(data, k)) for k in TODO}
         if kind != "todo" and any(todo.values()):
             raise InvalidError("due and priority are for todos")
-        if not url and text and BARE_URL.fullmatch(text):
-            url, text = text, None  # a link shared as text
+        if not url and text and BARE_URL.fullmatch(text.strip()):
+            url, text = text.strip(), None  # a link shared as text
         if mimes:
             images = all(mime.startswith("image/") for mime in mimes)
             what = "photo" if images else "file"
@@ -839,7 +968,11 @@ class Store:
             self.reindex(conn, page_id)
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
-            if enrich_on() and c["kind"] in ("note", "url"):  # a photo has ingest
+            if (
+                enrich_on()
+                and c["kind"] in ("note", "url")  # a photo has ingest
+                and should_enrich(conn, page_id)
+            ):
                 # A link is fetched at once; a note waits, in case it is edited now
                 wait = 0.0 if c["kind"] == "url" else debounce()
                 queue_enrich(conn, page_id, "capture", wait)
@@ -858,6 +991,8 @@ class Store:
         keeps ingest from retitling the page. Returns the slug and whether it is new.
         enqueue: send its photos to Claude, as a capture would.
         """
+        for name, value in p["fields"].items():
+            check_value(name, value)
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -951,14 +1086,17 @@ class Store:
         """Index a page's current title, tags, summary and body again."""
         index_page(conn, page_id)
 
-    def _page_row(self, conn: sqlite3.Connection, key: str) -> sqlite3.Row:
+    def _page_row(
+        self, conn: sqlite3.Connection, key: str, trashed: bool = False
+    ) -> sqlite3.Row:
+        """A page by id or slug; one in the trash is NoSuchPage unless trashed."""
         row = conn.execute(
             "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id) AS rev"
-            " FROM page WHERE (id = ? OR slug = ?) AND deleted_at IS NULL",
-            (key, key),
+            " FROM page WHERE (id = ? OR slug = ?) AND (deleted_at IS NULL OR ?)",
+            (key, key, trashed),
         ).fetchone()
         if row is None:
-            raise NotFoundError(key)
+            raise NoSuchPage(key)
         return row
 
     def recent(self, limit: int, kind: str | None = None) -> list[dict[str, Any]]:
@@ -978,14 +1116,17 @@ class Store:
             )  # fmt: skip
         return [todo_only({**r, "fields": json.loads(r["fields"])}) for r in rows]
 
-    def page(self, key: str) -> dict[str, Any]:
-        """A page with its current revision and its captures and their blobs."""
+    def page(self, key: str, trashed: bool = False) -> dict[str, Any]:
+        """A page with its current revision and its captures and their blobs. With
+        trashed, one in the trash too, with its deleted_at (None for any other)."""
         with self.connect() as conn:
-            return self.page_in(conn, key)
+            return self.page_in(conn, key, trashed)
 
-    def page_in(self, conn: sqlite3.Connection, key: str) -> dict[str, Any]:
+    def page_in(
+        self, conn: sqlite3.Connection, key: str, trashed: bool = False
+    ) -> dict[str, Any]:
         """page(), on an open connection (e.g. in the transaction that changed it)."""
-        page = dict(self._page_row(conn, key))
+        page = dict(self._page_row(conn, key, trashed))
         captures = _rows(
             conn,
             "SELECT id, kind, text, url, source, author, created_at,"
@@ -1006,7 +1147,9 @@ class Store:
             " (SELECT count(*) FROM tag t WHERE t.tag = tag.tag) DESC, tag",
             (page["id"],),
         )]  # fmt: skip
-        del page["deleted_at"]
+        deleted_at = page.pop("deleted_at")
+        if trashed:
+            page["deleted_at"] = deleted_at
         fields = json.loads(page["fields"])
         removed = sorted(self.removed(conn, page["id"], page["body"]))
         extra = self._enriched(conn, page["id"], page["slug"])
@@ -1116,7 +1259,8 @@ class Store:
             for row in conn.execute(
                 "SELECT id, kind, version, producer, text, data,"
                 " json_extract(data, '$.width') AS width,"
-                " json_extract(data, '$.height') AS height FROM derived"
+                " json_extract(data, '$.height') AS height,"
+                " json_array_length(data, '$.elements') AS element_count FROM derived"
                 " WHERE capture_id = ? AND source_sha256 = ? AND superseded_at IS NULL",
                 (cid, sha),
             )
@@ -1136,6 +1280,7 @@ class Store:
                 "producer": drawing["producer"],
                 "width": drawing["width"],  # its frame: the photo as sent to Claude
                 "height": drawing["height"],
+                "element_count": drawing["element_count"],
             },
         }
 
@@ -1212,7 +1357,9 @@ class Store:
             ):
                 title = None  # unchanged since base_rev: keep a newer (model) title
             new_title = page["title"] if title is None else " ".join(title.split())
-            new_body: str = page["body"] if body is None else check_page(lines(body))
+            new_body: str = (
+                page["body"] if body is None else check_page(lines(body), page["body"])
+            )
             if not new_title:
                 raise InvalidError("title must not be empty")
             if (new_title, new_body) != (page["title"], page["body"]):
@@ -1232,7 +1379,9 @@ class Store:
                     status_set=bool(fields and "status" in fields),
                 )
                 self.reindex(conn, page["id"])
-                if enrich_on():  # read again once the edits stop
+                if enrich_on() and should_enrich(
+                    conn, page["id"]
+                ):  # again once edits stop
                     queue_enrich(conn, page["id"], "save", debounce())
             return self.page_in(conn, page["id"])
 
@@ -1325,20 +1474,26 @@ class Store:
         the fields (None drops one), at most MAX_FIELDS in all. Neither is a new
         revision, nor moves the page up the recent list."""
         fields = json.loads(page["fields"])
-        if kind is not None and kind != page["kind"]:
-            url = conn.execute(
-                "SELECT url FROM capture WHERE page_id = ? AND url IS NOT NULL"
-                " ORDER BY received_at LIMIT 1",
-                (page["id"],),
-            ).fetchone()
-            fields = {**fields_for(kind, url and url[0]), **fields}  # the page's win
         for name, value in changes.items():
+            check_value(name, value)
             if value is None:
                 fields.pop(name, None)
             else:
                 fields[name] = value
         if len(fields) > MAX_FIELDS:
             raise InvalidError(f"a page has at most {MAX_FIELDS} fields")
+        if kind is not None and kind != page["kind"]:
+            url = conn.execute(
+                "SELECT url FROM capture WHERE page_id = ? AND url IS NOT NULL"
+                " ORDER BY received_at LIMIT 1",
+                (page["id"],),
+            ).fetchone()
+            # only defaults the page lacks and has room for: never at the cost of a
+            # field it has, nor one this request just dropped
+            for name, value in fields_for(kind, url and url[0]).items():
+                if name not in fields and name not in changes:
+                    if len(fields) < MAX_FIELDS:
+                        fields[name] = value
         conn.execute(
             "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
             (kind or page["kind"], int(kind is not None or page["kind_fixed"]),
@@ -1358,6 +1513,29 @@ class Store:
         sets = ", ".join(f"{k} = ?" for k in todo)  # names from TODO only
         conn.execute(f"UPDATE page SET {sets} WHERE id = ?", (*todo.values(), page_id))
 
+    def trash(self, limit: int) -> list[dict[str, Any]]:
+        """The pages in the trash, most recently deleted first."""
+        with self.connect() as conn:
+            return _rows(
+                conn,
+                "SELECT id, slug, title, kind, deleted_at, updated_at FROM page"
+                " WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC, id DESC"
+                " LIMIT ?",
+                limit,
+            )
+
+    def trashed(self, key: str) -> dict[str, Any] | None:
+        """A page in the trash by id or slug (id, slug, title, kind, deleted_at),
+        None if there is none."""
+        with self.connect() as conn:
+            rows = _rows(
+                conn,
+                "SELECT id, slug, title, kind, deleted_at FROM page"
+                " WHERE (id = ? OR slug = ?) AND deleted_at IS NOT NULL",
+                key, key,
+            )  # fmt: skip
+        return rows[0] if rows else None
+
     def delete_page(self, key: str, undo: bool = False) -> None:
         """Move a page to the trash (or back); captures and files stay until a purge."""
         with self.connect() as conn:
@@ -1367,7 +1545,7 @@ class Store:
                 (None if undo else now(), key, key),
             )
         if cur.rowcount == 0:
-            raise NotFoundError(key)
+            raise NoSuchPage(key)
 
     def append(
         self,
@@ -1400,7 +1578,7 @@ class Store:
                 self._set_todo(conn, page["id"], page["kind"], todo)
             body = "\n\n".join(x for x in (page["body"].rstrip(), text) if x)
             if len(body.encode()) > most:
-                raise InvalidError(f"the page would be over {most} bytes")
+                raise InvalidError(too_big(len(body.encode()), most))
             if text:  # none: only its due date or priority changed (no revision)
                 conn.execute(
                     "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
@@ -1411,6 +1589,8 @@ class Store:
                     (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
                 )
                 self._body(conn, page["id"], boxes_before(page))
+                if enrich_on() and should_enrich(conn, page["id"]):  # as for a save
+                    queue_enrich(conn, page["id"], "save", debounce())
             conn.execute(  # the retry key, even with no text
                 "INSERT INTO capture VALUES (?, 'note', ?, NULL, ?, ?, ?, ?, ?)",
                 (cid, text or None, MCP, author, stamp, stamp, page["id"]),
@@ -1452,7 +1632,9 @@ class Store:
             (page_id,),
         ).fetchone()
         defaults = fields_for(kind, url and url[0])
-        return {k: v for k, v in defaults.items() if k not in fields}
+        room = max(0, MAX_FIELDS - len(fields))  # a full page gets fewer, or none
+        missing = {k: v for k, v in defaults.items() if k not in fields}
+        return dict(list(missing.items())[:room])
 
     def _record_meta(
         self,
@@ -1746,7 +1928,7 @@ class Store:
         with self.connect() as conn, transaction(conn):
             row = conn.execute(f"{META_REV} WHERE id = ?", (revision,)).fetchone()
             if row is None:
-                raise NotFoundError(f"revision {revision}")
+                raise NoSuchRevision(f"revision {revision}")
             page = self._page_row(conn, row["page_id"])  # not in the trash
             out = self._revert(conn, page, row, author, source, dry_run, None)
             return {**out, "reverts": revision}
@@ -1784,7 +1966,7 @@ class Store:
                 f"{META_REV} WHERE batch_id = ? ORDER BY id", (batch,)
             ).fetchall()
             if not rows:
-                raise NotFoundError(f"batch {batch}")
+                raise NoSuchRevision(f"batch {batch}")
             pages, skipped, conflicts = [], [], []
             for row in rows:
                 try:
@@ -1816,24 +1998,34 @@ class Store:
         }  # fmt: skip
 
     def revisions(
-        self, key: str | None = None, limit: int = 20, batch: str | None = None
+        self,
+        key: str | None = None,
+        limit: int = 20,
+        batch: str | None = None,
+        trashed: bool = False,
     ) -> dict[str, Any]:
         """A page's history, newest first: its metadata revisions (kind, fixed or
         not, and tags, before and after, each with who made it, when, and its batch)
         and its text revisions (page_rev: rev, title, author, when and size, not the
         text). With batch, only that batch's revisions, of every page (with key, of
-        that page)."""
+        that page). With neither, the recent changes of every page not in the trash:
+        the latest metadata revisions and the latest text revisions (each with its
+        page's id and slug), newest first. With trashed, key may be a page in the
+        trash (then deleted_at is returned)."""
         with self.connect() as conn:
-            page = self._page_row(conn, key) if key else None
+            page = self._page_row(conn, key, trashed) if key else None
+            feed = page is None and batch is None
             where, args = [], []
+            if feed:
+                where.append(
+                    "page_id IN (SELECT id FROM page WHERE deleted_at IS NULL)"
+                )
             if page is not None:
                 where.append("page_id = ?")
                 args.append(page["id"])
             if batch is not None:
                 where.append("batch_id = ?")
                 args.append(batch)
-            if not where:
-                raise InvalidError("give a page or a batch")
             meta = conn.execute(
                 f"{META_REV} WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT ?",
                 (*args, limit + 1),
@@ -1844,12 +2036,19 @@ class Store:
                 " WHERE id IN (SELECT value FROM json_each(?))",
                 (json.dumps([r["page_id"] for r in meta]),),
             ).fetchall())  # fmt: skip
-            text = [] if page is None else _rows(
+            text = _rows(
                 conn,
                 "SELECT rev, title, author, created_at, length(CAST(body AS BLOB))"
                 " AS bytes FROM page_rev WHERE page_id = ? ORDER BY rev DESC LIMIT ?",
                 page["id"], limit,
-            )  # fmt: skip
+            ) if page is not None else _rows(
+                conn,
+                "SELECT r.page_id, p.slug, r.rev, r.title, r.author, r.created_at,"
+                " length(CAST(r.body AS BLOB)) AS bytes FROM page_rev r"
+                " JOIN page p ON p.id = r.page_id WHERE p.deleted_at IS NULL"
+                " ORDER BY r.created_at DESC, r.page_id DESC, r.rev DESC LIMIT ?",
+                limit,
+            ) if feed else []  # fmt: skip
         out: dict[str, Any] = {
             "meta": [{**meta_row(r), "slug": slugs.get(r["page_id"])} for r in meta],
             "more": more,  # older revisions than limit allows
@@ -1859,20 +2058,23 @@ class Store:
             out |= {
                 "id": page["id"], "slug": page["slug"], "title": page["title"],
                 "kind": page["kind"], "rev": page["rev"],
+                "deleted_at": page["deleted_at"],
             }  # fmt: skip
         return out
 
-    def text_revision(self, key: str, rev: int) -> dict[str, Any]:
+    def text_revision(
+        self, key: str, rev: int, trashed: bool = False
+    ) -> dict[str, Any]:
         """One text revision of a page: its title and body then, who wrote it, when."""
         with self.connect() as conn:
-            page = self._page_row(conn, key)
+            page = self._page_row(conn, key, trashed)
             row = conn.execute(
                 "SELECT rev, title, body, author, created_at FROM page_rev"
                 " WHERE page_id = ? AND rev = ?",
                 (page["id"], rev),
             ).fetchone()
         if row is None:
-            raise NotFoundError(f"revision {rev} of {key}")
+            raise NoSuchRevision(f"revision {rev} of {key}")
         return dict(row)
 
     def edit_text(
@@ -1899,7 +2101,7 @@ class Store:
             title, body = change(conn, page)
             if not title.strip():
                 raise InvalidError("title must not be empty")
-            body = check_page(lines(body))
+            body = check_page(lines(body), page["body"])
             changed = (title, body) != (page["title"], page["body"])
             rev, folded = page["rev"], None
             if changed and not dry_run:
@@ -1968,10 +2170,42 @@ class Store:
             (page["id"], rev, title, body, author, created),
         )
         self._body(conn, page["id"], boxes_before(page))
+        if author == CLAUDE:
+            self._unbox(conn, page)
         self.reindex(conn, page["id"])
-        if enrich_on():  # read again once the edits stop, as for the PWA's saves
+        if enrich_on() and should_enrich(conn, page["id"]):  # as for the PWA's saves
             queue_enrich(conn, page["id"], "save", debounce())
         return rev, folded
+
+    def _unbox(self, conn: sqlite3.Connection, page: sqlite3.Row) -> None:
+        """Claude's text revision (a revert_text) took away the boxes of a todo that
+        its own boxes made (ADR 26): an unfixed todo, still with its default status,
+        whose previous text had boxes and no revision by anyone but Claude ever had
+        (so the boxes are Claude's, even if a fold deleted the revision that added
+        them). It goes back to what it was filed as before: for a photo page, the kind
+        photo ingest chose, else a note. A todo the user filed or touched stays."""
+        now_ = conn.execute(
+            "SELECT body, kind, kind_fixed, fields FROM page WHERE id = ?",
+            (page["id"],),
+        ).fetchone()
+        theirs = conn.execute(
+            "SELECT body FROM page_rev WHERE page_id = ? AND author <> ?",
+            (page["id"], CLAUDE),
+        ).fetchall()
+        if (
+            now_["kind"] != "todo" or now_["kind_fixed"] or tasks(now_["body"])[1]
+            or not tasks(page["body"])[1] or any(tasks(r[0])[1] for r in theirs)
+            or json.loads(now_["fields"]).get("status", "open") != "open"
+        ):  # fmt: skip
+            return
+        seen = conn.execute(
+            "SELECT json_extract(d.data, '$.kind') FROM derived d JOIN capture c"
+            " ON c.id = d.capture_id WHERE c.page_id = ? AND d.kind = 'description'"
+            " AND d.superseded_at IS NULL ORDER BY d.id LIMIT 1",
+            (page["id"],),
+        ).fetchone()
+        kind = PAGE_KINDS.get(seen[0], "note") if seen else "note"
+        conn.execute("UPDATE page SET kind = ? WHERE id = ?", (kind, page["id"]))
 
     def edited_by_claude(self, page_id: str) -> bool:
         """Whether Claude changed a page's text over MCP after it was made (is:
@@ -1989,7 +2223,7 @@ class Store:
             (page_id, rev),
         ).fetchone()
         if row is None:
-            raise NotFoundError(f"revision {rev} of {page_id}")
+            raise NoSuchRevision(f"revision {rev} of {page_id}")
         return row
 
     def tags_of(self, ids: list[str]) -> dict[str, list[str]]:
@@ -2006,19 +2240,24 @@ class Store:
         return out
 
     def images_of(self, ids: list[str]) -> dict[str, dict[str, Any]]:
-        """Each page's images, for list rows: how many (image files of its captures)
-        and its first one's SHA-256 and what Claude made of it (its current
-        description and kind; None if not read yet). A page with none is left out."""
+        """Each page's images, for list rows: how many (distinct image files of its
+        captures, one per SHA-256) and its first one's SHA-256 and what Claude made of
+        it (its current description and kind; None if not read yet). A page with none
+        is left out."""
         out: dict[str, dict[str, Any]] = {}
         with self.connect() as conn:
             for row in conn.execute(
-                "WITH image AS (SELECT c.page_id, c.id AS capture_id, cb.sha256,"
-                " row_number() OVER (PARTITION BY c.page_id"
-                "  ORDER BY c.received_at, cb.ord) AS n,"
-                " count(*) OVER (PARTITION BY c.page_id) AS total"
-                " FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id"
+                "WITH once AS (SELECT c.page_id, c.id AS capture_id, cb.sha256,"
+                " c.received_at, cb.ord, row_number() OVER (PARTITION BY c.page_id,"
+                "  cb.sha256 ORDER BY c.received_at, cb.ord) AS copy"  # the same file
+                " FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id"  # again
                 " JOIN blob b USING (sha256) WHERE b.mime LIKE 'image/%'"
-                " AND c.page_id IN (SELECT value FROM json_each(?)))"
+                " AND c.page_id IN (SELECT value FROM json_each(?))),"
+                " image AS (SELECT page_id, capture_id, sha256,"
+                " row_number() OVER (PARTITION BY page_id"
+                "  ORDER BY received_at, ord) AS n,"
+                " count(*) OVER (PARTITION BY page_id) AS total"
+                " FROM once WHERE copy = 1)"
                 " SELECT i.page_id, i.total, i.sha256, d.text,"
                 " json_extract(d.data, '$.kind') FROM image i LEFT JOIN derived d"
                 " ON d.capture_id = i.capture_id AND d.source_sha256 = i.sha256"
@@ -2056,7 +2295,7 @@ class Store:
         the page's best chunk, title, tag and summary matches weighing most; a query
         of filters alone lists its pages newest first; sort: orders either its own
         way. offset: skip that many hits (the next page of results)."""
-        q = parse(query)
+        q = checked_query(query)
         if not q.terms and not q.filters:
             return []
         where, args = self._where(q)
@@ -2083,7 +2322,7 @@ class Store:
                     " JOIN page p ON p.id = c.page_id"
                     f" WHERE chunk_fts MATCH ? AND {where}"
                     f" ORDER BY {order}{tier} DESC, {tier} DESC,"
-                    f" bm25(chunk_fts, {WEIGHTS})",
+                    f" bm25(chunk_fts, {WEIGHTS}), c.id",
                     (" OR ".join(q.fts(t) for t in q.positive), *args,
                      f"title : ({every})", f"{{title tags summary}} : ({every})"),
                 )  # fmt: skip
@@ -2113,7 +2352,11 @@ class Store:
             todo_only(hit)
             if not q.positive:  # no match to show: its summary, else its start
                 summary = hit["fields"].get("summary")
-                text = summary if isinstance(summary, str) else unlink(hit["snippet"])
+                text = (
+                    summary
+                    if isinstance(summary, str)
+                    else plain(unlink(hit["snippet"][:2000]))
+                )
                 hit["snippet"] = " ".join(CONTROL.sub(" ", text).split()[:24])
             snippet = html.escape(hit["snippet"])
             hit["snippet"] = snippet.replace("\x02", "<mark>").replace(
@@ -2125,7 +2368,7 @@ class Store:
         """What the pages a query matches have in common, to narrow it with a tap: how
         many there are, their kinds, their most used tags (a/b counts for a too) and
         how many are personal or work; and the query's filters, as typed."""
-        q = parse(query)
+        q = checked_query(query)
         out: dict[str, Any] = {
             "total": 0, "kinds": [], "tags": [], "personal": {"work": 0, "personal": 0},
             "active": [{"token": f.token, "key": f.key, "value": f.value, "neg": f.neg}
@@ -2209,6 +2452,8 @@ class Store:
             elif f.key == "kind" and f.neg:
                 sql.append("p.kind <> ?")
                 args.append(KIND_NAMES.get(f.value, f.value))
+            elif f.key == "tag" and not f.value.strip("/"):  # tag:/ is no tag
+                sql.append(f"{no}0")
             elif f.key == "tag":  # whole segments: tag:b finds a/b, tag:a finds a/b
                 sql.append(
                     f"{no}EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id"

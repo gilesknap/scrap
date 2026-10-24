@@ -99,7 +99,7 @@ stopped, run with `import` arguments, and the vault on a second volume mounted r
 | `tags` | Tags: a leading `#` removed, spaces collapsed, lower-cased, cut to 64 characters, duplicates removed. A single `tags: x` is one tag. The PWA's limit of 64 tags per page is not applied |
 | `status` (`todo` becomes `open`), `due_date` or `due` (as `due`), `priority`, `snoozed_until`, `media_type`, `url` or `source_url` (as `source`), `memory_date`, `summary`, `personal` | `fields`, over the kind's defaults. `status`, `priority` and `media_type` are lower-cased. A todo's `due`, `snoozed_until` and `priority` become the todo's own due day, snooze day and priority instead, if they are a date or a priority (`high`, `medium`, `low`; Thoth's `urgent` becomes `high`); otherwise they stay in `fields`. `snoozed_until` is what `scrap export` writes, so an export imports back |
 | Defaults | A todo has `status` `open`. A consume page has `subtype` `read` and `status` `open`, and its `media_type` sets `subtype`: `book` and `article` give `read`; `film`, `tv` and `video` give `watch`; `podcast` and `music` give `listen`. Any other `media_type` leaves `read` |
-| `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA. A heading anchor (`[[page#sec]]`, `page.md#h`) is dropped, so the link goes to the page. A path is tried from the linking page's folder, then from the top; a wiki link with a folder (`[[memories/x]]`) is tried as a path first, from the top, then from the linking page's folder, then by name. A wiki link in a table cell, its pipe escaped with a backslash, works too. A wiki name found in several places prefers an imported page, then the linking page's folder, and never `raw/` or `inbox/` over a content folder |
+| `[Label](folder/page.md)`, `[[page]]`, `[[page\|label]]` to an imported page | `[[slug\|label]]`, a link to it in the PWA. A heading anchor (`[[page#sec]]`, `page.md#h`) is dropped, so the link goes to the page. A path is tried from the linking page's folder, then from the top; a wiki link with a folder (`[[memories/x]]`) is tried as a path first, from the top, then from the linking page's folder, then by name; case is ignored in the folders and name (an exact-case match wins, several that differ only by case are reported as ambiguous), and a leading `/` is dropped. A wiki link in a table cell, its pipe escaped with a backslash, works too. A wiki name found in several places prefers an imported page, then the linking page's folder, and never `raw/` or `inbox/` over a content folder |
 | `![](../raw/assets/x.png)` and `![[x.png]]` | The image, stored with the page (a photo capture) and shown where it was, not again among the page's files. An image the PWA cannot preview (SVG) is attached as a file instead, and its place in the text becomes `*alt text (attached)*` (the file name if there is no alt text) |
 | A link (not an embed) to an image the PWA can preview | The image is attached to the page as a photo, and the link becomes the text `*label (attached)*` |
 | A PDF embedded or linked | Attached to the page as a file; the link or embed becomes `*label (attached)*` (the file name if there is no label) |
@@ -122,8 +122,9 @@ the capture's text).
 
 ## Limits
 
-- Pages are not size-capped on import, unlike a page saved through the API (1 MB). Only images and
-  PDFs are checked, against `SCRAP_MAX_UPLOAD_MB` (50 MB).
+- A page file over 1 MB, the most a page saved through the API holds, is skipped and reported as
+  `too large`; links to it are reported as `link to dropped page`. Images and PDFs are checked
+  against `SCRAP_MAX_UPLOAD_MB` (50 MB).
 - If a file changes between the check and the write, the import stops with `changed since it was
   checked: run again`. Run it again: it carries on with the pages not yet imported. The files
   of the page it stopped on were already stored, but the page was not saved, so nothing uses
@@ -173,5 +174,5 @@ off the command only says that enrichment is off.
 | `ambiguous link` | A wiki name that matches several files, and the one chosen |
 | `field cut`, `field dropped` | A field value over 200 characters, cut to 200 (ending `…`; the whole of it stays in the capture's text), and fields past 32, as a PWA edit allows |
 | `tag dropped` | A tag that is not text or a number (null, a list, a map, true or false). An empty tag is dropped without a line |
-| `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
+| `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and pages over 1 MB, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
 | `skipped`, `dropped folder` | Files left out, and why. `dropped folder` counts the files under the top-level `raw/`, `inbox/` and `_*` folders |

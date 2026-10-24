@@ -50,16 +50,42 @@ TEXT_MODEL = "claude-haiku-5-5"
 TEXT_EFFORT = "low"
 TEXT_MAX_TOKENS = 4000
 DEAREST = (10.0, 50.0, 12.5, 0.25)
+WITH_ITEMS = ("photo", "enrich")  # prompts that end with prompts/items.md
 KEYLIKE = re.compile(r"sk-ant-[\w-]+")
 
 # Kept to the structured-output subset: no unions, no numeric or string bounds (the
 # sanitiser enforces those), every element one flat object.
 _NUMBER, _STRING = {"type": "number"}, {"type": "string"}
+INTENTS = ["list-of-actions", "reference", "other"]
+CONFIDENCES = ["high", "medium", "low"]
+# Shared by the photo and enrich schemas (prompts/items.md): is the page a to-do list
+INTENT_PROPERTIES: dict[str, Any] = {
+    "intent": {"type": "string", "enum": INTENTS},
+    "confidence": {"type": "string", "enum": CONFIDENCES},
+    "items": {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["text", "done"],
+            "properties": {"text": _STRING, "done": {"type": "boolean"}},
+        },
+    },
+}
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["kind", "title", "tags", "description", "text", "elements"],
+    "required": [
+        "kind",
+        "title",
+        "tags",
+        "description",
+        "text",
+        "elements",
+        *INTENT_PROPERTIES,
+    ],
     "properties": {
+        **INTENT_PROPERTIES,
         "kind": {"type": "string", "enum": [*KINDS, "other"]},
         "title": _STRING,
         "tags": {"type": "array", "items": _STRING},
@@ -101,6 +127,8 @@ def prompt(name: str = "photo", schema: dict | None = None) -> tuple[str, str]:
     """A system prompt from src/scrap/prompts and its version: name@12 hex digits of
     the SHA-256 of the prompt and the schema (the photo's, unless given)."""
     text = (package_files("scrap") / "prompts" / f"{name}.md").read_text()
+    if name in WITH_ITEMS:  # the one task-list section, shared (actions.py)
+        text += (package_files("scrap") / "prompts" / "items.md").read_text()
     shape = json.dumps(SCHEMA if schema is None else schema, sort_keys=True)
     digest = hashlib.sha256((text + shape).encode())
     return text, f"{name}@{digest.hexdigest()[:12]}"

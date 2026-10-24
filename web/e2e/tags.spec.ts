@@ -37,7 +37,7 @@ test("refine chips narrow a search and come off again", async ({ page }) => {
   const chip = panel.getByRole("button", { name: "Filter by #zephyr/garden" });
   await expect(chip).toHaveText("#zephyr/garden2");
   const box = await chip.boundingBox();
-  expect(box?.height).toBeGreaterThanOrEqual(44);
+  expect(box?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout: 43.99998
   await chip.click();
   await expect(page).toHaveURL(/q=zephyr%20fence%20tag%3Azephyr%2Fgarden$/);
   await expect(hits(page)).toHaveCount(2);
@@ -65,7 +65,7 @@ test("a page's tag searches for it, children too", async ({ page }) => {
   const row = page.locator(".page h1 + .tags");
   await expect(row.getByRole("link")).toHaveText(["#zephyr/garden", "#diy"]);
   const [line, chip] = [await row.boundingBox(), await row.getByRole("link").first().boundingBox()];
-  expect(chip?.height).toBeGreaterThanOrEqual(44);
+  expect(chip?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout
   expect(line?.height).toBeLessThan(50);
   await page.locator(".page .tags").getByRole("link", { name: "#zephyr/garden" }).click();
   await expect(page).toHaveURL(/\/search\?q=tag%3Azephyr%2Fgarden$/);
@@ -368,7 +368,7 @@ test("a kept draft brings back only the tags changed in it", async ({ page }) =>
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
   expect(await tagsOf(a.page_id)).toEqual(["elsewhere"]);
-  // Tags changed in the draft (one still in the box) come back, and are saved
+  // Tags changed in the draft (one still in the box) come back, merged with those set since
   const b = await made("Draft with its own tags");
   await open(b.slug);
   await editor.getByRole("textbox", { name: "Add a tag" }).fill("drafted");
@@ -378,7 +378,7 @@ test("a kept draft brings back only the tags changed in it", async ({ page }) =>
   await expect(editor.getByRole("button", { name: "Remove #drafted" })).toBeVisible();
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
-  expect(await tagsOf(b.page_id)).toEqual(["drafted"]);
+  expect((await tagsOf(b.page_id)).sort()).toEqual(["drafted", "elsewhere"]);
 });
 
 // New pages with tags: the composer has the same tags box, sent with the capture
@@ -480,4 +480,31 @@ test("a composer's tags are kept in its draft when the app is killed", async ({ 
   // Saved: the next note starts with no tags
   await page.getByRole("button", { name: "Note" }).click();
   await expect(composer(page).locator(".tagchips button")).toHaveCount(0);
+});
+
+test("Enter right after typing opens the first hit of what was typed", async ({ page }) => {
+  await page.goto("/search?q=zephyr+fence");
+  await expect(hits(page)).toHaveCount(3);
+  const box = page.getByRole("searchbox");
+  await box.fill("zephyr shed plans"); // no waiting out the debounce
+  await box.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`/p/${slugs[3]}`));
+});
+
+test("taking a chip off moves focus to the next one, else the box", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("Chip focus check");
+  await openTags(composer(page));
+  const box = composer(page).getByRole("textbox", { name: "Add a tag" });
+  await box.fill("one,two");
+  await box.press("Enter");
+  const chips = composer(page).locator(".tagchips button");
+  await expect(chips).toHaveCount(2);
+  await chips.first().focus();
+  await chips.first().press("Enter");
+  await expect(chips).toHaveCount(1);
+  await expect(chips.first()).toBeFocused();
+  await chips.first().press("Enter");
+  await expect(box).toBeFocused();
 });

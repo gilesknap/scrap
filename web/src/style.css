@@ -195,6 +195,14 @@ header {
   color: var(--ink);
   text-decoration: none;
 }
+.logo small {
+  align-self: flex-end;
+  padding-bottom: var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
 .logo svg {
   width: 22px;
   height: 22px;
@@ -219,18 +227,41 @@ header {
   margin: 0;
   font-size: var(--t-lg);
 }
-/* The Todos screen's New todo, at the right: the queue badge, when up, beside it */
-#queue {
-  margin-inline-start: auto;
+/* At the right: the queue badge, when up, the Todos screen's New todo, then Settings, always */
+.logo,
+#back {
+  margin-inline-end: auto;
 }
-#new {
+#new,
+#settings {
   width: var(--tap);
   padding: 0;
-  margin-inline: var(--s-1) calc(-1 * var(--s-3)); /* its plus on the gutter's line */
 }
-#new .i {
+#new {
+  margin-inline-start: var(--s-1);
+}
+#settings {
+  margin-inline: var(--s-1) calc(-1 * var(--s-3)); /* its cog on the gutter's line */
+}
+#new .i,
+#settings .i {
   width: 24px;
   height: 24px;
+}
+.settings h2 {
+  margin: 0 var(--s-2);
+  font-size: var(--t-lg);
+}
+.settings .fields {
+  gap: var(--s-2);
+}
+.settings h3.label {
+  margin: var(--s-3) 0 0;
+}
+.settings .hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
 }
 .badge {
   position: relative;
@@ -1878,7 +1909,7 @@ div.orig .save {
     font-size: var(--t-xs);
   }
 }
-.more {
+button.more {
   width: 100%;
   margin-top: var(--s-3);
 }

@@ -5,11 +5,11 @@ type: application
 home: https://gilesknap.github.io/scrap
 sources:
   - https://github.com/gilesknap/scrap
-# Version rule: version and appVersion are both the scrap release this chart
-# ships with (the git tag, e.g. 0.1.0). Bump both in the commit that is tagged;
-# the chart workflow fails a tag whose name differs. image.tag defaults to
-# appVersion. Before the first release no image with this tag exists: set
-# image.tag (see docs/how-to/deploy-kubernetes.md).
-version: 0.2.0
-appVersion: "0.2.0"
+# Version rule: 0.0.0 is a placeholder. The chart workflow packages a release tag
+# with `helm package --version <tag> --app-version <tag>` and pushes it to
+# oci://ghcr.io/gilesknap/charts, so nothing here is edited for a release. image.tag
+# defaults to appVersion, so a checkout (0.0.0) needs image.tag set (see
+# docs/how-to/deploy-kubernetes.md).
+version: 0.0.0
+appVersion: "0.0.0"
 kubeVersion: ">=1.27.0-0"

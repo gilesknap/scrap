@@ -8,20 +8,47 @@ set -eu
 
 : "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
 case "${SCRAP_BACKUP_KEEP:-}" in
-'' | *[!0-9]* | 0 | 0*)
+'' | *[!0-9]*)
     echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '${SCRAP_BACKUP_KEEP:-}'" >&2
     exit 1
     ;;
 esac
+# Strip leading zeros so 07 is plain decimal 7 (never octal) for head -n.
+keep=${SCRAP_BACKUP_KEEP#"${SCRAP_BACKUP_KEEP%%[!0]*}"}
+if [ -z "$keep" ]; then
+    echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '$SCRAP_BACKUP_KEEP'" >&2
+    exit 1
+fi
+if [ ! -d "$SCRAP_BACKUPS" ]; then
+    echo "SCRAP_BACKUPS '$SCRAP_BACKUPS' is not a directory (missing, or a dangling symlink)" >&2
+    exit 1
+fi
+
+# SCRAP_VOLUME_OPTS: the options after the colon on every --volume (SELinux
+# relabelling); z (shared label) unless the env file sets it, empty for none.
+# Lowercase: an uppercase Z makes the label private to one container and locks
+# the backup and gc containers out of SCRAP_DATA.
+volume_opts=${SCRAP_VOLUME_OPTS-z}
+case $volume_opts in
+*[!A-Za-z,]*)
+    echo "SCRAP_VOLUME_OPTS must be letters and commas (e.g. z), not '$volume_opts'" >&2
+    exit 1
+    ;;
+esac
+[ -z "$volume_opts" ] || volume_opts=":$volume_opts"
+# The path the units use (/usr/bin/podman), not whatever PATH finds first, so
+# a script run by hand does what the unit does. PODMAN is a test hook, not a setting.
+podman=${PODMAN:-/usr/bin/podman}
 
 # Delete all but the newest SCRAP_BACKUP_KEEP backup runs. Only real
 # directories directly in SCRAP_BACKUPS named like a run (20261019T033000Z)
-# are candidates: symlinks and anything else are never touched.
+# are candidates: symlinks and anything else are never touched. SCRAP_BACKUPS
+# itself may be a symlink (e.g. to another disk): -H follows only that one.
 prune() {
-    find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d \
+    find -H "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d \
         -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' \
         -print0 |
-        sort -z | head -z -n -"$SCRAP_BACKUP_KEEP" | xargs -0r rm -rf --
+        sort -z | head -z -n -"$keep" | xargs -0r rm -rf --
 }
 
 if [ "${1:-}" = prune ]; then
@@ -39,9 +66,10 @@ dest=$(date -u +%Y%m%dT%H%M%SZ)
 # No -p: a run that already exists (two runs in one second) must fail here,
 # before the cleanup below could delete the other run's backup.
 mkdir "$SCRAP_BACKUPS/$dest"
-if ! podman run --rm --replace --name scrap-backup \
+if ! "$podman" run --rm --replace --name scrap-backup \
     --userns=keep-id:uid=10001,gid=10001 --network=none \
-    --volume "$SCRAP_DATA:/data:z" --volume "$SCRAP_BACKUPS:/backups:z" \
+    --volume "$SCRAP_DATA:/data$volume_opts" \
+    --volume "$SCRAP_BACKUPS:/backups$volume_opts" \
     --env SCRAP_DATA_DIR=/data \
     "$SCRAP_IMAGE" backup "/backups/$dest"; then
     rm -rf -- "${SCRAP_BACKUPS:?}/$dest"

@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from scrap import __version__
-from scrap.app import create_app
+from scrap.app import VERSION_SLOT, create_app
 from scrap.store import Store, connect, migrate, migrations, new_ulid
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
@@ -357,6 +357,37 @@ def test_edit_rejects_bad_tags(client, note, tags):
     sent = client.patch(url, content=body, headers={"content-type": "application/json"})
     assert sent.status_code == 422
     assert client.get(url).json()["tags"] == ["keep"]
+
+
+@pytest.mark.parametrize("field", ["text", "url", "hint", "created_at"])
+def test_capture_rejects_a_lone_surrogate(client, field):
+    body = json.dumps({"id": new_ulid(), "text": "x", field: "a\ud800b"})
+    sent = client.post(
+        "/api/captures", content=body, headers={"content-type": "application/json"}
+    )
+    assert sent.status_code == 422
+    assert "ud800" not in sent.text
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        {"base_rev": 1, "title": "a\ud800"},
+        {"base_rev": 1, "body": "a\ud800"},
+        {"kind": "\ud800"},
+        {"due": "\ud800"},
+        {"fields": {"zzkey\ud800": "x"}},
+        {"fields": {"k": "\ud800"}},
+        {"tags_shown": ["\ud800"]},
+    ],
+)
+def test_edit_rejects_a_lone_surrogate_without_echoing_it(client, note, edit):
+    url = f"/api/pages/{note()['page_id']}"
+    body = json.dumps(edit)
+    sent = client.patch(url, content=body, headers={"content-type": "application/json"})
+    assert sent.status_code == 422
+    assert "ud800" not in sent.text
+    assert "zzkey" not in sent.text  # not even in loc
 
 
 def test_capture_with_tags_is_tagged_and_indexed_at_once(client):
@@ -716,6 +747,18 @@ def test_a_heading_as_the_first_line_titles_a_capture_without_its_marks(client, 
     assert title(note("#\nx")) == "#"  # nothing but the marks: kept
 
 
+def test_an_indented_first_line_is_code_and_keeps_its_marks(client, note):
+    """Four spaces make `# x` code, not a heading: the title and body keep the #."""
+    ref = note("    # indented four\nmore")
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["title"] == "# indented four"
+    assert page["body"] == "    # indented four\nmore"
+    ref = note("\n  \n    # after blank lines  \n")  # blank lines and trailing space go
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["title"] == "# after blank lines"
+    assert page["body"] == "    # after blank lines"
+
+
 def who(client, **headers):
     r = client.post(
         "/api/captures", json={"id": new_ulid(), "text": "note"}, headers=headers
@@ -744,3 +787,67 @@ def test_author_from_a_custom_identity_header(client, monkeypatch):
 def test_blank_identity_header_means_the_default(client, monkeypatch):
     monkeypatch.setenv("SCRAP_IDENTITY_HEADER", " ")
     assert who(client, **{"Tailscale-User-Login": "me@example.com"}) == "me@example.com"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"1e400", b"-1e400", b"NaN", b"Infinity", b"-Infinity", b"9007199254740993",
+     b"-9007199254740993", b"100000000000000000000000"],
+)  # fmt: skip
+def test_field_numbers_must_be_finite_and_exact_in_a_browser(client, note, raw):
+    url = f"/api/pages/{note()['page_id']}"
+    body = b'{"fields": {"n": ' + raw + b"}}"
+    sent = client.patch(url, content=body, headers={"content-type": "application/json"})
+    assert sent.status_code == 422
+    assert client.get(url).json()["fields"] == {}
+
+
+def test_field_numbers_at_the_limits_are_kept(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    edge = {"hi": 2**53, "lo": -(2**53), "f": 1.5e300}
+    assert client.patch(url, json={"fields": edge}).json()["fields"] == edge
+
+
+def test_the_store_refuses_numbers_a_browser_cannot_hold():
+    from scrap.store import InvalidError, check_value
+
+    for bad in (float("nan"), float("inf"), -float("inf"), 2**53 + 1):
+        with pytest.raises(InvalidError):
+            check_value("n", bad)
+    check_value("n", True)
+    check_value("n", 2**53)
+
+
+def test_kind_change_on_a_full_page_keeps_every_field(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    full = {f"k{n}": "x" for n in range(32)}
+    assert client.patch(url, json={"fields": full}).status_code == 200
+    for kind in ("todo", "consume"):
+        sent = client.patch(url, json={"kind": kind})
+        assert sent.status_code == 200, sent.text
+        page = sent.json()
+        assert page["kind"] == kind and page["fields"] == full  # no room: none added
+
+
+def test_kind_change_adds_only_the_defaults_that_fit(client, note):
+    url = f"/api/pages/{note()['page_id']}"
+    thirty = {f"k{n}": "x" for n in range(30)}
+    assert client.patch(url, json={"fields": thirty}).status_code == 200
+    page = client.patch(url, json={"kind": "consume"}).json()  # subtype, status
+    assert len(page["fields"]) == 32
+    assert thirty.items() <= page["fields"].items()
+    assert page["fields"]["subtype"] == "read"
+
+
+def test_the_shell_shows_the_server_version_in_the_title_bar(tmp_path, monkeypatch):
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text(f"<header>scrap{VERSION_SLOT}</header>")
+    monkeypatch.setattr("scrap.app.STATIC", static)
+    client = TestClient(create_app(tmp_path / "data"))
+    page = client.get("/")
+    assert (
+        f'<small id="ver" aria-hidden="true">v{__version__.split("+")[0]}</small>'
+        in page.text
+    )
+    assert page.headers["cache-control"] == "no-cache"

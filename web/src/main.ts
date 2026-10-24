@@ -1,4 +1,4 @@
-// The app shell: a tiny router, the top bar (Back, the queue badge, New todo) and service
+// The app shell: a tiny router, the top bar (Back, the queue badge, New todo, Settings) and service
 // worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
@@ -6,7 +6,6 @@ import { view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
-import { page } from "./page";
 import { search } from "./search";
 import { whenSlow } from "./slow";
 import { today } from "./status";
@@ -23,13 +22,25 @@ add.onclick = () =>
     (m) => m.compose([], "todo"),
     () => toast("Can't open the composer: reload scrap and try again"),
   );
+document.getElementById("settings")?.addEventListener("click", () =>
+  import("./settings").then(
+    (m) => m.settings(),
+    () => toast("Can't open Settings: reload scrap and try again"),
+  ),
+);
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
   [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
   [/^\/todos$/, () => todos()],
-  [/^\/p\/([^/]+)$/, (m) => page(decodeURIComponent(m[1]))],
+  [
+    /^\/p\/([^/]+)$/,
+    (m) => {
+      const signal = current.signal; // this view's, taken before the chunk loads
+      return import("./page").then((p) => p.page(decodeURIComponent(m[1]), signal));
+    },
+  ],
 ];
 
 /** /recent (?kind=consume) as the search screen's address, ?kind=todo as the Todos screen's;
@@ -55,25 +66,15 @@ const up = document.getElementById("back") as HTMLButtonElement;
 const where = document.getElementById("where") as HTMLElement;
 // An iPhone's home-screen app: no Back of its own, so the top bar gives one
 const ios = (navigator as { standalone?: boolean }).standalone === true;
-// Back to the app's entry before this one (go() marks the entries it pushes), else (opened
-// from a link or a share) up to a parent: a todo's is Todos, Tags' is Search, any other
-// page's is Capture
-up.onclick = async () => {
-  if (history.state?.at) return history.back();
-  const from = location.pathname;
-  const to = from === "/tags" ? "/search" : (await kindShown()) === "todo" ? "/todos" : "/";
-  if (location.pathname === from) go(to, true); // unless gone elsewhere meanwhile
-};
-/** The kind of the page on screen: as drawn, else (still loading) asked for; "" unknown. */
-async function kindShown() {
-  const drawn = view.querySelector<HTMLElement>(".page[data-kind]")?.dataset.kind;
-  if (drawn) return drawn;
-  const key = decodeURIComponent(location.pathname.slice("/p/".length));
-  return api<{ kind: string }>(`pages/${encodeURIComponent(key)}`).then(
-    (p) => p.kind,
-    () => "",
-  );
-}
+// Back: to the app's entry before this one, else up to a parent (back.ts, a chunk of its own)
+up.onclick = () =>
+  history.state?.at
+    ? history.back()
+    : void import("./back").then(
+        (m) => m.up(go),
+        () => go("/", true), // the chunk is not here (offline): Capture
+      );
+const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
 let shown = ""; // the path on screen
 let controller = new AbortController();
@@ -108,15 +109,28 @@ async function render() {
       shown = ""; // no page on screen now
       view.replaceChildren(h("p", { className: "empty", role: "status" }, "Loading…"));
     };
+    // A view the server never answers ends in the problem state, with Retry (and its requests
+    // and listeners end: aborted)
+    const c = controller;
+    let giveUp = 0;
     try {
       el = await whenSlow(
-        Promise.resolve().then(() => fn(m)),
+        Promise.race([
+          Promise.resolve().then(() => fn(m)),
+          new Promise<never>((_, no) => {
+            giveUp = window.setTimeout(() => {
+              no(new TypeError("timed out"));
+              c.abort();
+            }, VIEW_MS);
+          }),
+        ]),
         150,
         loading,
       );
     } catch (e) {
       el = problem(e);
     }
+    clearTimeout(giveUp);
     if (n !== rendering) return;
     // The same page again (back from the editor, a retry): no fade-in, it is already here.
     if (path === shown && el instanceof Element) el.classList.add("still");
@@ -126,6 +140,7 @@ async function render() {
     placeToasts(); // e.g. one placed for the view before
     return;
   }
+  shown = "";
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));
 }
 

@@ -4,6 +4,7 @@ Only this user (and root) may connect: the socket is mode 600 in a folder that i
 this user's own and closed to everyone else.
 """
 
+import errno
 import fcntl
 import os
 import socket
@@ -15,7 +16,8 @@ __all__ = ["UdsError", "bind"]
 
 class UdsError(Exception):
     """The socket cannot be made safely, or at all. No socket was removed unless it
-    was stale, and none was made."""
+    was stale, and none was made. The folder (if it was missing) and the lock file
+    in it may be left behind."""
 
 
 # sun_path holds 108 bytes, including the terminating NUL
@@ -47,7 +49,14 @@ def bind(path: Path) -> socket.socket:
         )
     # Held from the stale check until the new socket listens, so two starts at once
     # cannot both replace the path and leave one of them unreachable.
-    lock = os.open(folder / f".{path.name}.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    # O_NOFOLLOW: a symlink in its place must not make us open (or create) its target.
+    lock_path = folder / f".{path.name}.lock"
+    try:
+        lock = os.open(
+            lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600
+        )
+    except OSError as error:
+        raise UdsError(f"cannot open {lock_path}: {_why(error)}") from None
     try:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -59,6 +68,13 @@ def bind(path: Path) -> socket.socket:
         os.close(lock)
 
 
+def _why(error: OSError) -> str:
+    # ELOOP (a symlink met O_NOFOLLOW) has no useful strerror for the user.
+    if error.errno == errno.ELOOP:
+        return "it is a symbolic link"
+    return error.strerror or str(error)
+
+
 def _remove_stale(path: Path) -> None:
     """Remove a socket at ``path`` that nothing listens on; refuse anything else."""
     try:
@@ -68,7 +84,10 @@ def _remove_stale(path: Path) -> None:
     if not stat.S_ISSOCK(old.st_mode):
         raise UdsError(f"{path} exists and is not a socket; not removing it")
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
-        probe.settimeout(1)  # a listener with a full queue would block forever
+        # Non-blocking, so a listener that cannot take the connection cannot hang us.
+        # On Linux a full backlog fails at once with EAGAIN; the 1 s only bounds
+        # platforms that wait instead.
+        probe.settimeout(1)
         try:
             probe.connect(str(path))
         except (ConnectionRefusedError, FileNotFoundError):
@@ -77,7 +96,10 @@ def _remove_stale(path: Path) -> None:
             raise UdsError(f"{path} may be in use ({error}); not removing it") from None
         else:
             raise UdsError(f"{path} is in use: is scrap already running?")
-    path.unlink(missing_ok=True)
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as error:
+        raise UdsError(f"cannot remove the old socket {path}: {_why(error)}") from None
 
 
 def _listen(path: Path) -> socket.socket:
@@ -90,6 +112,11 @@ def _listen(path: Path) -> socket.socket:
         raise UdsError(f"cannot listen on {path}: {error.strerror}") from None
     finally:
         os.umask(old_umask)
-    os.chmod(path, 0o600)
+    try:
+        os.chmod(path, 0o600)
+    except OSError as error:
+        sock.close()
+        path.unlink(missing_ok=True)
+        raise UdsError(f"cannot set the mode of {path}: {_why(error)}") from None
     sock.listen(2048)  # uvicorn's default backlog
     return sock

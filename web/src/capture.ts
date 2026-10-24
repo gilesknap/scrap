@@ -48,6 +48,7 @@ export async function capture(): Promise<Node> {
   document.addEventListener("queuechange", refresh, { signal: view.signal });
   // Back online with nothing waiting, no upload redraws it: no Retry needed
   addEventListener("online", refresh, { signal: view.signal });
+  addEventListener("offline", refresh, { signal: view.signal });
   await refresh();
 
   // The capture actions, equal tiles under the thumb

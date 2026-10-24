@@ -181,6 +181,17 @@ def test_claim_skips_a_paused_queue_and_the_trash(store, conn):
     assert claim(conn, at(1))["capture_id"] == a["capture_id"]
 
 
+def test_status_leaves_out_jobs_of_trashed_pages(store):
+    a, b = photo(store, [b"a"]), photo(store, [b"b"])
+    assert ingest.status(store)["jobs"] == {"queued": 2}
+    store.delete_page(a["page_id"])
+    assert ingest.status(store)["jobs"] == {"queued": 1}  # waiting, not stuck
+    store.delete_page(b["page_id"])
+    assert ingest.status(store)["jobs"] == {}
+    store.delete_page(a["page_id"], undo=True)  # restored: counted, and claimable
+    assert ingest.status(store)["jobs"] == {"queued": 1}
+
+
 def _claim_all(db: str) -> list[int]:
     got = []
     with closing(connect(db)) as conn:
@@ -759,10 +770,10 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
         text = f"salt and pepper quokka {n}" if n == 0 else f"common words {n}"
         store.capture(store.prepare({"id": new_ulid(), "text": text}, []), [], "me")
 
-    def found(q):
+    def found(q, status=200):
         response = client.get("/api/search", params={"q": q})
-        assert response.status_code == 200
-        return len(response.json())
+        assert response.status_code == status
+        return len(response.json()) if status == 200 else response.json()
 
     for q in ("salt & pepper", "pepper ?", "quokka -", "pepper pepper salt", "_ salt"):
         assert found(q) == 1, q
@@ -771,8 +782,9 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     assert found(" ".join(["common"] * 100)) == 20
     words = " ".join(f"w{n}" for n in range(999))
     started = time.monotonic()
-    assert found(words) == 0 and found("salt " + words) == 0  # 16 words used
-    assert found(f"common words {words}") == 0
+    # past 64 words: refused, not cut short (a dropped NOT word would broaden it)
+    for q in (words, "salt " + words, f"common words {words}"):
+        assert "too many" in str(found(q, 422))
     assert time.monotonic() - started < 2
 
 

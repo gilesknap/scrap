@@ -1,0 +1,111 @@
+{{- if include "scrap.gcEnabled" . }}
+{{- if and .Values.gc.requireBackup (not .Values.backup.enabled) }}
+{{- fail "gc.enabled=true needs backup.enabled (gc deletes only after a recent backup); leave gc.enabled unset or false, or gc.requireBackup=false to delete without one" }}
+{{- end }}
+{{- $suffix := "-gc" }}
+{{- /* Deleting is on only with a grace period: with none, a file an upload is still
+writing could be deleted. Otherwise the job only counts. */ -}}
+{{- $delete := and .Values.gc.delete (gt (float64 .Values.gc.graceHours) 0.0) }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "scrap.cronName" (dict "ctx" . "suffix" $suffix) }}
+  labels:
+    {{- include "scrap.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.gc.schedule | quote }}
+  {{- with .Values.gc.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  # A deleting scrap gc refuses to run beside another (gc.lock in the data folder), but
+  # never start one while another runs anyway.
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      # A run waiting for the scrap pod's node (below), or for a backup, gives up
+      # after an hour.
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "scrap.cronLabel" (dict "ctx" . "suffix" $suffix) }}
+            app.kubernetes.io/instance: {{ .Release.Name }}
+        spec:
+          {{- include "scrap.podCommon" . | nindent 10 }}
+          restartPolicy: Never
+          # The data claim is ReadWriteOnce, and SQLite needs the server's host:
+          # run beside the scrap pod.
+          affinity:
+            {{- include "scrap.sameNodeAffinity" . | nindent 12 }}
+          containers:
+            - name: gc
+              image: {{ include "scrap.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              # Same rules as deploy/scrap-gc on the single server: delete only when
+              # a backup run less than 26 hours old exists; otherwise count only
+              # and fail, so a missing backup shows as a failed Job.
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  {{- if .Values.backup.enabled }}
+                  # Not during a backup run (the backup job takes the same lock).
+                  exec 9>"$SCRAP_BACKUPS/.lock"
+                  flock 9
+                  {{- end }}
+                  {{- if $delete }}
+                  {{- if .Values.gc.requireBackup }}
+                  recent=$(find "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d -mmin -1560 \
+                      -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' |
+                      head -n 1)
+                  {{- else }}
+                  recent=unchecked
+                  {{- end }}
+                  mode=--delete
+                  if [ -z "$recent" ]; then
+                      echo "No backup in the last 26 hours: counting only, deleting nothing." >&2
+                      mode=--dry-run
+                  fi
+                  scrap gc "$mode" --grace-hours {{ .Values.gc.graceHours | toString | quote }} \
+                      --run-days {{ .Values.gc.runDays | toString | quote }}
+                  [ -n "$recent" ] || exit 1
+                  {{- else }}
+                  # Counting only (gc.delete is off, or gc.graceHours is 0): see values.yaml.
+                  scrap gc --dry-run --grace-hours {{ .Values.gc.graceHours | toString | quote }} \
+                      --run-days {{ .Values.gc.runDays | toString | quote }}
+                  {{- end }}
+              env:
+                - name: SCRAP_DATA_DIR
+                  value: /data
+                - name: SCRAP_BACKUPS
+                  value: /backups
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              resources:
+                {{- toYaml .Values.gc.resources | nindent 16 }}
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                {{- if .Values.backup.enabled }}
+                # Read-write only for the lock file.
+                - name: backups
+                  mountPath: /backups
+                {{- end }}
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "scrap.dataClaim" . }}
+            {{- if .Values.backup.enabled }}
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ include "scrap.backupClaim" . }}
+            {{- end }}
+            - name: tmp
+              emptyDir: {}
+{{- end }}

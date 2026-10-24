@@ -36,16 +36,15 @@ installed:
 
 - **Single server (podman).** `deploy/install.sh` writes `~/.config/scrap/ingest.env` (mode 600) and
   never overwrites it. Uncomment or add the lines there and run `systemctl --user restart scrap`.
-  The tutorial's optional last step does this: [](../tutorials/installation.md). Every setting is in
+  The server tutorial does this: [](../tutorials/install-server.md). Every setting is in
   {ref}`scrap-ingest-settings`.
 - **Kubernetes (Helm).** `ingest.enabled`, `ingest.existingSecret` (the chart never takes the key
   itself) and the optional `visionModel`, `budgetDayUSD` and `notifyUrlKey`: {ref}`k8s-ingest`.
 
 `SCRAP_ENRICH` (default on) controls the text-page job and needs ingest on; `off` keeps ingest to
 photos. The Helm chart has no value of its own for the text model, effort or debounce, or for
-`SCRAP_ENRICH`; set them with `extraEnv`. It also has no CronJob for the nightly related-pages
-pass (see {ref}`ingest-enrich-related`): run `scrap enrich --related` in the pod yourself, or from
-a cluster scheduler of your own.
+`SCRAP_ENRICH`; set them with `extraEnv`. Its `enrichRelated` CronJob runs the nightly related-pages
+pass (see {ref}`ingest-enrich-related`) with the same environment, while ingest is on.
 
 `scrap ingest-once IMAGE` tries the Claude call on one image file without a database, and prints
 tokens, cost and counts only; `--save FILE` also writes the full result. It is the quickest way to
@@ -294,7 +293,45 @@ the editor keeps its state.
 **Prompt injection.** The image is data: no tools, no network, output schema-checked and
 sanitised. It can change only its page's versions, a provisional title, its tags (adding up to
 10 on the first reading, alongside the user's, which it cannot remove; none on a later one unless
-the page has none) and an unfixed `note` kind.
+the page has none), an unfixed `note` kind and, for a list of actions, task boxes appended to
+the text ({ref}`ingest-actions`).
+
+(ingest-actions)=
+## A list of actions becomes task boxes
+
+Photo ingest and enrich share one prompt section (`prompts/items.md`, added to both prompts by
+`claude.prompt`), one schema fragment (`claude.INTENT_PROPERTIES`) and one writer
+(`src/scrap/actions.py`), so a photographed sticky and a typed note behave alike
+([](decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.md)).
+
+- **Output.** `intent` (`list-of-actions`, `reference` or `other`), `confidence` (`high`,
+  `medium`, `low`) and `items`, each `{text, done}` in reading order (`done` for an entry crossed
+  out or ticked). Only a page that is mainly a list of things to do is `list-of-actions`; the
+  prompt says to answer `reference` or `other` when unsure. A heading such as "CURRENT ACTIONS" is
+  not an item. Output without these fields counts as `other`.
+- **Checked** (`actions.clean_items`): each entry is one line of plain text of at most 200
+  characters, with control characters, leading list, heading, quote or checkbox marks, links
+  (kept as their label), URL schemes and `www.` (nothing autolinks), character references,
+  code, emphasis marks, backslashes, brackets and angle brackets removed; empty and repeated entries
+  are dropped, and at most 30 are kept.
+- **When it writes.** Only when the intent is `list-of-actions` with `high` confidence and
+  entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
+  text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
+  and is a `note` with `kind_fixed` 0 (for a photo also a `whiteboard` that ingest, not the user,
+  chose, which becomes a note and then a todo). A saved link is never written to. For a photo
+  it is the capture's first image. A fixed kind, a page with boxes and any other reading change
+  nothing.
+- **How.** The entries are appended below the user's text as `- [ ] item` (`- [x]` for done),
+  separated by a blank line, in one text revision by `claude` that never folds into another
+  (`edit_text`, as MCP's `edit_page`). The user's words are never rewritten, even when they are
+  already plain bullets: the boxes go below them and the original list stays above. The task-box
+  rule then files the page as a todo. `revert_text` (to the revision before) restores the text;
+  when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
+  photo's whiteboard or document, else a note), unless the user filed or changed the todo.
+- **Reprocess and Ask Claude** read again, but a page that has boxes is skipped, so boxes are
+  never added twice. A photo page is read again for its drawing and tags, as before.
+- **Enrich runs once more.** The revision is a text save, so a saved text page queues one more
+  enrich job after the debounce, which finds the boxes and adds none.
 
 (ingest-spend)=
 ## Spend and outage control
@@ -368,20 +405,25 @@ Photos get tags from their own reading; notes, todos, reads and saved links get 
 second job kind, `enrich` (`src/scrap/enrich.py`), on the same worker thread, queue pause and
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
-page's text. The schema is in
+page's text, except that a confident list of actions gets task boxes appended
+({ref}`ingest-actions`). The schema is in
 [`0009_enrich.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql).
 
 - **Model.** `SCRAP_TEXT_MODEL`, default `claude-haiku-5-5`; `SCRAP_TEXT_EFFORT`, default `low`;
   `max_tokens` 4000. `SCRAP_ENRICH=off` turns it off while photo ingest stays on.
 - **Triggers.** A text capture (a note, todo or read) or a link capture: a link is fetched and
   read at once, a text capture after `SCRAP_ENRICH_DEBOUNCE` seconds (60). A save of the title or
-  text, on any page, moves the page's one queued job that far ahead again, so a burst of edits
-  makes one call (a save while a job runs queues the next). These do tags and summary only.
+  text of a note (a saved link is one), todo or read moves the page's one queued job that far
+  ahead again, so a burst of edits makes one call (a save while a job runs queues the next). Text
+  added over MCP with `append` counts as a save. A saved link is fetched on a capture, Ask or
+  backfill only, never on a save. These do tags and summary
+  only.
   **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
-  related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every page with no tags
+  related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags
   that Claude has not read, once, by hand (never automatic). Some things queue nothing:
-  - A photo or file capture, even with a typed note: photo ingest reads the photo, and the
+  - A photo or file capture, even with a typed note (`should_enrich` in `store.py`, #155): photo ingest reads the photo, and the
     page's first text reading comes with a later save of its title or text (or Ask Claude).
+  - A whiteboard or document page: it is not read as text (#155).
   - Pages Claude Code adds with the MCP `write` tool count as notes, whatever their kind, so a
     new one is read after the debounce like a user's note: Claude's own pages get model tags and
     a summary, and cost budget. `append_to` adds a section without a reading, as do tag and kind
@@ -472,8 +514,10 @@ so it cannot name a page that is not there.
 a page its owner saved)` (`fetch.AGENT`; match it in a site's logs or an egress allow-list),
 `Accept: text/html,application/xhtml+xml,text/plain;q=0.8`, `Accept-Encoding: gzip, deflate` and
 `Accept-Language: en`. scrap does not read `robots.txt`: it fetches one page, once per reading,
-because its owner saved the link. A reading fetches the link again, whether from **Ask Claude**,
-a save or a retry.
+because its owner saved the link. A reading fetches the link again from **Ask Claude**, a
+retry or a backfill, but not on a save of the page's text: the fetched text is not kept, so a
+save's re-reading summarises from the page's own text and the address, keeps the source and its
+title from the last fetch, and never touches the site (the run's `fetch` is `skipped: save re-read`, not a failure reason).
 
 **When it fails.** The reason is not shown in the PWA. The job still succeeds: the page is tagged
 from the link and the text the user typed, with no title or summary taken from the site, and
@@ -588,7 +632,7 @@ holds what you sent to Claude, and your backups do too.
 | Command | Use |
 | --- | --- |
 | `scrap ingest-once IMAGE [--save FILE]` | Try one image against Claude with no database; numbers only unless `--save` |
-| `scrap enrich --backfill` | Queue the pages with no tags that Claude has not read; the service's worker runs them |
+| `scrap enrich --backfill` | Queue the notes, todos and reads with no tags that Claude has not read; the service's worker runs them |
 | `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
 | `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
 

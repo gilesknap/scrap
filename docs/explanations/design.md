@@ -66,7 +66,10 @@ reasons, and where one says it supersedes the first design, the record wins.
 - **Keeping and moving data.** Import of a Thoth vault, `scrap backup`, `restore`, `export` and
   `gc` ([](decisions/0017-thoth-vault-import-through-the-store.md),
   [](decisions/0015-images-in-text-and-gc.md)).
-- **Access.** Tailscale Serve is the only way in; Funnel stays off. No login code.
+- **Access.** No login code. Tailscale Serve is the recommended way in (Funnel stays off); on
+  Kubernetes a proxy such as Cloudflare Access fronts it, with an optional bearer token on `/mcp`
+  ([](decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)). See
+  [Scope and stack](overview.md).
 - **Deployment.** A multi-arch image (`linux/amd64`, `linux/arm64`) run either under rootless
   podman and systemd on one server ([](../how-to/deploy-single-server.md)) or by the Helm chart on
   Kubernetes ([](../how-to/deploy-kubernetes.md)).
@@ -280,7 +283,7 @@ A page's `kind` is `note` (default and fallback), `todo`, `consume` (to read, wa
 `memory`, `reference`, `whiteboard` or `document`. scrap classifies and summarises; it never
 rewrites the user's words or fits them to templates.
 
-- **`fields`** is a flat JSON object (no nulls, no nested values, at most 32 fields), not per-kind
+- **`fields`** is a flat JSON object (no nulls, no nested values, at most 32 fields, a kind's defaults added only while there is room; numbers finite and within ±2^53, the most a browser holds exactly), not per-kind
   tables. In use: `status` on todo and consume, `subtype` (`read`, `watch`, `listen`) and `source`
   (the link) on consume, `summary` (an import's or the user's, which wins over Claude's in the
   index) and `origin` (where a page written over MCP came from).
@@ -302,6 +305,10 @@ rewrites the user's words or fits them to templates.
   box marks it done, and unticking one (or adding an unticked one) reopens a todo that was done
   with all boxes ticked. A `cancelled` todo is left alone, and a status set by hand in the same
   edit wins. None of it is a revision.
+  Claude can add the boxes: when photo ingest or text enrich reads an unfixed note as a list of
+  actions, with high confidence, and it has no boxes yet, one text revision by `claude` appends
+  `- [ ] item` lines below the user's text, and this rule then files it as a todo
+  ([](decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.md)).
 - **Status** is one lifecycle for todo and consume, Thoth's: `open`, `in_progress`, `done`,
   `cancelled`. New pages start `open`; ticking a todo toggles `open` and `done`, and the other two
   are stored and shown (set by an import, richer controls later).
@@ -522,9 +529,11 @@ session has. Tools and limits: [](../reference/mcp.md).
 
 ## Security posture
 
-- **Tailnet only.** Serve is the only way in and Funnel stays off. The tailnet policy grants the
-  scrap device to the owner's own devices only; tagged servers (for example any internet-facing
-  box) must not be able to reach it.
+- **One gate in front.** On a server, Tailscale Serve is the only way in and Funnel stays off; the
+  tailnet policy grants the scrap device to the owner's own devices only, and tagged servers (for
+  example any internet-facing box) must not be able to reach it. On Kubernetes the gate is
+  Cloudflare Access, with a service token and `SCRAP_MCP_TOKEN` on `/mcp`
+  ([ADR 0023](decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 - **What listens where.** A single-server install listens by default only on a Unix socket (mode
   600, in a folder closed to other users; `scrap serve --uds`), with Serve proxying to it, so
   only that user, root and Serve can reach it and set the identity headers. Loopback TCP
@@ -557,7 +566,7 @@ session has. Tools and limits: [](../reference/mcp.md).
 Vanilla TypeScript built by Vite into the Python package (`scrap/static`); React and Excalidraw
 (the drawing viewer) and Mermaid load only when needed. The screens are `/` (capture), `/search`
 (`/recent` redirects there), `/tags`, `/todos` and `/p/<slug>`. The service worker precaches the
-app shell and the lazy chunks that work offline (the composer and editors, the Markdown renderer,
+app shell and the lazy chunks that work offline (the page view, the composer and editors, the Markdown renderer,
 the sharing code, and the search screen's Filters and recent searches), and also catches the share
 target's POST, queueing it in IndexedDB like any capture; the server's `POST /share` is a fallback
 if it does not. See
@@ -619,7 +628,19 @@ it was kept) shows the text as typed. A post-parse pass allows only http(s), mai
 in-page links (opened with `rel=noopener`), and only this server's own images, each marked with its
 `data-sha` for `figure.ts`. A ` ```mermaid ` block is drawn by Mermaid, a separate chunk loaded only
 for a page that has one (not kept offline: it is big), with `securityLevel: 'strict'`; it is
-bundled, not loaded from a CDN, so the CSP needs no change.
+bundled, not loaded from a CDN, so the CSP needs no change. That CSP (a `<meta>` in `index.html`)
+sets `default-src 'self'` and `script-src 'self' 'wasm-unsafe-eval'`: the theme is applied before first paint by
+`/theme-init.js`, not an inline script. `style-src` keeps `'unsafe-inline'` because Mermaid and
+Excalidraw write style attributes and elements. `'wasm-unsafe-eval'` is there because the bundle
+compiles WebAssembly (pica and image-blob-reduce resize an image added to a drawing; Excalidraw's
+font subsetting is an Emscripten module), which `script-src 'self'` alone blocks; it allows
+WebAssembly only, not `eval()`, `new Function()` or inline scripts, and `tests/csp.test.ts` keeps
+`'unsafe-eval'` and `'unsafe-inline'` out of `script-src`. The font subsetting module also builds
+functions with `Function()`, which only `'unsafe-eval'` would allow; that is refused, so Excalidraw
+logs "Skipped glyph subsetting" and an SVG export embeds the whole font it uses instead of
+the glyphs drawn (about 40 kB against 13 kB for a three-box sketch); PNG exports, the stored
+drawing, which holds no fonts, and what shows on screen are unchanged
+([issue 105](https://github.com/gilesknap/scrap/issues/105)).
 
 The server parses with markdown-it-py (`scrap/markdown.py`, with mdit-py-plugins for footnotes):
 the search index holds plain text from the parse (link and image text, not addresses; a page

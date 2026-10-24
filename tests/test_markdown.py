@@ -96,13 +96,25 @@ def test_hostile_text_takes_linear_time(pattern):
 
     def took(n: int) -> float:
         text = pattern * (n // len(pattern))
-        start = time.monotonic()
+        start = time.process_time()
         plain(text)
         rewrite(text, lambda link: None)
-        return time.monotonic() - start
+        return time.process_time() - start
 
-    small, large = took(10_000), took(40_000)
-    assert large < 8 * small + 0.5
+    # CPU time, not wall time: a busy runner descheduling the test does not count
+    def fastest(n: int) -> float:
+        # The minimum of several runs: a noisy CI box only ever makes a run slower
+        return min(took(n) for _ in range(7))
+
+    took(10_000)  # warm-up: imports, caches and the allocator
+    # Start where a run takes long enough (10 ms) to time, so a pure ratio can be used
+    # with no slack: linear is 4x for 4x the text, quadratic 16x; the line is 8x
+    n = 10_000
+    small = fastest(n)
+    while small < 0.01 and n < 640_000:
+        n *= 2
+        small = fastest(n)
+    assert fastest(4 * n) < 8 * small
 
 
 def test_a_paragraph_of_many_lines_is_rewritten_in_linear_time():

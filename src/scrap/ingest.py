@@ -19,11 +19,12 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from . import claude, claude_cli, preview, sanitise
+from . import actions, claude, claude_cli, preview, sanitise
 from .store import (
     ENQUEUE,
     MAX_PAGE,
     MAX_TAGS,
+    PAGE_KINDS,
     NotFoundError,
     Store,
     enrich_on,
@@ -40,12 +41,8 @@ MAX_FAILURES = 3
 RETRY = 600  # seconds after a charged failure (invalid output: at once)
 POLL = 30  # seconds the idle worker sleeps unless woken
 PAUSES = ("credit", "auth", "outage", "budget")
-PAGE_KINDS = {
-    "whiteboard": "whiteboard",
-    "diagram": "whiteboard",
-    "document": "document",
-}
 
+REV = "(SELECT max(rev) FROM page_rev WHERE page_id = p.id)"  # a page's text rev
 CLAIM = """
 UPDATE job SET state = 'running', updated_at = :now
 WHERE id = (
@@ -365,6 +362,11 @@ class Worker:
             with self.store.connect() as conn, transaction(conn):
                 charge(conn, jid, "image", now(), str(error))
             return
+        with self.store.connect() as conn:  # the text Claude's boxes may follow (rev)
+            base = conn.execute(
+                f"SELECT {REV} FROM capture c JOIN page p ON p.id = c.page_id"
+                " WHERE c.id = ?", (cid,),
+            ).fetchone()  # fmt: skip
         sent, size = self.store.put_blob(BytesIO(jpeg))
         model = claude.model_name()
         system, version = claude.prompt()
@@ -401,7 +403,7 @@ class Worker:
         except claude.CallError as error:
             self.failed(job, run_id, error)
             return
-        self.succeeded(job, run_id, done, output, (width, height))
+        self.succeeded(job, run_id, done, output, (width, height), base and base[0])
 
     def _record(
         self,
@@ -458,7 +460,11 @@ class Worker:
         done: claude.Completion,
         out: dict[str, Any],
         size: tuple[int, int],
+        base_rev: int | None = None,
     ) -> None:
+        """Record a reading and apply it to the page. base_rev: the page's text
+        revision when the photo was sent (None: as it is now), which a list of actions
+        is appended to only if the text is still at it."""
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
         with self.store.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -504,6 +510,19 @@ class Worker:
                 (stamp, jid),
             )
             resume(conn, stamp)  # a success ends any pause
+            page = conn.execute(
+                f"SELECT p.id, {REV} AS rev, (SELECT sha256 FROM capture_blob WHERE"
+                " capture_id = c.id ORDER BY ord LIMIT 1) AS first FROM capture c"
+                " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
+            ).fetchone()  # fmt: skip
+        items = [(i["text"], i["done"]) for i in out["items"]]
+        if (
+            page is not None
+            and page["first"] == photo
+            and actions.accepted(out["intent"], out["confidence"], items)
+        ):  # a Claude-authored revision of its own, once the reading is stored
+            rev = page["rev"] if base_rev is None else base_rev
+            actions.append(self.store, page["id"], rev, items, whiteboard=True)
 
     def _page_fields(
         self,
@@ -602,9 +621,20 @@ def status(store: Store) -> dict[str, Any]:
     """The queue: whether it is paused (and why, until when) and its jobs by state."""
     with store.connect() as conn:
         q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
-        jobs = dict(conn.execute("SELECT state, count(*) FROM job GROUP BY state"))
+        # Jobs of pages in the trash wait there (restoring resumes them): not counted.
+        jobs = dict(
+            conn.execute(
+                "SELECT j.state, count(*) FROM job j"
+                " JOIN capture c ON c.id = j.capture_id"
+                " JOIN page p ON p.id = c.page_id WHERE p.deleted_at IS NULL"
+                " GROUP BY j.state"
+            )
+        )
         texts = dict(
-            conn.execute("SELECT state, count(*) FROM enrich_job GROUP BY state")
+            conn.execute(
+                "SELECT j.state, count(*) FROM enrich_job j JOIN page p"
+                " ON p.id = j.page_id WHERE p.deleted_at IS NULL GROUP BY j.state"
+            )
         )
         spent = spent_today(conn, now())
     paused = q["paused_until"] is not None and q["paused_until"] > now()

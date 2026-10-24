@@ -75,6 +75,19 @@
   font-weight: 400;
   touch-action: manipulation;
 }
+/* The card is the drawing's canvas, in the drawings' theme (Settings; drawing.ts sets the
+   scheme) whatever the app's: Excalidraw's own canvas colours and the app's text tokens for
+   each scheme, so the strokes and the status text stay legible on it */
+.drawing-card[data-scheme="light"] {
+  --surface: #ffffff;
+  --ink-2: #5c564c;
+  --line: #d9d3c7;
+}
+.drawing-card[data-scheme="dark"] {
+  --surface: #121212;
+  --ink-2: #b8b0a2;
+  --line: #322d27;
+}
 .drawing-card svg {
   display: block;
   width: 100%;
@@ -340,4 +353,12 @@
     outline: 3px solid Highlight;
     outline-offset: -3px;
   }
+}
+
+/* Viewing: Excalidraw's own menu holds only its promo links (GitHub, Discord, X) and Help,
+   and on a phone it is all its footer shows: a wide empty card with a hamburger. Panning and
+   zooming need none of it (pinch; the bar's Fit); zoom buttons stay on larger screens. */
+.board .excalidraw--view-mode .main-menu-trigger,
+.board .excalidraw--view-mode.excalidraw--mobile .App-bottom-bar {
+  display: none;
 }

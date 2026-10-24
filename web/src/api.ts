@@ -77,12 +77,18 @@ export interface Hit
   snippet: string;
 }
 
+/** An error's detail as text: a string as is; a validation list's first "field: msg". */
+export const say = (d: unknown): string | undefined => {
+  const m = (Array.isArray(d) ? d[0] : d) as { loc?: string[]; msg?: string } | undefined;
+  return typeof d === "string" ? d : m?.msg && [...(m.loc ?? []).slice(1), m.msg].join(": ");
+};
+
 export class ApiError extends Error {
   constructor(
     public status: number,
-    public body: { detail?: string; rev?: number; version?: number | null },
+    public body: { detail?: unknown; rev?: number; version?: number | null },
   ) {
-    super(body.detail ?? `HTTP ${status}`);
+    super(say(body.detail) ?? `HTTP ${status}`);
   }
 }
 

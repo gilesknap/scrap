@@ -25,7 +25,7 @@ import unicodedata
 from collections.abc import Callable
 from typing import Any
 
-from . import claude, fetch
+from . import actions, claude, fetch
 from .ingest import (
     MAX_FAILURES,
     PAUSES,
@@ -39,8 +39,10 @@ from .ingest import (
 from .markdown import plain
 from .query import CONTROL
 from .store import (
+    ENRICH_KINDS,
     MAX_TAG,
     MAX_TAGS,
+    NOT_BY_INGEST,
     Store,
     fields_for,
     model_summary,
@@ -60,8 +62,9 @@ log = logging.getLogger(__name__)
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["tags", "summary", "title"],
+    "required": ["tags", "summary", "title", *claude.INTENT_PROPERTIES],
     "properties": {
+        **claude.INTENT_PROPERTIES,
         "tags": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
         "title": {"type": "string"},
@@ -244,6 +247,10 @@ def related_message(page: sqlite3.Row, tags: list[str], summary: str) -> list[di
     return [{"role": "user", "content": [{"type": "text", "text": text}]}]
 
 
+# The run's fetch field for a save's re-reading of a link page: skipped, not failed
+SAVE_REREAD = "skipped: save re-read"
+
+
 def page_message(
     page: sqlite3.Row,
     tags: list[str],
@@ -282,7 +289,13 @@ def page_message(
                 "</fetched>",
             ]
         else:
-            parts.append(f"It could not be fetched: {failed}")
+            if failed == SAVE_REREAD:
+                parts.append(
+                    "The link was not fetched again; summarise from the page text"
+                    " and address."
+                )
+            else:
+                parts.append(f"It could not be fetched: {failed}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
 
@@ -299,7 +312,7 @@ def checked(
     out: dict[str, Any], vocab: set[str], want_summary: bool, link: bool
 ) -> dict[str, Any]:
     """The model's output within bounds (ValueError if not an answer at all)."""
-    if not all(k in out for k in SCHEMA["required"]):
+    if not all(k in out for k in ("tags", "summary", "title")):
         raise ValueError("output lacks a field")
     tags: list[str] = []
     invented = 0
@@ -316,10 +329,15 @@ def checked(
     summary = " ".join(CONTROL.sub(" ", summary).split())[:MAX_SUMMARY]
     title = out["title"] if isinstance(out["title"], str) else ""
     title = " ".join(CONTROL.sub(" ", title).split())[:MAX_TITLE] if link else ""
+    intent, confidence = actions.clean_intent(out)
+    items = actions.clean_items(out.get("items")) if intent == actions.INTENT else []
     return {
         "tags": tags[: MAX_NEW_TAGS * 2],
         "summary": summary if want_summary else "",
         "title": title,
+        "intent": intent,
+        "confidence": confidence,
+        "items": [{"text": t, "done": d} for t, d in items],
     }
 
 
@@ -481,7 +499,9 @@ class Enricher:
             return
         with self.store.connect() as conn:
             page = conn.execute(
-                "SELECT * FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
+                "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id)"
+                " AS rev FROM page WHERE id = ? AND deleted_at IS NULL",
+                (page_id,),
             ).fetchone()
             if page is None:  # trashed meanwhile: nothing to do
                 with transaction(conn):
@@ -503,7 +523,11 @@ class Enricher:
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
-        if link:
+        if link and job["reason"] == "save":
+            # A text edit reads the page again without the site: the fetched text is
+            # not kept, so there is nothing to reuse, and no fetch (#147)
+            failed = SAVE_REREAD
+        elif link:  # capture, ask and backfill fetch
             try:
                 got = self.fetch(link)
             except fetch.FetchError as error:
@@ -541,6 +565,10 @@ class Enricher:
             return
         if not self.succeeded(job, run_id, done, out, link, got):
             return
+        items = [(i["text"], i["done"]) for i in out["items"]]
+        if not link and actions.accepted(out["intent"], out["confidence"], items):
+            # as the page was read: an edit since wins (a revision of Claude's own)
+            actions.append(self.store, page_id, page["rev"], items)
         if job["reason"] == "ask":  # Ask Claude: its related pages too, now
             error = relate(self.store, self.call, page_id, jid)
             if error is not None:
@@ -616,6 +644,16 @@ class Enricher:
                 )
                 self._tags(conn, page_id, out["tags"], producer, stamp,
                            first or job["reason"] != "save")  # fmt: skip
+                source, source_title = got and got.url, got and got.title or None
+                if (
+                    link and job["reason"] == "save"
+                ):  # not fetched: keep the last source
+                    old = conn.execute(
+                        "SELECT source, source_title FROM enrichment WHERE page_id = ?",
+                        (page_id,),
+                    ).fetchone()
+                    if old is not None:
+                        source, source_title = old
                 conn.execute(
                     "INSERT INTO enrichment (page_id, run_id, producer, summary,"
                     " source, source_title, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -623,8 +661,8 @@ class Enricher:
                     " producer = excluded.producer, summary = excluded.summary,"
                     " source = excluded.source, source_title = excluded.source_title,"
                     " updated_at = excluded.updated_at",
-                    (page_id, run_id, producer, out["summary"], got and got.url,
-                     got and got.title or None, stamp),
+                    (page_id, run_id, producer, out["summary"], source,
+                     source_title, stamp),
                 )  # fmt: skip
                 if link:
                     title = out["title"] or (got.title if got else "")
@@ -689,14 +727,18 @@ def ask(store: Store, key: str) -> dict[str, Any]:
 
 
 def backfill(store: Store, limit: int | None = None, dry_run: bool = False) -> int:
-    """Queue every page with no tags that Claude has not read (not in the trash),
-    oldest first: a one-off command. Returns how many (would be) queued."""
+    """Queue every note, todo, read or link with no tags that Claude has not read (not
+    in the trash, and not a photo, whiteboard or document page, nor one with a photo or
+    file), oldest first: a one-off command. Returns how many (would be) queued."""
     with store.connect() as conn, transaction(conn):
         ids = [r[0] for r in conn.execute(
             "SELECT p.id FROM page p WHERE p.deleted_at IS NULL"
+            f" AND p.kind IN ({','.join('?' * len(ENRICH_KINDS))})"
             " AND NOT EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id)"
+            f" AND {NOT_BY_INGEST.format(p='p')}"
             " AND NOT EXISTS (SELECT 1 FROM enrichment e WHERE e.page_id = p.id)"
-            " ORDER BY p.created_at LIMIT ?", (-1 if limit is None else limit,),
+            " ORDER BY p.created_at LIMIT ?",
+            (*ENRICH_KINDS, -1 if limit is None else limit),
         )]  # fmt: skip
         if not dry_run:
             for page_id in ids:
