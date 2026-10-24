@@ -24,7 +24,10 @@ and back.
   status has none. Everything else steps down: secondary (outlined surface), then
   ghost (text only).
 - **Under the thumb.** Capture actions and the nav sit at the bottom; a page has no nav, so
-  its toolbar is the only bottom bar. Cancel, Preview and Save sit in the editor's top bar
+  its toolbar is the only bottom bar. On a computer (a mouse, 720 px wide or more) a page's
+  actions are instead a row of buttons under its title, tags, due line and meta line, kept in
+  view under the top bar as it scrolls (Mark done filled, Delete apart at the end): at the
+  window's foot they sat far below a short page. Cancel, Preview and Save sit in the editor's top bar
   because the keyboard owns the bottom.
 - **Drill down, then Back, named.** A page and Tags are reached from somewhere. On every phone
   and browser the top bar swaps the wordmark for Back named for where it goes (‹ Search,
