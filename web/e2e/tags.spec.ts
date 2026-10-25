@@ -81,12 +81,14 @@ test("the retired Tags screen's old address opens the search screen", async ({ p
   }
   // Reached in the app, Back still goes back to where it came from
   await page.goto("/todos");
+  await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
+  // As the app's router goes to an address (go() in app.ts: a pushed entry, then a render)
   await page.evaluate(() => {
-    const a = Object.assign(document.createElement("a"), { href: "/tags", textContent: "old" });
-    document.querySelector("#view")?.append(a);
+    history.pushState({ at: 1 }, "", "/tags");
+    dispatchEvent(new PopStateEvent("popstate"));
   });
-  await page.getByRole("link", { name: "old" }).click();
   await expect(page).toHaveURL(/\/search$/);
+  await expect(page.getByRole("searchbox")).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/todos$/);
 });
