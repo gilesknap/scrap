@@ -19,6 +19,9 @@ const ulid = () => {
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
 };
 const section = (page: Page) => page.getByRole("region", { name: "Claude's write-up" });
+/** The write-up's fold opened, as once tapped (it is folded until then, and remembered). */
+const opened = (page: Page) =>
+  page.addInitScript(() => localStorage.setItem("scrap.fold.writeup", "open"));
 
 test("a board's write-up shows apart from its text, with guidance and versions", async ({
   page,
@@ -27,11 +30,19 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
   await expect(s).toBeVisible();
-  // Its own fold, open to start with, after the page's text; Claude's, not the owner's
+  // Its own fold, folded to start with, after the page's text; in Claude's brown card, as all
+  // of Claude's work is, so not the owner's
   const fold = s.locator("details.writeup");
-  await expect(fold).toHaveAttribute("open", "");
+  await expect(fold).not.toHaveAttribute("open", "");
   const card = s.locator(".card");
-  expect(await card.evaluate((el) => getComputedStyle(el).borderTopStyle)).toBe("dashed");
+  await expect(card).toBeHidden();
+  const sunk = await page.evaluate(() =>
+    getComputedStyle(document.body).getPropertyValue("--sunk"),
+  );
+  expect(sunk.trim()).not.toBe("");
+  await expect(fold).toHaveClass(/\bclaude\b/);
+  await fold.locator("> summary").click();
+  await expect(card).toBeVisible();
   await expect(s.locator(".by").first()).toContainText("claude-opus-5-5");
   await expect(s.locator(".by").first()).toContainText("version 2");
   await expect(s.getByText("The pipeline again, retries first.")).toBeVisible();
@@ -69,16 +80,17 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await expect(s.locator(".by").first()).toContainText("version 3 · restored from version 1");
   await expect(s.getByText("A capture pipeline from phone to model")).toBeVisible();
 
-  // Folded, it stays folded when the page is opened again
-  await fold.locator("> summary").click();
-  await expect(card).toBeHidden();
+  // Opened, it stays open when the page is opened again; folded again, it stays folded
+  await page.reload();
+  await expect(section(page).locator(".card")).toBeVisible();
+  await section(page).locator("details.writeup > summary").click();
+  await expect(section(page).locator(".card")).toBeHidden();
   await page.reload();
   await expect(section(page).locator(".card")).toBeHidden();
-  await section(page).locator("details.writeup > summary").click();
-  await expect(section(page).locator(".card")).toBeVisible();
 });
 
 test("the write-up meets AA contrast, in both themes", async ({ page }) => {
+  await opened(page);
   const b = board();
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const colorScheme of ["light", "dark"] as const) {
@@ -95,6 +107,7 @@ test("the write-up meets AA contrast, in both themes", async ({ page }) => {
 });
 
 test("Regenerate queues a new write-up and the section says it waits", async ({ page }) => {
+  await opened(page);
   const b = board();
   // As if Claude were on (this server runs without it)
   const on = (json: { writeup: { on: boolean } }) => ({
@@ -119,6 +132,7 @@ test("Regenerate queues a new write-up and the section says it waits", async ({ 
 });
 
 test("a write-up shows no link but a page link, whatever its text holds", async ({ page }) => {
+  await opened(page);
   const b = board();
   // As if the stored text had a web address and a page it doesn't link in it (the server
   // strips them: this is the PWA's own guard against linkify)

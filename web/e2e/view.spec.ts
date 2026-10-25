@@ -60,9 +60,11 @@ test("a page and its photos download", async ({ page }) => {
     page.locator(".page > .bar").getByRole("link", { name: "Download" }).click(),
   ]);
   expect(zip.suggestedFilename()).toBe("with-a-photo.zip");
+  // The photo's own file: saved from the viewer (no caption under it on the page)
+  await page.locator(".md .orig img").click();
   const [orig] = await Promise.all([
     page.waitForEvent("download"),
-    page.locator(".md .orig").getByRole("link", { name: "Download" }).click(),
+    page.getByRole("dialog").getByRole("link", { name: "Download" }).click(),
   ]);
   expect(orig.suggestedFilename()).toBe("pic.png");
   await expect(page.getByText(/^Downloaded pic\.png/)).toBeVisible();
@@ -365,7 +367,9 @@ test("Back closes the editor, not the page, and keeps the edit as a draft", asyn
   await expect(page).toHaveURL(/\/search$/); // /recent is the search screen now
 });
 
-test("embedded images are figures: viewer, name, Download and Ask Claude", async ({ page }) => {
+test("embedded images are figures: no caption, the viewer names them, Generate asks Claude", async ({
+  page,
+}) => {
   // A photo beside a PDF: a file capture, so Claude has not been asked about the photo
   const form = new FormData();
   form.append("id", ulid());
@@ -385,23 +389,32 @@ test("embedded images are figures: viewer, name, Download and Ask Claude", async
   await page.goto(`/p/${slug}`);
   const figs = page.locator(".md figure.orig");
   await expect(figs).toHaveCount(2);
-  await expect(figs.locator("figcaption span")).toHaveText(["a.png", "b.png"]);
+  // No caption under them: the name is the image's alt and the viewer's label
+  await expect(figs.locator("figcaption")).toHaveCount(0);
+  await expect(figs.nth(0).locator("img")).toHaveAttribute("alt", "a.png");
+  await expect(figs.nth(1).locator("img")).toHaveAttribute("alt", "b.png");
   await expect(page.locator(".originals a.file")).toHaveText("doc.pdf"); // only the PDF below
   await expect(page.locator(".originals img")).toHaveCount(0);
 
   await figs.nth(1).locator("img").click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("2 / 2")).toBeVisible();
+  await expect(dialog.locator(".name")).toHaveText("b.png");
+  await expect(dialog.getByRole("link", { name: "Download" })).toBeVisible();
   await page.goBack();
   await expect(dialog).toBeHidden();
 
   const ask = page.waitForRequest((r) => r.url().endsWith("/reprocess"));
-  await figs.first().getByRole("button", { name: "Ask Claude" }).click();
+  // Not read by Claude: a Claude card under each, saying what it would do
+  const cards = page.locator(".md .photo-panel .claude");
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first()).toContainText("Claude can describe it");
+  await cards.first().getByRole("button", { name: "Generate" }).click();
   expect((await ask).postDataJSON()).toEqual({ photo: expect.stringMatching(/^[0-9a-f]{64}$/) });
   const panel = page.locator(".md .photo-panel");
-  await expect(panel.getByRole("status")).toHaveText(/^Waiting/);
-  await expect(panel.locator("figcaption span")).toHaveText("a.png");
-  await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(1); // b.png's
+  await expect(panel.first().getByRole("status")).toHaveText(/^Waiting/);
+  await expect(panel.first().locator("img")).toHaveAttribute("alt", "a.png");
+  await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(1); // b.png's
 });
 
 test("an image added by an edit is a figure at once; one in a list or a line stays", async ({
@@ -424,8 +437,8 @@ test("an image added by an edit is a figure at once; one in a list or a line sta
   // Another page's file: a figure without Ask Claude, named by its sha
   const fig = page.locator(".md > figure.orig");
   await expect(fig).toHaveCount(1);
-  await expect(fig.locator("figcaption span")).toHaveText(`Image ${sha.slice(0, 8)}`);
-  await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(0);
+  await expect(fig.locator("img")).toHaveAttribute("alt", `Image ${sha.slice(0, 8)}`);
+  await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(0);
   await expect(page.locator(".md li img, .md p img")).toHaveCount(2); // left as they are
   await expect(page.locator(".md figure figure, .md p figure, .md li figure")).toHaveCount(0);
 });
@@ -453,20 +466,19 @@ test("every photo of the page can be opened, saved and sent, wherever the text p
   await page.request.patch(url, { data: { base_rev: 1, body } });
   await page.goto(`/p/${slug}`);
   // Two lines of images alone: a figure each, in the text
-  await expect(page.locator(".md > figure.orig figcaption span")).toHaveText([
+  const alts = (l: import("@playwright/test").Locator) =>
+    l.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
+  expect(await alts(page.locator(".md > .photo-panel figure.orig img"))).toEqual([
     "line1.png",
     "line2.png",
   ]);
   // In a list, beside text or in a quote: as typed, and below the text with the rest
   await expect(page.locator(".md li img, .md p img, .md blockquote img")).toHaveCount(3);
   const below = page.locator(".originals figure.orig");
-  await expect(below.locator("figcaption span")).toHaveText([
-    "list.png",
-    "beside.png",
-    "quote.png",
-  ]);
-  await expect(page.getByRole("button", { name: "Ask Claude" })).toHaveCount(5);
-  await expect(page.locator("figure.orig").getByRole("link", { name: "Download" })).toHaveCount(5);
+  expect(await alts(below.locator("img"))).toEqual(["list.png", "beside.png", "quote.png"]);
+  await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(5);
+  // Saved from the viewer, not a caption
+  await expect(page.locator("figure.orig").getByRole("link", { name: "Download" })).toHaveCount(0);
   await below.nth(2).locator("img").click();
   await expect(page.getByRole("dialog").getByText("5 / 5")).toBeVisible();
   await page.goBack();

@@ -26,7 +26,7 @@ it("says what Claude is doing, and nothing once done", () => {
   expect(stateText(e({}))).toBeNull();
 });
 
-it("says in a line what Claude did, so Reprocess says what it would redo", () => {
+it("says in a line what Claude did, so Regenerate says what it would redo", () => {
   const link = { id: "L", slug: "l", title: "L", kind: "note", via: "link" };
   const picked = { ...link, id: "C", via: "claude" };
   expect(did(page({}), false)).toBe(

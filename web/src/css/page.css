@@ -251,21 +251,7 @@
   border-radius: var(--r-lg);
   background: var(--sunk);
 }
-.orig figcaption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  color: var(--ink-3);
-  font-size: var(--t-sm);
-}
-.orig figcaption span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* A figure's Download (an <a>, not a .button) and Ask Claude: whole words beside a file name
+/* A file's Download (an <a>, not a .button): whole words beside a file name
    of any length. The page text's overflow-wrap: anywhere let a long name squeeze "Download"
    to one letter wide, broken over three lines; the icon is a button's 20, not 24 */
 .save {

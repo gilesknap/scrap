@@ -76,8 +76,8 @@ export function figures(
       e.preventDefault();
       viewer(photos, at - 1, pageLink(p.slug));
     };
-    const caption = h("figcaption", {}, h("span", {}, name), save);
-    const fig = h("figure", { className: "orig" }, h("a", { href, onclick: open }, img), caption);
+    // No caption: its name and Download are the viewer's, a tap away
+    const fig = h("figure", { className: "orig" }, h("a", { href, onclick: open }, img));
     img.onerror = () => fig.replaceWith(fileRow(href, name || "file", save)); // no preview
     if (!f) return fig; // another page's file: Claude's results are that page's
     if (f.ingest) {
@@ -92,8 +92,18 @@ export function figures(
         refresh,
       });
     }
-    caption.append(askClaude(f.cid, sha, refresh));
-    return fig;
+    // Not read by Claude: what asking would do, in Claude's card under it
+    return h(
+      "section",
+      { className: "photo-panel" },
+      fig,
+      h(
+        "div",
+        { className: "claude" },
+        h("p", { className: "did" }, "Claude can describe it and read any text in it."),
+        askClaude(f.cid, sha, refresh),
+      ),
+    );
   };
 
   for (const para of runs) {
@@ -122,7 +132,7 @@ const fileRow = (href: string, name: string, save: HTMLElement) =>
 
 /** Send one image to Claude; the page, shown again, then has its panel with the queue state. */
 function askClaude(cid: string, sha: string, refresh: () => void) {
-  const b = h("button", { type: "button", className: "save" }, "Ask Claude");
+  const b = h("button", { type: "button" }, "Generate"); // as every Claude card's first time
   b.onclick = async () => {
     b.disabled = true;
     try {

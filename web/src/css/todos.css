@@ -121,12 +121,85 @@
 }
 /* What Claude added under a page's text (enrich.ts): its state, what it did, its summary and
    related pages */
-.enrich {
+/* Claude's card: everything Claude wrote is in one of these, so it never reads as the page's
+   own text: a photo's description and what it read (ingest.ts), a board's write-up
+   (writeup.ts) and the page's summary and related pages (.enrich). Its long texts are folds,
+   closed until opened. */
+.enrich,
+.claude {
   margin: var(--s-4) 0;
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-md);
   background: var(--sunk);
   font-size: var(--t-sm);
+}
+/* A fold of Claude's text in a card: Description, Text Claude read, Write-up */
+.claude-text {
+  border-top: 1px solid var(--line);
+}
+.claude-text summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  list-style: none;
+}
+.claude-text summary::-webkit-details-marker {
+  display: none;
+}
+/* A chevron: points right when folded, down when open */
+.claude-text summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 3px var(--s-1);
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: -45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.claude-text[open] > summary::before {
+  rotate: 45deg;
+}
+.claude-text p,
+.claude-text pre {
+  margin: 0 0 var(--s-3);
+  user-select: text;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font: inherit;
+}
+
+.photo-panel > .claude {
+  margin-top: var(--s-3);
+}
+.claude .claude-text {
+  margin-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+.claude .claude-text:last-child p,
+.claude .claude-text:last-child pre {
+  margin-bottom: 0;
+}
+.claude pre {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface); /* a step up from the card, as Claude's text read off it */
+}
+.claude .did {
+  margin: var(--s-2) 0 0;
+  color: var(--ink-2);
+}
+.claude > .did:first-child {
+  margin-top: 0;
+}
+.claude > .did + button {
+  margin-top: var(--s-2);
 }
 .enrich .ingest > button:not(.link) {
   margin-inline-start: auto;

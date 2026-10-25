@@ -1,5 +1,6 @@
-// Claude's write-up of a board page (#256), under its text: a section of its own, folded or
-// open (remembered), plainly Claude's (a dashed card), never the page's text. It says who wrote
+// Claude's write-up of a board page (#256), under its text: a Claude card of its own, shaped as
+// a photo's (a state line, then the write-up as a fold, folded until opened and remembered),
+// never the page's text. It says who wrote
 // it and when, shows its lead and its Markdown (its [[slug]] links as page links), and offers
 // Regenerate, the owner's guidance for the next one, and its versions with Restore. Nobody edits
 // it. A chunk of its own: the page view loads it for a page with a write-up or a board.
@@ -75,12 +76,13 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
   const up = w.current;
   const said = stateText(w);
   const busy = ["queued", "processing", "paused"].includes(w.state ?? "");
+  // Generate the first time, Regenerate after, Retry when it failed: as every Claude card says
   const regenerate =
     w.on &&
     w.board &&
     !busy &&
     action(
-      up ? "Regenerate" : "Write it up",
+      w.state === "failed" ? "Retry" : up ? "Regenerate" : "Generate",
       async () => {
         try {
           show(await api<Page>(`pages/${p.id}/writeup`, { method: "POST" }));
@@ -88,33 +90,50 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
           toast(`Not sent: ${why(err)}`);
         }
       },
-      up ? "link" : "",
+      up && w.state !== "failed" ? "link" : "",
     );
-  const card = h(
-    "div",
-    { className: "card" },
-    said || regenerate
+  // Shaped as a photo's card: its state line (Written by Claude, then Regenerate), then the
+  // write-up itself as a fold like Description, folded until opened (remembered)
+  const pill = said ?? (up ? "Written by Claude" : null);
+  const state = w.state === "failed" || busy ? w.state : "done";
+  const head = h("summary", {}, "Write-up");
+  const fold =
+    up &&
+    h(
+      "details",
+      { className: "claude-text", open: kept(FOLD) === "open" },
+      head,
+      h(
+        "div",
+        { className: "card" },
+        h("p", { className: "by" }, byline(up)),
+        h("p", { className: "summary", dir: "auto" }, up.summary),
+        pageLinksOnly(bodyView(up.text, false), up.links ?? []),
+        guidanceFold(p, w, show),
+        w.versions > 1 ? versionsFold(p, up, show) : "",
+      ),
+    );
+  // Remembered as it is tapped, not on toggle (which comes a task later): the page may be
+  // drawn again in between, from what was remembered
+  if (fold) head.onclick = () => kept(FOLD, fold.open ? null : "open"); // (about to change)
+  return h(
+    "section",
+    { className: "writeup claude", "aria-label": "Claude's write-up" },
+    pill
       ? h(
           "div",
           { className: "ingest" },
-          said && h("span", { className: `state ${w.state}`, role: "status" }, said),
+          h("span", { className: `state ${state}`, role: "status" }, pill),
           regenerate,
         )
-      : "",
-    up ? h("p", { className: "by" }, byline(up)) : "",
-    up ? h("p", { className: "summary", dir: "auto" }, up.summary) : "",
-    up
-      ? pageLinksOnly(bodyView(up.text, false), up.links ?? [])
-      : h("p", { className: "by" }, "Claude hasn't written one yet."),
-    guidanceFold(p, w, show),
-    up && w.versions > 1 ? versionsFold(p, up, show) : "",
+      : h(
+          "p",
+          { className: "did" },
+          "Claude can write up what this board shows: its parts and how they connect.",
+        ),
+    !pill && regenerate ? h("div", { className: "ask" }, regenerate) : "",
+    fold || (w.board ? guidanceFold(p, w, show) : ""),
   );
-  // Remembered as it is tapped, not on toggle (which comes a task later): the page may be
-  // drawn again in between, from what was remembered
-  const head = h("summary", {}, "Claude's write-up");
-  const fold = h("details", { className: "writeup", open: kept(FOLD) !== "1" }, head, card);
-  head.onclick = () => kept(FOLD, fold.open ? "1" : null);
-  return h("section", { "aria-label": "Claude's write-up" }, fold);
 }
 
 /** The owner's guidance for the next write-up: a note, kept apart from the text. */
@@ -147,7 +166,7 @@ function guidanceFold(p: Page, w: Writeup, show: (p: Page) => void) {
   );
   return h(
     "details",
-    { className: "sub", open: typing.has(p.id) },
+    { className: "claude-text sub", open: typing.has(p.id) },
     h("summary", {}, w.guidance ? "Guidance for Claude (set)" : "Guidance for Claude"),
     h("p", { className: "by" }, "Used by the next write-up, and kept with it."),
     box,
@@ -158,7 +177,7 @@ function guidanceFold(p: Page, w: Writeup, show: (p: Page) => void) {
 /** Every version, newest first, loaded when opened; an old one can be made current again. */
 function versionsFold(p: Page, up: WriteupVersion, show: (p: Page) => void) {
   const list = h("ol", { className: "versions" });
-  const fold = h("details", { className: "sub" }, h("summary", {}, "Versions"), list);
+  const fold = h("details", { className: "claude-text sub" }, h("summary", {}, "Versions"), list);
   fold.ontoggle = async () => {
     if (!fold.open || list.childElementCount) return;
     try {

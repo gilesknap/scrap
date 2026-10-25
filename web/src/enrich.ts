@@ -33,7 +33,7 @@ export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** What Claude did, in a line, so Reprocess says what it would redo (or, never read, what
+/** What Claude did, in a line, so Regenerate says what it would redo (or, never read, what
  * asking would do). */
 export function did(p: Page, read: boolean): string {
   if (!read) return "Claude can summarise it, suggest tags and find related pages.";
@@ -48,7 +48,7 @@ export function did(p: Page, read: boolean): string {
 }
 
 /** The panel, or null when there is nothing to show and Claude is off. Its row says it as a
- * photo's does: Read by Claude (or where it is up to), then Reprocess. */
+ * photo's does: Read by Claude (or where it is up to), then Regenerate. */
 export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | null {
   const e = p.enrich;
   const related = relatedOf(p);
@@ -77,7 +77,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
           }
         },
       },
-      e.state === "failed" ? "Retry" : read ? "Reprocess" : "Ask Claude to read it",
+      e.state === "failed" ? "Retry" : read ? "Regenerate" : "Generate",
     );
   // The queue is the photos' too: its Resume (api/ingest/resume) ends the pause for both
   const resume =

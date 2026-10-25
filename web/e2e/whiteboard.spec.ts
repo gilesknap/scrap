@@ -294,7 +294,7 @@ test("a failed render leaves no stale preview on the new paper", async ({ page }
   await expect(card.locator("svg")).toBeVisible();
 });
 
-test("dark mode, and a Reprocess that asks before replacing an edit", async ({ page }) => {
+test("dark mode, and a Regenerate that asks before replacing an edit", async ({ page }) => {
   const b = board();
   await page.emulateMedia({ colorScheme: "dark" });
   await page.addInitScript(() => localStorage.setItem("scrap.drawings_theme", "app")); // Same as app
@@ -307,8 +307,9 @@ test("dark mode, and a Reprocess that asks before replacing an edit", async ({ p
   await expect(dialog(page).locator(".excalidraw.theme--dark")).toBeVisible();
   await page.goBack();
 
-  await page.getByRole("button", { name: "Reprocess" }).click();
-  await page.getByRole("button", { name: "Reprocess" }).click(); // asked once, not twice
+  const again = page.locator(".photo-panel").getByRole("button", { name: "Regenerate" });
+  await again.click();
+  await again.click(); // asked once, not twice
   await expect(page.getByText("You edited its drawing: replace it?")).toHaveCount(1);
   const asked = page.waitForRequest((r) => r.url().endsWith("/reprocess"));
   await page.getByRole("button", { name: "Replace mine" }).click();
