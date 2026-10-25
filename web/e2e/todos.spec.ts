@@ -295,7 +295,7 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
     data: { id: "01E2ETNEWT0D0".padEnd(26, "0"), text: "Quokka elsewhere" },
   });
   const { slug } = await other.json();
-  for (const elsewhere of ["/", "/search", `/p/${slug}`, "/tags"]) {
+  for (const elsewhere of ["/", "/search", `/p/${slug}`]) {
     await page.goto(elsewhere);
     await expect(page.locator("#view > *")).toBeVisible();
     await expect(add).toBeHidden();

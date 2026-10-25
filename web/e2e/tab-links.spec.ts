@@ -80,8 +80,8 @@ test("rows, tags, wiki links and the pager are links; Ctrl-click opens a new tab
   await page.goBack();
   await expect(page).toHaveURL(/\/search$/); // Back is still the list
 
-  // Every such address loads fresh: a page, a tag search, the tags
-  for (const path of [`/p/${first}`, `/search?q=${encodeURIComponent(`tag:${tag}`)}`, "/tags"]) {
+  // Every such address loads fresh: a page, a tag search
+  for (const path of [`/p/${first}`, `/search?q=${encodeURIComponent(`tag:${tag}`)}`]) {
     const fresh = await context.newPage();
     await fresh.goto(path);
     await expect(fresh.locator("#view > *").first()).toBeVisible();

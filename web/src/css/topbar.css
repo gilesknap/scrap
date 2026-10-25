@@ -41,8 +41,7 @@ header {
   rotate: -6deg;
   align-self: center;
 }
-/* A page's and Tags' Back, in the wordmark's place, named for where it goes (‹ Search);
-   Tags' title beside it */
+/* A page's Back, in the wordmark's place, named for where it goes (‹ Search) */
 #back {
   display: inline-flex;
   align-items: center;
@@ -70,19 +69,10 @@ header {
 #pos:empty {
   display: none;
 }
-#where {
-  flex: 1;
-  margin: 0;
-  font-size: var(--t-lg);
-}
 /* At the right: the queue badge, when up, the Todos screen's New todo, then Settings, always */
 .logo,
-#back,
-#where {
+#back {
   margin-inline-end: auto;
-}
-#back:has(~ #where:not([hidden])) {
-  margin-inline-end: 0;
 }
 #new,
 #settings {

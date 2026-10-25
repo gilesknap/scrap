@@ -477,9 +477,12 @@ test.describe("without the service worker", () => {
   test.use({ serviceWorkers: "block" }); // it would answer from its cache
 
   test("Back in the top bar still goes up when its chunk will not load", async ({ page }) => {
-    await page.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true }));
+    const made = await page.request.post("/api/captures", {
+      data: { id: "01E2EBACKCHUNK".padEnd(26, "0"), text: "Back chunk note" },
+    });
+    const { slug } = await made.json();
     await page.route("**/assets/back-*.js", (r) => r.abort());
-    await page.goto("/tags"); // opened directly: nothing of the app's behind it
+    await page.goto(`/p/${slug}`); // opened directly: nothing of the app's behind it
     await page.locator("#back").click();
     await expect(page).toHaveURL("/");
   });

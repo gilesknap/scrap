@@ -255,9 +255,6 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
         b.dataset.k = `tag:${t}`;
         return b;
       }),
-      ...(want
-        ? []
-        : [h("a", { className: "button facet", href: "/tags" }, icon("tag"), "All tags")]),
     );
     // None to offer: say why, rather than an empty row
     if (!list.length)

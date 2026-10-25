@@ -205,15 +205,12 @@
   flex-basis: 100%;
   padding-inline-start: calc(4.2em + var(--s-2));
 }
-/* Nothing to offer: why, in words that wrap, so All tags beside it stays on screen */
+/* Nothing to offer: why, in words that wrap */
 .fpanel .opts .none {
   flex: 1 1 8em;
   align-self: center;
   color: var(--ink-2);
   font-size: var(--t-sm);
-}
-.fpanel .opts:has(.none) > .button {
-  flex: none;
 }
 .fpanel .range {
   margin: 0;
@@ -377,35 +374,4 @@
 /* More to the right: the row fades out at its end */
 :is(.tags, .refine, .toptags) {
   mask-image: linear-gradient(to left, transparent, #000 var(--s-6));
-}
-/* Browse tags: a tree, a parent's chevron opens it */
-.tagtree li {
-  display: flex;
-  align-items: center;
-}
-.list.tagtree li > a {
-  flex: 1;
-  min-width: 0;
-  min-height: var(--tap);
-  padding-inline-start: calc(var(--s-3) + var(--depth, 0) * var(--s-5));
-}
-.tagtree a > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tagtree a > small {
-  flex: none;
-  margin-inline-start: auto;
-}
-.tagtree button {
-  flex: none;
-  width: var(--tap);
-  padding: 0;
-}
-.tagtree button .i {
-  transition: rotate var(--d-2) var(--ease);
-}
-.tagtree button[aria-expanded="true"] .i {
-  rotate: 90deg;
 }
