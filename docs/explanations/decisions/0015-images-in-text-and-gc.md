@@ -33,6 +33,9 @@ and shared, so deleting one safely is harder than deleting a row.
 - A manual gc takes no lock and can race the nightly run harmlessly.
 - `scrap gc` is a **dry run unless `--delete`** is given (`--dry-run` forces it): it only counts
   what it would remove. `--grace-hours` (default 24) sets the age below which a file is kept.
+- A capture's file that no page shows any more is never deleted: `scrap gc --delete` gathers it
+  onto the month's *Orphaned assets YYYY-MM* todo page for the user to review (issue #124), worked
+  out from page text and revisions alone, so a second run adds nothing.
 - It also prunes the `model_run` and `enrich_run` records (issue #151): those older than
   `--run-days` (default 30) that nothing refers to and that are not the latest for their page or
   photo, so the stored prompts and responses do not grow for ever.

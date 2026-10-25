@@ -497,8 +497,9 @@ How matching works:
 - Deleting a photo's line (its token, in the editor) removes the photo from the page. **Save** warns first, naming each
   photo whose line went: *no longer shown on any page*, or *still shown on N other pages*. This
   doesn't delete the stored file. **Cancel** goes back to the editor with your text as it was (undo brings the
-  line back); **OK** saves. The file and what Claude made of it are kept while anything still
-  uses it; `scrap gc` (nightly on a single-server install) deletes files nothing uses.
+  line back); **OK** saves. The file and what Claude made of it are kept: once no page shows it, the
+  nightly `scrap gc` gathers it onto the month's *Orphaned assets* todo page, where you cut it into
+  another page to keep it or delete the page when you have looked through it (see {ref}`scrap-gc`).
 - **Delete** moves the page to the trash, with **Undo** for a few seconds, and goes back to the
   list or search it was opened from (else to every page, newest first). The app has no trash
   screen: once the Undo has gone, a page can be brought back with
