@@ -17,7 +17,7 @@ from ..ingest import (
     spent_today,
 )
 from ..markdown import plain
-from ..store import MAX_TAGS, Store, fields_for, now, transaction
+from ..store import MAX_TAGS, Store, fields_for, now, queue_related, transaction
 from .checking import checked, record
 from .constants import (
     CLAIM,
@@ -28,7 +28,7 @@ from .constants import (
     SHORT,
     TITLE_CAS,
 )
-from .prompts import page_message, system_prompt, vocabulary
+from .prompts import page_images, page_message, system_prompt, vocabulary
 from .relating import relate
 from .types import Call, Fetch
 
@@ -153,6 +153,14 @@ class Enricher:
             notify("budget")
         if over:
             return
+        if job["reason"] == "related":  # a page's first related call, once read
+            error = relate(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
+            return
         with self.store.connect() as conn:
             page = conn.execute(
                 "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id)"
@@ -176,6 +184,7 @@ class Enricher:
                 (page_id,),
             ).fetchone()
             link = link and link[0]
+            images = page_images(conn, page_id)
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
@@ -192,8 +201,9 @@ class Enricher:
                 failed = f"could not fetch the page ({type(error).__name__})"
         text = plain(page["body"]).strip()
         want_summary = bool(link) or len(text) >= SHORT
-        messages = page_message(page, tags, link, got, failed, want_summary)
-        stored = page_message(page, tags, link, got, failed, want_summary, False)
+        args = (page, tags, link, got, failed, want_summary)
+        messages = page_message(*args, images=images)
+        stored = page_message(*args, False, images)
         model, effort = claude.text_model()
         request = {
             "purpose": "enrich", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
@@ -300,6 +310,8 @@ class Enricher:
                 )
                 self._tags(conn, page_id, out["tags"], producer, stamp,
                            first or job["reason"] != "save")  # fmt: skip
+                if first and job["reason"] != "ask":  # Ask picks them itself
+                    queue_related(conn, page_id)  # its first reading: related next
                 source, source_title = got and got.url, got and got.title or None
                 if (
                     link and job["reason"] == "save"

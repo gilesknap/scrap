@@ -49,7 +49,13 @@ from .helpers import (
     unlink,
     upload_limit,
 )
-from .indexing import enrich_on, model_summary, queue_enrich
+from .indexing import (
+    enrich_on,
+    model_summary,
+    queue_enrich,
+    queue_related,
+    queue_related_on_read,
+)
 from .store import Store
 
 __all__ = [
@@ -102,6 +108,8 @@ __all__ = [
     "enrich_on",
     "model_summary",
     "queue_enrich",
+    "queue_related",
+    "queue_related_on_read",
     "fix_tag_paths",
     "Store",
 ]

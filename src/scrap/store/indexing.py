@@ -9,7 +9,13 @@ from ..markdown import plain
 from ..query import (
     CONTROL,
 )
-from .constants import ENRICH_ENQUEUE, ENRICH_KINDS, NOT_BY_INGEST
+from .constants import (
+    ENRICH_ENQUEUE,
+    ENRICH_KINDS,
+    FIRST_READ,
+    NOT_BY_INGEST,
+    RELATED_ENQUEUE,
+)
 from .helpers import now, unlink
 
 
@@ -95,6 +101,21 @@ def queue_enrich(
         {"page": page_id, "reason": reason, "run_after": stamp_after(delay),
          "now": now()},
     )  # fmt: skip
+
+
+def queue_related(conn: sqlite3.Connection, page_id: str) -> None:
+    """Queue a page's first related call, now, with enrich on (RELATED_ENQUEUE): on
+    its first enrich, or when photo ingest has read its first photo capture."""
+    if enrich_on():
+        conn.execute(RELATED_ENQUEUE, {"page": page_id, "now": now()})
+
+
+def queue_related_on_read(conn: sqlite3.Connection, capture_id: str) -> None:
+    """After photo ingest read one of a capture's photos: the page's first related
+    call, if that was the last of its first photo capture still to read."""
+    row = conn.execute(FIRST_READ, {"capture": capture_id}).fetchone()
+    if row is not None:
+        queue_related(conn, row[0])
 
 
 def index_all(conn: sqlite3.Connection) -> None:

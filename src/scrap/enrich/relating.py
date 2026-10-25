@@ -10,7 +10,7 @@ from ..store import Store, model_summary, now, transaction
 from .checking import checked_related, record
 from .constants import RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
-from .prompts import related_message, related_prompt
+from .prompts import page_images, related_message, related_prompt
 from .types import Call
 
 
@@ -32,8 +32,9 @@ def relate(
         human = json.loads(page["fields"]).get("summary")
         summary = human if isinstance(human, str) else model_summary(conn, page_id)
         pages = CANDIDATES(conn, page_id)
+        images = page_images(conn, page_id)
     system, version = related_prompt(pages)
-    messages = related_message(page, tags, summary)
+    messages = related_message(page, tags, summary, images)
     model, effort = claude.text_model()
     request = {
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
@@ -89,11 +90,11 @@ def related_pass(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """The nightly related pass (scrap enrich --related): a related call for each page
-    changed since its related pages were last picked (or every page), oldest first.
-    New pages pick older ones, and Related shows both ways, so older pages learn of
-    new ones without a call of their own. It stops at a queue pause (or makes one:
-    outage, credit, auth, the day's budget), as the worker does; other failures are
-    counted and the next page tried. Returns the counts."""
+    changed, or with a photo read, since its related pages were last picked (or every
+    page), oldest first. New pages pick older ones, and Related shows both ways, so
+    older pages learn of new ones without a call of their own. It stops at a queue
+    pause (or makes one: outage, credit, auth, the day's budget), as the worker does;
+    other failures are counted and the next page tried. Returns the counts."""
     call = call or claude.complete
     budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
     with store.connect() as conn:
