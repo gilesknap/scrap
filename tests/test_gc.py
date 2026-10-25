@@ -56,7 +56,7 @@ def age_all(store):
             old(path)
 
 
-@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
+@pytest.mark.timing  # run alone: see conftest.py
 def test_body_refs_is_linear_and_finds_every_address():
     a, b = "a" * 64, "b" * 64
     text = f"![](/api/blobs/{a}/preview?size=2048) [f](/api/blobs/{b}?download=1) `x`"

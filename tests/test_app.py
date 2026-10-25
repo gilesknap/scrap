@@ -701,7 +701,7 @@ def test_search_ignores_addresses_in_links(client, note):
     assert hit("example") == [] and hit("guide") == [] and hit("other") == []
 
 
-@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
+@pytest.mark.timing  # run alone: see conftest.py
 def test_unlink_keeps_labels_in_linear_time():
     import time
 

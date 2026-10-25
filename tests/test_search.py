@@ -66,7 +66,7 @@ def test_what_is_not_a_term():
     assert parse("a\x00b").terms == [Term("a"), Term("b")]
 
 
-@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
+@pytest.mark.timing  # run alone: see conftest.py
 def test_parsing_is_linear():
     started = time.monotonic()
     for bad in ('"' * 200_000, "-" * 200_000, "!-" * 100_000, 'tag:"' * 50_000,

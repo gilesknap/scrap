@@ -175,7 +175,7 @@ def drip(head: bool):
     return handler
 
 
-@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
+@pytest.mark.timing  # run alone: see conftest.py
 @pytest.mark.parametrize("head", [False, True])
 def test_a_site_dripping_bytes_is_cut_at_the_deadline(site, monkeypatch, head):
     base, dns = site

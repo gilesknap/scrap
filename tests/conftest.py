@@ -1,11 +1,11 @@
 """Shared fixtures.
 
 Tests that measure time (a linear-time check, a generous bound on something that must
-stay quick) are marked @pytest.mark.xdist_group("timing"): with --dist loadgroup (the
-tests tox env) they all run on one xdist worker, one after another, not against each
-other. Their bounds still leave room for coverage tracing and a busy runner: they are
-there to catch quadratic behaviour, which is many times slower, not to time things
-closely (#269)."""
+stay quick) are marked @pytest.mark.timing. The tests tox env runs them on their own,
+serially, after the rest has run in parallel (-m "not timing", then -m timing with
+xdist off), so nothing else loads the machine while they measure. Their bounds still
+leave room for coverage tracing and a slow runner: they are there to catch quadratic
+behaviour, which is many times slower, not to time things closely (#269)."""
 
 import pytest
 from fastapi.testclient import TestClient

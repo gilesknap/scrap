@@ -141,7 +141,7 @@ def test_download_leaves_code_alone_and_shows_each_photo_once(client):
     assert "a again" not in md
 
 
-@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
+@pytest.mark.timing  # run alone: see conftest.py
 def test_code_spans_in_export_text_are_linear_and_unchanged():
     import re
     import time

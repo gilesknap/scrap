@@ -827,7 +827,7 @@ def test_prompt_version_names_the_prompt_and_schema():
     assert Path(claude.__file__).with_name("prompts").joinpath("photo.md").is_file()
 
 
-@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
+@pytest.mark.timing  # run alone: see conftest.py
 def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     client = TestClient(create_app(tmp_path))
     store = Store(tmp_path)

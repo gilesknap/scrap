@@ -66,6 +66,9 @@ typeCheckingMode = "standard"
 reportMissingImports = false # Ignore missing stubs in imported modules
 
 [tool.pytest.ini_options]
+markers = [
+    "timing: measures time; run alone, serially (the tests tox env, tests/conftest.py)",
+]
 # Run pytest with all our checkers, and don't spam us with massive tracebacks on error
 addopts = """
     --tb=native -vv --doctest-modules --doctest-glob="*.rst"
@@ -121,14 +124,29 @@ commands = [
 
 [tool.tox.env.tests]
 description = "Run tests with coverage"
+# Two runs: everything but the timing tests in parallel, then the timing tests alone,
+# serially, so no other test loads the machine while they measure (tests/conftest.py).
+# Coverage is collected by both (the second appends) and reported after the second.
 commands = [
     [
         "pytest",
         "-n",
         "auto",
-        "--dist",
-        "loadgroup",  # the timing tests on one worker (tests/conftest.py)
+        "-m",
+        "not timing",
         "--cov=scrap",
+        "--cov-report=",
+        { replace = "posargs", default = [
+        ], extend = true },
+    ],
+    [
+        "pytest",
+        "-p",
+        "no:xdist",
+        "-m",
+        "timing",
+        "--cov=scrap",
+        "--cov-append",
         "--cov-report",
         "term",
         "--cov-report",
