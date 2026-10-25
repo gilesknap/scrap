@@ -306,21 +306,6 @@ claude mcp add --transport http --scope user scrap https://scrap.example.com/mcp
 Claude.ai's hosted connectors cannot send custom headers, so they cannot reach this `/mcp`.
 ```
 
-## What has been checked
-
-For this page we rendered the chart at release 0.2.2 with `helm template` and linted it with
-`helm lint` (Helm 3.22), using exactly the `my-values.yaml` above (with `backup.enabled` left
-at its default). The render has the expected `SCRAP_IDENTITY_HEADER`, `SCRAP_MCP_TOKEN` and
-`ANTHROPIC_API_KEY` (both from `scrap-secrets`), `SCRAP_PUBLIC_URL`, a Service on port 80, and a
-NetworkPolicy that admits only pods labelled `app: cloudflared` in the `cloudflared` namespace.
-The cloudflared manifest was checked only as valid YAML.
-
-The Cloudflare dashboard steps were **not re-run** for this page. They follow Cloudflare's current
-Zero Trust flow, whose menu names change from time to time, and they match the author's live
-cluster, which runs the same shape (Access email PIN on the host, a service-token application on
-`/mcp`, and scrap's bearer token behind it). The NetworkPolicy was rendered, not applied to a cluster, so kubelet
-probes under it on your CNI are untested here (see {ref}`k8s-tailscale` in the how-to for the caveat).
-
 ## Next steps
 
 - Update scrap, restore a backup and troubleshoot: [](../how-to/deploy-kubernetes.md). Back up
