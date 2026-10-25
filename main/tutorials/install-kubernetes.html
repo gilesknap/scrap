@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap on Kubernetes &#8212; scrap 0.5.2.dev7+g1c4d356ef documentation</title>
+    <title>Install scrap on Kubernetes &#8212; scrap 0.5.2.dev8+g932e172fc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7ab2129"></script>
+    <script src="../_static/documentation_options.js?v=63f9d45c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -766,20 +766,6 @@ reads them at start up instead:</p>
 <p>Claude.ai’s hosted connectors cannot send custom headers, so they cannot reach this <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
 </div>
 </section>
-<section id="what-has-been-checked">
-<h2>What has been checked<a class="headerlink" href="#what-has-been-checked" title="Link to this heading">#</a></h2>
-<p>For this page we rendered the chart at release 0.2.2 with <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">template</span></code> and linted it with
-<code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">lint</span></code> (Helm 3.22), using exactly the <code class="docutils literal notranslate"><span class="pre">my-values.yaml</span></code> above (with <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> left
-at its default). The render has the expected <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> and
-<code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> (both from <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code>), <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, a Service on port 80, and a
-NetworkPolicy that admits only pods labelled <code class="docutils literal notranslate"><span class="pre">app:</span> <span class="pre">cloudflared</span></code> in the <code class="docutils literal notranslate"><span class="pre">cloudflared</span></code> namespace.
-The cloudflared manifest was checked only as valid YAML.</p>
-<p>The Cloudflare dashboard steps were <strong>not re-run</strong> for this page. They follow Cloudflare’s current
-Zero Trust flow, whose menu names change from time to time, and they match the author’s live
-cluster, which runs the same shape (Access email PIN on the host, a service-token application on
-<code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, and scrap’s bearer token behind it). The NetworkPolicy was rendered, not applied to a cluster, so kubelet
-probes under it on your CNI are untested here (see <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-tailscale"><span class="std std-ref">Tailscale Kubernetes operator (recommended)</span></a> in the how-to for the caveat).</p>
-</section>
 <section id="next-steps">
 <h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -854,7 +840,6 @@ in <a class="reference external" href="https://github.com/gilesknap/tpi-k3s-ansi
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#put-cloudflare-access-in-front">5. Put Cloudflare Access in front</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-it-works">6. Check it works</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">7. Connect Claude Code</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-has-been-checked">What has been checked</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
 </ul>
   </nav></div>

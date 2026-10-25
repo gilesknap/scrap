@@ -26,7 +26,7 @@ rights, and run nothing else as that user. See {ref}`scrap-access`.
 - Linux with systemd (user services and `loginctl`), and an admin account with `sudo` for the
   one-off setup steps.
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
-  units have been run with podman 5.x; older versions are untested.
+  units have been run with podman 5.x.
 - `git` and `curl`.
 - An [Anthropic API key](https://console.anthropic.com/) for the ingest step, and
   [Claude Code](https://code.claude.com/docs) on the server if you want the last step.
@@ -178,15 +178,6 @@ well, see [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-i
 
 From any other device on the tailnet, a browser opens the web app at the same
 `https://<host>.<tailnet>.ts.net:8446` address.
-
-## What has been checked
-
-An earlier version of this page was followed by hand on a fresh server on 22 and 23 October 2026,
-with a real tailnet, up to the phone install. For this version, the `deploy/` test scripts
-(`test-install.sh`, `test-check-env.sh`, `test-retention.sh`) pass, and the 0.2.2 image pulls and
-prints its version. The `claude mcp add` step and the browser step follow
-[](../how-to/connect-claude-code.md) but have not been run on a server as written here. Tailscale
-Serve and the systemd user units were not run when this page was last edited.
 
 ## Next steps
 

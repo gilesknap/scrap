@@ -45,11 +45,3 @@ Claude Code on the same computer needs nothing: it keeps using `http://localhost
 
 This is a trial setup for one computer and your phone. For a lasting install that other devices and
 Claude Code can use, see [](../tutorials/install-server.md).
-
-```{note}
-**What has been checked.** On a Linux workstation with rootless podman: joining with a
-single-use auth key, `serve`, the HTTPS address from another device on the tailnet, and the sidecar
-coming back on the same address after `podman restart` and after `podman stop` then `start`, with no
-key. Without `TS_STATE_DIR` the login is lost on restart. Not checked: a phone, the Add to Home
-screen step, and a reboot.
-```

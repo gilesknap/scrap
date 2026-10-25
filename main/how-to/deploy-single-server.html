@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.5.2.dev7+g1c4d356ef documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.5.2.dev8+g932e172fc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7ab2129"></script>
+    <script src="../_static/documentation_options.js?v=63f9d45c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -497,7 +497,7 @@ cluster would run, under rootless podman, as a systemd user service. scrap liste
 socket that only its own user (and root) can open;
 <a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> publishes it over HTTPS to your tailnet and
 nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.</p>
-<p>Podman is the tested path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
+<p>Podman is the supported path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
 units up by hand: see <a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
 <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 <div class="admonition warning">
@@ -522,7 +522,7 @@ and process</strong> can do the same through the port: keep that for single-purp
 one-off setup steps.</p></li>
 <li><p>Rootless <a class="reference external" href="https://podman.io">podman</a>, with <code class="docutils literal notranslate"><span class="pre">uidmap</span></code> (<code class="docutils literal notranslate"><span class="pre">newuidmap</span></code>/<code class="docutils literal notranslate"><span class="pre">newgidmap</span></code>) installed. The
 units use <code class="docutils literal notranslate"><span class="pre">--userns=keep-id:uid=,gid=</span></code>, <code class="docutils literal notranslate"><span class="pre">--sdnotify=conmon</span></code> and <code class="docutils literal notranslate"><span class="pre">--cgroups=split</span></code>, and have
-been run with podman 5.x; older versions are untested. It must be at <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code>: the
+been run with podman 5.x. It must be at <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code>: the
 units and the scripts they start use that path, not <code class="docutils literal notranslate"><span class="pre">PATH</span></code> (a user service does not get your
 login shell’s <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and the unit’s <code class="docutils literal notranslate"><span class="pre">ExecStop</span></code> needs an absolute path). <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> stops
 if it is missing; if podman is installed elsewhere, link it with

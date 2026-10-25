@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on your LAN &#8212; scrap 0.5.2.dev7+g1c4d356ef documentation</title>
+    <title>Try scrap on your LAN &#8212; scrap 0.5.2.dev8+g932e172fc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7ab2129"></script>
+    <script src="../_static/documentation_options.js?v=63f9d45c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -613,15 +613,6 @@ volume.</p>
 </div>
 <p>That copy is local only; copy it off the machine to survive losing it. To update, pull a new
 release tag, remove the container and run it again: the volume keeps your data.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><strong>What has been checked.</strong> On 23 Oct 2026, with rootless podman on Ubuntu and the published
-<code class="docutils literal notranslate"><span class="pre">0.2.2</span></code> image, the container with a named volume was reached on both the LAN and the Tailscale
-address, and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> accepted an address only when it was in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (421 otherwise).
-Not checked: a phone (tiers A and B and the browser limits are as documented by browsers), the
-<code class="docutils literal notranslate"><span class="pre">--network=host</span> <span class="pre">--host</span> <span class="pre">0.0.0.0</span></code> command above with the 0.5.0 image, Docker rather than podman,
-a Raspberry Pi, and the <code class="docutils literal notranslate"><span class="pre">backup</span></code> command.</p>
-</div>
 </section>
 <section id="next-steps">
 <h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>

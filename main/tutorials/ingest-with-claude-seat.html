@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 0.5.2.dev7+g1c4d356ef documentation</title>
+    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 0.5.2.dev8+g932e172fc documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7ab2129"></script>
+    <script src="../_static/documentation_options.js?v=63f9d45c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -602,16 +602,6 @@ it is paused. A <code class="docutils literal notranslate"><span class="pre">401
 <strong>Resume</strong>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> still applies, to what the calls would cost at API prices, not to
 anything you are charged. Set <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> to keep the seat to photos.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><strong>What has been checked.</strong> The <code class="docutils literal notranslate"><span class="pre">Dockerfile.claude</span></code> build command and argument names were run on
-23 Oct 2026 against <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.2.2</span></code>, and the image’s <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">--version</span></code> printed
-2.1.281. The Helm values above were rendered with <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">template</span></code> and give the three environment
-variables, the image and the CronJob settings shown; they have not been installed on a cluster.
-Ingest on a seat reading two photos in about 10 seconds was checked by hand on 22 Oct 2026 on a
-DLS workstation. The steps for the LAN and server
-installs, and the empty <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> Secret key, have not been run in full.</p>
-</div>
 </section>
 </section>
 
