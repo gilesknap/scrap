@@ -1,4 +1,4 @@
-// What Claude made of a photo, under it on the page: its ingest state with Reprocess, Retry or
+// What Claude made of a photo, under it on the page: its ingest state with Regenerate, Retry or
 // Resume, the description and text it read, and its drawing beside the photo (side by side
 // when there is room, else a Photo / Drawing switch).
 import { ApiError, api, type FileRef, type Ingest, kept, type Queue } from "./api";
@@ -22,19 +22,24 @@ export function stateText(i: Ingest, q: Queue | null): string {
   }
 }
 
+/** The photo card's title: what it holds (figure.ts's card for an unread photo says it too). */
+export const PHOTO = "What's in the photo";
+
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** A selectable block of text Claude wrote, open unless folded last time (remembered). */
+/** A selectable block of text Claude wrote, folded until opened (and then open next time:
+ * remembered). */
 function block(summary: string, text: string, pre = false) {
   const key = `scrap.fold.${summary}`;
+  const head = h("summary", {}, summary);
   const el = h(
     "details",
-    { className: "claude-text", open: kept(key) !== "1" },
-    h("summary", {}, summary),
+    { className: "claude-text", open: kept(key) === "open" },
+    head,
     h(pre ? "pre" : "p", {}, text),
   );
-  // (opening it at creation fires a toggle too: removing a missing key changes nothing)
-  el.ontoggle = () => kept(key, el.open ? null : "1");
+  // Remembered as it is tapped (it is about to change), not on toggle: see enrich.ts's fold
+  head.onclick = () => kept(key, el.open ? null : "open");
   return el;
 }
 
@@ -83,8 +88,11 @@ export function photoPanel(o: {
   } else panel.append(o.figure);
 
   // Its state, and what can be done about it
-  const chip = h("span", { className: `state ${i.state}`, role: "status" }, stateText(i, o.queue));
-  const actions = h("div", { className: "ingest" }, chip);
+  // Its title says what the card holds; the pill only where Claude is up to (none once read)
+  const chip =
+    i.state !== "done" &&
+    h("span", { className: `state ${i.state}`, role: "status" }, stateText(i, o.queue));
+  const actions = h("div", { className: "ingest" }, h("h3", { className: "ctitle" }, PHOTO), chip);
   const reprocess = async (replace: boolean) => {
     try {
       const r = await api<{ queued: number; already: number }>(`captures/${o.cid}/reprocess`, {
@@ -119,10 +127,10 @@ export function photoPanel(o: {
   const button = (label: string, onclick: () => void) =>
     h("button", { type: "button", onclick }, label);
   if (i.state === "failed") actions.append(button("Retry", () => void reprocess(false)));
-  // Reprocess is rarely wanted: a quiet text button at the row's end, not a full one (a text
-  // page's Claude row says the same: enrich.ts)
+  // Regenerate is rarely wanted: a quiet text button at the row's end, not a full one. Every
+  // Claude card says the same: Generate the first time, Regenerate after (enrich.ts, writeup.ts)
   else if (i.state === "done")
-    actions.append(h("button", { type: "button", className: "link", onclick: ask }, "Reprocess"));
+    actions.append(h("button", { type: "button", className: "link", onclick: ask }, "Regenerate"));
   else if (i.state === "paused") {
     const resume = async () => {
       try {
@@ -134,8 +142,15 @@ export function photoPanel(o: {
     };
     actions.append(button("Resume", () => void resume()));
   }
-  panel.append(actions);
-  if (i.description) panel.append(block("Description", i.description));
-  if (i.text) panel.append(block("Text Claude read", i.text, true));
+  // What Claude made of it, in the brown card all of Claude's work is in (css: .claude)
+  panel.append(
+    h(
+      "div",
+      { className: "claude" },
+      actions,
+      i.description ? block("Description", i.description) : "",
+      i.text ? block("Text in the photo", i.text, true) : "",
+    ),
+  );
   return panel;
 }

@@ -105,6 +105,24 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+/* The photo's file name, at the top left (no caption on the page) */
+.viewer .name {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--s-2) + 12px);
+  left: max(env(safe-area-inset-left), var(--s-3));
+  max-width: calc(50% - var(--s-6));
+  overflow: hidden;
+  padding: 2px var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--overlay);
+  font-size: var(--t-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.viewer .name:empty {
+  display: none;
+}
 .viewer .count:empty {
   display: none;
 }

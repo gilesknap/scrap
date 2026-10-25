@@ -2,7 +2,7 @@
 // found related (merged with pages linking here), its state while it reads, and Ask Claude to
 // have it read the page now (a saved link is fetched again). Claude's tags are marked in the
 // tag line (page.ts). A chunk of its own: the page view loads it when the page has any of it.
-import { ApiError, api, type Page } from "./api";
+import { ApiError, api, kept, type Page } from "./api";
 import { h, toast } from "./ui";
 
 export type Enrich = NonNullable<Page["enrich"]>;
@@ -33,22 +33,23 @@ export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** What Claude did, in a line, so Reprocess says what it would redo (or, never read, what
- * asking would do). */
-export function did(p: Page, read: boolean): string {
-  if (!read) return "Claude can summarise it, suggest tags and find related pages.";
-  const parts = [
-    p.enrich?.summary && "wrote the summary",
-    p.model_tags?.length && "added the dashed tags",
-    p.related?.some((r) => r.via !== "link") && "found the related pages",
-  ].filter(Boolean) as string[];
-  if (!parts.length) return "Claude found nothing to add.";
-  const last = parts.pop();
-  return `Claude ${parts.length ? `${parts.join(", ")} and ${last}` : last}.`;
+/** A fold of the card, as a photo's Description is, but open until closed (then remembered
+ * closed): what Claude found is short, and what the card is for. */
+function fold(label: string, ...body: (Node | string)[]) {
+  const key = `scrap.fold.${label}`;
+  const head = h("summary", {}, label);
+  const el = h("details", { className: "claude-text", open: kept(key) !== "shut" }, head, ...body);
+  // Remembered as it is tapped (it is about to change), not on toggle, which comes a task later:
+  // a reload or a redraw in between would lose it
+  head.onclick = () => kept(key, el.open ? "shut" : null);
+  return el;
 }
 
+/** Never read: what asking Claude would do. */
+export const ASK = "Claude can summarise it, suggest tags and find related pages.";
+
 /** The panel, or null when there is nothing to show and Claude is off. Its row says it as a
- * photo's does: Read by Claude (or where it is up to), then Reprocess. */
+ * photo's does: Read by Claude (or where it is up to), then Regenerate. */
 export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | null {
   const e = p.enrich;
   const related = relatedOf(p);
@@ -57,7 +58,8 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
   // Waiting, reading or paused: nothing to ask for meanwhile (paused offers Resume instead)
   const busy = ["queued", "processing", "paused"].includes(e?.state ?? "");
   // Never read: no state to show, only what asking would do, then the button under it
-  const said = (e && e.state !== "done" && stateText(e)) || (read ? "Read by Claude" : null);
+  // The title says what the card holds; the pill only where Claude is up to (none once read)
+  const said = e && e.state !== "done" ? stateText(e) : null;
   const ask =
     e?.on &&
     !busy &&
@@ -77,7 +79,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
           }
         },
       },
-      e.state === "failed" ? "Retry" : read ? "Reprocess" : "Ask Claude to read it",
+      e.state === "failed" ? "Retry" : read ? "Regenerate" : "Generate",
     );
   // The queue is the photos' too: its Resume (api/ingest/resume) ends the pause for both
   const resume =
@@ -103,36 +105,40 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
   const state = e?.state === "failed" || e?.state === "paused" ? e.state : read ? "done" : "";
   return h(
     "section",
-    { className: "enrich" },
-    said
-      ? h(
-          "div",
-          { className: "ingest" },
-          h("span", { className: `state ${state}`, role: "status" }, said),
-          resume || ask,
-        )
+    { className: "enrich claude" },
+    h(
+      "div",
+      { className: "ingest" },
+      h("h3", { className: "ctitle" }, "About this page"),
+      said && h("span", { className: `state ${state}`, role: "status" }, said),
+      resume || ask,
+    ),
+    // Never read: what asking would do. Read: its parts under headings, Summary (a board has
+    // none: its write-up says what it shows) and Related
+    !busy && e?.on && !read ? h("p", { className: "did" }, ASK) : "",
+    read && !e?.summary && !related.length
+      ? h("p", { className: "did" }, "Claude found nothing to add.")
       : "",
-    !busy && e?.on && h("p", { className: "did" }, did(p, read)),
-    !said && ask ? h("div", { className: "ask" }, ask) : "",
-    e?.summary && h("p", { className: "summary", dir: "auto" }, e.summary),
+    e?.summary ? fold("Summary", h("p", { className: "summary", dir: "auto" }, e.summary)) : "",
     related.length > 0 &&
-      h(
-        "div",
-        { className: "related" },
-        h("h2", {}, "Related"),
-        h(
-          "ul",
-          {},
-          ...related.map((r) =>
-            h(
-              "li",
-              {},
-              h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
-              r.via === "link" && h("small", {}, " · links here"),
-              r.via === "writeup" && h("small", {}, " · in a write-up"),
+      Object.assign(
+        fold(
+          "Related",
+          h(
+            "ul",
+            {},
+            ...related.map((r) =>
+              h(
+                "li",
+                {},
+                h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
+                r.via === "link" && h("small", {}, " · links here"),
+                r.via === "writeup" && h("small", {}, " · in a write-up"),
+              ),
             ),
           ),
         ),
+        { className: "claude-text related" },
       ),
   );
 }

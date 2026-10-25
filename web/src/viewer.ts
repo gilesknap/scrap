@@ -43,6 +43,7 @@ export function viewer(photos: Photo[], start: number, link?: string) {
   const note = h("p", { className: "note", hidden: true }, "No preview of this one: use Download");
   const stage = h("div", { className: "stage" }, img, note);
   const count = h("span", { className: "count" });
+  const named = h("span", { className: "name" }); // its file name: no caption on the page
   let save = download("");
   const tool = (
     glyph: Icon | null,
@@ -73,6 +74,7 @@ export function viewer(photos: Photo[], start: number, link?: string) {
     { className: "viewer", role: "dialog", "aria-modal": "true", "aria-label": "Photo" },
     stage,
     bar,
+    named,
     count,
     close,
   );
@@ -82,6 +84,7 @@ export function viewer(photos: Photo[], start: number, link?: string) {
     i = (n + photos.length) % photos.length;
     const p = photos[i];
     img.alt = p.name;
+    named.textContent = p.name;
     const fresh = download(p.save);
     save.replaceWith(fresh);
     save = fresh;

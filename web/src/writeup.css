@@ -1,47 +1,12 @@
-/* Claude's write-up of a board page (writeup.ts): a fold under the page's text, its card
-   dashed in --line-strong as Claude's tags are, so it never reads as the owner's text. */
-.writeup {
-  margin: var(--s-4) 0;
-}
-.writeup summary {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--tap);
-  cursor: pointer;
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-  font-weight: 600;
-  list-style: none;
-}
-.writeup > summary {
-  color: var(--ink);
-  font-size: var(--t-md);
-}
-.writeup summary::-webkit-details-marker {
-  display: none;
-}
-/* A chevron: points right when folded, down when open (as .claude-text's) */
-.writeup summary::before {
-  content: "";
-  flex: none;
-  width: 7px;
-  height: 7px;
-  margin-inline: 3px var(--s-1);
-  border: solid currentColor;
-  border-width: 0 2px 2px 0;
-  rotate: -45deg;
-  transition: rotate var(--d-1) var(--ease);
-}
-.writeup[open] > summary::before,
-.writeup .sub[open] > summary::before {
-  rotate: 45deg;
-}
+/* Claude's write-up of a board page (writeup.ts): a Claude card (.claude), its state line then
+   the write-up as a fold (.claude-text), as a photo's card is; inside, its byline, summary and
+   text, then Guidance and Versions as folds of their own. */
 .writeup .card {
-  padding: var(--s-3) var(--s-4);
-  border: 1.5px dashed var(--line-strong);
-  border-radius: var(--r-md);
-  background: var(--surface);
+  padding-bottom: var(--s-2);
+}
+.writeup .card > .md:last-child,
+.writeup .card > :last-child {
+  margin-bottom: 0;
 }
 .writeup .ingest > button:not(.link) {
   margin-inline-start: auto;

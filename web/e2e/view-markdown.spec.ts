@@ -99,9 +99,9 @@ test("tables, task lists, code, page links, a figure and a diagram", async ({ pa
   await expect(body.locator("h2#h-plan")).toHaveText("Plan");
   await expect(body.locator(".footnotes")).toContainText("A footnote.");
   await expect(body).toContainText("<img src=x onerror=alert(1)>"); // shown, not run
-  // The embedded photo is a figure, with its name and Download (and Claude's panel)
+  // The embedded photo is a figure, named by its alt (no caption: the viewer names it)
   await expect(body.locator("figure.orig img")).toBeVisible();
-  await expect(body.locator("figure.orig figcaption")).toContainText("a.png");
+  await expect(body.locator("figure.orig img")).toHaveAttribute("alt", "a.png");
   // The diagram, drawn by Mermaid (a chunk loaded for it): its labels are text in an SVG
   await expect(body.locator(".diagram svg")).toBeVisible();
   await expect(body.locator(".diagram")).toContainText("Start");
@@ -156,7 +156,7 @@ test("a paragraph with an image in a link, emphasis or a spaced link keeps all o
   await expect(page.locator(".body.md a[href='https://example.com/c']")).toHaveCount(1);
 });
 
-test("a figure's Download stays whole beside a long file name, at 360 and 412 px", async ({
+test("the viewer names a photo on one line, however long its file name, at 360 and 412 px", async ({
   page,
 }) => {
   const form = new FormData();
@@ -168,24 +168,19 @@ test("a figure's Download stays whole beside a long file name, at 360 and 412 px
   for (const width of [360, 412]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto(`/p/${ref.slug}`);
-    const save = page.locator(".page figure .save").first();
-    await expect(save).toHaveText("Download");
-    // The overflow audit for figure controls: one line, inside the screen, a 20 px icon
-    const got = await save.evaluate((el) => {
+    await expect(page.locator(".page figure figcaption")).toHaveCount(0); // no caption
+    await page.locator(".page figure img").first().click();
+    const label = page.getByRole("dialog").locator(".name");
+    await expect(label).toHaveText(name);
+    // One line, cut with an ellipsis, inside the screen and clear of the count and Close
+    const got = await label.evaluate((el) => {
       const r = el.getBoundingClientRect();
-      const text = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
-      const range = document.createRange();
-      if (text) range.selectNodeContents(text);
-      const tops = new Set([...range.getClientRects()].map((c) => Math.round(c.top)));
-      const icon = el.querySelector(".i")?.getBoundingClientRect();
-      return { lines: tops.size, right: r.right, height: Math.round(r.height), icon: icon?.width };
+      return { right: r.right, height: Math.round(r.height), cut: el.scrollWidth > el.clientWidth };
     });
-    expect(got.right).toBeLessThanOrEqual(width);
-    expect(got.height).toBeGreaterThanOrEqual(44);
-    expect(got.height).toBeLessThanOrEqual(48);
-    expect(got.icon).toBe(20);
-    expect(got.lines, `Download on one line at ${width} px`).toBe(1);
-    await expect(page.locator(".page figure figcaption span").first()).toHaveText(name);
+    expect(got.right).toBeLessThanOrEqual(width / 2);
+    expect(got.height).toBeLessThanOrEqual(30);
+    expect(got.cut).toBe(true);
+    await page.goBack();
   }
 });
 
