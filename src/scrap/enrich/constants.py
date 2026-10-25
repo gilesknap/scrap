@@ -23,6 +23,12 @@ RELATED_SCHEMA: dict[str, Any] = {
     "required": ["related"],
     "properties": {"related": {"type": "array", "items": {"type": "integer"}}},
 }
+# The tags that mark quoted data in a user turn, and one of them, opening or closing,
+# in the data itself (any case, with spaces: < / Page >), to be neutralised
+DELIMITERS = ("page", "images", "fetched")
+DELIMITER = re.compile(
+    r"<(?=\s*/?\s*(?:" + "|".join(DELIMITERS) + r")\b)", re.IGNORECASE
+)
 SHORT = 200  # characters: a shorter note gets tags but no summary
 MAX_BODY = 12_000  # characters of the page's text sent
 MAX_IMAGES = 8_000  # characters of what was read from its images (descriptions, text)

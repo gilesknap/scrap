@@ -10,6 +10,7 @@ from ..markdown import plain
 from ..query import CONTROL
 from ..store import unlink
 from .constants import (
+    DELIMITER,
     IMAGES,
     MAX_BODY,
     MAX_IMAGES,
@@ -22,6 +23,13 @@ from .constants import (
 )
 
 Image = dict[str, str | None]  # what photo ingest read from one: description, text
+
+
+def quoted(text: str) -> str:
+    """Data for a user turn with any delimiter tag in it (<page>, </images>...)
+    neutralised, its < made &lt;: the model still reads it, but it cannot end the
+    quote or open one. After any cut, so no part of a tag is left whole."""
+    return DELIMITER.sub("&lt;", text)
 
 
 def page_images(conn: sqlite3.Connection, page_id: str) -> list[Image]:
@@ -42,7 +50,7 @@ def image_lines(images: Sequence[Image], most: int) -> list[str]:
         return []
     read = "\n".join(items)
     read = read if len(read) <= most else read[: most - 1] + "…"
-    return ["Read from its images:", "<images>", read, "</images>"]
+    return ["Read from its images:", "<images>", quoted(read), "</images>"]
 
 
 def vocabulary(conn: sqlite3.Connection) -> list[tuple[str, int]]:
@@ -95,12 +103,12 @@ def related_message(
     read from its images."""
     text = "\n".join([
         f"Kind: {page['kind']}",
-        f"Title: {page['title']}",
-        f"Tags: {', '.join(tags) or '(none)'}",
-        f"Summary: {summary or '(none)'}",
+        f"Title: {quoted(page['title'])}",
+        f"Tags: {quoted(', '.join(tags)) or '(none)'}",
+        f"Summary: {quoted(summary or '') or '(none)'}",
         "Start of its text:",
         "<page>",
-        plain(page["body"]).strip()[:RELATED_BODY] or "(empty)",
+        quoted(plain(page["body"]).strip()[:RELATED_BODY]) or "(empty)",
         "</page>",
         *image_lines(images, RELATED_IMAGES),
     ])  # fmt: skip
@@ -120,11 +128,11 @@ def page_message(
     """The user turn: the page (title, kind, tags, its text, what was read from its
     images) and for a link what was fetched. keep_text False puts a placeholder for
     the fetched text (as stored: a read keeps its link and summary only)."""
-    body = plain(page["body"]).strip()[:MAX_BODY]
+    body = quoted(plain(page["body"]).strip()[:MAX_BODY])
     parts = [
         f"Kind: {page['kind']}",
-        f"Its tags: {', '.join(tags) or '(none)'}",
-        f"Title: {page['title']}",
+        f"Its tags: {quoted(', '.join(tags)) or '(none)'}",
+        f"Title: {quoted(page['title'])}",
         "Text:",
         "<page>",
         body or "(empty)",
@@ -132,16 +140,16 @@ def page_message(
         *image_lines(images, MAX_IMAGES),
     ]
     if link:
-        parts += ["", f"This page is a saved link: {link}"]
+        parts += ["", f"This page is a saved link: {quoted(link)}"]
         if got is not None:
-            text = got.text
-            if not keep_text:
-                digest = hashlib.sha256(text.encode()).hexdigest()[:16]
-                text = f"[fetched text: {len(text)} characters, sha256 {digest}]"
+            text = quoted(got.text)
+            if not keep_text:  # the digest of the text as fetched
+                digest = hashlib.sha256(got.text.encode()).hexdigest()[:16]
+                text = f"[fetched text: {len(got.text)} characters, sha256 {digest}]"
             parts += [
-                f"Fetched from: {got.url}",
-                f"Its title: {got.title or '(none)'}",
-                f"Its description: {got.description or '(none)'}",
+                f"Fetched from: {quoted(got.url)}",
+                f"Its title: {quoted(got.title) or '(none)'}",
+                f"Its description: {quoted(got.description) or '(none)'}",
                 "<fetched>",
                 text or "(no readable text)",
                 "</fetched>",
@@ -153,6 +161,6 @@ def page_message(
                     " and address."
                 )
             else:
-                parts.append(f"It could not be fetched: {failed}")
+                parts.append(f"It could not be fetched: {quoted(failed or '')}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
