@@ -36,7 +36,11 @@ untrusted.
   `scrap enrich --related`, for each page changed since its last picks (`--all`: every page).
   Amended (#255): also once when a page is first read (its first enrich, or photo ingest of all
   of its first photo capture), as an enrich job of reason `related` (migration 11), so a new
-  page has related pages before the night. Saves do not queue one. Related shows both ways, so an older page learns of a newer one that picked it without a call of
+  page has related pages before the night. Saves do not queue one. To roll back to a scrap
+  before migration 11 (0.5.1 refuses schema 11), run `PRAGMA user_version = 10;` and
+  `DELETE FROM enrich_job WHERE reason = 'related' AND state = 'queued';` (older code would run
+  a queued `related` job as a full enrich, adding tags and redoing the summary). Upgrading again
+  is safe: migration 11 skips the rebuild when the table already takes `'related'`. Related shows both ways, so an older page learns of a newer one that picked it without a call of
   its own.
 - **Triggers.** A note or link capture queues a job (a link at once, a note after
   `SCRAP_ENRICH_DEBOUNCE` seconds, default 60). A save of a page's title or text moves its one

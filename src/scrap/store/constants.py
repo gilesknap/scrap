@@ -144,7 +144,7 @@ WHERE NOT EXISTS (SELECT 1 FROM enrich_job WHERE page_id = :page AND reason = 'r
 ON CONFLICT DO NOTHING
 """
 # A page's first photo capture (the first with an ingest job), once none of its photos
-# waits or is being read: its page, else nothing
+# waits or is being read (each read, or dead): its page, else nothing
 FIRST_READ = """
 SELECT c.page_id FROM capture c WHERE c.id = :capture
   AND c.id = (SELECT f.id FROM capture f JOIN job j ON j.capture_id = f.id

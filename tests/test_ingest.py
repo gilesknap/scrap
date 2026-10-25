@@ -438,6 +438,22 @@ def test_a_new_photo_page_gets_one_related_call_once_its_photos_are_read(
     assert len(calls) == 5  # two photos, related, the two photos again
 
 
+def test_a_dead_photo_still_lets_its_capture_queue_one_related_call(
+    store, conn, monkeypatch
+):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    ref = photo(store, [jpeg("red"), jpeg("blue")])
+    content = claude.CallError("content", "400")
+    fake = Fake(BOARD, content, content, content)
+    for _ in range(4):  # the first photo, then the second's three failures
+        conn.execute("UPDATE job SET run_after = ? WHERE state = 'queued'", (PAST,))
+        assert enrich_jobs(conn) == []
+        assert run_one(store, fake) is True
+    states = [r[0] for r in conn.execute("SELECT state FROM job ORDER BY id")]
+    assert states == ["done", "dead"]
+    assert enrich_jobs(conn) == [(ref["page_id"], "related", "queued")]
+
+
 def test_with_enrich_off_reading_a_photo_queues_no_related_call(
     store, conn, monkeypatch
 ):

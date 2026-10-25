@@ -484,11 +484,13 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   search the index refuses is logged and skipped: the tag and recent candidates still go.
 - **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
   makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo
-  of its first photo capture, queues an enrich job of reason `related` (one per page, ever; with
-  enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
+  of its first photo capture (read, or dead after its third failure), queues an enrich job of
+  reason `related` (with enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
   the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
   the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
-  itself). Saves and edits queue none, nor does a later Reprocess. Otherwise `scrap enrich --related [--all] [--limit N]
+  itself). Saves and edits queue none. It is queued once per page, ever: a later Reprocess
+  of the first photo capture queues one only for a page that never had one, such as a page read
+  before this change or while enrich was off. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
   newer than its `updated_at`, or than the newest current description or text photo ingest read
   from one of its images; `--all`: every page). It runs in the command's process (in the
