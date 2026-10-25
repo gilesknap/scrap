@@ -36,10 +36,14 @@ claude mcp add --transport http --scope user scrap http://localhost:8000/mcp
 curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/commands/install.sh | sh
 ```
 
-Start a new Claude Code session, save a note in the browser, then try ```
+Start a new Claude Code session, save a note in the browser, then try 
+
+```
 /sc-find <word>
 ``` 
+
 or 
+
 ```
 search scrap for ...
 ```
