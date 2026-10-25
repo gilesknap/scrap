@@ -184,7 +184,8 @@ The schema is in [`0002_ingest.sql`](https://github.com/gilesknap/scrap/blob/mai
 A conversation (not built yet) would continue run *R* by sending *R*'s system prompt and
 messages, *R*'s `response` unchanged as the assistant turn, and a new user turn, on *R*'s model.
 `model_run.parent_id` is there for it. MCP does not expose runs: `read` lists each image with its URL and what Claude read from
-it, and Claude's own additions (summary, tags, related pages) under `by_model`. See
+it, and Claude's own additions (summary, tags, related pages, a board's write-up) under
+`by_model`. See
 [](../reference/mcp.md).
 
 ## Derived results and versions
@@ -392,7 +393,12 @@ Only when ingest is on and only to the Claude API:
   scrap. The fetched text is sent, not stored.
 - **Related pages:** the page in brief (its kind, title, tags, summary, the first 2,000
   characters of its text and the first 3,000 of what was read from its images) and an index of
-  up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters.
+  up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters. For
+  a board page, also the first 2,000 characters of its write-up.
+- **A board's write-up:** the board photos themselves (at most four, the JPEGs photo ingest
+  sent), what was read from them (at most 12,000 characters), the page's kind, title, tags and
+  text as plain words (at most 6,000 characters), the owner's guidance, if any, and the same index
+  of candidate pages as the related call.
 
 Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and `SCRAP_NOTIFY_URL`, which gets a fixed line with the
@@ -457,7 +463,8 @@ page's text, except that a confident list of actions gets task boxes appended
   `summary` field (imported, the user's) wins in search and the index.
 - **Stored apart from the text:** `enrichment` (summary, fetched address and title, the run),
   `model_tag`, `related` (Claude's picks in order), and every call in `enrich_run` (as
-  `model_run`, whose cost it shares in the budget; `request.purpose` is `enrich` or `related`). A
+  `model_run`, whose cost it shares in the budget; `request.purpose` is `enrich`, `related` or
+  `writeup`). A
   link's fetched text is sent, not kept: the stored request has a placeholder with its length and
   hash. Search indexes the summary in the page's summary column.
 - **Failures** follow the photo rules: outage, credit, auth and budget pause the shared queue and
@@ -470,7 +477,8 @@ page's text, except that a confident list of actions gets task boxes appended
 ### Related pages
 
 `enrich.relate`, prompt `prompts/related.md`. One call per page: the page in
-brief (title, tags, summary, the start of its text and of what was read from its images) and a
+brief (title, tags, summary, the start of its text, of what was read from its images and of
+its write-up, if it has one) and a
 numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
 answers with up to 5 index numbers, so it cannot name a page that is not there.
 
@@ -485,15 +493,16 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
 - **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
   makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo
   of its first photo capture (read, or dead after its third failure), queues an enrich job of
-  reason `related` (with enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
+  reason `related` (with enrich on). A board page's comes after its write-up instead (when the
+  write-up job is done, or dead), so it sees the write-up. It runs on the worker like any enrich job (pause, budget, retries). It never takes
   the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
   the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
   itself). Saves and edits queue none. It is queued once per page, ever: a later Reprocess
   of the first photo capture queues one only for a page that never had one, such as a page read
   before this change or while enrich was off. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
-  newer than its `updated_at`, or than the newest current description or text photo ingest read
-  from one of its images; `--all`: every page). It runs in the command's process (in the
+  newer than its `updated_at`, than the newest current description or text photo ingest read
+  from one of its images, or than its current write-up; `--all`: every page). It runs in the command's process (in the
   container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and the
   day's budget before each call, and stops at either (an outage, credit or auth error pauses the
   queue as the worker does); other failures are counted and it goes on. Exit status 1 when
@@ -501,11 +510,79 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   (03:41) in the service's container, and `install.sh` enables the timer if the image has the
   command. While ingest or enrich is off, or no key (or, with `SCRAP_LLM_BACKEND=cli`, no seat
   token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
-- **Both ways.** A page's Related merges its picks, pages that picked it, and pages linking here
-  with `[[slug]]` (marked "links here"), each once, at most 8. So a new page that picks an older
-  one shows on the older one too, without a call for the older page.
-- **MCP** `read` returns all of this under `by_model` (summary, Claude's tags, related), labelled
-  as written by a model, not the user.
+- **Both ways.** A page's Related merges its picks, pages that picked it, pages linking here
+  with `[[slug]]` (marked "links here"), and pages its current write-up links to or whose current
+  write-up links here (`via: writeup`, marked "in a write-up"), each once (a page that is both
+  keeps its first: a pick, then a link), at most 8 shown. So a new page that picks an older one
+  shows on the older one too, without a call for the older page. Write-up links are not the
+  body's links or backlinks (MCP `read`'s `links` and `backlinks`).
+- **MCP** `read` returns all of this under `by_model` (summary, Claude's tags, related, a board's
+  write-up), labelled as written by a model, not the user.
+
+(ingest-writeup)=
+### Write-ups of boards
+
+`enrich.write_up`, prompt `prompts/writeup.md`
+([](decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md)). Photo ingest gives a
+board a description, its text and a drawing, which say what is on it but not what it means. A
+write-up explains it: Markdown sections (overview, structure, decisions, open questions, related
+pages, and a "What it suggests" section marked as interpretation, which may draw on general
+knowledge of the tools it names) of about 200 to 800 words, and a one or two sentence lead. The
+page text is context that may be wrong (it may be another app's): the photo wins. It is derived data, never
+the page's text.
+
+- **Which pages.** A board page: one with an image whose current reading says `whiteboard` or
+  `diagram` (the photo call's image kind, not the page's kind), unless that reading judged it a
+  list of actions (a to-do sticky becomes a checklist instead: {ref}`ingest-actions`).
+  Documents, handwriting, screenshots and photos get none. A page reprocessed into another kind
+  keeps its write-ups as history, but they are no longer shown, searched, linked or its summary.
+- **When.** With enrich on, as an enrich job of reason `writeup`, when photo ingest has read all
+  of the page's photos (or given up on one) and a board image was read since the page's last
+  write-up: so on its first reading, after a Reprocess, and after a new board photo. Its first
+  related call follows it ({ref}`ingest-enrich-related`). **Ask Claude** on a board page writes
+  one too, after its tags and summary and before its related pages. **Regenerate** (`POST
+  /api/pages/{id}/writeup`) queues one by hand. A queued write-up is not taken over by a save (a
+  board is not read as text anyway), only by Ask, which writes one. `scrap enrich --writeups
+  [--all] [--limit N] [--dry-run]` writes them in the command's process for every board page with
+  none (`--all`: every board page), with the related pass's pause, budget and exit rules; run
+  `scrap enrich --related` after it, so related pages see them.
+- **The call.** `SCRAP_VISION_MODEL` (default `claude-opus-5-5`), effort `medium`, `max_tokens`
+  16000, structured output (`summary`, `text`). The user turn has each board photo (at most 4:
+  the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
+  2..., then the page's kind, title and tags, its text as plain words in a `<page>` block (at most
+  6,000 characters), what was read from its board images in an `<images>` block (at most 12,000),
+  and the owner's guidance in a `<guidance>` block. The system prompt ends with the related
+  call's index of candidate pages (`enrich.CANDIDATES`). All of it is quoted data, `<` of any
+  delimiter tag inside it sent as `&lt;`.
+- **Links.** The model cites a page by its index number, `[[n]]` or `[[n|words]]`. scrap makes
+  each valid number a `[[slug]]` (or `[[slug|words]]`) link; any other `[[...]]` keeps only its
+  words. Everything else Markdown would make a link of keeps only its words too: inline and
+  reference links and images, reference definitions (`[r]: url`), autolinks (`<https://…>`) and
+  URL schemes that the renderer's linkify would link (`https://`, `mailto:`), and any `](` or
+  `]:` left is split (`] (`), so nothing can start a link or a definition (in code spans too).
+  The cited links are held aside meanwhile, and the stripping is repeated until nothing changes,
+  since taking one link out can make another. So a write-up cannot link a page that is not
+  there, one in the trash, or anything outside scrap. The PWA also shows any link in it as its
+  words unless it goes to a page the server lists as one the write-up links (`links`).
+- **Output, checked.** `summary`: one line, at most 600 characters; `text`: Markdown without
+  control characters, at most 20,000 characters, not empty (else the run is invalid and retried).
+- **Stored apart from the text** (migration 12): each write-up is a new version in `writeup`
+  (`producer`, `run_id`, `prompt_version`, `summary`, `text`, the `guidance` used), one current,
+  older ones kept and never changed. Restore (`POST /api/pages/{id}/writeup/restore`) makes an
+  old one current again as a copy, as drawings do. It is not in page revisions, and nobody edits
+  it.
+- **Guidance.** The owner may leave a note for the next write-up (`PUT
+  /api/pages/{id}/writeup/guidance`, at most 2,000 characters, kept in `writeup_guidance`), such
+  as "focus on the data flow; 'Enc' means encoder". The next write-up is given it, and keeps a
+  copy. Saving it queues nothing: Regenerate does.
+- **Where it shows.** The page view's "Claude's write-up" section; its `summary` is the page's
+  model summary (before enrich's), so search and the related index use it; its text is indexed
+  for search (a chunk of the page's own, made again with it); MCP `read` returns the current one
+  as `by_model.writeup`.
+- **Cost.** A board image is at most about 4,800 image tokens (a 4:3 photo about 4,100), the
+  index about 40 tokens a page (up to about 6,000), the prompt and text a few thousand more: about
+  10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens (thinking included), roughly
+  $0.06 to $0.20 a board at Opus prices, counted in the daily budget.
 
 (ingest-fetch)=
 ### Fetching a link
@@ -651,6 +728,7 @@ holds what you sent to Claude, and your backups do too.
 | `scrap ingest-once IMAGE [--save FILE]` | Try one image against Claude with no database; numbers only unless `--save` |
 | `scrap enrich --backfill` | Queue the notes, todos and reads with no tags that Claude has not read; the service's worker runs them |
 | `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
+| `scrap enrich --writeups [--all]` | Write Claude's write-up now, in the command's process, for each board page with none (`--all`: every board page) |
 | `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
 
 The full option lists are in [](../reference/api.md). A large import with `--ingest` queues one

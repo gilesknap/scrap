@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.5.2.dev12+g85dfb8810 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.6.1.dev2+g187108b05 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9a7ae161"></script>
+    <script src="../_static/documentation_options.js?v=bbf5d5c9"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -449,6 +449,7 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
@@ -710,7 +711,8 @@ The schema is in <a class="reference external" href="https://github.com/gileskna
 <p>A conversation (not built yet) would continue run <em>R</em> by sending <em>R</em>’s system prompt and
 messages, <em>R</em>’s <code class="docutils literal notranslate"><span class="pre">response</span></code> unchanged as the assistant turn, and a new user turn, on <em>R</em>’s model.
 <code class="docutils literal notranslate"><span class="pre">model_run.parent_id</span></code> is there for it. MCP does not expose runs: <code class="docutils literal notranslate"><span class="pre">read</span></code> lists each image with its URL and what Claude read from
-it, and Claude’s own additions (summary, tags, related pages) under <code class="docutils literal notranslate"><span class="pre">by_model</span></code>. See
+it, and Claude’s own additions (summary, tags, related pages, a board’s write-up) under
+<code class="docutils literal notranslate"><span class="pre">by_model</span></code>. See
 <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p>
 </section>
 <section id="derived-results-and-versions">
@@ -994,7 +996,12 @@ text, at most 8,000 characters in all), a list of the tags already in use with t
 scrap. The fetched text is sent, not stored.</p></li>
 <li><p><strong>Related pages:</strong> the page in brief (its kind, title, tags, summary, the first 2,000
 characters of its text and the first 3,000 of what was read from its images) and an index of
-up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters.</p></li>
+up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters. For
+a board page, also the first 2,000 characters of its write-up.</p></li>
+<li><p><strong>A board’s write-up:</strong> the board photos themselves (at most four, the JPEGs photo ingest
+sent), what was read from them (at most 12,000 characters), the page’s kind, title, tags and
+text as plain words (at most 6,000 characters), the owner’s guidance, if any, and the same index
+of candidate pages as the related call.</p></li>
 </ul>
 <p>Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>, which gets a fixed line with the
@@ -1061,7 +1068,8 @@ only while it is an unfixed note. The summary is the model’s own (<code class=
 <code class="docutils literal notranslate"><span class="pre">summary</span></code> field (imported, the user’s) wins in search and the index.</p></li>
 <li><p><strong>Stored apart from the text:</strong> <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> (summary, fetched address and title, the run),
 <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> (Claude’s picks in order), and every call in <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> (as
-<code class="docutils literal notranslate"><span class="pre">model_run</span></code>, whose cost it shares in the budget; <code class="docutils literal notranslate"><span class="pre">request.purpose</span></code> is <code class="docutils literal notranslate"><span class="pre">enrich</span></code> or <code class="docutils literal notranslate"><span class="pre">related</span></code>). A
+<code class="docutils literal notranslate"><span class="pre">model_run</span></code>, whose cost it shares in the budget; <code class="docutils literal notranslate"><span class="pre">request.purpose</span></code> is <code class="docutils literal notranslate"><span class="pre">enrich</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> or
+<code class="docutils literal notranslate"><span class="pre">writeup</span></code>). A
 link’s fetched text is sent, not kept: the stored request has a placeholder with its length and
 hash. Search indexes the summary in the page’s summary column.</p></li>
 <li><p><strong>Failures</strong> follow the photo rules: outage, credit, auth and budget pause the shared queue and
@@ -1073,7 +1081,8 @@ fetched. The PWA does not show why; see <a class="reference internal" href="#ing
 <section id="related-pages">
 <span id="ingest-enrich-related"></span><h3>Related pages<a class="headerlink" href="#related-pages" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">enrich.relate</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/related.md</span></code>. One call per page: the page in
-brief (title, tags, summary, the start of its text and of what was read from its images) and a
+brief (title, tags, summary, the start of its text, of what was read from its images and of
+its write-up, if it has one) and a
 numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
 answers with up to 5 index numbers, so it cannot name a page that is not there.</p>
 <ul class="simple">
@@ -1088,14 +1097,15 @@ search the index refuses is logged and skipped: the tag and recent candidates st
 <li><p><strong>When.</strong> On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
 makes its <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> row, unless that was an Ask), or photo ingest finishing the last photo
 of its first photo capture (read, or dead after its third failure), queues an enrich job of
-reason <code class="docutils literal notranslate"><span class="pre">related</span></code> (with enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
+reason <code class="docutils literal notranslate"><span class="pre">related</span></code> (with enrich on). A board page’s comes after its write-up instead (when the
+write-up job is done, or dead), so it sees the write-up. It runs on the worker like any enrich job (pause, budget, retries). It never takes
 the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
 the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
 itself). Saves and edits queue none. It is queued once per page, ever: a later Reprocess
 of the first photo capture queues one only for a page that never had one, such as a page read
 before this change or while enrich was off. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code> run
-newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, or than the newest current description or text photo ingest read
-from one of its images; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in the
+newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, than the newest current description or text photo ingest read
+from one of its images, or than its current write-up; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in the
 container: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>), checks the shared queue pause and the
 day’s budget before each call, and stops at either (an outage, credit or auth error pauses the
 queue as the worker does); other failures are counted and it goes on. Exit status 1 when
@@ -1103,11 +1113,76 @@ stopped. On a single server, <code class="docutils literal notranslate"><span cl
 (03:41) in the service’s container, and <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> enables the timer if the image has the
 command. While ingest or enrich is off, or no key (or, with <code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>, no seat
 token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see <a class="reference internal" href="#ingest-enabling"><span class="std std-ref">Enabling ingest</span></a>).</p></li>
-<li><p><strong>Both ways.</strong> A page’s Related merges its picks, pages that picked it, and pages linking here
-with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (marked “links here”), each once, at most 8. So a new page that picks an older
-one shows on the older one too, without a call for the older page.</p></li>
-<li><p><strong>MCP</strong> <code class="docutils literal notranslate"><span class="pre">read</span></code> returns all of this under <code class="docutils literal notranslate"><span class="pre">by_model</span></code> (summary, Claude’s tags, related), labelled
-as written by a model, not the user.</p></li>
+<li><p><strong>Both ways.</strong> A page’s Related merges its picks, pages that picked it, pages linking here
+with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (marked “links here”), and pages its current write-up links to or whose current
+write-up links here (<code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">writeup</span></code>, marked “in a write-up”), each once (a page that is both
+keeps its first: a pick, then a link), at most 8 shown. So a new page that picks an older one
+shows on the older one too, without a call for the older page. Write-up links are not the
+body’s links or backlinks (MCP <code class="docutils literal notranslate"><span class="pre">read</span></code>’s <code class="docutils literal notranslate"><span class="pre">links</span></code> and <code class="docutils literal notranslate"><span class="pre">backlinks</span></code>).</p></li>
+<li><p><strong>MCP</strong> <code class="docutils literal notranslate"><span class="pre">read</span></code> returns all of this under <code class="docutils literal notranslate"><span class="pre">by_model</span></code> (summary, Claude’s tags, related, a board’s
+write-up), labelled as written by a model, not the user.</p></li>
+</ul>
+</section>
+<section id="write-ups-of-boards">
+<span id="ingest-writeup"></span><h3>Write-ups of boards<a class="headerlink" href="#write-ups-of-boards" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">enrich.write_up</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/writeup.md</span></code>
+(<a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html"><span class="std std-doc">27. Claude’s write-ups of boards, apart from the text</span></a>). Photo ingest gives a
+board a description, its text and a drawing, which say what is on it but not what it means. A
+write-up explains it: Markdown sections (overview, structure, decisions, open questions, related
+pages, and a “What it suggests” section marked as interpretation, which may draw on general
+knowledge of the tools it names) of about 200 to 800 words, and a one or two sentence lead. The
+page text is context that may be wrong (it may be another app’s): the photo wins. It is derived data, never
+the page’s text.</p>
+<ul class="simple">
+<li><p><strong>Which pages.</strong> A board page: one with an image whose current reading says <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> or
+<code class="docutils literal notranslate"><span class="pre">diagram</span></code> (the photo call’s image kind, not the page’s kind), unless that reading judged it a
+list of actions (a to-do sticky becomes a checklist instead: <a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>).
+Documents, handwriting, screenshots and photos get none. A page reprocessed into another kind
+keeps its write-ups as history, but they are no longer shown, searched, linked or its summary.</p></li>
+<li><p><strong>When.</strong> With enrich on, as an enrich job of reason <code class="docutils literal notranslate"><span class="pre">writeup</span></code>, when photo ingest has read all
+of the page’s photos (or given up on one) and a board image was read since the page’s last
+write-up: so on its first reading, after a Reprocess, and after a new board photo. Its first
+related call follows it (<a class="reference internal" href="#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>). <strong>Ask Claude</strong> on a board page writes
+one too, after its tags and summary and before its related pages. <strong>Regenerate</strong> (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup</span></code>) queues one by hand. A queued write-up is not taken over by a save (a
+board is not read as text anyway), only by Ask, which writes one. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> writes them in the command’s process for every board page with
+none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page), with the related pass’s pause, budget and exit rules; run
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> after it, so related pages see them.</p></li>
+<li><p><strong>The call.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code> (default <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code>), effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>
+16000, structured output (<code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>). The user turn has each board photo (at most 4:
+the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
+2…, then the page’s kind, title and tags, its text as plain words in a <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code> block (at most
+6,000 characters), what was read from its board images in an <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> block (at most 12,000),
+and the owner’s guidance in a <code class="docutils literal notranslate"><span class="pre">&lt;guidance&gt;</span></code> block. The system prompt ends with the related
+call’s index of candidate pages (<code class="docutils literal notranslate"><span class="pre">enrich.CANDIDATES</span></code>). All of it is quoted data, <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> of any
+delimiter tag inside it sent as <code class="docutils literal notranslate"><span class="pre">&amp;lt;</span></code>.</p></li>
+<li><p><strong>Links.</strong> The model cites a page by its index number, <code class="docutils literal notranslate"><span class="pre">[[n]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[n|words]]</span></code>. scrap makes
+each valid number a <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[[slug|words]]</span></code>) link; any other <code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> keeps only its
+words. Everything else Markdown would make a link of keeps only its words too: inline and
+reference links and images, reference definitions (<code class="docutils literal notranslate"><span class="pre">[r]:</span> <span class="pre">url</span></code>), autolinks (<code class="docutils literal notranslate"><span class="pre">&lt;https://…&gt;</span></code>) and
+URL schemes that the renderer’s linkify would link (<code class="docutils literal notranslate"><span class="pre">https://</span></code>, <code class="docutils literal notranslate"><span class="pre">mailto:</span></code>), and any <code class="docutils literal notranslate"><span class="pre">](</span></code> or
+<code class="docutils literal notranslate"><span class="pre">]:</span></code> left is split (<code class="docutils literal notranslate"><span class="pre">]</span> <span class="pre">(</span></code>), so nothing can start a link or a definition (in code spans too).
+The cited links are held aside meanwhile, and the stripping is repeated until nothing changes,
+since taking one link out can make another. So a write-up cannot link a page that is not
+there, one in the trash, or anything outside scrap. The PWA also shows any link in it as its
+words unless it goes to a page the server lists as one the write-up links (<code class="docutils literal notranslate"><span class="pre">links</span></code>).</p></li>
+<li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one line, at most 600 characters; <code class="docutils literal notranslate"><span class="pre">text</span></code>: Markdown without
+control characters, at most 20,000 characters, not empty (else the run is invalid and retried).</p></li>
+<li><p><strong>Stored apart from the text</strong> (migration 12): each write-up is a new version in <code class="docutils literal notranslate"><span class="pre">writeup</span></code>
+(<code class="docutils literal notranslate"><span class="pre">producer</span></code>, <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, the <code class="docutils literal notranslate"><span class="pre">guidance</span></code> used), one current,
+older ones kept and never changed. Restore (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup/restore</span></code>) makes an
+old one current again as a copy, as drawings do. It is not in page revisions, and nobody edits
+it.</p></li>
+<li><p><strong>Guidance.</strong> The owner may leave a note for the next write-up (<code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{id}/writeup/guidance</span></code>, at most 2,000 characters, kept in <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code>), such
+as “focus on the data flow; ‘Enc’ means encoder”. The next write-up is given it, and keeps a
+copy. Saving it queues nothing: Regenerate does.</p></li>
+<li><p><strong>Where it shows.</strong> The page view’s “Claude’s write-up” section; its <code class="docutils literal notranslate"><span class="pre">summary</span></code> is the page’s
+model summary (before enrich’s), so search and the related index use it; its text is indexed
+for search (a chunk of the page’s own, made again with it); MCP <code class="docutils literal notranslate"><span class="pre">read</span></code> returns the current one
+as <code class="docutils literal notranslate"><span class="pre">by_model.writeup</span></code>.</p></li>
+<li><p><strong>Cost.</strong> A board image is at most about 4,800 image tokens (a 4:3 photo about 4,100), the
+index about 40 tokens a page (up to about 6,000), the prompt and text a few thousand more: about
+10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens (thinking included), roughly
+$0.06 to $0.20 a board at Opus prices, counted in the daily budget.</p></li>
 </ul>
 </section>
 <section id="fetching-a-link">
@@ -1292,7 +1367,10 @@ holds what you sent to Claude, and your backups do too.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span></code></p></td>
 <td><p>Pick related pages now, in the command’s process (the nightly pass)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span> <span class="pre">--ingest</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span></code></p></td>
+<td><p>Write Claude’s write-up now, in the command’s process, for each board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span> <span class="pre">--ingest</span></code></p></td>
 <td><p>Import a vault and also queue its images for Claude; see <a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a></p></td>
 </tr>
 </tbody>
@@ -1430,6 +1508,7 @@ effort if drawings fall short); Excalidraw API drift (the version is pinned); mo
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-sent-to-anthropic">What is sent to Anthropic</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enrich-text-pages-and-links">Enrich: text pages and links</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#related-pages">Related pages</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#write-ups-of-boards">Write-ups of boards</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fetching-a-link">Fetching a link</a></li>
 </ul>
 </li>

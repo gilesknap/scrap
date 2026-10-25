@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.5.2.dev12+g85dfb8810 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.6.1.dev2+g187108b05 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9a7ae161"></script>
+    <script src="../_static/documentation_options.js?v=bbf5d5c9"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1112,6 +1112,32 @@ here</em>).</p></li>
 <p>Reading a page needs the server, like opening it; the page checks again while Claude has it
 queued or is reading it.</p>
 </section>
+<section id="claude-s-write-up-of-a-board">
+<h2>Claude’s write-up of a board<a class="headerlink" href="#claude-s-write-up-of-a-board" title="Link to this heading">#</a></h2>
+<p>A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
+<strong>Claude’s write-up</strong>: an explanation of the board, in a section of its own under the page’s
+text. It is Claude’s, not yours, so it is drawn in a dashed card and is never part of the text
+you edit. Tap its heading to fold it away; it stays folded on that phone until you open it again.
+It has:</p>
+<ul class="simple">
+<li><p>Who wrote it and when: the model, the date and its version (and <em>restored from version N</em>
+after a restore).</p></li>
+<li><p>A one or two sentence lead, which is also the page’s summary, then the write-up itself:
+overview, structure, decisions, open questions and related pages, as fits the board. Its links
+open those pages, and the pages it links show in <strong>Related</strong> (marked <em>· in a write-up</em>) on both
+pages. Search finds words in it.</p></li>
+<li><p><strong>Regenerate</strong> (while Claude is on): have Claude write it again. While it works the section
+says <em>Waiting for Claude</em> or <em>Claude is writing it…</em>. A <strong>Reprocess</strong> of a board photo, or a
+new board photo, writes it again anyway, and so does <strong>Ask Claude</strong>.</p></li>
+<li><p><strong>Guidance for Claude</strong>: a note for the next write-up, such as “focus on the data flow; ‘Enc’
+means encoder”. <strong>Save</strong> keeps it (apart from the page’s text) without writing anything;
+<strong>Regenerate</strong> then uses it, and the new version keeps a copy.</p></li>
+<li><p><strong>Versions</strong> (once there are two): every write-up, newest first, with <strong>Restore</strong> to make an
+older one current again (as a new version: nothing is lost).</p></li>
+</ul>
+<p>The first write-up comes once Claude has read all of the board’s photos; its related pages are
+picked after it. Write-ups for boards read before this feature come from <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code> (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
+</section>
 <section id="licences-of-the-markdown-libraries">
 <h2>Licences of the Markdown libraries<a class="headerlink" href="#licences-of-the-markdown-libraries" title="Link to this heading">#</a></h2>
 <p>Page text is rendered by <a class="reference external" href="https://github.com/markdown-it/markdown-it">markdown-it</a> and its
@@ -1252,6 +1278,7 @@ browser, installed once with <code class="docutils literal notranslate"><span cl
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-made-of-a-photo">What Claude made of a photo</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-makes-of-a-note-or-link">What Claude makes of a note or link</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-s-write-up-of-a-board">Claude’s write-up of a board</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#licences-of-the-markdown-libraries">Licences of the Markdown libraries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#licences-of-the-drawing-fonts">Licences of the drawing fonts</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-the-screen-layout">Troubleshooting the screen layout</a></li>
