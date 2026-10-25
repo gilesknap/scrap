@@ -1,4 +1,4 @@
-// Finding things (#84): refine chips under search results, a page's tags, browse by tag.
+// Finding things (#84): refine chips under search results, a page's tags, the retired /tags.
 // Runs after smoke.spec.ts (which wants an empty store); e2e/tagged.py adds synthetic pages.
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
@@ -73,9 +73,22 @@ test("a page's tag searches for it, children too", async ({ page }) => {
 });
 
 test("the retired Tags screen's old address opens the search screen", async ({ page }) => {
-  await page.goto("/tags");
+  for (const old of ["/tags", "/tags?sort=n"]) {
+    await page.goto(old);
+    await expect(page).toHaveURL(/\/search$/);
+    await expect(page.getByRole("searchbox")).toBeVisible();
+    await expect(page.locator('nav a[href="/search"]')).toHaveAttribute("aria-current");
+  }
+  // Reached in the app, Back still goes back to where it came from
+  await page.goto("/todos");
+  await page.evaluate(() => {
+    const a = Object.assign(document.createElement("a"), { href: "/tags", textContent: "old" });
+    document.querySelector("#view")?.append(a);
+  });
+  await page.getByRole("link", { name: "old" }).click();
   await expect(page).toHaveURL(/\/search$/);
-  await expect(page.getByRole("searchbox")).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/todos$/);
 });
 
 test("the new views meet AA contrast, in both themes", async ({ page }) => {

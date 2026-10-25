@@ -202,9 +202,6 @@
   width: 18px;
   height: 18px;
 }
-.filters {
-  margin-bottom: var(--s-3); /* Tags: by name, by count */
-}
 .kindrow {
   margin-bottom: var(--s-3); /* the search screen: All, Notes, Todos, Later, Boards, Docs */
 }

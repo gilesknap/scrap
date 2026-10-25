@@ -477,12 +477,15 @@ test.describe("without the service worker", () => {
   test.use({ serviceWorkers: "block" }); // it would answer from its cache
 
   test("Back in the top bar still goes up when its chunk will not load", async ({ page }) => {
+    // A todo: its Back goes to Todos, so landing on Capture shows the fallback ran
     const made = await page.request.post("/api/captures", {
-      data: { id: "01E2EBACKCHUNK".padEnd(26, "0"), text: "Back chunk note" },
+      data: { id: "01E2EBACKCHNK".padEnd(26, "0"), text: "Back chunk todo", kind: "todo" },
     });
+    expect(made.ok()).toBe(true);
     const { slug } = await made.json();
     await page.route("**/assets/back-*.js", (r) => r.abort());
     await page.goto(`/p/${slug}`); // opened directly: nothing of the app's behind it
+    await expect(page.locator("#backto")).toHaveText("Todos");
     await page.locator("#back").click();
     await expect(page).toHaveURL("/");
   });

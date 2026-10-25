@@ -33,7 +33,7 @@ and back.
   filled, Delete apart at the end), toasts sit at the window's foot as wide as they need, and
   rows, chips, tiles and ghost buttons take `--sunk` on hover. Cancel, Preview and Save sit in the editor's top bar
   because the keyboard owns the bottom.
-- **Drill down, then Back, named.** A page and Tags are reached from somewhere. On every phone
+- **Drill down, then Back, named.** A page is reached from somewhere. On every phone
   and browser the top bar swaps the wordmark for Back named for where it goes (‹ Search,
   ‹ Todos, ‹ Capture), as a mail app's ‹ Inbox: it goes straight
   to the list the page was opened from, past pages stepped through or followed, while the
@@ -218,9 +218,9 @@ every few taps. So the filters open in place instead:
 - The panel opens under the search field and the filters on, above the kind row and the
   list, so each tap in it shows its effect at once. A row per kind of choice (Tags, Order,
   When), each one line that scrolls sideways, keeps it short: never a wall of chips. The tags
-  it offers are capped at 8 when typing (12 for a search's top tags). Typing finds any tag in
-  use, so there is no separate screen to browse them (the Tags screen is retired; `/tags`
-  opens Search).
+  it offers are capped at 8 when typing (12 for a search's top tags). Typing matches the tags of
+  the results (of every tag in use before a search), so there is no separate screen to browse
+  them (the Tags screen is retired; `/tags` opens Search).
 - What is on is always in view, panel open or not: a row of chips under the field, each with
   a ✕. The kind row stays under it, always shown.
 - A tap changes the query at once, so the panel is never a form to submit and never holds

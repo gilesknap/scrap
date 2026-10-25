@@ -2,7 +2,7 @@
 // worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
-import { view as current, go, markNav, plain, queue } from "./app";
+import { address, view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
@@ -32,12 +32,12 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
-  // The Tags screen is retired (the Filters panel's Tags row finds any tag): its old links and
-  // bookmarks are the search screen's
+  // The Tags screen is retired (the Filters panel's Tags row offers and matches tags): its old
+  // links and bookmarks are the search screen's, keeping Back's mark on the entry
   [
     /^\/tags$/,
     () => {
-      history.replaceState(null, "", "/search");
+      address("/search");
       return search();
     },
   ],

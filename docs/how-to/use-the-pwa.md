@@ -330,8 +330,8 @@ How matching works:
 - **Edit** (also a list row swiped right) has the same tags box, in its **Tags** line under the
   title, and saves them with the text; the composer has it too, for a new page. Changing tags is
   not a new revision and does not move the page up the list.
-- To find pages by tag, use the Filters panel's **Tags** row: type in its box to see the tags
-  in use that match. (There used to be a separate Tags screen; an old `/tags` link now opens
+- To find pages by tag, use the Filters panel's **Tags** row: type in its box to see the
+  matching tags of the results (before any search, of every tag in use). (There used to be a separate Tags screen; an old `/tags` link now opens
   Search.)
 
 ### Todos
