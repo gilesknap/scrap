@@ -74,8 +74,11 @@ text.
   trashing it, and a source by taking it out; the synthesis is labelled Claude's, versioned, and
   can be steered, regenerated or restored.
 - The PWA does not show topics yet: the Topics tab, the topic page and the Topics line on a
-  source come next (#261, PR 2), as do the weekly timer and cron job. Until then they are read
-  over MCP and the API, and judged there.
+  source come next (#261, PR 2). Until then they are read over MCP and the API, and judged
+  there.
+- The pass runs weekly, Sundays at 04:11, clear of the nightly related pass (03:41) and gc
+  (04:30): a systemd timer on the single server (`scrap-enrich-topics.timer`) and a CronJob in
+  the chart (`enrichTopics.*`, only with ingest on).
 - `scrap gc` does not prune `topic_run` rows (about one a week).
 - To roll back to 0.7.x (which refuses schema 13), with scrap stopped, run:
 

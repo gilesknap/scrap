@@ -163,6 +163,22 @@ enrichRelated:
     limits:
       memory: 1Gi
 
+# A CronJob running `scrap enrich --topics` (the single server's
+# scrap-enrich-topics timer), weekly: one Claude call finds topics (new topic pages and
+# their sources), then each topic's synthesis that is due is queued for the scrap
+# pod's worker. Created only when ingest.enabled is on; same key, settings and daily
+# budget as the scrap pod; runs beside it (the data claim is ReadWriteOnce).
+enrichTopics:
+  enabled: true
+  schedule: "11 4 * * 0"
+  timeZone: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
 service:
   type: ClusterIP
   port: 80

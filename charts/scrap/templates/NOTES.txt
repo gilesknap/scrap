@@ -29,3 +29,7 @@ GC: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-gc") }} ({{ .Va
 
 Related pages: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-related") }} ({{ .Values.enrichRelated.schedule }}) runs `scrap enrich --related`.
 {{- end }}
+{{- if and .Values.enrichTopics.enabled .Values.ingest.enabled }}
+
+Topics: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-topics") }} ({{ .Values.enrichTopics.schedule }}) runs `scrap enrich --topics`.
+{{- end }}
