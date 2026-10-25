@@ -1,0 +1,234 @@
+# HTTP API and CLI
+
+Reference for scrap's HTTP API, command line and settings. Requests and responses are JSON unless noted.
+Responses of text (JSON, the PWA's scripts, styles and pages) over 1 kB are gzipped for a client
+that sends `Accept-Encoding: gzip`; stored files, previews, downloads, fonts and range requests
+never are.
+The service listens on `127.0.0.1`, or with `scrap serve --uds` only on a Unix socket (the
+single-server install's default), and has no login; put Tailscale Serve (or an authenticating
+proxy) in front. The author of a capture or edit is the `Tailscale-User-Login` header (or the header named by
+`SCRAP_IDENTITY_HEADER`), else `tagged`.
+
+## HTTP
+
+### Errors
+
+An error is a JSON body `{"detail": ...}` with the status that says what went wrong:
+
+- `400`: a multipart text field (`text`, `url`, `title`...) over 1 MiB, refused by the form
+  parser before scrap sees it; the body is `{"detail": "Part exceeded maximum size of 1024KB."}`.
+  A JSON body of that size is `422` instead (see `POST /api/captures`).
+- `404`: no such page, capture, photo, drawing version or stored file. A page in the trash is not
+  found either, except by the undelete route. So is a path that is neither under `/api` nor one of
+  the PWA's routes below, and a PWA route with a trailing slash (`/todos/`): `{"detail": "Not
+  Found"}`, with no fallback to the PWA.
+- `409`: a conflict. A stale page edit (`rev` in the body is the current revision) or a stale
+  drawing edit (`version` is the current version); also *Ask Claude* while enrichment is off.
+- `413`: over the upload limit (`SCRAP_MAX_UPLOAD_MB`) or, for a drawing, 8 MB.
+- `422`: invalid. `detail` is a string for a rule scrap checks, but a list of validation errors
+  for a malformed query parameter or body (for example `limit=501` on `GET /api/pages`).
+- `503`: as listed for the route (the worker has stopped, the PWA is not built, the preview decoder
+  is busy). The one error that is not JSON is the PWA-not-built `503`, which is plain text: the
+  build command, `npm --prefix web ci && npm --prefix web run build`, and a note that the API
+  works without it. The service logs the first line of it as a warning at start. Without the PWA,
+  `/api`, `/healthz` and `/mcp` work as usual.
+
+Stored files and previews are content-addressed, so they are served with `Cache-Control: private,
+max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy:
+sandbox` (an uploaded HTML file cannot run scripts). A SHA-256 is 64 lower-case hex digits (the
+`uses` and drawing routes also take upper case); any other value, or a file not stored, is `404`. A page download is `Cache-Control: no-store`. The
+PWA's hashed files under `/assets/` are `immutable`; its other files are `no-cache`, so a new
+build is noticed.
+
+(api-page-object)=
+### The page object
+
+`GET /api/pages/{id or slug}` (and every route that returns "the page") gives `id`, `slug`,
+`title`, `body`, `kind`, `kind_fixed`, `fields`, `created_at`, `updated_at`, `rev`, `tags`,
+`removed`, `tasks` (`{done, total}`), `due`, `priority` and `snoozed_until` (`null` unless a
+todo), and:
+
+- `captures`: each with `id`, `kind` (`note`, `url`, `photo` or `file`), `text`, `url`, `source`,
+  `author`, `created_at`, `received_at` and `blobs`: one `{sha256, mime, size, filename, ingest}`
+  per file, where `ingest` is as described for the route below.
+- `model_tags`: the tags Claude added that are still on the page.
+- `related`: pages Claude picked, pages that link here, and pages a board's write-up links to or
+  whose write-up links here, each `{id, slug, title, kind, via}` (`via`: `claude`, `link`, `both`
+  or `writeup`).
+- `enrich`: `{on, state, error, reason, summary, producer, source, at}`, or `null` if the page was
+  never asked about and enrichment is off. `state` is `queued`, `processing`, `done`, `failed` or
+  `paused` (queued while the shared queue is paused: `reason` says why, as in `GET /api/ingest`).
+- `writeup`: Claude's write-up of a board page (a whiteboard or diagram image, not a list of
+  actions): `{board, on, guidance, state, error, versions, current}`, or `null` for a page with
+  none and no board. `board`: whether one can be written; `on`: enrichment is on; `guidance`: the
+  owner's for the next one; `state`: its latest write-up or Ask job's, as `enrich.state`;
+  `versions`: how many; `current`: `null` or `{version, producer, created_at, prompt_version,
+  summary, text, guidance, restored_from, links}` (`text` is Markdown, its links `[[slug]]`;
+  `links`: the slugs of the pages, not in the trash, it links to: the PWA links no others).
+
+The rows of `GET /api/pages` and of a search are the page without `body`, `captures`, `tags`,
+`removed`, `rev`, `model_tags`, `related`, `enrich` and `writeup`, plus `thumb`; search rows also have no
+`kind_fixed` or `created_at`, and have a `snippet`.
+
+| Method and path | Does |
+| --- | --- |
+| `GET /healthz` | Liveness: `{"status": "ok", "version": ..., "max_upload_bytes": ..., "paused": ...}` (`paused`: why the Claude queue is paused, `credit`, `auth`, `budget` or `outage`, else `null`); the PWA checks a capture's size against the limit before saving it. `503` (`"status": "ingest worker stopped"`) if ingest is on and its thread has died |
+| `POST /api/captures` | Save a capture as a new page. JSON `{id, text?, url?, kind?, source?, created_at?, due?, priority?, snoozed_until?, tags?}`, or `multipart/form-data` with the same fields (a `tags` field per tag) plus one or more `file` parts (`file`, singular; `POST /share` takes `files`). `id` is a ULID minted by the client (any case; stored upper case): `201` the first time, `200` with the same reply on a retry. The `id` is all a retry is matched on: the repeat is checked like any request (`422` if it is invalid), then answered with the first save's reply and its text, files and tags thrown away, so changed content needs a new `id` (files sent with a retry are stored, but no page uses them; `scrap gc` clears them). `kind` (`note`, `todo`, `consume`, `whiteboard` or `document`) is the user's choice: it fixes the page kind (`kind_fixed`, so ingest keeps it) and fills its default `fields`; without it the page is an unfixed `note`. `hint` (`todo` or `consume`) is the older name for `kind`, still accepted. `source` is `pwa` (the default) or `share`; `mcp` is refused here: only the MCP server writes it, so it marks a page Claude wrote. `due`, `priority` and `snoozed_until` are a todo's only (as for `PATCH`; `422` with another kind). `tags` (a list of strings) are the new page's tags, cleaned as `PATCH` cleans them (`422` for a bad one, and nothing is saved), indexed at once; Claude's tags for a photo join these on its first reading of it (a later Reprocess adds them only to a page with none, so a tag the user took off stays off). A bare URL sent as `text` is treated as `url`. The capture's own kind is derived: `photo` if all its files are images, `file` for any other files, else `url` if it has a `url`, else `note`. A file part sent with no content type, an empty one or `application/octet-stream` is typed from its filename's extension, else kept as `application/octet-stream` (so it is a `file`); and a file's stored type is the one it was first saved with, whatever a later upload of the same bytes says. For each image file, `![](/api/blobs/<sha256>/preview?size=2048)` is added to the end of the page's `body`, after the `url` and `text` (once per distinct image, and not for one the text already links by its address), so the `body` of the page is longer than what was sent (see {ref}`images-in-the-text`). The page's `title` is the first line of `text` without a leading Markdown heading marker (`#` to `######` and a space), at most 200 characters; else the `url`; else `created_at` as `YYYY-MM-DD HH:MM`, in the offset it was sent with (UTC if it was not sent). The slug is made from that title once and stays when the title is edited (see [](../explanations/design.md)); Claude may replace the title of a photo with no text, or of a saved link, with its own. `422` also for an `id` that is not a ULID, a `created_at` that is not ISO 8601, a capture with no text, url or file, a request that is neither JSON nor `multipart/form-data`, and a JSON body that is not an object. Returns `{capture_id, page_id, slug}`. `413` over the upload limit; `422` if the page's text (the `url` and `text`) is over 1 MB of UTF-8, before any file is kept. Files are stored as sent (HEIC too) |
+| `GET /api/pages?limit=50&kind=` | Pages, most recently changed first (by their text: a kind or `fields` change doesn't count); the trash is left out. `limit` is 1 to 500 (default 50; `422` outside). `kind=todo` lists only that kind (any kind in the schema, `memory` and `reference` too; another is `422`; empty means all). Each has `id`, `slug`, `title`, `kind`, `kind_fixed`, `fields`, `created_at`, `updated_at`, `tasks`, and a todo's `due`, `priority` and `snoozed_until` (`null` on other kinds); `thumb` is the SHA-256 of the page's first image, or `null` |
+| `GET /api/pages/{id or slug}` | A page with `rev` (its current revision), `tags` (most used first), `removed` (the SHA-256s of files an earlier revision's text referred to and the current text does not: the PWA no longer lists them), and its captures, each with its files as `blobs` (see {ref}`the page object <api-page-object>`, which also lists `model_tags`, `related` and `enrich`). Each file (`{sha256, mime, size, filename, ingest}`) of a photo has `ingest`: `null` if it was never queued, else `{state, failures, error, text, description, image_kind, drawing}` (`drawing`: `null`, or the current version's `{id, version, producer, width, height}`), `state` being `queued`, `processing`, `done`, `failed` or `paused` (see [](../explanations/ingest.md)) |
+| `PATCH /api/pages/{id or slug}` | `{base_rev?, title?, body?, kind?, fields?, tags?, tags_shown?, due?, priority?, snoozed_until?}`. A `title` or `body` writes a new revision and needs `base_rev`: `409` with the current `rev` if it is stale (and nothing in the request is saved). A `title` has runs of whitespace collapsed to single spaces; one that is empty or only whitespace is `422` (`title must not be empty`) and nothing in the request is saved. A `title` equal to the title at `base_rev` counts as unchanged, so it never undoes a title Claude set meanwhile. The slug does not change with the title. `kind` (as for a capture) sets `kind_fixed` (ingest then never changes it); a different kind keeps every field the page has and adds that kind's defaults for keys it lacks: `todo` `{"status": "open"}`, `consume` `{"subtype": "read", "status": "open", "source"}` (`source`: the capture's URL, if any). A default is added only if the page has room (at most 32 fields): a page with 31 fields gets one of them, a full one none, and a field the page has is never dropped for it (so the change is not a `422`). So nothing is lost by changing a kind and back; a `status` already there keeps its value. `fields` changes them, e.g. `{"status": "done"}` ticks a todo; a `null` value removes one; names are 1 to 40 characters, values flat (a string of at most 200 characters, a number or a boolean; a whole number is within ±2^53 and any other finite, so `NaN`, `Infinity` and `1e400` are `422`), and a page has at most 32 fields (`422` otherwise). `tags` replaces all the page's tags (`[]` removes them), each cleaned as an import's are (one space between words, no leading `#`, lower case, 1 to 64 characters, each once; at most 64 tags, `422` otherwise). A tag Claude added that is not in `tags` is taken off for good (Claude never adds it back); with `tags_shown`, the tags the editor started from (the PWA sends them), one Claude added that is in neither list is kept instead, since the user never saw it. `due` (a date, `YYYY-MM-DD`: no time, no time zone) and `priority` (`high`, `medium` or `low`) and `snoozed_until` (a date: out of the Todos screen's Now and the Todos tab's count until that day; it is kept, and harmless, after it) are a todo's own columns, not fields: sent, they set it, `null` clears it, not sent keeps it; a value is `422` on a page of another kind (after any `kind` in the same request: `{"kind": "todo", "due": ...}` works), as is a malformed one. A page that stops being a todo keeps them (a stray tap loses nothing), but they are ignored, and returned as `null`, until it is one again. Neither `kind`, `fields`, `tags`, `due`, `priority` nor `snoozed_until` is a text revision, nor changes `updated_at`; a change of `kind` or `tags` is a metadata revision (`page_meta_rev`: who, kind and tags before and after; see [](mcp.md)), as Claude's are, so it can be seen and reverted over MCP. A `body` (here, in a capture or over MCP) is counted for its task boxes, `tasks: {done, total}` on the page and its rows (exactly as the PWA draws them: a list item whose first line starts `[ ]` or `[x]` as typed; none in code, escaped `\[ ]`, or a link named `[x]`): a `note` whose kind nobody chose (`kind_fixed` 0: no `kind` was ever sent for it; the PWA sends one only when the user picks a kind, never for boxes) that has boxes becomes a `todo`, filed as a new capture of that text would be (all ticked: `done`); a todo's `status` becomes `done` when the last box is ticked, and, on a done one whose boxes were all ticked, `open` again when one is unticked or a new unticked one is added (a todo marked done by hand with some boxes unticked stays done); never on a `cancelled` one; a status set by hand ticks no box, and a `fields.status` in the same request as the `body` is kept, whatever its boxes. A `body` over 1 MB (1,000,000 bytes) of UTF-8 is `422` (a page's text is at most that, however it is written; nothing in the request is saved), unless it is exactly the page's current body, so a page imported over the limit can still be retitled, retagged or given another kind. Returns the page |
+| `POST /api/captures/{id}/reprocess` | `{photo?, replace_human?}`: send a photo capture's images (or the one with SHA-256 `photo`) to Claude again; also the *Retry* of a failed one. A new drawing replaces one the user drew only with `replace_human: true` (otherwise it is kept in the drawing's history only); the confirmation also reaches a photo already queued or running. Returns `{queued, already}`: how many were added, and how many were queued or running already. `404` for an unknown capture or one whose page is in the trash. The jobs are queued whether or not `SCRAP_INGEST` is on; with it off they wait for a worker |
+| `GET /api/captures/{id}/photos/{sha256}/drawing` | The photo's current drawing: `{id, version, producer, author, run_id, created_at, current, superseded_at, format, restored_from, data}` (`superseded_at` is `null` while it is the current version). `data` is `{format, width, height, elements}`: `format` `skeleton` (Claude's, Excalidraw element skeletons the PWA expands) or `scene` (a saved edit: full Excalidraw elements, and `appState.viewBackgroundColor`). `width` and `height` are the frame the coordinates are in: the pixels of the JPEG sent to Claude, so the PWA lines the drawing up with the photo. `404` if there is none |
+| `GET /api/captures/{id}/photos/{sha256}/drawing/versions` | Every version, newest first, as above without `data`. `producer` is the model, or `human` with its `author`; a restored version has `restored_from` |
+| `PUT /api/captures/{id}/photos/{sha256}/drawing` | `{base_version, scene: {elements, appState?, width?, height?, files?}}`: save an edit as a new current `human` version, its text elements indexed for search. `base_version` is the version it was edited from (`null` if there was none): `409` with the current `version` if that is no longer current. The scene is checked (see [](../explanations/ingest.md)): only rectangle, ellipse, diamond, text, arrow, line and freedraw elements; finite numbers; Excalidraw's colours; `http(s)` links only; nesting at most 32 levels deep; valid Unicode (no lone surrogates); `files` dropped; at most 5 MB as compact JSON, else `422` and nothing is saved. `413` if the request is over 8 MB. Returns the new current drawing, as `GET` does (with `data`) |
+| `POST /api/captures/{id}/photos/{sha256}/drawing/restore` | `{version, base_version}`: make an old version current again as a new copy (versions never change). `base_version` is the current version as the client last saw it: `409` with the current `version` if it has changed, so a stale history view cannot restore over a newer edit. `404` if there is no such version; `422` unless both are integers from 1. Returns the new current drawing, as `GET` does (with `data`) |
+| `POST /api/pages/{id or slug}/enrich` | *Ask Claude*: queue the page for Claude now (tags, summary, a board's write-up, related pages; a saved link is fetched). Returns the page, whose `enrich` says `{on, state, error, summary, ...}`, `model_tags` the tags Claude added, and `related` Claude's related pages merged with backlinks (`via`: `claude`, `link` or `both`). `409`, queueing nothing, while enrichment is off (`SCRAP_INGEST` off or `SCRAP_ENRICH=off`) |
+| `POST /api/pages/{id or slug}/writeup` | *Regenerate*: queue a board page's write-up again, with its guidance as it is when it runs. Returns the page (`writeup.state` `queued`). `409` while enrichment is off, `422` if the page has no whiteboard or diagram image |
+| `PUT /api/pages/{id or slug}/writeup/guidance` | `{guidance}`: the owner's guidance for the page's next write-up (at most 2,000 characters, else `422`; trimmed; empty or `null` removes it), kept apart from its text. Queues nothing. Returns the page |
+| `GET /api/pages/{id or slug}/writeup/versions` | Every write-up of the page, newest first: `{id, version, producer, run_id, prompt_version, summary, text, guidance, restored_from, current, superseded_at, created_at}` |
+| `POST /api/pages/{id or slug}/writeup/restore` | `{version, base_version}`: make an old write-up current again, as a new copy (versions never change). `409` with the current `version` if `base_version` is no longer current; `404` if there is no such version. Returns the page |
+| `GET /api/ingest` | The ingest queue: `{enabled, paused, reason, paused_until, jobs, enrich: {enabled, jobs}, spent_today_usd}`. `jobs` is `{state: count}` for photo jobs as stored (for example `queued`, `running`, `done`, `dead`), and `enrich.jobs` the same for text pages. While `paused`, `reason` is `credit` (out of credit, or at a spend limit) or `auth` (the key was refused), both paused until *Resume* (`paused_until` is `null`), `budget` (the day's budget is spent: until UTC midnight) or `outage` (the API was unreachable, failing or rate limiting: a backoff that starts at 60 s and doubles up to an hour, or the API's own retry-after, at most an hour). *Resume* ends any of them. The day's spend counts photos and text pages. With `SCRAP_NOTIFY_URL` set, the first pause since the last success or *Resume*, and one for a new reason, is announced once |
+| `POST /api/ingest/resume` | End a pause; returns the queue as `GET /api/ingest` |
+| `DELETE /api/pages/{id or slug}` | Move a page to the trash (`204`). Its captures and files are kept |
+| `POST /api/pages/{id or slug}/undelete` | Bring a page back from the trash |
+| `GET /api/search?q=...&limit=20&offset=0` | `limit` at most 100; `offset` (at most 10 000) skips that many hits, for the next page. Full-text search of titles, tags, the `summary` field, bodies and what Claude read from photos (their text and descriptions): every word must match somewhere in the page, as a prefix (`vsc` finds `vscode`), wherever it stands in the query; one hit per page. Pages with every word in the title come first, then those with every word in the title, tags or summary, then by bm25. Link and image addresses in Markdown are not indexed, only their text. The query may also have `-word` or `!word` (the exact word in no part of the page), `"a phrase"` (exact), `kind:K` (a kind, or the PWA's `later` (also `read`), `board`, `doc`; two mean either), `tag:T` (a tag with `T` as whole `/` parts: `tag:a` finds `a/b`, `tag:b` finds `a/b`; `tag:"two words"`), `is:personal`, `is:work` (`personal` not true), `is:claude` (written over MCP), `is:claude-edited` (text changed over MCP after it was made: a text revision by author `claude` after the first), `is:snoozed` (an open todo, not done or cancelled, snoozed until a day after today, the server's; `-is:snoozed` leaves them out), `is:S` (status `S`; spaces in a status are written `_`), `has:image` (an image in one of its captures), `has:drawing` (a current drawing; another `has:` value matches nothing), `image:K` (a photo Claude took for kind `K`: `photo`, `whiteboard`, `handwriting`, `diagram`, `screenshot`, `document`, `other`), `after:D` and `before:D` (last edited on or after, on or before `D`: a date `YYYY-MM-DD`, a UTC day with both ends included, or a time ago such as `1d`, `2w`, `1m` (30 days), `1y` (365 days): the number is 1 to 100 (so `100y` works but `101y` and `1000d` match nothing), at most three digits, and may be left out for 1; a value that is neither matches nothing, and after `-` everything) or `date:created` (`after:` and `before:` use the creation date instead), `due:D` (a todo due on `D` (also written `=D`), or with `<`, `<=`, `>`, `>=` before or after it: `D` is a date `YYYY-MM-DD` or `today`, `tomorrow`, `yesterday` on the server's own calendar, its local time zone (`TZ`); `due:<today` is overdue; `due:none` a todo with no due date; another value matches nothing), `priority:P` (a todo's: `high`, `medium`, `low`, or `none`; two mean either; Thoth's `urgent` means `high`); a filter after `-` excludes. `sort:updated` (last edited first), `sort:created` (newest first), `sort:title` (A to Z, ignoring the case of ASCII letters only: `é` and `É` sort apart), `sort:due` (soonest first) or `sort:priority` (high first; for both, pages without one, and pages that are not todos, come last either way) orders the results instead of best match (or newest first), with `-sort:` the other way (`-sort:created`: oldest first); the last one counts, and another value is ignored. `sort:` alone lists every page in that order. Filters alone list their pages, newest first, with the summary or the start of the text as the snippet. Words without a letter or digit (`&`, `?`) are ignored. At most 64 distinct words and 64 filters are allowed: a query with more is refused with a 422 (nothing is searched), so a NOT word or `-tag:` is never silently left out. A filter with no value (`tag:`) is ignored. Tags have no empty path segments: `/lead`, `trail/` and `a//b` are stored as `lead`, `trail` and `a/b`, and `tag:/` matches nothing. Each hit has `id`, `slug`, `title`, `kind`, `fields` (so a todo's row can show its status), `due`, `priority`, `snoozed_until`, `tasks`, `updated_at`, `thumb` (as in `GET /api/pages`) and an HTML-escaped `snippet` with matches in `<mark>` |
+| `GET /api/search/facets?q=...&top=12` | What the pages a search finds have in common: `{total, kinds: [[kind, n]], tags: [[tag, n]], personal: {work, personal}, active: [{token, key, value, neg}]}`. `tags` are the `top` most used (12 unless asked, at most 1000) (a tag counts for its parents too, `a` for `a/b`), leaving out those the query asks for (its `tag:` filters, not `-tag:`) and those on every page found (unless only one page is found, when all its tags are given); `active` are the query's filters as typed (`sort:` too) |
+| `GET /api/tags` | Every tag on a page not in the trash, with the parents of `a/b` tags, how many pages have it (or one under it), and how many have that very tag (`0` for a parent no page was given): `[[tag, n, own]]`, in order |
+| `GET /api/pages/{id or slug}/download` | The page to keep: `<slug>.md` (front matter, with a todo's `due`, `priority` and `snoozed_until` if it has them and its `tasks` count if it has task boxes, then the body), or if it has files `<slug>.zip` holding the `.md` and `files/` with the originals, linked relatively so it reads offline. Each file keeps the name it was uploaded under, made safe: any folder part is dropped, a run of characters other than letters, digits, `_`, `.`, space and `-` becomes one `_`, and the name is cut to 120 characters; a file with no usable name is named by the first 12 characters of its SHA-256 and an extension from its type. When two names are the same ignoring case, the later gets `-2`, `-3`... before the extension (`scrap export` names files differently: see {ref}`api-cli-folders`). Each photo is followed by Claude's description (a quote) and the text it read (a fenced block), and its drawing is beside it as `<photo name>.excalidraw` (Claude's skeleton converted approximately on the server: Excalidraw re-measures the text when it opens it) |
+| `GET /api/blobs/{sha256}/uses?page={page id}` | `{pages}`: how many pages other than `page` (the trash left out) show the file, by an embed in their text or as a file of their own capture. The editor's warning when an embed is deleted. `404` if the file is not stored |
+| `GET /api/blobs/{sha256}` | An original file, byte for byte, with its stored content type. `?download=1` adds a `Content-Disposition` with the name it was uploaded under, made safe as for a page download |
+| `GET /api/blobs/{sha256}/preview?size=2048` | A JPEG of a photo (HEIC too), turned upright and without its EXIF, at most `size` (`480` or `2048`) pixels a side. Made on first request and kept in `cache/previews/` under the data folder, which is never backed up and can be deleted at any time. Made one at a time, shrunk as it is decoded, within a memory budget that fits a 1 GB container: `422` for another `size`, if the file is not an image Pillow can read or would need more memory than that to decode (roughly over 50 megapixels for HEIC, 80 for PNG; JPEG is decoded shrunk and fits at any size), `503` with `Retry-After` if the decoder stays busy for 20 s. The colour profile is kept |
+| `GET /docs`, `/redoc`, `/openapi.json` | FastAPI's interactive documentation (Swagger UI and ReDoc) and the OpenAPI schema, generated from the routes. The PWA, `/share` and `/mcp` are not in them, nor are the request bodies of `POST /api/captures` and the drawing `PUT`, and most responses are only `object`: this page is the fuller description. Open to anyone who can reach the service, like the rest |
+| `POST /mcp` | The MCP server (Streamable HTTP, stateless, JSON replies) for Claude Code sessions: see [](mcp.md). `401` if `SCRAP_MCP_TOKEN` is set and no matching bearer token is sent, `421` if the `Host` header is not loopback or a `SCRAP_PUBLIC_URL` host, `403` for another `Origin`, `413` over 2 MB |
+| `POST /share` | The PWA's share target, for when its service worker did not take the share (which it normally queues itself): saves the multipart `title`, `text`, `url` and `files` as a capture with a server-minted id (source `share`), then `303` to `/`; other fields are ignored. The fields are trimmed. With no `url`, a link that ends `text` after whitespace (where Android puts it) moves to `url`; a `title` that is not already in `text` goes first, with a blank line after it; a file part with no content is skipped. The page is then made as for `POST /api/captures` (titles, image embeds, `413` over the upload limit, `400` for an over-large text field). A share with no text, url or file saves nothing and still answers `303`, so the status cannot tell a saved share from an empty one |
+| `GET /`, `/recent`, `/search`, `/tags`, `/todos`, `/p/{slug}` | The PWA (`index.html`; `/recent` and the retired `/tags` open Search); its other files are served from the root too. `503` with build instructions if it was not built; see [](../how-to/use-the-pwa.md) |
+
+## CLI
+
+`scrap -v` (or `--version`) prints the version.
+
+| Command | Does |
+| --- | --- |
+| `scrap serve [--host 127.0.0.1] [--port 8000]` or `scrap serve --uds PATH` | Run the service, migrating the database first. `--uds` listens only on a Unix socket (mode 600, in a folder of its own closed to others) and cannot be combined with `--host`/`--port` |
+| `scrap backup DIR` | Consistent snapshot of the database (SQLite online backup) plus `files/`; safe while serving. `DIR` is created if missing, and a second run into it replaces the database and adds only new files: see {ref}`api-cli-folders` |
+| `scrap restore DIR [--force]` | Restore a backup into an empty data folder, after checking its integrity and that its schema is not newer than this scrap; an older schema is upgraded after the copy. `DIR` may be read-only: only a copy of its database, made in the data folder, is opened. `--force` replaces the whole database (pages added since the backup are lost; files are kept); stop scrap first, or a running server goes on writing to the replaced database and those writes are lost |
+| `scrap ingest-once IMAGE [--save FILE]` | Send one image file to Claude as ingest would, without a database, and print the outcome in numbers only (tokens, cost, seconds, counts of lines, elements and warnings: see {ref}`api-cli-ingest-once`); `--save FILE` also writes the full result, including all the text Claude read from the image, to a new file with mode 600 (an existing file is refused), created before the paid call. Needs `ANTHROPIC_API_KEY`, or `CLAUDE_CODE_OAUTH_TOKEN` with `SCRAP_LLM_BACKEND=cli` |
+| `scrap import DIR [--dry-run] [--ingest]` | Import a Thoth vault: each content page with its kind, fields, tags, dates, links (as `[[slug\|label]]`) and images; see [](../how-to/import-a-vault.md). `--dry-run` writes nothing and prints counts (by kind and folder) and every problem (broken links, unreferenced images, unmapped fields...); without it the same summary shows only how many problems of each sort there were. A second run imports only pages not imported before. `--ingest` also queues the images for Claude |
+| `scrap export DIR` | One Markdown file per page (the trash is left out), front matter (with a todo's `due`, `priority` and `snoozed_until`, and the `tasks` count of a page with task boxes) and links to its originals copied into `DIR/files/`, with each photo's description, text and `.excalidraw` drawing as in the page download. Export only: never read back. Files are named by content, not as uploaded, and a second run into the same `DIR` deletes nothing: see {ref}`api-cli-folders` |
+| `scrap gc [--delete] [--dry-run] [--grace-hours H] [--run-days D]` | Find the stored files nothing uses any more: no page's text (the trash's too), capture, Claude result or ingest job, or model run refers to them. It only counts them (and their size) unless `--delete`; `--dry-run` overrides `--delete`. Files younger than `H` hours (default 24) are kept, used or not, since an upload may be on its way. It also prunes `model_run` and `enrich_run` records older than `D` days (default 30, at least 1) unless something refers to them (`enrichment`, `writeup`, `derived`, a later turn) or they are the latest for their page or photo, or still running; it counts them the same way. Nothing is deleted if the references cannot be read. Only one `--delete` run at a time (a second stops, see below). Safe while scrap serves; see {ref}`scrap-gc` |
+| `scrap enrich (--backfill \| --related \| --writeups) [--all] [--limit N] [--dry-run]` | Say exactly one of `--backfill`, `--related` and `--writeups`. `--writeups` writes Claude's write-up now, in this process, for every board page (a whiteboard or diagram image, not a list of actions) with none, oldest first (`--all`: every board page), under the same conditions and stops as `--related`; run `--related` after it, so related pages see the write-ups. `--backfill` queues every page with no tags that Claude has not read yet, oldest first; the service's worker runs them within the daily budget. `--related` picks related pages now, in this process, for every page changed, or with a photo read, since its last picks (the nightly pass); `--all` takes every page instead. `--related` (and `--writeups`) needs `SCRAP_INGEST` on, `SCRAP_ENRICH` not off and `ANTHROPIC_API_KEY` (or, with `SCRAP_LLM_BACKEND=cli`, `CLAUDE_CODE_OAUTH_TOKEN`) set in its environment; without them it says so, does nothing and exits `0` (`--backfill` only queues, and needs none of them). It stops, exiting non-zero, at a queue pause or when the day's budget is spent. `--limit N` takes at most `N` pages; `--dry-run` only counts them. See [](../explanations/ingest.md) |
+
+Every command except `ingest-once` (which uses no database) takes `--data-dir` (default
+`$SCRAP_DATA_DIR`, else `./data`), which holds `scrap.db` and `files/` (originals by SHA-256).
+
+(api-cli-status)=
+### Exit status and common errors
+
+A command that works exits `0`. One that refuses prints a single line on stderr and exits `1`.
+Arguments it cannot use (`scrap enrich` with neither or both of `--backfill` and `--related`, an
+unknown option) print the usage and exit `2`. `scrap` alone prints the help and exits `0`.
+
+`scrap serve`, `restore` and `enrich` (both modes) create the data folder and bring `scrap.db` up to
+date, and so does `import` unless it is a `--dry-run`, which writes nothing. `backup`, `export` and
+`gc` never create or upgrade anything: with no `scrap.db` they stop at once. That makes a wrong
+`--data-dir` easy to miss. With no `--data-dir` and no `SCRAP_DATA_DIR` the data folder is `./data`
+under the current directory, so run from the wrong place, `serve`, `import` and `enrich` quietly
+start a new empty one, while `backup`, `export` and `gc` say `no database at data/scrap.db`.
+
+| Message | Cause |
+| --- | --- |
+| `no database at <data folder>/scrap.db` (`scrap gc: no database at ...` for `gc`) | `backup`, `export` or `gc` was pointed at a folder with no database: the wrong `--data-dir`, or the working directory is not the one you expected |
+| `scrap gc: no files folder at <data folder>/files` | The database is there but the data folder has no `files/` |
+| `scrap gc: the grace period must not be negative` | A negative `--grace-hours` |
+| `scrap gc: the run retention must be at least 1 day` | A `--run-days` below 1 |
+| `scrap gc: cannot read what is in use, so nothing was deleted: ...` | The database could not be read, or it is newer than this scrap |
+| `scrap gc: cannot put back a file left aside by an earlier run, so nothing was deleted: ...` | A file an earlier run set aside could not be restored (permissions or disk) |
+| `scrap gc: another scrap gc is deleting (it holds <data folder>/gc.lock); ...` | Another `--delete` run is in progress, such as the nightly one; try again when it ends. Counting runs take no lock |
+| `no folder <path>` | `scrap import`'s `DIR` is not a folder |
+| `no backup at <DIR>` | `scrap restore`'s `DIR` has no `scrap.db` |
+| `bad backup: ...` | The backup's database is not a database, fails its integrity check, or has a schema newer than this scrap. The data folder is left as it was |
+| `<data folder> is not empty; stop scrap and use --force` | `scrap restore` into a data folder that has a database or any file; see `--force` above |
+| `stopped: the queue is paused (<reason>)` | `scrap enrich --related` met a pause or spent the day's budget (exit `1`) |
+
+A setting scrap cannot use stops it with its own message: see {ref}`api-settings`.
+
+(api-cli-folders)=
+### Backup and export folders
+
+`scrap backup DIR` makes `DIR` if it is missing, then replaces `DIR/scrap.db` with a fresh snapshot
+(written as `scrap.db.part` and renamed, so a run that stops half way leaves the earlier database
+whole) and copies `files/` (laid out as in the data folder, `files/<first two hex digits>/<sha256>`).
+Files are only ever added: one already in `DIR/files/` is neither touched nor removed, and names that
+start with `.` (uploads in flight) are skipped. The preview cache (`cache/previews/` in the data
+folder) is not copied. So backing up again into the same `DIR` is incremental, and `DIR` goes on
+holding files no page uses any more (after a `scrap gc`, say). Use a new `DIR` for each backup if
+that matters; the single-server timer does, and keeps the newest `SCRAP_BACKUP_KEEP` of them (see
+{ref}`scrap-backup-restore`).
+
+`scrap export DIR` writes one `<slug>.md` per page at the top of `DIR` and one `DIR/files/` for all
+the pages, in which a file is named `<sha256><extension>`, the extension being the usual one for its
+content type (none if it has none). It is not the name it was uploaded under, and a file on several
+pages is stored once. A photo's drawing is `<sha256>-<capture id>.excalidraw`, since a drawing
+belongs to a capture. The page download names files differently (by their uploaded names: see
+`GET /api/pages/{id or slug}/download`).
+
+Run it again into the same `DIR` and every `.md` and drawing is written afresh, while a stored file
+already there is left alone. Nothing is deleted: a page put in the trash since, and its `.md`, stay in
+`DIR`. Export into a new folder for a clean copy.
+
+(api-cli-ingest-once)=
+### Reading `ingest-once` output
+
+`scrap ingest-once` prints indented JSON, and none of the text of the image except in `error`:
+
+- `model` (`SCRAP_VISION_MODEL`, else the default), `prompt_version` and `sent`: `[width, height,
+  bytes]` of the JPEG Claude received.
+- `outcome`: `ok`, or the failure class of the table in {ref}`ingest-spend` (`credit`, `auth`,
+  `outage`, `timeout`, `invalid`, `content`, `image` or `internal`). `error` is then its message,
+  with any API key replaced by `[key]`. `seconds` is the time the call took.
+- Once a reply arrived, even one that failed the checks: `served_model`, `stop_reason`, `blocks`
+  (the types of its content blocks), `usage` and `cost_usd`, worked out from the price table. A
+  model not in the table is priced at the dearest rate, so the cost errs high.
+- With `outcome` `ok` only: `kind` (what Claude took the image for), `text_lines`, `uncertain`
+  (the readings marked `(?)`), `tags` (a count), `elements_given` and `elements_kept` (drawing
+  elements before and after the checks) and `warnings` (how many the checks raised: elements
+  dropped, arrows left unbound).
+- `save_error`, if `--save` could not write the file (a full disk); the summary is still printed.
+
+The exit status is `0` even when the call failed, so a script must read `outcome`. With no
+`ANTHROPIC_API_KEY` the call does not go out: `outcome` is `internal` and `error` is the SDK's
+authentication message. An answer that fails the checks was paid for, so it is reported with its
+cost, and `--save` writes it. An image that cannot be decoded (`cannot preview this file`) or a
+`--save` file that exists already stops with a Python error and exit `1`, before any call.
+
+(api-settings)=
+## Settings
+
+The settings are environment variables of the service, read at start. A setting that is on or off
+(`SCRAP_INGEST`, `SCRAP_ENRICH`) is on for `on`, `1`, `true` or `yes`, in any case; anything else
+is off. The variables below are scrap's own; those that install scrap (the image, where it
+listens, the data and backup folders) are in [](../how-to/deploy-single-server.md), and the
+chart's values in [](../how-to/deploy-kubernetes.md).
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `SCRAP_DATA_DIR` | `./data` | The data folder |
+| `SCRAP_WEB_DIR` | the packaged PWA | Serve the PWA from this folder instead: a new build there shows without a restart |
+| `SCRAP_PUBLIC_URL` | unset | The address the service is reached at, e.g. `https://host.tailnet.ts.net:8446` (several, comma separated). `/mcp` answers only requests whose `Host` is loopback or one of these (DNS rebinding protection), and the first makes the page URLs MCP tools return; without it they are paths (`/p/<slug>`). An address without a scheme and host (`foo`) stops scrap at start with `SCRAP_PUBLIC_URL: 'foo' is not a URL`; see [](mcp.md) |
+| `SCRAP_MCP_TOKEN` | unset | Bearer token(s) `/mcp` requires, comma separated. Unset (with `SCRAP_MCP_TOKEN_FILE` also unset): `/mcp` is open as before. Only `/mcp` is guarded; `/healthz`, the API and the PWA are not. A set but empty value stops scrap at start. See [](mcp.md) |
+| `SCRAP_MCP_TOKEN_FILE` | unset | A file with one bearer token per line (blank lines and `#` comments skipped), for a mounted secret; its tokens add to `SCRAP_MCP_TOKEN`'s. A missing or token-less file stops scrap at start |
+| `SCRAP_IDENTITY_HEADER` | `Tailscale-User-Login` | The request header recorded as the author of a change, else `tagged`. Only this header is read; set it to what your authenticating proxy sends (e.g. `X-Auth-Request-User`). Blank counts as unset |
+| `SCRAP_REVISION_WINDOW` | `300` | Seconds within which one author's changes to a page's kind and tags fold into one metadata revision, and Claude's text edits over MCP into one text revision; `0`: each change is one. A value that is not a number of at least 0 stops scrap at start |
+| `SCRAP_MCP_CONTENT_EDIT` | `1` | `0` (or `false`, `no`, `off`): MCP does not offer `edit_page` and refuses `revert` with `to_rev`, so no MCP session can change the text of a page it did not write (see [](mcp.md)). Unset is on; any other value, empty too, stops scrap starting |
+| `SCRAP_MAX_UPLOAD_MB` | `50` | Largest request body (a capture's files together), enforced as it arrives: `413`; also the largest file `scrap import` takes. May be fractional; a value that is not a number stops scrap at start. `/mcp` has its own fixed cap of 2 MB |
+| `SCRAP_INGEST` | `off` | `on` starts the worker that sends photos to Claude (photos are queued either way) |
+| `ANTHROPIC_API_KEY` | | The key for the Claude API; keep it in the service user's mode-600 env file |
+| `SCRAP_LLM_BACKEND` | `api` | `api`: the Messages API with `ANTHROPIC_API_KEY`. `cli`: Claude Code (`claude -p`) on a Claude seat, with `CLAUDE_CODE_OAUTH_TOKEN`; needs the `claude` binary (`Dockerfile.claude`). See [ADR 0021](../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.md) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | | With `SCRAP_LLM_BACKEND=cli`: the seat token from `claude setup-token`; mode-600 env file only, it can use the whole seat |
+| `SCRAP_VISION_MODEL` | `claude-opus-5-5` | The model photos are sent to. Empty counts as unset. A name the API does not know is a `404`, which pauses the queue as `auth` until *Resume* (see {ref}`ingest-spend`). The effort of the photo call is fixed at `medium`; no setting changes it |
+| `SCRAP_ENRICH` | `on` | With ingest on, Claude also tags, summarises and links text pages and fetches saved links; `off` keeps it to photos |
+| `SCRAP_TEXT_MODEL`, `SCRAP_TEXT_EFFORT` | `claude-haiku-5-5`, `low` | The model and effort for text pages. Empty counts as unset. Both go to the API as given, with no check: a model it does not know pauses the queue as `auth`, and an effort it rejects is a `400`, class `content`, which fails every text job (each charged; the third failure of a job ends it, and *Ask Claude* retries) |
+| `SCRAP_ENRICH_DEBOUNCE` | `60` | Seconds after a note's capture or save before Claude reads it (later saves move it). A value that is not a number means `60`; a negative one means `0` (no wait) |
+| `SCRAP_BUDGET_DAY_USD` | `3` | Daily spend, from recorded usage, after which the queue pauses until UTC midnight. A number of dollars, fractions allowed; `0` pauses the queue at the first job it claims. A value that is not a number stops scrap at start when `SCRAP_INGEST` is on, and `scrap enrich --related` when it runs, with a Python `ValueError` traceback rather than a message; with ingest off the value is never read. With `cli`, the CLI's notional cost at API prices |
+| `SCRAP_NOTIFY_URL` | unset | If set, the first pause of an episode POSTs one fixed line naming its reason here (an ntfy topic works) |
+| `TZ` | the host's; `UTC` in the image | The server's time zone, e.g. `Europe/London`. It decides what "today" is for the search filters `due:today`, `due:tomorrow`, `due:yesterday` and `is:snoozed`. The image has the tz database, so the setting works there |
