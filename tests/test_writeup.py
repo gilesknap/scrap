@@ -665,6 +665,7 @@ def test_an_ask_retried_after_its_related_call_does_not_write_up_again(store):
             " [a\\]b] : /p/evil [x] ( /p/evil )",
         ),
     ],
+    ids=["dropped-citation-leaves-a-definition", "one-scheme-leaves-another", "nested"],
 )
 def test_stripping_one_link_never_leaves_another(text, kept):
     out = enrich.cited(text, ["enc"])
@@ -673,12 +674,24 @@ def test_stripping_one_link_never_leaves_another(text, kept):
     assert "://" not in out
 
 
-@pytest.mark.parametrize(
-    "bad",
-    ["a." * 50_000, "a" * 100_000 + ":", "<" + "a" * 100_000, "[" * 50_000 + "]("],
-)
-def test_stripping_a_pathological_write_up_is_quick(bad):
+# Inputs that would be quadratic in an unbounded pattern, made in the test: as
+# parameters they would be the test ids, 100k characters each in every report line,
+# whose reporting alone slowed the other workers' timing tests (#269)
+PATHOLOGICAL = {
+    "dots": lambda: "a." * 50_000,
+    "scheme-run": lambda: "a" * 100_000 + ":",
+    "open-autolink": lambda: "<" + "a" * 100_000,
+    "brackets": lambda: "[" * 50_000 + "](",
+}
+
+
+@pytest.mark.parametrize("name", list(PATHOLOGICAL))
+def test_stripping_a_pathological_write_up_is_quick(name):
+    """Linear, not quadratic: the unbounded pattern took about 10 s on 64k characters;
+    a generous bound keeps a slow runner from failing it."""
+    bad = PATHOLOGICAL[name]()
     start = time.perf_counter()
     enrich.cited(bad, ["enc"])  # all of it, uncut
     enrich.checked_writeup({"summary": "s", "text": bad + " x"}, ["enc"])
-    assert time.perf_counter() - start < 1.0
+    took = time.perf_counter() - start
+    assert took < 5.0, f"{name}: {took:.1f} s"  # no input in the message
