@@ -43,6 +43,28 @@ export interface Summary {
   snoozed_until?: string | null; // a todo's: out of Now until this day (YYYY-MM-DD)
   tasks?: { done: number; total: number }; // its task boxes: ticked, and in all
 }
+/** One version of a board page's write-up (writeup.ts). */
+export interface WriteupVersion {
+  version: number;
+  producer: string; // the model that wrote it
+  created_at: string;
+  prompt_version: string;
+  summary: string;
+  text: string; // Markdown, its links [[slug]]
+  guidance: string | null; // the owner's guidance it was written with
+  restored_from: number | null; // a copy of this version, made by Restore
+  current?: boolean; // in the versions list
+}
+/** A board page's write-up: Claude's explanation, apart from the text (#256). */
+export interface Writeup {
+  board: boolean; // a whiteboard or diagram page: one can be written
+  on: boolean; // Claude is on
+  guidance: string | null; // the owner's, for the next one
+  state: "queued" | "processing" | "done" | "failed" | "paused" | null;
+  error: string | null;
+  versions: number;
+  current: WriteupVersion | null;
+}
 export interface Page extends Summary {
   kind_fixed: number; // 1: the user chose the kind
   body: string;
@@ -59,6 +81,7 @@ export interface Page extends Summary {
     reason?: string | null; // why the queue is paused (state "paused")
     summary: string | null;
   } | null;
+  writeup?: Writeup | null; // a board page's (writeup.ts)
 }
 export interface Hit
   extends Pick<

@@ -129,6 +129,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
               {},
               h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
               r.via === "link" && h("small", {}, " · links here"),
+              r.via === "writeup" && h("small", {}, " · in a write-up"),
             ),
           ),
         ),

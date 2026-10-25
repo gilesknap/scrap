@@ -1,0 +1,101 @@
+/* Claude's write-up of a board page (writeup.ts): a fold under the page's text, its card
+   dashed in --line-strong as Claude's tags are, so it never reads as the owner's text. */
+.writeup {
+  margin: var(--s-4) 0;
+}
+.writeup summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  list-style: none;
+}
+.writeup > summary {
+  color: var(--ink);
+  font-size: var(--t-md);
+}
+.writeup summary::-webkit-details-marker {
+  display: none;
+}
+/* A chevron: points right when folded, down when open (as .claude-text's) */
+.writeup summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 3px var(--s-1);
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: -45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.writeup[open] > summary::before,
+.writeup .sub[open] > summary::before {
+  rotate: 45deg;
+}
+.writeup .card {
+  padding: var(--s-3) var(--s-4);
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.writeup .ingest > button:not(.link) {
+  margin-inline-start: auto;
+}
+.writeup .by {
+  margin: var(--s-1) 0 0;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  overflow-wrap: anywhere;
+}
+.writeup .summary {
+  margin: var(--s-2) 0;
+  font-weight: 500;
+}
+.writeup .body h2 {
+  font-size: var(--t-md);
+}
+.writeup .sub {
+  border-top: 1px solid var(--line);
+  margin-top: var(--s-3);
+}
+.writeup textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: var(--s-2);
+  font: inherit;
+}
+.writeup .row {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--s-2) 0;
+}
+.writeup .versions {
+  margin: 0 0 var(--s-2);
+  padding-inline-start: 0;
+  list-style: none;
+  font-size: var(--t-sm);
+}
+.writeup .versions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--s-2);
+  padding: var(--s-1) 0;
+}
+.writeup .versions li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.writeup .versions em {
+  color: var(--ink-2);
+}
+.writeup .versions small {
+  flex-basis: 100%;
+  color: var(--ink-2);
+}
