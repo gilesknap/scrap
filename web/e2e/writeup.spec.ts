@@ -108,29 +108,76 @@ test("the write-up meets AA contrast, in both themes", async ({ page }) => {
   }
 });
 
-test("Regenerate queues a new write-up and the section says it waits", async ({ page }) => {
+test("the card's one Regenerate asks Claude to read the board again, write-up and all", async ({
+  page,
+}) => {
   await opened(page);
   const b = board();
-  // As if Claude were on (this server runs without it)
-  const on = (json: { writeup: { on: boolean } }) => ({
+  // As if Claude were on (this server runs without it), the page read once already
+  type Json = { enrich: object | null; writeup: object };
+  const on = (json: Json, state = "done") => ({
     ...json,
+    enrich: { error: null, summary: null, ...json.enrich, on: true, state },
     writeup: { ...json.writeup, on: true },
   });
   await page.route(`**/api/pages/${b.slug}`, async (r) =>
     r.fulfill({ json: on(await (await r.fetch()).json()) }),
   );
-  let asked = 0;
-  await page.route("**/api/pages/*/writeup", async (r) => {
-    asked++;
+  const asked: string[] = [];
+  await page.route("**/api/pages/*/enrich", async (r) => {
+    asked.push("enrich");
     const json = await (await page.request.get(`/api/pages/${b.slug}`)).json();
-    await r.fulfill({ json: { ...on(json), writeup: { ...on(json).writeup, state: "queued" } } });
+    await r.fulfill({ json: on(json, "queued") });
+  });
+  await page.route("**/api/pages/*/writeup", async (r) => {
+    asked.push("writeup");
+    await r.abort();
   });
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
+  await expect(s.getByRole("button", { name: "Regenerate" })).toHaveCount(1); // one, not two
   await s.getByRole("button", { name: "Regenerate" }).click();
   await expect(s.getByRole("status")).toHaveText("Waiting for Claude");
   await expect(s.getByRole("button", { name: "Regenerate" })).toHaveCount(0);
-  expect(asked).toBe(1);
+  expect(asked).toEqual(["enrich"]); // Ask: reads it, writes it up, finds related pages
+});
+
+test("a board's Summary is its write-up's lead, not the page's own summary", async ({ page }) => {
+  const b = board();
+  let lead = "";
+  await page.route(`**/api/pages/${b.slug}`, async (r) => {
+    const json = await (await r.fetch()).json();
+    lead = json.writeup.current.summary;
+    await r.fulfill({
+      json: { ...json, enrich: { on: false, state: "done", error: null, summary: "Not this one" } },
+    });
+  });
+  await page.goto(`/p/${b.slug}`);
+  const summary = section(page).locator("details", { hasText: "Summary" }).first();
+  await expect(summary).toHaveAttribute("open", "");
+  await expect(summary.locator(".summary")).toHaveText(lead);
+  await expect(section(page).getByText("Not this one")).toHaveCount(0);
+});
+
+test("a board not written up yet says what Claude would do; Generate asks", async ({ page }) => {
+  const b = board();
+  await page.route(`**/api/pages/${b.slug}`, async (r) => {
+    const json = await (await r.fetch()).json();
+    await r.fulfill({
+      json: {
+        ...json,
+        enrich: { on: true, state: null, error: null, summary: null },
+        writeup: { ...json.writeup, on: true, state: null, versions: 0, current: null },
+      },
+    });
+  });
+  await page.goto(`/p/${b.slug}`);
+  const s = section(page);
+  await expect(s).toContainText("Claude can describe this board in detail");
+  await expect(s).not.toContainText("Claude can summarise it");
+  await expect(s.getByRole("button", { name: "Generate" })).toBeVisible();
+  await expect(s.getByText("Guidance for Claude")).toBeVisible();
+  await expect(s.locator("details.writeup .card")).toHaveCount(0); // no write-up to read
 });
 
 test("a write-up shows no link but a page link, whatever its text holds", async ({ page }) => {

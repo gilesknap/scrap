@@ -1,7 +1,9 @@
-// What Claude added to a text page (#85), under its text: the summary it wrote, the pages it
-// found related (merged with pages linking here), its state while it reads, and Ask Claude to
-// have it read the page now (a saved link is fetched again). Claude's tags are marked in the
-// tag line (page.ts). A chunk of its own: the page view loads it when the page has any of it.
+// The page's one Claude card, About this page (#85, #256), under its text: the summary Claude
+// wrote (a board's is its write-up's lead), a board's write-up (In detail, writeup.ts), the
+// pages it found related (merged with pages linking here), its state while it works, and one
+// action: Ask, which reads the page again (a saved link is fetched again) and, on a board,
+// writes it up and finds its related pages again too. Claude's tags are marked in the tag line
+// (page.ts). A chunk of its own: the page view loads it when the page has any of it.
 import { ApiError, api, kept, type Page } from "./api";
 import { h, toast } from "./ui";
 import type { writeupParts } from "./writeup";
@@ -52,10 +54,10 @@ function fold(label: string, ...body: (Node | string)[]) {
 /** Never read: what asking Claude would do. */
 export const ASK = "Claude can summarise it, suggest tags and find related pages.";
 
-/** The page's one Claude card, About this page, at its end: Summary, a board's write-up (In
- * detail: wp, its parts) and Related. Null when there is nothing to show and Claude is off. Its
- * title line says where Claude is up to, if anywhere, and its one action: on a board the
- * write-up's (writing it again reads the page again), else reading the page. */
+/** The page's one Claude card, About this page, after its text: Summary, a board's write-up
+ * (In detail: wp, its parts) and Related. Null when there is nothing to show and Claude is off.
+ * Its title line says where Claude is up to, if anywhere, and its one action, Ask (POST
+ * enrich): on a board it writes the write-up again too, so it is named for that. */
 export function enrichPanel(
   p: Page,
   show: (p: Page) => void,
@@ -70,14 +72,18 @@ export function enrichPanel(
   // Never read: no state to show, only what asking would do, then the button under it
   // The title says what the card holds; the pill only where Claude is up to (none once read)
   const said = e && e.state !== "done" ? stateText(e) : null;
+  // Named for what there is: a board's write-up, else the page's reading
+  const failed = e?.state === "failed" || wp?.state === "failed";
+  const made = wp ? wp.written : read;
   const ask =
     e?.on &&
     !busy &&
+    !wp?.busy &&
     h(
       "button",
       {
         type: "button",
-        className: read && e.state !== "failed" ? "link" : "",
+        className: made && !failed ? "link" : "",
         onclick: async (ev: Event) => {
           const b = ev.currentTarget as HTMLButtonElement;
           b.disabled = true;
@@ -89,7 +95,7 @@ export function enrichPanel(
           }
         },
       },
-      e.state === "failed" ? "Retry" : read ? "Regenerate" : "Generate",
+      failed ? "Retry" : made ? "Regenerate" : "Generate",
     );
   // The queue is the photos' too: its Resume (api/ingest/resume) ends the pause for both
   const resume =
@@ -113,9 +119,11 @@ export function enrichPanel(
       "Resume",
     );
   const state = e?.state === "failed" || e?.state === "paused" ? e.state : read ? "done" : "";
-  // A board: the write-up's state and action lead (the page's own as a fallback)
-  const pill = (wp?.said && [wp.said, wp.state]) || (said && [said, state]);
-  const summary = e?.summary || wp?.lead;
+  // A board: the write-up's state leads, but a pause is the page's (it says why, and Resume is
+  // beside it); a board's Summary is its write-up's lead
+  const pill =
+    (e?.state !== "paused" && wp?.said && [wp.said, wp.state]) || (said && [said, state]);
+  const summary = wp?.lead || e?.summary;
   return h(
     "section",
     { className: "enrich claude", "aria-label": "About this page" },
@@ -124,20 +132,17 @@ export function enrichPanel(
       { className: "ingest" },
       h("h3", { className: "ctitle" }, "About this page"),
       pill && h("span", { className: `state ${pill[1]}`, role: "status" }, pill[0]),
-      resume || (wp ? wp.action : ask) || "",
+      // (the write-up's own when the page's reading is off; never beside a busy Ask)
+      resume || ask || (!e?.on && wp?.action) || "",
     ),
     // Never read (or, a board, never written): what asking would do. Then its parts as folds:
-    // Summary (a board's is its write-up's lead), In detail (a board's write-up) and Related
-    ...(wp
-      ? (wp.unwritten ?? [])
-      : [
-          !busy && e?.on && !read ? h("p", { className: "did" }, ASK) : "",
-          read && !summary && !related.length
-            ? h("p", { className: "did" }, "Claude found nothing to add.")
-            : "",
-        ]),
+    // Summary, In detail (a board's write-up, or its guidance before there is one) and Related
+    wp ? (wp.unwritten ?? "") : !busy && e?.on && !read ? h("p", { className: "did" }, ASK) : "",
+    !wp && read && !summary && !related.length
+      ? h("p", { className: "did" }, "Claude found nothing to add.")
+      : "",
     summary ? fold("Summary", h("p", { className: "summary", dir: "auto" }, summary)) : "",
-    wp?.detail ?? "",
+    wp?.detail ?? wp?.guidance ?? "",
     related.length > 0 &&
       Object.assign(
         fold(

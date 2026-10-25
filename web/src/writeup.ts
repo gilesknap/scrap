@@ -1,9 +1,8 @@
-// Claude's write-up of a board page (#256), under its text: a Claude card of its own, shaped as
-// a photo's (a state line, then the write-up as a fold, folded until opened and remembered),
-// never the page's text. It says who wrote
-// it and when, shows its lead and its Markdown (its [[slug]] links as page links), and offers
-// Regenerate, the owner's guidance for the next one, and its versions with Restore. Nobody edits
-// it. A chunk of its own: the page view loads it for a page with a write-up or a board.
+// Claude's write-up of a board page (#256): its parts for the page's one Claude card, About
+// this page (enrich.ts): where Claude is up to, the lead (the card's Summary) and the write-up
+// itself as a fold, In detail, with who wrote it and when, its Markdown (its [[slug]] links as
+// page links), the owner's guidance for the next one and its versions with Restore. Nobody
+// edits it. A chunk of its own: the page view loads it for a page with a write-up or a board.
 import { ApiError, api, kept, type Page, type Writeup, type WriteupVersion } from "./api";
 import { bodyView, h, toast, whenShort } from "./ui";
 import "./writeup.css";
@@ -77,8 +76,8 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
   if (!w || (!w.current && !(w.board && w.on))) return null;
   const up = w.current;
   const busy = ["queued", "processing", "paused"].includes(w.state ?? "");
-  // Generate the first time, Regenerate after, Retry when it failed: as every Claude card says.
-  // On a board it is the card's one action: writing it again reads the page again too
+  // Generate the first time, Regenerate after, Retry when it failed: the card's action only when
+  // the page's own (Ask, enrich.ts) is not there, Claude being off for it
   const action =
     w.on &&
     w.board &&
@@ -116,22 +115,24 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
   return {
     said: stateText(w), // where Claude is up to: null when there is nothing to say
     state: w.state ?? "",
+    busy,
+    written: !!up,
     action: action || null,
     lead: up?.summary ?? null, // the board's summary
     detail: detail || null,
-    // None yet: what Claude would do, and the guidance it would follow
-    unwritten: up
-      ? null
-      : [
-          !busy &&
-            h(
-              "p",
-              { className: "did" },
-              "Claude can describe this board in detail: its parts and how they connect.",
-            ),
-          w.board &&
-            Object.assign(guidanceFold(p, w, show), { className: "claude-text sub writeup" }),
-        ],
+    // None yet: what Claude would do, and the guidance it would follow (after Summary)
+    unwritten:
+      !up && !busy
+        ? h(
+            "p",
+            { className: "did" },
+            "Claude can describe this board in detail: its parts and how they connect.",
+          )
+        : null,
+    guidance:
+      !up && w.board
+        ? Object.assign(guidanceFold(p, w, show), { className: "claude-text sub writeup" })
+        : null,
   };
 }
 
