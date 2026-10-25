@@ -36,8 +36,16 @@ jobs:
       - name: Size budget (the app shell, without the drawing viewer)
         run: npm run size
 
-  e2e:
+  # One server and data folder serve all of a run's specs, and they share it (search order,
+  # page counts), so workers stay at 1. Instead each shard is its own runner, with its own server
+  # and data folder: isolation for free. The `e2e` job below is the one stable check name.
+  e2e-shard:
+    name: e2e shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -63,11 +71,19 @@ jobs:
         run: npm run build
 
       - name: Smoke test against scrap serve
-        run: npm run e2e
+        run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
       - name: Upload the trace of a failed run
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: web/test-results
+
+  e2e:
+    if: always()
+    needs: e2e-shard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every e2e shard passed
+        run: test "${{ needs.e2e-shard.result }}" = success
