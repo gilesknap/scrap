@@ -233,12 +233,8 @@
   margin: 0;
   font-size: var(--t-md);
 }
-.enrich h2 {
-  margin: var(--s-3) 0 var(--s-1);
-  font-size: var(--t-sm);
-}
 .enrich ul {
-  margin: 0;
+  margin: 0 0 var(--s-2);
   padding-inline-start: var(--s-4);
 }
 .enrich li {

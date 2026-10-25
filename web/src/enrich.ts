@@ -2,7 +2,7 @@
 // found related (merged with pages linking here), its state while it reads, and Ask Claude to
 // have it read the page now (a saved link is fetched again). Claude's tags are marked in the
 // tag line (page.ts). A chunk of its own: the page view loads it when the page has any of it.
-import { ApiError, api, type Page } from "./api";
+import { ApiError, api, kept, type Page } from "./api";
 import { h, toast } from "./ui";
 
 export type Enrich = NonNullable<Page["enrich"]>;
@@ -32,6 +32,20 @@ export const reading = (p: Page) =>
 export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
+
+/** A fold of the card, as a photo's Description is, but open until closed (then remembered
+ * closed): what Claude found is short, and what the card is for. */
+function fold(label: string, ...body: (Node | string)[]) {
+  const key = `scrap.fold.${label}`;
+  const el = h(
+    "details",
+    { className: "claude-text", open: kept(key) !== "shut" },
+    h("summary", {}, label),
+    ...body,
+  );
+  el.ontoggle = () => kept(key, el.open ? null : "shut");
+  return el;
+}
 
 /** Never read: what asking Claude would do. */
 export const ASK = "Claude can summarise it, suggest tags and find related pages.";
@@ -93,7 +107,7 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
   const state = e?.state === "failed" || e?.state === "paused" ? e.state : read ? "done" : "";
   return h(
     "section",
-    { className: "enrich" },
+    { className: "enrich claude" },
     h(
       "div",
       { className: "ingest" },
@@ -107,26 +121,26 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
     read && !e?.summary && !related.length
       ? h("p", { className: "did" }, "Claude found nothing to add.")
       : "",
-    e?.summary ? h("h2", {}, "Summary") : "",
-    e?.summary ? h("p", { className: "summary", dir: "auto" }, e.summary) : "",
+    e?.summary ? fold("Summary", h("p", { className: "summary", dir: "auto" }, e.summary)) : "",
     related.length > 0 &&
-      h(
-        "div",
-        { className: "related" },
-        h("h2", {}, "Related"),
-        h(
-          "ul",
-          {},
-          ...related.map((r) =>
-            h(
-              "li",
-              {},
-              h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
-              r.via === "link" && h("small", {}, " · links here"),
-              r.via === "writeup" && h("small", {}, " · in a write-up"),
+      Object.assign(
+        fold(
+          "Related",
+          h(
+            "ul",
+            {},
+            ...related.map((r) =>
+              h(
+                "li",
+                {},
+                h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
+                r.via === "link" && h("small", {}, " · links here"),
+                r.via === "writeup" && h("small", {}, " · in a write-up"),
+              ),
             ),
           ),
         ),
+        { className: "claude-text related" },
       ),
   );
 }
