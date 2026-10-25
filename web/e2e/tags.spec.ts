@@ -149,6 +149,7 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
 test("tags are edited on the page, and in the editor (a row's swipe opens it)", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // the contrast check catches no fade midway
   const id = "01E2ETAGED17".padEnd(26, "0");
   const made = await page.request.post("/api/captures", { data: { id, text: "Tag me please" } });
   const { slug } = await made.json();
@@ -264,6 +265,7 @@ test("the most used tags are offered one tap each, on a page and in the composer
 });
 
 test("Order writes sort: into the query, and the results follow it", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // the contrast check catches no fade midway
   await page.goto("/search?q=zephyr");
   const order = (await filters(page)).getByRole("group", { name: "Order" });
   await expect(order.getByRole("button", { name: "Best match" })).toHaveAttribute(

@@ -93,8 +93,30 @@ export class ApiError extends Error {
   }
 }
 
+/** Ticks up as a change (a PATCH, POST, DELETE) starts and again as it ends. A refresh that
+ * began at one value and ends at another overlapped a change: what it read may be from before
+ * it, so it must not be drawn over the change (a tick shown, then undone). */
+let writes = 0;
+let inflight = 0;
+/** A stamp for a read: compare it before and after (`stamp !== writeClock()`) and a change
+ * began, ended or was under way meanwhile, so what was read may predate it. NaN while a change
+ * is in flight, and NaN equals nothing. */
+export const writeClock = () => (inflight ? Number.NaN : writes);
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(`/api/${path}`, init);
+  if (init?.method) {
+    writes++;
+    inflight++;
+  }
+  let r: Response;
+  try {
+    r = await fetch(`/api/${path}`, init);
+  } finally {
+    if (init?.method) {
+      writes++;
+      inflight--;
+    }
+  }
   if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({})));
   if (init?.method) dispatchEvent(new Event("scrap:wrote")); // a change: e.g. the Todos badge
   return (r.status === 204 ? null : await r.json()) as T;
