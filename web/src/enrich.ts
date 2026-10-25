@@ -33,19 +33,8 @@ export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** What Claude did, in a line, so Regenerate says what it would redo (or, never read, what
- * asking would do). */
-export function did(p: Page, read: boolean): string {
-  if (!read) return "Claude can summarise it, suggest tags and find related pages.";
-  const parts = [
-    p.enrich?.summary && "wrote the summary",
-    p.model_tags?.length && "added the dashed tags",
-    p.related?.some((r) => r.via !== "link") && "found the related pages",
-  ].filter(Boolean) as string[];
-  if (!parts.length) return "Claude found nothing to add.";
-  const last = parts.pop();
-  return `Claude ${parts.length ? `${parts.join(", ")} and ${last}` : last}.`;
-}
+/** Never read: what asking Claude would do. */
+export const ASK = "Claude can summarise it, suggest tags and find related pages.";
 
 /** The panel, or null when there is nothing to show and Claude is off. Its row says it as a
  * photo's does: Read by Claude (or where it is up to), then Regenerate. */
@@ -112,8 +101,14 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
       said && h("span", { className: `state ${state}`, role: "status" }, said),
       resume || ask,
     ),
-    !busy && e?.on && h("p", { className: "did" }, did(p, read)),
-    e?.summary && h("p", { className: "summary", dir: "auto" }, e.summary),
+    // Never read: what asking would do. Read: its parts under headings, Summary (a board has
+    // none: its write-up says what it shows) and Related
+    !busy && e?.on && !read ? h("p", { className: "did" }, ASK) : "",
+    read && !e?.summary && !related.length
+      ? h("p", { className: "did" }, "Claude found nothing to add.")
+      : "",
+    e?.summary ? h("h2", {}, "Summary") : "",
+    e?.summary ? h("p", { className: "summary", dir: "auto" }, e.summary) : "",
     related.length > 0 &&
       h(
         "div",

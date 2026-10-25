@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Page } from "../src/api";
-import { did, type Enrich, reading, relatedOf, stateText } from "../src/enrich";
+import { type Enrich, reading, relatedOf, stateText } from "../src/enrich";
 
 const e = (over: Partial<Enrich>): Enrich => ({
   on: true,
@@ -24,25 +24,6 @@ it("says what Claude is doing, and nothing once done", () => {
   expect(stateText(e({ state: "paused" }))).toBe("Paused: nothing is lost");
   expect(stateText(e({ state: "done" }))).toBeNull();
   expect(stateText(e({}))).toBeNull();
-});
-
-it("says in a line what Claude did, so Regenerate says what it would redo", () => {
-  const link = { id: "L", slug: "l", title: "L", kind: "note", via: "link" };
-  const picked = { ...link, id: "C", via: "claude" };
-  expect(did(page({}), false)).toBe(
-    "Claude can summarise it, suggest tags and find related pages.",
-  );
-  expect(did(page({ enrich: e({ summary: "S" }) }), true)).toBe("Claude wrote the summary.");
-  expect(did(page({ enrich: e({ summary: "S" }), related: [picked] }), true)).toBe(
-    "Claude wrote the summary and found the related pages.",
-  );
-  expect(
-    did(page({ enrich: e({ summary: "S" }), model_tags: ["a"], related: [picked] }), true),
-  ).toBe("Claude wrote the summary, added the dashed tags and found the related pages.");
-  // A page linking here is not Claude's find
-  expect(did(page({ enrich: e({ state: "done" }), related: [link] }), true)).toBe(
-    "Claude found nothing to add.",
-  );
 });
 
 it("polls only while Claude has the page and is on", () => {

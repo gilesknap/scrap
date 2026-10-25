@@ -230,7 +230,7 @@
   margin-top: var(--s-2);
 }
 .enrich .summary {
-  margin: var(--s-2) 0 0;
+  margin: 0;
   font-size: var(--t-md);
 }
 .enrich h2 {
