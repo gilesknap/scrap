@@ -576,7 +576,7 @@ the page's text.
   /api/pages/{id}/writeup/guidance`, at most 2,000 characters, kept in `writeup_guidance`), such
   as "focus on the data flow; 'Enc' means encoder". The next write-up is given it, and keeps a
   copy. Saving it queues nothing: Regenerate does.
-- **Where it shows.** The page view's "Claude's write-up" section; its `summary` is the page's
+- **Where it shows.** The page view's **What it means** card (Claude's write-up); its `summary` is the page's
   model summary (before enrich's), so search and the related index use it; its text is indexed
   for search (a chunk of the page's own, made again with it); MCP `read` returns the current one
   as `by_model.writeup`.

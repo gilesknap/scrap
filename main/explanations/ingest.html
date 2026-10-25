@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.7.3.dev1+g1761a2329 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.8.1.dev1+ge744438ca documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=07085a6f"></script>
+    <script src="../_static/documentation_options.js?v=d4811a39"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1177,7 +1177,7 @@ it.</p></li>
 <li><p><strong>Guidance.</strong> The owner may leave a note for the next write-up (<code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{id}/writeup/guidance</span></code>, at most 2,000 characters, kept in <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code>), such
 as “focus on the data flow; ‘Enc’ means encoder”. The next write-up is given it, and keeps a
 copy. Saving it queues nothing: Regenerate does.</p></li>
-<li><p><strong>Where it shows.</strong> The page view’s “Claude’s write-up” section; its <code class="docutils literal notranslate"><span class="pre">summary</span></code> is the page’s
+<li><p><strong>Where it shows.</strong> The page view’s <strong>What it means</strong> card (Claude’s write-up); its <code class="docutils literal notranslate"><span class="pre">summary</span></code> is the page’s
 model summary (before enrich’s), so search and the related index use it; its text is indexed
 for search (a chunk of the page’s own, made again with it); MCP <code class="docutils literal notranslate"><span class="pre">read</span></code> returns the current one
 as <code class="docutils literal notranslate"><span class="pre">by_model.writeup</span></code>.</p></li>

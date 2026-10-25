@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.7.3.dev1+g1761a2329 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.1.dev1+ge744438ca documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=07085a6f"></script>
+    <script src="../_static/documentation_options.js?v=d4811a39"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -562,7 +562,7 @@ or a comma, or tap one of the tags offered in a row under the box (your most use
 you type, the tags in use that match); tap a tag’s ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude’s
-join them when it first reads the photo (a later Reprocess adds its tags only to a page with
+join them when it first reads the photo (a later Regenerate adds its tags only to a page with
 none, so one you took off stays off). Saved separately, every photo’s page gets the tags.
 <strong>Save</strong> returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.</p>
@@ -988,11 +988,12 @@ chip for it under the text box (a thumbnail and its name): tap a chip to select 
 cut and paste it elsewhere), or its <strong>✕</strong> to take it out. Saving puts back the Markdown each
 token stands for, exactly as it was; a token you delete or change is no photo any more. Claude reading a photo never
 changes the text. The page shows each photo where its line is, as a preview the server makes
-(so iPhone HEIC photos show too), with its file name, a <strong>Download</strong> of the original and
-<strong>Ask Claude</strong>, which sends that photo to Claude; once sent, the photo shows Claude’s
-progress (waiting, reading, paused) and then what it read, described and drew. Below the text
+(so iPhone HEIC photos show too), with no caption: tap it for the viewer, which names it
+and has the <strong>Download</strong> of the original. Under a photo Claude hasn’t read, a Claude card
+(<strong>What’s in the photo</strong>) says what Claude would do, with <strong>Generate</strong>; once sent, the card
+shows Claude’s progress (waiting, reading, paused) and then what it read, described and drew. Below the text
 are the files it doesn’t show, such as PDFs, as links with a <strong>Download</strong>.</p></li>
-<li><p>Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
+<li><p>Tap a photo to view it full screen (its file name at the top left): it opens fitted to the screen; pinch or double-tap to zoom,
 drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
 <strong>Download</strong> and <strong>Share</strong> are along the bottom and the cross at the top right closes it, as
 does the phone’s Back button. <strong>Share</strong> asks <strong>Link</strong> or <strong>Photo</strong>: <strong>Link</strong> sends the
@@ -1047,16 +1048,21 @@ screen: once the Undo has gone, a page can be brought back with
 give scrap an <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> (the Helm chart’s <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>, with an existing Secret
 holding the key) as in <a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a> and the deploy guides.
 Without ingest photos are still stored and queued, and each shows <em>Waiting: Claude ingest is off</em>.</p>
-<p>With Claude ingest on, each photo on a page has, under it:</p>
+<p>Everything Claude makes is shown in a brown card of its own, titled by what it holds, so it
+never reads as your text: <strong>What’s in the photo</strong> under a photo, <strong>What it means</strong> for a
+board’s write-up, and <strong>About this page</strong> under the text. Each card’s action is at the end of
+its title line: <strong>Generate</strong> the first time, <strong>Regenerate</strong> after (<strong>Retry</strong> if it failed). Its
+parts are folds: tap a heading (its arrow) to open or close it, and the phone remembers that.</p>
+<p>With Claude ingest on, each photo on a page has, under it, <strong>What’s in the photo</strong>:</p>
 <ul class="simple">
-<li><p>Its state: <em>Waiting for Claude</em> (or <em>Waiting: Claude ingest is off</em>), <em>Claude is reading it…</em>,
-<em>Read by Claude</em>, <em>Failed</em> with the reason and <strong>Retry</strong>, or <em>Paused</em> with the reason and <strong>Resume</strong>
-(nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
-<strong>Reprocess</strong>, a quiet text button at the end of the <em>Read by Claude</em> line, sends it to
-Claude again; if you have edited its drawing, it asks first:
-<strong>Replace mine</strong>, or <strong>Keep mine</strong> (Claude’s new drawing goes into History).</p></li>
-<li><p><strong>Description</strong> and <strong>Text Claude read</strong>, open; tap a heading (its arrow) to fold it away,
-and the phone remembers that for the next page. The text can be selected and copied.</p></li>
+<li><p>Its state, only while Claude has it: <em>Waiting for Claude</em> (or <em>Waiting: Claude ingest is
+off</em>), <em>Claude is reading it…</em>, <em>Failed</em> with the reason and <strong>Retry</strong>, or <em>Paused</em> with the
+reason and <strong>Resume</strong> (nothing is lost while paused). The page checks again every 10 seconds
+while a photo waits. <strong>Regenerate</strong>, a quiet text button at the end of the title line, sends
+it to Claude again; if you have edited its drawing, it asks first: <strong>Replace mine</strong>, or
+<strong>Keep mine</strong> (Claude’s new drawing goes into History).</p></li>
+<li><p><strong>Description</strong> and <strong>Text in the photo</strong>, folded until you open them. The text can be
+selected and copied.</p></li>
 <li><p><strong>The drawing</strong> of a whiteboard or diagram, beside the photo when the screen is wide enough
 (a tablet, or a phone on its side), else under a <strong>Photo</strong> / <strong>Drawing</strong> switch. It is a
 picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
@@ -1093,21 +1099,22 @@ from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font
 <section id="what-claude-makes-of-a-note-or-link">
 <h2>What Claude makes of a note or link<a class="headerlink" href="#what-claude-makes-of-a-note-or-link" title="Link to this heading">#</a></h2>
 <p>With ingest on and <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> not set to <code class="docutils literal notranslate"><span class="pre">off</span></code> (see <a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a>), a text
-or link page gets a <strong>Claude</strong> panel on its page view, under its text. Enrichment is on by
+or link page gets an <strong>About this page</strong> card on its page view, under its text. Enrichment is on by
 default once <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>; without ingest the panel is not shown unless the page already
 has a summary or related pages. The panel has:</p>
 <ul class="simple">
-<li><p>Its state, as a photo’s is said: <em>Read by Claude</em> once it has read the page, with
-<strong>Reprocess</strong> at the end of the line to have it read the page again (a saved link is fetched
-again); while it works, <em>Waiting for Claude</em> (or <em>Waiting: Claude is off</em>) or <em>Claude is
-reading it…</em>; <em>Paused</em> with the reason and <strong>Resume</strong> (the queue is shared with photos;
-nothing is lost while paused); <em>Claude couldn’t read it</em> with the reason, and <strong>Retry</strong>.</p></li>
-<li><p>A line saying what Claude did: <em>Claude wrote the summary, added the dashed tags and found
-the related pages</em> (its tags are marked with a dashed outline in the tag line). Before Claude
-has read the page, the line says what it would do instead, with <strong>Ask Claude to read it</strong>.</p></li>
-<li><p>Claude’s one-line summary of the page, which search also looks in.</p></li>
+<li><p><strong>Regenerate</strong> at the end of its title line, to have Claude read the page again (a saved
+link is fetched again). While it works the line says <em>Waiting for Claude</em> (or <em>Waiting:
+Claude is off</em>) or <em>Claude is reading it…</em>; <em>Paused</em> with the reason and <strong>Resume</strong> (the
+queue is shared with photos; nothing is lost while paused); <em>Claude couldn’t read it</em> with
+the reason, and <strong>Retry</strong>. Before Claude has read the page, the card says what it would do
+(summarise it, suggest tags, find related pages), with <strong>Generate</strong>.</p></li>
+<li><p><strong>Summary</strong>: Claude’s one-line summary of the page, which search also looks in. A board has
+none: its write-up says what it shows.</p></li>
 <li><p><strong>Related</strong>: pages Claude picked, merged with the pages that link here (marked <em>· links
 here</em>).</p></li>
+<li><p>Summary and Related are open until you close them. The tags Claude added are marked with a
+dashed outline in the tag line.</p></li>
 </ul>
 <p>Reading a page needs the server, like opening it; the page checks again while Claude has it
 queued or is reading it.</p>
@@ -1115,10 +1122,10 @@ queued or is reading it.</p>
 <section id="claude-s-write-up-of-a-board">
 <h2>Claude’s write-up of a board<a class="headerlink" href="#claude-s-write-up-of-a-board" title="Link to this heading">#</a></h2>
 <p>A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
-<strong>Claude’s write-up</strong>: an explanation of the board, in a section of its own under the page’s
-text. It is Claude’s, not yours, so it is drawn in a dashed card and is never part of the text
-you edit. Tap its heading to fold it away; it stays folded on that phone until you open it again.
-It has:</p>
+<strong>What it means</strong>: Claude’s write-up, an explanation of the board, in a card of its own under
+the page’s text. It is Claude’s, not yours, so it is never part of the text you edit. Its
+<strong>Regenerate</strong> is at the end of the title line; the write-up is a fold, <strong>Read it</strong>, closed
+until you open it (and remembered). It has:</p>
 <ul class="simple">
 <li><p>Who wrote it and when: the model, the date and its version (and <em>restored from version N</em>
 after a restore).</p></li>
@@ -1126,9 +1133,9 @@ after a restore).</p></li>
 overview, structure, decisions, open questions and related pages, as fits the board. Its links
 open those pages, and the pages it links show in <strong>Related</strong> (marked <em>· in a write-up</em>) on both
 pages. Search finds words in it.</p></li>
-<li><p><strong>Regenerate</strong> (while Claude is on): have Claude write it again. While it works the section
-says <em>Waiting for Claude</em> or <em>Claude is writing it…</em>. A <strong>Reprocess</strong> of a board photo, or a
-new board photo, writes it again anyway, and so does <strong>Ask Claude</strong>.</p></li>
+<li><p><strong>Regenerate</strong> (while Claude is on): have Claude write it again (<strong>Generate</strong> before there is
+one). While it works the card says <em>Waiting for Claude</em> or <em>Claude is writing it…</em>. A
+<strong>Regenerate</strong> of a board photo, or a new board photo, writes it again anyway.</p></li>
 <li><p><strong>Guidance for Claude</strong>: a note for the next write-up, such as “focus on the data flow; ‘Enc’
 means encoder”. <strong>Save</strong> keeps it (apart from the page’s text) without writing anything;
 <strong>Regenerate</strong> then uses it, and the new version keeps a copy.</p></li>
