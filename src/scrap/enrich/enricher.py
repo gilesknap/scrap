@@ -17,7 +17,7 @@ from ..ingest import (
     spent_today,
 )
 from ..markdown import plain
-from ..store import MAX_TAGS, Store, fields_for, now, transaction
+from ..store import MAX_TAGS, Store, fields_for, now, queue_related, transaction
 from .checking import checked, record
 from .constants import (
     CLAIM,
@@ -152,6 +152,14 @@ class Enricher:
         if announce:
             notify("budget")
         if over:
+            return
+        if job["reason"] == "related":  # a page's first related call, once read
+            error = relate(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
             return
         with self.store.connect() as conn:
             page = conn.execute(
@@ -302,6 +310,8 @@ class Enricher:
                 )
                 self._tags(conn, page_id, out["tags"], producer, stamp,
                            first or job["reason"] != "save")  # fmt: skip
+                if first and job["reason"] != "ask":  # Ask picks them itself
+                    queue_related(conn, page_id)  # its first reading: related next
                 source, source_title = got and got.url, got and got.title or None
                 if (
                     link and job["reason"] == "save"

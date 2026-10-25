@@ -55,6 +55,8 @@ from .enricher import (
 from .finding import (
     CANDIDATES,
     candidates,
+    page_texts,
+    search_words,
 )
 from .prompts import (
     Image,
@@ -89,6 +91,8 @@ __all__ = [
     "backfill",
     "ask",
     "candidates",
+    "page_texts",
+    "search_words",
     "relate",
     "related_pass",
     "BY_TAGS",

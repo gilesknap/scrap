@@ -76,8 +76,9 @@ def index_lines(pages: list[dict[str, Any]]) -> str:
     lines = []
     for n, p in enumerate(pages, start=1):
         tags = " ".join(f"#{t}" for t in p["tags"][:6])
-        about = one_line(p["summary"] or "", 150)
-        parts = [f"{n}. {one_line(unlink(p['title']), 100)}", tags, about]
+        about = quoted(one_line(p["summary"] or "", 150))
+        title = quoted(one_line(unlink(p["title"]), 100))
+        parts = [f"{n}. {title}", quoted(tags), about]
         lines.append(" | ".join(x for x in parts if x))
     return "\n".join(lines)
 

@@ -1,13 +1,44 @@
 """Enrich: the candidates a related call may pick from."""
 
 import json
+import logging
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
 from ..markdown import plain
 from .constants import BY_TAGS, BY_WORDS, MAX_CANDIDATES, QUERY_WORDS, WORD
 from .prompts import page_images
+
+log = logging.getLogger(__name__)
+
+
+def search_words(texts: Iterable[str], most: int = QUERY_WORDS) -> list[str]:
+    """The first most distinct words (WORD, lower case) of texts, in order; it stops
+    reading texts once it has them."""
+    words: dict[str, None] = {}
+    for text in texts:
+        for match in WORD.finditer(text):
+            words.setdefault(match.group().lower(), None)
+            if len(words) >= most:
+                return list(words)
+    return list(words)
+
+
+def page_texts(
+    conn: sqlite3.Connection, page_id: str, title: str, about: str, body: str
+) -> Iterator[str]:
+    """A page's texts to search by, most telling first: its title, tags and summary,
+    then what photo ingest read from its images (their text, then their
+    descriptions), then its own text (made plain only if it is reached)."""
+    yield title
+    yield " ".join(r[0] for r in conn.execute(
+        "SELECT tag FROM tag WHERE page_id = ?", (page_id,)))  # fmt: skip
+    yield about
+    images = page_images(conn, page_id)
+    yield from (i["text"] or "" for i in images)
+    yield from (i["description"] or "" for i in images)
+    yield plain(body)
 
 
 def candidates(
@@ -38,27 +69,27 @@ def candidates(
         ids[other] = None
     if me is not None:
         human = json.loads(me[1]).get("summary")
-        tags = " ".join(r[0] for r in conn.execute(
-            "SELECT tag FROM tag WHERE page_id = ?", (page_id,)))  # fmt: skip
         about = human if isinstance(human, str) else me[2]
-        images = page_images(conn, page_id)
-        texts = [me[0], tags, about, *(i["text"] or "" for i in images),
-                 *(i["description"] or "" for i in images), plain(me[3])]  # fmt: skip
-        words = dict.fromkeys(w.lower() for w in WORD.findall("\n".join(texts)))
-        query = " OR ".join(f'"{w}"' for w in list(words)[:QUERY_WORDS])
-        if query:
-            n = 0
-            for (other,) in conn.execute(
-                "SELECT c.page_id FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
-                f" JOIN page p ON p.id = c.page_id WHERE chunk_fts MATCH :q AND {alive}"
-                " ORDER BY bm25(chunk_fts) LIMIT :n",
-                {"q": query, "id": page_id, "n": BY_WORDS * 3},
-            ):
-                if other not in ids:
-                    ids[other] = None
-                    n += 1
-                    if n >= BY_WORDS:
-                        break
+        words = search_words(page_texts(conn, page_id, me[0], about, me[3]))
+        query = " OR ".join(f'"{w}"' for w in words)
+        sql = (
+            "SELECT c.page_id FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
+            f" JOIN page p ON p.id = c.page_id WHERE chunk_fts MATCH :q AND {alive}"
+            " ORDER BY bm25(chunk_fts) LIMIT :n"
+        )
+        args = {"q": query, "id": page_id, "n": BY_WORDS * 3}
+        try:
+            found = conn.execute(sql, args).fetchall() if query else []
+        except sqlite3.OperationalError as error:  # fail soft: tags and recency only
+            log.warning("related candidates: no word search for %s: %s", page_id, error)
+            found = []
+        n = 0
+        for (other,) in found:
+            if other not in ids:
+                ids[other] = None
+                n += 1
+                if n >= BY_WORDS:
+                    break
     for (other,) in conn.execute(
         f"SELECT p.id FROM page p WHERE {alive} ORDER BY p.updated_at DESC LIMIT :n",
         {"id": page_id, "n": limit},

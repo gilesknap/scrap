@@ -84,11 +84,13 @@ def add_meta_revs(conn: sqlite3.Connection) -> None:
         )
 
 
-ENRICH_TABLES = """
-CREATE TABLE IF NOT EXISTS enrich_job (
+# The enrich job table (named), and its indexes; reason 'related' since migration 11
+ENRICH_JOB = """
+CREATE TABLE IF NOT EXISTS {name} (
     id          INTEGER PRIMARY KEY,
     page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
-    reason      TEXT NOT NULL CHECK (reason IN ('capture', 'save', 'ask', 'backfill')),
+    reason      TEXT NOT NULL CHECK (reason IN ('capture', 'save', 'ask', 'backfill',
+                                                'related')),
     state       TEXT NOT NULL DEFAULT 'queued'
                   CHECK (state IN ('queued', 'running', 'done', 'dead')),
     failures    INTEGER NOT NULL DEFAULT 0,
@@ -96,10 +98,18 @@ CREATE TABLE IF NOT EXISTS enrich_job (
     last_error  TEXT,
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
-);
+)
+"""
+ENRICH_JOB_INDEXES = """
 CREATE UNIQUE INDEX IF NOT EXISTS enrich_job_one_queued ON enrich_job(page_id)
     WHERE state = 'queued';
 CREATE INDEX IF NOT EXISTS enrich_job_ready ON enrich_job(state, run_after);
+"""
+ENRICH_TABLES = (
+    ENRICH_JOB.format(name="enrich_job")
+    + ";"
+    + ENRICH_JOB_INDEXES
+    + """
 CREATE TABLE IF NOT EXISTS enrich_run (
     id             INTEGER PRIMARY KEY,
     page_id        TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
@@ -146,6 +156,7 @@ CREATE TABLE IF NOT EXISTS related (
 );
 CREATE INDEX IF NOT EXISTS related_by_other ON related(other_id);
 """
+)
 
 
 def add_enrich(conn: sqlite3.Connection) -> None:
@@ -153,6 +164,37 @@ def add_enrich(conn: sqlite3.Connection) -> None:
     for statement in ENRICH_TABLES.split(";"):
         if statement.strip():
             conn.execute(statement)
+
+
+def add_related_reason(conn: sqlite3.Connection) -> None:
+    """Migration 11: enrich_job takes reason 'related' (a page's first related call,
+    once it is first read), the table rebuilt for its CHECK, unless it takes it
+    already. Dropping the old table clears enrich_run.job_id (ON DELETE SET NULL), so
+    the runs' jobs are kept aside and put back."""
+    (sql,) = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'enrich_job'"
+    ).fetchone()
+    if "'related'" in sql:
+        return
+    conn.execute(
+        "CREATE TEMP TABLE run_job AS"
+        " SELECT id, job_id FROM enrich_run WHERE job_id IS NOT NULL"
+    )
+    conn.execute(ENRICH_JOB.format(name="enrich_job_new"))
+    conn.execute(
+        "INSERT INTO enrich_job_new SELECT id, page_id, reason, state, failures,"
+        " run_after, last_error, created_at, updated_at FROM enrich_job"
+    )
+    conn.execute("DROP TABLE enrich_job")
+    conn.execute("ALTER TABLE enrich_job_new RENAME TO enrich_job")
+    for statement in ENRICH_JOB_INDEXES.split(";"):
+        if statement.strip():
+            conn.execute(statement)
+    conn.execute(
+        "UPDATE enrich_run SET job_id = (SELECT t.job_id FROM temp.run_job t"
+        " WHERE t.id = enrich_run.id) WHERE id IN (SELECT id FROM temp.run_job)"
+    )
+    conn.execute("DROP TABLE temp.run_job")
 
 
 def fix_tag_paths(conn: sqlite3.Connection) -> None:

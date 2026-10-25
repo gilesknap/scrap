@@ -479,9 +479,16 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   text best match the page's words (full-text search, an OR of up to 24 distinct words), then the
   most recently changed. The words are taken in order, first from its title, tags and summary,
   then from the text photo ingest read from its images, their descriptions, and last its own
-  text. A text page with a summary usually fills the 24 before its text; a photo page, which has
-  no summary, is searched by what is written in the photo.
-- **When.** On Ask Claude, at once. Otherwise `scrap enrich --related [--all] [--limit N]
+  text. A text page with a summary usually fills the 24 before its text; a photo page, which
+  usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+  search the index refuses is logged and skipped: the tag and recent candidates still go.
+- **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
+  makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo
+  of its first photo capture, queues an enrich job of reason `related` (one per page, ever; with
+  enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
+  the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
+  the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
+  itself). Saves and edits queue none, nor does a later Reprocess. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
   newer than its `updated_at`, or than the newest current description or text photo ingest read
   from one of its images; `--all`: every page). It runs in the command's process (in the

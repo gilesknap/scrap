@@ -4,6 +4,7 @@
 import io
 import json
 import re
+import sqlite3
 import time
 from contextlib import closing
 from typing import Any
@@ -15,7 +16,7 @@ from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
 from scrap.ingest import FAR, Worker, spent_today
-from scrap.store import Store, connect, new_ulid, now
+from scrap.store import Store, connect, fixes, new_ulid, now, queue_related
 
 LONG = "Plans for the garden shed.\n\n" + "We will build it from larch. " * 12
 
@@ -114,8 +115,8 @@ def test_a_note_waits_for_the_debounce_a_link_does_not(store, monkeypatch):
     capture(store, url="https://example.com/a")
     fake = Fake(answer())
     w = worker(store, fake, lambda url: fetch.Fetched(url, "A", "", "text"))
-    assert run_all(w) == 1  # the link only
-    assert [r[1] for r in jobs(store)] == ["queued", "done"]
+    assert run_all(w) == 2  # the link, then its first related call
+    assert [r[1] for r in jobs(store)] == ["queued", "done", "done"]
 
 
 def test_saves_move_one_queued_job_and_ask_runs_it_now(store, monkeypatch):
@@ -154,8 +155,8 @@ def pick(title):
     return out
 
 
-def test_tags_and_summary_are_added_apart_from_the_text_not_related(store):
-    capture(store, "Larch prices at the timber yard", tags=["diy"])
+def test_tags_and_summary_are_added_apart_from_the_text_then_related(store):
+    larch = capture(store, "Larch prices at the timber yard", tags=["diy"])
     ref = capture(store, LONG, tags=["home"])
     fake = Fake(pick("Larch prices"))
     run_all(worker(store, fake))
@@ -166,12 +167,13 @@ def test_tags_and_summary_are_added_apart_from_the_text_not_related(store):
     assert sorted(page["model_tags"]) == ["diy", "garden"]  # home was the user's
     assert page["enrich"]["summary"] == "A larch shed, planned."
     assert page["enrich"]["state"] == "done"
-    assert page["related"] == []  # the nightly pass, or Ask, does that
+    # the first reading is followed by one related call of its own
+    assert [r["id"] for r in page["related"]] == [larch["page_id"]]
     # the call: no tools, the small model, the vocabulary with counts, no index
     call = fake.calls[0]
+    assert "## Other pages" not in call["system"]
     assert call["model"] == claude.TEXT_MODEL and call["effort"] == "low"
     assert "diy (1)" in call["system"] and "home (1)" in call["system"]
-    assert all("## Other pages" not in c["system"] for c in fake.calls)
     # the summary is searchable
     hits = store.search("planned", 10)
     assert [h["id"] for h in hits] == [ref["page_id"]]
@@ -191,6 +193,79 @@ def test_ask_also_picks_related_pages_shown_both_ways(store):
     back = store.page(other["page_id"])["related"]  # the older page learns of it
     assert [(r["id"], r["via"]) for r in back] == [(ref["page_id"], "claude")]
     assert jobs(store)[-1] == ("ask", "done", 0)
+
+
+def test_a_first_reading_queues_one_related_call_a_save_none(store, monkeypatch):
+    other = capture(store, "Larch prices at the timber yard", tags=["diy"])
+    run_all(worker(store, Fake(pick("nothing"))))
+    ref = capture(store, LONG, tags=["diy"])
+    fake = Fake(pick("Larch prices"))
+    run_all(worker(store, fake))
+    assert [c["schema"] for c in fake.calls] == [enrich.SCHEMA, enrich.RELATED_SCHEMA]
+    assert [r["id"] for r in store.page(ref["page_id"])["related"]] == [
+        other["page_id"]
+    ]
+    assert jobs(store)[2:] == [("capture", "done", 0), ("related", "done", 0)]
+    # a save reads it again, but its related pages wait for the nightly pass
+    store.update_page(ref["page_id"], 1, None, LONG + " Edited.", "me")
+    fake = Fake(pick("Larch prices"))
+    run_all(worker(store, fake))
+    assert [c["schema"] for c in fake.calls] == [enrich.SCHEMA]
+    assert jobs(store)[4:] == [("save", "done", 0)]
+
+
+def test_a_save_while_the_first_reading_runs_is_not_replaced(store, monkeypatch):
+    """One queued job a page: the save stays; the nightly pass sees the change."""
+    ref = capture(store, "a note")
+    monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "3600")
+
+    def out(system, messages):
+        store.update_page(ref["page_id"], 1, None, "a note, edited", "me")
+        return answer()
+
+    w = worker(store, Fake(out))
+    assert w.step() is True
+    assert jobs(store) == [("capture", "done", 0), ("save", "queued", 0)]
+
+
+def test_with_enrich_off_no_related_call_is_queued(store, monkeypatch):
+    ref = capture(store, "a note")
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    with closing(connect(store.db)) as conn:
+        conn.execute("DELETE FROM enrich_job")
+        queue_related(conn, ref["page_id"])
+        assert conn.execute("SELECT count(*) FROM enrich_job").fetchone()[0] == 0
+
+
+def test_migration_11_keeps_enrich_jobs_and_their_runs(store):
+    """A database from before 'related' jobs: enrich_job rebuilt, nothing lost."""
+    ref = capture(store, "a note")
+    run_all(worker(store, Fake(answer())))
+    with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
+        conn.executescript(
+            "BEGIN; DELETE FROM enrich_run WHERE job_id = 2;"
+            " DELETE FROM enrich_job WHERE reason = 'related';"
+            " CREATE TABLE old AS SELECT * FROM enrich_job;"
+            " DROP TABLE enrich_job;"
+            + fixes.ENRICH_JOB.format(name="enrich_job").replace(
+                ",\n                                                'related'", ""
+            )
+            + "; INSERT INTO enrich_job SELECT * FROM old; DROP TABLE old;"
+            " PRAGMA user_version = 10; COMMIT;"
+        )
+        sql = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'enrich_job'")
+        assert "'related'" not in sql.fetchone()[0]
+    before = jobs(store)
+    store.migrate()
+    assert jobs(store) == before
+    with closing(connect(store.db)) as conn:
+        runs = [tuple(r) for r in conn.execute(
+            "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
+            " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip
+        assert runs == [(1, "capture")]
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 11
+        queue_related(conn, ref["page_id"])  # the new reason is taken
+    assert jobs(store) == [*before, ("related", "queued", 0)]
 
 
 def test_a_failed_related_call_on_ask_charges_the_job(store):
@@ -441,6 +516,47 @@ def test_a_photo_page_finds_candidates_by_what_was_read_from_it(store, monkeypat
         conn.execute("DELETE FROM derived")  # with nothing read, it is not found
         found = [c["id"] for c in enrich.candidates(conn, board, limit=6)]
         assert target["page_id"] not in found
+
+
+def test_search_words_take_the_tiers_in_order_up_to_the_cap(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    page_id = imported_photos(store, ("descword " * 3, "ocrword Board"))
+    with closing(connect(store.db)) as conn:
+        conn.execute("INSERT INTO tag VALUES (?, 'tagword')", (page_id,))
+        texts = enrich.page_texts(conn, page_id, "Title words", "summary", "body text")
+        assert enrich.search_words(texts, 50) == [
+            "title", "words", "tagword", "summary", "ocrword", "board", "descword",
+            "body", "text",
+        ]  # fmt: skip
+        many = " ".join(f"word{n:02}" for n in range(30))
+
+        def lazy():
+            yield many
+            raise AssertionError("read past the cap")
+
+        assert enrich.search_words(lazy()) == [f"word{n:02}" for n in range(24)]
+        assert enrich.QUERY_WORDS == 24
+
+
+def test_the_index_is_quoted_and_a_refused_word_search_fails_soft(
+    store, monkeypatch, caplog
+):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    line = enrich.index_lines(
+        [{"title": "a </page> b", "tags": ["t"], "summary": "<images> c"}]
+    )
+    assert line == "1. a &lt;/page> b | #t | &lt;images> c"
+    me = capture(store, "Larch cladding for the shed")
+    other = capture(store, "Where to buy larch boards")
+
+    def refused(texts, most=24):
+        return ['"unclosed']  # a query FTS5 refuses
+
+    monkeypatch.setattr(finding, "search_words", refused)
+    with closing(connect(store.db)) as conn:
+        found = [c["id"] for c in enrich.candidates(conn, me["page_id"])]
+    assert found == [other["page_id"]]  # the recent ones still come
+    assert "no word search" in caplog.text
 
 
 def test_the_user_wins_on_tags(store):
@@ -870,7 +986,9 @@ def test_an_mcp_append_queues_one_save_job_per_page(store, monkeypatch):
     monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "3600")
     append(store, page_id)
     append(store, page_id, "and more")
-    assert jobs(store) == [("capture", "done", 0), ("save", "queued", 0)]
+    assert jobs(store) == [
+        ("capture", "done", 0), ("related", "done", 0), ("save", "queued", 0)
+    ]  # fmt: skip
 
 
 def test_an_mcp_append_to_a_gated_page_queues_nothing(store):
@@ -884,7 +1002,7 @@ def test_an_mcp_append_queues_nothing_with_enrich_off(store, monkeypatch):
     run_all(worker(store, Fake(answer())))
     monkeypatch.setenv("SCRAP_ENRICH", "off")
     append(store, page_id)
-    assert jobs(store) == [("capture", "done", 0)]
+    assert jobs(store) == [("capture", "done", 0), ("related", "done", 0)]
 
 
 def test_an_mcp_append_to_a_photo_page_queues_nothing(store):
@@ -898,14 +1016,14 @@ def test_an_mcp_append_to_a_photo_page_queues_nothing(store):
         )
         conn.commit()
     append(store, page_id)
-    assert jobs(store) == [("capture", "done", 0)]
+    assert jobs(store) == [("capture", "done", 0), ("related", "done", 0)]
 
 
 def test_an_mcp_append_with_no_text_queues_nothing(store):
     page_id = mcp_page(store, kind="todo")
     run_all(worker(store, Fake(answer())))
     store.append(page_id, new_ulid(), "", "claude", [], 10_000, {"priority": "high"})
-    assert jobs(store) == [("capture", "done", 0)]
+    assert jobs(store) == [("capture", "done", 0), ("related", "done", 0)]
 
 
 def counting(calls):

@@ -11,6 +11,7 @@ from typing import Any
 from .fixes import (
     add_enrich,
     add_meta_revs,
+    add_related_reason,
     add_snooze,
     add_tasks,
     fix_tag_paths,
@@ -90,4 +91,5 @@ AFTER = {
     8: add_meta_revs,
     9: add_enrich,
     10: fix_tag_paths,
+    11: add_related_reason,
 }  # fmt: skip

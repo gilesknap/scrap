@@ -34,7 +34,9 @@ untrusted.
   not embeddings), and it answers with index numbers, so it cannot name a page that does not exist.
   It runs on **Ask Claude** (`POST /api/pages/{id}/enrich`) and in a nightly pass,
   `scrap enrich --related`, for each page changed since its last picks (`--all`: every page).
-  Related shows both ways, so an older page learns of a newer one that picked it without a call of
+  Amended (#255): also once when a page is first read (its first enrich, or photo ingest of all
+  of its first photo capture), as an enrich job of reason `related` (migration 11), so a new
+  page has related pages before the night. Saves do not queue one. Related shows both ways, so an older page learns of a newer one that picked it without a call of
   its own.
 - **Triggers.** A note or link capture queues a job (a link at once, a note after
   `SCRAP_ENRICH_DEBOUNCE` seconds, default 60). A save of a page's title or text moves its one

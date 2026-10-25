@@ -446,8 +446,9 @@ a saved link its title as well; the link is fetched first, under strict address 
 one call, a link at once. `SCRAP_ENRICH=off` keeps Claude to photos. Nothing edits the page's text.
 
 **Related pages.** A separate call per page picks up to five related pages from a numbered
-candidate list, on *Ask Claude* at once and otherwise in the nightly pass, `scrap enrich
---related`, for pages changed (or with a photo read) since their last picks. It sees the page in
+candidate list, on *Ask Claude* at once, once when the page is first read (its first enrich, or
+photo ingest of its first photos: an enrich job of reason `related`), and otherwise in the nightly
+pass, `scrap enrich --related`, for pages changed (or with a photo read) since their last picks. It sees the page in
 brief: its title, tags, summary, the start of its text and the start of what photo ingest read
 from its images (each one's description and text), so a photo page whose text is only the image
 is judged by what is in it. Its candidates come from shared tags, then a full-text search for its

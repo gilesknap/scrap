@@ -402,6 +402,52 @@ def test_a_success_stores_the_run_versions_and_page_fields(store, conn):
     assert page["body"] == f"![](/api/blobs/{sha}/preview?size=2048)"  # never touched
 
 
+def enrich_jobs(conn):
+    return [tuple(r) for r in conn.execute(
+        "SELECT page_id, reason, state FROM enrich_job ORDER BY id")]  # fmt: skip
+
+
+def test_a_new_photo_page_gets_one_related_call_once_its_photos_are_read(
+    store, conn, monkeypatch
+):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    ref = photo(store, [jpeg("red"), jpeg("blue")])
+    page_id = ref["page_id"]
+    calls = []
+
+    def fake(model, system, messages, schema, blob, **kw):
+        calls.append(schema)
+        out = {"related": []} if "related" in schema["properties"] else BOARD
+        content = [{"type": "text", "text": json.dumps(out)}]
+        return claude.Completion(out, content, USAGE, model, "end_turn")
+
+    worker = ingest.Worker(store, fake)
+    assert worker.step() is True
+    assert enrich_jobs(conn) == []  # one of its photos still to read
+    assert worker.step() is True
+    assert enrich_jobs(conn) == [(page_id, "related", "queued")]  # once, not per image
+    assert worker.step() is True and worker.step() is False  # the related call, on
+    assert enrich_jobs(conn) == [(page_id, "related", "done")]  # the enrich queue
+    run = conn.execute("SELECT * FROM enrich_run").fetchone()
+    assert json.loads(run["request"])["purpose"] == "related" and run["status"] == "ok"
+    # Reprocess reads it again, but its first related call is had: none more
+    ingest.reprocess(store, ref["capture_id"], None, False)
+    while worker.step():
+        pass
+    assert enrich_jobs(conn) == [(page_id, "related", "done")]
+    assert len(calls) == 5  # two photos, related, the two photos again
+
+
+def test_with_enrich_off_reading_a_photo_queues_no_related_call(
+    store, conn, monkeypatch
+):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    photo(store, [jpeg()])
+    assert run_one(store, Fake(BOARD)) is True
+    assert enrich_jobs(conn) == []
+
+
 def test_ingest_leaves_a_body_the_user_rewrote(store, conn):
     ref = photo(store, [jpeg()], text="mine")
     store.update_page(ref["page_id"], 1, None, "all mine now", "me")

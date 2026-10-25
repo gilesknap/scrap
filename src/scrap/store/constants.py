@@ -134,6 +134,26 @@ NOT_BY_INGEST = (
 )
 
 
+# A page's first related call, once it is first read: one job with reason 'related',
+# ever. Never in place of a queued job (a save meanwhile: the nightly pass sees the
+# change); a later save or Ask takes this one over (Ask picks related pages too).
+RELATED_ENQUEUE = """
+INSERT INTO enrich_job (page_id, reason, run_after, created_at, updated_at)
+SELECT :page, 'related', :now, :now, :now
+WHERE NOT EXISTS (SELECT 1 FROM enrich_job WHERE page_id = :page AND reason = 'related')
+ON CONFLICT DO NOTHING
+"""
+# A page's first photo capture (the first with an ingest job), once none of its photos
+# waits or is being read: its page, else nothing
+FIRST_READ = """
+SELECT c.page_id FROM capture c WHERE c.id = :capture
+  AND c.id = (SELECT f.id FROM capture f JOIN job j ON j.capture_id = f.id
+              WHERE f.page_id = c.page_id ORDER BY f.received_at, f.id LIMIT 1)
+  AND NOT EXISTS (SELECT 1 FROM job j WHERE j.capture_id = c.id
+                  AND j.state IN ('queued', 'running'))
+"""
+
+
 # One queued enrich job per page: a later trigger moves it (a save later, Ask now), and
 # Ask is remembered (it may add tags to a page Claude has read before)
 ENRICH_ENQUEUE = """
