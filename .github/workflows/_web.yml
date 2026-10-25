@@ -86,4 +86,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Every e2e shard passed
+        working-directory: .  # no checkout here, so not the web/ default
         run: test "${{ needs.e2e-shard.result }}" = success
