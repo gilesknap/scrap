@@ -129,7 +129,7 @@ def test_revert_restores_the_image_only_body(store):
     before = store.page(ref["page_id"])["body"]
     read_photo(store, Fake(picture(**listing([("Pay", False)]))))
     assert store.page(ref["page_id"])["tasks"]["total"] == 1
-    store.edit_text(  # what revert_text does: the body of text revision 1
+    store.edit_text(  # what a text revert does: the body of text revision 1
         ref["page_id"], CLAUDE,
         lambda c, p: (p["title"], store.text_at(c, p["id"], 1)["body"]),
         fold=False,

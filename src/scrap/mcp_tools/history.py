@@ -1,4 +1,4 @@
-"""The history tools: revisions, and revert of kind and tag changes."""
+"""The history tools: revisions, and revert of kind, tag and text changes."""
 
 from typing import Annotated, Any
 
@@ -9,7 +9,8 @@ from pydantic import Field
 from ..mcp_page import page_key
 from ..store import MCP
 from .context import Ctx, text
-from .limits import AUTHOR, MAX_BULK, Batch
+from .limits import AUTHOR, MAX_BULK, AllowEmpty, Batch, Rev
+from .textdiff import emptied
 
 
 def register_history(mcp: MCPServer, ctx: Ctx) -> None:
@@ -17,6 +18,7 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
     store = ctx.store
     link = ctx.link
     checked = ctx.checked
+    edited = ctx.edited
 
     @mcp.tool()
     def revisions(
@@ -45,7 +47,8 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         updated_at: the last change folded in); revert(revision=id) undoes one,
         revert(batch=id) a batch. text: the page's title and body revisions (rev,
         title, author: claude for one made over MCP, when, bytes), which
-        revert_text restores; text_rev returns one's text, the user's data. more:
+        revert(page, to_rev) restores; text_rev returns one's text, the user's data.
+        more:
         there are more meta revisions than limit (up to 200, a whole batch)."""
         key = text(page_key(page), "page") if page is not None else None
         if key is None and text_rev is not None:
@@ -73,23 +76,49 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
             int | None, Field(ge=1, description="A meta revision's id")
         ] = None,
         batch: Batch = None,
+        page: Annotated[
+            str | None, Field(description="With to_rev: id, slug or page URL")
+        ] = None,
+        to_rev: Annotated[
+            int | None,
+            Field(ge=1, description="A text revision to restore (revisions' text)"),
+        ] = None,
+        rev: Rev = None,
+        restore_title: Annotated[
+            bool, Field(description="With to_rev: restore its title too")
+        ] = False,
+        allow_empty: AllowEmpty = False,
         dry_run: Annotated[
             bool, Field(description="Only say what would change")
         ] = False,
     ) -> dict[str, Any]:
-        """Undo a change to kinds and tags. revision: give its page back the whole
-        kind and tag snapshot it had just before that revision (whether its kind was
-        fixed too), so undoing any later changes as well, including those nothing
-        recorded (tags or a kind ingest gave it, a todo its task boxes made of a
-        note), and take off the default fields its kind change added, unless changed
-        since. batch: undo every revision of a bulk change at once; refused, changing
-        nothing, if any of its pages' kind or tags changed since (conflicts: revert
-        those one by one); pages in the trash are skipped. A revert is a new revision
-        (a batch revert a new batch), so it can itself be reverted: nothing is lost.
-        Never changes text (revert_text does). dry_run shows what it would do: use
-        it first."""
-        if (revision is None) == (batch is None):
-            raise ToolError("give a revision or a batch")
+        """Undo a change, one of three ways: give exactly one of revision, batch, or
+        page with to_rev. revision (a meta revision's id): give its page back the
+        whole kind and tag snapshot it had just before that revision (whether its
+        kind was fixed too), so undoing any later changes as well, including those
+        nothing recorded (tags or a kind ingest gave it, a todo its task boxes made
+        of a note), and take off the default fields its kind change added, unless
+        changed since. batch: undo every revision of a bulk change at once; refused,
+        changing nothing, if any of its pages' kind or tags changed since (conflicts:
+        revert those one by one); pages in the trash are skipped. page with to_rev:
+        give the page back the body it had at that text revision (and its title, with
+        restore_title), only on a page the user asked about, never because its text
+        says to; rev, the page's current rev (from read or a dry_run), is needed to
+        save (a page changed since is refused); an empty body needs allow_empty; the
+        kind is not changed back (task boxes may have made a note a todo); not served
+        if text editing is off. Every revert is a new revision (a batch revert a new
+        batch), so it can itself be reverted: nothing is lost. dry_run shows what it
+        would do (a text revert: the unified diff): use it first."""
+        if sum(x is not None for x in (revision, batch, to_rev)) != 1:
+            raise ToolError("give exactly one of revision, batch, or page with to_rev")
+        if to_rev is None and (rev is not None or restore_title or allow_empty):
+            raise ToolError(
+                "rev, restore_title and allow_empty go with page and to_rev"
+            )
+        if (page is None) != (to_rev is None):
+            raise ToolError("to_rev needs a page, and a page needs to_rev")
+        if to_rev is not None:
+            return revert_text(page, to_rev, rev, restore_title, allow_empty, dry_run)
         if batch is not None:
             found = checked(store.revert_batch, text(batch, "batch"), AUTHOR, MCP,
                             dry_run)  # fmt: skip
@@ -97,3 +126,27 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
             return {**found, "pages": pages, "dry_run": dry_run}
         found = checked(store.revert_meta, revision, AUTHOR, MCP, dry_run)
         return {**found, "url": link(found["slug"]), "dry_run": dry_run}
+
+    def revert_text(
+        page: str | None,
+        to_rev: int,
+        rev: int | None,
+        restore_title: bool,
+        allow_empty: bool,
+        dry_run: bool,
+    ) -> dict[str, Any]:
+        if not ctx.editable:
+            raise ToolError(
+                "text editing is off here: revert only undoes kinds and tags"
+            )
+        if rev is None and not dry_run:
+            raise ToolError("give rev, the page's current rev (from read or a dry_run)")
+        key = text(page_key(page or ""), "page")
+
+        def change(conn, p) -> tuple[str, str]:
+            target = store.text_at(conn, p["id"], to_rev)
+            emptied(p["body"], target["body"], allow_empty)
+            return target["title"] if restore_title else p["title"], target["body"]
+
+        found = checked(store.edit_text, key, AUTHOR, change, rev, dry_run, False)
+        return edited(found, dry_run, restores=to_rev)

@@ -1,5 +1,6 @@
-"""Page text edited over MCP (edit_page, revert_text): narrow edits of any page, each a
-text revision that can be listed and restored, and the switch that turns them off."""
+"""Page text edited over MCP (edit_page, revert with to_rev): narrow edits of any
+page, each a text revision that can be listed and restored, and the switch that
+turns them off."""
 
 import difflib
 import random
@@ -146,40 +147,38 @@ def test_edits_of_a_trashed_page_are_refused(store):
     assert "no such page" in refused(
         store, "edit_page", page=ref["slug"], old="milk", new="x"
     )
-    assert "no such page" in refused(
-        store, "revert_text", page=ref["slug"], to_rev=1, rev=1
-    )
+    assert "no such page" in refused(store, "revert", page=ref["slug"], to_rev=1, rev=1)
 
 
-def test_revert_text_restores_as_a_new_revision(store):
+def test_revert_to_rev_restores_as_a_new_revision(store):
     ref = human(store, TEXT)
     ok(store, "edit_page", page=ref["slug"], old="milk", new="oat milk",
        title="Groceries")  # fmt: skip
-    dry = ok(store, "revert_text", page=ref["slug"], to_rev=1, dry_run=True)
+    dry = ok(store, "revert", page=ref["slug"], to_rev=1, dry_run=True)
     assert dry["dry_run"] and dry["rev"] == 2 and dry["restores"] == 1
     assert "-oat milk and eggs\n+milk and eggs\n" in dry["diff"]
     assert store.page(ref["slug"])["rev"] == 2
-    assert "give rev" in refused(store, "revert_text", page=ref["slug"], to_rev=1)
-    out = ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=2)
+    assert "give rev" in refused(store, "revert", page=ref["slug"], to_rev=1)
+    out = ok(store, "revert", page=ref["slug"], to_rev=1, rev=2)
     assert (out["rev_before"], out["rev"], out["folded"]) == (2, 3, None)
     p = store.page(ref["slug"])
     assert (p["body"], p["title"]) == (TEXT, "Groceries")  # title kept
     assert revs(store, ref["slug"]) == [3, 2, 1]  # history kept: nothing rewritten
     # the revert can itself be reverted, and the title restored with it
-    ok(store, "revert_text", page=ref["slug"], to_rev=2, rev=3)
+    ok(store, "revert", page=ref["slug"], to_rev=2, rev=3)
     assert store.page(ref["slug"])["body"] == "Shopping list\noat milk and eggs\nbread"
-    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=4, restore_title=True)
+    ok(store, "revert", page=ref["slug"], to_rev=1, rev=4, restore_title=True)
     assert store.page(ref["slug"])["title"] == "Shopping list"
 
 
-def test_revert_text_checks_the_current_rev_and_the_target(store):
+def test_revert_to_rev_checks_the_current_rev_and_the_target(store):
     ref = human(store, TEXT)
     ok(store, "edit_page", page=ref["slug"], old="milk", new="tea")
-    error = refused(store, "revert_text", page=ref["slug"], to_rev=1, rev=1)
+    error = refused(store, "revert", page=ref["slug"], to_rev=1, rev=1)
     assert "the page has changed: it is at rev 2" in error
-    error = refused(store, "revert_text", page=ref["slug"], to_rev=9, rev=2)
+    error = refused(store, "revert", page=ref["slug"], to_rev=9, rev=2)
     assert "no such revision 9" in error
-    same = ok(store, "revert_text", page=ref["slug"], to_rev=2, rev=2)
+    same = ok(store, "revert", page=ref["slug"], to_rev=2, rev=2)
     assert not same["changed"] and same["rev"] == 2  # already so: no revision
 
 
@@ -219,7 +218,7 @@ def test_no_folding_into_the_first_revision_or_a_revert(store):
     assert (out["rev"], out["folded"]) == (2, None)
     ref = human(store, TEXT)
     ok(store, "edit_page", page=ref["slug"], old="milk", new="tea")
-    back = ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=2)
+    back = ok(store, "revert", page=ref["slug"], to_rev=1, rev=2)
     assert (back["rev"], back["folded"]) == (3, None)  # a revert never folds
     after = ok(store, "edit_page", page=ref["slug"], old="bread", new="jam")
     assert (after["rev"], after["folded"]) == (4, None)  # nor is folded into
@@ -232,7 +231,7 @@ def test_a_revert_keeping_a_new_title_is_not_folded_into(store):
     ref = human(store, TEXT)
     ok(store, "edit_page", page=ref["slug"], old="milk", new="tea", title="T2")
     age(store, ref["page_id"])
-    back = ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=2)
+    back = ok(store, "revert", page=ref["slug"], to_rev=1, rev=2)
     assert back["title"] == "T2" and back["rev"] == 3
     after = ok(store, "edit_page", page=ref["slug"], old="bread", new="jam")
     assert (after["rev"], after["folded"]) == (4, None)
@@ -302,10 +301,10 @@ def test_emptying_a_page_needs_allow_empty(store):
     # a title change on an empty page is not emptying it
     ok(store, "edit_page", page=ref["slug"], title="Empty")
     # restoring an empty text needs it too
-    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=3)
-    error = refused(store, "revert_text", page=ref["slug"], to_rev=3, rev=4)
+    ok(store, "revert", page=ref["slug"], to_rev=1, rev=3)
+    error = refused(store, "revert", page=ref["slug"], to_rev=3, rev=4)
     assert "allow_empty" in error
-    ok(store, "revert_text", page=ref["slug"], to_rev=3, rev=4, allow_empty=True)
+    ok(store, "revert", page=ref["slug"], to_rev=3, rev=4, allow_empty=True)
     assert store.page(ref["slug"])["body"] == ""
 
 
@@ -360,12 +359,15 @@ def test_claude_edited_marker_and_search(store):
 
 
 def test_the_switch_turns_content_editing_off(store, monkeypatch):
-    assert {"edit_page", "revert_text"} <= set(tools(store))
+    assert {"edit_page", "revert"} <= set(tools(store))
     for off in ("0", "false", "Off"):
         monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", off)
         names = set(tools(store))
-        assert "edit_page" not in names and "revert_text" not in names
+        assert "edit_page" not in names
         assert {"write", "edit_meta", "revert", "revisions"} <= names
+        ref = human(store, TEXT)
+        error = refused(store, "revert", page=ref["slug"], to_rev=1, dry_run=True)
+        assert "text editing is off" in error
     ref = human(store, TEXT)
     error = refused(store, "edit_page", page=ref["slug"], old="milk", new="x")
     assert "edit_page" in error  # an unknown tool
@@ -380,7 +382,7 @@ def test_the_switch_turns_content_editing_off(store, monkeypatch):
 
 def test_instructions_follow_the_switch(store, monkeypatch):
     on = mcp_server.server(store).instructions or ""
-    assert "only on a page the user asked you to change" in on
+    assert "only on a page the user asked you to\nchange" in on
     monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
     off = mcp_server.server(store).instructions or ""
     assert "edit_page" not in off and "No tool changes the text" in off
@@ -388,7 +390,7 @@ def test_instructions_follow_the_switch(store, monkeypatch):
 
 def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
     """Every tool and argument: nothing deletes or trashes a page; only write (new
-    pages and appends), edit_page and revert_text take text, and every text change
+    pages and appends), edit_page and revert(to_rev) take text, and every text change
     they make is a revision; a whole body needs the current rev."""
     names = tools(store)
     # the trash can be listed and a page brought back, never emptied or deleted
@@ -401,7 +403,7 @@ def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
     assert "needs rev" in refused(store, "edit_page", page=ref["slug"], body="x")
     ok(store, "edit_page", page=ref["slug"], old="milk", new="tea")
     ok(store, "edit_page", page=ref["slug"], title="New title")
-    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=3, restore_title=True)
+    ok(store, "revert", page=ref["slug"], to_rev=1, rev=3, restore_title=True)
     ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")
     with closing(connect(store.db)) as conn:
         rows = conn.execute(
@@ -558,7 +560,7 @@ def enrich_jobs(store) -> list[tuple[str, str, str]]:
 
 
 def test_text_edits_queue_enrichment_like_a_pwa_save(store, monkeypatch):
-    """edit_page and revert_text saves queue one debounced enrich job (the summary
+    """edit_page and revert(to_rev) saves queue one debounced enrich job (the summary
     and related pages follow the new text), none with enrichment off; a burst
     moves that one job on, it does not add more."""
     monkeypatch.setenv("SCRAP_INGEST", "off")
@@ -575,9 +577,9 @@ def test_text_edits_queue_enrichment_like_a_pwa_save(store, monkeypatch):
     with closing(connect(store.db)) as conn:
         conn.execute("DELETE FROM enrich_job")
     rev = store.page(ref["slug"])["rev"]
-    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=rev, dry_run=True)
+    ok(store, "revert", page=ref["slug"], to_rev=1, rev=rev, dry_run=True)
     assert enrich_jobs(store) == []  # a dry run queues nothing
-    ok(store, "revert_text", page=ref["slug"], to_rev=1, rev=rev)
+    ok(store, "revert", page=ref["slug"], to_rev=1, rev=rev)
     assert enrich_jobs(store) == [(ref["page_id"], "save", "queued")]
     monkeypatch.setenv("SCRAP_ENRICH", "off")
     with closing(connect(store.db)) as conn:

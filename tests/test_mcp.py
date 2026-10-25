@@ -57,6 +57,9 @@ def refused(store, tool: str, **args: Any) -> str:
     return out
 
 
+TO_DO = "kind:todo -is:done -is:cancelled -is:snoozed"  # what todos used to list
+
+
 def write(store, **args: Any) -> dict[str, Any]:
     return ok(store, "write", **{"title": "T", "body": "B", "origin": "o", **args})
 
@@ -68,9 +71,8 @@ def test_tools_are_listed(store):
 
     tools = anyio.run(main)
     assert sorted(tools) == [
-        "drawing", "edit_meta", "edit_page", "read", "recent", "rename_tag", "revert",
-        "revert_text", "revisions", "search", "tags", "todos", "trash", "undelete",
-        "write",
+        "drawing", "edit_meta", "edit_page", "read", "rename_tag", "revert",
+        "revisions", "search", "tags", "trash", "undelete", "write",
     ]  # fmt: skip
 
 
@@ -331,20 +333,20 @@ def test_read_of_a_missing_or_trashed_page(store):
     assert ok(store, "read", page=page["id"])["page"]["trashed"] is True  # read only
 
 
-def test_recent_and_todos(store):
+def test_empty_search_lists_recent_and_todos_by_query(store):
     write(store, title="Note one")
     todo = write(store, title="Do it", kind="todo")
     done = write(store, title="Done it", kind="todo", status="done")
     write(store, title="Going", kind="todo", status="in_progress")
-    titles = [r["title"] for r in ok(store, "recent")["results"]]
+    titles = [r["title"] for r in ok(store, "search")["results"]]
     assert titles == ["Going", "Done it", "Do it", "Note one"]
-    assert len(ok(store, "recent", limit=1)["results"]) == 1
-    assert [r["title"] for r in ok(store, "recent", kind="todo")["results"]] == [
+    assert len(ok(store, "search", limit=1)["results"]) == 1
+    assert [r["title"] for r in ok(store, "search", query="kind:todo")["results"]] == [
         "Going",
         "Done it",
         "Do it",
     ]
-    open_ = ok(store, "todos")["results"]
+    open_ = ok(store, "search", query=TO_DO)["results"]
     assert {r["title"] for r in open_} == {"Do it", "Going"}
     assert done["id"] not in {r["id"] for r in open_}
     assert {r["status"] for r in open_} == {"open", "in_progress"}
@@ -388,7 +390,7 @@ def test_mcp_over_http(tmp_path, monkeypatch):
         assert r.status_code == 200, r.text
         assert r.json()["result"]["serverInfo"]["name"] == "scrap"
         tools = rpc(client, "tools/list", headers=good).json()["result"]["tools"]
-        assert len(tools) == 15
+        assert len(tools) == 12
         args = {"title": "Over HTTP", "body": "via /mcp", "origin": "test"}
         r = rpc(client, "tools/call", {"name": "write", "arguments": args}, good)
         written = r.json()["result"]["structuredContent"]
@@ -472,7 +474,7 @@ def test_rows_say_what_images_a_page_has(store, monkeypatch):
     pic = photo_page(store, sha, "A green praying mantis on a tile.", "photo")
     write(store, title="Plain note")
     pending = photo_page(store, "ef" * 32)  # not read by Claude yet
-    rows = {r["id"]: r for r in ok(store, "recent")["results"]}
+    rows = {r["id"]: r for r in ok(store, "search")["results"]}
     got = rows[pic["page_id"]]
     assert got["image_count"] == 1
     assert got["image_kind"] == "photo"
@@ -486,7 +488,7 @@ def test_rows_say_what_images_a_page_has(store, monkeypatch):
     assert rows[pending["page_id"]]["image_kind"] is None
     plain = next(r for r in rows.values() if r["title"] == "Plain note")
     assert plain["image_count"] == 0 and "image_kind" not in plain
-    # search and todos rows carry the same fields
+    # search rows carry the same fields
     [hit] = ok(store, "search", query="mantis")["results"]
     assert hit["id"] == pic["page_id"] and hit["image_kind"] == "photo"
     assert "mantis" in hit["snippet"]  # the description is searchable text
@@ -504,7 +506,7 @@ def test_image_count_counts_every_image_and_the_first_leads(store):
     with store.connect() as conn:
         put_derived(conn, c["id"], second, "description", "m", now(), text="second",
                     data={"kind": "diagram"})  # fmt: skip
-    [row] = ok(store, "recent")["results"]
+    [row] = ok(store, "search")["results"]
     assert row["id"] == ref["page_id"] and row["image_count"] == 2
     assert row["image_url"].endswith(first) and row["image_description"] is None
 
@@ -546,20 +548,22 @@ def test_todos_have_due_dates_and_priorities(store):
     b = write(store, title="B", kind="todo", due="2026-11-01")
     c = write(store, title="C", kind="todo", priority="high")
     write(store, title="N")  # a note: none
-    rows = ok(store, "todos")["results"]
+    rows = ok(store, "search", query=TO_DO)["results"]
     assert {r["title"]: (r["due"], r["priority"]) for r in rows} == {
         "A": ("2026-11-03", "low"), "B": ("2026-11-01", None), "C": (None, "high"),
     }  # fmt: skip
-    assert [r["id"] for r in ok(store, "todos", sort="due")["results"]] == [
-        b["id"], a["id"], c["id"],
-    ]  # fmt: skip
-    by_rank = ok(store, "todos", sort="priority")["results"]
+    by_due = ok(store, "search", query=f"{TO_DO} sort:due")["results"]
+    assert [r["id"] for r in by_due] == [b["id"], a["id"], c["id"]]
+    by_rank = ok(
+        store,
+        "search",
+        query=f"{TO_DO} sort:priority",
+    )["results"]
     assert [r["id"] for r in by_rank] == [c["id"], a["id"], b["id"]]
-    assert "sort must be" in refused(store, "todos", sort="title")
     found = ok(store, "search", query="due:<=2026-11-02")["results"]
     assert [r["id"] for r in found] == [b["id"]]
     assert ok(store, "search", query="priority:high")["results"][0]["id"] == c["id"]
-    assert ok(store, "recent", limit=1)["results"][0]["due"] is None  # N
+    assert ok(store, "search", limit=1)["results"][0]["due"] is None  # N
     page = ok(store, "read", page=a["id"])["page"]
     assert (page["due"], page["priority"]) == ("2026-11-03", "low")
 
@@ -677,8 +681,6 @@ def test_mcp_token_leaves_the_rest_open(tmp_path, monkeypatch):
 
 
 def test_mcp_without_a_token_is_unchanged(tmp_path, monkeypatch):
-    monkeypatch.delenv("SCRAP_MCP_TOKEN", raising=False)
-    monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
     with TestClient(create_app(tmp_path / "data")) as client:
         assert rpc(client, "initialize", INIT, LOCAL).status_code == 200
         r = rpc(client, "initialize", INIT, {**LOCAL, "Authorization": "Bearer x"})
@@ -926,7 +928,7 @@ def test_image_count_counts_a_repeated_image_once(store):
     store.capture(
         c, [(sha, "image/png", 3, "a.png"), (sha, "image/png", 3, "again.png")], "me"
     )
-    [row] = ok(store, "recent")["results"]
+    [row] = ok(store, "search")["results"]
     assert row["image_count"] == 1 and row["image_url"].endswith(sha)
 
 
@@ -1001,13 +1003,13 @@ def test_every_other_tool_still_treats_the_trash_as_absent(store):
     page = trashed(store, title="Doomed zebra", body="b")
     key = page["slug"]
     assert ok(store, "search", query="zebra")["results"] == []
-    assert ok(store, "recent")["results"] == []
-    assert ok(store, "todos")["results"] == []
+    assert ok(store, "search")["results"] == []
+    assert ok(store, "search", query="kind:todo")["results"] == []
     assert ok(store, "tags")["total"] == 0
     for tool, args in (
         ("edit_meta", {"pages": [key], "add_tags": ["x"]}),
         ("edit_page", {"page": key, "old": "b", "new": "c"}),
-        ("revert_text", {"page": key, "to_rev": 1, "dry_run": True}),
+        ("revert", {"page": key, "to_rev": 1, "dry_run": True}),
         ("write", {"title": "", "body": "more", "origin": "", "append_to": key}),
         ("drawing", {"page": key}),
     ):
@@ -1027,7 +1029,7 @@ def test_undelete_brings_a_page_back(store):
     assert back["page"]["trashed"] is False and back["page"]["tags"] == ["t"]
     assert back["content"]["body_markdown"] == "words"
     assert ok(store, "trash")["results"] == []
-    assert [r["id"] for r in ok(store, "recent")["results"]] == [page["id"]]
+    assert [r["id"] for r in ok(store, "search")["results"]] == [page["id"]]
 
 
 def test_undelete_of_a_page_not_in_the_trash(store):
@@ -1107,6 +1109,21 @@ def test_every_page_tool_takes_a_page_url(store):
     assert not call(store, "revisions", page=url)[0]
     assert not call(store, "edit_meta", pages=[url], add_tags=["x"])[0]
     rev = call(store, "read", page=url)[1]["page"]["rev"]
-    assert not call(store, "revert_text", page=url, to_rev=1, rev=rev)[0]
+    assert not call(store, "revert", page=url, to_rev=1, rev=rev)[0]
     assert call(store, "undelete", page=url)[0]  # not in the trash: refused, found
     assert call(store, "drawing", page=url)[0]  # no drawing: refused, found
+
+
+def test_search_refuses_an_unknown_kind(store):
+    write(store, title="A note")
+    error = refused(store, "search", query="kind:notes")
+    assert "unknown kind" in error and "todo" in error
+    assert ok(store, "search", query="kind:read")["results"] == []
+
+
+def test_revert_refuses_text_options_without_to_rev(store):
+    for extra in ({"rev": 1}, {"restore_title": True}, {"allow_empty": True}):
+        assert "go with page and to_rev" in refused(
+            store, "revert", revision=1, **extra
+        )
+        assert "go with page and to_rev" in refused(store, "revert", batch="x", **extra)

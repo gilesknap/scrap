@@ -458,8 +458,9 @@ def test_batch_revert_skips_a_trashed_page_and_unknown_batches(store):
     assert [s["id"] for s in out["skipped"]] == [refs[0]["page_id"]]
     assert store.page(refs[1]["slug"])["kind"] == "note"
     assert "no such batch NOPE" in refused(store, "revert", batch="NOPE")
-    assert "a revision or a batch" in refused(store, "revert")
-    assert "a revision or a batch" in refused(store, "revert", revision=1, batch="x")
+    assert "exactly one of revision, batch" in refused(store, "revert")
+    both = refused(store, "revert", revision=1, batch="x")
+    assert "exactly one of revision, batch" in both
 
 
 def test_a_revision_id_is_never_used_again(store):

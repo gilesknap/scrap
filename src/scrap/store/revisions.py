@@ -286,7 +286,7 @@ class RevisionsMixin(Core):
         return rev, folded
 
     def _unbox(self, conn: sqlite3.Connection, page: sqlite3.Row) -> None:
-        """Claude's text revision (a revert_text) took away the boxes of a todo that
+        """Claude's text revision (a text revert) took away the boxes of a todo that
         its own boxes made (ADR 26): an unfixed todo, still with its default status,
         whose previous text had boxes and no revision by anyone but Claude ever had
         (so the boxes are Claude's, even if a fold deleted the revision that added

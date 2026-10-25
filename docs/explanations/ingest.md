@@ -326,7 +326,7 @@ Photo ingest and enrich share one prompt section (`prompts/items.md`, added to b
   separated by a blank line, in one text revision by `claude` that never folds into another
   (`edit_text`, as MCP's `edit_page`). The user's words are never rewritten, even when they are
   already plain bullets: the boxes go below them and the original list stays above. The task-box
-  rule then files the page as a todo. `revert_text` (to the revision before) restores the text;
+  rule then files the page as a todo. `revert` with `to_rev` (to the revision before) restores the text;
   when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
   photo's whiteboard or document, else a note), unless the user filed or changed the todo.
 - **Reprocess and Ask Claude** read again, but a page that has boxes is skipped, so boxes are

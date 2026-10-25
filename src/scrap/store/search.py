@@ -280,7 +280,7 @@ class SearchMixin(Core):
                 args.append(MCP)
             elif f.key == "is" and f.value == "claude-edited":  # text changed by MCP
                 # a text revision by Claude after the first: an edit_page, a
-                # revert_text, or an append to a page Claude wrote
+                # revert to a text revision, or an append to a page Claude wrote
                 sql.append(
                     f"{no}EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = p.id"
                     " AND r.rev > 1 AND r.author = ?)"
