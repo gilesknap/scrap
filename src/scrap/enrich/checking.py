@@ -28,8 +28,12 @@ TEXT_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 # (https://, mailto:): its words stay, so nothing links outside the [[n]] mapping
 REF_DEF = re.compile(r"^ {0,3}\[(?!\^)[^\]\n]+\]:.*$\n?", re.MULTILINE)
 REF_LINK = re.compile(r"(?<!\[)!?\[([^\[\]\n]*)\]\[[^\[\]\n]*\]")
-AUTOLINK = re.compile(r"<((?:[a-z][a-z0-9+.-]*:|[^<>\s@]+@)[^<>\s]*)>", re.IGNORECASE)
-SCHEME = re.compile(r"\b(?:[a-z][a-z0-9+.-]*://|mailto:)", re.IGNORECASE)
+# Bounded (a scheme is at most 32 characters, an address's name 64), so a long run of
+# scheme characters cannot make a search quadratic
+AUTOLINK = re.compile(
+    r"<((?:[a-z][a-z0-9+.-]{0,31}:|[^<>\s@]{1,64}@)[^<>\s]*)>", re.IGNORECASE
+)
+SCHEME = re.compile(r"\b(?:[a-z][a-z0-9+.-]{0,31}://|mailto:)", re.IGNORECASE)
 # A cited page while the rest is stripped: \x00 never survives TEXT_CONTROL, so the
 # model cannot write one
 HELD = re.compile(r"\x00(\d+)\x00")
@@ -135,7 +139,7 @@ def checked_writeup(out: dict[str, Any], slugs: Sequence[str]) -> dict[str, str]
     if not isinstance(out.get("summary"), str) or not isinstance(out.get("text"), str):
         raise ValueError("output lacks summary or text")
     summary = " ".join(CONTROL.sub(" ", out["summary"]).split())[:MAX_SUMMARY]
-    text = out["text"].replace("\r\n", "\n").replace("\r", "\n")
+    text = out["text"][: 2 * MAX_WRITEUP].replace("\r\n", "\n").replace("\r", "\n")
     text = cited(text, slugs).strip()[:MAX_WRITEUP]
     if not text:
         raise ValueError("the write-up is empty")

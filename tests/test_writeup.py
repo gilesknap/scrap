@@ -671,3 +671,14 @@ def test_stripping_one_link_never_leaves_another(text, kept):
     assert out.strip() == kept
     assert "](" not in out.replace("]] (", "") and "]:" not in out
     assert "://" not in out
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["a." * 50_000, "a" * 100_000 + ":", "<" + "a" * 100_000, "[" * 50_000 + "]("],
+)
+def test_stripping_a_pathological_write_up_is_quick(bad):
+    start = time.perf_counter()
+    enrich.cited(bad, ["enc"])  # all of it, uncut
+    enrich.checked_writeup({"summary": "s", "text": bad + " x"}, ["enc"])
+    assert time.perf_counter() - start < 1.0
