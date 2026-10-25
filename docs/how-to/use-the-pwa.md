@@ -574,6 +574,33 @@ has a summary or related pages. The panel has:
 Reading a page needs the server, like opening it; the page checks again while Claude has it
 queued or is reading it.
 
+## Claude's write-up of a board
+
+A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
+**Claude's write-up**: an explanation of the board, in a section of its own under the page's
+text. It is Claude's, not yours, so it is drawn in a dashed card and is never part of the text
+you edit. Tap its heading to fold it away; it stays folded on that phone until you open it again.
+It has:
+
+- Who wrote it and when: the model, the date and its version (and *restored from version N*
+  after a restore).
+- A one or two sentence lead, which is also the page's summary, then the write-up itself:
+  overview, structure, decisions, open questions and related pages, as fits the board. Its links
+  open those pages, and the pages it links show in **Related** (marked *· in a write-up*) on both
+  pages. Search finds words in it.
+- **Regenerate** (while Claude is on): have Claude write it again. While it works the section
+  says *Waiting for Claude* or *Claude is writing it…*. A **Reprocess** of a board photo, or a
+  new board photo, writes it again anyway, and so does **Ask Claude**.
+- **Guidance for Claude**: a note for the next write-up, such as "focus on the data flow; 'Enc'
+  means encoder". **Save** keeps it (apart from the page's text) without writing anything;
+  **Regenerate** then uses it, and the new version keeps a copy.
+- **Versions** (once there are two): every write-up, newest first, with **Restore** to make an
+  older one current again (as a new version: nothing is lost).
+
+The first write-up comes once Claude has read all of the board's photos; its related pages are
+picked after it. Write-ups for boards read before this feature come from `scrap enrich
+--writeups` (see [](../reference/api.md)).
+
 ## Licences of the Markdown libraries
 
 Page text is rendered by [markdown-it](https://github.com/markdown-it/markdown-it) and its

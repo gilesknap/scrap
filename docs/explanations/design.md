@@ -59,7 +59,8 @@ reasons, and where one says it supersedes the first design, the record wins.
 - **Kinds, todos and revisions.** Pages have a kind, flat fields, tags, task boxes and, for todos,
   a due date, priority and snooze ([](decisions/0012-kinds-flat-fields-and-typed-todo-columns.md),
   [](decisions/0019-kinds-and-tags-editable-with-revisions.md)).
-- **Claude.** Photo ingest with drawings, text enrich, related pages and a daily budget (see
+- **Claude.** Photo ingest with drawings, text enrich, related pages, write-ups of boards and a
+  daily budget (see
   [Claude features](#claude-features)).
 - **MCP.** Search, read and write tools served at `/mcp`
   ([](decisions/0013-mcp-server-inside-the-app.md)).
@@ -242,6 +243,8 @@ Notes:
 | `enrichment` | A page's Claude summary and, for a link, the fetched address and title |
 | `model_tag` | Which tags Claude added (`on`), and which the user took off (`off`: never added again) |
 | `related` | The pages Claude picked as related to each page, in order |
+| `writeup` | Claude's write-ups of a board page (migration 12): versions, one current (`superseded_at` NULL), never changed; each with its `producer`, `run_id` (its `enrich_run`), `prompt_version`, `summary`, Markdown `text`, the `guidance` it was written with and `restored_from` |
+| `writeup_guidance` | The owner's guidance for a page's next write-up |
 
 ### Migrations
 
@@ -252,7 +255,9 @@ that same transaction after its script: migrations 3 and 4 re-index every page w
 (that is how the search index is rebuilt), 5 moves an import's `due` and `priority` fields into
 their columns, and 7 counts every page's task boxes. Migrations 6 to 9 are additive (their Python
 step adds a column or table only if it is missing), so an older scrap still runs on a newer
-database if you set `user_version` back to its own. A database newer than the code is refused, as
+database if you set `user_version` back to its own. Migrations 11 and 12 rebuild `enrich_job` for
+its reason `CHECK` (`related`, then `writeup`), keeping its rows and the runs' `job_id`, unless it
+takes the reason already; 12 also adds the write-up tables if missing. A database newer than the code is refused, as
 is a backup newer than the code on restore.
 
 ### Page identity, links, tags
@@ -275,7 +280,8 @@ is a backup newer than the code on restore.
   off is never added back, and Claude never removes one.
 - **Related.** Enrich stores the pages Claude picked as related apart from the text (a nightly
   pass and Ask Claude, not every save); the page shows them as Related both ways, merged with
-  backlinks.
+  backlinks and with the pages a board's current write-up links to (or whose write-up links
+  here, `via: writeup`). Write-up links are not the body's links or backlinks.
 
 ### Kinds
 
@@ -447,13 +453,31 @@ one call, a link at once. `SCRAP_ENRICH=off` keeps Claude to photos. Nothing edi
 
 **Related pages.** A separate call per page picks up to five related pages from a numbered
 candidate list, on *Ask Claude* at once, once when the page is first read (its first enrich, or
-photo ingest of its first photos: an enrich job of reason `related`), and otherwise in the nightly
+photo ingest of its first photos, or for a board its write-up: an enrich job of reason
+`related`), and otherwise in the nightly
 pass, `scrap enrich --related`, for pages changed (or with a photo read) since their last picks. It sees the page in
 brief: its title, tags, summary, the start of its text and the start of what photo ingest read
-from its images (each one's description and text), so a photo page whose text is only the image
+from its images (each one's description and text) and of its write-up, so a photo page whose text is only the image
 is judged by what is in it. Its candidates come from shared tags, then a full-text search for its
 words (title, tags and summary first, then what was read from its images, then its text), then
 the most recently changed.
+
+**Write-ups of boards.** A board page (one with a whiteboard or diagram image that the photo
+call did not judge a list of actions) gets Claude's write-up: one Opus call
+(`SCRAP_VISION_MODEL`) with the board photos themselves (at most four, the JPEGs photo ingest
+sent), what was read from them, the page's title, tags and text as context, the owner's guidance,
+and the related candidates as a numbered index. It answers with a one or two sentence `summary`
+and Markdown `text` (overview, structure, decisions, open questions, related pages); the numbers
+it cites become `[[slug]]` links, any other link is dropped. It is stored apart from the text in
+`writeup` as a new version, never in the body, and nobody edits it: Regenerate makes a new one,
+Restore copies an old one. It is queued (an enrich job of reason `writeup`) when photo ingest of
+the page finishes and a board image was read since its last write-up, so a first reading,
+Reprocess and a new board photo all write it again; the page's first related call follows it, so
+it sees the write-up. Ask Claude on a board page writes one too, before its related call. Its
+summary is the page's model summary (before enrich's), its text is searched, and a write-up newer
+than the page's last related picks makes it stale for the nightly pass. `scrap enrich --writeups`
+writes them for board pages with none. See
+[](decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md).
 
 **Queue and budget.** One worker thread wakes every 30 seconds or when a job is queued, and runs one
 job at a time. Outages, spend limits and a bad key pause the queue without failing jobs; any other
@@ -506,8 +530,8 @@ session has. Tools and limits: [](../reference/mcp.md).
 - `search`, `read`, `recent`, `todos`, `tags`: thin wrappers over the store; `search` takes the
   search box's syntax. Results carry each page's PWA URL (`$SCRAP_PUBLIC_URL/p/<slug>`) and its
   images as URLs, so Claude links there instead of trying to show them. Page text is returned in
-  JSON fields, as data. `read` also returns `by_model`: Claude's own summary, the tags it added and
-  the pages it found related, labelled as written by a model.
+  JSON fields, as data. `read` also returns `by_model`: Claude's own summary, the tags it added,
+  the pages it found related and a board's write-up, labelled as written by a model.
 - `edit_meta` and `rename_tag` change the kind and tags of any page, `revisions` lists a page's
   text and metadata revisions (the way to find an id), and `revert` undoes a metadata change (or a
   whole bulk change by its batch id): metadata only, made safe by revisions
@@ -663,7 +687,7 @@ every page this way.
 The commands and settings are in [](../reference/api.md); this is how they fit together.
 
 - **Commands.** `scrap serve` (migrates, then serves), `backup DIR`, `restore DIR`, `export DIR`,
-  `import DIR`, `gc`, `enrich` (`--backfill`, `--related`) and `ingest-once IMAGE`. Every command
+  `import DIR`, `gc`, `enrich` (`--backfill`, `--related`, `--writeups`) and `ingest-once IMAGE`. Every command
   takes `--data-dir` (default `$SCRAP_DATA_DIR`, else `./data`).
 - **Settings** are environment variables: `SCRAP_DATA_DIR`, `SCRAP_WEB_DIR`, `SCRAP_PUBLIC_URL`,
   `SCRAP_MAX_UPLOAD_MB` (50), `SCRAP_REVISION_WINDOW` (300), `SCRAP_INGEST` (off), `SCRAP_ENRICH`
