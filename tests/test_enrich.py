@@ -16,7 +16,15 @@ from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
 from scrap.ingest import FAR, Worker, spent_today
-from scrap.store import Store, connect, fixes, new_ulid, now, queue_related
+from scrap.store import (
+    Store,
+    connect,
+    fixes,
+    migrations,
+    new_ulid,
+    now,
+    queue_related,
+)
 
 LONG = "Plans for the garden shed.\n\n" + "We will build it from larch. " * 12
 
@@ -263,7 +271,7 @@ def test_migration_11_keeps_enrich_jobs_and_their_runs(store):
             "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
             " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip
         assert runs == [(1, "capture")]
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 11
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         queue_related(conn, ref["page_id"])  # the new reason is taken
     assert jobs(store) == [*before, ("related", "queued", 0)]
 

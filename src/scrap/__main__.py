@@ -128,7 +128,16 @@ def main(args: Sequence[str] | None = None) -> None:
         " picks (the nightly pass; stops at a queue pause or the day's budget)",
     )
     enr.add_argument(
-        "--all", action="store_true", help="With --related: every page, changed or not"
+        "--writeups",
+        action="store_true",
+        help="Write Claude's write-up, here and now, for every whiteboard or diagram"
+        " page with none (stops at a queue pause or the day's budget)",
+    )
+    enr.add_argument(
+        "--all",
+        action="store_true",
+        help="With --related: every page, changed or not; with --writeups: every"
+        " board page, written up or not",
     )
     enr.add_argument("--limit", type=int, help="At most this many pages")
     enr.add_argument(
@@ -200,20 +209,34 @@ def main(args: Sequence[str] | None = None) -> None:
                 print(f"imported {n} pages into {store.dir} (--dry-run lists problems)")
         elif parsed.command == "enrich":
             from . import claude_cli
-            from .enrich import backfill, related_pass
+            from .enrich import backfill, related_pass, writeup_pass
             from .store import enrich_on
 
-            if parsed.backfill == parsed.related:
-                parser.error("enrich: say --backfill or --related")
+            if [parsed.backfill, parsed.related, parsed.writeups].count(True) != 1:
+                parser.error("enrich: say --backfill, --related or --writeups")
             store.migrate()
-            if parsed.related and not (
+            calls = parsed.related or parsed.writeups  # made here, not queued
+            if calls and not (
                 enrich_on() and claude_cli.configured()
             ):  # nothing to do, and not a failure (the nightly timer runs anyway)
+                what = "related pages" if parsed.related else "write-ups"
                 print(
-                    "related pages: Claude enrichment is off (needs SCRAP_INGEST=on"
+                    f"{what}: Claude enrichment is off (needs SCRAP_INGEST=on"
                     " and ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN with"
                     " SCRAP_LLM_BACKEND=cli; SCRAP_ENRICH not off); nothing done"
                 )
+            elif parsed.writeups:
+                c = writeup_pass(store, None, parsed.all, parsed.limit, parsed.dry_run)
+                if parsed.dry_run:
+                    print(f"would write up {c['pages']} board pages")
+                else:
+                    print(f"write-ups made for {c['done']} of {c['pages']} board pages,"
+                          f" {c['failed']} failed (scrap enrich --related picks"
+                          " their related pages again)")  # fmt: skip
+                    if c["stopped"]:
+                        raise SystemExit(
+                            f"stopped: the queue is paused ({c['stopped']})"
+                        )
             elif parsed.related:
                 c = related_pass(store, None, parsed.all, parsed.limit, parsed.dry_run)
                 if parsed.dry_run:

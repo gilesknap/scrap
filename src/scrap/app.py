@@ -300,7 +300,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
         def handler(request: Request, error: Exception, status: int = status):
             detail: dict[str, Any] = {"detail": str(error) or type(error).__doc__}
-            if isinstance(error, drawing.StaleError):
+            if isinstance(error, (drawing.StaleError, enrich.StaleWriteupError)):
                 detail = {"detail": type(error).__doc__, "version": error.args[0]}
             elif isinstance(error, ConflictError):
                 detail = {"detail": type(error).__doc__, "rev": error.args[0]}
@@ -456,6 +456,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         if app.state.worker:
             app.state.worker.wake()
         return page
+
+    from . import writeup_api  # it builds on this module
+
+    def wake() -> None:
+        if app.state.worker:
+            app.state.worker.wake()
+
+    writeup_api.add_routes(app, store, wake)
 
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:

@@ -17,13 +17,16 @@ from .constants import (
     RELATED_ENQUEUE,
 )
 from .helpers import now, unlink
+from .writeups import current as current_writeup
+from .writeups import due as writeup_due
+from .writeups import has_board
 
 
 def index_page(conn: sqlite3.Connection, page_id: str) -> None:
-    """(Re)make a page's own search chunk from its title, tags, summary and body (its
-    derived text has chunks of its own). No control characters: snippets mark hits
-    with \x02 and \x03. Each becomes a space, so a lone \r or \v still separates two
-    words."""
+    """(Re)make a page's own search chunks: one from its title, tags, summary and
+    body, and one from its current write-up's text, if any (its derived text has
+    chunks of its own). No control characters: snippets mark hits with \x02 and \x03.
+    Each becomes a space, so a lone \r or \v still separates two words."""
     title, body, fields = conn.execute(
         "SELECT title, body, fields FROM page WHERE id = ?", (page_id,)
     ).fetchone()
@@ -43,11 +46,20 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
         " VALUES (?, 0, ?, ?, ?, ?)",
         (page_id, *clean),
     )
+    up = current_writeup(conn, page_id)
+    if up is not None and up["text"]:
+        conn.execute(
+            "INSERT INTO chunk (page_id, ord, text) VALUES (?, 1, ?)",
+            (page_id, CONTROL.sub(" ", plain(up["text"]))),
+        )
 
 
 def model_summary(conn: sqlite3.Connection, page_id: str) -> str:
-    """The summary Claude wrote for a page (enrich), else ''. Before migration 9 there
-    is no enrichment table: ''."""
+    """The summary Claude wrote for a page: its current write-up's (a board's), else
+    enrich's, else ''. Before migration 9 there is no enrichment table: ''."""
+    up = current_writeup(conn, page_id)
+    if up is not None and up["summary"]:
+        return up["summary"]
     try:
         row = conn.execute(
             "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
@@ -116,6 +128,28 @@ def queue_related_on_read(conn: sqlite3.Connection, capture_id: str) -> None:
     row = conn.execute(FIRST_READ, {"capture": capture_id}).fetchone()
     if row is not None:
         queue_related(conn, row[0])
+
+
+def queue_writeup(conn: sqlite3.Connection, page_id: str) -> None:
+    """Queue (or take over) a page's enrich job as a write-up, now, with enrich on."""
+    if enrich_on():
+        queue_enrich(conn, page_id, "writeup")
+
+
+def queue_after_read(conn: sqlite3.Connection, capture_id: str) -> None:
+    """After photo ingest read (or gave up on) one of a capture's photos. A board page
+    (a whiteboard or diagram, not a list of actions) gets its write-up once all its
+    photos are read and a board image was read since its last one; its first related
+    call follows the write-up (Enricher), so it sees it. Any other page: its first
+    related call, once its first photo capture is read (queue_related_on_read)."""
+    row = conn.execute(
+        "SELECT page_id FROM capture WHERE id = ?", (capture_id,)
+    ).fetchone()
+    if row is not None and enrich_on() and has_board(conn, row[0]):
+        if writeup_due(conn, row[0]):
+            queue_writeup(conn, row[0])
+        return
+    queue_related_on_read(conn, capture_id)
 
 
 def index_all(conn: sqlite3.Connection) -> None:

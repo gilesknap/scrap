@@ -1,6 +1,7 @@
 """Storage: one SQLite database and a folder of content-addressed files."""
 
 from ..query import CONTROL
+from . import writeups
 from .constants import (
     CLAUDE,
     CROCKFORD,
@@ -52,9 +53,11 @@ from .helpers import (
 from .indexing import (
     enrich_on,
     model_summary,
+    queue_after_read,
     queue_enrich,
     queue_related,
     queue_related_on_read,
+    queue_writeup,
 )
 from .store import Store
 
@@ -110,6 +113,9 @@ __all__ = [
     "queue_enrich",
     "queue_related",
     "queue_related_on_read",
+    "queue_after_read",
+    "queue_writeup",
+    "writeups",
     "fix_tag_paths",
     "Store",
 ]

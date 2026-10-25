@@ -133,8 +133,9 @@ def prune_runs(
     for its page (``enrich_run``) or for its photo (``model_run``); or the newest ok
     ``related`` enrich_run of a page (``enrich --related`` reads it as "up to date",
     see ``enrich.STALE``); or something
-    refers to it: ``enrichment.run_id`` and ``derived.run_id`` (a superseded version
-    too), or a kept ``model_run`` that continues it (``parent_id``). Returns the
+    refers to it: ``enrichment.run_id``, ``writeup.run_id`` and ``derived.run_id`` (a
+    superseded version too), or a kept ``model_run`` that continues it
+    (``parent_id``). Returns the
     counts (model_run, enrich_run). Call inside the write transaction when deleting.
     """
     stamp = _cutoff_stamp(run_days)
@@ -166,6 +167,7 @@ def prune_runs(
         row[0]
         for row in conn.execute(
             "SELECT run_id FROM enrichment WHERE run_id IS NOT NULL"
+            " UNION SELECT run_id FROM writeup WHERE run_id IS NOT NULL"
         )
     }
     latest: dict[str, int] = {}

@@ -2,11 +2,12 @@
 
 import json
 import os
+from collections.abc import Callable
 from typing import Any
 
 from .. import claude
 from ..ingest import PAUSES, notify, pause, resume, spent_today
-from ..store import Store, model_summary, now, transaction
+from ..store import Store, model_summary, now, transaction, writeups
 from .checking import checked_related, record
 from .constants import RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
@@ -33,8 +34,9 @@ def relate(
         summary = human if isinstance(human, str) else model_summary(conn, page_id)
         pages = CANDIDATES(conn, page_id)
         images = page_images(conn, page_id)
+        up = writeups.current(conn, page_id)
     system, version = related_prompt(pages)
-    messages = related_message(page, tags, summary, images)
+    messages = related_message(page, tags, summary, images, up["text"] if up else "")
     model, effort = claude.text_model()
     request = {
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
@@ -100,6 +102,20 @@ def related_pass(
     with store.connect() as conn:
         most = -1 if limit is None else limit
         ids = [r[0] for r in conn.execute(STALE, {"all": every, "limit": most})]
+    return run_pass(store, ids, lambda p: relate(store, call, p), budget, dry_run)
+
+
+def run_pass(
+    store: Store,
+    ids: list[str],
+    one: Callable[[str], claude.CallError | None],
+    budget: int,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """One call (one) for each page, here and now, as a pass from the command line
+    does it: before each, it stops at a queue pause or at the day's budget (pausing
+    the queue for it); a call that pauses the queue (outage, credit, auth) stops it
+    too; other failures are counted and the next page tried. Returns the counts."""
     counts: dict[str, Any] = {
         "pages": len(ids),
         "done": 0,
@@ -120,7 +136,7 @@ def related_pass(
         if paused or over:
             counts["stopped"] = q["reason"] if paused else "budget"
             break
-        error = relate(store, call, page_id)
+        error = one(page_id)
         if error is None:
             counts["done"] += 1
         elif error.cls in PAUSES:

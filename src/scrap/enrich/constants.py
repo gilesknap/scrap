@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from .. import claude
+from ..store import writeups
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -23,9 +24,16 @@ RELATED_SCHEMA: dict[str, Any] = {
     "required": ["related"],
     "properties": {"related": {"type": "array", "items": {"type": "integer"}}},
 }
+# A board page's write-up (#256): a lead of 1-2 sentences, and Markdown sections
+WRITEUP_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "text"],
+    "properties": {"summary": {"type": "string"}, "text": {"type": "string"}},
+}
 # The tags that mark quoted data in a user turn, and one of them, opening or closing,
 # in the data itself (any case, with spaces: < / Page >), to be neutralised
-DELIMITERS = ("page", "images", "fetched")
+DELIMITERS = ("page", "images", "fetched", "guidance", "writeup")
 DELIMITER = re.compile(
     r"<(?=\s*/?\s*(?:" + "|".join(DELIMITERS) + r")\b)", re.IGNORECASE
 )
@@ -34,6 +42,12 @@ MAX_BODY = 12_000  # characters of the page's text sent
 MAX_IMAGES = 8_000  # characters of what was read from its images (descriptions, text)
 RELATED_BODY = 2_000  # the related call's start of the page's text
 RELATED_IMAGES = 3_000  # and of what was read from its images
+RELATED_WRITEUP = 2_000  # and of its write-up
+MAX_BOARDS = 4  # board images a write-up call is sent (the photos themselves)
+WRITEUP_BODY = 6_000  # characters of the page's own text a write-up call is sent
+WRITEUP_IMAGES = 12_000  # and of what was read from its board images
+MAX_WRITEUP = 20_000  # characters of a write-up kept
+MAX_GUIDANCE = 2_000  # characters of the owner's guidance for one
 MAX_NEW_TAGS = 5  # Claude's tags added to a page at most
 MAX_INVENTED = 2  # of which at most this many not already in use
 MAX_RELATED = 5
@@ -92,7 +106,8 @@ FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
 
 
 # Pages whose related pages are older than their last change, or than what photo ingest
-# last read from one of their images (a current description or text), or never picked
+# last read from one of their images (a current description or text), or than their
+# current write-up, or never picked
 STALE = """
 SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND (:all OR coalesce((
     SELECT max(r.started_at) FROM enrich_run r WHERE r.page_id = p.id
@@ -100,6 +115,15 @@ SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND (:all OR coalesce((
   < max(p.updated_at, coalesce((
     SELECT max(d.created_at) FROM derived d JOIN capture c ON c.id = d.capture_id
     WHERE c.page_id = p.id AND d.kind IN ('description', 'ocr')
-      AND d.superseded_at IS NULL), '')))
+      AND d.superseded_at IS NULL), ''), coalesce((
+    SELECT w.created_at FROM writeup w WHERE w.page_id = p.id
+      AND w.superseded_at IS NULL), '')))
+ORDER BY p.created_at LIMIT :limit
+"""
+# Board pages (writeups.HAS_BOARD) with no write-up (or every one), oldest first
+BOARDS = f"""
+SELECT p.id FROM page p WHERE p.deleted_at IS NULL
+  AND {writeups.HAS_BOARD.format(p="p")}
+  AND (:all OR NOT EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = p.id))
 ORDER BY p.created_at LIMIT :limit
 """

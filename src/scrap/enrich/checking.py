@@ -1,14 +1,27 @@
 """Enrich: the model's output within bounds, and the run's record."""
 
 import json
+import re
 import sqlite3
 import unicodedata
+from collections.abc import Sequence
 from typing import Any
 
 from .. import actions, claude
 from ..query import CONTROL
-from ..store import MAX_TAG, now
-from .constants import MAX_INVENTED, MAX_NEW_TAGS, MAX_RELATED, MAX_SUMMARY, MAX_TITLE
+from ..store import MAX_TAG, WIKI_LINK, now
+from ..store.constants import MD_LINK
+from .constants import (
+    MAX_INVENTED,
+    MAX_NEW_TAGS,
+    MAX_RELATED,
+    MAX_SUMMARY,
+    MAX_TITLE,
+    MAX_WRITEUP,
+)
+
+# Control characters but tab and line feed (a write-up is Markdown, in lines)
+TEXT_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 
 def clean_tag(tag: Any) -> str | None:
@@ -61,6 +74,38 @@ def checked_related(out: dict[str, Any], n_candidates: int) -> list[int]:
         if type(n) is int and 1 <= n <= n_candidates and n not in related:
             related.append(n)
     return related[:MAX_RELATED]
+
+
+def cited(text: str, slugs: Sequence[str]) -> str:
+    """A write-up's links as the model wrote them, [[n]] or [[n|words]] with n a
+    number of its index, as page links: [[slug]], [[slug|words]]. Any other [[...]]
+    (a number not in the index, a name) is no link: its words stay, if it had any, so
+    the model cannot link to a page that is not there."""
+
+    def link(m: re.Match[str]) -> str:
+        target, words = m[1].strip(), (m[2] or "").strip()
+        if target.isdecimal() and 1 <= int(target) <= len(slugs):
+            slug = slugs[int(target) - 1]
+            return f"[[{slug}|{words}]]" if words else f"[[{slug}]]"
+        return words
+
+    return WIKI_LINK.sub(link, text)
+
+
+def checked_writeup(out: dict[str, Any], slugs: Sequence[str]) -> dict[str, str]:
+    """A write-up within bounds: its summary one line, its text Markdown without
+    control characters, web links or images (their words kept), its [[n]] links
+    made page links (cited), at most MAX_WRITEUP characters. ValueError if it is not
+    an answer, or its text is empty."""
+    if not isinstance(out.get("summary"), str) or not isinstance(out.get("text"), str):
+        raise ValueError("output lacks summary or text")
+    summary = " ".join(CONTROL.sub(" ", out["summary"]).split())[:MAX_SUMMARY]
+    text = out["text"].replace("\r\n", "\n").replace("\r", "\n")
+    text = MD_LINK.sub(r"\1", TEXT_CONTROL.sub("", text))
+    text = cited(text, slugs).strip()[:MAX_WRITEUP]
+    if not text:
+        raise ValueError("the write-up is empty")
+    return {"summary": summary, "text": unicodedata.normalize("NFC", text)}
 
 
 def record(

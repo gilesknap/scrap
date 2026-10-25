@@ -1,0 +1,244 @@
+"""Claude's write-up of a board page (#256), as stored: its versions, the owner's
+guidance, the board images it is made from, and the pages it links to.
+
+A write-up is derived data, never the page's text: one current version per page
+(writeup_current), older ones kept, a regeneration or a restore inserting a new one.
+These run on an open connection; the callers own the transaction.
+"""
+
+import json
+import sqlite3
+from typing import Any
+
+from .constants import WIKI_LINK
+
+
+def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]]:
+    return [dict(row) for row in conn.execute(sql, args)]  # below db: as db._rows
+
+
+# A page's board images, in order (each distinct image file once): an image whose
+# current reading says whiteboard or diagram (the photo call's kind, not the page's),
+# unless that reading judged it a list of actions (a to-do sticky: it becomes a
+# checklist instead). With what it read, and the JPEG photo ingest sent (if kept).
+BOARD_IMAGES = """
+WITH once AS (
+    SELECT c.id AS capture_id, cb.sha256, c.received_at, cb.ord,
+           row_number() OVER (PARTITION BY cb.sha256
+                              ORDER BY c.received_at, c.id, cb.ord) AS copy
+    FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id
+    JOIN blob b USING (sha256)
+    WHERE c.page_id = :page AND b.mime LIKE 'image/%')
+SELECT o.capture_id, o.sha256, json_extract(d.data, '$.kind') AS kind,
+       d.text AS description, d.created_at AS read_at,
+       (SELECT t.text FROM derived t WHERE t.capture_id = o.capture_id
+          AND t.source_sha256 = o.sha256 AND t.kind = 'ocr'
+          AND t.superseded_at IS NULL) AS text,
+       r.sent_sha256 AS sent, r.image_width AS width, r.image_height AS height
+FROM once o
+JOIN derived d ON d.capture_id = o.capture_id AND d.source_sha256 = o.sha256
+  AND d.kind = 'description' AND d.superseded_at IS NULL
+LEFT JOIN model_run r ON r.id = d.run_id
+WHERE o.copy = 1
+  AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
+  AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions'
+ORDER BY o.received_at, o.capture_id, o.ord
+"""
+# Whether a page has a board image (BOARD_IMAGES' test, as SQL on a page p)
+HAS_BOARD = """EXISTS (
+    SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
+    LEFT JOIN model_run r ON r.id = d.run_id
+    WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
+      AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
+      AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
+# A board page whose write-up is due: none of its photos waits or is being read, and
+# a board image was read since its last write-up (or it has none)
+DUE = f"""
+SELECT 1 FROM page p WHERE p.id = :page AND p.deleted_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM job j JOIN capture c ON c.id = j.capture_id
+                  WHERE c.page_id = p.id AND j.state IN ('queued', 'running'))
+  AND {HAS_BOARD.format(p="p")}
+  AND EXISTS (
+    SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
+    WHERE c.page_id = p.id AND d.kind = 'description' AND d.superseded_at IS NULL
+      AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
+      AND d.created_at > coalesce(
+        (SELECT max(w.created_at) FROM writeup w WHERE w.page_id = p.id), ''))
+"""
+COLUMNS = (
+    "id, version, producer, run_id, prompt_version, summary, text, guidance,"
+    " restored_from, superseded_at, created_at"
+)
+INSERT = """
+INSERT INTO writeup (page_id, version, producer, run_id, prompt_version, summary, text,
+                     guidance, restored_from, created_at)
+VALUES (:page,
+        (SELECT coalesce(max(version), 0) + 1 FROM writeup WHERE page_id = :page),
+        :producer, :run, :prompt, :summary, :text, :guidance, :restored, :now)
+RETURNING version
+"""
+
+
+def board_images(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
+    """A page's board images in order (BOARD_IMAGES)."""
+    return [dict(r) for r in conn.execute(BOARD_IMAGES, {"page": page_id})]
+
+
+def has_board(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether a page has a board image (HAS_BOARD)."""
+    sql = f"SELECT {HAS_BOARD.format(p='p')} FROM page p WHERE p.id = ?"
+    row = conn.execute(sql, (page_id,)).fetchone()
+    return bool(row and row[0])
+
+
+def due(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether a board page's write-up is due (DUE): all its photos read, and a board
+    image read since its last one."""
+    return conn.execute(DUE, {"page": page_id}).fetchone() is not None
+
+
+def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
+    """A page's current write-up, or None (also before migration 12)."""
+    try:
+        row = conn.execute(
+            f"SELECT {COLUMNS} FROM writeup"
+            " WHERE page_id = ? AND superseded_at IS NULL",
+            (page_id,),
+        ).fetchone()
+    except sqlite3.OperationalError:  # no such table: an older schema
+        return None
+    return dict(row) if row else None
+
+
+def versions(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
+    """Every write-up of a page, newest first, each with current: whether it is."""
+    rows = _rows(
+        conn,
+        f"SELECT {COLUMNS} FROM writeup WHERE page_id = ? ORDER BY version DESC",
+        page_id,
+    )
+    return [{**r, "current": r["superseded_at"] is None} for r in rows]
+
+
+def put(
+    conn: sqlite3.Connection,
+    page_id: str,
+    stamp: str,
+    *,
+    producer: str,
+    run_id: int | None,
+    prompt_version: str,
+    summary: str,
+    text: str,
+    guidance: str | None,
+    restored_from: int | None = None,
+) -> int:
+    """Insert a page's new current write-up (the last one is superseded by a
+    trigger); its version. The caller indexes the page again (index_page)."""
+    return conn.execute(
+        INSERT,
+        {"page": page_id, "producer": producer, "run": run_id,
+         "prompt": prompt_version, "summary": summary, "text": text,
+         "guidance": guidance, "restored": restored_from, "now": stamp},
+    ).fetchone()[0]  # fmt: skip
+
+
+def guidance(conn: sqlite3.Connection, page_id: str) -> str | None:
+    """The owner's guidance for a page's next write-up, if any."""
+    try:
+        row = conn.execute(
+            "SELECT text FROM writeup_guidance WHERE page_id = ?", (page_id,)
+        ).fetchone()
+    except sqlite3.OperationalError:  # no such table: an older schema
+        return None
+    return row[0] if row else None
+
+
+def set_guidance(
+    conn: sqlite3.Connection, page_id: str, text: str | None, author: str, stamp: str
+) -> None:
+    """Keep the owner's guidance for a page's next write-up; empty or None: none."""
+    if text is None or not text.strip():
+        conn.execute("DELETE FROM writeup_guidance WHERE page_id = ?", (page_id,))
+        return
+    conn.execute(
+        "INSERT INTO writeup_guidance VALUES (?, ?, ?, ?) ON CONFLICT (page_id)"
+        " DO UPDATE SET text = excluded.text, author = excluded.author,"
+        " updated_at = excluded.updated_at",
+        (page_id, text.strip(), author, stamp),
+    )
+
+
+def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
+    """The pages (not in the trash) a page's current write-up links to, in order."""
+    up = current(conn, page_id)
+    if up is None:
+        return []
+    slugs = list(dict.fromkeys(m[1].strip() for m in WIKI_LINK.finditer(up["text"])))
+    found = {
+        r["slug"]: r
+        for r in _rows(
+            conn,
+            "SELECT id, slug, title, kind FROM page WHERE deleted_at IS NULL"
+            " AND id <> ? AND slug IN (SELECT value FROM json_each(?))",
+            page_id, json.dumps(slugs),
+        )
+    }  # fmt: skip
+    return [found[s] for s in slugs if s in found]
+
+
+def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
+    """The pages (not in the trash) whose current write-up links to slug."""
+    try:
+        return _rows(
+            conn,
+            "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
+            " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
+            " AND p.deleted_at IS NULL AND p.slug <> ?"
+            " AND (instr(w.text, '[[' || ? || ']]') > 0"
+            "  OR instr(w.text, '[[' || ? || '|') > 0) ORDER BY w.created_at DESC",
+            slug, slug, slug,
+        )  # fmt: skip
+    except sqlite3.OperationalError:  # no such table: an older schema
+        return []
+
+
+def view(
+    conn: sqlite3.Connection, page_id: str, on: bool, stamp: str
+) -> dict[str, Any] | None:
+    """A page's write-up as the page shows it (None if it has none and no board
+    image): whether it is a board page, with enrich on, the owner's guidance, the
+    state of a write-up queued or being made (its enrich job's, while that writes
+    one: its latest write-up or Ask job's), how many versions, and the current one."""
+    up = current(conn, page_id)
+    board = has_board(conn, page_id)
+    if up is None and not board:
+        return None
+    job = conn.execute(
+        "SELECT state, reason, last_error,"
+        " (SELECT paused_until > ? FROM queue_state) AS paused"
+        " FROM enrich_job WHERE page_id = ? AND reason IN ('writeup', 'ask')"
+        " ORDER BY id DESC LIMIT 1",
+        (stamp, page_id),
+    ).fetchone()
+    state = None
+    if job is not None and board:
+        state = {"running": "processing", "dead": "failed"}.get(
+            job["state"], job["state"]
+        )
+        if state == "queued" and job["paused"] and on:
+            state = "paused"
+    count = conn.execute(
+        "SELECT count(*) FROM writeup WHERE page_id = ?", (page_id,)
+    ).fetchone()[0]
+    shown = ("version", "producer", "created_at", "prompt_version", "summary", "text",
+             "guidance", "restored_from")  # fmt: skip
+    return {
+        "board": board,
+        "on": on,
+        "guidance": guidance(conn, page_id),
+        "state": state,
+        "error": job["last_error"] if job is not None and state == "failed" else None,
+        "versions": count,
+        "current": up and {k: up[k] for k in shown},
+    }

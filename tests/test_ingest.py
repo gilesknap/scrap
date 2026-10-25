@@ -343,6 +343,8 @@ BOARD = {
     ],
 }  # fmt: skip
 USAGE = {"input_tokens": 5000, "output_tokens": 2000}
+# A photo of a scene: no board, so no write-up (#256): its related call comes at once
+SCENE = {**BOARD, "kind": "photo", "elements": []}
 
 
 class Fake:
@@ -417,7 +419,7 @@ def test_a_new_photo_page_gets_one_related_call_once_its_photos_are_read(
 
     def fake(model, system, messages, schema, blob, **kw):
         calls.append(schema)
-        out = {"related": []} if "related" in schema["properties"] else BOARD
+        out = {"related": []} if "related" in schema["properties"] else SCENE
         content = [{"type": "text", "text": json.dumps(out)}]
         return claude.Completion(out, content, USAGE, model, "end_turn")
 
@@ -444,7 +446,7 @@ def test_a_dead_photo_still_lets_its_capture_queue_one_related_call(
     monkeypatch.setenv("SCRAP_INGEST", "on")
     ref = photo(store, [jpeg("red"), jpeg("blue")])
     content = claude.CallError("content", "400")
-    fake = Fake(BOARD, content, content, content)
+    fake = Fake(SCENE, content, content, content)
     for _ in range(4):  # the first photo, then the second's three failures
         conn.execute("UPDATE job SET run_after = ? WHERE state = 'queued'", (PAST,))
         assert enrich_jobs(conn) == []
