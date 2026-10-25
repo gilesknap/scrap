@@ -10,7 +10,7 @@ from ..store import Store, model_summary, now, transaction
 from .checking import checked_related, record
 from .constants import RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
-from .prompts import related_message, related_prompt
+from .prompts import page_images, related_message, related_prompt
 from .types import Call
 
 
@@ -32,8 +32,9 @@ def relate(
         human = json.loads(page["fields"]).get("summary")
         summary = human if isinstance(human, str) else model_summary(conn, page_id)
         pages = CANDIDATES(conn, page_id)
+        images = page_images(conn, page_id)
     system, version = related_prompt(pages)
-    messages = related_message(page, tags, summary)
+    messages = related_message(page, tags, summary, images)
     model, effort = claude.text_model()
     request = {
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,

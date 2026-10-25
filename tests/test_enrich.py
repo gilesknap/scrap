@@ -245,6 +245,77 @@ def test_the_related_pass_does_changed_pages_only(store, monkeypatch):
     assert enrich.related_pass(store, fake, every=True, dry_run=True)["pages"] == 2
 
 
+def imported_photos(store, *read):
+    """An imported page of images (no ingest queued) and, for each (description,
+    text), what photo ingest read from that image."""
+    stamp = "2026-01-01T00:00:00.000Z"
+    blobs = []
+    for n in range(len(read)):
+        sha, size = store.put_blob(io.BytesIO(b"jpeg %d" % n))
+        blobs.append((sha, "image/jpeg", size, None))
+    p = {"slug": "board", "title": "Board", "body": "![](/api/blobs/x)",
+         "kind": "note", "fields": {}, "tags": [], "created_at": stamp,
+         "updated_at": stamp}  # fmt: skip
+    cid = new_ulid()
+    page = store.page(store.import_page(p, [(cid, "photo", None, blobs)], "me")[0])
+    with closing(connect(store.db)) as conn, conn:
+        for (sha, *_), pair in zip(blobs, read, strict=True):
+            for kind, text in zip(("description", "ocr"), pair, strict=True):
+                if text is not None:
+                    conn.execute(
+                        "INSERT INTO derived (capture_id, source_sha256, kind,"
+                        " version, producer, text, created_at)"
+                        " VALUES (?, ?, ?, 1, 'claude', ?, ?)",
+                        (cid, sha, kind, text, stamp),
+                    )
+    return page["id"]
+
+
+def user_turn(call):
+    return call["messages"][0]["content"][0]["text"]
+
+
+def test_the_related_call_sees_what_was_read_from_the_images(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    imported_photos(
+        store, ("A whiteboard of the shed plan", "LARCH 2x4"), (None, None),
+        ("A receipt", "x" * 5000),
+    )  # fmt: skip
+    fake = Fake(answer())
+    assert enrich.related_pass(store, fake)["done"] == 1
+    text = user_turn(fake.calls[0])
+    images = text.split("<images>\n")[1].split("\n</images>")[0]
+    assert images.startswith(
+        "Image 1, its description: A whiteboard of the shed plan\n"
+        "Image 1, its text:\nLARCH 2x4\n"
+        "Image 3, its description: A receipt\nImage 3, its text:\nxxx"
+    )  # an image with nothing read is left out, the numbers still count it
+    assert len(images) == enrich.RELATED_IMAGES and images.endswith("x…")
+    assert text.index("</page>") < text.index("<images>")
+    # a page with nothing read from its images has no images section
+    capture(store, "a plain note")
+    fake = Fake(answer())
+    enrich.related_pass(store, fake)
+    assert "<images>" not in user_turn(fake.calls[0])
+
+
+def test_enrich_sees_what_was_read_from_the_images(store):
+    page_id = imported_photos(store, ("A list of jobs", "paint shed\n" * 2000))
+    enrich.ask(store, page_id)  # Ask reads a page ingest otherwise leaves alone
+    fake = Fake(answer())
+    run_all(worker(store, fake))
+    assert [c["schema"] for c in fake.calls] == [enrich.SCHEMA, enrich.RELATED_SCHEMA]
+    text = user_turn(fake.calls[0])
+    images = text.split("<images>\n")[1].split("\n</images>")[0]
+    assert images.startswith("Image 1, its description: A list of jobs\n")
+    assert "Image 1, its text:\npaint shed\npaint shed" in images
+    assert len(images) == enrich.MAX_IMAGES and images.endswith("…")
+    with closing(connect(store.db)) as conn:  # the stored request has it too
+        sql = "SELECT request FROM enrich_run ORDER BY id LIMIT 1"
+        stored = json.loads(conn.execute(sql).fetchone()[0])
+    assert user_turn(stored) == text
+
+
 def test_the_related_pass_stops_at_a_pause_and_the_budget(store, monkeypatch):
     monkeypatch.setenv("SCRAP_INGEST", "off")
     for n in range(3):

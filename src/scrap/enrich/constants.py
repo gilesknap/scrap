@@ -25,6 +25,9 @@ RELATED_SCHEMA: dict[str, Any] = {
 }
 SHORT = 200  # characters: a shorter note gets tags but no summary
 MAX_BODY = 12_000  # characters of the page's text sent
+MAX_IMAGES = 8_000  # characters of what was read from its images (descriptions, text)
+RELATED_BODY = 2_000  # the related call's start of the page's text
+RELATED_IMAGES = 3_000  # and of what was read from its images
 MAX_NEW_TAGS = 5  # Claude's tags added to a page at most
 MAX_INVENTED = 2  # of which at most this many not already in use
 MAX_RELATED = 5
@@ -58,6 +61,27 @@ WHERE id = :page AND deleted_at IS NULL
 
 # The run's fetch field for a save's re-reading of a link page: skipped, not failed
 SAVE_REREAD = "skipped: save re-read"
+
+
+# A page's images (each distinct image file of its captures once, in order) and what
+# photo ingest read from each: its current description and text (NULL if none)
+IMAGES = """
+WITH once AS (
+    SELECT c.id AS capture_id, cb.sha256, c.received_at, cb.ord,
+           row_number() OVER (PARTITION BY cb.sha256
+                              ORDER BY c.received_at, cb.ord) AS copy
+    FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id
+    JOIN blob b USING (sha256)
+    WHERE c.page_id = ? AND b.mime LIKE 'image/%')
+SELECT
+    (SELECT d.text FROM derived d WHERE d.capture_id = o.capture_id
+       AND d.source_sha256 = o.sha256 AND d.kind = 'description'
+       AND d.superseded_at IS NULL) AS description,
+    (SELECT d.text FROM derived d WHERE d.capture_id = o.capture_id
+       AND d.source_sha256 = o.sha256 AND d.kind = 'ocr'
+       AND d.superseded_at IS NULL) AS text
+FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.ord
+"""
 
 
 # Pages whose related pages are older than their last change (or never picked)

@@ -385,12 +385,14 @@ Only when ingest is on and only to the Claude API:
 - **A photo:** the JPEG described above (a resized, re-encoded copy; only its colour profile is kept from the original's metadata) and
   the fixed prompt. Nothing else about the page is sent.
 - **A note, todo or read:** its kind, tags, title and text as plain words (at most 12,000
-  characters), a list of the tags already in use with their counts (at most 600 tags), and the
+  characters), what photo ingest read from its images, if any (each image's description and
+  text, at most 8,000 characters in all), a list of the tags already in use with their counts (at most 600 tags), and the
   fixed prompt.
 - **A saved link:** the same, plus the link's readable text (at most 20,000 characters) fetched by
   scrap. The fetched text is sent, not stored.
-- **Related pages:** the page in brief and an index of up to 150 candidate pages, each a title,
-  up to 6 tags and a summary cut to 150 characters.
+- **Related pages:** the page in brief (its kind, title, tags, summary, the first 2,000
+  characters of its text and the first 3,000 of what was read from its images) and an index of
+  up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters.
 
 Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and `SCRAP_NOTIFY_URL`, which gets a fixed line with the
@@ -437,8 +439,10 @@ page's text, except that a confident list of actions gets task boxes appended
   budget.
 - **Prompt** (`prompts/enrich.md`): the fixed instructions, then the tags in use with their
   counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
-  text as plain words (at most 12,000 characters) and, for a link, what was fetched. Everything
-  there is data; the prompt says to follow nothing in it.
+  text as plain words (at most 12,000 characters), each image's description and text as photo
+  ingest read them (labelled by image, at most 8,000 characters in all, in an `<images>` block
+  of their own) and, for a link, what was fetched. Everything there is data; the prompt says to
+  follow nothing in it. A page with a photo capture reaches this call only by Ask Claude.
 - **Output, checked.** `tags`: cleaned like the user's, each at most 40 characters, at most 2 not
   already in use (invented ones are the sprawl risk), at most 5 added; `summary`: one paragraph,
   at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
