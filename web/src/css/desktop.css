@@ -1,0 +1,154 @@
+/* ---- A computer: a mouse and a wide window ----
+   Phones and touch tablets never match (no hover, a coarse pointer), so nothing here changes
+   them. Where a phone puts things under the thumb, a computer puts them where the eye and the
+   mouse already are: the nav as tabs in the top bar, the capture tiles over the list, a page's
+   actions as a row under what it is, toasts at the foot; and hover says what can be clicked.
+   (ui.ts has the same query, DESK, for placing toasts.) */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  /* The nav: tabs in the middle of the top bar, not a bar at the window's foot */
+  main {
+    padding-bottom: var(--s-6);
+  }
+  nav {
+    top: env(safe-area-inset-top);
+    bottom: auto;
+    left: 50%;
+    right: auto;
+    z-index: 2; /* over the top bar, whose middle it sits in */
+    translate: -50% 0;
+    gap: var(--s-1);
+    height: var(--bar-h);
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  nav a {
+    flex: none;
+    flex-direction: row;
+    gap: var(--s-2);
+    height: 40px;
+    align-self: center;
+    padding: 0 var(--s-4) 0 var(--s-3);
+    border-radius: var(--r-pill);
+    font-size: var(--t-sm);
+  }
+  nav .i {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: none;
+  }
+  nav a[aria-current] {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  nav a[aria-current] .i {
+    background: none;
+  }
+  nav a:not([aria-current]):hover {
+    background: var(--sunk);
+    color: var(--ink);
+  }
+  nav .due-n {
+    position: static; /* after the word, as a tab's count: "Todos 2" */
+    order: 1;
+    border: none;
+  }
+
+  /* Capture: the tiles over the list, in a row, not a floating cluster at the window's foot */
+  .capture .actions {
+    order: -1;
+    position: static;
+    margin: 0 0 var(--s-4);
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
+  .capture .tile {
+    flex-direction: row;
+    gap: var(--s-2);
+    min-height: 52px;
+  }
+
+  /* A page's actions: a row of buttons under what it is (title, tags, due line, meta), kept in
+     view under the top bar as the page scrolls, not a bar far below a short page */
+  .page > * {
+    order: 2;
+  }
+  .page > h1,
+  .page > .tags,
+  .page > .todoline,
+  .page > .tagform,
+  .page > .meta {
+    order: 0;
+  }
+  .page > .tools {
+    order: 1;
+    top: calc(var(--bar-h) + env(safe-area-inset-top));
+    bottom: auto;
+    gap: var(--s-2);
+    margin: calc(-1 * var(--s-3)) 0 var(--s-5);
+    padding: var(--s-2) 0;
+    border-top: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .page > .tools > * {
+    flex: none;
+    flex-direction: row;
+    gap: var(--s-2);
+    min-height: 40px;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-md);
+    font-size: var(--t-sm);
+  }
+  .page > .tools > :hover {
+    background: var(--sunk);
+  }
+  .page > .tools > .primary {
+    padding: 0 var(--s-4);
+  }
+  .page > .tools > .primary:hover {
+    background: var(--accent);
+    filter: brightness(1.05);
+  }
+  .page > .tools > :last-child {
+    margin-inline-start: auto; /* Delete, apart at the end */
+  }
+  .page > .tools .i {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Toasts: at the foot, the width of what they say */
+  .toast {
+    top: auto;
+    bottom: var(--s-5);
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: min(560px, calc(100% - 2 * var(--s-4)));
+    translate: -50% 0;
+  }
+
+  /* Hover: what can be clicked says so */
+  .list li > a:hover,
+  .tile:hover,
+  .chips label:hover,
+  .facet:hover,
+  button.ghost:hover,
+  .button.ghost:hover {
+    background-color: var(--sunk);
+  }
+  .chips label:has(input:checked):hover {
+    background-color: var(--surface);
+  }
+  .list .tick:hover,
+  .tags a:hover {
+    filter: brightness(0.96);
+  }
+  button.link:hover,
+  .count a:hover {
+    color: var(--ink);
+  }
+}

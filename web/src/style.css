@@ -14,3 +14,4 @@
 @import "./css/composer.css";
 @import "./css/photo-viewer.css";
 @import "./css/todos.css";
+@import "./css/desktop.css"; /* last: a computer's layout over the phone's */

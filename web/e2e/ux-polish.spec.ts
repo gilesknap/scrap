@@ -447,3 +447,51 @@ test("the draft is kept the moment the app is hidden, without waiting for the pa
   page.once("dialog", (d) => d.accept());
   await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
 });
+
+test.describe("on a computer (a mouse, a wide window)", () => {
+  test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
+
+  test("a page's actions are a row under what it is, not a bar at the window's foot", async ({
+    page,
+  }) => {
+    const t = await make(page, `Desk todo ${ulid().slice(-6)}`, "todo");
+    await page.goto(`/p/${t.slug}`);
+    const tools = page.locator(".page > .tools");
+    await expect(tools.getByRole("button", { name: "Mark done" })).toBeVisible();
+    const meta = await page.locator(".page > .meta").boundingBox();
+    const bar = await tools.boundingBox();
+    // Just under the meta line, near the top: not 600 px away at the bottom
+    expect(bar && meta && bar.y >= meta.y + meta.height - 1 && bar.y < 300).toBe(true);
+    // Buttons their own width, Delete apart at the end
+    const done = await tools.getByRole("button", { name: "Mark done" }).boundingBox();
+    expect(done && done.width < 200).toBe(true);
+    const del = await tools.getByRole("button", { name: "Delete" }).boundingBox();
+    expect(del && bar && Math.abs(del.x + del.width - (bar.x + bar.width)) < 2).toBe(true);
+  });
+
+  test("the nav is tabs in the top bar, and Capture's tiles sit over the list", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const header = await page.locator("header").boundingBox();
+    const nav = await page.locator("nav").boundingBox();
+    // In the top bar's height, not at the window's foot
+    expect(nav && header && nav.y < header.y + header.height && nav.y + nav.height <= 900 / 2).toBe(
+      true,
+    );
+    await expect(page.locator("nav a[aria-current]")).toHaveText("Capture");
+    const tiles = await page.locator(".capture .actions").boundingBox();
+    const list = await page.locator(".capture .strip").boundingBox();
+    expect(tiles && list && tiles.y < list.y).toBe(true);
+  });
+
+  test("a toast sits at the window's foot", async ({ page }) => {
+    const note = await make(page, `Desk toast ${ulid().slice(-6)}`);
+    await page.goto(`/p/${note.slug}`);
+    await page.locator(".page > .tools").getByRole("button", { name: "Delete" }).click();
+    const toast = page.locator(".toast").first();
+    await expect(toast).toBeVisible();
+    const box = await toast.boundingBox();
+    expect(box && box.y + box.height > 900 - 80).toBe(true);
+  });
+});
