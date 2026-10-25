@@ -133,7 +133,7 @@
   background: var(--sunk);
   font-size: var(--t-sm);
 }
-/* A fold of Claude's text in a card: Description, Text Claude read, Write-up */
+/* A fold of Claude's text in a card: Description, Text in the photo, Read it */
 .claude-text {
   border-top: 1px solid var(--line);
 }
@@ -175,6 +175,21 @@
   font: inherit;
 }
 
+/* A card's title: what it holds (What's in the photo, What it means, About this page); its
+   action (Generate, Regenerate, Retry) at the line's end */
+:is(.claude, .enrich) .ingest > .ctitle {
+  margin: 0; /* over the page text's heading sizes: a photo's card sits in the text */
+  line-height: var(--lh-tight);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  font-weight: 700;
+}
+:is(.claude, .enrich) .ingest {
+  min-height: var(--tap);
+}
+:is(.claude, .enrich) .ingest > button:not(.link) {
+  margin-inline-start: auto;
+}
 .photo-panel > .claude {
   margin-top: var(--s-3);
 }

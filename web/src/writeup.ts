@@ -94,9 +94,9 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
     );
   // Shaped as a photo's card: its state line (Written by Claude, then Regenerate), then the
   // write-up itself as a fold like Description, folded until opened (remembered)
-  const pill = said ?? (up ? "Written by Claude" : null);
+  const pill = said; // where Claude is up to: the title says what the card holds
   const state = w.state === "failed" || busy ? w.state : "done";
-  const head = h("summary", {}, "Write-up");
+  const head = h("summary", {}, "Read it");
   const fold =
     up &&
     h(
@@ -119,19 +119,20 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
   return h(
     "section",
     { className: "writeup claude", "aria-label": "Claude's write-up" },
-    pill
+    h(
+      "div",
+      { className: "ingest" },
+      h("h3", { className: "ctitle" }, "What it means"),
+      pill && h("span", { className: `state ${state}`, role: "status" }, pill),
+      regenerate,
+    ),
+    !up && !busy
       ? h(
-          "div",
-          { className: "ingest" },
-          h("span", { className: `state ${state}`, role: "status" }, pill),
-          regenerate,
-        )
-      : h(
           "p",
           { className: "did" },
-          "Claude can write up what this board shows: its parts and how they connect.",
-        ),
-    !pill && regenerate ? h("div", { className: "ask" }, regenerate) : "",
+          "Claude can explain what this board shows: its parts and how they connect.",
+        )
+      : "",
     fold || (w.board ? guidanceFold(p, w, show) : ""),
   );
 }

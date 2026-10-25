@@ -16,7 +16,7 @@ import {
 } from "./api";
 import { plain } from "./app";
 import { icon } from "./icons";
-import { photoPanel } from "./ingest";
+import { PHOTO, photoPanel } from "./ingest";
 import { download, h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -100,8 +100,13 @@ export function figures(
       h(
         "div",
         { className: "claude" },
+        h(
+          "div",
+          { className: "ingest" },
+          h("h3", { className: "ctitle" }, PHOTO),
+          askClaude(f.cid, sha, refresh),
+        ),
         h("p", { className: "did" }, "Claude can describe it and read any text in it."),
-        askClaude(f.cid, sha, refresh),
       ),
     );
   };

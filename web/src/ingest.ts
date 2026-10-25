@@ -22,6 +22,9 @@ export function stateText(i: Ingest, q: Queue | null): string {
   }
 }
 
+/** The photo card's title: what it holds (figure.ts's card for an unread photo says it too). */
+export const PHOTO = "What's in the photo";
+
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 /** A selectable block of text Claude wrote, folded until opened (and then open next time:
@@ -83,8 +86,11 @@ export function photoPanel(o: {
   } else panel.append(o.figure);
 
   // Its state, and what can be done about it
-  const chip = h("span", { className: `state ${i.state}`, role: "status" }, stateText(i, o.queue));
-  const actions = h("div", { className: "ingest" }, chip);
+  // Its title says what the card holds; the pill only where Claude is up to (none once read)
+  const chip =
+    i.state !== "done" &&
+    h("span", { className: `state ${i.state}`, role: "status" }, stateText(i, o.queue));
+  const actions = h("div", { className: "ingest" }, h("h3", { className: "ctitle" }, PHOTO), chip);
   const reprocess = async (replace: boolean) => {
     try {
       const r = await api<{ queued: number; already: number }>(`captures/${o.cid}/reprocess`, {
@@ -141,7 +147,7 @@ export function photoPanel(o: {
       { className: "claude" },
       actions,
       i.description ? block("Description", i.description) : "",
-      i.text ? block("Text Claude read", i.text, true) : "",
+      i.text ? block("Text in the photo", i.text, true) : "",
     ),
   );
   return panel;

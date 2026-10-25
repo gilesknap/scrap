@@ -57,7 +57,8 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
   // Waiting, reading or paused: nothing to ask for meanwhile (paused offers Resume instead)
   const busy = ["queued", "processing", "paused"].includes(e?.state ?? "");
   // Never read: no state to show, only what asking would do, then the button under it
-  const said = (e && e.state !== "done" && stateText(e)) || (read ? "Read by Claude" : null);
+  // The title says what the card holds; the pill only where Claude is up to (none once read)
+  const said = e && e.state !== "done" ? stateText(e) : null;
   const ask =
     e?.on &&
     !busy &&
@@ -104,16 +105,14 @@ export function enrichPanel(p: Page, show: (p: Page) => void): HTMLElement | nul
   return h(
     "section",
     { className: "enrich" },
-    said
-      ? h(
-          "div",
-          { className: "ingest" },
-          h("span", { className: `state ${state}`, role: "status" }, said),
-          resume || ask,
-        )
-      : "",
+    h(
+      "div",
+      { className: "ingest" },
+      h("h3", { className: "ctitle" }, "About this page"),
+      said && h("span", { className: `state ${state}`, role: "status" }, said),
+      resume || ask,
+    ),
     !busy && e?.on && h("p", { className: "did" }, did(p, read)),
-    !said && ask ? h("div", { className: "ask" }, ask) : "",
     e?.summary && h("p", { className: "summary", dir: "auto" }, e.summary),
     related.length > 0 &&
       h(
