@@ -24,7 +24,14 @@ and back.
   status has none. Everything else steps down: secondary (outlined surface), then
   ghost (text only).
 - **Under the thumb.** Capture actions and the nav sit at the bottom; a page has no nav, so
-  its toolbar is the only bottom bar. Cancel, Preview and Save sit in the editor's top bar
+  its toolbar is the only bottom bar. On a computer (a mouse and a window 900 px wide or more:
+  `css/desktop.css`, one media query, so a phone or a touch tablet never changes) things go
+  where the eye and the mouse already are instead: the nav is tabs in the middle of the top bar
+  (icon beside its word, the current one on `--accent-soft`, the Todos count after the word),
+  Capture's tiles are a row over the list, a page's actions are a row of buttons under its
+  title, tags, due line and meta line, kept in view under the top bar as it scrolls (Mark done
+  filled, Delete apart at the end), toasts sit at the window's foot as wide as they need, and
+  rows, chips, tiles and ghost buttons take `--sunk` on hover. Cancel, Preview and Save sit in the editor's top bar
   because the keyboard owns the bottom.
 - **Drill down, then Back, named.** A page and Tags are reached from somewhere. On every phone
   and browser the top bar swaps the wordmark for Back named for where it goes (‹ Search,

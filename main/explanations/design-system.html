@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.5.2.dev3+g7778d178e documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.5.2.dev4+g4c09b7952 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=80841542"></script>
+    <script src="../_static/documentation_options.js?v=f3639c65"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -542,7 +542,14 @@ others. Page: a todo’s or a Later’s <strong>Mark done</strong>, the toolbar�
 status has none. Everything else steps down: secondary (outlined surface), then
 ghost (text only).</p></li>
 <li><p><strong>Under the thumb.</strong> Capture actions and the nav sit at the bottom; a page has no nav, so
-its toolbar is the only bottom bar. Cancel, Preview and Save sit in the editor’s top bar
+its toolbar is the only bottom bar. On a computer (a mouse and a window 900 px wide or more:
+<code class="docutils literal notranslate"><span class="pre">css/desktop.css</span></code>, one media query, so a phone or a touch tablet never changes) things go
+where the eye and the mouse already are instead: the nav is tabs in the middle of the top bar
+(icon beside its word, the current one on <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code>, the Todos count after the word),
+Capture’s tiles are a row over the list, a page’s actions are a row of buttons under its
+title, tags, due line and meta line, kept in view under the top bar as it scrolls (Mark done
+filled, Delete apart at the end), toasts sit at the window’s foot as wide as they need, and
+rows, chips, tiles and ghost buttons take <code class="docutils literal notranslate"><span class="pre">--sunk</span></code> on hover. Cancel, Preview and Save sit in the editor’s top bar
 because the keyboard owns the bottom.</p></li>
 <li><p><strong>Drill down, then Back, named.</strong> A page and Tags are reached from somewhere. On every phone
 and browser the top bar swaps the wordmark for Back named for where it goes (‹ Search,
