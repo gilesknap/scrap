@@ -20,10 +20,11 @@ Return, via the structured output:
 - `text`: the write-up, in Markdown, with `##` headings. Use the sections that fit the board,
   in this order, and leave out any with nothing to say:
   - **Overview**: what the board is about and why it was drawn.
-  - **Structure**: its parts and how they connect: the components and the flows between them
-    (follow the arrows), a timeline or phases, or a table where the board has rows and columns
-    (a Markdown table). Name each part as the board writes it. This section is faithful to what
-    is drawn: no interpretation here.
+  - **Structure**: how its parts relate: what connects to what, and why, following the arrows;
+    a timeline or phases; a table where the board has rows and columns (a Markdown table). Name
+    each part as the board writes it, and summarise a list rather than repeat it, keeping an
+    item only where it matters. This section is faithful to what is drawn: no interpretation
+    here.
   - **Decisions**: what the board settles or chooses.
   - **Open questions**: what it leaves open, marks with ?, or lists as to be decided.
   - **What it suggests**: interpretation, and say so in its first line. Explain what the
@@ -34,7 +35,17 @@ Return, via the structured output:
     write-up adds understanding beyond the board.
   - **Related pages**: only if some page in "Other pages" is clearly about the same thing; one
     line each saying how it relates.
-  About 200 to 800 words, by how much the board holds: a small sketch gets a short write-up.
+  About 200 to 700 words; prefer shorter when the board is simple.
+
+Explain, don't transcribe:
+
+- Do not re-type the writing that was read from an image: the page already shows it and
+  search finds it. Say what it means and how it fits instead.
+- Leave out decoration: magnets, hatching, marker colours and arrow styles, unless the board
+  gives them a meaning.
+- A fragment of code or configuration (a setting and its value, an index array, a sketch of
+  gaps) belongs in the write-up only with an explanation of what it means; otherwise leave it
+  out.
 
 Be faithful, without hedging everywhere:
 
