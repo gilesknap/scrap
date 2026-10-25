@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.5.2.dev4+g4c09b7952 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.5.2.dev5+g79bd173c4 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=f3639c65"></script>
+    <script src="../_static/documentation_options.js?v=b38c4726"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -677,7 +677,7 @@ files are never cached, so anything that reads from or writes to the server need
 <td><p>Opening any page</p></td>
 </tr>
 <tr class="row-odd"><td><p>The composer, with photos and tags, and its drafts</p></td>
-<td><p>Search results, the Todos screen and the Tags screen</p></td>
+<td><p>Search results and the Todos screen</p></td>
 </tr>
 <tr class="row-even"><td><p>Saving a capture (it is queued and uploaded later)</p></td>
 <td><p>Changing a page’s tags or kind, and saving its due date or snooze</p></td>
@@ -711,10 +711,9 @@ photo (<strong>Show more</strong> at the end for older ones). The keyboard only 
 box. There is no separate Recent screen: the empty box is it.</p></li>
 <li><p>A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
 bottom. In the top bar, in place of the wordmark, Back names where it goes: <strong>‹ Search</strong>,
-<strong>‹ Todos</strong> or <strong>‹ Capture</strong>, the list you opened the page from (<strong>Tags</strong> has it too, with its
-title, going to Search). It goes straight back to that list as you left it, even after you
-have stepped through its pages or followed links from page to page; the phone’s or the
-browser’s own Back still goes back one step at a time. A page opened from a link or a share
+<strong>‹ Todos</strong> or <strong>‹ Capture</strong>, the list you opened the page from. It goes straight back to
+that list as you left it, even after you have stepped through its pages or followed links
+from page to page; the phone’s or the browser’s own Back still goes back one step at a time. A page opened from a link or a share
 has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Capture
 for any other page.</p></li>
 <li><p>On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
@@ -786,7 +785,7 @@ were found leads that row (with no filters on, it is a short line over the list)
 <li><p>Tap <strong>Filters</strong> to open its panel in place, under the box, and tap it again to fold it (it
 stays as you left it for the next search). Its rows: <strong>Tags</strong> (type in its box for the tags
 in use that match, or with nothing typed tap one of the results’ top tags, with their counts:
-only tags that narrow what was found are offered; <strong>All tags</strong> opens the tags screen),
+only tags that narrow what was found are offered),
 <strong>Order</strong> (<strong>Best match</strong> or <strong>Last edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>A–Z</strong>, and for todos
 <strong>Due soonest</strong> and <strong>Priority</strong>) and <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>, <strong>Dates…</strong> with a
 From and a To, and <strong>By created date</strong> once a range is on). Each row scrolls sideways. Each
@@ -861,9 +860,9 @@ as the importer keeps them: lower case, without a leading <code class="docutils 
 <li><p><strong>Edit</strong> (also a list row swiped right) has the same tags box, in its <strong>Tags</strong> line under the
 title, and saves them with the text; the composer has it too, for a new page. Changing tags is
 not a new revision and does not move the page up the list.</p></li>
-<li><p><strong>All tags</strong> (in the Filters panel, under Tags) lists every tag with how many pages have it,
-as a tree (open a parent with its arrow), A to Z or most used first, with a box to filter it.
-The sort choice is kept in the address, so a link to <code class="docutils literal notranslate"><span class="pre">/tags?sort=n</span></code> opens it most used first.</p></li>
+<li><p>To find pages by tag, use the Filters panel’s <strong>Tags</strong> row: type in its box to see the
+matching tags of the results (before any search, of every tag in use). (There used to be a separate Tags screen; an old <code class="docutils literal notranslate"><span class="pre">/tags</span></code> link now opens
+Search.)</p></li>
 </ul>
 </section>
 <section id="todos">
@@ -1140,7 +1139,7 @@ resizes the page.</p>
 <h2>Updates<a class="headerlink" href="#updates" title="Link to this heading">#</a></h2>
 <p>The app’s files are cached on the phone so it opens instantly and offline, the composer and
 editor included; API answers and files are never cached (see What works offline, above).
-Some parts load only when first used and are not cached ahead: the Todos and Tags screens, a
+Some parts load only when first used and are not cached ahead: the Todos screen, a
 page’s pager and list swipes, Claude’s summary and related pages, what Claude made of a photo,
 Mermaid and the drawing viewer. After a new scrap is deployed, the app shows <strong>Update available,
 Reload</strong>. Until you tap it the old version keeps running; it is also replaced the next time the

@@ -166,7 +166,7 @@ files are never cached, so anything that reads from or writes to the server need
 | Works offline | Needs the server |
 | --- | --- |
 | Opening the app, the capture screen and the badge | Opening any page |
-| The composer, with photos and tags, and its drafts | Search results, the Todos screen and the Tags screen |
+| The composer, with photos and tags, and its drafts | Search results and the Todos screen |
 | Saving a capture (it is queued and uploaded later) | Changing a page's tags or kind, and saving its due date or snooze |
 | Sharing into scrap | Ticking a task box on a page |
 | The editor (on a page already open) and its drafts, and the search screen's recent searches | Viewing or editing a drawing, and Mermaid diagrams (shown as code) |
@@ -188,10 +188,9 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
   box. There is no separate Recent screen: the empty box is it.
 - A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
   bottom. In the top bar, in place of the wordmark, Back names where it goes: **‹ Search**,
-  **‹ Todos** or **‹ Capture**, the list you opened the page from (**Tags** has it too, with its
-  title, going to Search). It goes straight back to that list as you left it, even after you
-  have stepped through its pages or followed links from page to page; the phone's or the
-  browser's own Back still goes back one step at a time. A page opened from a link or a share
+  **‹ Todos** or **‹ Capture**, the list you opened the page from. It goes straight back to
+  that list as you left it, even after you have stepped through its pages or followed links
+  from page to page; the phone's or the browser's own Back still goes back one step at a time. A page opened from a link or a share
   has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Capture
   for any other page.
 - On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
@@ -258,7 +257,7 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
 - Tap **Filters** to open its panel in place, under the box, and tap it again to fold it (it
   stays as you left it for the next search). Its rows: **Tags** (type in its box for the tags
   in use that match, or with nothing typed tap one of the results' top tags, with their counts:
-  only tags that narrow what was found are offered; **All tags** opens the tags screen),
+  only tags that narrow what was found are offered),
   **Order** (**Best match** or **Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos
   **Due soonest** and **Priority**) and **When** (**1w**, **1m**, **1y**, **Dates…** with a
   From and a To, and **By created date** once a range is on). Each row scrolls sideways. Each
@@ -331,9 +330,9 @@ How matching works:
 - **Edit** (also a list row swiped right) has the same tags box, in its **Tags** line under the
   title, and saves them with the text; the composer has it too, for a new page. Changing tags is
   not a new revision and does not move the page up the list.
-- **All tags** (in the Filters panel, under Tags) lists every tag with how many pages have it,
-  as a tree (open a parent with its arrow), A to Z or most used first, with a box to filter it.
-  The sort choice is kept in the address, so a link to `/tags?sort=n` opens it most used first.
+- To find pages by tag, use the Filters panel's **Tags** row: type in its box to see the
+  matching tags of the results (before any search, of every tag in use). (There used to be a separate Tags screen; an old `/tags` link now opens
+  Search.)
 
 ### Todos
 
@@ -602,7 +601,7 @@ resizes the page.
 
 The app's files are cached on the phone so it opens instantly and offline, the composer and
 editor included; API answers and files are never cached (see What works offline, above).
-Some parts load only when first used and are not cached ahead: the Todos and Tags screens, a
+Some parts load only when first used and are not cached ahead: the Todos screen, a
 page's pager and list swipes, Claude's summary and related pages, what Claude made of a photo,
 Mermaid and the drawing viewer. After a new scrap is deployed, the app shows **Update available,
 Reload**. Until you tap it the old version keeps running; it is also replaced the next time the
