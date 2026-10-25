@@ -60,7 +60,7 @@ or a comma, or tap one of the tags offered in a row under the box (your most use
 you type, the tags in use that match); tap a tag's ✕ to take it off; what is still in the box
 when you save counts too. The page is made with its tags, so search finds it by them at once,
 also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude's
-join them when it first reads the photo (a later Reprocess adds its tags only to a page with
+join them when it first reads the photo (a later Regenerate adds its tags only to a page with
 none, so one you took off stays off). Saved separately, every photo's page gets the tags.
 **Save** returns at once: the capture is stored on the phone first and uploaded in the
 background. The four newest pages are listed above the buttons.
@@ -454,11 +454,12 @@ How matching works:
   cut and paste it elsewhere), or its **✕** to take it out. Saving puts back the Markdown each
   token stands for, exactly as it was; a token you delete or change is no photo any more. Claude reading a photo never
   changes the text. The page shows each photo where its line is, as a preview the server makes
-  (so iPhone HEIC photos show too), with its file name, a **Download** of the original and
-  **Ask Claude**, which sends that photo to Claude; once sent, the photo shows Claude's
-  progress (waiting, reading, paused) and then what it read, described and drew. Below the text
+  (so iPhone HEIC photos show too), with no caption: tap it for the viewer, which names it
+  and has the **Download** of the original. Under a photo Claude hasn't read, a Claude card
+  (**What's in the photo**) says what Claude would do, with **Generate**; once sent, the card
+  shows Claude's progress (waiting, reading, paused) and then what it read, described and drew. Below the text
   are the files it doesn't show, such as PDFs, as links with a **Download**.
-- Tap a photo to view it full screen: it opens fitted to the screen; pinch or double-tap to zoom,
+- Tap a photo to view it full screen (its file name at the top left): it opens fitted to the screen; pinch or double-tap to zoom,
   drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
   **Download** and **Share** are along the bottom and the cross at the top right closes it, as
   does the phone's Back button. **Share** asks **Link** or **Photo**: **Link** sends the
@@ -510,16 +511,22 @@ give scrap an `ANTHROPIC_API_KEY` (the Helm chart's `ingest.enabled`, with an ex
 holding the key) as in [](../explanations/ingest.md) and the deploy guides.
 Without ingest photos are still stored and queued, and each shows *Waiting: Claude ingest is off*.
 
-With Claude ingest on, each photo on a page has, under it:
+Everything Claude makes is shown in a brown card of its own, titled by what it holds, so it
+never reads as your text: **What's in the photo** under a photo, **What it means** for a
+board's write-up, and **About this page** under the text. Each card's action is at the end of
+its title line: **Generate** the first time, **Regenerate** after (**Retry** if it failed). Its
+parts are folds: tap a heading (its arrow) to open or close it, and the phone remembers that.
 
-- Its state: *Waiting for Claude* (or *Waiting: Claude ingest is off*), *Claude is reading it…*,
-  *Read by Claude*, *Failed* with the reason and **Retry**, or *Paused* with the reason and **Resume**
-  (nothing is lost while paused). The page checks again every 10 seconds while a photo waits.
-  **Reprocess**, a quiet text button at the end of the *Read by Claude* line, sends it to
-  Claude again; if you have edited its drawing, it asks first:
-  **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
-- **Description** and **Text Claude read**, open; tap a heading (its arrow) to fold it away,
-  and the phone remembers that for the next page. The text can be selected and copied.
+With Claude ingest on, each photo on a page has, under it, **What's in the photo**:
+
+- Its state, only while Claude has it: *Waiting for Claude* (or *Waiting: Claude ingest is
+  off*), *Claude is reading it…*, *Failed* with the reason and **Retry**, or *Paused* with the
+  reason and **Resume** (nothing is lost while paused). The page checks again every 10 seconds
+  while a photo waits. **Regenerate**, a quiet text button at the end of the title line, sends
+  it to Claude again; if you have edited its drawing, it asks first: **Replace mine**, or
+  **Keep mine** (Claude's new drawing goes into History).
+- **Description** and **Text in the photo**, folded until you open them. The text can be
+  selected and copied.
 - **The drawing** of a whiteboard or diagram, beside the photo when the screen is wide enough
   (a tablet, or a phone on its side), else under a **Photo** / **Drawing** switch. It is a
   picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
@@ -555,21 +562,22 @@ Tap the drawing to open it full screen:
 ## What Claude makes of a note or link
 
 With ingest on and `SCRAP_ENRICH` not set to `off` (see [](../explanations/ingest.md)), a text
-or link page gets a **Claude** panel on its page view, under its text. Enrichment is on by
+or link page gets an **About this page** card on its page view, under its text. Enrichment is on by
 default once `SCRAP_INGEST=on`; without ingest the panel is not shown unless the page already
 has a summary or related pages. The panel has:
 
-- Its state, as a photo's is said: *Read by Claude* once it has read the page, with
-  **Reprocess** at the end of the line to have it read the page again (a saved link is fetched
-  again); while it works, *Waiting for Claude* (or *Waiting: Claude is off*) or *Claude is
-  reading it…*; *Paused* with the reason and **Resume** (the queue is shared with photos;
-  nothing is lost while paused); *Claude couldn't read it* with the reason, and **Retry**.
-- A line saying what Claude did: *Claude wrote the summary, added the dashed tags and found
-  the related pages* (its tags are marked with a dashed outline in the tag line). Before Claude
-  has read the page, the line says what it would do instead, with **Ask Claude to read it**.
-- Claude's one-line summary of the page, which search also looks in.
+- **Regenerate** at the end of its title line, to have Claude read the page again (a saved
+  link is fetched again). While it works the line says *Waiting for Claude* (or *Waiting:
+  Claude is off*) or *Claude is reading it…*; *Paused* with the reason and **Resume** (the
+  queue is shared with photos; nothing is lost while paused); *Claude couldn't read it* with
+  the reason, and **Retry**. Before Claude has read the page, the card says what it would do
+  (summarise it, suggest tags, find related pages), with **Generate**.
+- **Summary**: Claude's one-line summary of the page, which search also looks in. A board has
+  none: its write-up says what it shows.
 - **Related**: pages Claude picked, merged with the pages that link here (marked *· links
   here*).
+- Summary and Related are open until you close them. The tags Claude added are marked with a
+  dashed outline in the tag line.
 
 Reading a page needs the server, like opening it; the page checks again while Claude has it
 queued or is reading it.
@@ -577,10 +585,10 @@ queued or is reading it.
 ## Claude's write-up of a board
 
 A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
-**Claude's write-up**: an explanation of the board, in a section of its own under the page's
-text. It is Claude's, not yours, so it is drawn in a dashed card and is never part of the text
-you edit. Tap its heading to fold it away; it stays folded on that phone until you open it again.
-It has:
+**What it means**: Claude's write-up, an explanation of the board, in a card of its own under
+the page's text. It is Claude's, not yours, so it is never part of the text you edit. Its
+**Regenerate** is at the end of the title line; the write-up is a fold, **Read it**, closed
+until you open it (and remembered). It has:
 
 - Who wrote it and when: the model, the date and its version (and *restored from version N*
   after a restore).
@@ -588,9 +596,9 @@ It has:
   overview, structure, decisions, open questions and related pages, as fits the board. Its links
   open those pages, and the pages it links show in **Related** (marked *· in a write-up*) on both
   pages. Search finds words in it.
-- **Regenerate** (while Claude is on): have Claude write it again. While it works the section
-  says *Waiting for Claude* or *Claude is writing it…*. A **Reprocess** of a board photo, or a
-  new board photo, writes it again anyway, and so does **Ask Claude**.
+- **Regenerate** (while Claude is on): have Claude write it again (**Generate** before there is
+  one). While it works the card says *Waiting for Claude* or *Claude is writing it…*. A
+  **Regenerate** of a board photo, or a new board photo, writes it again anyway.
 - **Guidance for Claude**: a note for the next write-up, such as "focus on the data flow; 'Enc'
   means encoder". **Save** keeps it (apart from the page's text) without writing anything;
   **Regenerate** then uses it, and the new version keeps a copy.

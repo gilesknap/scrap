@@ -85,9 +85,15 @@ test("the preview is an inert image, the viewer is lazy and Back closes it", asy
   await expect(card).toHaveAttribute("style", /aspect-ratio: 1600 \/ 1200/);
   await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
   expect(loads).toHaveLength(1); // fetched for this page's preview, not on the other screens
-  await expect(page.getByRole("status").filter({ hasText: "Read by Claude" })).toBeVisible();
-  // Open from the start: its text shows without a tap
-  await expect(page.getByText("retry with backoff", { exact: false }).first()).toBeVisible();
+  // Claude's card, titled by what it holds; no state pill once read
+  const claude = page.locator(".photo-panel .claude");
+  await expect(claude.getByRole("heading", { name: "What's in the photo" })).toBeVisible();
+  await expect(claude.getByRole("status")).toHaveCount(0);
+  // Its text is folded until opened
+  const read = claude.locator("details", { hasText: "Text in the photo" });
+  await expect(read).not.toHaveAttribute("open", "");
+  await read.locator("summary").click();
+  await expect(read.getByText("retry with backoff", { exact: false })).toBeVisible();
 
   // No live canvas on the page; a finger drag over the preview scrolls the page
   await expect(page.locator(".page canvas, .page .excalidraw")).toHaveCount(0);

@@ -30,17 +30,15 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
   await expect(s).toBeVisible();
-  // Its own fold, folded to start with, after the page's text; in Claude's brown card, as all
-  // of Claude's work is, so not the owner's
-  const fold = s.locator("details.writeup");
+  // A Claude card of its own after the page's text (the brown card all of Claude's work is
+  // in, so not the owner's), titled by what it holds; the write-up a fold, folded to start with
+  await expect(s).toHaveClass(/\bclaude\b/);
+  await expect(s.getByRole("heading", { name: "What it means" })).toBeVisible();
+  const fold = s.locator(":scope > details");
+  await expect(fold.locator("> summary")).toHaveText("Read it");
   await expect(fold).not.toHaveAttribute("open", "");
   const card = s.locator(".card");
   await expect(card).toBeHidden();
-  const sunk = await page.evaluate(() =>
-    getComputedStyle(document.body).getPropertyValue("--sunk"),
-  );
-  expect(sunk.trim()).not.toBe("");
-  await expect(fold).toHaveClass(/\bclaude\b/);
   await fold.locator("> summary").click();
   await expect(card).toBeVisible();
   await expect(s.locator(".by").first()).toContainText("claude-opus-5-5");
@@ -83,7 +81,7 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   // Opened, it stays open when the page is opened again; folded again, it stays folded
   await page.reload();
   await expect(section(page).locator(".card")).toBeVisible();
-  await section(page).locator("details.writeup > summary").click();
+  await section(page).locator(":scope > details > summary").click();
   await expect(section(page).locator(".card")).toBeHidden();
   await page.reload();
   await expect(section(page).locator(".card")).toBeHidden();
