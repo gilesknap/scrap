@@ -213,7 +213,7 @@ def writeup_message(
         f"Kind: {page['kind']}",
         f"Title: {quoted(page['title'])}",
         f"Tags: {quoted(', '.join(tags)) or '(none)'}",
-        "The owner's notes on the page (its text):",
+        "The page text (it may be another app's; the photo wins):",
         "<page>",
         quoted(plain(page["body"]).strip()[:WRITEUP_BODY]) or "(empty)",
         "</page>",

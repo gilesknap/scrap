@@ -526,7 +526,9 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
 ([](decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md)). Photo ingest gives a
 board a description, its text and a drawing, which say what is on it but not what it means. A
 write-up explains it: Markdown sections (overview, structure, decisions, open questions, related
-pages) of about 200 to 700 words, and a one or two sentence lead. It is derived data, never
+pages, and a "What it suggests" section marked as interpretation, which may draw on general
+knowledge of the tools it names) of about 200 to 800 words, and a one or two sentence lead. The
+page text is context that may be wrong (it may be another app's): the photo wins. It is derived data, never
 the page's text.
 
 - **Which pages.** A board page: one with an image whose current reading says `whiteboard` or
