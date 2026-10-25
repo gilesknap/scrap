@@ -118,7 +118,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   let wr: Writeups | null = null;
   const load = async (p: Page) => {
     // offline: none of it
-    if (!enr && (p.enrich || p.related?.length)) enr = await import("./enrich").catch(() => null);
+    if (!enr && (p.enrich || p.related?.length || p.writeup))
+      enr = await import("./enrich").catch(() => null);
     if (!wr && p.writeup) wr = await import("./writeup").catch(() => null);
     if (!hasFiles(p) || figs) return;
     [figs, queue] = await Promise.all([
@@ -211,7 +212,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           h(
             "a",
             {
-              className: "badge",
+              className: "written", // not .badge: that is the top bar's queue pill (36 px, a dot)
               href: "/search?q=is%3Aclaude",
               title: String(p.fields.origin ?? "Written by Claude over MCP"),
             },
@@ -219,8 +220,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           ),
       ),
       body,
-      wr?.writeupPanel(p, show) ?? "",
-      enr?.enrichPanel(p, show) ?? "",
+      // One Claude card for the page, at its end: its summary, a board's write-up, related pages
+      enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
       h("div", { className: "originals" }, ...files),
       h(
         "div",

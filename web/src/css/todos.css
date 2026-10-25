@@ -119,12 +119,10 @@
   margin: 0;
   font-weight: 500;
 }
-/* What Claude added under a page's text (enrich.ts): its state, what it did, its summary and
-   related pages */
 /* Claude's card: everything Claude wrote is in one of these, so it never reads as the page's
-   own text: a photo's description and what it read (ingest.ts), a board's write-up
-   (writeup.ts) and the page's summary and related pages (.enrich). Its long texts are folds,
-   closed until opened. */
+   own text: a photo's description and what it read (ingest.ts, one card per photo), and the
+   page's one card, About this page (.enrich): its summary, a board's write-up (writeup.ts) and
+   related pages. Its parts are folds. */
 .enrich,
 .claude {
   margin: var(--s-4) 0;
@@ -133,7 +131,7 @@
   background: var(--sunk);
   font-size: var(--t-sm);
 }
-/* A fold of Claude's text in a card: Description, Text in the photo, Read it */
+/* A fold of Claude's text in a card: Description, Text in the photo, Summary, In detail, Related */
 .claude-text {
   border-top: 1px solid var(--line);
 }
@@ -175,7 +173,7 @@
   font: inherit;
 }
 
-/* A card's title: what it holds (What's in the photo, What it means, About this page); its
+/* A card's title: what it holds (What's in the photo, About this page); its
    action (Generate, Regenerate, Retry) at the line's end */
 :is(.claude, .enrich) .ingest > .ctitle {
   margin: 0; /* over the page text's heading sizes: a photo's card sits in the text */
@@ -197,8 +195,8 @@
   margin-top: var(--s-2);
   border-top: 1px solid var(--line);
 }
-.claude .claude-text:last-child p,
-.claude .claude-text:last-child pre {
+.claude .claude-text:last-child > p,
+.claude .claude-text:last-child > pre {
   margin-bottom: 0;
 }
 .claude pre {
@@ -233,11 +231,11 @@
   margin: 0;
   font-size: var(--t-md);
 }
-.enrich ul {
+.enrich .related ul {
   margin: 0 0 var(--s-2);
   padding-inline-start: var(--s-4);
 }
-.enrich li {
+.enrich .related li {
   padding: 6px 0;
 }
 .enrich small {

@@ -1,4 +1,5 @@
-// Claude's write-up of a board page (#256): its own folded section under the text, plainly
+// Claude's write-up of a board page (#256): In detail, a fold of the page's one Claude card
+// (About this page) under the text, plainly
 // Claude's, with who wrote it and when, its links as page links, the owner's guidance, its
 // versions with Restore, and Regenerate. The board is synthetic: e2e/writeup.py stores it and
 // two write-ups with a fake Claude. The e2e server runs with Claude off, so Regenerate is
@@ -18,7 +19,8 @@ const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
 };
-const section = (page: Page) => page.getByRole("region", { name: "Claude's write-up" });
+/** The page's one Claude card: the write-up is its In detail fold. */
+const section = (page: Page) => page.getByRole("region", { name: "About this page" });
 /** The write-up's fold opened, as once tapped (it is folded until then, and remembered). */
 const opened = (page: Page) =>
   page.addInitScript(() => localStorage.setItem("scrap.fold.writeup", "open"));
@@ -30,12 +32,14 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
   await expect(s).toBeVisible();
-  // A Claude card of its own after the page's text (the brown card all of Claude's work is
-  // in, so not the owner's), titled by what it holds; the write-up a fold, folded to start with
+  // In the page's one Claude card after its text (the brown card all of Claude's work is in,
+  // so not the owner's): its lead is the card's Summary, the write-up a fold, In detail,
+  // folded to start with
   await expect(s).toHaveClass(/\bclaude\b/);
-  await expect(s.getByRole("heading", { name: "What it means" })).toBeVisible();
-  const fold = s.locator(":scope > details");
-  await expect(fold.locator("> summary")).toHaveText("Read it");
+  await expect(s.getByRole("heading", { name: "About this page" })).toBeVisible();
+  await expect(page.locator(".page section.claude")).toHaveCount(1); // one card, not two
+  const fold = s.locator("details.writeup");
+  await expect(fold.locator("> summary")).toHaveText("In detail");
   await expect(fold).not.toHaveAttribute("open", "");
   const card = s.locator(".card");
   await expect(card).toBeHidden();
@@ -81,7 +85,7 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   // Opened, it stays open when the page is opened again; folded again, it stays folded
   await page.reload();
   await expect(section(page).locator(".card")).toBeVisible();
-  await section(page).locator(":scope > details > summary").click();
+  await section(page).locator("details.writeup > summary").click();
   await expect(section(page).locator(".card")).toBeHidden();
   await page.reload();
   await expect(section(page).locator(".card")).toBeHidden();
@@ -104,29 +108,76 @@ test("the write-up meets AA contrast, in both themes", async ({ page }) => {
   }
 });
 
-test("Regenerate queues a new write-up and the section says it waits", async ({ page }) => {
+test("the card's one Regenerate asks Claude to read the board again, write-up and all", async ({
+  page,
+}) => {
   await opened(page);
   const b = board();
-  // As if Claude were on (this server runs without it)
-  const on = (json: { writeup: { on: boolean } }) => ({
+  // As if Claude were on (this server runs without it), the page read once already
+  type Json = { enrich: object | null; writeup: object };
+  const on = (json: Json, state = "done") => ({
     ...json,
+    enrich: { error: null, summary: null, ...json.enrich, on: true, state },
     writeup: { ...json.writeup, on: true },
   });
   await page.route(`**/api/pages/${b.slug}`, async (r) =>
     r.fulfill({ json: on(await (await r.fetch()).json()) }),
   );
-  let asked = 0;
-  await page.route("**/api/pages/*/writeup", async (r) => {
-    asked++;
+  const asked: string[] = [];
+  await page.route("**/api/pages/*/enrich", async (r) => {
+    asked.push("enrich");
     const json = await (await page.request.get(`/api/pages/${b.slug}`)).json();
-    await r.fulfill({ json: { ...on(json), writeup: { ...on(json).writeup, state: "queued" } } });
+    await r.fulfill({ json: on(json, "queued") });
+  });
+  await page.route("**/api/pages/*/writeup", async (r) => {
+    asked.push("writeup");
+    await r.abort();
   });
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
+  await expect(s.getByRole("button", { name: "Regenerate" })).toHaveCount(1); // one, not two
   await s.getByRole("button", { name: "Regenerate" }).click();
   await expect(s.getByRole("status")).toHaveText("Waiting for Claude");
   await expect(s.getByRole("button", { name: "Regenerate" })).toHaveCount(0);
-  expect(asked).toBe(1);
+  expect(asked).toEqual(["enrich"]); // Ask: reads it, writes it up, finds related pages
+});
+
+test("a board's Summary is its write-up's lead, not the page's own summary", async ({ page }) => {
+  const b = board();
+  let lead = "";
+  await page.route(`**/api/pages/${b.slug}`, async (r) => {
+    const json = await (await r.fetch()).json();
+    lead = json.writeup.current.summary;
+    await r.fulfill({
+      json: { ...json, enrich: { on: false, state: "done", error: null, summary: "Not this one" } },
+    });
+  });
+  await page.goto(`/p/${b.slug}`);
+  const summary = section(page).locator("details", { hasText: "Summary" }).first();
+  await expect(summary).toHaveAttribute("open", "");
+  await expect(summary.locator(".summary")).toHaveText(lead);
+  await expect(section(page).getByText("Not this one")).toHaveCount(0);
+});
+
+test("a board not written up yet says what Claude would do; Generate asks", async ({ page }) => {
+  const b = board();
+  await page.route(`**/api/pages/${b.slug}`, async (r) => {
+    const json = await (await r.fetch()).json();
+    await r.fulfill({
+      json: {
+        ...json,
+        enrich: { on: true, state: null, error: null, summary: null },
+        writeup: { ...json.writeup, on: true, state: null, versions: 0, current: null },
+      },
+    });
+  });
+  await page.goto(`/p/${b.slug}`);
+  const s = section(page);
+  await expect(s).toContainText("Claude can describe this board in detail");
+  await expect(s).not.toContainText("Claude can summarise it");
+  await expect(s.getByRole("button", { name: "Generate" })).toBeVisible();
+  await expect(s.getByText("Guidance for Claude")).toBeVisible();
+  await expect(s.locator("details.writeup .card")).toHaveCount(0); // no write-up to read
 });
 
 test("a write-up shows no link but a page link, whatever its text holds", async ({ page }) => {
@@ -149,11 +200,11 @@ test("a write-up shows no link but a page link, whatever its text holds", async 
   await expect(s.getByRole("link", { name: "that page" })).toHaveAttribute("href", `/p/${linked}`);
 });
 
-test("a page with no board has no write-up section", async ({ page }) => {
+test("a page with no board has no write-up in its card", async ({ page }) => {
   const r = await page.request.post("/api/captures", {
     data: { id: ulid(), text: "A plain note" },
   });
   await page.goto(`/p/${(await r.json()).slug}`);
   await expect(page.locator("h1")).toHaveText("A plain note");
-  await expect(section(page)).toHaveCount(0);
+  await expect(page.locator("details.writeup")).toHaveCount(0);
 });

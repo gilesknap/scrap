@@ -1,9 +1,8 @@
-// Claude's write-up of a board page (#256), under its text: a Claude card of its own, shaped as
-// a photo's (a state line, then the write-up as a fold, folded until opened and remembered),
-// never the page's text. It says who wrote
-// it and when, shows its lead and its Markdown (its [[slug]] links as page links), and offers
-// Regenerate, the owner's guidance for the next one, and its versions with Restore. Nobody edits
-// it. A chunk of its own: the page view loads it for a page with a write-up or a board.
+// Claude's write-up of a board page (#256): its parts for the page's one Claude card, About
+// this page (enrich.ts): where Claude is up to, the lead (the card's Summary) and the write-up
+// itself as a fold, In detail, with who wrote it and when, its Markdown (its [[slug]] links as
+// page links), the owner's guidance for the next one and its versions with Restore. Nobody
+// edits it. A chunk of its own: the page view loads it for a page with a write-up or a board.
 import { ApiError, api, kept, type Page, type Writeup, type WriteupVersion } from "./api";
 import { bodyView, h, toast, whenShort } from "./ui";
 import "./writeup.css";
@@ -56,7 +55,7 @@ export function pageLinksOnly(el: HTMLElement, slugs: string[]): HTMLElement {
 }
 
 /** A button that does one thing, disabled while it does it. */
-function action(label: string, run: () => Promise<void>, className = "") {
+function act(label: string, run: () => Promise<void>, className = "") {
   const b = h("button", { type: "button", className }, label);
   b.onclick = async () => {
     b.disabled = true;
@@ -69,19 +68,21 @@ function action(label: string, run: () => Promise<void>, className = "") {
   return b;
 }
 
-/** The section, or null when there is none to show and none can be written. */
-export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | null {
+/** A board's write-up, as parts of the page's one Claude card (About this page, enrich.ts):
+ * where Claude is up to, its action, its lead (the board's Summary) and the write-up itself as
+ * a fold, In detail. Null when there is none to show and none can be written. */
+export function writeupParts(p: Page, show: (p: Page) => void) {
   const w = p.writeup;
   if (!w || (!w.current && !(w.board && w.on))) return null;
   const up = w.current;
-  const said = stateText(w);
   const busy = ["queued", "processing", "paused"].includes(w.state ?? "");
-  // Generate the first time, Regenerate after, Retry when it failed: as every Claude card says
-  const regenerate =
+  // Generate the first time, Regenerate after, Retry when it failed: the card's action only when
+  // the page's own (Ask, enrich.ts) is not there, Claude being off for it
+  const action =
     w.on &&
     w.board &&
     !busy &&
-    action(
+    act(
       w.state === "failed" ? "Retry" : up ? "Regenerate" : "Generate",
       async () => {
         try {
@@ -92,22 +93,17 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
       },
       up && w.state !== "failed" ? "link" : "",
     );
-  // Shaped as a photo's card: its state line (Written by Claude, then Regenerate), then the
-  // write-up itself as a fold like Description, folded until opened (remembered)
-  const pill = said; // where Claude is up to: the title says what the card holds
-  const state = w.state === "failed" || busy ? w.state : "done";
-  const head = h("summary", {}, "Read it");
-  const fold =
+  const head = h("summary", {}, "In detail");
+  const detail =
     up &&
     h(
       "details",
-      { className: "claude-text", open: kept(FOLD) === "open" },
+      { className: "claude-text writeup", open: kept(FOLD) === "open" },
       head,
       h(
         "div",
         { className: "card" },
         h("p", { className: "by" }, byline(up)),
-        h("p", { className: "summary", dir: "auto" }, up.summary),
         pageLinksOnly(bodyView(up.text, false), up.links ?? []),
         guidanceFold(p, w, show),
         w.versions > 1 ? versionsFold(p, up, show) : "",
@@ -115,26 +111,29 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
     );
   // Remembered as it is tapped, not on toggle (which comes a task later): the page may be
   // drawn again in between, from what was remembered
-  if (fold) head.onclick = () => kept(FOLD, fold.open ? null : "open"); // (about to change)
-  return h(
-    "section",
-    { className: "writeup claude", "aria-label": "Claude's write-up" },
-    h(
-      "div",
-      { className: "ingest" },
-      h("h3", { className: "ctitle" }, "What it means"),
-      pill && h("span", { className: `state ${state}`, role: "status" }, pill),
-      regenerate,
-    ),
-    !up && !busy
-      ? h(
-          "p",
-          { className: "did" },
-          "Claude can explain what this board shows: its parts and how they connect.",
-        )
-      : "",
-    fold || (w.board ? guidanceFold(p, w, show) : ""),
-  );
+  if (detail) head.onclick = () => kept(FOLD, detail.open ? null : "open"); // (about to change)
+  return {
+    said: stateText(w), // where Claude is up to: null when there is nothing to say
+    state: w.state ?? "",
+    busy,
+    written: !!up,
+    action: action || null,
+    lead: up?.summary ?? null, // the board's summary
+    detail: detail || null,
+    // None yet: what Claude would do, and the guidance it would follow (after Summary)
+    unwritten:
+      !up && !busy
+        ? h(
+            "p",
+            { className: "did" },
+            "Claude can describe this board in detail: its parts and how they connect.",
+          )
+        : null,
+    guidance:
+      !up && w.board
+        ? Object.assign(guidanceFold(p, w, show), { className: "claude-text sub writeup" })
+        : null,
+  };
 }
 
 /** The owner's guidance for the next write-up: a note, kept apart from the text. */
@@ -147,7 +146,7 @@ function guidanceFold(p: Page, w: Writeup, show: (p: Page) => void) {
     "aria-label": "Guidance for Claude",
     oninput: () => typing.set(p.id, box.value),
   });
-  const save = action(
+  const save = act(
     "Save",
     async () => {
       try {
@@ -191,7 +190,7 @@ function versionsFold(p: Page, up: WriteupVersion, show: (p: Page) => void) {
             h("span", {}, byline(v)),
             v.current
               ? h("em", {}, "current")
-              : action(
+              : act(
                   "Restore",
                   async () => {
                     try {

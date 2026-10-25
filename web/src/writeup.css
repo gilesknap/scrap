@@ -1,6 +1,6 @@
-/* Claude's write-up of a board page (writeup.ts): a Claude card (.claude), its state line then
-   the write-up as a fold (.claude-text), as a photo's card is; inside, its byline, summary and
-   text, then Guidance and Versions as folds of their own. */
+/* Claude's write-up of a board page (writeup.ts): In detail, a fold (.claude-text.writeup) of
+   the page's one Claude card, About this page; inside, its byline and text, then Guidance and
+   Versions as folds of their own. */
 .writeup .card {
   padding-bottom: var(--s-2);
 }
@@ -8,18 +8,11 @@
 .writeup .card > :last-child {
   margin-bottom: 0;
 }
-.writeup .ingest > button:not(.link) {
-  margin-inline-start: auto;
-}
 .writeup .by {
-  margin: var(--s-1) 0 0;
+  margin: var(--s-1) 0 var(--s-2);
   color: var(--ink-2);
   font-size: var(--t-xs);
   overflow-wrap: anywhere;
-}
-.writeup .summary {
-  margin: var(--s-2) 0;
-  font-weight: 500;
 }
 .writeup .body h2 {
   font-size: var(--t-md);
