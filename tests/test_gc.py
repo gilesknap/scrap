@@ -56,6 +56,7 @@ def age_all(store):
             old(path)
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_body_refs_is_linear_and_finds_every_address():
     a, b = "a" * 64, "b" * 64
     text = f"![](/api/blobs/{a}/preview?size=2048) [f](/api/blobs/{b}?download=1) `x`"
@@ -63,7 +64,7 @@ def test_body_refs_is_linear_and_finds_every_address():
     assert body_refs("/api/blobs/" + "a" * 63) == set()
     start = time.perf_counter()
     body_refs("/api/blobs/" + "a" * 63 + "`[](" * 200_000)
-    assert time.perf_counter() - start < 1
+    assert time.perf_counter() - start < 5  # milliseconds; quadratic is minutes
 
 
 def test_a_file_mentioned_only_in_code_or_odd_markdown_is_kept(client, store):

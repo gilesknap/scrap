@@ -418,6 +418,7 @@ def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
     assert rows[0]["body"] == TEXT  # the first is never folded away
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_overlap_checks_are_linear_in_the_page():
     """A long self-overlapping old on a large page: the check scans each match's own
     span once (it runs holding the write lock), so these take milliseconds, not the
@@ -434,6 +435,7 @@ def test_overlap_checks_are_linear_in_the_page():
     assert time.monotonic() - begin < 3  # generous: ~0.1 s here
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_a_long_overlapping_old_is_refused_quickly(store):
     ref = human(store, "seed")
     with closing(connect(store.db)) as conn:
@@ -477,6 +479,7 @@ def patched(diff: str, before: str) -> str:
     return "".join(out + lines[at:])
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_the_diff_is_right_and_quick_on_large_pages():
     rng = random.Random(7)
     for _ in range(300):

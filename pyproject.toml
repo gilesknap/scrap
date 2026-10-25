@@ -126,6 +126,8 @@ commands = [
         "pytest",
         "-n",
         "auto",
+        "--dist",
+        "loadgroup",  # the timing tests on one worker (tests/conftest.py)
         "--cov=scrap",
         "--cov-report",
         "term",

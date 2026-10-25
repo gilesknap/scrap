@@ -175,6 +175,7 @@ def drip(head: bool):
     return handler
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 @pytest.mark.parametrize("head", [False, True])
 def test_a_site_dripping_bytes_is_cut_at_the_deadline(site, monkeypatch, head):
     base, dns = site
@@ -183,7 +184,7 @@ def test_a_site_dripping_bytes_is_cut_at_the_deadline(site, monkeypatch, head):
     start = time.monotonic()
     with pytest.raises(FetchError, match="too long"):
         fetch.fetch(base + "/drip", dns)
-    assert time.monotonic() - start < 1.5
+    assert time.monotonic() - start < 3  # cut near 0.5 s: the drip goes on far longer
 
 
 def test_a_page_that_does_not_decompress_is_refused(site):

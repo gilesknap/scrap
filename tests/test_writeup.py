@@ -685,6 +685,7 @@ PATHOLOGICAL = {
 }
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 @pytest.mark.parametrize("name", list(PATHOLOGICAL))
 def test_stripping_a_pathological_write_up_is_quick(name):
     """Linear, not quadratic: the unbounded pattern took about 10 s on 64k characters;

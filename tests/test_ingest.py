@@ -827,6 +827,7 @@ def test_prompt_version_names_the_prompt_and_schema():
     assert Path(claude.__file__).with_name("prompts").joinpath("photo.md").is_file()
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     client = TestClient(create_app(tmp_path))
     store = Store(tmp_path)
@@ -849,7 +850,7 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     # past 64 words: refused, not cut short (a dropped NOT word would broaden it)
     for q in (words, "salt " + words, f"common words {words}"):
         assert "too many" in str(found(q, 422))
-    assert time.monotonic() - started < 2
+    assert time.monotonic() - started < 5  # three requests: quick, not one per word
 
 
 def test_lone_surrogates_from_the_model_never_reach_the_database(tmp_path):

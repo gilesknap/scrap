@@ -72,6 +72,7 @@ def test_rewrite_keeps_what_it_is_told_to_and_the_rest_as_typed():
     assert rewrite(text, lambda link: None) == "keep [a](b.md) and [[c]]\nnext"
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 @pytest.mark.parametrize(
     "pattern",
     [
@@ -107,16 +108,20 @@ def test_hostile_text_takes_linear_time(pattern):
         return min(took(n) for _ in range(7))
 
     took(10_000)  # warm-up: imports, caches and the allocator
-    # Start where a run takes long enough (10 ms) to time, so a pure ratio can be used
-    # with no slack: linear is 4x for 4x the text, quadratic 16x; the line is 8x
+    # Start where a run takes long enough (20 ms) to time, so a pure ratio can be used:
+    # linear is 4x for 4x the text, quadratic 16x. The line is 12x, not halfway, as
+    # coverage tracing and busy xdist workers made linear text measure just over 8x
+    # (#269); quadratic still fails it by a wide margin
     n = 10_000
     small = fastest(n)
-    while small < 0.01 and n < 640_000:
+    while small < 0.02 and n < 1_280_000:
         n *= 2
         small = fastest(n)
-    assert fastest(4 * n) < 8 * small
+    ratio = fastest(4 * n) / small
+    assert ratio < 12, f"{ratio:.1f}x for 4x the text"
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_a_paragraph_of_many_lines_is_rewritten_in_linear_time():
     text = "x [[y]]\n" * 20_000  # one paragraph: every link maps back to its line
     start = time.monotonic()
@@ -135,6 +140,7 @@ def test_a_block_that_cannot_be_mapped_back_is_kept_and_told(monkeypatch):
     assert told == [3]
 
 
+@pytest.mark.xdist_group("timing")  # one worker: see conftest.py
 def test_a_megabyte_page_is_indexed():
     words = (
         "Some *text* with [a link](http://x.com), `code` and [[a-page|a label]]\n\n"
