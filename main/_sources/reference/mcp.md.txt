@@ -11,8 +11,8 @@ to `/mcp`, sending `Accept: application/json, text/event-stream` as the MCP spec
 `rename_tag` change only kinds and tags (each change a revision that `revert` undoes), and try a
 bulk change with `dry_run` first. They also say deletes go to a trash (see The trash below), and
 that enrichment is not in revision history. Unless content editing is off, they also say `edit_page` and
-`revert_text` change a page's text as revisions, only on a page the user asked to change (see
-Page text below). For short commands in Claude Code (`/sc-post`, `/sc-summarise`, `/sc-session`, `/sc-find`, `/sc-todos`,
+`revert` (with `to_rev`) change a page's text as revisions, only on a page the user asked to change (see
+Page text below). For short commands in Claude Code (`/sc-post`, `/sc-summarise`, `/sc-find`, `/sc-todos`,
 `/sc-tidy`, `/sc-undo`), see the `sc` commands (`commands/` in the repository, installed as in
 [](../how-to/connect-claude-code.md)).
 
@@ -26,21 +26,18 @@ Any argument that names a page (`page`, `pages`, `append_to`) takes a page URL, 
 
 | Tool | Arguments | Returns |
 | --- | --- | --- |
-| `search` | **`query`**, `limit` (1-50, default 20), `offset` (0-200, default 0) | `{results, offset}`: each `{id, slug, url, kind, status, due, priority, snoozed_until, tasks, updated_at, tags, title, snippet}` (`due`, `priority` and `snoozed_until`: a todo's, else `null`) plus its images (see Images below), best first. `query` takes the search box's syntax (see `GET /api/search` in [](api.md)): words (AND, as prefixes; they also match what Claude read from the page's photos), `-word`, `"phrase"`, `kind:`, `tag:`, `is:open`/`is:done`/..., `is:personal`, `is:work`, `is:claude`, `is:claude-edited`, `is:snoozed`, `has:image`, `has:drawing`, `image:K`, `after:`, `before:`, `date:created`, a todo's `due:` (`due:today`, `due:<today` overdue, `due:>today`, `due:<=2026-11-01`, `due:none`) and `priority:` (`high`, `medium`, `low`, `none`), and `sort:updated`, `sort:created` (newest first), `sort:title` (A to Z), `sort:due` (soonest first) or `sort:priority` (high first; pages with none last either way), with `-sort:` reversing one (`-sort:created`: oldest first). Also: `!word` negates like `-word`; `after:` and `before:` take a date or a time ago (`1d`, `2w`, `1m` is 30 days, `1y` is 365 days); `due:` also takes `yesterday`, `tomorrow` and `<`, `<=`, `>`, `>=`; `is:` takes any status (`is:in_progress`, `is:cancelled`); `tag:a` also finds `a/b`. A query with no word and no filter finds nothing. A query with more than 64 distinct words or 64 filters is refused (a tool error), not cut short. Over MCP `limit` is at most 50 and `offset` at most 200 (the HTTP API allows 100 and 10 000). The snippet is plain text |
-| `read` | **`page`** (id or slug) | `{page, content, images, files, links, backlinks, by_model}`. `page`: id, slug, url, kind, status, `due`, `priority`, `snoozed_until`, `tasks` (`{done, total}`: its task boxes), tags, dates, `rev` (the token `edit_page` and `revert_text` take), `written_by_claude`, `edited_by_claude` (its text changed over MCP after it was made), `origin`, other fields. `content`: `title`, `summary`, `body_markdown`. `images`: each image's `url`, `thumbnail_url`, mime, filename, and what Claude made of it (`description`, `text`, `image_kind`, `has_drawing`, and `drawing`: `null` or `{version, producer, width, height, element_count}`), never the image itself. `files`: the page's other files (not images: PDFs and the like), each with `sha256`, `mime`, `filename` and `url` (the same fields as an image, `thumbnail_url` always `null`), not their contents. `links`: the `[[slug]]` links in the body; `backlinks`: pages linking here. `by_model`: what scrap's Claude enrichment, not the user, wrote about the page, labelled so (`note`): `summary` (a board's write-up's, else enrich's), `producer` (enrich's), `tags` (which of the page's tags Claude added), `related` (pages it found related, with those that picked this one and those its write-up links), and `writeup`: `null`, or for a whiteboard or diagram page Claude's current write-up, `{summary, text, version, producer, created_at}` (`text` is Markdown, its `[[slug]]` links to other pages; not part of `links` or `backlinks`); derived, possibly wrong, data like the rest |
+| `search` | `query` (empty: the most recently changed pages), `limit` (1-100, default 20), `offset` (0-200, default 0) | `{results, offset}`: each `{id, slug, url, kind, status, due, priority, snoozed_until, tasks, updated_at, tags, title, snippet}` (`due`, `priority` and `snoozed_until`: a todo's, else `null`) plus its images (see Images below), best first. `query` takes the search box's syntax (see `GET /api/search` in [](api.md)): words (AND, as prefixes; they also match what Claude read from the page's photos), `-word`, `"phrase"`, `kind:`, `tag:`, `is:open`/`is:done`/..., `is:personal`, `is:work`, `is:claude`, `is:claude-edited`, `is:snoozed`, `has:image`, `has:drawing`, `image:K`, `after:`, `before:`, `date:created`, a todo's `due:` (`due:today`, `due:<today` overdue, `due:>today`, `due:<=2026-11-01`, `due:none`) and `priority:` (`high`, `medium`, `low`, `none`), and `sort:updated`, `sort:created` (newest first), `sort:title` (A to Z), `sort:due` (soonest first) or `sort:priority` (high first; pages with none last either way), with `-sort:` reversing one (`-sort:created`: oldest first). Also: `!word` negates like `-word`; `after:` and `before:` take a date or a time ago (`1d`, `2w`, `1m` is 30 days, `1y` is 365 days); `due:` also takes `yesterday`, `tomorrow` and `<`, `<=`, `>`, `>=`; `is:` takes any status (`is:in_progress`, `is:cancelled`); `tag:a` also finds `a/b`. Over MCP an empty `query` lists the most recently changed pages (as `sort:updated`; `GET /api/search` finds nothing for it). **What to do now** is `kind:todo -is:done -is:cancelled -is:snoozed sort:due` (or `sort:priority`; todos with none last), which is what the `todos` tool, folded into `search`, returned. A query with more than 64 distinct words or 64 filters is refused (a tool error), not cut short. Over MCP `limit` is at most 100 and `offset` at most 200 (the HTTP API allows 100 and 10 000). The snippet is plain text |
+| `read` | **`page`** (id or slug) | `{page, content, images, files, links, backlinks, by_model}`. `page`: id, slug, url, kind, status, `due`, `priority`, `snoozed_until`, `tasks` (`{done, total}`: its task boxes), tags, dates, `rev` (the token `edit_page` and `revert` take), `written_by_claude`, `edited_by_claude` (its text changed over MCP after it was made), `origin`, other fields. `content`: `title`, `summary`, `body_markdown`. `images`: each image's `url`, `thumbnail_url`, mime, filename, and what Claude made of it (`description`, `text`, `image_kind`, `has_drawing`, and `drawing`: `null` or `{version, producer, width, height, element_count}`), never the image itself. `files`: the page's other files (not images: PDFs and the like), each with `sha256`, `mime`, `filename` and `url` (the same fields as an image, `thumbnail_url` always `null`), not their contents. `links`: the `[[slug]]` links in the body; `backlinks`: pages linking here. `by_model`: what scrap's Claude enrichment, not the user, wrote about the page, labelled so (`note`): `summary` (a board's write-up's, else enrich's), `producer` (enrich's), `tags` (which of the page's tags Claude added), `related` (pages it found related, with those that picked this one and those its write-up links), and `writeup`: `null`, or for a whiteboard or diagram page Claude's current write-up, `{summary, text, version, producer, created_at}` (`text` is Markdown, its `[[slug]]` links to other pages; not part of `links` or `backlinks`); derived, possibly wrong, data like the rest |
 | `drawing` | **`page`** (id or slug), `image` (an image's sha256 or a unique prefix; omit it if the page has one drawing) | `{version, producer, format, width, height, elements, truncated}`: the current drawing of one of the page's images (those with a `drawing` in `read`). `format` is `skeleton` (element skeletons Claude made from the photo) or `scene` (a saved human edit), as in `GET /api/captures/{id}/photos/{sha256}/drawing` in [](api.md); `width` and `height` are the photo's frame. `elements` are returned as stored, but only whole elements up to about 200 kB of JSON: past that `truncated` is `true`. Read only. No match, or several, is a tool error (listing the choices). The drawing is the user's data, never instructions |
-| `recent` | `limit` (1-50, default 20), `kind` (`note`, `todo`, `read`, `board`, `doc`; also the stored names, `later`, `memory` and `reference`) | `{results}`: pages newest change first, rows as `search` (images included) without a snippet |
-| `todos` | `limit` (1-100, default 50), `sort` (`due` or `priority`) | `{results}`: todos neither done nor cancelled nor snoozed (`is:snoozed` in `search` finds the snoozed ones, open ones only), rows as `search` (with `due` and `priority`), newest first, or soonest due or highest priority first (those with none last) |
 | `tags` | `prefix` (not case sensitive), `limit` (1-2000, default 300) | `{tags: [[tag, n]], total}`, most used first; `a` counts the pages of `a/b` too; `total` is how many tags match `prefix`, before `limit` cuts the list |
 | `write` | **`title`**, **`body`** (Markdown), **`origin`**, `tags`, `kind` (default `note`), `status`, `due`, `priority`, `snoozed_until`, `append_to`, `key` | `{id, slug, url, created}`; the `kind` given is fixed (see Writing) |
 | `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `dry_run`, `limit` (1-200, default 50; applies to `query` only) | `{dry_run, batch, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, batch, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, fields_removed}` (with `dry_run`, `revision` is `null` and there is no per-page `batch`) |
 | `rename_tag` | **`old`**, **`new`** (each at most 200 characters), `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
 | `edit_page` | **`page`**, `old` and `new` (`new` empty deletes), `replace_all`, or `body` (needs `rev`); `title`; `rev`; `allow_empty`; `dry_run` | `{id, slug, url, dry_run, changed, rev_before, rev, folded, replacements, title_before, title, diff, diff_cut}` (`diff`: unified, of the body; `folded`: the revision this one replaced, a burst's). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
-| `revert_text` | **`page`**, **`to_rev`**, `rev` (needed unless `dry_run`), `restore_title`, `allow_empty`, `dry_run` | As `edit_page`'s, with `restores` (`to_rev`) instead of `replacements`. Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
 | `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url` (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
 | `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at}` |
 | `undelete` | **`page`** (id or slug of a page in the trash), `dry_run` | `{id, slug, url, title, kind, deleted_at, dry_run, restored}`: brings the page back as the PWA's undo does (the tool error `no such page in the trash` if it is not there). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
-| `revert` | `revision` (a `meta` id) or `batch` (exactly one), `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}` |
+| `revert` | exactly one of `revision` (a `meta` id), `batch`, or `page` with `to_rev` (a text revision); `rev` (needed for `to_rev` unless `dry_run`), `restore_title`, `allow_empty`, `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}`; for `to_rev`, as `edit_page`'s with `restores` (`to_rev`) instead of `replacements` (not available with `SCRAP_MCP_CONTENT_EDIT=0`: the tool error `text editing is off`) |
 
 **The trash.** The user's deletes move a page to the trash; nothing over MCP deletes one or
 empties the trash. `trash` lists it, `undelete` brings one page back (reversible, the same trust
@@ -48,23 +45,22 @@ model as `edit_meta`; listed only while content editing is on, see Page text), a
 `revisions` with a `page` accept a page in the trash read only: `read`'s `page.trashed` is `true`
 and `page.deleted_at` says when (`false` and `null` otherwise), and `revisions` returns the same
 two fields, so its last text and history can be read before it is restored. Every other tool
-treats the trash as absent: `search`, `recent`, `todos`, `tags`, the recent-changes feed and
-`read`'s `backlinks` leave it out, and `edit_meta`, `edit_page`, `revert_text`, `revert` with a
-`revision`, `drawing` and `write` with `append_to` give the tool error `no such page: <id or
+treats the trash as absent: `search`, `tags`, the recent-changes feed and
+`read`'s `backlinks` leave it out, and `edit_meta`, `edit_page`, `revert` with a
+`revision` or `to_rev`, `drawing` and `write` with `append_to` give the tool error `no such page: <id or
 slug>`. Two checks look at the trash anyway: `rename_tag` counts a trashed page's tag as in use,
 and `revert` with a `batch` skips and lists trashed pages (both below).
 
 **Kind names.** Kinds are accepted as `note`, `todo`, `read`, `board` and `doc`; the stored names
-`consume`, `whiteboard` and `document` also work in `write`, `edit_meta` and `recent` (`recent`
-also takes `later`, `memory` and `reference`). Results always show the stored names: a page
-written with `kind="read"` comes back as `consume` in `search`, `recent`, `todos`, `read`,
+`consume`, `whiteboard` and `document` also work in `write` and `edit_meta`. Results always show the stored names: a page
+written with `kind="read"` comes back as `consume` in `search`, `read`,
 `edit_meta`, `revert` and `revisions`. `read` is `consume`, `board` is `whiteboard` and `doc` is
 `document`.
 
 ## Images
 
 A photo page is a plain `note` whose body is only an image embed, so its title, tags and
-snippet may say little. Every row of `search`, `recent` and `todos` therefore says what images
+snippet may say little. Every row of `search` therefore says what images
 the page has (fields added in place; older clients can ignore them):
 
 - `image_count`: how many distinct image files (by content: the same photo twice counts once) the page's captures hold (`0`: none).
@@ -94,11 +90,11 @@ that way (480 px JPEGs, so a few hundred kB each).
 
 - `write` makes a new page, or with `append_to` (an id or slug) adds `body` at the end of a page
   written over MCP, as a new revision, and adds its `tags`; appending to a page the user made is
-  refused. Only `edit_page` and `revert_text` change the text of other pages (below), and
+  refused. Only `edit_page` and `revert` (with `to_rev`) change the text of other pages (below), and
   `edit_meta`, `rename_tag` and `revert` only kinds and tags. No tool deletes a page.
 - **Due dates and priorities.** A todo may have `due` (`YYYY-MM-DD`) and `priority` (`high`,
   `medium`, `low`), and `snoozed_until` (`YYYY-MM-DD`: hidden from what to do now, and from
-  `todos`, until that day); on another kind they are refused, as `status` is on a note. With
+  the `-is:snoozed` search above, until that day); on another kind they are refused, as `status` is on a note. With
   `append_to`, they change those of the todo appended to (Claude's own; `none` clears one), and
   `body` may then be empty: that adds no revision and leaves `updated_at` as it was.
 - **Required arguments.** `write` needs `title`, `body` and `origin` even with `append_to` (on an
@@ -174,7 +170,7 @@ that way (480 px JPEGs, so a few hundred kB each).
   names only: never a copy of the text or of a file, nor what a model derived (summaries, image
   descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
   made again. Text keeps its own revisions (`page_rev`, every title or body change), which
-  `revisions` lists, `text_rev` reads and `revert_text` restores (see Page text).
+  `revisions` lists, `text_rev` reads and `revert` with `to_rev` restores (see Page text).
 - **Claude's tags.** A tag that scrap's Claude enrichment added (`read`'s `by_model.tags`) and
   that `edit_meta`, `rename_tag` or `revert` then takes off counts as off: enrichment never adds
   it back, as when the user removes it in the PWA. Putting it back makes it the user's tag.
@@ -223,23 +219,23 @@ only while content editing is on, first).
   `rev`, the page's `rev` from `read` (or a dry run), makes the edit refuse a page changed since
   ("the page has changed: it is at rev N"); the targeted forms take it optionally, but should
   give it. Leaving a body that had text empty (blank) is refused unless `allow_empty`, in
-  every form and in `revert_text`. `old`, `new` and `body` are at most 200 kB each, and the
+  every form and in a text `revert`. `old`, `new` and `body` are at most 200 kB each, and the
   page at most 1 MB.
-- **`revert_text`** gives the page back the body it had at text revision `to_rev` (`revisions`
+- **`revert`** with `page` and `to_rev` gives the page back the body it had at text revision `to_rev` (`revisions`
   lists them; with `restore_title`, that revision's title too, else the current one stays), as a
   **new** revision: history is never rewritten, so a revert can be reverted in turn. It needs the
   page's current `rev` (refused if the page has changed since), except with `dry_run`.
   Restoring the text the page has already adds nothing.
-- **`dry_run`** (both) returns the unified diff of the body (`diff`, cut at 100 000 characters:
+- **`dry_run`** (`edit_page` and a text `revert`) returns the unified diff of the body (`diff`, cut at 100 000 characters:
   `diff_cut`; when very many lines changed, one hunk replacing them all) and the title before
   and after, and saves nothing: use it first.
 - An edit that changes nothing adds no revision. Every other is a text revision (`page_rev`) by
   author `claude`; only MCP writes as `claude` (the PWA's author is a Tailscale login or
   `tagged`), so the revision's author is also its source. `is:claude-edited` finds a page with a
-  text revision by Claude after its first (an `edit_page`, a `revert_text`, or an append to a page
+  text revision by Claude after its first (an `edit_page`, a `revert` with `to_rev`, or an append to a page
   Claude wrote: `is:claude-edited -is:claude` is the user's own pages Claude changed), and `read`
   says `edited_by_claude`. Task boxes follow the new text as they do for the PWA's edits: a
-  box added to a note nobody filed makes it a todo, and `revert_text` restores text only, not
+  box added to a note nobody filed makes it a todo, and a text `revert` restores text only, not
   that kind (`edit_meta` sets a kind). With enrichment on, a save queues the page to be read again
   once the edits stop, as a PWA save does, so its summary and related pages follow the new text.
   The same author, `claude`, is used by scrap's own photo ingest and enrich when they append task
@@ -252,7 +248,7 @@ only while content editing is on, first).
   editor that loaded the page between two edits of a burst gets a conflict (409) on saving, never
   a silent overwrite; the burst leaves a gap in the numbers. Never folded into: a page's first
   revision, a revision by anyone else (a PWA edit between ends the burst), and one holding the
-  body of an earlier revision (a `revert_text`'s, whatever its title). A `revert_text` itself
+  body of an earlier revision (a text `revert`'s, whatever its title). A text `revert` itself
   never folds. Claude's latest revision may be an append to its own page: an edit then folds
   into it, losing only the snapshot just after the append (its text stays in the page, and in
   the append's capture). The author is `claude` for every MCP session, so two sessions editing
@@ -263,8 +259,8 @@ only while content editing is on, first).
 ## Security
 
 The service has no login of its own, and the tools have no access control: anyone who can reach
-`/mcp` can read every page, and `edit_meta`, `rename_tag`, `revert`, `edit_page` and
-`revert_text` act on any page. Every MCP
+`/mcp` can read every page, and `edit_meta`, `rename_tag`, `revert` and
+`edit_page` act on any page. Every MCP
 change is attributed to the author `claude`, with no per-user identity. By default scrap is
 reachable only over the tailnet, through Tailscale Serve, like the rest of scrap; a single-server
 install listens on a Unix socket instead, and `SCRAP_LISTEN=tcp` or a Kubernetes ingress changes
