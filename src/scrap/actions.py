@@ -4,9 +4,10 @@ Photo ingest and text enrich both ask Claude (prompts/items.md) whether the whol
 is a to-do list, and for its entries. When it says so with high confidence, and the page
 is an unfixed note (or a whiteboard that ingest, not the user, chose) with no task boxes
 yet, the entries are appended below the user's text as `- [ ] item` lines in one text
-revision by Claude (ADR 0022), which revert_text undoes. The existing task-box rule then
-files the page as a todo. The user's words are never rewritten, a fixed kind and a page
-with boxes are never touched, and a page edited since Claude read it is left alone.
+revision by Claude (ADR 0022), which revert (to_rev) undoes. The existing task-box rule
+then files the page as a todo. The user's words are never rewritten, a fixed kind
+and a page with boxes are never touched, and a page edited since Claude read it is
+left alone.
 Entries come from untrusted text and images: they are cut down to plain one-line text.
 """
 

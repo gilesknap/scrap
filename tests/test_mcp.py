@@ -681,8 +681,6 @@ def test_mcp_token_leaves_the_rest_open(tmp_path, monkeypatch):
 
 
 def test_mcp_without_a_token_is_unchanged(tmp_path, monkeypatch):
-    monkeypatch.delenv("SCRAP_MCP_TOKEN", raising=False)
-    monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
     with TestClient(create_app(tmp_path / "data")) as client:
         assert rpc(client, "initialize", INIT, LOCAL).status_code == 200
         r = rpc(client, "initialize", INIT, {**LOCAL, "Authorization": "Bearer x"})
@@ -1114,3 +1112,18 @@ def test_every_page_tool_takes_a_page_url(store):
     assert not call(store, "revert", page=url, to_rev=1, rev=rev)[0]
     assert call(store, "undelete", page=url)[0]  # not in the trash: refused, found
     assert call(store, "drawing", page=url)[0]  # no drawing: refused, found
+
+
+def test_search_refuses_an_unknown_kind(store):
+    write(store, title="A note")
+    error = refused(store, "search", query="kind:notes")
+    assert "unknown kind" in error and "todo" in error
+    assert ok(store, "search", query="kind:read")["results"] == []
+
+
+def test_revert_refuses_text_options_without_to_rev(store):
+    for extra in ({"rev": 1}, {"restore_title": True}, {"allow_empty": True}):
+        assert "go with page and to_rev" in refused(
+            store, "revert", revision=1, **extra
+        )
+        assert "go with page and to_rev" in refused(store, "revert", batch="x", **extra)

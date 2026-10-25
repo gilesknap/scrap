@@ -111,6 +111,10 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         would do (a text revert: the unified diff): use it first."""
         if sum(x is not None for x in (revision, batch, to_rev)) != 1:
             raise ToolError("give exactly one of revision, batch, or page with to_rev")
+        if to_rev is None and (rev is not None or restore_title or allow_empty):
+            raise ToolError(
+                "rev, restore_title and allow_empty go with page and to_rev"
+            )
         if (page is None) != (to_rev is None):
             raise ToolError("to_rev needs a page, and a page needs to_rev")
         if to_rev is not None:

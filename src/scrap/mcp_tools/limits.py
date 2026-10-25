@@ -23,7 +23,7 @@ STATUSES = ("open", "in_progress", "done", "cancelled")
 WRITE_KINDS = ("note", "todo", "read", "board", "doc")
 MARK = re.compile(r"</?mark>")
 
-Limit = Annotated[int, Field(ge=1, le=50)]
+Limit = Annotated[int, Field(ge=1, le=100)]
 Batch = Annotated[
     str | None, Field(max_length=MAX_KEY, description="A batch id (bulk change)")
 ]

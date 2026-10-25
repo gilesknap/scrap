@@ -1,4 +1,4 @@
-"""Text edits and the unified diff an edit returns (edit_page, revert_text)."""
+"""Text edits and the unified diff an edit returns (edit_page, revert with to_rev)."""
 
 import difflib
 from collections.abc import Iterator

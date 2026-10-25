@@ -5,6 +5,13 @@ from scrap.app import create_app
 from scrap.store import new_ulid
 
 
+@pytest.fixture(autouse=True)
+def no_mcp_token(monkeypatch):
+    """A token set in the developer's shell must not put /mcp behind auth in tests."""
+    monkeypatch.delenv("SCRAP_MCP_TOKEN", raising=False)
+    monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
+
+
 @pytest.fixture
 def client(tmp_path):
     return TestClient(create_app(tmp_path / "data"))

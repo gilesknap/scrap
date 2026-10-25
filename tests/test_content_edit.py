@@ -382,7 +382,7 @@ def test_the_switch_turns_content_editing_off(store, monkeypatch):
 
 def test_instructions_follow_the_switch(store, monkeypatch):
     on = mcp_server.server(store).instructions or ""
-    assert "only on a page the user asked you to change" in on
+    assert "only on a page the user asked you to\nchange" in on
     monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
     off = mcp_server.server(store).instructions or ""
     assert "edit_page" not in off and "No tool changes the text" in off
