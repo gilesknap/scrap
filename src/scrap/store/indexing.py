@@ -137,6 +137,13 @@ def queue_writeup(conn: sqlite3.Connection, page_id: str) -> None:
         queue_enrich(conn, page_id, "writeup")
 
 
+def queue_topic(conn: sqlite3.Connection, page_id: str) -> None:
+    """Queue (or take over) a topic page's enrich job as its synthesis (#261), now,
+    with enrich on."""
+    if enrich_on():
+        queue_enrich(conn, page_id, "topic")
+
+
 def queue_after_read(conn: sqlite3.Connection, capture_id: str) -> None:
     """After photo ingest read (or gave up on) one of a capture's photos. A board page
     (a whiteboard or diagram, not a list of actions) gets its write-up once all its

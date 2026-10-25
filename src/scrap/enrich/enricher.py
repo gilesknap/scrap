@@ -17,7 +17,15 @@ from ..ingest import (
     spent_today,
 )
 from ..markdown import plain
-from ..store import MAX_TAGS, Store, fields_for, now, queue_related, transaction
+from ..store import (
+    MAX_TAGS,
+    Store,
+    fields_for,
+    now,
+    queue_related,
+    topics,
+    transaction,
+)
 from .checking import checked, record
 from .constants import (
     CLAIM,
@@ -30,6 +38,7 @@ from .constants import (
 )
 from .prompts import page_images, page_message, system_prompt, vocabulary
 from .relating import relate
+from .synthesis import synthesise
 from .types import Call, Fetch
 from .writing import write_up
 
@@ -169,6 +178,14 @@ class Enricher:
             with self.store.connect() as conn, transaction(conn):
                 self._done(conn, jid)
             return
+        if job["reason"] == "topic":  # a topic's synthesis (#261)
+            error = synthesise(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
+            return
         if job["reason"] == "writeup":  # a board page's write-up (#256)
             error = write_up(self.store, self.call, page_id, jid)
             if error is not None:
@@ -177,6 +194,24 @@ class Enricher:
             with self.store.connect() as conn, transaction(conn):
                 self._done(conn, jid)
                 queue_related(conn, page_id)  # its first related call sees the write-up
+            return
+        with self.store.connect() as conn:
+            topic = topics.is_topic(conn, page_id)
+        if topic:  # a topic page (#261): its text is the owner's, never read as
+            # text. Ask is its synthesis (once a job), then its related pages; a
+            # save (a topic whose kind was changed) makes no call
+            error = None
+            if job["reason"] == "ask":
+                error = (
+                    None
+                    if self._written(jid)
+                    else synthesise(self.store, self.call, page_id, jid)
+                ) or relate(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
             return
         with self.store.connect() as conn:
             page = conn.execute(

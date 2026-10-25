@@ -10,3 +10,5 @@ gc:
   runDays: 60
 enrichRelated:
   enabled: false
+enrichTopics:
+  enabled: false

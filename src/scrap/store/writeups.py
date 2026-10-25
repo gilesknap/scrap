@@ -1,5 +1,6 @@
 """Claude's write-up of a board page (#256), as stored: its versions, the owner's
-guidance, the board images it is made from, and the pages it links to.
+guidance, the board images it is made from, and the pages it links to. A topic page's
+synthesis (#261, store.topics) is its write-up too, kept and shown the same way.
 
 A write-up is derived data, never the page's text: one current version per page
 (writeup_current), older ones kept, a regeneration or a restore inserting a new one.
@@ -11,6 +12,7 @@ import sqlite3
 from typing import Any
 
 from .constants import WIKI_LINK
+from .topics import IS_TOPIC, is_topic
 
 
 def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]]:
@@ -51,6 +53,8 @@ HAS_BOARD = """EXISTS (
     WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
       AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
       AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
+# Whether a page's write-up is on show (SQL on a page p): a board page's or a topic's
+SHOWN = f"({HAS_BOARD} OR {IS_TOPIC})"
 # A board page whose write-up is due: none of its photos waits or is being read, and
 # a board image was read since its last write-up (or it has none)
 DUE = f"""
@@ -111,11 +115,14 @@ def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
 
 
 def shown(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
-    """A page's current write-up while it is still a board page (has_board), else
-    None: one reprocessed into another kind keeps its versions as history, but they
-    are no longer its summary, its search text, its links or on show."""
+    """A page's current write-up while it is still a board page (has_board) or a
+    topic (its synthesis), else None: one reprocessed into another kind keeps its
+    versions as history, but they are no longer its summary, its search text, its
+    links or on show."""
     up = current(conn, page_id)
-    return up if up is not None and has_board(conn, page_id) else None
+    if up is None or not (has_board(conn, page_id) or is_topic(conn, page_id)):
+        return None
+    return up
 
 
 def versions(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
@@ -179,7 +186,7 @@ def set_guidance(
 
 def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
     """The pages (not in the trash) a page's current write-up links to, in order,
-    while it is a board page."""
+    while it is on show (a board page's, or a topic's synthesis)."""
     up = shown(conn, page_id)
     if up is None:
         return []
@@ -197,14 +204,14 @@ def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
 
 
 def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
-    """The pages (not in the trash, still board pages) whose current write-up links
-    to slug."""
+    """The pages (not in the trash, still board pages or topics) whose current
+    write-up links to slug."""
     try:
         return _rows(
             conn,
             "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
             " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
-            f" AND p.deleted_at IS NULL AND {HAS_BOARD.format(p='p')} AND p.slug <> ?"
+            f" AND p.deleted_at IS NULL AND {SHOWN.format(p='p')} AND p.slug <> ?"
             " AND (instr(w.text, '[[' || ? || ']]') > 0"
             "  OR instr(w.text, '[[' || ? || '|') > 0) ORDER BY w.created_at DESC",
             slug, slug, slug,
@@ -216,19 +223,21 @@ def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
 def view(
     conn: sqlite3.Connection, page_id: str, on: bool, stamp: str
 ) -> dict[str, Any] | None:
-    """A page's write-up as the page shows it, None unless it is a board page (one
-    that is no longer keeps its versions, unseen): board (always true), enrich on,
-    the owner's guidance, the state of a write-up queued or being made (its latest
-    write-up or Ask job's), how many versions, and the current one, with links: the
-    slugs of the pages (not in the trash) it links to."""
+    """A page's write-up as the page shows it, None unless it is a board page or a
+    topic (a page that is no longer a board keeps its versions, unseen): board and
+    topic (which it is), enrich on, the owner's guidance, the state of a write-up
+    queued or being made (its latest write-up, topic or Ask job's), how many
+    versions, and the current one, with links: the slugs of the pages (not in the
+    trash) it links to."""
     board = has_board(conn, page_id)
-    if not board:
+    topic = not board and is_topic(conn, page_id)
+    if not (board or topic):
         return None
     up = current(conn, page_id)
     job = conn.execute(
         "SELECT state, reason, last_error,"
         " (SELECT paused_until > ? FROM queue_state) AS paused"
-        " FROM enrich_job WHERE page_id = ? AND reason IN ('writeup', 'ask')"
+        " FROM enrich_job WHERE page_id = ? AND reason IN ('writeup', 'ask', 'topic')"
         " ORDER BY id DESC LIMIT 1",
         (stamp, page_id),
     ).fetchone()
@@ -246,6 +255,7 @@ def view(
              "guidance", "restored_from")  # fmt: skip
     return {
         "board": board,
+        "topic": topic,
         "on": on,
         "guidance": guidance(conn, page_id),
         "state": state,

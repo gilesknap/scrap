@@ -9,15 +9,19 @@ from typing import Any
 
 from .. import actions, claude
 from ..query import CONTROL
-from ..store import MAX_TAG, WIKI_LINK, now
+from ..store import MAX_TAG, WIKI_LINK, now, topics
 from ..store.constants import MD_LINK
 from .constants import (
     MAX_INVENTED,
     MAX_NEW_TAGS,
+    MAX_NEW_TOPICS,
     MAX_RELATED,
     MAX_SUMMARY,
     MAX_TITLE,
+    MAX_TOPIC_SOURCES,
+    MAX_TOPIC_TITLE,
     MAX_WRITEUP,
+    MIN_SOURCES,
 )
 
 # Control characters but tab and line feed (a write-up is Markdown, in lines)
@@ -146,13 +150,65 @@ def checked_writeup(out: dict[str, Any], slugs: Sequence[str]) -> dict[str, str]
     return {"summary": summary, "text": unicodedata.normalize("NFC", text)}
 
 
+def numbers(raw: Any, most: int) -> list[int]:
+    """The distinct numbers 1 to most in raw (a list), in order; [] if not a list."""
+    out: list[int] = []
+    for n in raw if isinstance(raw, list) else []:
+        if type(n) is int and 1 <= n <= most and n not in out:
+            out.append(n)
+    return out
+
+
+def checked_topics(
+    out: dict[str, Any], n_pages: int, n_topics: int, taken: set[str]
+) -> dict[str, Any]:
+    """Topic discovery's output within bounds: new, at most MAX_NEW_TOPICS topics,
+    each a title (one line), a key (topics.topic_key of the model's, else of the
+    title) not taken (by a topic, in the trash too) nor given twice, and at least
+    MIN_SOURCES distinct index numbers (at most MAX_TOPIC_SOURCES); add, each an
+    existing topic's number with its new sources' numbers, once a topic. ValueError
+    if it is not an answer at all."""
+    if not isinstance(out.get("new"), list) or not isinstance(out.get("add"), list):
+        raise ValueError("output lacks new or add")
+    new: list[dict[str, Any]] = []
+    keys = set(taken)
+    for t in out["new"]:
+        if not isinstance(t, dict) or len(new) >= MAX_NEW_TOPICS:
+            continue
+        title, raw = t.get("title"), t.get("key")
+        title = title if isinstance(title, str) else ""
+        title = " ".join(CONTROL.sub(" ", title).split())[:MAX_TOPIC_TITLE]
+        raw = raw if isinstance(raw, str) else ""
+        key = topics.topic_key(raw) or topics.topic_key(title)
+        sources = numbers(t.get("sources"), n_pages)[:MAX_TOPIC_SOURCES]
+        if title and key and key not in keys and len(sources) >= MIN_SOURCES:
+            keys.add(key)
+            new.append({"title": title, "key": key, "sources": sources})
+    add: dict[int, list[int]] = {}
+    for a in out["add"]:
+        if not isinstance(a, dict):
+            continue
+        topic = a.get("topic")
+        if type(topic) is not int or not 1 <= topic <= n_topics:
+            continue
+        got = add.setdefault(topic, [])
+        got += [n for n in numbers(a.get("sources"), n_pages) if n not in got]
+        del got[MAX_TOPIC_SOURCES:]
+    return {
+        "new": new,
+        "add": [{"topic": t, "sources": s} for t, s in add.items() if s],
+    }
+
+
 def record(
     conn: sqlite3.Connection,
     run_id: int,
     done: claude.Completion | None,
+    table: str = "enrich_run",
     **fields: Any,
 ) -> None:
-    """Finish an enrich_run row: its outcome, and the response, usage and cost."""
+    """Finish an enrich_run row (or a topic_run's: table): its outcome, and the
+    response, usage and cost."""
     if done is not None:
         fields.update(
             served_model=done.served_model,
@@ -164,6 +220,4 @@ def record(
         )
     fields["finished_at"] = now()
     names = ", ".join(f"{k} = ?" for k in fields)
-    conn.execute(
-        f"UPDATE enrich_run SET {names} WHERE id = ?", (*fields.values(), run_id)
-    )
+    conn.execute(f"UPDATE {table} SET {names} WHERE id = ?", (*fields.values(), run_id))

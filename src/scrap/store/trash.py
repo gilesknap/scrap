@@ -6,6 +6,7 @@ from .core import Core
 from .db import _rows
 from .errors import NoSuchPage
 from .helpers import now
+from .topics import touch
 
 
 class TrashMixin(Core):
@@ -40,5 +41,10 @@ class TrashMixin(Core):
                 f" AND deleted_at IS {'NOT' if undo else ''} NULL",
                 (None if undo else now(), key, key),
             )
+            if cur.rowcount and undo:  # back: its topics are due again (#261)
+                row = conn.execute(
+                    "SELECT id FROM page WHERE id = ? OR slug = ?", (key, key)
+                ).fetchone()
+                touch(conn, row[0], now())
         if cur.rowcount == 0:
             raise NoSuchPage(key)

@@ -261,6 +261,26 @@ def test_related_timer_runs_in_the_service_container_once_a_night():
     assert "OnCalendar=*-*-* 03:41:00" in timer
 
 
+def test_install_copies_and_gates_the_topics_timer(tmp_path):
+    _install(tmp_path)  # no image: it stops before enabling timers
+    units = tmp_path / "home" / ".config" / "systemd" / "user"
+    for name in ("scrap-enrich-topics.service", "scrap-enrich-topics.timer"):
+        assert (units / name).read_text() == (DEPLOY / name).read_text()
+    script = (DEPLOY / "install.sh").read_text()
+    assert "enrich --help 2>/dev/null | grep -q -- --topics" in script
+    assert "enable --now scrap-enrich-topics.timer" in script
+
+
+def test_topics_timer_runs_in_the_service_container_once_a_week():
+    service = (DEPLOY / "scrap-enrich-topics.service").read_text()
+    timer = (DEPLOY / "scrap-enrich-topics.timer").read_text()
+    assert "ExecStart=/usr/bin/podman exec scrap scrap enrich --topics" in service
+    assert "Type=oneshot" in service and "Restart=" not in service
+    assert "Requisite=scrap.service" in service
+    assert "OnCalendar=Sun *-*-* 04:11:00" in timer
+    assert "RandomizedDelaySec=15min" in timer
+
+
 def _install_fails(tmp_path, env_file):
     home = tmp_path / "home"
     (home / ".config" / "scrap").mkdir(parents=True)

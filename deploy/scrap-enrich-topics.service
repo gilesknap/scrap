@@ -1,0 +1,16 @@
+# Find topics and queue the syntheses due (`scrap enrich --topics`), in the running
+# scrap container, which holds the Claude key and settings: one discovery call over
+# every page makes new topic pages and adds their sources, then each topic's
+# synthesis that is due is queued for the service's worker. It stops at an ingest
+# queue pause and keeps to the same daily budget (SCRAP_BUDGET_DAY_USD); it fails
+# when it stops there or the discovery call fails. While ingest or enrich is off, or
+# no API key is set, it says so and succeeds. Started by scrap-enrich-topics.timer;
+# installed and enabled by install.sh.
+[Unit]
+Description=scrap topics (weekly)
+After=scrap.service scrap-backup.service
+Requisite=scrap.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec scrap scrap enrich --topics

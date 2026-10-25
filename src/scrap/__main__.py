@@ -4,6 +4,7 @@ import os
 from argparse import ArgumentParser
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 
@@ -137,14 +138,29 @@ def main(args: Sequence[str] | None = None) -> None:
         " page with none (stops at a queue pause or the day's budget)",
     )
     enr.add_argument(
+        "--topics",
+        action="store_true",
+        help="Find topics, here and now (one call over every page: new topics are"
+        " made, sources added), then queue a synthesis for each topic due (the"
+        " weekly pass; stops at a queue pause or the day's budget). With --dry-run"
+        " the call is made and its proposals printed, but nothing is written",
+    )
+    enr.add_argument(
         "--all",
         action="store_true",
         help="With --related: every page, changed or not; with --writeups: every"
-        " board page, written up or not",
+        " board page, written up or not; with --topics: every topic's synthesis",
     )
-    enr.add_argument("--limit", type=int, help="At most this many pages")
     enr.add_argument(
-        "--dry-run", action="store_true", help="Only count them, queue nothing"
+        "--limit",
+        type=int,
+        help="At most this many pages (with --topics: syntheses queued)",
+    )
+    enr.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Only count them, queue nothing (with --topics: the discovery call is"
+        " still made, and paid for)",
     )
     parsed = parser.parse_args(args)
 
@@ -215,19 +231,28 @@ def main(args: Sequence[str] | None = None) -> None:
             from .enrich import backfill, related_pass, writeup_pass
             from .store import enrich_on
 
-            if [parsed.backfill, parsed.related, parsed.writeups].count(True) != 1:
-                parser.error("enrich: say --backfill, --related or --writeups")
+            asked = [parsed.backfill, parsed.related, parsed.writeups, parsed.topics]
+            if asked.count(True) != 1:
+                parser.error(
+                    "enrich: say --backfill, --related, --writeups or --topics"
+                )
             store.migrate()
-            calls = parsed.related or parsed.writeups  # made here, not queued
+            # made here, not queued
+            calls = parsed.related or parsed.writeups or parsed.topics
             if calls and not (
                 enrich_on() and claude_cli.configured()
             ):  # nothing to do, and not a failure (the nightly timer runs anyway)
-                what = "related pages" if parsed.related else "write-ups"
+                what = (
+                    "related pages" if parsed.related
+                    else "write-ups" if parsed.writeups else "topics"
+                )  # fmt: skip
                 print(
                     f"{what}: Claude enrichment is off (needs SCRAP_INGEST=on"
                     " and ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN with"
                     " SCRAP_LLM_BACKEND=cli; SCRAP_ENRICH not off); nothing done"
                 )
+            elif parsed.topics:
+                topics_report(store, parsed.all, parsed.limit, parsed.dry_run)
             elif parsed.writeups:
                 c = writeup_pass(store, None, parsed.all, parsed.limit, parsed.dry_run)
                 if parsed.dry_run:
@@ -263,6 +288,27 @@ def main(args: Sequence[str] | None = None) -> None:
             print(f"exported {backup.export(store, parsed.dir)} pages to {parsed.dir}")
     else:
         parser.print_help()
+
+
+def topics_report(store: Any, every: bool, limit: int | None, dry_run: bool) -> None:
+    """scrap enrich --topics: the pass, and what it found or would make printed."""
+    from .enrich import topics_pass
+
+    c = topics_pass(store, None, every, limit, dry_run)
+    made = "would make" if dry_run else "made"
+    for t in c["new"]:
+        names = "; ".join(s["title"] for s in t["sources"])
+        print(f"{made} topic {t['title']!r} ({t['key']}) from: {names}")
+    for a in c["add"]:
+        names = "; ".join(s["title"] for s in a["sources"])
+        print(f"{'would add' if dry_run else 'added'} to {a['title']!r}: {names}")
+    queued = "would queue" if dry_run else "queued"
+    print(f"topics: {len(c['new'])} new, {len(c['add'])} with new sources;"
+          f" {queued} {c['queued']} syntheses")  # fmt: skip
+    if c["stopped"]:
+        raise SystemExit(f"stopped: the queue is paused ({c['stopped']})")
+    if c["failed"]:
+        raise SystemExit("topic discovery failed (see its topic_run)")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,8 @@ Runs [scrap](https://github.com/gilesknap/scrap) on Kubernetes: one Deployment w
 PersistentVolumeClaim for `/data`, a ClusterIP Service (port 80, container port 8000) and a
 ServiceAccount that mounts no token. On by default, a nightly backup CronJob with its own
 PersistentVolumeClaim (`backup.enabled`), and a nightly `scrap gc` CronJob (`gc.enabled`, default: follows `backup.enabled`); with
-ingest on, a nightly related-pages CronJob too (`enrichRelated.enabled`). An Ingress and a NetworkPolicy are optional.
+ingest on, a nightly related-pages CronJob (`enrichRelated.enabled`) and a weekly topics CronJob
+(`enrichTopics.enabled`) too. An Ingress and a NetworkPolicy are optional.
 
 scrap v0 has **no login**: expose it only on a private network such as your tailnet, or behind an
 authenticating proxy.
@@ -82,8 +83,9 @@ also turns on Claude enrichment of text pages.
   leaves your data in place.
 - The gc CronJob (`gc.*`, 04:30) deletes unused files and old run records, and gathers photos no
   page shows any more onto a monthly "Orphaned assets" todo page, only after a recent backup;
-  the related-pages CronJob (`enrichRelated.*`, 03:41) exists while ingest is on. Both
-  run beside the scrap pod. See the guide below.
+  the related-pages CronJob (`enrichRelated.*`, 03:41) and the topics CronJob
+  (`enrichTopics.*`, Sundays 04:11) exist while ingest is on. All three run beside the scrap
+  pod. See the guide below.
 - The backup CronJob runs at `30 3 * * *` by default, keeps the newest 7 runs on a 20Gi claim and
   is a local copy only: copy it off the cluster as well. A monthly CronJob (`backup.monthly.*`,
   `50 3 1 * *`) adds a full copy on the 1st into the claim's `monthly/` folder and keeps the newest

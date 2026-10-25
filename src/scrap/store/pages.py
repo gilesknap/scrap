@@ -46,6 +46,8 @@ from .helpers import (
     too_big,
 )
 from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .topics import is_topic, key_of, of_page
+from .topics import sources as topic_sources
 from .writeups import backlinks as writeup_backlinks
 from .writeups import links as writeup_links
 from .writeups import view as writeup_view
@@ -297,9 +299,12 @@ class PagesMixin(Core):
         """What Claude added to a page apart from its text: model_tags (the page's
         tags Claude added), related (Claude's picks, pages that picked this one,
         pages linking here with [[slug]], and pages its write-up links to or whose
-        write-up links here, each once, with via: claude, link or both, or writeup),
-        enrich (its job's state and the summary), None if never asked and off, and
-        writeup (a board page's write-up, writeups.view)."""
+        write-up links here, each once, with via: claude, link or both, writeup, or
+        topic for a topic's synthesis citing a page, either way), enrich (its job's
+        state and the summary), None if never asked and off, writeup (a board page's
+        write-up or a topic's synthesis, writeups.view), topics (the topics it is a
+        source of: id, slug, title) and topic (None, or for a topic page its key and
+        its sources, those the owner excluded too)."""
         model_tags = [r[0] for r in conn.execute(
             "SELECT m.tag FROM model_tag m JOIN tag t USING (page_id, tag)"
             " WHERE m.page_id = ? AND m.state = 'on'", (page_id,),
@@ -320,8 +325,12 @@ class PagesMixin(Core):
                 related[b["id"]]["via"] = "both"
             else:
                 related[b["id"]] = {**b, "via": "link"}
-        for w in writeup_links(conn, page_id) + writeup_backlinks(conn, slug):
-            related.setdefault(w["id"], {**w, "via": "writeup"})
+        topic = is_topic(conn, page_id)
+        for w in writeup_links(conn, page_id):
+            related.setdefault(w["id"], {**w, "via": "topic" if topic else "writeup"})
+        for w in writeup_backlinks(conn, slug):
+            via = "topic" if is_topic(conn, w["id"]) else "writeup"
+            related.setdefault(w["id"], {**w, "via": via})
         job = conn.execute(
             "SELECT state, last_error, reason,"
             " (SELECT paused_until > :now FROM queue_state) AS paused,"
@@ -355,7 +364,12 @@ class PagesMixin(Core):
             }
         return {"model_tags": model_tags, "related": list(related.values()),
                 "enrich": enrich,
-                "writeup": writeup_view(conn, page_id, enrich_on(), now())}  # fmt: skip
+                "writeup": writeup_view(conn, page_id, enrich_on(), now()),
+                "topics": of_page(conn, page_id),
+                "topic": {
+                    "key": key_of(conn, page_id),
+                    "sources": topic_sources(conn, page_id, excluded=True),
+                } if topic else None}  # fmt: skip
 
     def removed(self, conn: sqlite3.Connection, page_id: str, body: str) -> set[str]:
         """The files an earlier revision of a page's text referred to and its text no

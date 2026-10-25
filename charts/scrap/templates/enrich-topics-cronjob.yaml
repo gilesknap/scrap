@@ -1,0 +1,68 @@
+{{- /* The weekly topics pass needs Claude, so it exists only with ingest on. */ -}}
+{{- if and .Values.enrichTopics.enabled .Values.ingest.enabled }}
+{{- $suffix := "-enrich-topics" }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "scrap.cronName" (dict "ctx" . "suffix" $suffix) }}
+  labels:
+    {{- include "scrap.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.enrichTopics.schedule | quote }}
+  {{- with .Values.enrichTopics.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      # One discovery call, then the syntheses are queued for the scrap pod: allow
+      # it up to an hour.
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "scrap.cronLabel" (dict "ctx" . "suffix" $suffix) }}
+            app.kubernetes.io/instance: {{ .Release.Name }}
+        spec:
+          {{- include "scrap.podCommon" . | nindent 10 }}
+          restartPolicy: Never
+          # The data claim is ReadWriteOnce, and SQLite needs the server's host:
+          # run beside the scrap pod.
+          affinity:
+            {{- include "scrap.sameNodeAffinity" . | nindent 12 }}
+          containers:
+            - name: enrich-topics
+              image: {{ include "scrap.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              # Like `scrap enrich --topics` in the running pod on the single
+              # server (deploy/scrap-enrich-topics.service): it stops at a paused
+              # ingest queue and keeps to the same daily budget. It has the
+              # Deployment's settings and key, so it behaves the same.
+              args: ["enrich", "--topics"]
+              env:
+                {{- include "scrap.appEnv" . | nindent 16 }}
+              {{- with .Values.extraEnvFrom }}
+              envFrom:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              resources:
+                {{- toYaml .Values.enrichTopics.resources | nindent 16 }}
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "scrap.dataClaim" . }}
+            - name: tmp
+              emptyDir:
+                sizeLimit: 1Gi
+{{- end }}

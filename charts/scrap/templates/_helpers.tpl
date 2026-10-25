@@ -92,7 +92,7 @@ podAffinity:
 {{- end }}
 
 {{/* The app's own settings, as the Deployment sets them. A CronJob that runs a
-scrap command which calls Claude (enrich --related) needs the same. */}}
+scrap command which calls Claude (enrich --related, --topics) needs the same. */}}
 {{- define "scrap.appEnv" -}}
 - name: SCRAP_DATA_DIR
   value: /data

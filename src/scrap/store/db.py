@@ -14,6 +14,7 @@ from .fixes import (
     add_related_reason,
     add_snooze,
     add_tasks,
+    add_topics,
     add_writeups,
     fix_tag_paths,
     move_todo_fields,
@@ -94,4 +95,5 @@ AFTER = {
     10: fix_tag_paths,
     11: add_related_reason,
     12: add_writeups,
+    13: add_topics,
 }  # fmt: skip

@@ -162,7 +162,8 @@ cmp -s "$here/scrap-run" "$lib/scrap-run" || : >"$pending"
 cp "$here/scrap-backup" "$here/scrap-gc" "$here/scrap-run" "$lib/"
 cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" \
     "$here/scrap-gc.service" "$here/scrap-gc.timer" \
-    "$here/scrap-enrich-related.service" "$here/scrap-enrich-related.timer" "$units/"
+    "$here/scrap-enrich-related.service" "$here/scrap-enrich-related.timer" \
+    "$here/scrap-enrich-topics.service" "$here/scrap-enrich-topics.timer" "$units/"
 systemctl --user daemon-reload
 # A scrap that failed too often is held by the unit's start limit, which
 # refuses the restart and enable --now below until it is cleared.
@@ -250,6 +251,15 @@ else
     systemctl --user disable --now scrap-enrich-related.timer 2>/dev/null || true
     echo "Note: $image has no 'scrap enrich --related' command, so the nightly" >&2
     echo "related-pages timer is NOT enabled. Re-run this script after updating the image." >&2
+fi
+# The weekly topics timer needs an image with `scrap enrich --topics`; it also
+# does nothing (and succeeds) while ingest is off or no key is set.
+if "$podman" run --rm "$image" enrich --help 2>/dev/null | grep -q -- --topics; then
+    systemctl --user enable --now scrap-enrich-topics.timer
+else
+    systemctl --user disable --now scrap-enrich-topics.timer 2>/dev/null || true
+    echo "Note: $image has no 'scrap enrich --topics' command, so the weekly" >&2
+    echo "topics timer is NOT enabled. Re-run this script after updating the image." >&2
 fi
 [ -n "$started" ] || exit 1
 echo "scrap is running on $listen: try $here/smoke.sh"

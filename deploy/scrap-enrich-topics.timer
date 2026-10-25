@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly scrap topics, after the backup and the related pages
+
+[Timer]
+OnCalendar=Sun *-*-* 04:11:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

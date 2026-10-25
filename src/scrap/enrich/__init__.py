@@ -12,7 +12,10 @@ model_tag, related) and the user wins: a tag the user took off never comes back,
 their tags are never removed, a title is replaced only while it is still the link as
 captured, the kind only while it is an unfixed note. A board page (a whiteboard or
 diagram photo) gets Claude's write-up instead (write_up, #256): a versioned explanation
-kept apart from the text, steered by the owner's guidance (writeup_ops). Jobs run on
+kept apart from the text, steered by the owner's guidance (writeup_ops). Topic pages
+(#261): a weekly discovery call over the whole library makes topics and adds their
+sources (topic_finding, scrap enrich --topics), and each topic's synthesis of its
+sources is its write-up (synthesis, an enrich job of reason topic). Jobs run on
 the ingest worker's thread; everything shares its queue pause and daily budget. See
 docs/explanations/ingest.md.
 """
@@ -20,6 +23,7 @@ docs/explanations/ingest.md.
 from .checking import (
     checked,
     checked_related,
+    checked_topics,
     checked_writeup,
     cited,
     clean_tag,
@@ -32,6 +36,7 @@ from .constants import (
     CLAIM,
     DELIMITER,
     DELIMITERS,
+    DISCOVERY_SCHEMA,
     IMAGES,
     MAX_BOARDS,
     MAX_BODY,
@@ -40,6 +45,7 @@ from .constants import (
     MAX_IMAGES,
     MAX_INVENTED,
     MAX_NEW_TAGS,
+    MAX_NEW_TOPICS,
     MAX_RELATED,
     MAX_SUMMARY,
     MAX_TITLE,
@@ -55,6 +61,11 @@ from .constants import (
     SHORT,
     STALE,
     TITLE_CAS,
+    TOPIC_DUE,
+    TOPIC_INDEX,
+    TOPIC_INPUT,
+    TOPIC_SCHEMA,
+    TOPIC_SOURCE,
     WORD,
     WRITEUP_BODY,
     WRITEUP_IMAGES,
@@ -94,6 +105,27 @@ from .relating import (
     related_pass,
     run_pass,
 )
+from .synthesis import (
+    synthesise,
+)
+from .topic_finding import (
+    discover,
+    page_index,
+    topics_pass,
+)
+from .topic_ops import (
+    exclude,
+)
+from .topic_ops import (
+    index as topic_index,
+)
+from .topic_ops import (
+    sources as topic_sources,
+)
+from .topic_prompts import (
+    discovery_message,
+    topic_message,
+)
 from .types import (
     Call,
     Fetch,
@@ -112,6 +144,23 @@ from .writing import (
 
 __all__ = [
     "Enricher",
+    "DISCOVERY_SCHEMA",
+    "MAX_NEW_TOPICS",
+    "TOPIC_DUE",
+    "TOPIC_INDEX",
+    "TOPIC_INPUT",
+    "TOPIC_SCHEMA",
+    "TOPIC_SOURCE",
+    "checked_topics",
+    "discover",
+    "discovery_message",
+    "exclude",
+    "page_index",
+    "synthesise",
+    "topic_index",
+    "topic_message",
+    "topic_sources",
+    "topics_pass",
     "SCHEMA",
     "RELATED_SCHEMA",
     "backfill",
