@@ -689,6 +689,20 @@ it is younger than `--run-days` (default 30, at least 1). Counts are in the repo
 removes the rest. A deleted model run no longer keeps the JPEG it sent, which the next gc finds
 unused.
 
+**Files no page shows are gathered, not deleted.** gc never deletes a file of a capture (a photo,
+a PDF). When you delete the last embed or link of one from a page's text, the next `scrap gc
+--delete` (once the grace period has passed since that edit) appends it to the month's review
+page, a todo titled *Orphaned assets YYYY-MM*, due 7 days after gc made it. Each item is the
+image (or a link to the file), the page it was last shown on and when, and Claude's description
+if there is one; its drawing and Claude's results stay with the file. To keep an item, cut it into
+another page. Once you have looked through the page, delete it (its files go to the trash with
+it) or tick it done; later orphans that month then start a new page, and an item you cut out and
+pasted nowhere is not gathered again. Later orphans are appended to the open page without moving
+its due date. A file still shown by another page, by a page in the trash, or listed below a page
+that never embedded it (an older photo, a PDF) is not an orphan. Nothing records what was
+gathered beyond the pages' text, so running gc twice adds nothing twice. The dry run counts what
+it would gather.
+
 **Deleting is not erasing.** A trashed page keeps its text, its revisions, its captures, what
 Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
 no disk space and removes none of its content from the data folder or from your backups. There is

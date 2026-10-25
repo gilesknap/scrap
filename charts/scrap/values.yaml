@@ -32,7 +32,8 @@ ingest:
   # Key in that Secret holding the Claude API key (becomes ANTHROPIC_API_KEY).
   apiKeyKey: ANTHROPIC_API_KEY
   # Optional key in the same Secret holding SCRAP_NOTIFY_URL (e.g. an ntfy topic
-  # URL, which is itself a secret). Empty: no notifications.
+  # URL, which is itself a secret): ingest pauses, and the gc job starting a month's
+  # Orphaned assets page. Empty: no notifications.
   notifyUrlKey: ""
   # SCRAP_VISION_MODEL; empty uses the app's default.
   visionModel: ""
@@ -112,7 +113,9 @@ backup:
       memory: 512Mi
 
 # A CronJob running `scrap gc`: it deletes the stored files nothing uses and the
-# model/enrich run records past retention, as the single-server deploy does nightly.
+# model/enrich run records past retention, and gathers the files of captures no page
+# shows any more onto the month's "Orphaned assets" todo page for review (never
+# deleting them), as the single-server deploy does nightly.
 # Like deploy/scrap-gc it deletes only when the backup claim holds a completed backup run
 # (with its COMPLETE marker) less than 26 hours old; otherwise it only counts and the Job fails, so a missing backup
 # shows. It runs an hour after the backup (and takes the backup's lock, so never
@@ -125,9 +128,9 @@ gc:
   schedule: "30 4 * * *"
   timeZone: ""
   # The switch for deleting. Off, or with graceHours 0 (no grace period), the Job only
-  # counts what it would delete (a dry run: see its log) and succeeds. Deletion is
-  # permanent: gc removes unreferenced files and, past runDays, the stored prompts and
-  # raw responses of Claude calls, and nothing is kept aside (issue #124).
+  # counts what it would delete and gather (a dry run: see its log) and succeeds.
+  # Deletion is permanent: gc removes unreferenced files (never a capture's: those it
+  # gathers) and, past runDays, the stored prompts and raw responses of Claude calls.
   delete: true
   # Keep files younger than this, used or not: an upload may be on its way.
   graceHours: 24

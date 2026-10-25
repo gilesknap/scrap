@@ -72,10 +72,13 @@ def main(args: Sequence[str] | None = None) -> None:
         "gc",
         parents=[common],
         help="Find the stored files nothing uses any more (no page, trashed ones too,"
-        " capture, Claude result or model run); a dry run unless --delete",
+        " capture, Claude result or model run), and gather capture files no page shows"
+        " onto the month's Orphaned assets page; a dry run unless --delete",
     )
     gc.add_argument(
-        "--delete", action="store_true", help="Delete them (default: only count them)"
+        "--delete",
+        action="store_true",
+        help="Delete them and gather the orphans (default: only count them)",
     )
     gc.add_argument(
         "--dry-run",

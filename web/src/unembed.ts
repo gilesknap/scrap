@@ -1,7 +1,7 @@
 // Save's warning when an edit deletes the embed of a stored image: the page shows its images
 // only where its text embeds them, so the image goes from the page with its line. Part of the
-// editor's chunk. The file itself (and what Claude made of it) is kept while anything still
-// uses it: another page, or this page's capture (see scrap gc).
+// editor's chunk. The file itself (and what Claude made of it) is never deleted: scrap gc
+// gathers one no page shows any more onto the month's review page (#124).
 import { ApiError, api, type Page } from "./api";
 
 // A file's address in text, as the server's store.body_refs reads it: any mention counts
@@ -46,7 +46,7 @@ export async function removalWarning(p: Page, before: string, after: string) {
     `Saving removes ${n === 1 ? "an image" : `${n} images`} from this page, because you deleted ${n === 1 ? "its line" : "their lines"}:`,
     ...shown,
     "",
-    "This doesn't delete the stored file: a photo stays with its capture, and scrap gc deletes a file only once nothing uses it.",
+    "This doesn't delete the stored file: if no page shows it any more, the nightly scrap gc gathers it onto this month's Orphaned assets page for you to review.",
     "",
     "Save anyway? Cancel to keep editing.",
   ].join("\n");

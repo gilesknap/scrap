@@ -27,6 +27,9 @@ kept while anything refers to it, while it is the latest for its page (or photo)
 while it is younger than ``RUN_DAYS``. Deleting a ``model_run`` frees the JPEG it sent,
 which the next gc then finds unused.
 
+Files of captures are never deleted: one no page shows any more (an orphan) is gathered
+onto the month's review page instead, with --delete (see :mod:`scrap.orphans`, #124).
+
 Backups are untouched: each backup run holds its own copy of every file its database
 refers to.
 """
@@ -40,7 +43,16 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from .store import SHA256, Store, body_refs, schema_version, transaction
+from . import orphans
+from .store import (
+    SHA256,
+    ConflictError,
+    InvalidError,
+    Store,
+    body_refs,
+    schema_version,
+    transaction,
+)
 
 __all__ = [
     "GRACE_HOURS",
@@ -98,6 +110,8 @@ class Report:
     restored: int = 0  # left aside by a run that stopped mid-delete: put back
     model_runs: int = 0  # model_run rows past retention (deleted, with --delete)
     enrich_runs: int = 0  # enrich_run rows past retention
+    orphans: int = 0  # capture files no page shows: gathered (with --delete)
+    orphan_title: str = ""  # the month's review page they go on
     deleted: bool = False
     shas: list[str] = field(default_factory=list)  # for tests; not printed
 
@@ -111,6 +125,8 @@ class Report:
             + (f" and {self.kept} used again meanwhile" if self.kept else "")
             + f"; {self.model_runs} model runs and {self.enrich_runs} enrich runs"
             f" older than the retention"
+            + f"; {'gathered' if self.deleted else 'would gather'} {self.orphans}"
+            f" orphaned files onto {self.orphan_title}"
             + (
                 f"; put back {self.restored} files an earlier run left aside"
                 if self.restored
@@ -321,7 +337,9 @@ def _collect(
     _between: Iterable[None],
 ) -> Report:
     cutoff = time.time() - grace_hours * 3600
-    report = Report()
+    stamp = datetime.fromtimestamp(cutoff, UTC).isoformat(timespec="milliseconds")
+    stamp = stamp.replace("+00:00", "Z")
+    report = Report(orphan_title=orphans.TITLE.format(month=f"{orphans.clock():%Y-%m}"))
     try:
         schema_version(store.db)  # refuses a database newer than this scrap
         if not store.files.is_dir():
@@ -333,9 +351,18 @@ def _collect(
                 f"cannot put back a file left aside by an earlier run, so nothing"
                 f" was deleted: {error}"
             ) from None
+        if delete:  # first, so a file gathered now is in use below
+            try:
+                report.orphans = orphans.gather(store, stamp).count
+            except (ConflictError, InvalidError, sqlite3.Error) as error:
+                raise GcError(
+                    f"cannot gather the orphaned files, so nothing was deleted: {error}"
+                ) from None
         with store.connect() as conn:
             conn.execute("BEGIN")  # one consistent snapshot of every reference
             try:
+                if not delete:
+                    report.orphans = len(orphans.find(conn, stamp))
                 used = in_use(conn)
                 rows = dict(conn.execute("SELECT sha256, created_at FROM blob"))
                 report.model_runs, report.enrich_runs = prune_runs(conn, run_days)

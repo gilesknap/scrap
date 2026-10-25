@@ -83,6 +83,16 @@ spec:
                   value: /data
                 - name: SCRAP_BACKUPS
                   value: /backups
+                {{- if .Values.ingest.enabled }}
+                {{- with .Values.ingest.notifyUrlKey }}
+                # A push when gc starts a month's Orphaned assets page.
+                - name: SCRAP_NOTIFY_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.ingest.existingSecret }}
+                      key: {{ . }}
+                {{- end }}
+                {{- end }}
               securityContext:
                 {{- toYaml .Values.securityContext | nindent 16 }}
               resources:

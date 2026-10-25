@@ -54,6 +54,8 @@ it("names the image whose line went", async () => {
   expect(w).toContain("Saving removes an image from this page, because you deleted its line:");
   expect(w).toContain("• IMG_1.jpg: no longer shown on any page");
   expect(w).not.toContain(B.slice(0, 8));
+  // Kept: gathered onto the month's review page, not deleted (#124)
+  expect(w).toContain("the nightly scrap gc gathers it onto this month's Orphaned assets page");
 });
 
 it("counts each image and falls back to its alt text, then its start", async () => {
