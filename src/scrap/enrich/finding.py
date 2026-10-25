@@ -105,7 +105,7 @@ def candidates(
             " (SELECT group_concat(tag, '\x1f') FROM tag WHERE page_id = p.id) AS tags"
             " FROM page p LEFT JOIN enrichment e ON e.page_id = p.id"
             " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
-            f" AND {writeups.HAS_BOARD.format(p='p')}"
+            f" AND {writeups.SHOWN.format(p='p')}"
             " WHERE p.id IN (SELECT value FROM json_each(?))",
             (json.dumps(order),),
         )

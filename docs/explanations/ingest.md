@@ -399,11 +399,16 @@ Only when ingest is on and only to the Claude API:
   sent), what was read from them (at most 12,000 characters), the page's kind, title, tags and
   text as plain words (at most 6,000 characters), the owner's guidance, if any, and the same index
   of candidate pages as the related call.
+- **Topic discovery:** an index of every page (at most 2,000): each a title, up to 6 tags and a
+  summary cut to 150 characters, and the topics with their sources' numbers.
+- **A topic's synthesis:** for each of its sources (at most 40), its title, kind, tags, summary,
+  Claude's write-up, what was read from its images and its text as plain words (at most 6,000
+  characters a source, 60,000 in all), and the topic page's own text and guidance.
 
 Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and `SCRAP_NOTIFY_URL`, which gets a fixed line with the
 pause reason. Everything sent is kept in the
-database in `model_run` and `enrich_run` (photos as references to the stored JPEG), so it is
+database in `model_run`, `enrich_run` and `topic_run` (photos as references to the stored JPEG), so it is
 covered by the same backups as the pages.
 
 (ingest-enrich)=
@@ -585,6 +590,53 @@ the page's text.
   10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens (thinking included), roughly
   $0.06 to $0.20 a board at Opus prices, counted in the daily budget.
 
+(ingest-topics)=
+### Topic pages
+
+`enrich.topics_pass` and `enrich.synthesise`, prompts `prompts/topic-discovery.md` and
+`prompts/topic.md` ([](decisions/0028-claude-maintained-topic-pages.md)). A topic page gathers
+what several pages say about one recurring thing (a tool, a project, a concept). It is a real
+page, of kind `reference`, marked as a topic in the `topic` table; its body is the owner's notes
+on the topic (empty at first) and Claude never writes there. Claude's synthesis of its sources is
+its write-up ({ref}`ingest-writeup`): versions, guidance, Regenerate and Restore work the same.
+
+- **Discovery** (`scrap enrich --topics`, weekly, beside the related pass). One call,
+  `SCRAP_VISION_MODEL`, effort `medium`, `max_tokens` 16000, structured output (`new`, `add`). The
+  user turn has an `<index>` of every page not in the trash and not a topic (at most 2,000, the
+  most recently changed), one line each: its number, title, up to 6 tags and a summary cut to 150
+  characters; the existing topics in a `<topics>` block, each with its key and the numbers of its
+  sources; and the keys of the topics in the trash, as rejected. It returns new topics (a title, a
+  key and the numbers of their sources: at least 3, or 2 where it is central to both; scrap keeps
+  those with 2 or more) and new sources for existing topics, by number only, so it cannot name a
+  page that is not there. At most 5 new topics a pass. A new topic is made at once, with no
+  approval step: its page (title as given, slug from it), its key (lower case, words joined by
+  `-`, unique), and its sources. The run is a `topic_run` (it is of no one page), counted in the
+  daily budget; the pass stops at a queue pause or the day's budget, as the related pass does.
+- **The veto.** A topic in the trash keeps its key, so it is never made again, and the call is
+  told it was rejected. A source the owner took out (`DELETE
+  /api/pages/{id}/topic/sources/{source}`) stays in `topic_source` as excluded, so it is never
+  added again.
+- **Synthesis.** An enrich job of reason `topic`, run by the service's worker. The pass queues one
+  for each topic due: one with none, of another prompt version, or older than the topic page's
+  own last change (its title or notes), a source added or excluded, or a source's last edit,
+  trash, summary, write-up or photo reading. Taking a source out queues one at once; so does
+  Regenerate (`POST /api/pages/{id}/writeup`) and Ask Claude on the topic page. One Opus call
+  (as the write-up's) sees each source in a `<source>` block, numbered (at most 40, first added
+  first): its title, kind and tags, then its summary, Claude's write-up of it, what was read from
+  its images and its text, as much as fits in 6,000 characters a source and 60,000 in all; the
+  owner's notes in a `<notes>` block (at most 4,000) and guidance in a `<guidance>` block. It
+  returns a one-line `summary` and Markdown `text`: Overview, Key facts (each citing its sources),
+  How the sources relate, Contradictions and open questions. Its citations `[[n]]` are made
+  `[[slug]]` links to the sources and nothing else links, exactly as for a write-up.
+- **Where it shows.** Its summary is the topic page's model summary, its text is indexed for
+  search, and a matching topic page comes first in search (`is:topic` lists them). Its citations
+  show in Related both ways (`via: topic`). A source page lists its topics (`topics` in the page
+  object), and the topic page its sources (`topic.sources`). `GET /api/topics` and the MCP
+  `topics` tool give the index, grouped by area (the top-level tag most common among a topic's
+  sources), with no model call.
+- **Cost.** Discovery is about 40 tokens a page in, roughly $0.30 a week for 1,000 pages at Opus
+  prices; a synthesis roughly $0.10 to $0.30.
+
 (ingest-fetch)=
 ### Fetching a link
 
@@ -730,6 +782,7 @@ holds what you sent to Claude, and your backups do too.
 | `scrap enrich --backfill` | Queue the notes, todos and reads with no tags that Claude has not read; the service's worker runs them |
 | `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
 | `scrap enrich --writeups [--all]` | Write Claude's write-up now, in the command's process, for each board page with none (`--all`: every board page) |
+| `scrap enrich --topics [--all]` | Find topics now, in the command's process (the weekly pass), then queue each topic's synthesis that is due (`--all`: every topic's) for the service's worker |
 | `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
 
 The full option lists are in [](../reference/api.md). A large import with `--ingest` queues one

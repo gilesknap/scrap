@@ -31,9 +31,52 @@ WRITEUP_SCHEMA: dict[str, Any] = {
     "required": ["summary", "text"],
     "properties": {"summary": {"type": "string"}, "text": {"type": "string"}},
 }
+# A topic's synthesis (#261): as a write-up, a lead and Markdown sections (its own
+# object, so the prompt's version and a test's fake can tell the calls apart)
+TOPIC_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "text"],
+    "properties": {"summary": {"type": "string"}, "text": {"type": "string"}},
+}
+_NUMBERS = {"type": "array", "items": {"type": "integer"}}
+# Topic discovery (#261): new topics, each a title, a key and its sources by number;
+# and new sources for existing topics, by their numbers
+DISCOVERY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["new", "add"],
+    "properties": {
+        "new": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["title", "key", "sources"],
+                "properties": {
+                    "title": {"type": "string"},
+                    "key": {"type": "string"},
+                    "sources": _NUMBERS,
+                },
+            },
+        },
+        "add": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["topic", "sources"],
+                "properties": {"topic": {"type": "integer"}, "sources": _NUMBERS},
+            },
+        },
+    },
+}
 # The tags that mark quoted data in a user turn, and one of them, opening or closing,
 # in the data itself (any case, with spaces: < / Page >), to be neutralised
-DELIMITERS = ("page", "images", "fetched", "guidance", "writeup")
+DELIMITERS = (
+    "page", "images", "fetched", "guidance", "writeup", "source", "notes", "index",
+    "topics",
+)  # fmt: skip
 DELIMITER = re.compile(
     r"<(?=\s*/?\s*(?:" + "|".join(DELIMITERS) + r")\b)", re.IGNORECASE
 )
@@ -48,6 +91,14 @@ WRITEUP_BODY = 6_000  # characters of the page's own text a write-up call is sen
 WRITEUP_IMAGES = 12_000  # and of what was read from its board images
 MAX_WRITEUP = 20_000  # characters of a write-up kept
 MAX_GUIDANCE = 2_000  # characters of the owner's guidance for one
+TOPIC_INPUT = 60_000  # characters of a synthesis call's sources in all
+TOPIC_SOURCE = 6_000  # and of one source, at most
+TOPIC_NOTES = 4_000  # characters of the topic page's own text (the owner's notes)
+MAX_TOPIC_SOURCES = 40  # sources a synthesis is sent (first added first)
+TOPIC_INDEX = 2_000  # pages in a discovery call's index (~40 tokens each), newest
+MAX_NEW_TOPICS = 5  # new topics a discovery pass makes at most
+MIN_SOURCES = 2  # a new topic's sources at least (the prompt asks for 3, or 2)
+MAX_TOPIC_TITLE = 120  # characters
 MAX_NEW_TAGS = 5  # Claude's tags added to a page at most
 MAX_INVENTED = 2  # of which at most this many not already in use
 MAX_RELATED = 5
@@ -126,4 +177,32 @@ SELECT p.id FROM page p WHERE p.deleted_at IS NULL
   AND {writeups.HAS_BOARD.format(p="p")}
   AND (:all OR NOT EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = p.id))
 ORDER BY p.created_at LIMIT :limit
+"""
+# Topic pages (not in the trash, with a source in) whose synthesis is due, none
+# queued or running: every one with :all, else one with none, or of another prompt
+# version, or older than the latest change to its inputs: the topic page itself (its
+# title or the owner's notes), a source added or excluded, or a source's text, trash,
+# summary, write-up or what photo ingest read from it. Those with none first.
+TOPIC_DUE = """
+SELECT p.id FROM topic t JOIN page p ON p.id = t.page_id
+LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL
+WHERE p.deleted_at IS NULL
+  AND EXISTS (SELECT 1 FROM topic_source s JOIN page q ON q.id = s.page_id
+              WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)
+  AND NOT EXISTS (SELECT 1 FROM enrich_job j WHERE j.page_id = p.id
+                  AND j.state IN ('queued', 'running'))
+  AND (:all OR w.id IS NULL OR w.prompt_version <> :version
+    OR w.created_at < max(p.updated_at, coalesce((
+      SELECT max(CASE WHEN s.excluded THEN s.changed_at ELSE max(
+        s.changed_at, q.updated_at, coalesce(q.deleted_at, ''),
+        coalesce((SELECT e.updated_at FROM enrichment e WHERE e.page_id = q.id), ''),
+        coalesce((SELECT x.created_at FROM writeup x WHERE x.page_id = q.id
+                  AND x.superseded_at IS NULL), ''),
+        coalesce((SELECT max(d.created_at) FROM derived d
+                  JOIN capture c ON c.id = d.capture_id WHERE c.page_id = q.id
+                  AND d.kind IN ('description', 'ocr')
+                  AND d.superseded_at IS NULL), '')) END)
+      FROM topic_source s JOIN page q ON q.id = s.page_id
+      WHERE s.topic_id = p.id), '')))
+ORDER BY w.created_at IS NOT NULL, w.created_at, p.created_at LIMIT :limit
 """

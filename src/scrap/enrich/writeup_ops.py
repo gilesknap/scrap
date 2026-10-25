@@ -1,6 +1,7 @@
-"""Enrich: what the owner does with a board page's write-up (#256): regenerate it,
-steer the next one with guidance, list its versions and restore one. Nobody edits a
-write-up's text: a version is only ever made by Claude, or copied by a restore."""
+"""Enrich: what the owner does with a board page's write-up (#256), or a topic's
+synthesis (#261): regenerate it, steer the next one with guidance, list its versions
+and restore one. Nobody edits a write-up's text: a version is only ever made by
+Claude, or copied by a restore."""
 
 from typing import Any
 
@@ -10,7 +11,9 @@ from ..store import (
     NotFoundError,
     Store,
     now,
+    queue_topic,
     queue_writeup,
+    topics,
     transaction,
     writeups,
 )
@@ -22,13 +25,19 @@ class StaleWriteupError(ConflictError):
 
 
 def regenerate(store: Store, key: str) -> dict[str, Any]:
-    """Queue a board page's write-up again (Regenerate), with the guidance as it is
-    when it runs; the page as it is then. InvalidError if it has no board image."""
+    """Queue a board page's write-up, or a topic's synthesis, again (Regenerate),
+    with the guidance as it is when it runs; the page as it is then. InvalidError if
+    it is neither a topic nor has a board image."""
     with store.connect() as conn, transaction(conn):
         page = store._page_row(conn, key)  # noqa: SLF001  one transaction
-        if not writeups.has_board(conn, page["id"]):
-            raise InvalidError("only a whiteboard or diagram page has a write-up")
-        queue_writeup(conn, page["id"])
+        if topics.is_topic(conn, page["id"]):
+            queue_topic(conn, page["id"])
+        elif writeups.has_board(conn, page["id"]):
+            queue_writeup(conn, page["id"])
+        else:
+            raise InvalidError(
+                "only a whiteboard or diagram page, or a topic, has a write-up"
+            )
         return store.page_in(conn, page["id"])
 
 

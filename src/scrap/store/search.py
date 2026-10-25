@@ -30,6 +30,7 @@ from .constants import (
 from .core import Core
 from .db import _rows
 from .helpers import checked_query, tag_counts, todo_only, unlink
+from .topics import IS_TOPIC
 
 
 class SearchMixin(Core):
@@ -99,7 +100,8 @@ class SearchMixin(Core):
         """Pages matching a query (see scrap.query): every word somewhere in the page
         (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
-        the page's best chunk, title, tag and summary matches weighing most; a query
+        the page's best chunk, title, tag and summary matches weighing most, after
+        any matching topic page (#261: is:topic lists them); a query
         of filters alone lists its pages newest first; sort: orders either its own
         way. offset: skip that many hits (the next page of results)."""
         q = checked_query(query)
@@ -118,8 +120,10 @@ class SearchMixin(Core):
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
                 # First the pages with every word in the title, then those with every
                 # word in the title, tags or summary: bm25 alone lets a short body
-                # that says a word twice beat a long page tagged with it
+                # that says a word twice beat a long page tagged with it. A matching
+                # topic page comes before them all: it gathers the others.
                 every = " AND ".join(q.fts(t) for t in q.positive)
+                topic = IS_TOPIC.format(p="p")
                 tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
                 rows = conn.execute(
                     "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
@@ -128,7 +132,7 @@ class SearchMixin(Core):
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
                     f" WHERE chunk_fts MATCH ? AND {where}"
-                    f" ORDER BY {order}{tier} DESC, {tier} DESC,"
+                    f" ORDER BY {order}{topic} DESC, {tier} DESC, {tier} DESC,"
                     f" bm25(chunk_fts, {WEIGHTS}), c.id",
                     (" OR ".join(q.fts(t) for t in q.positive), *args,
                      f"title : ({every})", f"{{title tags summary}} : ({every})"),
@@ -286,6 +290,8 @@ class SearchMixin(Core):
                     " AND r.rev > 1 AND r.author = ?)"
                 )
                 args.append(CLAUDE)
+            elif f.key == "is" and f.value == "topic":  # Claude's topic pages (#261)
+                sql.append(f"{no}{IS_TOPIC.format(p='p')}")
             elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
                 # An open one: a done or cancelled one's snooze hides nothing (#131)
                 sql.append(

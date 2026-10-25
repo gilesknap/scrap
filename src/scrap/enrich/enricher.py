@@ -17,7 +17,15 @@ from ..ingest import (
     spent_today,
 )
 from ..markdown import plain
-from ..store import MAX_TAGS, Store, fields_for, now, queue_related, transaction
+from ..store import (
+    MAX_TAGS,
+    Store,
+    fields_for,
+    now,
+    queue_related,
+    topics,
+    transaction,
+)
 from .checking import checked, record
 from .constants import (
     CLAIM,
@@ -30,6 +38,7 @@ from .constants import (
 )
 from .prompts import page_images, page_message, system_prompt, vocabulary
 from .relating import relate
+from .synthesis import synthesise
 from .types import Call, Fetch
 from .writing import write_up
 
@@ -169,6 +178,14 @@ class Enricher:
             with self.store.connect() as conn, transaction(conn):
                 self._done(conn, jid)
             return
+        if job["reason"] == "topic":  # a topic's synthesis (#261)
+            error = synthesise(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
+            return
         if job["reason"] == "writeup":  # a board page's write-up (#256)
             error = write_up(self.store, self.call, page_id, jid)
             if error is not None:
@@ -252,12 +269,15 @@ class Enricher:
         if not link and actions.accepted(out["intent"], out["confidence"], items):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
-        if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
-            # A retry (related failed) does not write it up again: done in this job
+        if job["reason"] == "ask":  # Ask Claude: a board's write-up (a topic's
+            # synthesis), related pages too. A retry (related failed) does not write
+            # it up again: done in this job
+            with self.store.connect() as conn:
+                make = synthesise if topics.is_topic(conn, page_id) else write_up
             error = (
                 None
                 if self._written(jid)
-                else write_up(self.store, self.call, page_id, jid)
+                else make(self.store, self.call, page_id, jid)
             ) or relate(self.store, self.call, page_id, jid)
             if error is not None:
                 self._job_failed(jid, error)

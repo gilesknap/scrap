@@ -457,13 +457,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
             app.state.worker.wake()
         return page
 
-    from . import writeup_api  # it builds on this module
+    from . import topic_api, writeup_api  # they build on this module
 
     def wake() -> None:
         if app.state.worker:
             app.state.worker.wake()
 
     writeup_api.add_routes(app, store, wake)
+    topic_api.add_routes(app, store, wake)
 
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:

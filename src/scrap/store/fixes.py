@@ -85,13 +85,13 @@ def add_meta_revs(conn: sqlite3.Connection) -> None:
 
 
 # The enrich job table (named), and its indexes; reason 'related' since migration 11,
-# 'writeup' since migration 12
+# 'writeup' since migration 12, 'topic' since migration 13
 ENRICH_JOB = """
 CREATE TABLE IF NOT EXISTS {name} (
     id          INTEGER PRIMARY KEY,
     page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
     reason      TEXT NOT NULL CHECK (reason IN ('capture', 'save', 'ask', 'backfill',
-                                                'related', 'writeup')),
+                                                'related', 'writeup', 'topic')),
     state       TEXT NOT NULL DEFAULT 'queued'
                   CHECK (state IN ('queued', 'running', 'done', 'dead')),
     failures    INTEGER NOT NULL DEFAULT 0,
@@ -255,6 +255,58 @@ def add_writeups(conn: sqlite3.Connection) -> None:
     earlier run made them."""
     rebuild_enrich_job(conn, "writeup")
     for statement in WRITEUP_TABLES.split(";;"):
+        if statement.strip():
+            conn.execute(statement)
+
+
+# Claude's topic pages (#261): a topic is a page marked here, its key (a normalised
+# name) never used again, so a topic in the trash is never made again; its sources are
+# the synthesis's inputs, one the owner excluded kept (excluded 1) so discovery never
+# adds it again. changed_at: when it was added or excluded (a synthesis older than it
+# is due). The run of each discovery call, which is of no one page, is a topic_run.
+TOPIC_TABLES = """
+CREATE TABLE IF NOT EXISTS topic (
+    page_id     TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE,
+    key         TEXT NOT NULL UNIQUE CHECK (length(key) > 0),
+    created_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS topic_source (
+    topic_id    TEXT NOT NULL REFERENCES topic(page_id) ON DELETE CASCADE,
+    page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    added_by    TEXT NOT NULL,
+    added_at    TEXT NOT NULL,
+    excluded    INTEGER NOT NULL DEFAULT 0 CHECK (excluded IN (0, 1)),
+    changed_at  TEXT NOT NULL,
+    PRIMARY KEY (topic_id, page_id)
+);
+CREATE INDEX IF NOT EXISTS topic_source_by_page ON topic_source(page_id);
+CREATE TABLE IF NOT EXISTS topic_run (
+    id             INTEGER PRIMARY KEY,
+    model          TEXT NOT NULL,
+    served_model   TEXT,
+    prompt_version TEXT NOT NULL,
+    request        TEXT NOT NULL CHECK (json_valid(request)),
+    response       TEXT CHECK (json_valid(response)),
+    output         TEXT CHECK (json_valid(output)),
+    usage          TEXT CHECK (json_valid(usage)),
+    cost_microusd  INTEGER NOT NULL DEFAULT 0,
+    status         TEXT NOT NULL DEFAULT 'running'
+                     CHECK (status IN ('running', 'ok', 'invalid', 'refused', 'error')),
+    error_class    TEXT,
+    error          TEXT,
+    started_at     TEXT NOT NULL,
+    finished_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS topic_run_by_started ON topic_run(started_at)
+"""
+
+
+def add_topics(conn: sqlite3.Connection) -> None:
+    """Migration 13 (#261): enrich_job takes reason 'topic' (rebuilt as for migration
+    11, unless it takes it already), and the topic tables, unless an earlier run made
+    them."""
+    rebuild_enrich_job(conn, "topic")
+    for statement in TOPIC_TABLES.split(";"):
         if statement.strip():
             conn.execute(statement)
 
