@@ -110,6 +110,14 @@ def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def shown(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
+    """A page's current write-up while it is still a board page (has_board), else
+    None: one reprocessed into another kind keeps its versions as history, but they
+    are no longer its summary, its search text, its links or on show."""
+    up = current(conn, page_id)
+    return up if up is not None and has_board(conn, page_id) else None
+
+
 def versions(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
     """Every write-up of a page, newest first, each with current: whether it is."""
     rows = _rows(
@@ -170,8 +178,9 @@ def set_guidance(
 
 
 def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
-    """The pages (not in the trash) a page's current write-up links to, in order."""
-    up = current(conn, page_id)
+    """The pages (not in the trash) a page's current write-up links to, in order,
+    while it is a board page."""
+    up = shown(conn, page_id)
     if up is None:
         return []
     slugs = list(dict.fromkeys(m[1].strip() for m in WIKI_LINK.finditer(up["text"])))
@@ -188,13 +197,14 @@ def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
 
 
 def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
-    """The pages (not in the trash) whose current write-up links to slug."""
+    """The pages (not in the trash, still board pages) whose current write-up links
+    to slug."""
     try:
         return _rows(
             conn,
             "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
             " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
-            " AND p.deleted_at IS NULL AND p.slug <> ?"
+            f" AND p.deleted_at IS NULL AND {HAS_BOARD.format(p='p')} AND p.slug <> ?"
             " AND (instr(w.text, '[[' || ? || ']]') > 0"
             "  OR instr(w.text, '[[' || ? || '|') > 0) ORDER BY w.created_at DESC",
             slug, slug, slug,
@@ -206,14 +216,14 @@ def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
 def view(
     conn: sqlite3.Connection, page_id: str, on: bool, stamp: str
 ) -> dict[str, Any] | None:
-    """A page's write-up as the page shows it (None if it has none and no board
-    image): whether it is a board page, with enrich on, the owner's guidance, the
-    state of a write-up queued or being made (its enrich job's, while that writes
-    one: its latest write-up or Ask job's), how many versions, and the current one."""
-    up = current(conn, page_id)
+    """A page's write-up as the page shows it, None unless it is a board page (one
+    that is no longer keeps its versions, unseen): board (always true), enrich on,
+    the owner's guidance, the state of a write-up queued or being made (its latest
+    write-up or Ask job's), how many versions, and the current one."""
     board = has_board(conn, page_id)
-    if up is None and not board:
+    if not board:
         return None
+    up = current(conn, page_id)
     job = conn.execute(
         "SELECT state, reason, last_error,"
         " (SELECT paused_until > ? FROM queue_state) AS paused"
@@ -222,7 +232,7 @@ def view(
         (stamp, page_id),
     ).fetchone()
     state = None
-    if job is not None and board:
+    if job is not None:
         state = {"running": "processing", "dead": "failed"}.get(
             job["state"], job["state"]
         )

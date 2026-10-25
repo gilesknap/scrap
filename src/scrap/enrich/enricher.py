@@ -253,14 +253,29 @@ class Enricher:
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
         if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
-            error = write_up(self.store, self.call, page_id, jid) or relate(
-                self.store, self.call, page_id, jid
-            )
+            # A retry (related failed) does not write it up again: done in this job
+            error = (
+                None
+                if self._written(jid)
+                else write_up(self.store, self.call, page_id, jid)
+            ) or relate(self.store, self.call, page_id, jid)
             if error is not None:
                 self._job_failed(jid, error)
                 return
         with self.store.connect() as conn, transaction(conn):
             self._done(conn, jid)
+
+    def _written(self, jid: int) -> bool:
+        """Whether this job has made a write-up already (an earlier try of it)."""
+        with self.store.connect() as conn:
+            return (
+                conn.execute(
+                    "SELECT 1 FROM writeup w JOIN enrich_run r ON r.id = w.run_id"
+                    " WHERE r.job_id = ?",
+                    (jid,),
+                ).fetchone()
+                is not None
+            )
 
     def failed(self, jid: int, run_id: int, error: claude.CallError) -> None:
         refused = error.completion is not None and (

@@ -62,9 +62,21 @@ owner should be able to steer it.
   their write-ups exist (`scrap enrich --writeups`, then `scrap enrich --related`).
 - A write-up is as wrong as the model is. It is labelled as Claude's wherever it shows, kept as
   data, and the owner can regenerate it, steer it or restore an earlier one.
-- A to-do sticky gets no write-up, and a page reprocessed into another kind keeps its last
-  write-up until it is regenerated (which then refuses: it has no board).
-- To roll back to 0.6.0 (which refuses schema 12): `PRAGMA user_version = 11;` and
-  `DELETE FROM enrich_job WHERE reason = 'writeup' AND state = 'queued';` (older code would run
-  a queued `writeup` job as a full enrich). The write-up tables are left alone, and the search
-  chunks made from write-ups go when their pages are indexed again. Upgrading again is safe.
+- A to-do sticky gets no write-up. A page reprocessed into another kind keeps its write-ups as
+  history, but they are no longer shown, searched, linked or its summary (and it cannot be
+  regenerated: it has no board).
+- To roll back to 0.6.0 (which refuses schema 12), with scrap stopped, run:
+
+  ```sql
+  PRAGMA user_version = 11;
+  DELETE FROM enrich_job WHERE reason = 'writeup' AND state IN ('queued', 'running');
+  DROP TABLE writeup;
+  DROP TABLE writeup_guidance;
+  ```
+
+  The `DELETE` matters because older code would run a `writeup` job as a full enrich, and its
+  start-up recovery puts a `running` one back in the queue. The tables must go because 0.6.0's
+  `scrap gc` does not know that `writeup.run_id` refers to an `enrich_run`, so pruning that run
+  would fail on the foreign key (within its 30 days). The write-ups are lost with them; the
+  search chunks made from them go when their pages are indexed again. Upgrading again is safe,
+  and `scrap enrich --writeups` writes them again.

@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
 from ..markdown import plain
-from ..store import model_summary
+from ..store import model_summary, writeups
 from .constants import BY_TAGS, BY_WORDS, MAX_CANDIDATES, QUERY_WORDS, WORD
 from .prompts import page_images
 
@@ -105,6 +105,7 @@ def candidates(
             " (SELECT group_concat(tag, '\x1f') FROM tag WHERE page_id = p.id) AS tags"
             " FROM page p LEFT JOIN enrichment e ON e.page_id = p.id"
             " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
+            f" AND {writeups.HAS_BOARD.format(p='p')}"
             " WHERE p.id IN (SELECT value FROM json_each(?))",
             (json.dumps(order),),
         )

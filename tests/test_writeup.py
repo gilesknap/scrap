@@ -587,3 +587,64 @@ def test_mcp_read_returns_the_write_up_under_by_model(store):
     assert up["summary"] == WRITEUP["summary"] and up["text"].startswith("## Overview")
     assert up["version"] == 1 and up["producer"] == claude.model_name()
     assert up["created_at"] and by["summary"] == WRITEUP["summary"]
+
+
+def test_no_link_but_a_mapped_page_link_survives():
+    """Whatever Markdown or linkify would make a link of, the words stay, unlinked."""
+    text = (
+        "## A\nSee https://evil.example/x, <https://a.example>, <me@x.example> and"
+        " mailto:me@x.example.\nRef [click][r], [other][] and ![img][i]; [[1]].\n"
+        "[r]: https://evil.example\n  [other]: /p/secret-page\n[i]: <https://x/i.png>\n"
+        "Kept[^1].\n\n[^1]: a footnote"
+    )
+    out = enrich.checked_writeup({"summary": "s", "text": text}, ["enc"])["text"]
+    assert out == (
+        "## A\nSee evil.example/x, a.example, me@x.example and me@x.example.\n"
+        "Ref click, other and img; [[enc]].\nKept[^1].\n\n[^1]: a footnote"
+    )
+    assert "://" not in out and "/p/" not in out and "mailto" not in out
+
+
+def test_a_page_no_longer_a_board_keeps_its_write_up_unseen(store):
+    target = note(store, "Encoder settings", tags=["video"])
+    run_all(store, Fake())
+
+    def answer(system):
+        index = system.split("## Other pages")[1]
+        n = next(int(x.split(".")[0]) for x in index.splitlines() if "Encoder" in x)
+        return {"summary": "Zanzibar lead.", "text": f"Zanzibar, see [[{n}]]."}
+
+    ref = board_page(store, Fake(writeup=answer))
+    assert [h["id"] for h in store.search("zanzibar", 10)] == [ref["page_id"]]
+    time.sleep(0.002)
+    ingest.reprocess(store, ref["capture_id"], None, False)
+    run_all(store, Fake(photo=SCENE))  # read again: a photo of a scene now
+    page = store.page(ref["page_id"])
+    assert page["writeup"] is None
+    assert "writeup" not in [r["via"] for r in page["related"]]
+    assert "writeup" not in [r["via"] for r in store.page(target["page_id"])["related"]]
+    assert store.search("zanzibar", 10) == []
+    with closing(connect(store.db)) as conn:
+        assert model_summary(conn, ref["page_id"]) == ""
+        assert len(writeups.versions(conn, ref["page_id"])) == 1  # kept, as history
+    with pytest.raises(Exception, match="whiteboard or diagram"):
+        enrich.regenerate(store, ref["page_id"])
+
+
+def test_an_ask_retried_after_its_related_call_does_not_write_up_again(store):
+    ref = board_page(store)
+    enrich.ask(store, ref["page_id"])
+    fake = Fake()
+    failed = []
+
+    def call(model, system, messages, schema, blob, **kw):
+        if schema is enrich.RELATED_SCHEMA and not failed:
+            failed.append(1)  # invalid output: retried at once
+            fake.calls.append({"kind": "related"})
+            raise claude.CallError("invalid", "not an answer")
+        return fake(model, system, messages, schema, blob, **kw)
+
+    run_all(store, call)
+    assert fake.kinds() == ["enrich", "writeup", "related", "enrich", "related"]
+    assert jobs(store)[-1] == ("ask", "done")
+    assert store.page(ref["page_id"])["writeup"]["current"]["version"] == 2

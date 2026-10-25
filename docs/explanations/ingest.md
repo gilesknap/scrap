@@ -534,7 +534,8 @@ the page's text.
 - **Which pages.** A board page: one with an image whose current reading says `whiteboard` or
   `diagram` (the photo call's image kind, not the page's kind), unless that reading judged it a
   list of actions (a to-do sticky becomes a checklist instead: {ref}`ingest-actions`).
-  Documents, handwriting, screenshots and photos get none.
+  Documents, handwriting, screenshots and photos get none. A page reprocessed into another kind
+  keeps its write-ups as history, but they are no longer shown, searched, linked or its summary.
 - **When.** With enrich on, as an enrich job of reason `writeup`, when photo ingest has read all
   of the page's photos (or given up on one) and a board image was read since the page's last
   write-up: so on its first reading, after a Reprocess, and after a new board photo. Its first
@@ -555,8 +556,11 @@ the page's text.
   delimiter tag inside it sent as `&lt;`.
 - **Links.** The model cites a page by its index number, `[[n]]` or `[[n|words]]`. scrap makes
   each valid number a `[[slug]]` (or `[[slug|words]]`) link; any other `[[...]]` keeps only its
-  words, and web links and images keep only their text, so a write-up cannot link a page that is
-  not there or reach outside scrap.
+  words. Everything else Markdown would make a link of keeps only its words too: inline and
+  reference links and images, reference definitions (`[r]: url`), autolinks (`<https://…>`) and
+  URL schemes that the renderer's linkify would link (`https://`, `mailto:`). So a write-up cannot
+  link a page that is not there, one in the trash, or anything outside scrap; the PWA also shows
+  any link in it but a page link as its words.
 - **Output, checked.** `summary`: one line, at most 600 characters; `text`: Markdown without
   control characters, at most 20,000 characters, not empty (else the run is invalid and retried).
 - **Stored apart from the text** (migration 12): each write-up is a new version in `writeup`

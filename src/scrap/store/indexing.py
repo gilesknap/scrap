@@ -20,6 +20,7 @@ from .helpers import now, unlink
 from .writeups import current as current_writeup
 from .writeups import due as writeup_due
 from .writeups import has_board
+from .writeups import shown as shown_writeup
 
 
 def index_page(conn: sqlite3.Connection, page_id: str) -> None:
@@ -46,7 +47,7 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
         " VALUES (?, 0, ?, ?, ?, ?)",
         (page_id, *clean),
     )
-    up = current_writeup(conn, page_id)
+    up = shown_writeup(conn, page_id)
     if up is not None and up["text"]:
         conn.execute(
             "INSERT INTO chunk (page_id, ord, text) VALUES (?, 1, ?)",
@@ -57,7 +58,7 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
 def model_summary(conn: sqlite3.Connection, page_id: str) -> str:
     """The summary Claude wrote for a page: its current write-up's (a board's), else
     enrich's, else ''. Before migration 9 there is no enrichment table: ''."""
-    up = current_writeup(conn, page_id)
+    up = shown_writeup(conn, page_id)
     if up is not None and up["summary"]:
         return up["summary"]
     try:
@@ -149,6 +150,8 @@ def queue_after_read(conn: sqlite3.Connection, capture_id: str) -> None:
         if writeup_due(conn, row[0]):
             queue_writeup(conn, row[0])
         return
+    if row is not None and current_writeup(conn, row[0]) is not None:
+        index_page(conn, row[0])  # no longer a board: its write-up leaves the index
     queue_related_on_read(conn, capture_id)
 
 
