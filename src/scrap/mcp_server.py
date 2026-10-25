@@ -9,7 +9,8 @@ text restored (revert with to_rev), each as a new text revision, unless
 SCRAP_MCP_CONTENT_EDIT is off. Any page's kind and tags can be changed (edit_meta,
 rename_tag), each change a revision that revert undoes. Nothing deletes a page, but
 one in the trash can be listed (trash), read (read, revisions: read only) and
-brought back (undelete, unless SCRAP_MCP_CONTENT_EDIT is off); every other tool treats the trash as absent."""
+brought back (undelete, unless SCRAP_MCP_CONTENT_EDIT is off); every other tool
+treats the trash as absent."""
 
 import hmac
 import os
