@@ -13,7 +13,8 @@ A file is gathered when, all read from the data (nothing records what was gather
 - every capture that holds it is on a page not in the trash whose text once showed it
   (a file never embedded, such as an older page's photo or a PDF, is still listed
   below its page's text);
-- the page it went from last is not an orphan page: an item cut out of one and pasted
+- the page it went from last is not a review page (one whose capture's source is
+  ``gc``, however it is titled now): an item cut out of one and pasted
   nowhere is reviewed, an item cut into another page and later deleted there is an
   orphan again;
 - it went longer ago than the grace period, so a line cut and pasted back is left be.
@@ -33,7 +34,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from .store import MAX_PAGE, Store, body_refs, new_ulid, transaction
+from .store import MAX_PAGE, Store, body_refs, new_ulid
 
 __all__ = ["DUE_DAYS", "TITLE", "Gathered", "Orphan", "clock", "find", "gather"]
 
@@ -41,7 +42,6 @@ log = logging.getLogger(__name__)
 
 DUE_DAYS = 7  # an orphan page's due date, after it is made
 TITLE = "Orphaned assets {month}"  # month: YYYY-MM
-ORPHAN_PAGE = re.compile(r"Orphaned assets \d{4}-\d{2}")
 AUTHOR = "scrap gc"  # its revisions' author; its capture's source is "gc"
 SOURCE = "gc"
 ADDRESS = "/api/blobs/"
@@ -71,11 +71,14 @@ class Gathered:
     created: bool = False  # a new month page was made
 
 
+# A review page: one gc made (its capture's source), whatever it is titled now
+REVIEW = "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = 'gc')"
+
+
 def _orphan_pages(conn: sqlite3.Connection) -> set[str]:
     return {
         row[0]
-        for row in conn.execute("SELECT id, title FROM page")
-        if ORPHAN_PAGE.fullmatch(row[1])
+        for row in conn.execute("SELECT id FROM page p WHERE " + REVIEW.format(p="p"))
     }
 
 
@@ -185,14 +188,17 @@ def _intro(today: str) -> str:
     )
 
 
-def _current(conn: sqlite3.Connection, title: str) -> tuple[str, int, str] | None:
-    """The month's open orphan page: (id, rev, body), the newest if several."""
+def _current(conn: sqlite3.Connection, month: str) -> tuple[str, int, str] | None:
+    """The month's (YYYY-MM) open review page, by its gc capture's date, however it
+    is titled: (id, rev, body), the newest if several."""
     row = conn.execute(
-        "SELECT id, body, (SELECT max(rev) FROM page_rev WHERE page_id = page.id)"
-        " FROM page WHERE title = ? AND kind = 'todo' AND deleted_at IS NULL"
-        " AND coalesce(json_extract(fields, '$.status'), 'open')"
-        " NOT IN ('done', 'cancelled') ORDER BY created_at DESC, id DESC LIMIT 1",
-        (title,),
+        "SELECT p.id, p.body, (SELECT max(rev) FROM page_rev WHERE page_id = p.id)"
+        " FROM page p JOIN capture c ON c.page_id = p.id AND c.source = 'gc'"
+        " WHERE substr(c.created_at, 1, 7) = ? AND p.kind = 'todo'"
+        " AND p.deleted_at IS NULL"
+        " AND coalesce(json_extract(p.fields, '$.status'), 'open')"
+        " NOT IN ('done', 'cancelled') ORDER BY c.created_at DESC, p.id DESC LIMIT 1",
+        (month,),
     ).fetchone()
     return (row[0], row[2], row[1]) if row else None
 
@@ -215,10 +221,15 @@ def gather(store: Store, cutoff: str) -> Gathered:
     there is none (or when it is full). Raises sqlite3.Error, ConflictError if that
     page was edited meanwhile, or InvalidError for an entry past a page's cap."""
     when = clock()
-    title = TITLE.format(month=when.strftime("%Y-%m"))
-    with store.connect() as conn, transaction(conn):  # one snapshot of both
-        orphans = find(conn, cutoff)
-        target = _current(conn, title)
+    month = when.strftime("%Y-%m")
+    title = TITLE.format(month=month)
+    with store.connect() as conn:  # one read snapshot of both, no write lock held
+        conn.execute("BEGIN")
+        try:
+            orphans = find(conn, cutoff)
+            target = _current(conn, month)
+        finally:
+            conn.execute("COMMIT")
     result = Gathered(len(orphans))
     intro = _intro(when.date().isoformat())
 

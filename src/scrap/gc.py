@@ -35,6 +35,7 @@ refers to.
 """
 
 import fcntl
+import logging
 import os
 import sqlite3
 import time
@@ -64,6 +65,8 @@ __all__ = [
     "in_use",
     "prune_runs",
 ]
+
+log = logging.getLogger(__name__)
 
 GRACE_HOURS = 24.0
 RUN_DAYS = 30.0  # model_run / enrich_run rows younger than this are kept
@@ -354,7 +357,9 @@ def _collect(
         if delete:  # first, so a file gathered now is in use below
             try:
                 report.orphans = orphans.gather(store, stamp).count
-            except (ConflictError, InvalidError, sqlite3.Error) as error:
+            except ConflictError:  # edited meanwhile: the next run gathers them
+                log.warning("scrap gc: the orphan page changed meanwhile; not gathered")
+            except (InvalidError, sqlite3.Error) as error:
                 raise GcError(
                     f"cannot gather the orphaned files, so nothing was deleted: {error}"
                 ) from None

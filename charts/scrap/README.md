@@ -81,7 +81,8 @@ also turns on Claude enrichment of text pages.
 - The data and backup claims are annotated `helm.sh/resource-policy: keep`, so `helm uninstall`
   leaves your data in place.
 - The gc CronJob (`gc.*`, 04:30) deletes unused files and old run records, and gathers photos no
-  page shows any more onto a monthly "Orphaned assets" todo page, only after a recent backup; the related-pages CronJob (`enrichRelated.*`, 03:41) exists while ingest is on. Both
+  page shows any more onto a monthly "Orphaned assets" todo page, only after a recent backup;
+  the related-pages CronJob (`enrichRelated.*`, 03:41) exists while ingest is on. Both
   run beside the scrap pod. See the guide below.
 - The backup CronJob runs at `30 3 * * *` by default, keeps the newest 7 runs on a 20Gi claim and
   is a local copy only: copy it off the cluster as well. A monthly CronJob (`backup.monthly.*`,

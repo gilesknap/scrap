@@ -4,6 +4,7 @@ import hashlib
 import os
 import time
 from datetime import UTC, datetime
+from io import BytesIO
 
 import pytest
 
@@ -194,7 +195,9 @@ def test_a_file_still_used_elsewhere_is_not_an_orphan(client, store):
     assert report.orphans == 0 and orphan_pages(client) == []
 
 
-def test_deleting_the_page_trashes_its_files_for_good(client, store):
+def test_a_deleted_page_keeps_its_files_in_the_trash_and_gathers_none_again(
+    client, store
+):
     """Deleting the page is the review: its files stay with it in the trash (nothing is
     purged from the trash), never gathered again and never deleted by gc."""
     _, sha = unembed(client, store)
@@ -313,16 +316,46 @@ def test_a_new_page_is_announced_once(client, store, monkeypatch):
     assert gc.collect(store, delete=True).orphans == 1  # a lost notice is not an error
 
 
-def test_an_orphan_page_edited_meanwhile_stops_the_run(client, store, monkeypatch):
+def test_an_orphan_page_edited_meanwhile_skips_only_the_gathering(
+    client, store, monkeypatch, caplog
+):
+    """A conflict on the review page is not a failed run: the delete and prune
+    phases still run, and the next run gathers what this one could not."""
     unembed(client, store, "First", b"first")
     gc.collect(store, delete=True)
-    unembed(client, store, "Second", b"second")
+    _, sha = unembed(client, store, "Second", b"second")
+    unused, _ = store.put_blob(BytesIO(b"nobody's"))
+    age(store)
     real = orphans._current
 
-    def stale(conn, title):
-        found = real(conn, title)
+    def stale(conn, month):
+        found = real(conn, month)
         return found and (found[0], found[1] - 1, found[2])
 
     monkeypatch.setattr(orphans, "_current", stale)
-    with pytest.raises(gc.GcError, match="cannot gather"):
-        gc.collect(store, delete=True)
+    report = gc.collect(store, delete=True)
+    assert report.orphans == 0 and report.deleted
+    assert unused in report.shas and not store.blob_path(unused).exists()
+    assert "orphan page changed meanwhile" in caplog.text
+    monkeypatch.setattr(orphans, "_current", real)
+    assert gc.collect(store, delete=True).orphans == 1
+
+
+def test_a_review_page_is_known_by_its_capture_not_its_title(client, store, note):
+    """Renamed, it is still the month's page (and items cut from it stay reviewed);
+    a todo of the user's with the same title is never written to."""
+    mine = note("Orphaned assets 2026-10", kind="todo")
+    _, first = unembed(client, store, "First", b"first")
+    gc.collect(store, delete=True)
+    [review] = [p for p in orphan_pages(client) if p["id"] != mine["page_id"]]
+    page = client.get(f"/api/pages/{review['id']}").json()
+    client.patch(
+        f"/api/pages/{review['id']}",
+        json={"base_rev": page["rev"], "title": "Photos to sort", "body": "Sorted"},
+    ).raise_for_status()
+    _, second = unembed(client, store, "Second", b"second")
+    assert gc.collect(store, delete=True).orphans == 1  # not First: reviewed
+    body = client.get(f"/api/pages/{review['id']}").json()["body"]
+    assert f"/api/blobs/{second}/" in body and f"/api/blobs/{first}/" not in body
+    untouched = client.get(f"/api/pages/{mine['page_id']}").json()
+    assert untouched["rev"] == 1 and "/api/blobs/" not in untouched["body"]
