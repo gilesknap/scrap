@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.8.1.dev1+ge744438ca documentation</title>
+    <title>MCP server &#8212; scrap 0.8.2.dev1+g14198f811 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d4811a39"></script>
+    <script src="../_static/documentation_options.js?v=973ae754"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -547,7 +547,7 @@ data: the server’s instructions tell the model it is the user’s text, never 
 <td><p>As <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>’s</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code></p></td>
-<td><p><strong><code class="docutils literal notranslate"><span class="pre">page</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">new</span></code> (<code class="docutils literal notranslate"><span class="pre">new</span></code> empty deletes), <code class="docutils literal notranslate"><span class="pre">replace_all</span></code>, or <code class="docutils literal notranslate"><span class="pre">body</span></code> (needs <code class="docutils literal notranslate"><span class="pre">rev</span></code>); <code class="docutils literal notranslate"><span class="pre">title</span></code>; <code class="docutils literal notranslate"><span class="pre">rev</span></code>; <code class="docutils literal notranslate"><span class="pre">allow_empty</span></code>; <code class="docutils literal notranslate"><span class="pre">dry_run</span></code></p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">page</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">new</span></code>, or <code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">delete</span></code> (removes <code class="docutils literal notranslate"><span class="pre">old</span></code>), <code class="docutils literal notranslate"><span class="pre">replace_all</span></code>, or <code class="docutils literal notranslate"><span class="pre">body</span></code> (needs <code class="docutils literal notranslate"><span class="pre">rev</span></code>); <code class="docutils literal notranslate"><span class="pre">title</span></code>; <code class="docutils literal notranslate"><span class="pre">rev</span></code>; <code class="docutils literal notranslate"><span class="pre">allow_empty</span></code>; <code class="docutils literal notranslate"><span class="pre">dry_run</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">{id,</span> <span class="pre">slug,</span> <span class="pre">url,</span> <span class="pre">dry_run,</span> <span class="pre">changed,</span> <span class="pre">rev_before,</span> <span class="pre">rev,</span> <span class="pre">folded,</span> <span class="pre">replacements,</span> <span class="pre">title_before,</span> <span class="pre">title,</span> <span class="pre">diff,</span> <span class="pre">diff_cut}</span></code> (<code class="docutils literal notranslate"><span class="pre">diff</span></code>: unified, of the body; <code class="docutils literal notranslate"><span class="pre">folded</span></code>: the revision this one replaced, a burst’s). Not listed with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">revisions</span></code></p></td>
@@ -741,7 +741,9 @@ only while content editing is on, first).</p>
 a title alone is a form too):</p>
 <ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">old</span></code> and <code class="docutils literal notranslate"><span class="pre">new</span></code>: replaces <code class="docutils literal notranslate"><span class="pre">old</span></code>, copied exactly from the stored body (line ends <code class="docutils literal notranslate"><span class="pre">\n</span></code>), with
-<code class="docutils literal notranslate"><span class="pre">new</span></code> (empty: deletes it). Refused, saving nothing, if <code class="docutils literal notranslate"><span class="pre">old</span></code> is not in the body or is there
+<code class="docutils literal notranslate"><span class="pre">new</span></code>. To remove <code class="docutils literal notranslate"><span class="pre">old</span></code>, give <code class="docutils literal notranslate"><span class="pre">delete</span></code> instead of <code class="docutils literal notranslate"><span class="pre">new</span></code> (an empty <code class="docutils literal notranslate"><span class="pre">new</span></code> removes it too, for a
+client that can send an empty string); <code class="docutils literal notranslate"><span class="pre">delete</span></code> with a non-empty <code class="docutils literal notranslate"><span class="pre">new</span></code>, or without <code class="docutils literal notranslate"><span class="pre">old</span></code>, is
+refused. Refused, saving nothing, if <code class="docutils literal notranslate"><span class="pre">old</span></code> is not in the body or is there
 more than once, counting overlapping occurrences (<code class="docutils literal notranslate"><span class="pre">aa</span></code> is twice in <code class="docutils literal notranslate"><span class="pre">aaa</span></code>); <code class="docutils literal notranslate"><span class="pre">replace_all</span></code>
 replaces every occurrence, and is refused too if any two overlap. <code class="docutils literal notranslate"><span class="pre">replacements</span></code> says how
 many. A replacement that would take the page over 1 MB is refused from the count, before
