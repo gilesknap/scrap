@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.2.dev5+g1b76bb763 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.2.dev6+g83f92bdf1 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=91a0fbeb"></script>
+    <script src="../_static/documentation_options.js?v=d9c566aa"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1009,6 +1009,14 @@ than the phone allows, a <strong>Photo ready</strong> message offers <strong>Sha
 <li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
 <strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
 tags and a todo’s due date are folded into a line each under the title, as in the composer.</p></li>
+<li><p><strong>Add photo</strong> (the camera) and <strong>From gallery</strong>, under the text in <strong>Edit</strong>, add photos to the
+end of the page, as a capture of its own: Claude reads them as it reads any capture’s, and
+search finds what it read, but they never change the page’s kind, title or tags. A topic
+page has no Add photo. They upload at once, apart from <strong>Save</strong>, and their tokens
+join the editor’s text after what you typed (if the page was changed elsewhere meanwhile,
+<strong>Save</strong> shows the conflict instead); offline they wait on the phone like a capture
+(the capture screen lists them as <em>Photo for</em> the page) and are added once it is back online.
+Photos too big to send together go one by one; one over the server’s limit alone is refused.</p></li>
 <li><p>Writing lists in the composer or editor: Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task
 (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next item, and Enter on an empty item ends the list. Just above
 the keyboard, five keys act on the line (or the lines selected): <strong>Task</strong> makes it a task,
