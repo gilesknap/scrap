@@ -31,13 +31,15 @@ const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't re
  * remembered). */
 function block(summary: string, text: string, pre = false) {
   const key = `scrap.fold.${summary}`;
+  const head = h("summary", {}, summary);
   const el = h(
     "details",
     { className: "claude-text", open: kept(key) === "open" },
-    h("summary", {}, summary),
+    head,
     h(pre ? "pre" : "p", {}, text),
   );
-  el.ontoggle = () => kept(key, el.open ? "open" : null);
+  // Remembered as it is tapped (it is about to change), not on toggle: see enrich.ts's fold
+  head.onclick = () => kept(key, el.open ? null : "open");
   return el;
 }
 

@@ -37,13 +37,11 @@ const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't re
  * closed): what Claude found is short, and what the card is for. */
 function fold(label: string, ...body: (Node | string)[]) {
   const key = `scrap.fold.${label}`;
-  const el = h(
-    "details",
-    { className: "claude-text", open: kept(key) !== "shut" },
-    h("summary", {}, label),
-    ...body,
-  );
-  el.ontoggle = () => kept(key, el.open ? null : "shut");
+  const head = h("summary", {}, label);
+  const el = h("details", { className: "claude-text", open: kept(key) !== "shut" }, head, ...body);
+  // Remembered as it is tapped (it is about to change), not on toggle, which comes a task later:
+  // a reload or a redraw in between would lose it
+  head.onclick = () => kept(key, el.open ? "shut" : null);
   return el;
 }
 
