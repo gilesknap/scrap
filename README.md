@@ -36,9 +36,15 @@ claude mcp add --transport http --scope user scrap http://localhost:8000/mcp
 curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/commands/install.sh | sh
 ```
 
-Start a new Claude Code session, save a note in the browser, then try `/sc-find <word>` or "search scrap for ...".
+Start a new Claude Code session, save a note in the browser, then try ```
+/sc-find <word>
+``` 
+or 
+```
+search scrap for ...
+```
 
-On your phone, over your tailnet? See [use scrap on your phone over Tailscale](https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html).
+Connect your phone for quick capture. See [use scrap on your phone over Tailscale](https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html).
 
 Claude Code in a sandbox? See [connecting Claude Code in claude-sandbox](https://gilesknap.github.io/scrap/main/how-to/connect-claude-sandbox.html).
 
