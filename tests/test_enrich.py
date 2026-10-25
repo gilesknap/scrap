@@ -426,6 +426,23 @@ def test_candidates_find_pages_by_tags_and_words_within_the_cap(store, monkeypat
     assert worded["page_id"] in found[2:4]  # then the words
 
 
+def test_a_photo_page_finds_candidates_by_what_was_read_from_it(store, monkeypatch):
+    """A board's title and tags share nothing with the page its text names."""
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    target = capture(store, "Rebuilding the RTEMS toolchain", tags=["embedded"])
+    for n in range(20):  # newer, so recency alone would not reach the target
+        capture(store, f"filler {n}")
+    board = imported_photos(
+        store, ("A yellow sticky note of jobs", "ioc-template from rsync\nRTEMS high")
+    )
+    with closing(connect(store.db)) as conn:
+        found = [c["id"] for c in enrich.candidates(conn, board, limit=6)]
+        assert target["page_id"] in found
+        conn.execute("DELETE FROM derived")  # with nothing read, it is not found
+        found = [c["id"] for c in enrich.candidates(conn, board, limit=6)]
+        assert target["page_id"] not in found
+
+
 def test_the_user_wins_on_tags(store):
     ref = capture(store, "a note about sheds", tags=["mine"])
     run_all(worker(store, Fake(answer(["shed", "wood"]))))

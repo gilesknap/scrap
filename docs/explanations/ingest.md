@@ -470,14 +470,17 @@ page's text, except that a confident list of actions gets task boxes appended
 ### Related pages
 
 `enrich.relate`, prompt `prompts/related.md`. One call per page: the page in
-brief (title, tags, summary, the start of its text) and a numbered index of candidate pages
-(title, up to 6 tags, summary cut to 150 characters); Claude answers with up to 5 index numbers,
-so it cannot name a page that is not there.
+brief (title, tags, summary, the start of its text and of what was read from its images) and a
+numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
+answers with up to 5 index numbers, so it cannot name a page that is not there.
 
 - **Candidates** (`enrich.CANDIDATES`, swappable) are at most 150 pages whatever the library's
   size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
-  text best match the words of its title, tags and summary (full-text search, an OR of up to 24
-  words), then the most recently changed.
+  text best match the page's words (full-text search, an OR of up to 24 distinct words), then the
+  most recently changed. The words are taken in order, first from its title, tags and summary,
+  then from the text photo ingest read from its images, their descriptions, and last its own
+  text. A text page with a summary usually fills the 24 before its text; a photo page, which has
+  no summary, is searched by what is written in the photo.
 - **When.** On Ask Claude, at once. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
   newer than its `updated_at`, or than the newest current description or text photo ingest read

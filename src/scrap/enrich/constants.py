@@ -42,6 +42,7 @@ MAX_TITLE = 200
 MAX_VOCAB = 600  # tags listed, most used first
 MAX_CANDIDATES = 150  # pages in a related call's index (~40 tokens each)
 BY_TAGS, BY_WORDS = 90, 60  # of which, at most, sharing tags and matching words
+QUERY_WORDS = 24  # distinct words in the full-text search, the page's first ones
 WORD = re.compile(r"[^\W_]{4,}")  # a word worth matching: 4 letters or more
 
 CLAIM = """

@@ -5,7 +5,9 @@ import sqlite3
 from collections.abc import Callable
 from typing import Any
 
-from .constants import BY_TAGS, BY_WORDS, MAX_CANDIDATES, WORD
+from ..markdown import plain
+from .constants import BY_TAGS, BY_WORDS, MAX_CANDIDATES, QUERY_WORDS, WORD
+from .prompts import page_images
 
 
 def candidates(
@@ -13,11 +15,14 @@ def candidates(
 ) -> list[dict[str, Any]]:
     """The pages Claude may pick as related to a page, at most limit whatever the
     library's size: those sharing the most tags with it (BY_TAGS), then those whose
-    title, tags, summary or text best match the words of its title, tags and summary
-    (full-text search, BY_WORDS), then the most recently changed; none in the trash.
+    title, tags, summary or text best match its words (full-text search, BY_WORDS),
+    then the most recently changed; none in the trash. Its words: the first
+    QUERY_WORDS distinct ones of its title, tags and summary, then of what was read
+    from its images (their text, then their descriptions), then of its own text, so
+    a photo page with no summary is searched by what is in the photo.
     Swappable (CANDIDATES): embeddings (#53) if these prove too weak."""
     me = conn.execute(
-        "SELECT p.title, p.fields, coalesce(e.summary, '') FROM page p"
+        "SELECT p.title, p.fields, coalesce(e.summary, ''), p.body FROM page p"
         " LEFT JOIN enrichment e ON e.page_id = p.id WHERE p.id = ?",
         (page_id,),
     ).fetchone()
@@ -36,10 +41,11 @@ def candidates(
         tags = " ".join(r[0] for r in conn.execute(
             "SELECT tag FROM tag WHERE page_id = ?", (page_id,)))  # fmt: skip
         about = human if isinstance(human, str) else me[2]
-        words = dict.fromkeys(
-            w.lower() for w in WORD.findall(f"{me[0]} {tags} {about}")
-        )
-        query = " OR ".join(f'"{w}"' for w in list(words)[:24])
+        images = page_images(conn, page_id)
+        texts = [me[0], tags, about, *(i["text"] or "" for i in images),
+                 *(i["description"] or "" for i in images), plain(me[3])]  # fmt: skip
+        words = dict.fromkeys(w.lower() for w in WORD.findall("\n".join(texts)))
+        query = " OR ".join(f'"{w}"' for w in list(words)[:QUERY_WORDS])
         if query:
             n = 0
             for (other,) in conn.execute(
