@@ -1,7 +1,8 @@
 // A page in the editor (page.ts's Edit): its text, title, kind, tags and a todo's due date
 // and priority, with the draft kept on the phone, and a conflict shown if it changed
 // elsewhere meanwhile. A chunk of its own with editor.ts, kept offline (vite.config.ts).
-import { ApiError, api, type Page } from "./api";
+import { adopt, photoAdder, takesPhotos } from "./addphoto";
+import { ADDED, ApiError, api, type Page } from "./api";
 import { drafts } from "./db";
 import {
   confirmRemoval,
@@ -48,6 +49,8 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   const kind = kindPicker(kept?.picked ? (kept.kind ?? initial) : initial, !!kept?.picked);
   let base = kept?.base ?? p.rev;
   let over = p.body; // the text a save replaces: its deleted embeds are warned about
+  // The page's revision and text as opened: Add photo moves them on (adopted, below)
+  const at = { rev: p.rev, body: p.body };
   const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
   const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
   // Its images and files as short tokens, with a chip each under it: body() is the Markdown
@@ -159,7 +162,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     text,
     read: body,
     before: [kind.el, title, tagLine.el, todoLine.el],
-    after: [conflict],
+    after: [...(takesPhotos(p) ? [photoAdder(p)] : []), conflict],
     foot: embeds.chips,
     key,
     draft: (): Draft => ({
@@ -174,14 +177,14 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     }),
     dirty: () =>
       title.value !== p.title ||
-      body() !== p.body ||
+      body() !== at.body ||
       kind.value() !== was ||
       retagged() ||
       redated(),
     restored: !!kept,
     ondiscard: () => {
       title.value = p.title;
-      embeds.set(p.body);
+      embeds.set(at.body);
       kind.reset(was);
       tags.reset(p.tags);
       tagsFrom = p.tags;
@@ -189,10 +192,30 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
       showTodo();
       tagLine.refresh();
       todoLine.refresh();
-      base = p.rev;
-      over = p.body;
+      base = at.rev;
+      over = at.body;
     },
     onsave: () => void save(),
   });
+  // Photos added (Add photo, uploaded now or later) onto the revision this editor holds: the
+  // embeds go to the end of its text too, and it moves on to the page's new revision, so Save
+  // doesn't show the photos as a conflict. Added onto another revision (the page changed
+  // meanwhile), Save shows the conflict, as for any change made elsewhere.
+  const adopted = (e: Event) => {
+    if (!ed.form.isConnected) return removeEventListener(ADDED, adopted);
+    const page = (e as CustomEvent<Page & { appended_on: number | null }>).detail;
+    if (page.id !== p.id || page.appended_on !== base) return;
+    const merged = adopt(body(), over, page.body);
+    if (merged === null) return;
+    const { selectionStart, selectionEnd } = text; // the text before them is as it was
+    embeds.set(merged);
+    text.setSelectionRange(selectionStart, selectionEnd);
+    base = page.rev;
+    over = page.body;
+    // Discard goes back to the page as it is now, photos and all: they are not the edit
+    Object.assign(at, { rev: page.rev, body: page.body });
+    ed.keep();
+  };
+  addEventListener(ADDED, adopted);
   text.focus();
 }

@@ -2,7 +2,6 @@
 
 import json
 import logging
-import mimetypes
 import os
 import re
 import tempfile
@@ -37,7 +36,16 @@ from starlette.datastructures import UploadFile
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import __version__, backup, drawing, enrich, ingest, mcp_server, preview
+from . import (
+    __version__,
+    backup,
+    drawing,
+    enrich,
+    ingest,
+    mcp_server,
+    photos_api,
+    preview,
+)
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
@@ -52,6 +60,7 @@ from .store import (
     now,
     upload_limit,
 )
+from .uploads import author, mimes, put_files, too_large
 
 __all__ = ["create_app"]
 
@@ -180,26 +189,11 @@ class PageEdit(BaseModel):
         }
 
 
-IDENTITY_HEADER = "Tailscale-User-Login"
-
-
-def author(request: Request) -> str:
-    # $SCRAP_IDENTITY_HEADER (default Tailscale-User-Login, set by Tailscale Serve);
-    # tagged devices, and anything else without it, send none. Only this header is
-    # trusted, so a proxy that sets another (X-Auth-Request-User) names it here.
-    name = os.environ.get("SCRAP_IDENTITY_HEADER", "").strip() or IDENTITY_HEADER
-    return request.headers.get(name) or "tagged"
-
-
 def attachment(name: str) -> str:
     """Content-Disposition saving a file as name: ASCII fallback, then RFC 5987."""
     plain = name.encode("ascii", "replace").decode().replace("?", "_")
     plain = re.sub(r'["\\\x00-\x1f\x7f]', "_", plain)
     return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
-
-
-def too_large(limit: int) -> str:
-    return f"over the {limit / 2**20:g} MB upload limit"
 
 
 class BodyLimit:
@@ -347,18 +341,9 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return JSONResponse(body, code)
 
     def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
-        mimes = []
-        for upload in uploads:
-            mime = upload.content_type
-            if mime in (None, "", "application/octet-stream"):
-                mime = mimetypes.guess_type(upload.filename or "")[0]
-            mimes.append(mime or "application/octet-stream")
-        capture = store.prepare(data, mimes)  # before writing any file
-        blobs = []
-        for upload, mime in zip(uploads, mimes, strict=True):
-            sha, size = store.put_blob(upload.file)
-            blobs.append((sha, mime, size, upload.filename or None))
-        saved = store.capture(capture, blobs, who)
+        types = mimes(uploads)
+        capture = store.prepare(data, types)  # before writing any file
+        saved = store.capture(capture, put_files(store, uploads, types), who)
         if app.state.worker:
             app.state.worker.wake()
         return saved
@@ -465,6 +450,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     writeup_api.add_routes(app, store, wake)
     topic_api.add_routes(app, store, wake)
+    photos_api.add_routes(app, store, wake, limit)
 
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:

@@ -1,6 +1,6 @@
 // One page: its text (its images as figures) and other files, edit (pageedit.ts, with conflict handling)
 // and delete with undo.
-import { api, blobUrl, type Page, type Queue, setStatus } from "./api";
+import { ADDED, api, blobUrl, type Page, type Queue, setStatus } from "./api";
 import { go } from "./app";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
@@ -102,6 +102,9 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       if (!signal.aborted) schedule(shown); // offline for now: try again later
     }
   };
+  // Photos added to it (the editor's Add photo, uploaded now or later): shown, and read
+  const added = (e: Event) => (e as CustomEvent<Page>).detail.id === p.id;
+  addEventListener(ADDED, (e) => added(e) && void refresh(), { signal });
   const schedule = (p: Page) => {
     clearTimeout(poll);
     const photos = busy(p) && queue?.enabled && !queue.paused;

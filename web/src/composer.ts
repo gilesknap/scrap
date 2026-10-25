@@ -1,6 +1,6 @@
 // The composer: a new capture's text, photos, kind and tags, in the editor. A chunk of its own with
 // the editor (loaded when it opens; the service worker keeps it for offline use).
-import { uploadLimit } from "./api";
+import { overLimit, uploadLimit } from "./api";
 import { queue } from "./app";
 import { picker } from "./capture";
 import { drafts } from "./db";
@@ -178,7 +178,7 @@ export async function compose(picked: File[], as?: string, resume = false) {
     // Check the server's limit now: a capture it refuses could only be split or discarded.
     const size = files.reduce((n, f) => n + f.size, 0);
     const max = uploadLimit();
-    if (max && size > max - 64 * 1024 && !separately) {
+    if (overLimit(size) && !separately) {
       const over = `${mb(size)} of photos is over the server's ${mb(max)} limit.`;
       if (files.length < 2)
         return toast(`${over} Remove it to save the text.`, "", undefined, 10000);

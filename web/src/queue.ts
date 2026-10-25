@@ -18,6 +18,8 @@ export interface Capture {
   priority?: string;
   source: "pwa" | "share";
   files: { name: string; blob: Blob }[];
+  page?: string; // added to this page (its id), not a new one: the editor's Add photo
+  to?: string; // that page's title, to say where it goes while it waits
 }
 
 export interface Item extends Capture {
@@ -54,7 +56,7 @@ export const split = (c: Capture): Capture[] =>
   c.files.map((f, i) => {
     const part: Capture = { ...(!i && { text: c.text, url: c.url }), source: c.source, files: [f] };
     // The text once; the kind, its due date and priority, and the tags on every part
-    for (const k of ["kind", "hint", "tags", "due", "priority"] as const)
+    for (const k of ["kind", "hint", "tags", "due", "priority", "page", "to"] as const)
       if (c[k]) Object.assign(part, { [k]: c[k] });
     return part;
   });
