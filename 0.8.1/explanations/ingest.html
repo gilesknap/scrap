@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Claude ingest &#8212; scrap 0.8.1 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=ec16d22d"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'explanations/ingest';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.8.1';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="What Claude is asked, per page" href="llm-calls.html" />
+    <link rel="prev" title="The PWA’s design system" href="design-system.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.8.1" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0003-one-process-sqlite-and-a-folder.html">3. One process, one SQLite database, one folder of files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0004-originals-kept-everything-else-derived.html">4. Originals are kept; everything else is derived, versioned or disposable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0005-capture-never-waits.html">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0006-vanilla-typescript-pwa-with-lazy-chunks.html">6. A vanilla TypeScript PWA with a size budget and lazy chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html">7. Tailscale Serve is the only way in; no login code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0008-search-fts5-only-for-now.html">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0009-claude-ingest-via-messages-api.html">9. Claude ingest: Messages API, no tools, one structured call per photo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0010-job-queue-pauses-instead-of-failing.html">10. Queue error classes: outages pause, charged failures count, spend is capped</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0011-drawings-as-skeletons-excalidraw.html">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0012-kinds-flat-fields-and-typed-todo-columns.html">12. Page kinds with flat fields; due date and priority as typed columns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0013-mcp-server-inside-the-app.html">13. The MCP server is part of the app: streamable HTTP, add-only writes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0014-markdown-parsed-by-a-library-on-both-sides.html">14. Page text is Markdown, parsed by a library on both sides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0015-images-in-text-and-gc.html">15. Images are embedded in the page text; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is conservative</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0016-deployment-single-server-and-helm.html">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0022-page-text-editable-over-mcp-with-revisions.html">22. Page text editable over MCP, made safe by text revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0027-fewer-mcp-tools.html">27. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../explanations.html" class="nav-link">Explanations</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Claude ingest</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="claude-ingest">
+<h1>Claude ingest<a class="headerlink" href="#claude-ingest" title="Link to this heading">#</a></h1>
+<p>Ingest is how scrap uses Claude. Each photo is sent once for its text, a description, a kind, a
+title, tags and, for a whiteboard or diagram, an Excalidraw drawing. Notes, todos, reads and saved
+links get tags, a summary and related pages from a second, cheaper job on the same worker
+(see <a class="reference internal" href="#ingest-enrich"><span class="std std-ref">Enrich</span></a>). Every result is a version that can be regenerated, edited or restored,
+and every call is stored, so a later conversation can start from what the model saw and said.</p>
+<p>This page explains how it works and why. It builds on <a class="reference internal" href="design.html"><span class="std std-doc">the design</span></a>. The decisions
+behind it are <a class="reference internal" href="decisions/0009-claude-ingest-via-messages-api.html"><span class="std std-doc">9. Claude ingest: Messages API, no tools, one structured call per photo</span></a>,
+<a class="reference internal" href="decisions/0010-job-queue-pauses-instead-of-failing.html"><span class="std std-doc">10. Queue error classes: outages pause, charged failures count, spend is capped</span></a> and
+<a class="reference internal" href="decisions/0011-drawings-as-skeletons-excalidraw.html"><span class="std std-doc">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</span></a>. To switch it on, see
+<a class="reference internal" href="#ingest-enabling"><span class="std std-ref">Enabling ingest</span></a>. Every setting is in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>, the HTTP routes and CLI
+commands included.</p>
+<p><strong>Settled:</strong> the Messages API only, on Opus; Reprocess always asks before replacing a human
+drawing; a daily budget of $3 by default.</p>
+<p><strong>Not built:</strong> a <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> backend with a Read tool (one without tools, for Claude seats, is
+<a class="reference internal" href="#on-a-claude-seat"><span class="std std-ref">below</span></a>), a cheaper first-pass model, a monthly budget (the Console
+spend limit caps it), a circuit breaker and a rate-limit class (the budget and <strong>Retry</strong> cover
+them). Chat and refine are not part of ingest
+yet; the stored runs are kept so they can start from them.</p>
+<section id="enabling-ingest">
+<span id="ingest-enabling"></span><h2>Enabling ingest<a class="headerlink" href="#enabling-ingest" title="Link to this heading">#</a></h2>
+<p>Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
+lost: it is sent when the worker starts.</p>
+<p>The switch is <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>, with <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> set (or, on a Claude seat,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code> with <code class="docutils literal notranslate"><span class="pre">CLAUDE_CODE_OAUTH_TOKEN</span></code>: <a class="reference internal" href="#on-a-claude-seat"><span class="std std-ref">On a Claude seat (SCRAP_LLM_BACKEND=cli)</span></a>, where a missing
+token or <code class="docutils literal notranslate"><span class="pre">claude</span></code> binary pauses the queue at start); the worker does not check the key
+at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
+installed:</p>
+<ul class="simple">
+<li><p><strong>Single server (podman).</strong> <code class="docutils literal notranslate"><span class="pre">deploy/install.sh</span></code> writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> (mode 600) and
+never overwrites it. Uncomment or add the lines there and run <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.
+The server tutorial does this: <a class="reference internal" href="../tutorials/install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>. Every setting is in
+<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>.</p></li>
+<li><p><strong>Kubernetes (Helm).</strong> <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code> (the chart never takes the key
+itself) and the optional <code class="docutils literal notranslate"><span class="pre">visionModel</span></code>, <code class="docutils literal notranslate"><span class="pre">budgetDayUSD</span></code> and <code class="docutils literal notranslate"><span class="pre">notifyUrlKey</span></code>: <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-ingest"><span class="std std-ref">Secrets and ingest</span></a>.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> (default on) controls the text-page job and needs ingest on; <code class="docutils literal notranslate"><span class="pre">off</span></code> keeps ingest to
+photos. The Helm chart has no value of its own for the text model, effort or debounce, or for
+<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>; set them with <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>. Its <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code> CronJob runs the nightly related-pages
+pass (see <a class="reference internal" href="#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>) with the same environment, while ingest is on.</p>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span></code> tries the Claude call on one image file without a database, and prints
+tokens, cost and counts only; <code class="docutils literal notranslate"><span class="pre">--save</span> <span class="pre">FILE</span></code> also writes the full result. It is the quickest way to
+check a key and a model.</p>
+</section>
+<section id="worker">
+<h2>Worker<a class="headerlink" href="#worker" title="Link to this heading">#</a></h2>
+<p>One daemon thread from the FastAPI lifespan. <code class="docutils literal notranslate"><span class="pre">Store</span></code> is synchronous and SQLite has one writer, so
+there is no asyncio task and no second process. With <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code> off the thread is not
+started. The capture transaction enqueues one <code class="docutils literal notranslate"><span class="pre">ingest</span></code> job per distinct image of a photo capture
+(<code class="docutils literal notranslate"><span class="pre">Store.ENQUEUE</span></code>). A unique index, <code class="docutils literal notranslate"><span class="pre">job_one_active</span></code>, allows one queued or running job per
+photo, so a repeated photo or a second <em>Reprocess</em> adds nothing.</p>
+<p>The thread wakes on an enqueue or every 30 s (<code class="docutils literal notranslate"><span class="pre">POLL</span></code>) and claims the oldest ready job whose page
+is not in the trash, with one <code class="docutils literal notranslate"><span class="pre">UPDATE</span> <span class="pre">...</span> <span class="pre">RETURNING</span></code> (<code class="docutils literal notranslate"><span class="pre">ingest.CLAIM</span></code>), unless the queue is paused
+(<code class="docutils literal notranslate"><span class="pre">queue_state.paused_until</span></code>). The claim and pause gate are in one statement, so a pause cannot
+race a claim.</p>
+<p>One job runs at a time, and a photo job is always taken before a text one (see
+<a class="reference internal" href="#ingest-enrich"><span class="std std-ref">Enrich</span></a>). It inserts a <code class="docutils literal notranslate"><span class="pre">model_run</span></code> row, calls Claude holding no lock, then in one
+<code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code> re-reads the job (a purge counts as done), finishes the run, writes the
+versions and page fields, and marks the job <code class="docutils literal notranslate"><span class="pre">done</span></code> or applies the error rules below. The loop
+catches every exception, so the thread cannot die silently, and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> answers 503 if it
+has. A job found <code class="docutils literal notranslate"><span class="pre">running</span></code> at service start is charged as <code class="docutils literal notranslate"><span class="pre">crashed</span></code> (it may have killed the
+process), so a crashing job cannot loop the service. A clean shutdown (<code class="docutils literal notranslate"><span class="pre">Worker.stop()</span></code>) stops
+claiming and gives the job in flight back to the queue for free; its call is abandoned and its
+run is marked as <code class="docutils literal notranslate"><span class="pre">service</span> <span class="pre">stopped</span></code>.</p>
+<p>The PWA shows each photo’s state under it (<a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>): <em>queued</em> (“Waiting for
+Claude”, or “Waiting: Claude ingest is off”), <em>processing</em>, <em>done</em>, <em>failed</em> (with the reason and
+<strong>Retry</strong>) or <em>paused</em> (“Paused (reason): nothing is lost”, with <strong>Resume</strong>). A finished photo has
+a quiet <strong>Reprocess</strong>. There is no banner: the pause shows on every waiting photo, and
+<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code> and <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/ingest/resume</span></code> are the queue’s status and the resume.</p>
+</section>
+<section id="the-claude-call">
+<h2>The Claude call<a class="headerlink" href="#the-claude-call" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">claude.complete(model,</span> <span class="pre">system,</span> <span class="pre">messages,</span> <span class="pre">schema)</span></code> returns the sanitised JSON, the raw content
+blocks, the usage and the served model.</p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">anthropic</span></code> SDK, with <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> from the service user’s env file (<code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>, mode 600); no
+<code class="docutils literal notranslate"><span class="pre">tools</span></code>; SDK debug logging off (it logs request bodies).</p></li>
+<li><p>Error text is stored and shown only after redaction: anything shaped like an API key
+(<code class="docutils literal notranslate"><span class="pre">sk-ant-...</span></code>), and the key itself, is removed, in case a server or proxy ever echoes the
+request headers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_retries=0</span></code> and a 240 s request timeout: the queue does all the retrying, so one claim is
+one call. The SDK’s own retries would triple a timeout and repeat a spend-cap 429 that cannot
+succeed.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, default <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code>. Its thinking cannot be disabled, so <code class="docutils literal notranslate"><span class="pre">effort</span></code>
+is set explicitly (<code class="docutils literal notranslate"><span class="pre">medium</span></code>) and recorded. <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code> is 16000. A board takes seconds to a
+minute or so; the 240 s timeout is the bound.</p></li>
+</ul>
+<p><strong>Image.</strong> Claude never gets the original, but a JPEG made from it by <code class="docutils literal notranslate"><span class="pre">preview.for_claude</span></code>: EXIF
+orientation applied, HEIC converted, quality 85. It is made one decode at a time and within a
+memory budget (400 MiB), so an image too large to decode is refused from its header and charged
+as class <code class="docutils literal notranslate"><span class="pre">image</span></code>. The result has the largest size with a long edge of at most 2048 px (2000 px on a
+Claude seat, <a class="reference internal" href="#on-a-claude-seat"><span class="std std-ref">below</span></a>) and
+⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
+photo is sent as 2048×1536 and a square one as 1932×1932.</p>
+<p>The image block sets <code class="docutils literal notranslate"><span class="pre">&quot;transformations&quot;:</span> <span class="pre">{&quot;oversized_image&quot;:</span> <span class="pre">&quot;error&quot;}</span></code>, so the API never
+rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
+(<code class="docutils literal notranslate"><span class="pre">model_run.sent_sha256</span></code>) with its <code class="docutils literal notranslate"><span class="pre">image_width</span></code> and <code class="docutils literal notranslate"><span class="pre">image_height</span></code>. The PWA scales the drawing
+to the displayed photo, and a later conversation can replay the exact bytes. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> counts
+<code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code> as in use; after a purge it is an orphan that gc removes.</p>
+<p><strong>Output:</strong> <code class="docutils literal notranslate"><span class="pre">kind</span></code> (whiteboard, handwriting, diagram, screenshot, document, photo or other), <code class="docutils literal notranslate"><span class="pre">title</span></code>,
+<code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code> (one item per line, <code class="docutils literal notranslate"><span class="pre">(?)</span></code> after uncertain readings) and <code class="docutils literal notranslate"><span class="pre">elements</span></code>
+(empty unless a whiteboard or diagram). The prompt lives in <code class="docutils literal notranslate"><span class="pre">src/scrap/prompts/photo.md</span></code>;
+<code class="docutils literal notranslate"><span class="pre">prompt_version</span></code> is <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;&#64;&lt;12</span> <span class="pre">hex</span> <span class="pre">digits</span> <span class="pre">of</span> <span class="pre">sha256(prompt</span> <span class="pre">+</span> <span class="pre">schema)&gt;</span></code>.</p>
+<p><strong>Schema.</strong> It keeps to the documented structured-output subset (<code class="docutils literal notranslate"><span class="pre">additionalProperties:</span> <span class="pre">false</span></code>,
+no numeric or string bounds, limited unions), which <code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">y]</span></code> tuples would break. An element is
+one flat object: <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> are required, plus optional scalars or number lists,
+none a union: <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">fontSize</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">labelFontSize</span></code>, <code class="docutils literal notranslate"><span class="pre">points</span></code> (flat
+<code class="docutils literal notranslate"><span class="pre">[dx0,</span> <span class="pre">dy0,</span> <span class="pre">dx1,</span> <span class="pre">dy1,</span> <span class="pre">...]</span></code>), <code class="docutils literal notranslate"><span class="pre">start</span></code> and <code class="docutils literal notranslate"><span class="pre">end</span></code> (shape ids), <code class="docutils literal notranslate"><span class="pre">strokeColor</span></code> and
+<code class="docutils literal notranslate"><span class="pre">startArrowhead</span></code>. Code makes Excalidraw skeletons of these and the sanitiser enforces bounds.
+<code class="docutils literal notranslate"><span class="pre">id</span></code> is required because, optional, the model leaves out every id and so every arrow.</p>
+<section id="on-a-claude-seat-scrap-llm-backend-cli">
+<span id="on-a-claude-seat"></span><h3>On a Claude seat (<code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>)<a class="headerlink" href="#on-a-claude-seat-scrap-llm-backend-cli" title="Link to this heading">#</a></h3>
+<p>For a Team or Enterprise seat with no API key (<a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>).
+<code class="docutils literal notranslate"><span class="pre">complete()</span></code> hands the call to <code class="docutils literal notranslate"><span class="pre">claude_cli.py</span></code>, which runs <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> once per call and
+returns the same <code class="docutils literal notranslate"><span class="pre">Completion</span></code>; everything after the call is shared. That is every Claude call:
+photos, and text enrichment (tags, summary, <em>Ask Claude</em>, the nightly related pass), whose text
+turn goes in the same way with the text model’s <code class="docutils literal notranslate"><span class="pre">--effort</span></code> and <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>
+(<code class="docutils literal notranslate"><span class="pre">CLAUDE_CODE_MAX_OUTPUT_TOKENS</span></code>). Nothing in scrap needs a tool: links are fetched by scrap.</p>
+<ul class="simple">
+<li><p><strong>Auth:</strong> <code class="docutils literal notranslate"><span class="pre">CLAUDE_CODE_OAUTH_TOKEN</span></code> from <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code>, in <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>. Without it, or
+without the <code class="docutils literal notranslate"><span class="pre">claude</span></code> binary, the worker pauses at start (<code class="docutils literal notranslate"><span class="pre">auth</span></code>) and logs why.</p></li>
+<li><p><strong>Input:</strong> one stream-json user message on stdin holding the image block (base64) and size text
+that scrap records; our prompt in place of Claude Code’s system prompt. The photo’s long edge
+is at most 2000 px, not 2048: the CLI rescales anything longer (and adds its own note on
+scaling coordinates). The CLI is not a pass-through: it re-encodes a JPEG over about 500 KB
+(same size in pixels), drops the block’s <code class="docutils literal notranslate"><span class="pre">transformations</span></code>, prefixes the system prompt, adds a
+message describing its environment, and may make a second request if the model does not call
+<code class="docutils literal notranslate"><span class="pre">StructuredOutput</span></code> (see <a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>).</p></li>
+<li><p><strong>Lock-down:</strong> <code class="docutils literal notranslate"><span class="pre">--tools</span> <span class="pre">&quot;&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">--permission-mode</span> <span class="pre">dontAsk</span></code>, <code class="docutils literal notranslate"><span class="pre">--strict-mcp-config</span></code> with no
+servers, <code class="docutils literal notranslate"><span class="pre">--setting-sources</span> <span class="pre">&quot;&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">--disable-slash-commands</span></code>, <code class="docutils literal notranslate"><span class="pre">--no-session-persistence</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--model</span></code>, <code class="docutils literal notranslate"><span class="pre">--effort</span></code> and <code class="docutils literal notranslate"><span class="pre">--json-schema</span></code> on every call; a throwaway <code class="docutils literal notranslate"><span class="pre">HOME</span></code> and working
+directory; an environment of <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, the token, proxy and CA settings only; CLI retries off,
+prompt caching off, 540 s for the process and its children (two request timeouts and
+start-up). A run whose <code class="docutils literal notranslate"><span class="pre">init</span></code> message offers any tool but <code class="docutils literal notranslate"><span class="pre">StructuredOutput</span></code> or any MCP
+server, or that has no <code class="docutils literal notranslate"><span class="pre">init</span></code> message, is discarded and pauses ingest (<code class="docutils literal notranslate"><span class="pre">auth</span></code>).</p></li>
+<li><p><strong>Output:</strong> the result’s <code class="docutils literal notranslate"><span class="pre">structured_output</span></code>; the stored content blocks are the
+<code class="docutils literal notranslate"><span class="pre">StructuredOutput</span></code> tool call, <code class="docutils literal notranslate"><span class="pre">usage</span></code> is the CLI’s with its <code class="docutils literal notranslate"><span class="pre">total_cost_usd</span></code>, which is the
+run’s <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> and so counts towards the daily budget (a notional figure on a seat);
+for a model the CLI has no list price for (<code class="docutils literal notranslate"><span class="pre">costBasis</span></code> not <code class="docutils literal notranslate"><span class="pre">list</span></code>: Haiku and Sonnet 5.5 on
+2.1.281), scrap’s <code class="docutils literal notranslate"><span class="pre">PRICES</span></code> cost the usage instead. A
+run killed at the deadline keeps the usage of the requests it got answers to.</p></li>
+<li><p><strong>Errors:</strong> the CLI’s error kind and status map onto the classes below. A run is failed if any
+request in it failed, even if the CLI went on to report a success (as it does after the API
+rejects the image: it drops the image and asks again without it). A seat’s usage limit (a
+rejected <code class="docutils literal notranslate"><span class="pre">rate_limit_event</span></code>) is an <code class="docutils literal notranslate"><span class="pre">outage</span></code> that waits for its reset (at most an hour at a
+time). Overage (<code class="docutils literal notranslate"><span class="pre">isUsingOverage</span></code>: past the limit, where calls may be billed) is a <code class="docutils literal notranslate"><span class="pre">credit</span></code>
+pause until <em>Resume</em>, so a person checks before more is spent; that run’s answer is not
+stored and the photo is sent again after <em>Resume</em>.</p></li>
+</ul>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>CLI error</p></th>
+<th class="head"><p>Class</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">authentication_failed</span></code>, <code class="docutils literal notranslate"><span class="pre">oauth_org_not_allowed</span></code>, <code class="docutils literal notranslate"><span class="pre">account_on_hold</span></code>, <code class="docutils literal notranslate"><span class="pre">verification_required</span></code>, <code class="docutils literal notranslate"><span class="pre">model_not_found</span></code>; 401, 403, 404; tools or MCP servers offered, or no <code class="docutils literal notranslate"><span class="pre">init</span></code> message</p></td>
+<td><p>auth</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">billing_error</span></code>; 402; a <code class="docutils literal notranslate"><span class="pre">rate_limit_event</span></code> with <code class="docutils literal notranslate"><span class="pre">isUsingOverage</span></code></p></td>
+<td><p>credit</p></td>
+</tr>
+<tr class="row-even"><td><p>a message saying it timed out, with no status (the CLI calls it a <code class="docutils literal notranslate"><span class="pre">server_error</span></code>); the process running over 540 s</p></td>
+<td><p>timeout</p></td>
+</tr>
+<tr class="row-odd"><td><p>a rejected <code class="docutils literal notranslate"><span class="pre">rate_limit_event</span></code>; <code class="docutils literal notranslate"><span class="pre">rate_limit</span></code>, <code class="docutils literal notranslate"><span class="pre">overloaded</span></code>, <code class="docutils literal notranslate"><span class="pre">server_error</span></code> (including no connection); 429, 5xx</p></td>
+<td><p>outage</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">invalid_request</span></code> (including an image the API could not process); 400, 409, 413, 422; a refusal</p></td>
+<td><p>content</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">max_output_tokens</span></code>, no structured output, <code class="docutils literal notranslate"><span class="pre">error_max_structured_output_retries</span></code></p></td>
+<td><p>invalid</p></td>
+</tr>
+<tr class="row-even"><td><p>no result at all (a crash); any other error</p></td>
+<td><p>internal</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="stored-context">
+<h2>Stored context<a class="headerlink" href="#stored-context" title="Link to this heading">#</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">model_run</span></code> row is one call: the system prompt, messages and parameters in <code class="docutils literal notranslate"><span class="pre">request</span></code> (images
+as blob references, never base64), the content blocks exactly as returned in <code class="docutils literal notranslate"><span class="pre">response</span></code> (thinking
+blocks and signatures included), the sanitised <code class="docutils literal notranslate"><span class="pre">output</span></code> with its warnings, <code class="docutils literal notranslate"><span class="pre">usage</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, <code class="docutils literal notranslate"><span class="pre">status</span></code> and <code class="docutils literal notranslate"><span class="pre">error_class</span></code>. A run cannot be deleted while a version uses it.
+The schema is in <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0002_ingest.sql"><code class="docutils literal notranslate"><span class="pre">0002_ingest.sql</span></code></a>.</p>
+<p>A conversation (not built yet) would continue run <em>R</em> by sending <em>R</em>’s system prompt and
+messages, <em>R</em>’s <code class="docutils literal notranslate"><span class="pre">response</span></code> unchanged as the assistant turn, and a new user turn, on <em>R</em>’s model.
+<code class="docutils literal notranslate"><span class="pre">model_run.parent_id</span></code> is there for it. MCP does not expose runs: <code class="docutils literal notranslate"><span class="pre">read</span></code> lists each image with its URL and what Claude read from
+it, and Claude’s own additions (summary, tags, related pages, a board’s write-up) under
+<code class="docutils literal notranslate"><span class="pre">by_model</span></code>. See
+<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p>
+</section>
+<section id="derived-results-and-versions">
+<h2>Derived results and versions<a class="headerlink" href="#derived-results-and-versions" title="Link to this heading">#</a></h2>
+<p>Migration 0002 creates <code class="docutils literal notranslate"><span class="pre">derived</span></code>, which holds results as versions:</p>
+<ul class="simple">
+<li><p>One current row (<code class="docutils literal notranslate"><span class="pre">superseded_at</span> <span class="pre">IS</span> <span class="pre">NULL</span></code>, a partial unique index) per <code class="docutils literal notranslate"><span class="pre">(capture,</span> <span class="pre">photo,</span> <span class="pre">kind)</span></code>;
+inserting one supersedes the old (a trigger). Rows never change otherwise (more triggers);
+<strong>Restore</strong> inserts a copy.</p></li>
+<li><p><strong>Kinds.</strong> <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code> (its <code class="docutils literal notranslate"><span class="pre">data</span></code> keeps the image kind) and <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> (<code class="docutils literal notranslate"><span class="pre">data</span></code> is
+<code class="docutils literal notranslate"><span class="pre">{&quot;format&quot;:</span> <span class="pre">&quot;skeleton&quot;</span> <span class="pre">|</span> <span class="pre">&quot;scene&quot;,</span> <span class="pre">&quot;width&quot;,</span> <span class="pre">&quot;height&quot;,</span> <span class="pre">&quot;elements&quot;}</span></code>). The table also allows
+<code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code>; enrichment keeps those in <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> instead.</p></li>
+<li><p><strong>Producer:</strong> the model id with its <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, or <code class="docutils literal notranslate"><span class="pre">human</span></code> with <code class="docutils literal notranslate"><span class="pre">author</span></code>. A reprocess over a
+human drawing stores its drawing already superseded unless the user confirmed. The
+confirmation is kept on a job already queued or running (the worker reads it as it finishes),
+so it is never lost.</p></li>
+<li><p><strong>Restore</strong> copies the version’s producer, run, author and text; its <code class="docutils literal notranslate"><span class="pre">data</span></code> adds
+<code class="docutils literal notranslate"><span class="pre">restored_from</span></code> and <code class="docutils literal notranslate"><span class="pre">restored_by</span></code>, so the history can say so.</p></li>
+</ul>
+<p><strong>Page fields</strong> come from the first photo, and the user wins:</p>
+<ul class="simple">
+<li><p><strong>Title.</strong> The provisional title (first line of text, else the URL, else the device date)
+stays in rev 1 as captured. Only the first photo of a capture without text may replace it,
+once, on the page row only, adding no revision (<code class="docutils literal notranslate"><span class="pre">ingest.TITLE_CAS</span></code>: it applies only while the
+title still equals rev 1’s and there is no later revision). The same transaction re-indexes the
+page. <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{id}</span></code> treats a title equal to the title at its <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> as unchanged,
+so the PWA, which always sends the title it loaded, never undoes the model’s. The slug never
+changes (the PWA uses the id).</p></li>
+<li><p><strong>Tags</strong> join the page’s own on the first reading of its first photo, the user’s first: Claude’s
+fill what the user’s leave of the page’s 64. A later reading (Reprocess) adds them only to a
+page with none, so a tag the user took off stays off. Photo tags are cleaned to lower case,
+words joined by <code class="docutils literal notranslate"><span class="pre">-</span></code>, at most 64 characters each, at most 10 per reading.</p></li>
+<li><p><strong>Kind</strong> changes only while it is an unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code>: whiteboard and diagram become
+<code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, document becomes <code class="docutils literal notranslate"><span class="pre">document</span></code> (<code class="docutils literal notranslate"><span class="pre">ingest.PAGE_KINDS</span></code>).</p></li>
+</ul>
+<p><strong>Search.</strong> A trigger indexes a current version’s <code class="docutils literal notranslate"><span class="pre">text</span></code> as a chunk of its page (with
+<code class="docutils literal notranslate"><span class="pre">derived_id</span></code>), and superseding removes it. That covers OCR, the description and a human drawing’s
+labels; a model drawing’s text is empty, because its words are the OCR. <code class="docutils literal notranslate"><span class="pre">Store.index_page</span></code>
+rewrites only the chunks with <code class="docutils literal notranslate"><span class="pre">derived_id</span> <span class="pre">IS</span> <span class="pre">NULL</span></code>, and search groups hits by page.</p>
+</section>
+<section id="excalidraw-in-the-pwa">
+<h2>Excalidraw in the PWA<a class="headerlink" href="#excalidraw-in-the-pwa" title="Link to this heading">#</a></h2>
+<p>A Vite dynamic <code class="docutils literal notranslate"><span class="pre">import()</span></code> loads <code class="docutils literal notranslate"><span class="pre">&#64;excalidraw/excalidraw</span></code> and React only when a drawing is shown;
+the base app stays small. <code class="docutils literal notranslate"><span class="pre">convertToExcalidrawElements</span></code> expands skeletons in the browser with two
+workarounds: an arrow bound to free text carries that text’s <code class="docutils literal notranslate"><span class="pre">x</span></code>/<code class="docutils literal notranslate"><span class="pre">y</span></code> in <code class="docutils literal notranslate"><span class="pre">start</span></code>/<code class="docutils literal notranslate"><span class="pre">end</span></code>, and the
+scene is converted again after <code class="docutils literal notranslate"><span class="pre">document.fonts.ready</span></code>. The code is in <code class="docutils literal notranslate"><span class="pre">web/src/board/</span></code>.</p>
+<ul class="simple">
+<li><p><em>On the page</em> the drawing is a static SVG from Excalidraw’s <code class="docutils literal notranslate"><span class="pre">exportToSvg</span></code>, framed like the
+photo (its <code class="docutils literal notranslate"><span class="pre">viewBox</span></code> is the frame, so it lines up with the photo whatever the photo’s size),
+rendered when it nears the screen and kept in memory. It behaves like an image: no gestures,
+so a finger drag scrolls the page. Its aspect ratio comes with the page (<code class="docutils literal notranslate"><span class="pre">ingest.drawing</span></code> has
+the frame), so nothing shifts when it renders. Wide screens show it beside the photo; narrow ones (a phone held
+upright) show one at a time, with a Photo / Drawing switch.</p></li>
+<li><p><em>Tapping it</em> opens the full-screen viewer: a layer sized to the visual viewport with a history
+entry (Back closes it), Excalidraw in view mode fitted to the frame, and <strong>Edit</strong> switching the
+same scene to edit mode, so zoom, scroll and edits survive the switch. Edits are kept as a
+draft in IndexedDB as they change. <strong>Photo</strong> shows the photo beside the drawing (landscape) or
+over it (portrait). <strong>Save</strong> (in edit mode) stores the scene with its base version (409 if stale) as a <code class="docutils literal notranslate"><span class="pre">human</span></code>
+version whose labels become <code class="docutils literal notranslate"><span class="pre">text</span></code>; <strong>History</strong> has <strong>Restore</strong>; the viewer exports to
+<code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code>, PNG and SVG; the image tool is hidden.</p></li>
+<li><p><em>Fonts.</em> Excalidraw’s drawing fonts, but not Xiaolai (CJK, 14 MB), are copied from the package
+into the build (<code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>) and fetched only when used. Excalidraw always lists its
+CDN as a fallback source; the app’s CSP, <code class="docutils literal notranslate"><span class="pre">font-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">connect-src</span> <span class="pre">'self'</span></code>, keeps it
+from ever using it (Chrome logs each blocked fallback). The preview skips Excalidraw’s font
+inlining (the page already has the fonts); exported SVGs inline them.</p></li>
+<li><p><em>The second workaround</em> is done before anything is shown: convert, export the text to a 1 px
+canvas (which makes Excalidraw load the fonts it uses), wait for <code class="docutils literal notranslate"><span class="pre">document.fonts.ready</span></code>,
+convert again.</p></li>
+<li><p><em>Sizes.</em> <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">size</span></code> checks them in CI. The app shell’s JavaScript is budgeted at 16 kB
+gzipped (about 15 kB now, plus about 8 kB of CSS); the viewer chunk loaded on demand is about
+400 kB of JavaScript and 23 kB of CSS gzipped, and the fonts about 350 kB. scrap gzips its
+scripts, styles, pages and JSON for clients that accept it (not files, previews, downloads,
+fonts or range requests), so gzipped sizes are what crosses the network.</p></li>
+<li><p><em>Offline.</em> The service worker precaches the shell and a short list of screen chunks (<code class="docutils literal notranslate"><span class="pre">OFFLINE</span></code>
+in <code class="docutils literal notranslate"><span class="pre">web/vite.config.ts</span></code>: composer, editor, page edit, render, sharing, refine and searches),
+never the drawing viewer or its fonts. The viewer and fonts are fetched when a drawing is first
+opened.</p></li>
+<li><p><em>Reprocess</em> shows <strong>Replace mine</strong> / <strong>Keep mine</strong> when the current drawing is a human one, and
+<code class="docutils literal notranslate"><span class="pre">{queued,</span> <span class="pre">already}</span></code> in the reply says whether the photo was waiting already.</p></li>
+<li><p><em>Downloads.</em> The page’s zip carries <code class="docutils literal notranslate"><span class="pre">&lt;photo&gt;.excalidraw</span></code> beside each photo; a model skeleton is
+converted on the server, approximately (Excalidraw re-measures text when it opens it). The
+viewer’s own exports are made by Excalidraw in the browser.</p></li>
+</ul>
+</section>
+<section id="sanitising">
+<span id="ingest-sanitising"></span><h2>Sanitising<a class="headerlink" href="#sanitising" title="Link to this heading">#</a></h2>
+<p>Two sanitisers, in <code class="docutils literal notranslate"><span class="pre">src/scrap/sanitise.py</span></code>. A violation by the model drops just that element,
+with a warning in the run; a violation in a human scene refuses the whole save with a 422 and
+the editor keeps its state.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Rule</p></th>
+<th class="head"><p>Model output (strict)</p></th>
+<th class="head"><p>Human scene (permissive)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Element types</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rectangle</span></code>, <code class="docutils literal notranslate"><span class="pre">ellipse</span></code>, <code class="docutils literal notranslate"><span class="pre">diamond</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">arrow</span></code>, <code class="docutils literal notranslate"><span class="pre">line</span></code></p></td>
+<td><p>those six plus <code class="docutils literal notranslate"><span class="pre">freedraw</span></code>; no images, embeds, iframes or frames</p></td>
+</tr>
+<tr class="row-odd"><td><p>Count</p></td>
+<td><p>at most 1000 elements</p></td>
+<td><p>the scene is bounded by size and depth</p></td>
+</tr>
+<tr class="row-even"><td><p>Position</p></td>
+<td><p>finite, within a quarter of the image beyond its edges</p></td>
+<td><p>any finite number</p></td>
+</tr>
+<tr class="row-odd"><td><p>Points</p></td>
+<td><p>at most 200</p></td>
+<td><p>at most 200, or 50,000 for <code class="docutils literal notranslate"><span class="pre">freedraw</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Text and font</p></td>
+<td><p>2000 characters; font size 4 to 200</p></td>
+<td><p>no limit of their own beyond the scene’s size; <code class="docutils literal notranslate"><span class="pre">fontSize</span></code> must be a finite number</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ids</p></td>
+<td><p>up to 32 characters of <code class="docutils literal notranslate"><span class="pre">[A-Za-z0-9_-]</span></code></p></td>
+<td><p>Excalidraw’s own</p></td>
+</tr>
+<tr class="row-even"><td><p>Colours</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#rrggbb</span></code></p></td>
+<td><p>anything Excalidraw writes (<code class="docutils literal notranslate"><span class="pre">transparent</span></code>, named, <code class="docutils literal notranslate"><span class="pre">#rgb</span></code>, <code class="docutils literal notranslate"><span class="pre">#rrggbbaa</span></code>, <code class="docutils literal notranslate"><span class="pre">rgba()</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Bindings</p></td>
+<td><p>an arrow whose <code class="docutils literal notranslate"><span class="pre">start</span></code> or <code class="docutils literal notranslate"><span class="pre">end</span></code> names no remaining element loses that binding</p></td>
+<td><p>Excalidraw’s own keys (<code class="docutils literal notranslate"><span class="pre">index</span></code>, <code class="docutils literal notranslate"><span class="pre">groupIds</span></code>, <code class="docutils literal notranslate"><span class="pre">containerId</span></code>, <code class="docutils literal notranslate"><span class="pre">originalText</span></code>, bindings)</p></td>
+</tr>
+<tr class="row-even"><td><p>Links</p></td>
+<td><p>none</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">link</span></code> only with http(s)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Embedded files</p></td>
+<td><p>none</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">files</span></code> map is stripped</p></td>
+</tr>
+<tr class="row-even"><td><p>Size and depth</p></td>
+<td><p>none</p></td>
+<td><p>5 MB per scene (compact UTF-8 JSON), nested at most 32 levels</p></td>
+</tr>
+<tr class="row-odd"><td><p>Unicode</p></td>
+<td><p>lone surrogates replaced with U+FFFD</p></td>
+<td><p>lone surrogates refused (JSON can escape half a UTF-16 pair, UTF-8 cannot encode it, so it could be stored and never served)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Prompt injection.</strong> The image is data: no tools, no network, output schema-checked and
+sanitised. It can change only its page’s versions, a provisional title, its tags (adding up to
+10 on the first reading, alongside the user’s, which it cannot remove; none on a later one unless
+the page has none), an unfixed <code class="docutils literal notranslate"><span class="pre">note</span></code> kind and, for a list of actions, task boxes appended to
+the text (<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>).</p>
+</section>
+<section id="a-list-of-actions-becomes-task-boxes">
+<span id="ingest-actions"></span><h2>A list of actions becomes task boxes<a class="headerlink" href="#a-list-of-actions-becomes-task-boxes" title="Link to this heading">#</a></h2>
+<p>Photo ingest and enrich share one prompt section (<code class="docutils literal notranslate"><span class="pre">prompts/items.md</span></code>, added to both prompts by
+<code class="docutils literal notranslate"><span class="pre">claude.prompt</span></code>), one schema fragment (<code class="docutils literal notranslate"><span class="pre">claude.INTENT_PROPERTIES</span></code>) and one writer
+(<code class="docutils literal notranslate"><span class="pre">src/scrap/actions.py</span></code>), so a photographed sticky and a typed note behave alike
+(<a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html"><span class="std std-doc">26. Claude appends task boxes to a list of actions</span></a>).</p>
+<ul class="simple">
+<li><p><strong>Output.</strong> <code class="docutils literal notranslate"><span class="pre">intent</span></code> (<code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code>, <code class="docutils literal notranslate"><span class="pre">reference</span></code> or <code class="docutils literal notranslate"><span class="pre">other</span></code>), <code class="docutils literal notranslate"><span class="pre">confidence</span></code> (<code class="docutils literal notranslate"><span class="pre">high</span></code>,
+<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>) and <code class="docutils literal notranslate"><span class="pre">items</span></code>, each <code class="docutils literal notranslate"><span class="pre">{text,</span> <span class="pre">done}</span></code> in reading order (<code class="docutils literal notranslate"><span class="pre">done</span></code> for an entry crossed
+out or ticked). Only a page that is mainly a list of things to do is <code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code>; the
+prompt says to answer <code class="docutils literal notranslate"><span class="pre">reference</span></code> or <code class="docutils literal notranslate"><span class="pre">other</span></code> when unsure. A heading such as “CURRENT ACTIONS” is
+not an item. Output without these fields counts as <code class="docutils literal notranslate"><span class="pre">other</span></code>.</p></li>
+<li><p><strong>Checked</strong> (<code class="docutils literal notranslate"><span class="pre">actions.clean_items</span></code>): each entry is one line of plain text of at most 200
+characters, with control characters, leading list, heading, quote or checkbox marks, links
+(kept as their label), URL schemes and <code class="docutils literal notranslate"><span class="pre">www.</span></code> (nothing autolinks), character references,
+code, emphasis marks, backslashes, brackets and angle brackets removed; empty and repeated entries
+are dropped, and at most 30 are kept.</p></li>
+<li><p><strong>When it writes.</strong> Only when the intent is <code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code> with <code class="docutils literal notranslate"><span class="pre">high</span></code> confidence and
+entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
+text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
+and is a <code class="docutils literal notranslate"><span class="pre">note</span></code> with <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> 0 (for a photo also a <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> that ingest, not the user,
+chose, which becomes a note and then a todo). A saved link is never written to. For a photo
+it is the capture’s first image. A fixed kind, a page with boxes and any other reading change
+nothing.</p></li>
+<li><p><strong>How.</strong> The entries are appended below the user’s text as <code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> <span class="pre">item</span></code> (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[x]</span></code> for done),
+separated by a blank line, in one text revision by <code class="docutils literal notranslate"><span class="pre">claude</span></code> that never folds into another
+(<code class="docutils literal notranslate"><span class="pre">edit_text</span></code>, as MCP’s <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>). The user’s words are never rewritten, even when they are
+already plain bullets: the boxes go below them and the original list stays above. The task-box
+rule then files the page as a todo. <code class="docutils literal notranslate"><span class="pre">revert</span></code> with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> (to the revision before) restores the text;
+when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
+photo’s whiteboard or document, else a note), unless the user filed or changed the todo.</p></li>
+<li><p><strong>Reprocess and Ask Claude</strong> read again, but a page that has boxes is skipped, so boxes are
+never added twice. A photo page is read again for its drawing and tags, as before.</p></li>
+<li><p><strong>Enrich runs once more.</strong> The revision is a text save, so a saved text page queues one more
+enrich job after the debounce, which finds the boxes and adds none.</p></li>
+</ul>
+</section>
+<section id="spend-and-outage-control">
+<span id="ingest-spend"></span><h2>Spend and outage control<a class="headerlink" href="#spend-and-outage-control" title="Link to this heading">#</a></h2>
+<p>A price table (<code class="docutils literal notranslate"><span class="pre">claude.PRICES</span></code>, dollars per million tokens) turns each run’s <code class="docutils literal notranslate"><span class="pre">usage</span></code> into
+<code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>: <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code> is $4 in / $20 out, <code class="docutils literal notranslate"><span class="pre">claude-sonnet-5-5</span></code> $2 / $10 and
+<code class="docutils literal notranslate"><span class="pre">claude-haiku-5-5</span></code> $0.10 / $0.50 (for prompts up to 100k tokens, which enrich’s never reach),
+with cache write and read rates too. A model that is not in the table is priced at the
+<code class="docutils literal notranslate"><span class="pre">DEAREST</span></code> fallback, $10 in / $50 out, so an unlisted model’s cost is over-estimated rather than
+under-estimated; add the model to <code class="docutils literal notranslate"><span class="pre">PRICES</span></code> to get its real price.</p>
+<p><strong>The budget</strong> is <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (default 3), for photos and text pages together: the sum
+of <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> of the runs started since UTC midnight, in <code class="docutils literal notranslate"><span class="pre">model_run</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>. It is
+checked when a job is claimed, not during a call, so the call that crosses the line still
+finishes and the day can end a little over; the Console spend limit is the hard cap. Once it is
+reached, the job is given back and the queue pauses (reason <code class="docutils literal notranslate"><span class="pre">budget</span></code>) until UTC midnight, or
+<strong>Resume</strong>. Resume does not raise the budget: the next claim sees the spend still over and pauses
+again, so raise <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> and restart if you want to go on today.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Class</p></th>
+<th class="head"><p>Recognised by</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>credit</p></td>
+<td><p>402 <code class="docutils literal notranslate"><span class="pre">billing_error</span></code>; 400 whose message contains “reached your specified” and “API usage limits” (Console spend limit) or “credit balance”; 429 with <code class="docutils literal notranslate"><span class="pre">error.details.error_code</span></code> <code class="docutils literal notranslate"><span class="pre">enforced_spend_limit_reached</span></code></p></td>
+<td><p>pause until <em>Resume</em></p></td>
+</tr>
+<tr class="row-odd"><td><p>auth</p></td>
+<td><p>401, 403, 404 (unknown model)</p></td>
+<td><p>pause until <em>Resume</em></p></td>
+</tr>
+<tr class="row-even"><td><p>outage</p></td>
+<td><p>any other 429; any 5xx (including 504, 529); connection error</p></td>
+<td><p>pause until <code class="docutils literal notranslate"><span class="pre">retry-after</span></code> (at most 1 h), else 1, 2, 4 … 60 min</p></td>
+</tr>
+<tr class="row-odd"><td><p>budget</p></td>
+<td><p>the day’s spend reached</p></td>
+<td><p>pause until UTC midnight</p></td>
+</tr>
+<tr class="row-even"><td><p>timeout</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">APITimeoutError</span></code> (240 s)</p></td>
+<td><p>charged</p></td>
+</tr>
+<tr class="row-odd"><td><p>invalid</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>, bad output, nothing valid left (no text and no description: bad drawing elements are only dropped)</p></td>
+<td><p>charged; retried at once</p></td>
+</tr>
+<tr class="row-even"><td><p>content</p></td>
+<td><p>refusal, any other 400, 409, 413, 422</p></td>
+<td><p>charged</p></td>
+</tr>
+<tr class="row-odd"><td><p>image</p></td>
+<td><p>decode or HEIC failure, too large to decode within the memory budget</p></td>
+<td><p>charged</p></td>
+</tr>
+<tr class="row-even"><td><p>internal</p></td>
+<td><p>any other exception</p></td>
+<td><p>charged</p></td>
+</tr>
+<tr class="row-odd"><td><p>crashed</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">running</span></code> at service start</p></td>
+<td><p>charged</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>The rule.</strong> A pause refunds the claim: the job stays <code class="docutils literal notranslate"><span class="pre">queued</span></code> with <code class="docutils literal notranslate"><span class="pre">run_after</span></code> set to the
+failure’s time, behind older jobs, while the pause gate waits. <em>Resume</em>, or the pause running
+out, makes it claimable again, so an outage fails nothing. Every charged failure adds 1 to
+<code class="docutils literal notranslate"><span class="pre">job.failures</span></code> and retries 10 minutes later (invalid output at once); the third kills the job
+(<code class="docutils literal notranslate"><span class="pre">dead</span></code>, shown as <em>failed</em> with <strong>Retry</strong>). The SDK’s <code class="docutils literal notranslate"><span class="pre">APITimeoutError</span></code> subclasses
+<code class="docutils literal notranslate"><span class="pre">APIConnectionError</span></code>, so it is tested first, else every timeout would be a free outage retry. A
+success clears the pause.</p>
+<p><strong>Notification.</strong> The first pause of an episode (or a pause for a new reason, such as a spend
+limit after a budget pause) POSTs once to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> (off when unset; an ntfy topic
+works) with the fixed text <code class="docutils literal notranslate"><span class="pre">scrap:</span> <span class="pre">Claude</span> <span class="pre">ingest</span> <span class="pre">paused</span> <span class="pre">({reason}).</span> <span class="pre">Open</span> <span class="pre">scrap</span> <span class="pre">to</span> <span class="pre">resume.</span></code> It
+names only the reason, never titles, OCR or API errors.</p>
+</section>
+<section id="what-is-sent-to-anthropic">
+<span id="ingest-sent"></span><h2>What is sent to Anthropic<a class="headerlink" href="#what-is-sent-to-anthropic" title="Link to this heading">#</a></h2>
+<p>Only when ingest is on and only to the Claude API:</p>
+<ul class="simple">
+<li><p><strong>A photo:</strong> the JPEG described above (a resized, re-encoded copy; only its colour profile is kept from the original’s metadata) and
+the fixed prompt. Nothing else about the page is sent.</p></li>
+<li><p><strong>A note, todo or read:</strong> its kind, tags, title and text as plain words (at most 12,000
+characters), what photo ingest read from its images, if any (each image’s description and
+text, at most 8,000 characters in all), a list of the tags already in use with their counts
+(at most 600 tags), and the fixed prompt.</p></li>
+<li><p><strong>A saved link:</strong> the same, plus the link’s readable text (at most 20,000 characters) fetched by
+scrap. The fetched text is sent, not stored.</p></li>
+<li><p><strong>Related pages:</strong> the page in brief (its kind, title, tags, summary, the first 2,000
+characters of its text and the first 3,000 of what was read from its images) and an index of
+up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters. For
+a board page, also the first 2,000 characters of its write-up.</p></li>
+<li><p><strong>A board’s write-up:</strong> the board photos themselves (at most four, the JPEGs photo ingest
+sent), what was read from them (at most 12,000 characters), the page’s kind, title, tags and
+text as plain words (at most 6,000 characters), the owner’s guidance, if any, and the same index
+of candidate pages as the related call.</p></li>
+</ul>
+<p>Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
+link fetches above (to the linked site) and <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>, which gets a fixed line with the
+pause reason. Everything sent is kept in the
+database in <code class="docutils literal notranslate"><span class="pre">model_run</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> (photos as references to the stored JPEG), so it is
+covered by the same backups as the pages.</p>
+</section>
+<section id="enrich-text-pages-and-links">
+<span id="ingest-enrich"></span><h2>Enrich: text pages and links<a class="headerlink" href="#enrich-text-pages-and-links" title="Link to this heading">#</a></h2>
+<p>Photos get tags from their own reading; notes, todos, reads and saved links get them from a
+second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">src/scrap/enrich/</span></code>), on the same worker thread, queue pause and
+daily budget (<a class="reference internal" href="decisions/0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>). One tool-less call per page, structured output, schema-checked: Claude adds tags
+and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
+page’s text, except that a confident list of actions gets task boxes appended
+(<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>). The schema is in
+<a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql"><code class="docutils literal notranslate"><span class="pre">0009_enrich.sql</span></code></a>.</p>
+<ul class="simple">
+<li><p><strong>Model.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code>, default <code class="docutils literal notranslate"><span class="pre">claude-haiku-5-5</span></code>; <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code>, default <code class="docutils literal notranslate"><span class="pre">low</span></code>;
+<code class="docutils literal notranslate"><span class="pre">max_tokens</span></code> 4000. <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> turns it off while photo ingest stays on.</p></li>
+<li><p><strong>Triggers.</strong> A text capture (a note, todo or read) or a link capture: a link is fetched and
+read at once, a text capture after <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds (60). A save of the title or
+text of a note (a saved link is one), todo or read moves the page’s one queued job that far
+ahead again, so a burst of edits makes one call (a save while a job runs queues the next). Text
+added over MCP with <code class="docutils literal notranslate"><span class="pre">append</span></code> counts as a save. A saved link is fetched on a capture, Ask or
+backfill only, never on a save. These do tags and summary
+only.
+<strong>Ask Claude</strong> on the page (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/enrich</span></code>) queues it now and also picks its
+related pages. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> queues every note, todo or read with no tags
+that Claude has not read, once, by hand (never automatic). Some things queue nothing:</p>
+<ul>
+<li><p>A photo or file capture, even with a typed note (<code class="docutils literal notranslate"><span class="pre">should_enrich</span></code> in <code class="docutils literal notranslate"><span class="pre">store/indexing.py</span></code>, #155): photo ingest reads the photo, and the
+page’s first text reading comes with a later save of its title or text (or Ask Claude).</p></li>
+<li><p>A whiteboard or document page: it is not read as text (#155).</p></li>
+<li><p>Pages Claude Code adds with the MCP <code class="docutils literal notranslate"><span class="pre">write</span></code> tool count as notes, whatever their kind, so a
+new one is read after the debounce like a user’s note: Claude’s own pages get model tags and
+a summary, and cost budget. <code class="docutils literal notranslate"><span class="pre">append_to</span></code> adds a section without a reading, as do tag and kind
+edits.</p></li>
+<li><p>An import (<a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a>); use <code class="docutils literal notranslate"><span class="pre">--backfill</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Order.</strong> The worker takes the oldest ready photo job first and runs a text page only when no
+photo job is ready. After <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">--ingest</span></code> or a burst of photos, notes and links wait
+until the photo queue is empty, so “Waiting for Claude” on a note can last as long as the
+photos take, and several days if the daily budget spreads them out. A photo waiting out a
+retry delay does not hold text back, but a pause stops both kinds, and they share the one daily
+budget.</p></li>
+<li><p><strong>Prompt</strong> (<code class="docutils literal notranslate"><span class="pre">prompts/enrich.md</span></code>): the fixed instructions, then the tags in use with their
+counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
+text as plain words (at most 12,000 characters), each image’s description and text as photo
+ingest read them (labelled by image, at most 8,000 characters in all, in an <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> block
+of their own) and, for a link, what was fetched. Everything there is data; the prompt says to
+follow nothing in it. A page with a photo capture reaches this call only by Ask Claude.</p></li>
+<li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">tags</span></code>: cleaned like the user’s, each at most 40 characters, at most 2 not
+already in use (invented ones are the sprawl risk), at most 5 added; <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one paragraph,
+at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
+<code class="docutils literal notranslate"><span class="pre">title</span></code>: links only, 200 characters.</p></li>
+<li><p><strong>The user wins.</strong> Tags are added on the first reading, on Ask, on a capture and on backfill (a
+save’s re-reading refreshes the summary only); never one the user took off. <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> marks
+Claude’s tags (<code class="docutils literal notranslate"><span class="pre">on</span></code>), and <code class="docutils literal notranslate"><span class="pre">off</span></code> once the user removes one, so it never comes back; a tag the
+user puts back by hand is theirs. Photo ingest marks its tags there too. A link’s title
+replaces the provisional one only while the title is still the URL as captured (rev 1, no edit
+since); a share with its own title keeps it. For a link, the kind becomes Later (<code class="docutils literal notranslate"><span class="pre">consume</span></code>, with <code class="docutils literal notranslate"><span class="pre">source</span></code>)
+only while it is an unfixed note. The summary is the model’s own (<code class="docutils literal notranslate"><span class="pre">enrichment</span></code>); a page’s
+<code class="docutils literal notranslate"><span class="pre">summary</span></code> field (imported, the user’s) wins in search and the index.</p></li>
+<li><p><strong>Stored apart from the text:</strong> <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> (summary, fetched address and title, the run),
+<code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> (Claude’s picks in order), and every call in <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> (as
+<code class="docutils literal notranslate"><span class="pre">model_run</span></code>, whose cost it shares in the budget; <code class="docutils literal notranslate"><span class="pre">request.purpose</span></code> is <code class="docutils literal notranslate"><span class="pre">enrich</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> or
+<code class="docutils literal notranslate"><span class="pre">writeup</span></code>). A
+link’s fetched text is sent, not kept: the stored request has a placeholder with its length and
+hash. Search indexes the summary in the page’s summary column.</p></li>
+<li><p><strong>Failures</strong> follow the photo rules: outage, credit, auth and budget pause the shared queue and
+refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
+it, and the page says so with <strong>Ask Claude</strong> to retry. A failed fetch is not a failed job: the
+page is still tagged from what is known, and the prompt tells the model the page could not be
+fetched. The PWA does not show why; see <a class="reference internal" href="#ingest-fetch"><span class="std std-ref">Fetching a link</span></a> and <a class="reference internal" href="#ingest-inspect"><span class="std std-ref">Inspecting runs</span></a>.</p></li>
+</ul>
+<section id="related-pages">
+<span id="ingest-enrich-related"></span><h3>Related pages<a class="headerlink" href="#related-pages" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">enrich.relate</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/related.md</span></code>. One call per page: the page in
+brief (title, tags, summary, the start of its text, of what was read from its images and of
+its write-up, if it has one) and a
+numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
+answers with up to 5 index numbers, so it cannot name a page that is not there.</p>
+<ul class="simple">
+<li><p><strong>Candidates</strong> (<code class="docutils literal notranslate"><span class="pre">enrich.CANDIDATES</span></code>, swappable) are at most 150 pages whatever the library’s
+size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
+text best match the page’s words (full-text search, an OR of up to 24 distinct words), then the
+most recently changed. The words are taken in order, first from its title, tags and summary,
+then from the text photo ingest read from its images, their descriptions, and last its own
+text. A text page with a summary usually fills the 24 before its text; a photo page, which
+usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+search the index refuses is logged and skipped: the tag and recent candidates still go.</p></li>
+<li><p><strong>When.</strong> On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
+makes its <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> row, unless that was an Ask), or photo ingest finishing the last photo
+of its first photo capture (read, or dead after its third failure), queues an enrich job of
+reason <code class="docutils literal notranslate"><span class="pre">related</span></code> (with enrich on). A board page’s comes after its write-up instead (when the
+write-up job is done, or dead), so it sees the write-up. It runs on the worker like any enrich job (pause, budget, retries). It never takes
+the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
+the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
+itself). Saves and edits queue none. It is queued once per page, ever: a later Reprocess
+of the first photo capture queues one only for a page that never had one, such as a page read
+before this change or while enrich was off. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code> run
+newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, than the newest current description or text photo ingest read
+from one of its images, or than its current write-up; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in the
+container: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>), checks the shared queue pause and the
+day’s budget before each call, and stops at either (an outage, credit or auth error pauses the
+queue as the worker does); other failures are counted and it goes on. Exit status 1 when
+stopped. On a single server, <code class="docutils literal notranslate"><span class="pre">deploy/scrap-enrich-related.{service,timer}</span></code> run it nightly
+(03:41) in the service’s container, and <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> enables the timer if the image has the
+command. While ingest or enrich is off, or no key (or, with <code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>, no seat
+token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see <a class="reference internal" href="#ingest-enabling"><span class="std std-ref">Enabling ingest</span></a>).</p></li>
+<li><p><strong>Both ways.</strong> A page’s Related merges its picks, pages that picked it, pages linking here
+with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (marked “links here”), and pages its current write-up links to or whose current
+write-up links here (<code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">writeup</span></code>, marked “in a write-up”), each once (a page that is both
+keeps its first: a pick, then a link), at most 8 shown. So a new page that picks an older one
+shows on the older one too, without a call for the older page. Write-up links are not the
+body’s links or backlinks (MCP <code class="docutils literal notranslate"><span class="pre">read</span></code>’s <code class="docutils literal notranslate"><span class="pre">links</span></code> and <code class="docutils literal notranslate"><span class="pre">backlinks</span></code>).</p></li>
+<li><p><strong>MCP</strong> <code class="docutils literal notranslate"><span class="pre">read</span></code> returns all of this under <code class="docutils literal notranslate"><span class="pre">by_model</span></code> (summary, Claude’s tags, related, a board’s
+write-up), labelled as written by a model, not the user.</p></li>
+</ul>
+</section>
+<section id="write-ups-of-boards">
+<span id="ingest-writeup"></span><h3>Write-ups of boards<a class="headerlink" href="#write-ups-of-boards" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">enrich.write_up</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/writeup.md</span></code>
+(<a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html"><span class="std std-doc">27. Claude’s write-ups of boards, apart from the text</span></a>). Photo ingest gives a
+board a description, its text and a drawing, which say what is on it but not what it means. A
+write-up explains it: Markdown sections (overview, structure, decisions, open questions, related
+pages, and a “What it suggests” section marked as interpretation, which may draw on general
+knowledge of the tools it names) of about 200 to 700 words (shorter for a simple board; it explains rather than re-types the
+board’s text, which the page already shows), and a one or two sentence lead. The
+page text is context that may be wrong (it may be another app’s): the photo wins. It is derived data, never
+the page’s text.</p>
+<ul class="simple">
+<li><p><strong>Which pages.</strong> A board page: one with an image whose current reading says <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> or
+<code class="docutils literal notranslate"><span class="pre">diagram</span></code> (the photo call’s image kind, not the page’s kind), unless that reading judged it a
+list of actions (a to-do sticky becomes a checklist instead: <a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>).
+Documents, handwriting, screenshots and photos get none. A page reprocessed into another kind
+keeps its write-ups as history, but they are no longer shown, searched, linked or its summary.</p></li>
+<li><p><strong>When.</strong> With enrich on, as an enrich job of reason <code class="docutils literal notranslate"><span class="pre">writeup</span></code>, when photo ingest has read all
+of the page’s photos (or given up on one) and a board image was read since the page’s last
+write-up: so on its first reading, after a Reprocess, and after a new board photo. Its first
+related call follows it (<a class="reference internal" href="#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>). <strong>Ask Claude</strong> on a board page writes
+one too, after its tags and summary and before its related pages. <strong>Regenerate</strong> (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup</span></code>) queues one by hand. A queued write-up is not taken over by a save (a
+board is not read as text anyway), only by Ask, which writes one. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> writes them in the command’s process for every board page with
+none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page), with the related pass’s pause, budget and exit rules; run
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> after it, so related pages see them.</p></li>
+<li><p><strong>The call.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code> (default <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code>), effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>
+16000, structured output (<code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>). The user turn has each board photo (at most 4:
+the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
+2…, then the page’s kind, title and tags, its text as plain words in a <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code> block (at most
+6,000 characters), what was read from its board images in an <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> block (at most 12,000),
+and the owner’s guidance in a <code class="docutils literal notranslate"><span class="pre">&lt;guidance&gt;</span></code> block. The system prompt ends with the related
+call’s index of candidate pages (<code class="docutils literal notranslate"><span class="pre">enrich.CANDIDATES</span></code>). All of it is quoted data, <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> of any
+delimiter tag inside it sent as <code class="docutils literal notranslate"><span class="pre">&amp;lt;</span></code>.</p></li>
+<li><p><strong>Links.</strong> The model cites a page by its index number, <code class="docutils literal notranslate"><span class="pre">[[n]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[n|words]]</span></code>. scrap makes
+each valid number a <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (or <code class="docutils literal notranslate"><span class="pre">[[slug|words]]</span></code>) link; any other <code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> keeps only its
+words. Everything else Markdown would make a link of keeps only its words too: inline and
+reference links and images, reference definitions (<code class="docutils literal notranslate"><span class="pre">[r]:</span> <span class="pre">url</span></code>), autolinks (<code class="docutils literal notranslate"><span class="pre">&lt;https://…&gt;</span></code>) and
+URL schemes that the renderer’s linkify would link (<code class="docutils literal notranslate"><span class="pre">https://</span></code>, <code class="docutils literal notranslate"><span class="pre">mailto:</span></code>), and any <code class="docutils literal notranslate"><span class="pre">](</span></code> or
+<code class="docutils literal notranslate"><span class="pre">]:</span></code> left is split (<code class="docutils literal notranslate"><span class="pre">]</span> <span class="pre">(</span></code>), so nothing can start a link or a definition (in code spans too).
+The cited links are held aside meanwhile, and the stripping is repeated until nothing changes,
+since taking one link out can make another. So a write-up cannot link a page that is not
+there, one in the trash, or anything outside scrap. The PWA also shows any link in it as its
+words unless it goes to a page the server lists as one the write-up links (<code class="docutils literal notranslate"><span class="pre">links</span></code>).</p></li>
+<li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one line, at most 600 characters; <code class="docutils literal notranslate"><span class="pre">text</span></code>: Markdown without
+control characters, at most 20,000 characters, not empty (else the run is invalid and retried).</p></li>
+<li><p><strong>Stored apart from the text</strong> (migration 12): each write-up is a new version in <code class="docutils literal notranslate"><span class="pre">writeup</span></code>
+(<code class="docutils literal notranslate"><span class="pre">producer</span></code>, <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, the <code class="docutils literal notranslate"><span class="pre">guidance</span></code> used), one current,
+older ones kept and never changed. Restore (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup/restore</span></code>) makes an
+old one current again as a copy, as drawings do. It is not in page revisions, and nobody edits
+it.</p></li>
+<li><p><strong>Guidance.</strong> The owner may leave a note for the next write-up (<code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{id}/writeup/guidance</span></code>, at most 2,000 characters, kept in <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code>), such
+as “focus on the data flow; ‘Enc’ means encoder”. The next write-up is given it, and keeps a
+copy. Saving it queues nothing: Regenerate does.</p></li>
+<li><p><strong>Where it shows.</strong> The page view’s <strong>What it means</strong> card (Claude’s write-up); its <code class="docutils literal notranslate"><span class="pre">summary</span></code> is the page’s
+model summary (before enrich’s), so search and the related index use it; its text is indexed
+for search (a chunk of the page’s own, made again with it); MCP <code class="docutils literal notranslate"><span class="pre">read</span></code> returns the current one
+as <code class="docutils literal notranslate"><span class="pre">by_model.writeup</span></code>.</p></li>
+<li><p><strong>Cost.</strong> A board image is at most about 4,800 image tokens (a 4:3 photo about 4,100), the
+index about 40 tokens a page (up to about 6,000), the prompt and text a few thousand more: about
+10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens (thinking included), roughly
+$0.06 to $0.20 a board at Opus prices, counted in the daily budget.</p></li>
+</ul>
+</section>
+<section id="fetching-a-link">
+<span id="ingest-fetch"></span><h3>Fetching a link<a class="headerlink" href="#fetching-a-link" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">src/scrap/fetch.py</span></code>. The page is untrusted:</p>
+<ul class="simple">
+<li><p>http(s) only, standard ports, no login in the address, no proxy, no cookies;</p></li>
+<li><p>every address the name resolves to must be global (no private, loopback, link-local and
+metadata <code class="docutils literal notranslate"><span class="pre">169.254.169.254</span></code>, CGNAT/tailnet <code class="docutils literal notranslate"><span class="pre">100.64/10</span></code>, ULA, multicast or reserved, nor
+IPv4-compatible <code class="docutils literal notranslate"><span class="pre">::/96</span></code>, NAT64 <code class="docutils literal notranslate"><span class="pre">64:ff9b::/96</span></code> or site-local <code class="docutils literal notranslate"><span class="pre">fec0::/10</span></code>; IPv4-mapped IPv6
+judged as IPv4), checked again at each of at most 5 redirects, and the socket connects to the
+checked address (TLS still verifies the name), so a second DNS answer cannot swap it;</p></li>
+<li><p>at most 2 MB after decompression (a gzip bomb stops there), 20 s for the whole fetch (the
+socket is cut at the deadline wherever it waits, so a site sending a byte at a time cannot hold
+the worker); a body that does not decompress is refused;</p></li>
+<li><p>a path or query that is not ASCII is sent percent-encoded (<code class="docutils literal notranslate"><span class="pre">%XX</span></code> already there kept), an
+international name as IDNA;</p></li>
+<li><p>HTML, XHTML or plain text only; the readable text is the <code class="docutils literal notranslate"><span class="pre">&lt;article&gt;</span></code> (else <code class="docutils literal notranslate"><span class="pre">&lt;main&gt;</span></code>, else
+<code class="docutils literal notranslate"><span class="pre">&lt;body&gt;</span></code>) without scripts, styles, menus, headers, footers and forms, at most 20,000
+characters, with the page’s title and description.</p></li>
+</ul>
+<p><strong>The request.</strong> A plain <code class="docutils literal notranslate"><span class="pre">GET</span></code> with these headers: <code class="docutils literal notranslate"><span class="pre">User-Agent:</span> <span class="pre">scrap/1</span> <span class="pre">(personal</span> <span class="pre">notes;</span> <span class="pre">fetches</span> <span class="pre">a</span> <span class="pre">page</span> <span class="pre">its</span> <span class="pre">owner</span> <span class="pre">saved)</span></code> (<code class="docutils literal notranslate"><span class="pre">fetch.AGENT</span></code>; match it in a site’s logs or an egress allow-list),
+<code class="docutils literal notranslate"><span class="pre">Accept:</span> <span class="pre">text/html,application/xhtml+xml,text/plain;q=0.8</span></code>, <code class="docutils literal notranslate"><span class="pre">Accept-Encoding:</span> <span class="pre">gzip,</span> <span class="pre">deflate</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Accept-Language:</span> <span class="pre">en</span></code>. scrap does not read <code class="docutils literal notranslate"><span class="pre">robots.txt</span></code>: it fetches one page, once per reading,
+because its owner saved the link. A reading fetches the link again from <strong>Ask Claude</strong>, a
+retry or a backfill, but not on a save of the page’s text: the fetched text is not kept, so a
+save’s re-reading summarises from the page’s own text and the address, keeps the source and its
+title from the last fetch, and never touches the site (the run’s <code class="docutils literal notranslate"><span class="pre">fetch</span></code> is <code class="docutils literal notranslate"><span class="pre">skipped:</span> <span class="pre">save</span> <span class="pre">re-read</span></code>, not a failure reason).</p>
+<p><strong>When it fails.</strong> The reason is not shown in the PWA. The job still succeeds: the page is tagged
+from the link and the text the user typed, with no title or summary taken from the site, and
+the reason is kept only in the run’s <code class="docutils literal notranslate"><span class="pre">request</span></code> under <code class="docutils literal notranslate"><span class="pre">fetch</span></code> (read it as in
+<a class="reference internal" href="#ingest-inspect"><span class="std std-ref">Inspecting runs</span></a>; a page that was fetched has <code class="docutils literal notranslate"><span class="pre">{&quot;url&quot;,</span> <span class="pre">&quot;chars&quot;}</span></code> there instead). The reasons:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Reason</p></th>
+<th class="head"><p>Cause</p></th>
+<th class="head"><p>Fix</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>the address is private or local: not fetched</p></td>
+<td><p>A name that resolves to a loopback, LAN, tailnet (<code class="docutils literal notranslate"><span class="pre">100.64/10</span></code>) or other non-public address, or to a mix of public and private ones</p></td>
+<td><p>None: scrap never fetches these. Paste the text into the note instead</p></td>
+</tr>
+<tr class="row-odd"><td><p>only the standard ports are fetched</p></td>
+<td><p>The address has a port other than 80 or 443</p></td>
+<td><p>None, as above</p></td>
+</tr>
+<tr class="row-even"><td><p>an address with a login in it is not fetched</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">user:password&#64;</span></code> in the address</p></td>
+<td><p>Remove it</p></td>
+</tr>
+<tr class="row-odd"><td><p>only http and https pages are fetched; not a valid address</p></td>
+<td><p>Another scheme, or an address that does not parse</p></td>
+<td><p>Save the real web address</p></td>
+</tr>
+<tr class="row-even"><td><p>the site answered N</p></td>
+<td><p>The site refused (401, 403, 429) or has no such page (404, 5xx), often because it blocks automated clients or wants a login</p></td>
+<td><p><strong>Ask Claude</strong> later; for a page behind a login, paste its text</p></td>
+</tr>
+<tr class="row-odd"><td><p>not a web page (no readable text)</p></td>
+<td><p>The content type is not HTML, XHTML or plain text: a PDF, an image, JSON</p></td>
+<td><p>Paste the text into the note</p></td>
+</tr>
+<tr class="row-even"><td><p>the page is encoded as X</p></td>
+<td><p>The site answered with a compression scrap did not ask for (<code class="docutils literal notranslate"><span class="pre">br</span></code>, <code class="docutils literal notranslate"><span class="pre">zstd</span></code>); only <code class="docutils literal notranslate"><span class="pre">identity</span></code>, <code class="docutils literal notranslate"><span class="pre">gzip</span></code> and <code class="docutils literal notranslate"><span class="pre">deflate</span></code> are read</p></td>
+<td><p>None from scrap’s side; paste the text</p></td>
+</tr>
+<tr class="row-odd"><td><p>the page could not be decompressed</p></td>
+<td><p>The body claimed gzip or deflate and was not</p></td>
+<td><p><strong>Ask Claude</strong> later</p></td>
+</tr>
+<tr class="row-even"><td><p>the page is too large</p></td>
+<td><p>More than 2 MB after decompression</p></td>
+<td><p>Paste the part you want</p></td>
+</tr>
+<tr class="row-odd"><td><p>the site took too long</p></td>
+<td><p>Not done within 20 s</p></td>
+<td><p><strong>Ask Claude</strong> later</p></td>
+</tr>
+<tr class="row-even"><td><p>too many redirects; a redirect with nowhere to go</p></td>
+<td><p>More than 5 redirects, or one with no <code class="docutils literal notranslate"><span class="pre">Location</span></code></p></td>
+<td><p>Save the address the site ends up at</p></td>
+</tr>
+<tr class="row-odd"><td><p>the site’s name does not resolve</p></td>
+<td><p>DNS has no answer, from where scrap runs</p></td>
+<td><p>Check the address, and DNS in the container or pod</p></td>
+</tr>
+<tr class="row-even"><td><p>could not fetch the page (ExcName)</p></td>
+<td><p>A connection or TLS error; the name is that of the Python exception, such as <code class="docutils literal notranslate"><span class="pre">ConnectionRefusedError</span></code> or <code class="docutils literal notranslate"><span class="pre">SSLCertVerificationError</span></code></p></td>
+<td><p>Check the address and the site’s certificate</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A page that answers 200 but has no text in its HTML, because a script draws it in the browser,
+is not a failure: the readable text is short or empty (the stored <code class="docutils literal notranslate"><span class="pre">chars</span></code> is small), and the
+reading rests on the link, the title and the user’s text. A site that shows a login page with a
+200 is read as that page.</p>
+<p>Migration 9 is additive (its Python step creates the tables if missing), so an older scrap runs
+on the database with <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span></code> set back to 8.</p>
+</section>
+</section>
+<section id="inspecting-runs">
+<span id="ingest-inspect"></span><h2>Inspecting runs<a class="headerlink" href="#inspecting-runs" title="Link to this heading">#</a></h2>
+<p>There is no screen or MCP tool for runs (<code class="docutils literal notranslate"><span class="pre">read</span></code> shows only their results), so an operator reads
+them from the status route, the logs and the database.</p>
+<p><strong>Quick checks.</strong> <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code> returns whether ingest is <code class="docutils literal notranslate"><span class="pre">enabled</span></code>, whether the queue is
+<code class="docutils literal notranslate"><span class="pre">paused</span></code> (with <code class="docutils literal notranslate"><span class="pre">reason</span></code> and <code class="docutils literal notranslate"><span class="pre">paused_until</span></code>), <code class="docutils literal notranslate"><span class="pre">jobs</span></code> (photo jobs by state), <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (whether it is
+on, and its <code class="docutils literal notranslate"><span class="pre">jobs</span></code> by state) and <code class="docutils literal notranslate"><span class="pre">spent_today_usd</span></code>. On a single server, call it on the socket,
+as the deploy page does for <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">--</span><span class="n">unix</span><span class="o">-</span><span class="n">socket</span> <span class="s2">"$XDG_RUNTIME_DIR/scrap/scrap.sock"</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">ingest</span>
+</pre></div>
+</div>
+<p>(on Kubernetes, <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">port-forward</span> <span class="pre">svc/scrap</span> <span class="pre">8000:80</span></code> and the same path on
+<code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8000</span></code>). The logs are <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span></code>, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code> or
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span></code>. The worker logs a traceback only for an unexpected
+exception, under <code class="docutils literal notranslate"><span class="pre">ingest</span> <span class="pre">worker</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest</span> <span class="pre">job</span> <span class="pre">N</span></code> or <code class="docutils literal notranslate"><span class="pre">enrich</span> <span class="pre">job</span> <span class="pre">N</span></code>; API errors, pauses and fetch
+failures are not logged (apart from a failed pause notification); they are in the database.</p>
+<p><strong>Detail.</strong> Read <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code> with Python’s <code class="docutils literal notranslate"><span class="pre">sqlite3</span></code>, because the image has no <code class="docutils literal notranslate"><span class="pre">sqlite3</span></code> command.
+Open it read-only, inside the container where the data is at <code class="docutils literal notranslate"><span class="pre">/data</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span> <span class="n">python</span> <span class="o">-</span><span class="n">c</span> <span class="s1">'</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"file:/data/scrap.db?mode=ro"</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"SELECT ..."</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span><span class="s1">'</span>
+</pre></div>
+</div>
+<p>(on Kubernetes, <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">python</span> <span class="pre">-c</span> <span class="pre">'...'</span></code>). The <code class="docutils literal notranslate"><span class="pre">SELECT</span></code>s below were
+run against a database made by scrap’s own code.</p>
+<p>Cost per day, photos and text together (the budget’s own sum):</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span><span class="w"> </span><span class="k">day</span><span class="p">,</span><span class="w"> </span><span class="n">round</span><span class="p">(</span><span class="k">sum</span><span class="p">(</span><span class="n">usd</span><span class="p">),</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">substr</span><span class="p">(</span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">day</span><span class="p">,</span><span class="w"> </span><span class="n">cost_microusd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">e6</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">usd</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">model_run</span>
+<span class="w">  </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">substr</span><span class="p">(</span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">),</span><span class="w"> </span><span class="n">cost_microusd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">e6</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">enrich_run</span><span class="p">)</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">day</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">day</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">14</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The latest runs that did not succeed, with the class from the table above and the (redacted)
+error:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="s1">'photo'</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">what</span><span class="p">,</span><span class="w"> </span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">error_class</span><span class="p">,</span><span class="w"> </span><span class="n">error</span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">model_run</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s1">'ok'</span>
+<span class="w">  </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="s1">'text'</span><span class="p">,</span><span class="w"> </span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">error_class</span><span class="p">,</span><span class="w"> </span><span class="n">error</span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">enrich_run</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s1">'ok'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">started_at</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Why a link got no summary or title, newest first (a <code class="docutils literal notranslate"><span class="pre">NULL</span></code> is a note, which has no fetch):</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="n">json_extract</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="s1">'$.fetch'</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">enrich_run</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">page_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">json_extract</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="s1">'$.purpose'</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'enrich'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">json_extract</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="s1">'$.fetch'</span><span class="p">)</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">started_at</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">fetch</span></code> value is a reason from the fetch table, or <code class="docutils literal notranslate"><span class="pre">{&quot;url&quot;:</span> <span class="pre">...,</span> <span class="pre">&quot;chars&quot;:</span> <span class="pre">N}</span></code> when the page was
+read. The queue state is in <code class="docutils literal notranslate"><span class="pre">job</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> (<code class="docutils literal notranslate"><span class="pre">state</span></code>, <code class="docutils literal notranslate"><span class="pre">failures</span></code>, <code class="docutils literal notranslate"><span class="pre">last_error</span></code>,
+<code class="docutils literal notranslate"><span class="pre">run_after</span></code>). A run with <code class="docutils literal notranslate"><span class="pre">status</span></code> <code class="docutils literal notranslate"><span class="pre">running</span></code> is a call in flight.</p>
+<p>Two cautions. <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> is an estimate from the run’s <code class="docutils literal notranslate"><span class="pre">usage</span></code> and <code class="docutils literal notranslate"><span class="pre">claude.PRICES</span></code> (see
+<a class="reference internal" href="#ingest-spend"><span class="std std-ref">Spend and outage control</span></a>), so the Console is the authority on what you spent. And the runs hold your
+content: <code class="docutils literal notranslate"><span class="pre">model_run</span></code> keeps the JPEG that was sent (<code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code>, a blob) and <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> keeps
+the system prompt and the page text (a fetched page’s text is a placeholder), so the database
+holds what you sent to Claude, and your backups do too.</p>
+</section>
+<section id="command-line">
+<span id="ingest-cli"></span><h2>Command line<a class="headerlink" href="#command-line" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Command</p></th>
+<th class="head"><p>Use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span> <span class="pre">[--save</span> <span class="pre">FILE]</span></code></p></td>
+<td><p>Try one image against Claude with no database; numbers only unless <code class="docutils literal notranslate"><span class="pre">--save</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code></p></td>
+<td><p>Queue the notes, todos and reads with no tags that Claude has not read; the service’s worker runs them</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span></code></p></td>
+<td><p>Pick related pages now, in the command’s process (the nightly pass)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span></code></p></td>
+<td><p>Write Claude’s write-up now, in the command’s process, for each board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span> <span class="pre">--ingest</span></code></p></td>
+<td><p>Import a vault and also queue its images for Claude; see <a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The full option lists are in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>. A large import with <code class="docutils literal notranslate"><span class="pre">--ingest</span></code> queues one
+job per image, so the daily budget decides how many days it takes; the queue works through them
+and pauses at the budget each day.</p>
+</section>
+<section id="troubleshooting">
+<span id="ingest-troubleshooting"></span><h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Symptom</p></th>
+<th class="head"><p>Cause</p></th>
+<th class="head"><p>Fix</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Photos say “Waiting: Claude ingest is off”</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code> is not on</p></td>
+<td><p>Set it (see <a class="reference internal" href="#ingest-enabling"><span class="std std-ref">Enabling ingest</span></a>) and restart</p></td>
+</tr>
+<tr class="row-odd"><td><p>Paused (auth)</p></td>
+<td><p>The key is wrong or revoked (401, 403), or the model name is unknown (404)</p></td>
+<td><p>Fix <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, restart, then <strong>Resume</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>Paused (credit)</p></td>
+<td><p>Out of credit, or at the Console spend limit</p></td>
+<td><p>Add credit or raise the limit, then <strong>Resume</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>Paused (budget)</p></td>
+<td><p>The day’s spend reached <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code></p></td>
+<td><p>Wait for UTC midnight, or raise the budget and restart; <strong>Resume</strong> alone pauses again</p></td>
+</tr>
+<tr class="row-even"><td><p>Paused (outage)</p></td>
+<td><p>The API is unreachable, failing or rate limiting</p></td>
+<td><p>Nothing: it backs off and retries; <strong>Resume</strong> tries at once</p></td>
+</tr>
+<tr class="row-odd"><td><p>A photo says Failed</p></td>
+<td><p>Three charged failures (see the table above); the reason is shown</p></td>
+<td><p><strong>Retry</strong>; for an <code class="docutils literal notranslate"><span class="pre">image</span></code> failure the photo may be too large to decode</p></td>
+</tr>
+<tr class="row-even"><td><p>A drawing is missing</p></td>
+<td><p>The photo was not a whiteboard or diagram, or the model returned none (warnings are in the run’s <code class="docutils literal notranslate"><span class="pre">output</span></code>)</p></td>
+<td><p><strong>Reprocess</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/healthz</span></code> returns 503</p></td>
+<td><p>The ingest thread has died</p></td>
+<td><p>Read the logs and restart</p></td>
+</tr>
+<tr class="row-even"><td><p>A note or link is never tagged</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code>, ingest off, the page is still inside the debounce, or photo jobs are queued ahead of it (text runs only when no photo job is ready)</p></td>
+<td><p>Check the settings and <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code>; <strong>Ask Claude</strong> queues it now, but still behind ready photos</p></td>
+</tr>
+<tr class="row-odd"><td><p>A saved link has no summary or a poor title</p></td>
+<td><p>The page could not be fetched or the site blocked scrap, so Claude had only the address and the user’s text; the PWA does not show this</p></td>
+<td><p>Read the reason (<a class="reference internal" href="#ingest-inspect"><span class="std std-ref">Inspecting runs</span></a>, and the table in <a class="reference internal" href="#ingest-fetch"><span class="std std-ref">Fetching a link</span></a>); <strong>Ask Claude</strong> fetches the link again</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> prints a note and does nothing</p></td>
+<td><p>Ingest or enrich is off, or <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> is not in the command’s environment</p></td>
+<td><p>Run it in the container (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">...</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="risks">
+<h2>Risks<a class="headerlink" href="#risks" title="Link to this heading">#</a></h2>
+<p>Thinking: with structured output at effort <code class="docutils literal notranslate"><span class="pre">medium</span></code> the model may not think on a board (raise the
+effort if drawings fall short); Excalidraw API drift (the version is pinned); model drift
+(<code class="docutils literal notranslate"><span class="pre">prompt_version</span></code> traces it).</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="design-system.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">The PWA’s design system</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="llm-calls.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">What Claude is asked, per page</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enabling-ingest">Enabling ingest</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#worker">Worker</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-claude-call">The Claude call</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#on-a-claude-seat-scrap-llm-backend-cli">On a Claude seat (<code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>)</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stored-context">Stored context</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#derived-results-and-versions">Derived results and versions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw-in-the-pwa">Excalidraw in the PWA</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sanitising">Sanitising</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-list-of-actions-becomes-task-boxes">A list of actions becomes task boxes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spend-and-outage-control">Spend and outage control</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-sent-to-anthropic">What is sent to Anthropic</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enrich-text-pages-and-links">Enrich: text pages and links</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#related-pages">Related pages</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#write-ups-of-boards">Write-ups of boards</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fetching-a-link">Fetching a link</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#inspecting-runs">Inspecting runs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line">Command line</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#risks">Risks</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.8.1/docs/explanations/ingest.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/explanations/ingest.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
