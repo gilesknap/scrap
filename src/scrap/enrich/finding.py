@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
 from ..markdown import plain
+from ..store import model_summary, writeups
 from .constants import BY_TAGS, BY_WORDS, MAX_CANDIDATES, QUERY_WORDS, WORD
 from .prompts import page_images
 
@@ -53,9 +54,7 @@ def candidates(
     a photo page with no summary is searched by what is in the photo.
     Swappable (CANDIDATES): embeddings (#53) if these prove too weak."""
     me = conn.execute(
-        "SELECT p.title, p.fields, coalesce(e.summary, ''), p.body FROM page p"
-        " LEFT JOIN enrichment e ON e.page_id = p.id WHERE p.id = ?",
-        (page_id,),
+        "SELECT p.title, p.fields, p.body FROM page p WHERE p.id = ?", (page_id,)
     ).fetchone()
     ids: dict[str, None] = {}
     alive = "p.deleted_at IS NULL AND p.id <> :id"
@@ -69,8 +68,8 @@ def candidates(
         ids[other] = None
     if me is not None:
         human = json.loads(me[1]).get("summary")
-        about = human if isinstance(human, str) else me[2]
-        words = search_words(page_texts(conn, page_id, me[0], about, me[3]))
+        about = human if isinstance(human, str) else model_summary(conn, page_id)
+        words = search_words(page_texts(conn, page_id, me[0], about, me[2]))
         query = " OR ".join(f'"{w}"' for w in words)
         sql = (
             "SELECT c.page_id FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
@@ -101,9 +100,12 @@ def candidates(
     rows = {
         r["id"]: r
         for r in conn.execute(
-            "SELECT p.id, p.title, p.fields, coalesce(e.summary, '') AS summary,"
+            "SELECT p.id, p.title, p.fields,"
+            " coalesce(nullif(w.summary, ''), e.summary, '') AS summary,"
             " (SELECT group_concat(tag, '\x1f') FROM tag WHERE page_id = p.id) AS tags"
             " FROM page p LEFT JOIN enrichment e ON e.page_id = p.id"
+            " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
+            f" AND {writeups.HAS_BOARD.format(p='p')}"
             " WHERE p.id IN (SELECT value FROM json_each(?))",
             (json.dumps(order),),
         )

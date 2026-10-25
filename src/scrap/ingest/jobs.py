@@ -8,7 +8,7 @@ import urllib.request
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from ..store import MAX_PAGE, queue_related_on_read, transaction
+from ..store import MAX_PAGE, queue_after_read, transaction
 from .constants import CLAIM, FAR, INSERT_DERIVED, MAX_FAILURES, RETRY
 
 log = logging.getLogger(__name__)
@@ -58,8 +58,9 @@ def charge(
     conn: sqlite3.Connection, job_id: int, cls: str, stamp: str, error: str
 ) -> None:
     """A charged failure: one more failure, retried in RETRY seconds (invalid output
-    at once); the third kills the job. A dead job counts as read for the page's first
-    related call (queue_related_on_read), so one dead photo does not hold it back."""
+    at once); the third kills the job. A dead job counts as read for the page's
+    write-up and first related call (queue_after_read), so one dead photo does not
+    hold them back."""
     conn.execute(
         "UPDATE job SET failures = failures + 1, run_after = ?, last_error = ?,"
         " updated_at = ?, state = CASE WHEN failures + 1 >= ? THEN 'dead'"
@@ -76,7 +77,7 @@ def charge(
         "SELECT capture_id FROM job WHERE id = ? AND state = 'dead'", (job_id,)
     ).fetchone()
     if dead is not None:
-        queue_related_on_read(conn, dead[0])
+        queue_after_read(conn, dead[0])
 
 
 def pause(

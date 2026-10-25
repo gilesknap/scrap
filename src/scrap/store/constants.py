@@ -155,12 +155,15 @@ SELECT c.page_id FROM capture c WHERE c.id = :capture
 
 
 # One queued enrich job per page: a later trigger moves it (a save later, Ask now), and
-# Ask is remembered (it may add tags to a page Claude has read before)
+# Ask is remembered (it may add tags to a page Claude has read before), as is a write-up
+# but for Ask (which writes one too)
 ENRICH_ENQUEUE = """
 INSERT INTO enrich_job (page_id, reason, run_after, created_at, updated_at)
 VALUES (:page, :reason, :run_after, :now, :now)
 ON CONFLICT (page_id) WHERE state = 'queued' DO UPDATE SET
     run_after = excluded.run_after,
-    reason = CASE WHEN reason = 'ask' THEN reason ELSE excluded.reason END,
+    reason = CASE WHEN reason = 'ask'
+                    OR (reason = 'writeup' AND excluded.reason <> 'ask')
+             THEN reason ELSE excluded.reason END,
     updated_at = excluded.updated_at
 """

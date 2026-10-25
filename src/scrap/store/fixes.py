@@ -84,13 +84,14 @@ def add_meta_revs(conn: sqlite3.Connection) -> None:
         )
 
 
-# The enrich job table (named), and its indexes; reason 'related' since migration 11
+# The enrich job table (named), and its indexes; reason 'related' since migration 11,
+# 'writeup' since migration 12
 ENRICH_JOB = """
 CREATE TABLE IF NOT EXISTS {name} (
     id          INTEGER PRIMARY KEY,
     page_id     TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
     reason      TEXT NOT NULL CHECK (reason IN ('capture', 'save', 'ask', 'backfill',
-                                                'related')),
+                                                'related', 'writeup')),
     state       TEXT NOT NULL DEFAULT 'queued'
                   CHECK (state IN ('queued', 'running', 'done', 'dead')),
     failures    INTEGER NOT NULL DEFAULT 0,
@@ -169,12 +170,18 @@ def add_enrich(conn: sqlite3.Connection) -> None:
 def add_related_reason(conn: sqlite3.Connection) -> None:
     """Migration 11: enrich_job takes reason 'related' (a page's first related call,
     once it is first read), the table rebuilt for its CHECK, unless it takes it
+    already."""
+    rebuild_enrich_job(conn, "related")
+
+
+def rebuild_enrich_job(conn: sqlite3.Connection, reason: str) -> None:
+    """enrich_job rebuilt (ENRICH_JOB) for its reason CHECK, unless it takes reason
     already. Dropping the old table clears enrich_run.job_id (ON DELETE SET NULL), so
     the runs' jobs are kept aside and put back."""
     (sql,) = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'enrich_job'"
     ).fetchone()
-    if "'related'" in sql:
+    if f"'{reason}'" in sql:
         return
     conn.execute(
         "CREATE TEMP TABLE run_job AS"
@@ -195,6 +202,61 @@ def add_related_reason(conn: sqlite3.Connection) -> None:
         " WHERE t.id = enrich_run.id) WHERE id IN (SELECT id FROM temp.run_job)"
     )
     conn.execute("DROP TABLE temp.run_job")
+
+
+# Claude's write-up of a board page (#256): versions, one current (superseded_at
+# NULL), never changed (a regeneration or a restore inserts one); and the owner's
+# guidance for the next one. Statements apart by ";;" (the triggers hold ";").
+WRITEUP_TABLES = """
+CREATE TABLE IF NOT EXISTS writeup (
+    id             INTEGER PRIMARY KEY,
+    page_id        TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    version        INTEGER NOT NULL CHECK (version >= 1),
+    producer       TEXT NOT NULL,
+    run_id         INTEGER REFERENCES enrich_run(id),
+    prompt_version TEXT NOT NULL,
+    summary        TEXT NOT NULL DEFAULT '',
+    text           TEXT NOT NULL,
+    guidance       TEXT,
+    restored_from  INTEGER,
+    superseded_at  TEXT,
+    created_at     TEXT NOT NULL,
+    UNIQUE (page_id, version)
+);;
+CREATE UNIQUE INDEX IF NOT EXISTS writeup_current ON writeup(page_id)
+    WHERE superseded_at IS NULL;;
+CREATE INDEX IF NOT EXISTS writeup_by_run ON writeup(run_id);;
+CREATE TRIGGER IF NOT EXISTS writeup_supersede BEFORE INSERT ON writeup
+WHEN new.superseded_at IS NULL BEGIN
+    UPDATE writeup SET superseded_at = new.created_at
+    WHERE page_id = new.page_id AND superseded_at IS NULL;
+END;;
+CREATE TRIGGER IF NOT EXISTS writeup_immutable BEFORE UPDATE OF page_id, version,
+    producer, run_id, prompt_version, summary, text, guidance, restored_from,
+    created_at ON writeup BEGIN
+    SELECT RAISE(ABORT, 'write-up versions are immutable: insert a new version');
+END;;
+CREATE TRIGGER IF NOT EXISTS writeup_once BEFORE UPDATE OF superseded_at ON writeup
+WHEN old.superseded_at IS NOT NULL BEGIN
+    SELECT RAISE(ABORT, 'a superseded version stays superseded: insert a copy');
+END;;
+CREATE TABLE IF NOT EXISTS writeup_guidance (
+    page_id     TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE,
+    text        TEXT NOT NULL,
+    author      TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+)
+"""
+
+
+def add_writeups(conn: sqlite3.Connection) -> None:
+    """Migration 12 (#256): enrich_job takes reason 'writeup' (rebuilt as for
+    migration 11, unless it takes it already), and the write-up tables, unless an
+    earlier run made them."""
+    rebuild_enrich_job(conn, "writeup")
+    for statement in WRITEUP_TABLES.split(";;"):
+        if statement.strip():
+            conn.execute(statement)
 
 
 def fix_tag_paths(conn: sqlite3.Connection) -> None:

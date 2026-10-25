@@ -16,7 +16,7 @@ from ..store import (
     Store,
     enrich_on,
     now,
-    queue_related_on_read,
+    queue_after_read,
     transaction,
 )
 from .constants import PAUSES, POLL, REV, TITLE_CAS
@@ -305,7 +305,7 @@ class Worker:
                 " WHERE id = ?",
                 (stamp, jid),
             )
-            queue_related_on_read(conn, cid)  # its first photos all read: related
+            queue_after_read(conn, cid)  # all read: a board's write-up, else related
             resume(conn, stamp)  # a success ends any pause
             page = conn.execute(
                 f"SELECT p.id, {REV} AS rev, (SELECT sha256 FROM capture_blob WHERE"

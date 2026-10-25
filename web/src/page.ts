@@ -18,6 +18,8 @@ const POLL = 10_000; // while Claude has a photo of this page
 type Figures = typeof import("./figure");
 /** What Claude added to its text (summary, related pages): a chunk of its own. */
 type Enrich = typeof import("./enrich");
+/** Claude's write-up of a board page: a chunk of its own. */
+type Writeups = typeof import("./writeup");
 const hasFiles = (p: Page) =>
   p.captures.some((c) => c.blobs.length) || p.body.includes("](/api/blobs/");
 /** A page's kind and status, as its meta line's chip says them: "Todo · done", "Note". */
@@ -91,8 +93,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       const changed =
         ingestOf(fresh) !== ingestOf(shown) ||
         q?.paused !== queue?.paused ||
-        JSON.stringify([fresh.enrich, fresh.tags, fresh.title, fresh.kind]) !==
-          JSON.stringify([shown.enrich, shown.tags, shown.title, shown.kind]);
+        JSON.stringify([fresh.enrich, fresh.writeup, fresh.tags, fresh.title, fresh.kind]) !==
+          JSON.stringify([shown.enrich, shown.writeup, shown.tags, shown.title, shown.kind]);
       queue = q;
       if (force || changed) show(fresh);
       else schedule(fresh);
@@ -103,7 +105,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   const schedule = (p: Page) => {
     clearTimeout(poll);
     const photos = busy(p) && queue?.enabled && !queue.paused;
-    if ((photos || enr?.reading(p)) && !signal.aborted) {
+    if ((photos || enr?.reading(p) || wr?.writing(p)) && !signal.aborted) {
       poll = window.setTimeout(() => {
         if (document.visibilityState === "visible") void refresh(false);
         else schedule(p);
@@ -113,9 +115,11 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   // Figures are a chunk of its own, loaded for pages with files or images
   let figs: Figures | null = null;
   let enr: Enrich | null = null;
+  let wr: Writeups | null = null;
   const load = async (p: Page) => {
     // offline: none of it
     if (!enr && (p.enrich || p.related?.length)) enr = await import("./enrich").catch(() => null);
+    if (!wr && p.writeup) wr = await import("./writeup").catch(() => null);
     if (!hasFiles(p) || figs) return;
     [figs, queue] = await Promise.all([
       import("./figure").catch(() => null), // offline: the photos still show
@@ -215,6 +219,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           ),
       ),
       body,
+      wr?.writeupPanel(p, show) ?? "",
       enr?.enrichPanel(p, show) ?? "",
       h("div", { className: "originals" }, ...files),
       h(

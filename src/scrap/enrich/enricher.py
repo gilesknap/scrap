@@ -31,6 +31,7 @@ from .constants import (
 from .prompts import page_images, page_message, system_prompt, vocabulary
 from .relating import relate
 from .types import Call, Fetch
+from .writing import write_up
 
 log = logging.getLogger(__name__)
 
@@ -112,6 +113,13 @@ class Enricher:
             (stamp if cls == "invalid" else later(stamp, RETRY),
              f"{cls}: {error}"[:500], stamp, MAX_FAILURES, jid),
         )  # fmt: skip
+        dead = conn.execute(
+            "SELECT page_id FROM enrich_job WHERE id = ? AND state = 'dead'"
+            " AND reason = 'writeup'",
+            (jid,),
+        ).fetchone()
+        if dead is not None:  # a write-up given up on: the first related call anyway
+            queue_related(conn, dead[0])
 
     def step(self) -> bool:
         """Claim and run one job; False if none was ready."""
@@ -160,6 +168,15 @@ class Enricher:
                 return
             with self.store.connect() as conn, transaction(conn):
                 self._done(conn, jid)
+            return
+        if job["reason"] == "writeup":  # a board page's write-up (#256)
+            error = write_up(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
+                queue_related(conn, page_id)  # its first related call sees the write-up
             return
         with self.store.connect() as conn:
             page = conn.execute(
@@ -235,13 +252,30 @@ class Enricher:
         if not link and actions.accepted(out["intent"], out["confidence"], items):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
-        if job["reason"] == "ask":  # Ask Claude: its related pages too, now
-            error = relate(self.store, self.call, page_id, jid)
+        if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
+            # A retry (related failed) does not write it up again: done in this job
+            error = (
+                None
+                if self._written(jid)
+                else write_up(self.store, self.call, page_id, jid)
+            ) or relate(self.store, self.call, page_id, jid)
             if error is not None:
                 self._job_failed(jid, error)
                 return
         with self.store.connect() as conn, transaction(conn):
             self._done(conn, jid)
+
+    def _written(self, jid: int) -> bool:
+        """Whether this job has made a write-up already (an earlier try of it)."""
+        with self.store.connect() as conn:
+            return (
+                conn.execute(
+                    "SELECT 1 FROM writeup w JOIN enrich_run r ON r.id = w.run_id"
+                    " WHERE r.job_id = ?",
+                    (jid,),
+                ).fetchone()
+                is not None
+            )
 
     def failed(self, jid: int, run_id: int, error: claude.CallError) -> None:
         refused = error.completion is not None and (

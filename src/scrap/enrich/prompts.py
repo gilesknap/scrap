@@ -12,14 +12,19 @@ from ..store import unlink
 from .constants import (
     DELIMITER,
     IMAGES,
+    MAX_BOARDS,
     MAX_BODY,
     MAX_IMAGES,
     MAX_VOCAB,
     RELATED_BODY,
     RELATED_IMAGES,
     RELATED_SCHEMA,
+    RELATED_WRITEUP,
     SAVE_REREAD,
     SCHEMA,
+    WRITEUP_BODY,
+    WRITEUP_IMAGES,
+    WRITEUP_SCHEMA,
 )
 
 Image = dict[str, str | None]  # what photo ingest read from one: description, text
@@ -98,10 +103,16 @@ def related_prompt(pages: list[dict[str, Any]]) -> tuple[str, str]:
 
 
 def related_message(
-    page: sqlite3.Row, tags: list[str], summary: str, images: Sequence[Image] = ()
+    page: sqlite3.Row,
+    tags: list[str],
+    summary: str,
+    images: Sequence[Image] = (),
+    writeup: str = "",
 ) -> list[dict]:
     """The related call's user turn: the page in brief, with the start of what was
-    read from its images."""
+    read from its images and of its write-up, if it has one."""
+    up = writeup.strip()
+    up = up if len(up) <= RELATED_WRITEUP else up[: RELATED_WRITEUP - 1] + "…"
     text = "\n".join([
         f"Kind: {page['kind']}",
         f"Title: {quoted(page['title'])}",
@@ -112,6 +123,8 @@ def related_message(
         quoted(plain(page["body"]).strip()[:RELATED_BODY]) or "(empty)",
         "</page>",
         *image_lines(images, RELATED_IMAGES),
+        *(["Start of Claude's write-up of it:", "<writeup>", quoted(up), "</writeup>"]
+          if up else []),
     ])  # fmt: skip
     return [{"role": "user", "content": [{"type": "text", "text": text}]}]
 
@@ -165,3 +178,58 @@ def page_message(
                 parts.append(f"It could not be fetched: {quoted(failed or '')}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
+
+
+def writeup_prompt(pages: list[dict[str, Any]]) -> tuple[str, str]:
+    """The write-up call's fixed prompt, then the index of pages it may link to."""
+    text, version = claude.prompt("writeup", WRITEUP_SCHEMA)
+    return f"{text}\n## Other pages\n\n{index_lines(pages) or '(none)'}\n", version
+
+
+def writeup_message(
+    page: sqlite3.Row,
+    tags: list[str],
+    boards: Sequence[dict[str, Any]],
+    sent: Sequence[str | None],
+    guidance: str | None,
+) -> list[dict[str, Any]]:
+    """The write-up call's user turn: each board image sent (sent: the JPEG's
+    SHA-256 for the first MAX_BOARDS, None for one that could not be), numbered,
+    then the page (kind, title, tags, its own text), what was read from its board
+    images, and the owner's guidance, all quoted."""
+    content: list[dict[str, Any]] = []
+    for n, sha in enumerate(sent, start=1):
+        if sha is None:
+            continue
+        content.append({"type": "text", "text": f"Image {n}:"})
+        content.append({
+            "type": "image",
+            "source": {"type": "blob", "sha256": sha},
+            "transformations": {"oversized_image": "error"},
+        })  # fmt: skip
+    attached = [n for n, sha in enumerate(sent, start=1) if sha is not None]
+    images = [{"description": b["description"], "text": b["text"]} for b in boards]
+    lines = [
+        f"Kind: {page['kind']}",
+        f"Title: {quoted(page['title'])}",
+        f"Tags: {quoted(', '.join(tags)) or '(none)'}",
+        "The page text (it may be another app's; the photo wins):",
+        "<page>",
+        quoted(plain(page["body"]).strip()[:WRITEUP_BODY]) or "(empty)",
+        "</page>",
+        *image_lines(images, WRITEUP_IMAGES),
+    ]
+    if len(boards) > len(attached):
+        shown = ", ".join(map(str, attached)) or "none"
+        lines.append(
+            f"Images attached: {shown} (at most {MAX_BOARDS}); of the others you"
+            " have only what was read from them."
+        )
+    if guidance:
+        lines += ["The owner's guidance for this write-up:", "<guidance>",
+                  quoted(guidance), "</guidance>"]  # fmt: skip
+    else:
+        lines.append("The owner gave no guidance.")
+    lines += ["", "Write the write-up."]
+    content.append({"type": "text", "text": "\n".join(lines)})
+    return [{"role": "user", "content": content}]

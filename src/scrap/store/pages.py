@@ -46,6 +46,9 @@ from .helpers import (
     too_big,
 )
 from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .writeups import backlinks as writeup_backlinks
+from .writeups import links as writeup_links
+from .writeups import view as writeup_view
 
 
 class PagesMixin(Core):
@@ -292,9 +295,11 @@ class PagesMixin(Core):
         self, conn: sqlite3.Connection, page_id: str, slug: str
     ) -> dict[str, Any]:
         """What Claude added to a page apart from its text: model_tags (the page's
-        tags Claude added), related (Claude's picks, pages that picked this one, and
-        pages linking here with [[slug]], each once, with via: claude, link or both)
-        and enrich (its job's state and the summary), None if never asked and off."""
+        tags Claude added), related (Claude's picks, pages that picked this one,
+        pages linking here with [[slug]], and pages its write-up links to or whose
+        write-up links here, each once, with via: claude, link or both, or writeup),
+        enrich (its job's state and the summary), None if never asked and off, and
+        writeup (a board page's write-up, writeups.view)."""
         model_tags = [r[0] for r in conn.execute(
             "SELECT m.tag FROM model_tag m JOIN tag t USING (page_id, tag)"
             " WHERE m.page_id = ? AND m.state = 'on'", (page_id,),
@@ -315,6 +320,8 @@ class PagesMixin(Core):
                 related[b["id"]]["via"] = "both"
             else:
                 related[b["id"]] = {**b, "via": "link"}
+        for w in writeup_links(conn, page_id) + writeup_backlinks(conn, slug):
+            related.setdefault(w["id"], {**w, "via": "writeup"})
         job = conn.execute(
             "SELECT state, last_error, reason,"
             " (SELECT paused_until > :now FROM queue_state) AS paused,"
@@ -347,7 +354,8 @@ class PagesMixin(Core):
                 "at": done and done["updated_at"],
             }
         return {"model_tags": model_tags, "related": list(related.values()),
-                "enrich": enrich}  # fmt: skip
+                "enrich": enrich,
+                "writeup": writeup_view(conn, page_id, enrich_on(), now())}  # fmt: skip
 
     def removed(self, conn: sqlite3.Connection, page_id: str, body: str) -> set[str]:
         """The files an earlier revision of a page's text referred to and its text no
