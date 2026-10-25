@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.2.dev2+g39b1e6687 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.2.dev3+g7c2b38de7 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4b32bfb4"></script>
+    <script src="../_static/documentation_options.js?v=133831c6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1050,8 +1050,8 @@ give scrap an <code class="docutils literal notranslate"><span class="pre">ANTHR
 holding the key) as in <a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a> and the deploy guides.
 Without ingest photos are still stored and queued, and each shows <em>Waiting: Claude ingest is off</em>.</p>
 <p>Everything Claude makes is shown in a brown card of its own, titled by what it holds, so it
-never reads as your text: <strong>What’s in the photo</strong> under a photo, <strong>What it means</strong> for a
-board’s write-up, and <strong>About this page</strong> under the text. Each card’s action is at the end of
+never reads as your text: <strong>What’s in the photo</strong> under each photo, and one <strong>About this
+page</strong> after the page’s text (its summary, a board’s write-up and related pages). Each card’s action is at the end of
 its title line: <strong>Generate</strong> the first time, <strong>Regenerate</strong> after (<strong>Retry</strong> if it failed). Its
 parts are folds: tap a heading (its arrow) to open or close it, and the phone remembers that.</p>
 <p>With Claude ingest on, each photo on a page has, under it, <strong>What’s in the photo</strong>:</p>
@@ -1105,13 +1105,13 @@ default once <code class="docutils literal notranslate"><span class="pre">SCRAP_
 has a summary or related pages. The panel has:</p>
 <ul class="simple">
 <li><p><strong>Regenerate</strong> at the end of its title line, to have Claude read the page again (a saved
-link is fetched again). While it works the line says <em>Waiting for Claude</em> (or <em>Waiting:
+link is fetched again; on a board it writes the write-up and finds related pages again too). While it works the line says <em>Waiting for Claude</em> (or <em>Waiting:
 Claude is off</em>) or <em>Claude is reading it…</em>; <em>Paused</em> with the reason and <strong>Resume</strong> (the
 queue is shared with photos; nothing is lost while paused); <em>Claude couldn’t read it</em> with
 the reason, and <strong>Retry</strong>. Before Claude has read the page, the card says what it would do
 (summarise it, suggest tags, find related pages), with <strong>Generate</strong>.</p></li>
-<li><p><strong>Summary</strong>: Claude’s one-line summary of the page, which search also looks in. A board has
-none: its write-up says what it shows.</p></li>
+<li><p><strong>Summary</strong>: Claude’s one-line summary of the page, which search also looks in. On a board
+it is the lead of Claude’s write-up.</p></li>
 <li><p><strong>Related</strong>: pages Claude picked, merged with the pages that link here (marked <em>· links
 here</em>).</p></li>
 <li><p>Summary and Related are open until you close them. The tags Claude added are marked with a
@@ -1123,14 +1123,16 @@ queued or is reading it.</p>
 <section id="claude-s-write-up-of-a-board">
 <h2>Claude’s write-up of a board<a class="headerlink" href="#claude-s-write-up-of-a-board" title="Link to this heading">#</a></h2>
 <p>A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
-<strong>What it means</strong>: Claude’s write-up, an explanation of the board, in a card of its own under
-the page’s text. It is Claude’s, not yours, so it is never part of the text you edit. Its
-<strong>Regenerate</strong> is at the end of the title line; the write-up is a fold, <strong>Read it</strong>, closed
-until you open it (and remembered). It has:</p>
+Claude’s write-up: a detailed description of the board, in its <strong>About this page</strong> card under
+the page’s text, as the fold <strong>In detail</strong> (closed until you open it, and remembered). Its lead
+is the card’s <strong>Summary</strong>. It is Claude’s, not yours, so it is never part of the text you edit.
+The card’s <strong>Regenerate</strong> has Claude read the board again, writing it up and finding its
+related pages afresh. It has:</p>
 <ul class="simple">
 <li><p>Who wrote it and when: the model, the date and its version (and <em>restored from version N</em>
 after a restore).</p></li>
-<li><p>A one or two sentence lead, which is also the page’s summary, then the write-up itself:
+<li><p>A one or two sentence lead, the page’s summary (shown as the card’s Summary), then the
+write-up itself:
 overview, structure, decisions, open questions and related pages, as fits the board. Its links
 open those pages, and the pages it links show in <strong>Related</strong> (marked <em>· in a write-up</em>) on both
 pages. Search finds words in it.</p></li>

@@ -513,8 +513,8 @@ holding the key) as in [](../explanations/ingest.md) and the deploy guides.
 Without ingest photos are still stored and queued, and each shows *Waiting: Claude ingest is off*.
 
 Everything Claude makes is shown in a brown card of its own, titled by what it holds, so it
-never reads as your text: **What's in the photo** under a photo, **What it means** for a
-board's write-up, and **About this page** under the text. Each card's action is at the end of
+never reads as your text: **What's in the photo** under each photo, and one **About this
+page** after the page's text (its summary, a board's write-up and related pages). Each card's action is at the end of
 its title line: **Generate** the first time, **Regenerate** after (**Retry** if it failed). Its
 parts are folds: tap a heading (its arrow) to open or close it, and the phone remembers that.
 
@@ -568,13 +568,13 @@ default once `SCRAP_INGEST=on`; without ingest the panel is not shown unless the
 has a summary or related pages. The panel has:
 
 - **Regenerate** at the end of its title line, to have Claude read the page again (a saved
-  link is fetched again). While it works the line says *Waiting for Claude* (or *Waiting:
+  link is fetched again; on a board it writes the write-up and finds related pages again too). While it works the line says *Waiting for Claude* (or *Waiting:
   Claude is off*) or *Claude is reading it…*; *Paused* with the reason and **Resume** (the
   queue is shared with photos; nothing is lost while paused); *Claude couldn't read it* with
   the reason, and **Retry**. Before Claude has read the page, the card says what it would do
   (summarise it, suggest tags, find related pages), with **Generate**.
-- **Summary**: Claude's one-line summary of the page, which search also looks in. A board has
-  none: its write-up says what it shows.
+- **Summary**: Claude's one-line summary of the page, which search also looks in. On a board
+  it is the lead of Claude's write-up.
 - **Related**: pages Claude picked, merged with the pages that link here (marked *· links
   here*).
 - Summary and Related are open until you close them. The tags Claude added are marked with a
@@ -586,14 +586,16 @@ queued or is reading it.
 ## Claude's write-up of a board
 
 A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
-**What it means**: Claude's write-up, an explanation of the board, in a card of its own under
-the page's text. It is Claude's, not yours, so it is never part of the text you edit. Its
-**Regenerate** is at the end of the title line; the write-up is a fold, **Read it**, closed
-until you open it (and remembered). It has:
+Claude's write-up: a detailed description of the board, in its **About this page** card under
+the page's text, as the fold **In detail** (closed until you open it, and remembered). Its lead
+is the card's **Summary**. It is Claude's, not yours, so it is never part of the text you edit.
+The card's **Regenerate** has Claude read the board again, writing it up and finding its
+related pages afresh. It has:
 
 - Who wrote it and when: the model, the date and its version (and *restored from version N*
   after a restore).
-- A one or two sentence lead, which is also the page's summary, then the write-up itself:
+- A one or two sentence lead, the page's summary (shown as the card's Summary), then the
+  write-up itself:
   overview, structure, decisions, open questions and related pages, as fits the board. Its links
   open those pages, and the pages it links show in **Related** (marked *· in a write-up*) on both
   pages. Search finds words in it.
