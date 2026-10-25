@@ -131,9 +131,11 @@ PAGE_KINDS = {
 # (#260): what automation infers from them never changes its kind, title or tags, or
 # whether enrich or ingest maintains it. The one test of it, for TITLE_CAS, the photo
 # worker and NOT_BY_INGEST.
+# Captures received at the same moment (an import's): text before files (one with no
+# files first), then the id, so the order never rests on hash-derived ids alone.
 FIRST_CAPTURE = (
-    "(SELECT f.id FROM capture f WHERE f.page_id = {page}"
-    " ORDER BY f.received_at, f.id LIMIT 1)"
+    "(SELECT f.id FROM capture f WHERE f.page_id = {page} ORDER BY f.received_at,"
+    " EXISTS (SELECT 1 FROM capture_blob b WHERE b.capture_id = f.id), f.id LIMIT 1)"
 )
 # A page made by a photo or file capture (its first) is read by ingest, not enrich,
 # whatever its kind (a photo page is stored as a note until ingest reclassifies it).

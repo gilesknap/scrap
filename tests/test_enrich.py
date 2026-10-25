@@ -960,21 +960,29 @@ def test_a_page_is_enrichs_or_ingests_by_its_first_capture(store):
     p = {"slug": "both", "title": "Both", "body": "a note", "kind": "note",
          "fields": {}, "tags": [], "created_at": stamp,
          "updated_at": stamp}  # fmt: skip
-    # Received at the same time (an import's are): the lower id is first
+    # Received at the same time (an import's are): the one with no files is first
     lo, hi = "01J0000000000000000000000A", "01J0000000000000000000000B"
     caps = [(lo, "note", "a note", []),
             (hi, "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
     page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
     store.update_page(page_id, 1, None, "a note, edited", "me")
     assert [j[:2] for j in jobs(store)] == [("save", "queued")]
-    # A photo first (the lower id, received at the same time), then a note: ingest's
-    lo, hi = "01J0000000000000000000000C", "01J0000000000000000000000D"
-    caps = [(lo, "photo", None, [(sha, "image/jpeg", size, None)]),
-            (hi, "note", "a note", [])]  # fmt: skip
-    p = {**p, "slug": "photo-first"}
+
+
+def test_an_imported_note_with_files_is_enrichs_whatever_the_ids(store):
+    """Received at the same moment, the text capture is first, though the file
+    capture's (hash-derived) id sorts before it."""
+    sha, size = store.put_blob(io.BytesIO(b"%PDF"))
+    stamp = "2026-01-01T00:00:00.000Z"
+    p = {"slug": "minutes", "title": "Minutes", "body": "a note", "kind": "note",
+         "fields": {}, "tags": [], "created_at": stamp,
+         "updated_at": stamp}  # fmt: skip
+    note, files = "01J0000000000000000000000F", "01J0000000000000000000000E"
+    caps = [(note, "note", "a note", []),
+            (files, "file", None, [(sha, "application/pdf", size, None)])]  # fmt: skip
     page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
     store.update_page(page_id, 1, None, "a note, edited", "me")
-    assert len(jobs(store)) == 1
+    assert [j[:2] for j in jobs(store)] == [("save", "queued")]
 
 
 def test_backfill_skips_a_photo_page_of_kind_note(store, monkeypatch):

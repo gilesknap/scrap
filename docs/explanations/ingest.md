@@ -235,7 +235,7 @@ added to a page are read (description, OCR, drawing), searched, and fed to the w
 related pages, but what Claude infers from them never changes the page's kind, title or tags,
 or whether enrich or ingest maintains it. The owner can still change kind, title and tags by
 hand at any time. One SQL test says which capture is the page's first
-(`store.constants.FIRST_CAPTURE`: the earliest received, then the lowest id), used by
+(`store.constants.FIRST_CAPTURE`: the earliest received; among captures received at the same moment, as an import's are, one with no files before one with files, then the lowest id), used by
 `TITLE_CAS`, the photo worker's page fields and task boxes, and `NOT_BY_INGEST`.
 
 **Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
