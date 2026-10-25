@@ -129,13 +129,3 @@ it is paused. A `401 ... invalid` means the token was copied wrongly: fix it, re
 
 `SCRAP_BUDGET_DAY_USD` still applies, to what the calls would cost at API prices, not to
 anything you are charged. Set `SCRAP_ENRICH=off` to keep the seat to photos.
-
-```{note}
-**What has been checked.** The `Dockerfile.claude` build command and argument names were run on
-23 Oct 2026 against `ghcr.io/gilesknap/scrap:0.2.2`, and the image's `claude --version` printed
-2.1.281. The Helm values above were rendered with `helm template` and give the three environment
-variables, the image and the CronJob settings shown; they have not been installed on a cluster.
-Ingest on a seat reading two photos in about 10 seconds was checked by hand on 22 Oct 2026 on a
-DLS workstation. The steps for the LAN and server
-installs, and the empty `ANTHROPIC_API_KEY` Secret key, have not been run in full.
-```

@@ -118,15 +118,6 @@ podman run --rm -v scrap-data:/data -v scrap-backup:/backup \
 That copy is local only; copy it off the machine to survive losing it. To update, pull a new
 release tag, remove the container and run it again: the volume keeps your data.
 
-```{note}
-**What has been checked.** On 23 Oct 2026, with rootless podman on Ubuntu and the published
-`0.2.2` image, the container with a named volume was reached on both the LAN and the Tailscale
-address, and `/mcp` accepted an address only when it was in `SCRAP_PUBLIC_URL` (421 otherwise).
-Not checked: a phone (tiers A and B and the browser limits are as documented by browsers), the
-`--network=host --host 0.0.0.0` command above with the 0.5.0 image, Docker rather than podman,
-a Raspberry Pi, and the `backup` command.
-```
-
 ## Next steps
 
 - A lasting install, with its own user, a socket and systemd: [](install-server.md).

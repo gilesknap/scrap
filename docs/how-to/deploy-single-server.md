@@ -6,7 +6,7 @@ socket that only its own user (and root) can open;
 [Tailscale Serve](https://tailscale.com/kb/1312/serve) publishes it over HTTPS to your tailnet and
 nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-server-installs.md).
 
-Podman is the tested path. Docker is possible, but `install.sh` needs podman, so you wire the
+Podman is the supported path. Docker is possible, but `install.sh` needs podman, so you wire the
 units up by hand: see {ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
 [](deploy-kubernetes.md).
 
@@ -31,7 +31,7 @@ and process** can do the same through the port: keep that for single-purpose ser
   one-off setup steps.
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
   units use `--userns=keep-id:uid=,gid=`, `--sdnotify=conmon` and `--cgroups=split`, and have
-  been run with podman 5.x; older versions are untested. It must be at `/usr/bin/podman`: the
+  been run with podman 5.x. It must be at `/usr/bin/podman`: the
   units and the scripts they start use that path, not `PATH` (a user service does not get your
   login shell's `PATH`, and the unit's `ExecStop` needs an absolute path). `install.sh` stops
   if it is missing; if podman is installed elsewhere, link it with
