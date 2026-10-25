@@ -93,6 +93,30 @@ def add_sources(
     return cur.rowcount
 
 
+def include(conn: sqlite3.Connection, topic_id: str, page_id: str, stamp: str) -> bool:
+    """The owner puts an excluded source back into a topic (undoing the ✕). Whether
+    it was one excluded."""
+    cur = conn.execute(
+        "UPDATE topic_source SET excluded = 0, changed_at = ?"
+        " WHERE topic_id = ? AND page_id = ? AND excluded = 1",
+        (stamp, topic_id, page_id),
+    )
+    return cur.rowcount > 0
+
+
+def touch(conn: sqlite3.Connection, page_id: str, stamp: str) -> None:
+    """A page is back from the trash: each topic it is a source of is due again (its
+    memberships' changed_at), so the synthesis sees it. Nothing before migration
+    13."""
+    try:
+        conn.execute(
+            "UPDATE topic_source SET changed_at = ? WHERE page_id = ?",
+            (stamp, page_id),
+        )
+    except sqlite3.OperationalError:  # no such table: an older schema
+        pass
+
+
 def exclude(conn: sqlite3.Connection, topic_id: str, page_id: str, stamp: str) -> bool:
     """The owner takes a source out of a topic: kept, excluded, so discovery never adds
     it again. Whether it was a source still in."""
@@ -140,16 +164,26 @@ def of_page(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
 
 def every(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Every topic, the trash's too (their keys are vetoes): id, key, title, trashed,
-    and its sources in (their ids, excluded or trashed ones left out)."""
+    its sources in (their ids, excluded or trashed ones left out) and those the
+    owner excluded (excluded: their ids, trashed ones too)."""
     rows = _rows(
         conn,
         "SELECT p.id, t.key, p.title, p.deleted_at IS NOT NULL AS trashed,"
         " (SELECT json_group_array(s.page_id) FROM topic_source s"
         "  JOIN page q ON q.id = s.page_id WHERE s.topic_id = p.id"
-        "  AND s.excluded = 0 AND q.deleted_at IS NULL) AS sources"
+        "  AND s.excluded = 0 AND q.deleted_at IS NULL) AS sources,"
+        " (SELECT json_group_array(s.page_id) FROM topic_source s"
+        "  WHERE s.topic_id = p.id AND s.excluded = 1) AS excluded"
         " FROM topic t JOIN page p ON p.id = t.page_id ORDER BY t.created_at, p.id",
     )
-    return [{**r, "sources": json.loads(r["sources"])} for r in rows]
+    return [
+        {
+            **r,
+            "sources": json.loads(r["sources"]),
+            "excluded": json.loads(r["excluded"]),
+        }
+        for r in rows
+    ]
 
 
 def area(tagged: list[tuple[str, str]]) -> str | None:

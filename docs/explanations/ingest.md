@@ -614,13 +614,17 @@ its write-up ({ref}`ingest-writeup`): versions, guidance, Regenerate and Restore
   daily budget; the pass stops at a queue pause or the day's budget, as the related pass does.
 - **The veto.** A topic in the trash keeps its key, so it is never made again, and the call is
   told it was rejected. A source the owner took out (`DELETE
-  /api/pages/{id}/topic/sources/{source}`) stays in `topic_source` as excluded, so it is never
-  added again.
+  /api/pages/{id}/topic/sources/{source}`) stays in `topic_source` as excluded: discovery is shown
+  it as taken out and it is never added again (`POST` to the same address puts it back).
 - **Synthesis.** An enrich job of reason `topic`, run by the service's worker. The pass queues one
   for each topic due: one with none, of another prompt version, or older than the topic page's
   own last change (its title or notes), a source added or excluded, or a source's last edit,
   trash, summary, write-up or photo reading. Taking a source out queues one at once; so does
-  Regenerate (`POST /api/pages/{id}/writeup`) and Ask Claude on the topic page. One Opus call
+  Regenerate (`POST /api/pages/{id}/writeup`) and Ask Claude on the topic page (which
+  makes no enrich call: a topic page's text is never read as text, so Claude never touches it).
+  A synthesis restored by the owner is not regenerated for a new prompt version, and a source
+  brought back from the trash makes its topics due. A pass stopped at a pause or the budget
+  queues none. One Opus call
   (as the write-up's) sees each source in a `<source>` block, numbered (at most 40, first added
   first): its title, kind and tags, then its summary, Claude's write-up of it, what was read from
   its images and its text, as much as fits in 6,000 characters a source and 60,000 in all; the

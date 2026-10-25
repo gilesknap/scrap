@@ -254,8 +254,10 @@ def test_existing_topics_get_sources_but_never_an_excluded_one(store):
     def answer(messages):
         text = messages[0]["content"][0]["text"]
         listed = text.split("<topics>")[1].split("</topics>")[0].strip()
+        runtime = numbered(messages, "ibek runtime")
         assert listed.startswith("1. ibek (ibek): sources ")
-        assert str(numbered(messages, "ibek runtime")) not in listed.split("sources")[1]
+        sources, out = listed.split("sources ")[1].split("; taken out: ")
+        assert str(runtime) not in sources.split() and out == str(runtime)
         return {
             "new": [],
             "add": [
@@ -272,8 +274,9 @@ def test_existing_topics_get_sources_but_never_an_excluded_one(store):
         }
 
     c = enrich.topics_pass(store, Fake(discovery=answer))
+    # yaml is in already, and runtime was taken out: neither is reported added
     assert [[s["title"] for s in a["sources"]] for a in c["add"]] == [
-        ["ibek tutorial", "ibek runtime"]]  # yaml is in already  # fmt: skip
+        ["ibek tutorial"]]  # fmt: skip
     with closing(connect(store.db)) as conn:
         got = {s["id"]: s["excluded"] for s in topics.sources(conn, topic, True)}
     assert got[other] == 0 and got[ids["ibek runtime"]] == 1  # still excluded
@@ -421,6 +424,62 @@ def test_a_new_prompt_version_makes_every_topic_due(store, monkeypatch):
         assert enrich.topic_finding.due(conn) == [topic]
 
 
+def test_a_restored_synthesis_is_kept_for_a_new_prompt_version(store, monkeypatch):
+    ids, topic = made(store)
+    enrich.regenerate(store, topic)
+    run_all(store, Fake())
+    enrich.restore(store, topic, 1, base=2)
+    monkeypatch.setattr(
+        enrich.topic_finding, "topic_prompt", lambda: ("p", "topic@another")
+    )
+    with closing(connect(store.db)) as conn:
+        assert enrich.topic_finding.due(conn) == []  # the owner's Restore stands
+    time.sleep(0.002)  # a change to an input still makes it due
+    p = store.page(ids["ibek yaml"])
+    store.update_page(ids["ibek yaml"], p["rev"], "ibek yaml", "ibek v3", "me")
+    with closing(connect(store.db)) as conn:
+        assert enrich.topic_finding.due(conn) == [topic]
+
+
+def test_a_source_back_from_the_trash_makes_its_topic_due(store):
+    ids, topic = made(store)
+    time.sleep(0.002)
+    store.delete_page(ids["ibek runtime"])
+    assert enrich.topics_pass(store, Fake())["queued"] == 1
+    run_all(store, Fake())
+    with closing(connect(store.db)) as conn:
+        assert enrich.topic_finding.due(conn) == []
+    time.sleep(0.002)
+    store.delete_page(ids["ibek runtime"], undo=True)
+    with closing(connect(store.db)) as conn:
+        assert enrich.topic_finding.due(conn) == [topic]
+
+
+def test_a_stopped_pass_queues_no_synthesis(store, monkeypatch):
+    ids, topic = made(store)
+    time.sleep(0.002)
+    p = store.page(ids["ibek yaml"])
+    store.update_page(ids["ibek yaml"], p["rev"], "ibek yaml", "ibek v2", "me")
+    run_all(store, Fake())
+    before = jobs(store)
+    monkeypatch.setenv("SCRAP_BUDGET_DAY_USD", "0")
+    c = enrich.topics_pass(store, Fake())
+    assert c["stopped"] == "budget" and c["queued"] == 0
+    assert jobs(store) == before
+
+
+def test_ask_on_a_topic_makes_its_synthesis_and_no_enrich_call(store):
+    ids, topic = made(store)
+    enrich.ask(store, topic)
+    fake = Fake()
+    run_all(store, fake)
+    assert fake.kinds() == ["topic", "related"]
+    page = store.page(topic)
+    assert page["writeup"]["versions"] == 2 and page["body"] == ""
+    assert page["model_tags"] == [] and page["tags"] == []
+    assert jobs(store)[-1] == ("ask", "done")
+
+
 def test_a_topic_with_every_source_gone_is_not_synthesised(store):
     ids, topic = made(store)
     for t in ("ibek yaml", "ibek schema", "ibek runtime"):
@@ -455,6 +514,13 @@ def test_search_ranks_a_matching_topic_first_and_is_topic_lists_them(store):
     assert topic not in [h["id"] for h in store.search("-is:topic", 10)]
     # the synthesis is indexed like a write-up
     assert [h["id"] for h in store.search("makes IOCs", 10)] == [topic]
+
+
+def test_an_exact_title_beats_a_topic_matching_only_beyond_its_title(store):
+    ids, topic = made(store)  # the synthesis says IOCs; its title is ibek
+    iocs = note(store, "IOCs\n\na list of them")["page_id"]
+    hits = [h["id"] for h in store.search("iocs", 10)]
+    assert hits[0] == iocs and topic in hits
 
 
 def test_citations_show_in_related_both_ways(store):
@@ -493,6 +559,13 @@ def test_the_api_lists_topics_and_sources_and_excludes(tmp_path):
     got = client.get(f"/api/pages/{topic}/topic/sources").json()
     assert [s["excluded"] for s in got] == [0, 0, 1]
     assert client.get("/api/topics").json()[0]["sources"] == 2
+    run_all(store, Fake())
+    back = client.post(f"/api/pages/{topic}/topic/sources/{ids['ibek runtime']}")
+    assert back.status_code == 200 and back.json()["writeup"]["state"] == "queued"
+    assert [s["excluded"] for s in back.json()["topic"]["sources"]] == [0, 0, 0]
+    again = client.post(f"/api/pages/{topic}/topic/sources/{ids['ibek runtime']}")
+    assert again.status_code == 404
+    assert client.get("/api/topics").json()[0]["sources"] == 3
     page = client.post(f"/api/pages/{topic}/writeup").json()  # Regenerate
     assert page["writeup"]["state"] == "queued"
     assert jobs(store)[-1] == ("topic", "queued")

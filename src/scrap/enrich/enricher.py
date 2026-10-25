@@ -196,6 +196,24 @@ class Enricher:
                 queue_related(conn, page_id)  # its first related call sees the write-up
             return
         with self.store.connect() as conn:
+            topic = topics.is_topic(conn, page_id)
+        if topic:  # a topic page (#261): its text is the owner's, never read as
+            # text. Ask is its synthesis (once a job), then its related pages; a
+            # save (a topic whose kind was changed) makes no call
+            error = None
+            if job["reason"] == "ask":
+                error = (
+                    None
+                    if self._written(jid)
+                    else synthesise(self.store, self.call, page_id, jid)
+                ) or relate(self.store, self.call, page_id, jid)
+            if error is not None:
+                self._job_failed(jid, error)
+                return
+            with self.store.connect() as conn, transaction(conn):
+                self._done(conn, jid)
+            return
+        with self.store.connect() as conn:
             page = conn.execute(
                 "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id)"
                 " AS rev FROM page WHERE id = ? AND deleted_at IS NULL",
@@ -269,15 +287,12 @@ class Enricher:
         if not link and actions.accepted(out["intent"], out["confidence"], items):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
-        if job["reason"] == "ask":  # Ask Claude: a board's write-up (a topic's
-            # synthesis), related pages too. A retry (related failed) does not write
-            # it up again: done in this job
-            with self.store.connect() as conn:
-                make = synthesise if topics.is_topic(conn, page_id) else write_up
+        if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
+            # A retry (related failed) does not write it up again: done in this job
             error = (
                 None
                 if self._written(jid)
-                else make(self.store, self.call, page_id, jid)
+                else write_up(self.store, self.call, page_id, jid)
             ) or relate(self.store, self.call, page_id, jid)
             if error is not None:
                 self._job_failed(jid, error)

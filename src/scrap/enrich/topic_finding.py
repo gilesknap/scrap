@@ -60,7 +60,8 @@ def discover(
     its synthesis by the pass) and its new sources added. The run is recorded either
     way (a dry run's call is paid for too). Returns a failure, for the caller to act
     on, and what was found: new (title, key, sources: page ids and titles) and add
-    (topic, its title, sources), sources already in left out."""
+    (topic, its title, sources), sources already in, or taken out by the owner, left
+    out."""
     with store.connect() as conn:
         pages = page_index(conn)
         existing = topics.every(conn)
@@ -106,7 +107,8 @@ def discover(
     found["new"] = [{**t, "sources": cited(t["sources"])} for t in out["new"]]
     for a in out["add"]:
         topic = alive[a["topic"] - 1]
-        fresh = [s for s in cited(a["sources"]) if s["id"] not in topic["sources"]]
+        have = {*topic["sources"], *topic["excluded"]}  # never one taken out
+        fresh = [s for s in cited(a["sources"]) if s["id"] not in have]
         if fresh:
             found["add"].append(
                 {"topic": topic["id"], "title": topic["title"], "sources": fresh}
@@ -162,8 +164,9 @@ def topics_pass(
     """The weekly topics pass (scrap enrich --topics): one discovery call here and
     now (as the related pass's, it stops at a queue pause or the day's budget, or
     makes one), then a synthesis queued for each topic due (every: each topic), at
-    most limit, for the service's worker. dry_run makes the call (and records it)
-    but writes nothing and queues nothing. Returns the counts and what was found."""
+    most limit, for the service's worker, unless it stopped. dry_run makes the call
+    (and records it) but writes nothing and queues nothing. Returns the counts and
+    what was found."""
     call = call or claude.complete
     budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
     found: dict[str, Any] = {"new": [], "add": []}
@@ -174,11 +177,13 @@ def topics_pass(
         return error
 
     counts = run_pass(store, ["discovery"], one, budget)
-    with store.connect() as conn, transaction(conn):
-        ids = due(conn, every, limit)
-        if not dry_run:
-            for page_id in ids:
-                queue_topic(conn, page_id)
+    ids: list[str] = []
+    if counts["stopped"] is None:  # paused, or the budget spent: nothing queued
+        with store.connect() as conn, transaction(conn):
+            ids = due(conn, every, limit)
+            if not dry_run:
+                for page_id in ids:
+                    queue_topic(conn, page_id)
     return {
         "stopped": counts["stopped"],
         "failed": counts["failed"],

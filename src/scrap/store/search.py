@@ -100,8 +100,9 @@ class SearchMixin(Core):
         """Pages matching a query (see scrap.query): every word somewhere in the page
         (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
-        the page's best chunk, title, tag and summary matches weighing most, after
-        any matching topic page (#261: is:topic lists them); a query
+        the page's best chunk, title, tag and summary matches weighing most, a
+        topic page (#261: is:topic lists them) first within the title tier and the
+        title, tags and summary tier; a query
         of filters alone lists its pages newest first; sort: orders either its own
         way. offset: skip that many hits (the next page of results)."""
         q = checked_query(query)
@@ -120,8 +121,9 @@ class SearchMixin(Core):
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
                 # First the pages with every word in the title, then those with every
                 # word in the title, tags or summary: bm25 alone lets a short body
-                # that says a word twice beat a long page tagged with it. A matching
-                # topic page comes before them all: it gathers the others.
+                # that says a word twice beat a long page tagged with it. Within
+                # each of those tiers a topic page comes first (it gathers the
+                # others); one matching only in its synthesis or text does not.
                 every = " AND ".join(q.fts(t) for t in q.positive)
                 topic = IS_TOPIC.format(p="p")
                 tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
@@ -132,10 +134,13 @@ class SearchMixin(Core):
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
                     f" WHERE chunk_fts MATCH ? AND {where}"
-                    f" ORDER BY {order}{topic} DESC, {tier} DESC, {tier} DESC,"
+                    f" ORDER BY {order}({topic} AND {tier}) DESC, {tier} DESC,"
+                    f" ({topic} AND {tier}) DESC, {tier} DESC,"
                     f" bm25(chunk_fts, {WEIGHTS}), c.id",
                     (" OR ".join(q.fts(t) for t in q.positive), *args,
-                     f"title : ({every})", f"{{title tags summary}} : ({every})"),
+                     f"title : ({every})", f"title : ({every})",
+                     f"{{title tags summary}} : ({every})",
+                     f"{{title tags summary}} : ({every})"),
                 )  # fmt: skip
             else:
                 rows = conn.execute(

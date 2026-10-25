@@ -30,7 +30,8 @@ text.
   changes it), and `is:topic` finds them.
 - **Sources.** `topic_source(topic_id, page_id, added_by, added_at, excluded, changed_at)` holds a
   topic's sources, the synthesis's inputs. The owner taking one out sets `excluded` and queues the
-  synthesis again; discovery never adds an excluded source back. `changed_at` (when it was added
+  synthesis again (putting it back undoes that); discovery is shown the excluded ones and never
+  adds one back. A source brought back from the trash makes its topics due again. `changed_at` (when it was added
   or excluded) is beyond the issue's sketch: freshness needs it.
 - **The trash is the veto.** A topic in the trash keeps its key, so discovery never makes it
   again, and the discovery call is told those keys were rejected. There is no approval step: up to
@@ -42,15 +43,19 @@ text.
   number. A topic needs at least 3 sources, or 2 where it is central to both (Thoth's thresholds,
   asked of the model; scrap enforces 2). Its run is a new `topic_run` row, since it is of no one
   page (`enrich_run.page_id` is required), and `spent_today` counts it in the shared daily budget.
-  `--dry-run` still makes the call (it is what is being judged) but writes nothing.
+  `--dry-run` still makes the call (it is what is being judged) but writes nothing. A pass that
+  stops at a pause or the budget queues no syntheses.
 - **Synthesis.** An enrich job of a new reason, `topic`, run by the service's worker, on Opus. It
   sees each source (at most 40) with its title, kind, tags, summary, write-up, images' text and
   text, cut to fit 6,000 characters a source and 60,000 in all, and the owner's notes and
   guidance. It returns a lead and Markdown sections: Overview, Key facts (each cited), How the
   sources relate, Contradictions and open questions. It is due when it has none, its prompt
-  version changed, or anything it was made from changed since: the topic page, a source added or
+  version changed (unless the owner restored that version: a Restore is kept), or anything it
+  was made from changed since: the topic page, a source added or
   excluded, or a source's text, trash, summary, write-up or photo reading (as the related pass's
   `STALE`; #262 generalises it). The weekly pass queues those due.
+- **Never read as text.** A topic page gets no enrich call (tags, summary, task boxes): Ask
+  Claude on one makes its synthesis, then its related pages, so Claude never touches its body.
 - **Where it counts.** Its summary is the topic page's model summary; its text is indexed for
   search; a matching topic page ranks first; its citations show in Related both ways (`via:
   topic`). The page object has `topics` (the topics a page is a source of) and `topic` (a topic's
@@ -78,6 +83,9 @@ text.
   PRAGMA user_version = 12;
   DELETE FROM enrich_job WHERE reason = 'topic' AND state IN ('queued', 'running');
   DELETE FROM writeup WHERE page_id IN (SELECT page_id FROM topic);
+  DELETE FROM writeup_guidance WHERE page_id IN (SELECT page_id FROM topic);
+  DELETE FROM chunk WHERE derived_id IS NULL AND ord = 1
+    AND page_id IN (SELECT page_id FROM topic);
   DROP TABLE topic_source;
   DROP TABLE topic_run;
   DROP TABLE topic;
@@ -85,6 +93,6 @@ text.
 
   The `DELETE` of jobs matters because older code would run a `topic` job as a full enrich. The
   topic pages stay, as plain `reference` pages with empty bodies (trash them by hand if wanted);
-  their syntheses go with the `DELETE` from `writeup`, which older code would neither show nor
-  index for a page that is not a board. Upgrading again is safe, but discovery would make the
+  their syntheses, guidance and search chunks go with the `DELETE`s, as older code would neither
+  show nor index a synthesis for a page that is not a board. Upgrading again is safe, but discovery would make the
   topics again as new pages.

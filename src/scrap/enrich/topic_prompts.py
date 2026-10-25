@@ -95,13 +95,16 @@ def discovery_message(
     rejected: Sequence[str],
 ) -> list[dict[str, Any]]:
     """The discovery call's user turn: the index of pages (numbered), the existing
-    topics (numbered, each with its sources' index numbers: number maps a page id to
-    its), and the keys of those the owner rejected (in the trash), all quoted."""
+    topics (numbered, each with its sources' index numbers, and those the owner took
+    out: number maps a page id to its), and the keys of those the owner rejected (in
+    the trash), all quoted."""
     listed = []
     for n, t in enumerate(topics, start=1):
         cited = " ".join(str(number[p]) for p in t["sources"] if p in number)
+        out = " ".join(str(number[p]) for p in t["excluded"] if p in number)
         title = quoted(one_line(t["title"], 120))
-        listed.append(f"{n}. {title} ({quoted(t['key'])}): sources {cited or 'none'}")
+        line = f"{n}. {title} ({quoted(t['key'])}): sources {cited or 'none'}"
+        listed.append(f"{line}; taken out: {out}" if out else line)
     lines = [
         "The pages:",
         "<index>",

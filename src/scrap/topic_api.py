@@ -36,3 +36,12 @@ def add_routes(app: FastAPI, store: Store, wake: Callable[[], None]) -> None:
         page = enrich.exclude(store, key, source)
         wake()
         return page
+
+    @app.post("/api/pages/{key}/topic/sources/{source}")
+    def topic_include(key: str, source: str) -> dict[str, Any]:
+        """Put a source the owner took out (id or slug) back into a topic (undoing
+        the ✕), and queue the synthesis again (with Claude on). The topic page; 422
+        if it is not a topic, 404 if that page is not an excluded source of it."""
+        page = enrich.exclude(store, key, source, back=True)
+        wake()
+        return page

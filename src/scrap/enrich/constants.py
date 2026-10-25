@@ -180,9 +180,10 @@ ORDER BY p.created_at LIMIT :limit
 """
 # Topic pages (not in the trash, with a source in) whose synthesis is due, none
 # queued or running: every one with :all, else one with none, or of another prompt
-# version, or older than the latest change to its inputs: the topic page itself (its
-# title or the owner's notes), a source added or excluded, or a source's text, trash,
-# summary, write-up or what photo ingest read from it. Those with none first.
+# version (unless the owner restored it: Restore is kept), or older than the latest
+# change to its inputs: the topic page itself (its title or the owner's notes), a
+# source added, excluded or back from the trash, or a source's text, trash, summary,
+# write-up or what photo ingest read from it. Those with none first.
 TOPIC_DUE = """
 SELECT p.id FROM topic t JOIN page p ON p.id = t.page_id
 LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL
@@ -191,7 +192,8 @@ WHERE p.deleted_at IS NULL
               WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)
   AND NOT EXISTS (SELECT 1 FROM enrich_job j WHERE j.page_id = p.id
                   AND j.state IN ('queued', 'running'))
-  AND (:all OR w.id IS NULL OR w.prompt_version <> :version
+  AND (:all OR w.id IS NULL
+    OR (w.prompt_version <> :version AND w.restored_from IS NULL)
     OR w.created_at < max(p.updated_at, coalesce((
       SELECT max(CASE WHEN s.excluded THEN s.changed_at ELSE max(
         s.changed_at, q.updated_at, coalesce(q.deleted_at, ''),

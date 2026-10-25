@@ -157,7 +157,10 @@ def main(args: Sequence[str] | None = None) -> None:
         help="At most this many pages (with --topics: syntheses queued)",
     )
     enr.add_argument(
-        "--dry-run", action="store_true", help="Only count them, queue nothing"
+        "--dry-run",
+        action="store_true",
+        help="Only count them, queue nothing (with --topics: the discovery call is"
+        " still made, and paid for)",
     )
     parsed = parser.parse_args(args)
 

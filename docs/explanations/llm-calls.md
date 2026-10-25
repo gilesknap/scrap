@@ -15,7 +15,7 @@ page's: see the end.
 | Photo capture of a document, handwriting, screenshot or photo | The same, with no drawing | Skipped (Ask only) | — | Once when all of its first photo capture is read; nightly if changed or a photo is read; Ask. Sees the images' text |
 | File capture (PDF and the like) | — (PDF summaries: #234) | Skipped (Ask only) | — | Nightly if changed; Ask. Sees title, tags and text only |
 | Whiteboard or document page typed, not photographed | — | Skipped (Ask only) | — | Nightly if changed; Ask |
-| Topic page (Claude's, kind `reference`; its text is the owner's notes) | — | Skipped (Ask only) | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
+| Topic page (Claude's, kind `reference`; its text is the owner's notes) | — | Never: its text is not read, Ask makes its synthesis instead | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
 
 What each call sees. Enrich gets the page's kind, tags, title and text as plain words (at most
 12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched
