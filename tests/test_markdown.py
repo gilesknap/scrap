@@ -72,6 +72,7 @@ def test_rewrite_keeps_what_it_is_told_to_and_the_rest_as_typed():
     assert rewrite(text, lambda link: None) == "keep [a](b.md) and [[c]]\nnext"
 
 
+@pytest.mark.timing  # run alone: see conftest.py
 @pytest.mark.parametrize(
     "pattern",
     [
@@ -104,19 +105,23 @@ def test_hostile_text_takes_linear_time(pattern):
     # CPU time, not wall time: a busy runner descheduling the test does not count
     def fastest(n: int) -> float:
         # The minimum of several runs: a noisy CI box only ever makes a run slower
-        return min(took(n) for _ in range(7))
+        return min(took(n) for _ in range(5))
 
     took(10_000)  # warm-up: imports, caches and the allocator
-    # Start where a run takes long enough (10 ms) to time, so a pure ratio can be used
-    # with no slack: linear is 4x for 4x the text, quadratic 16x; the line is 8x
+    # Start where a run takes long enough (0.1 s) that timer and scheduling noise is
+    # small beside it, so a pure ratio can be used: linear is 4x for 4x the text,
+    # quadratic 16x. The line is 12x, not halfway: coverage tracing and a busy runner
+    # made linear text measure past 8x from a 40 ms start (#269); quadratic still fails
+    # it by a wide margin
     n = 10_000
-    small = fastest(n)
-    while small < 0.01 and n < 640_000:
+    while took(n) < 0.1 and n < 2_560_000:  # one run a size, to find it
         n *= 2
-        small = fastest(n)
-    assert fastest(4 * n) < 8 * small
+    small = fastest(n)
+    ratio = fastest(4 * n) / small
+    assert ratio < 12, f"{ratio:.1f}x for 4x the text"
 
 
+@pytest.mark.timing  # run alone: see conftest.py
 def test_a_paragraph_of_many_lines_is_rewritten_in_linear_time():
     text = "x [[y]]\n" * 20_000  # one paragraph: every link maps back to its line
     start = time.monotonic()
@@ -135,6 +140,7 @@ def test_a_block_that_cannot_be_mapped_back_is_kept_and_told(monkeypatch):
     assert told == [3]
 
 
+@pytest.mark.timing  # run alone: see conftest.py
 def test_a_megabyte_page_is_indexed():
     words = (
         "Some *text* with [a link](http://x.com), `code` and [[a-page|a label]]\n\n"

@@ -505,7 +505,7 @@ def test_enrichment_runs_on_the_worker(cli, tmp_path, monkeypatch):
     worker = ingest.Worker(store)
     assert worker.step() is True  # no photo: the text page
     page = store.page(ref["page_id"])
-    assert page["tags"] == ["garden"] and page["enrich"]["state"] == "done"
+    assert page["tags"] == ["garden"] and page["enrich"]["state"] == "queued"  # related
     with closing(connect(store.db)) as conn:
         run = conn.execute("SELECT * FROM enrich_run").fetchone()
     assert run["status"] == "ok" and run["cost_microusd"] == 150

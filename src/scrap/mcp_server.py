@@ -58,9 +58,9 @@ trash. The trash tool lists it, read and revisions show a trashed page read only
 rename_tag change only kinds and tags, of any page: each change is a revision (the
 revisions tool; with no page or batch it lists what changed recently, across pages)
 that revert undoes. Revisions cover only the user's and your changes to text, kinds and
-tags: what scrap's Claude enrichment adds (summary, model tags, related pages; read's
-by_model) is not in them, and revert cannot undo it. Try a bulk change with dry_run
-first.
+tags: what scrap's Claude enrichment adds (summary, model tags, related pages, a
+board's write-up; read's by_model) is not in them, and revert cannot undo it. Try a
+bulk change with dry_run first.
 A page URL (https://<host>/p/<slug>) names the page <slug>: give the URL, or the slug,
 as a tool's page."""
 UNDELETE = "undelete brings one page back from it (try dry_run first), "

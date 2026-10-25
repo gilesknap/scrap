@@ -10,7 +10,15 @@ from io import BytesIO
 from typing import Any
 
 from .. import actions, claude, claude_cli, preview, sanitise
-from ..store import MAX_TAGS, PAGE_KINDS, Store, enrich_on, now, transaction
+from ..store import (
+    MAX_TAGS,
+    PAGE_KINDS,
+    Store,
+    enrich_on,
+    now,
+    queue_after_read,
+    transaction,
+)
 from .constants import PAUSES, POLL, REV, TITLE_CAS
 from .jobs import (
     charge,
@@ -297,6 +305,7 @@ class Worker:
                 " WHERE id = ?",
                 (stamp, jid),
             )
+            queue_after_read(conn, cid)  # all read: a board's write-up, else related
             resume(conn, stamp)  # a success ends any pause
             page = conn.execute(
                 f"SELECT p.id, {REV} AS rev, (SELECT sha256 FROM capture_blob WHERE"

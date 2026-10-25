@@ -2,13 +2,60 @@
 
 import hashlib
 import sqlite3
+from collections.abc import Sequence
 from typing import Any
 
 from .. import claude, fetch
 from ..markdown import plain
 from ..query import CONTROL
 from ..store import unlink
-from .constants import MAX_BODY, MAX_VOCAB, RELATED_SCHEMA, SAVE_REREAD, SCHEMA
+from .constants import (
+    DELIMITER,
+    IMAGES,
+    MAX_BOARDS,
+    MAX_BODY,
+    MAX_IMAGES,
+    MAX_VOCAB,
+    RELATED_BODY,
+    RELATED_IMAGES,
+    RELATED_SCHEMA,
+    RELATED_WRITEUP,
+    SAVE_REREAD,
+    SCHEMA,
+    WRITEUP_BODY,
+    WRITEUP_IMAGES,
+    WRITEUP_SCHEMA,
+)
+
+Image = dict[str, str | None]  # what photo ingest read from one: description, text
+
+
+def quoted(text: str) -> str:
+    """Data for a user turn with any delimiter tag in it (<page>, </images>...)
+    neutralised, its < made &lt;: the model still reads it, but it cannot end the
+    quote or open one. After any cut, so no part of a tag is left whole."""
+    return DELIMITER.sub("&lt;", text)
+
+
+def page_images(conn: sqlite3.Connection, page_id: str) -> list[Image]:
+    """A page's images in order, each with its current description and text."""
+    return [dict(r) for r in conn.execute(IMAGES, (page_id,))]
+
+
+def image_lines(images: Sequence[Image], most: int) -> list[str]:
+    """The user turn's lines for what was read from a page's images, each labelled
+    with its number, cut to most characters in all; none if nothing was read."""
+    items = []
+    for n, image in enumerate(images, start=1):
+        if about := (image.get("description") or "").strip():
+            items.append(f"Image {n}, its description: {about}")
+        if text := (image.get("text") or "").strip():
+            items.append(f"Image {n}, its text:\n{text}")
+    if not items:
+        return []
+    read = "\n".join(items)
+    read = read if len(read) <= most else read[: most - 1] + "…"
+    return ["Read from its images:", "<images>", quoted(read), "</images>"]
 
 
 def vocabulary(conn: sqlite3.Connection) -> list[tuple[str, int]]:
@@ -34,8 +81,9 @@ def index_lines(pages: list[dict[str, Any]]) -> str:
     lines = []
     for n, p in enumerate(pages, start=1):
         tags = " ".join(f"#{t}" for t in p["tags"][:6])
-        about = one_line(p["summary"] or "", 150)
-        parts = [f"{n}. {one_line(unlink(p['title']), 100)}", tags, about]
+        about = quoted(one_line(p["summary"] or "", 150))
+        title = quoted(one_line(unlink(p["title"]), 100))
+        parts = [f"{n}. {title}", quoted(tags), about]
         lines.append(" | ".join(x for x in parts if x))
     return "\n".join(lines)
 
@@ -54,17 +102,29 @@ def related_prompt(pages: list[dict[str, Any]]) -> tuple[str, str]:
     return f"{text}\n## Other pages\n\n{index_lines(pages) or '(none)'}\n", version
 
 
-def related_message(page: sqlite3.Row, tags: list[str], summary: str) -> list[dict]:
-    """The related call's user turn: the page in brief."""
+def related_message(
+    page: sqlite3.Row,
+    tags: list[str],
+    summary: str,
+    images: Sequence[Image] = (),
+    writeup: str = "",
+) -> list[dict]:
+    """The related call's user turn: the page in brief, with the start of what was
+    read from its images and of its write-up, if it has one."""
+    up = writeup.strip()
+    up = up if len(up) <= RELATED_WRITEUP else up[: RELATED_WRITEUP - 1] + "…"
     text = "\n".join([
         f"Kind: {page['kind']}",
-        f"Title: {page['title']}",
-        f"Tags: {', '.join(tags) or '(none)'}",
-        f"Summary: {summary or '(none)'}",
+        f"Title: {quoted(page['title'])}",
+        f"Tags: {quoted(', '.join(tags)) or '(none)'}",
+        f"Summary: {quoted(summary or '') or '(none)'}",
         "Start of its text:",
         "<page>",
-        plain(page["body"]).strip()[:2000] or "(empty)",
+        quoted(plain(page["body"]).strip()[:RELATED_BODY]) or "(empty)",
         "</page>",
+        *image_lines(images, RELATED_IMAGES),
+        *(["Start of Claude's write-up of it:", "<writeup>", quoted(up), "</writeup>"]
+          if up else []),
     ])  # fmt: skip
     return [{"role": "user", "content": [{"type": "text", "text": text}]}]
 
@@ -77,31 +137,33 @@ def page_message(
     failed: str | None,
     want_summary: bool,
     keep_text: bool = True,
+    images: Sequence[Image] = (),
 ) -> list[dict[str, Any]]:
-    """The user turn: the page (title, kind, tags, its text) and for a link what was
-    fetched. keep_text False puts a placeholder for the fetched text (as stored: a read
-    keeps its link and summary only)."""
-    body = plain(page["body"]).strip()[:MAX_BODY]
+    """The user turn: the page (title, kind, tags, its text, what was read from its
+    images) and for a link what was fetched. keep_text False puts a placeholder for
+    the fetched text (as stored: a read keeps its link and summary only)."""
+    body = quoted(plain(page["body"]).strip()[:MAX_BODY])
     parts = [
         f"Kind: {page['kind']}",
-        f"Its tags: {', '.join(tags) or '(none)'}",
-        f"Title: {page['title']}",
+        f"Its tags: {quoted(', '.join(tags)) or '(none)'}",
+        f"Title: {quoted(page['title'])}",
         "Text:",
         "<page>",
         body or "(empty)",
         "</page>",
+        *image_lines(images, MAX_IMAGES),
     ]
     if link:
-        parts += ["", f"This page is a saved link: {link}"]
+        parts += ["", f"This page is a saved link: {quoted(link)}"]
         if got is not None:
-            text = got.text
-            if not keep_text:
-                digest = hashlib.sha256(text.encode()).hexdigest()[:16]
-                text = f"[fetched text: {len(text)} characters, sha256 {digest}]"
+            text = quoted(got.text)
+            if not keep_text:  # the digest of the text as fetched
+                digest = hashlib.sha256(got.text.encode()).hexdigest()[:16]
+                text = f"[fetched text: {len(got.text)} characters, sha256 {digest}]"
             parts += [
-                f"Fetched from: {got.url}",
-                f"Its title: {got.title or '(none)'}",
-                f"Its description: {got.description or '(none)'}",
+                f"Fetched from: {quoted(got.url)}",
+                f"Its title: {quoted(got.title) or '(none)'}",
+                f"Its description: {quoted(got.description) or '(none)'}",
                 "<fetched>",
                 text or "(no readable text)",
                 "</fetched>",
@@ -113,6 +175,61 @@ def page_message(
                     " and address."
                 )
             else:
-                parts.append(f"It could not be fetched: {failed}")
+                parts.append(f"It could not be fetched: {quoted(failed or '')}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
+
+
+def writeup_prompt(pages: list[dict[str, Any]]) -> tuple[str, str]:
+    """The write-up call's fixed prompt, then the index of pages it may link to."""
+    text, version = claude.prompt("writeup", WRITEUP_SCHEMA)
+    return f"{text}\n## Other pages\n\n{index_lines(pages) or '(none)'}\n", version
+
+
+def writeup_message(
+    page: sqlite3.Row,
+    tags: list[str],
+    boards: Sequence[dict[str, Any]],
+    sent: Sequence[str | None],
+    guidance: str | None,
+) -> list[dict[str, Any]]:
+    """The write-up call's user turn: each board image sent (sent: the JPEG's
+    SHA-256 for the first MAX_BOARDS, None for one that could not be), numbered,
+    then the page (kind, title, tags, its own text), what was read from its board
+    images, and the owner's guidance, all quoted."""
+    content: list[dict[str, Any]] = []
+    for n, sha in enumerate(sent, start=1):
+        if sha is None:
+            continue
+        content.append({"type": "text", "text": f"Image {n}:"})
+        content.append({
+            "type": "image",
+            "source": {"type": "blob", "sha256": sha},
+            "transformations": {"oversized_image": "error"},
+        })  # fmt: skip
+    attached = [n for n, sha in enumerate(sent, start=1) if sha is not None]
+    images = [{"description": b["description"], "text": b["text"]} for b in boards]
+    lines = [
+        f"Kind: {page['kind']}",
+        f"Title: {quoted(page['title'])}",
+        f"Tags: {quoted(', '.join(tags)) or '(none)'}",
+        "The page text (it may be another app's; the photo wins):",
+        "<page>",
+        quoted(plain(page["body"]).strip()[:WRITEUP_BODY]) or "(empty)",
+        "</page>",
+        *image_lines(images, WRITEUP_IMAGES),
+    ]
+    if len(boards) > len(attached):
+        shown = ", ".join(map(str, attached)) or "none"
+        lines.append(
+            f"Images attached: {shown} (at most {MAX_BOARDS}); of the others you"
+            " have only what was read from them."
+        )
+    if guidance:
+        lines += ["The owner's guidance for this write-up:", "<guidance>",
+                  quoted(guidance), "</guidance>"]  # fmt: skip
+    else:
+        lines.append("The owner gave no guidance.")
+    lines += ["", "Write the write-up."]
+    content.append({"type": "text", "text": "\n".join(lines)})
+    return [{"role": "user", "content": content}]

@@ -2,15 +2,16 @@
 
 import json
 import os
+from collections.abc import Callable
 from typing import Any
 
 from .. import claude
 from ..ingest import PAUSES, notify, pause, resume, spent_today
-from ..store import Store, model_summary, now, transaction
+from ..store import Store, model_summary, now, transaction, writeups
 from .checking import checked_related, record
 from .constants import RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
-from .prompts import related_message, related_prompt
+from .prompts import page_images, related_message, related_prompt
 from .types import Call
 
 
@@ -32,8 +33,10 @@ def relate(
         human = json.loads(page["fields"]).get("summary")
         summary = human if isinstance(human, str) else model_summary(conn, page_id)
         pages = CANDIDATES(conn, page_id)
+        images = page_images(conn, page_id)
+        up = writeups.shown(conn, page_id)
     system, version = related_prompt(pages)
-    messages = related_message(page, tags, summary)
+    messages = related_message(page, tags, summary, images, up["text"] if up else "")
     model, effort = claude.text_model()
     request = {
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
@@ -89,16 +92,30 @@ def related_pass(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """The nightly related pass (scrap enrich --related): a related call for each page
-    changed since its related pages were last picked (or every page), oldest first.
-    New pages pick older ones, and Related shows both ways, so older pages learn of
-    new ones without a call of their own. It stops at a queue pause (or makes one:
-    outage, credit, auth, the day's budget), as the worker does; other failures are
-    counted and the next page tried. Returns the counts."""
+    changed, or with a photo read, since its related pages were last picked (or every
+    page), oldest first. New pages pick older ones, and Related shows both ways, so
+    older pages learn of new ones without a call of their own. It stops at a queue
+    pause (or makes one: outage, credit, auth, the day's budget), as the worker does;
+    other failures are counted and the next page tried. Returns the counts."""
     call = call or claude.complete
     budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
     with store.connect() as conn:
         most = -1 if limit is None else limit
         ids = [r[0] for r in conn.execute(STALE, {"all": every, "limit": most})]
+    return run_pass(store, ids, lambda p: relate(store, call, p), budget, dry_run)
+
+
+def run_pass(
+    store: Store,
+    ids: list[str],
+    one: Callable[[str], claude.CallError | None],
+    budget: int,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """One call (one) for each page, here and now, as a pass from the command line
+    does it: before each, it stops at a queue pause or at the day's budget (pausing
+    the queue for it); a call that pauses the queue (outage, credit, auth) stops it
+    too; other failures are counted and the next page tried. Returns the counts."""
     counts: dict[str, Any] = {
         "pages": len(ids),
         "done": 0,
@@ -119,7 +136,7 @@ def related_pass(
         if paused or over:
             counts["stopped"] = q["reason"] if paused else "budget"
             break
-        error = relate(store, call, page_id)
+        error = one(page_id)
         if error is None:
             counts["done"] += 1
         elif error.cls in PAUSES:

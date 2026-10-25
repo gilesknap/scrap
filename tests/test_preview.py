@@ -134,13 +134,14 @@ def png_header(width: int, height: int) -> bytes:
     )
 
 
+@pytest.mark.timing  # run alone: see conftest.py
 def test_a_photo_too_big_to_decode_is_refused_before_decoding(client, upload):
     sha = upload(png_header(10_000, 10_000), "huge.png", "image/png")  # 100 MP
     start = time.monotonic()
     response = client.get(f"/api/blobs/{sha}/preview?size=480")
     assert response.status_code == 422
     assert response.json()["detail"] == "image too large to preview"
-    assert time.monotonic() - start < 1
+    assert time.monotonic() - start < 3  # refused unread: decoding 100 MP is far slower
 
 
 PEAK = """

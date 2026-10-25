@@ -343,6 +343,8 @@ BOARD = {
     ],
 }  # fmt: skip
 USAGE = {"input_tokens": 5000, "output_tokens": 2000}
+# A photo of a scene: no board, so no write-up (#256): its related call comes at once
+SCENE = {**BOARD, "kind": "photo", "elements": []}
 
 
 class Fake:
@@ -400,6 +402,68 @@ def test_a_success_stores_the_run_versions_and_page_fields(store, conn):
     assert [h["id"] for h in store.search("queue design", 10)] == [ref["page_id"]]
     sha = page["captures"][0]["blobs"][0]["sha256"]
     assert page["body"] == f"![](/api/blobs/{sha}/preview?size=2048)"  # never touched
+
+
+def enrich_jobs(conn):
+    return [tuple(r) for r in conn.execute(
+        "SELECT page_id, reason, state FROM enrich_job ORDER BY id")]  # fmt: skip
+
+
+def test_a_new_photo_page_gets_one_related_call_once_its_photos_are_read(
+    store, conn, monkeypatch
+):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    ref = photo(store, [jpeg("red"), jpeg("blue")])
+    page_id = ref["page_id"]
+    calls = []
+
+    def fake(model, system, messages, schema, blob, **kw):
+        calls.append(schema)
+        out = {"related": []} if "related" in schema["properties"] else SCENE
+        content = [{"type": "text", "text": json.dumps(out)}]
+        return claude.Completion(out, content, USAGE, model, "end_turn")
+
+    worker = ingest.Worker(store, fake)
+    assert worker.step() is True
+    assert enrich_jobs(conn) == []  # one of its photos still to read
+    assert worker.step() is True
+    assert enrich_jobs(conn) == [(page_id, "related", "queued")]  # once, not per image
+    assert worker.step() is True and worker.step() is False  # the related call, on
+    assert enrich_jobs(conn) == [(page_id, "related", "done")]  # the enrich queue
+    run = conn.execute("SELECT * FROM enrich_run").fetchone()
+    assert json.loads(run["request"])["purpose"] == "related" and run["status"] == "ok"
+    # Reprocess reads it again, but its first related call is had: none more
+    ingest.reprocess(store, ref["capture_id"], None, False)
+    while worker.step():
+        pass
+    assert enrich_jobs(conn) == [(page_id, "related", "done")]
+    assert len(calls) == 5  # two photos, related, the two photos again
+
+
+def test_a_dead_photo_still_lets_its_capture_queue_one_related_call(
+    store, conn, monkeypatch
+):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    ref = photo(store, [jpeg("red"), jpeg("blue")])
+    content = claude.CallError("content", "400")
+    fake = Fake(SCENE, content, content, content)
+    for _ in range(4):  # the first photo, then the second's three failures
+        conn.execute("UPDATE job SET run_after = ? WHERE state = 'queued'", (PAST,))
+        assert enrich_jobs(conn) == []
+        assert run_one(store, fake) is True
+    states = [r[0] for r in conn.execute("SELECT state FROM job ORDER BY id")]
+    assert states == ["done", "dead"]
+    assert enrich_jobs(conn) == [(ref["page_id"], "related", "queued")]
+
+
+def test_with_enrich_off_reading_a_photo_queues_no_related_call(
+    store, conn, monkeypatch
+):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    photo(store, [jpeg()])
+    assert run_one(store, Fake(BOARD)) is True
+    assert enrich_jobs(conn) == []
 
 
 def test_ingest_leaves_a_body_the_user_rewrote(store, conn):
@@ -763,6 +827,7 @@ def test_prompt_version_names_the_prompt_and_schema():
     assert Path(claude.__file__).with_name("prompts").joinpath("photo.md").is_file()
 
 
+@pytest.mark.timing  # run alone: see conftest.py
 def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     client = TestClient(create_app(tmp_path))
     store = Store(tmp_path)
@@ -785,7 +850,7 @@ def test_search_ignores_symbols_and_caps_long_queries(tmp_path):
     # past 64 words: refused, not cut short (a dropped NOT word would broaden it)
     for q in (words, "salt " + words, f"common words {words}"):
         assert "too many" in str(found(q, 422))
-    assert time.monotonic() - started < 2
+    assert time.monotonic() - started < 5  # three requests: quick, not one per word
 
 
 def test_lone_surrogates_from_the_model_never_reach_the_database(tmp_path):
