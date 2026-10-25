@@ -22,6 +22,14 @@ from .constants import (
 
 # Control characters but tab and line feed (a write-up is Markdown, in lines)
 TEXT_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+# What else Markdown would make a link of, all but scrap's own [[...]]: a reference
+# definition's line ([r]: url, not a footnote's [^1]:), a reference link [words][r] or
+# [words][], an autolink <scheme:...> or <a@b>, and a scheme that linkify would link
+# (https://, mailto:): its words stay, so nothing links outside the [[n]] mapping
+REF_DEF = re.compile(r"^ {0,3}\[(?!\^)[^\]\n]+\]:.*$\n?", re.MULTILINE)
+REF_LINK = re.compile(r"(?<!\[)!?\[([^\[\]\n]*)\]\[[^\[\]\n]*\]")
+AUTOLINK = re.compile(r"<((?:[a-z][a-z0-9+.-]*:|[^<>\s@]+@)[^<>\s]*)>", re.IGNORECASE)
+SCHEME = re.compile(r"\b(?:[a-z][a-z0-9+.-]*://|mailto:)", re.IGNORECASE)
 
 
 def clean_tag(tag: Any) -> str | None:
@@ -94,14 +102,16 @@ def cited(text: str, slugs: Sequence[str]) -> str:
 
 def checked_writeup(out: dict[str, Any], slugs: Sequence[str]) -> dict[str, str]:
     """A write-up within bounds: its summary one line, its text Markdown without
-    control characters, web links or images (their words kept), its [[n]] links
-    made page links (cited), at most MAX_WRITEUP characters. ValueError if it is not
-    an answer, or its text is empty."""
+    control characters or any link but its own (inline, reference and autolinks,
+    reference definitions and URL schemes, which linkify would link: their words
+    kept), its [[n]] links made page links (cited), at most MAX_WRITEUP characters.
+    ValueError if it is not an answer, or its text is empty."""
     if not isinstance(out.get("summary"), str) or not isinstance(out.get("text"), str):
         raise ValueError("output lacks summary or text")
     summary = " ".join(CONTROL.sub(" ", out["summary"]).split())[:MAX_SUMMARY]
     text = out["text"].replace("\r\n", "\n").replace("\r", "\n")
-    text = MD_LINK.sub(r"\1", TEXT_CONTROL.sub("", text))
+    text = REF_DEF.sub("", MD_LINK.sub(r"\1", TEXT_CONTROL.sub("", text)))
+    text = SCHEME.sub("", AUTOLINK.sub(r"\1", REF_LINK.sub(r"\1", text)))
     text = cited(text, slugs).strip()[:MAX_WRITEUP]
     if not text:
         raise ValueError("the write-up is empty")

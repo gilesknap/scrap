@@ -118,6 +118,25 @@ test("Regenerate queues a new write-up and the section says it waits", async ({ 
   expect(asked).toBe(1);
 });
 
+test("a write-up shows no link but a page link, whatever its text holds", async ({ page }) => {
+  const b = board();
+  // As if the stored text had a web address in it (the server strips them: this is the PWA's
+  // own guard against linkify)
+  await page.route(`**/api/pages/${b.slug}`, async (r) => {
+    const json = await (await r.fetch()).json();
+    json.writeup.current.text = `See https://evil.example/x and [[${b.target}|that page]].`;
+    await r.fulfill({ json });
+  });
+  await page.goto(`/p/${b.slug}`);
+  const s = section(page);
+  await expect(s.getByText("evil.example/x")).toBeVisible();
+  await expect(s.locator(".body a")).toHaveCount(1);
+  await expect(s.getByRole("link", { name: "that page" })).toHaveAttribute(
+    "href",
+    `/p/${b.target}`,
+  );
+});
+
 test("a page with no board has no write-up section", async ({ page }) => {
   const r = await page.request.post("/api/captures", {
     data: { id: ulid(), text: "A plain note" },

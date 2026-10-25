@@ -44,6 +44,14 @@ export const byline = (v: WriteupVersion) =>
     .filter(Boolean)
     .join(" · ");
 
+/** A write-up's text with no link but to a page here: the server keeps only its [[slug]]
+ * links, and anything else that renders as one (linkify) is shown as its words. */
+export function pageLinksOnly(el: HTMLElement): HTMLElement {
+  for (const a of el.querySelectorAll("a"))
+    if (!/^\/p\/[a-z0-9-]+$/.test(a.getAttribute("href") ?? "")) a.replaceWith(...a.childNodes);
+  return el;
+}
+
 /** A button that does one thing, disabled while it does it. */
 function action(label: string, run: () => Promise<void>, className = "") {
   const b = h("button", { type: "button", className }, label);
@@ -93,7 +101,9 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
       : "",
     up ? h("p", { className: "by" }, byline(up)) : "",
     up ? h("p", { className: "summary", dir: "auto" }, up.summary) : "",
-    up ? bodyView(up.text, false) : h("p", { className: "by" }, "Claude hasn't written one yet."),
+    up
+      ? pageLinksOnly(bodyView(up.text, false))
+      : h("p", { className: "by" }, "Claude hasn't written one yet."),
     guidanceFold(p, w, show),
     up && w.versions > 1 ? versionsFold(p, up, show) : "",
   );
