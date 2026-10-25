@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.8.2.dev4+g69b0b0981 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.8.2.dev5+g1b76bb763 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b6a76d60"></script>
+    <script src="../_static/documentation_options.js?v=91a0fbeb"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -451,6 +451,7 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0027-fewer-mcp-tools.html">27. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
@@ -1003,11 +1004,16 @@ a board page, also the first 2,000 characters of its write-up.</p></li>
 sent), what was read from them (at most 12,000 characters), the page’s kind, title, tags and
 text as plain words (at most 6,000 characters), the owner’s guidance, if any, and the same index
 of candidate pages as the related call.</p></li>
+<li><p><strong>Topic discovery:</strong> an index of every page (at most 2,000): each a title, up to 6 tags and a
+summary cut to 150 characters, and the topics with their sources’ numbers.</p></li>
+<li><p><strong>A topic’s synthesis:</strong> for each of its sources (at most 40), its title, kind, tags, summary,
+Claude’s write-up, what was read from its images and its text as plain words (at most 6,000
+characters a source, 60,000 in all), and the topic page’s own text and guidance.</p></li>
 </ul>
 <p>Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>, which gets a fixed line with the
 pause reason. Everything sent is kept in the
-database in <code class="docutils literal notranslate"><span class="pre">model_run</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> (photos as references to the stored JPEG), so it is
+database in <code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> and <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> (photos as references to the stored JPEG), so it is
 covered by the same backups as the pages.</p>
 </section>
 <section id="enrich-text-pages-and-links">
@@ -1185,6 +1191,56 @@ as <code class="docutils literal notranslate"><span class="pre">by_model.writeup
 index about 40 tokens a page (up to about 6,000), the prompt and text a few thousand more: about
 10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens (thinking included), roughly
 $0.06 to $0.20 a board at Opus prices, counted in the daily budget.</p></li>
+</ul>
+</section>
+<section id="topic-pages">
+<span id="ingest-topics"></span><h3>Topic pages<a class="headerlink" href="#topic-pages" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">enrich.topics_pass</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich.synthesise</span></code>, prompts <code class="docutils literal notranslate"><span class="pre">prompts/topic-discovery.md</span></code> and
+<code class="docutils literal notranslate"><span class="pre">prompts/topic.md</span></code> (<a class="reference internal" href="decisions/0028-claude-maintained-topic-pages.html"><span class="std std-doc">28. Claude-maintained topic pages</span></a>). A topic page gathers
+what several pages say about one recurring thing (a tool, a project, a concept). It is a real
+page, of kind <code class="docutils literal notranslate"><span class="pre">reference</span></code>, marked as a topic in the <code class="docutils literal notranslate"><span class="pre">topic</span></code> table; its body is the owner’s notes
+on the topic (empty at first) and Claude never writes there. Claude’s synthesis of its sources is
+its write-up (<a class="reference internal" href="#ingest-writeup"><span class="std std-ref">Write-ups of boards</span></a>): versions, guidance, Regenerate and Restore work the same.</p>
+<ul class="simple">
+<li><p><strong>Discovery</strong> (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span></code>, weekly, beside the related pass). One call,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code> 16000, structured output (<code class="docutils literal notranslate"><span class="pre">new</span></code>, <code class="docutils literal notranslate"><span class="pre">add</span></code>). The
+user turn has an <code class="docutils literal notranslate"><span class="pre">&lt;index&gt;</span></code> of every page not in the trash and not a topic (at most 2,000, the
+most recently changed), one line each: its number, title, up to 6 tags and a summary cut to 150
+characters; the existing topics in a <code class="docutils literal notranslate"><span class="pre">&lt;topics&gt;</span></code> block, each with its key and the numbers of its
+sources; and the keys of the topics in the trash, as rejected. It returns new topics (a title, a
+key and the numbers of their sources: at least 3, or 2 where it is central to both; scrap keeps
+those with 2 or more) and new sources for existing topics, by number only, so it cannot name a
+page that is not there. At most 5 new topics a pass. A new topic is made at once, with no
+approval step: its page (title as given, slug from it), its key (lower case, words joined by
+<code class="docutils literal notranslate"><span class="pre">-</span></code>, unique), and its sources. The run is a <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> (it is of no one page), counted in the
+daily budget; the pass stops at a queue pause or the day’s budget, as the related pass does.</p></li>
+<li><p><strong>The veto.</strong> A topic in the trash keeps its key, so it is never made again, and the call is
+told it was rejected. A source the owner took out (<code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">/api/pages/{id}/topic/sources/{source}</span></code>) stays in <code class="docutils literal notranslate"><span class="pre">topic_source</span></code> as excluded: discovery is shown
+it as taken out and it is never added again (<code class="docutils literal notranslate"><span class="pre">POST</span></code> to the same address puts it back).</p></li>
+<li><p><strong>Synthesis.</strong> An enrich job of reason <code class="docutils literal notranslate"><span class="pre">topic</span></code>, run by the service’s worker. The pass queues one
+for each topic due: one with none, of another prompt version, or older than the topic page’s
+own last change (its title or notes), a source added or excluded, or a source’s last edit,
+trash, summary, write-up or photo reading. Taking a source out queues one at once; so does
+Regenerate (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup</span></code>) and Ask Claude on the topic page (which
+makes no enrich call: a topic page’s text is never read as text, so Claude never touches it).
+A synthesis restored by the owner is not regenerated for a new prompt version, and a source
+brought back from the trash makes its topics due. A pass stopped at a pause or the budget
+queues none. One Opus call
+(as the write-up’s) sees each source in a <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;</span></code> block, numbered (at most 40, first added
+first): its title, kind and tags, then its summary, Claude’s write-up of it, what was read from
+its images and its text, as much as fits in 6,000 characters a source and 60,000 in all; the
+owner’s notes in a <code class="docutils literal notranslate"><span class="pre">&lt;notes&gt;</span></code> block (at most 4,000) and guidance in a <code class="docutils literal notranslate"><span class="pre">&lt;guidance&gt;</span></code> block. It
+returns a one-line <code class="docutils literal notranslate"><span class="pre">summary</span></code> and Markdown <code class="docutils literal notranslate"><span class="pre">text</span></code>: Overview, Key facts (each citing its sources),
+How the sources relate, Contradictions and open questions. Its citations <code class="docutils literal notranslate"><span class="pre">[[n]]</span></code> are made
+<code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links to the sources and nothing else links, exactly as for a write-up.</p></li>
+<li><p><strong>Where it shows.</strong> Its summary is the topic page’s model summary, its text is indexed for
+search, and a matching topic page comes first in search (<code class="docutils literal notranslate"><span class="pre">is:topic</span></code> lists them). Its citations
+show in Related both ways (<code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">topic</span></code>). A source page lists its topics (<code class="docutils literal notranslate"><span class="pre">topics</span></code> in the page
+object), and the topic page its sources (<code class="docutils literal notranslate"><span class="pre">topic.sources</span></code>). <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/topics</span></code> and the MCP
+<code class="docutils literal notranslate"><span class="pre">topics</span></code> tool give the index, grouped by area (the top-level tag most common among a topic’s
+sources), with no model call.</p></li>
+<li><p><strong>Cost.</strong> Discovery is about 40 tokens a page in, roughly $0.30 a week for 1,000 pages at Opus
+prices; a synthesis roughly $0.10 to $0.30.</p></li>
 </ul>
 </section>
 <section id="fetching-a-link">
@@ -1372,7 +1428,10 @@ holds what you sent to Claude, and your backups do too.</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span></code></p></td>
 <td><p>Write Claude’s write-up now, in the command’s process, for each board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span> <span class="pre">--ingest</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">[--all]</span></code></p></td>
+<td><p>Find topics now, in the command’s process (the weekly pass), then queue each topic’s synthesis that is due (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every topic’s) for the service’s worker</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span> <span class="pre">--ingest</span></code></p></td>
 <td><p>Import a vault and also queue its images for Claude; see <a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a></p></td>
 </tr>
 </tbody>
@@ -1511,6 +1570,7 @@ effort if drawings fall short); Excalidraw API drift (the version is pinned); mo
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#enrich-text-pages-and-links">Enrich: text pages and links</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#related-pages">Related pages</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#write-ups-of-boards">Write-ups of boards</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#topic-pages">Topic pages</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fetching-a-link">Fetching a link</a></li>
 </ul>
 </li>

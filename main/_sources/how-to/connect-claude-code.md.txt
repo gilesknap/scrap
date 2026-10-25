@@ -63,8 +63,9 @@ your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
 
-The server has twelve tools, which appear as `mcp__scrap__search` (it also lists the recent
+The server has thirteen tools, which appear as `mcp__scrap__search` (it also lists the recent
 pages and the todos), `mcp__scrap__read`, `mcp__scrap__drawing`, `mcp__scrap__tags`,
+`mcp__scrap__topics`,
 `mcp__scrap__write`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
 `mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__edit_page`, `mcp__scrap__trash` and
 `mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
@@ -84,7 +85,7 @@ curl -si https://myhost.my-tailnet.ts.net:8446/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-It should print an HTTP `200` status and JSON with twelve tools in `result.tools`.
+It should print an HTTP `200` status and JSON with thirteen tools in `result.tools`.
 
 Off the tailnet, or for a quick test, use the SSH tunnel fallback ({ref}`scrap-ssh-tunnel`) and
 add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A session that

@@ -1,9 +1,11 @@
 # What Claude is asked, per page
 
-Four calls, all on the shared queue, pause and daily budget ([](ingest.md)). Photo reading and
-the write-up use `SCRAP_VISION_MODEL` (default `claude-opus-5-5`); enrich and related use
-`SCRAP_TEXT_MODEL` (default `claude-haiku-5-5`). Ask Claude (`POST /api/pages/{id}/enrich`) runs
-enrich, then on a board page the write-up, then related, on any page.
+Six calls, all on the shared pause and daily budget ([](ingest.md)). Photo reading, the
+write-up and the two topic calls use `SCRAP_VISION_MODEL` (default `claude-opus-5-5`); enrich and
+related use `SCRAP_TEXT_MODEL` (default `claude-haiku-5-5`). Ask Claude (`POST
+/api/pages/{id}/enrich`) runs enrich, then on a board page the write-up (on a topic page its
+synthesis), then related, on any page. Topic discovery is one call over the whole library, not a
+page's: see the end.
 
 | Page | Photo reading | Enrich | Write-up | Related |
 |---|---|---|---|---|
@@ -13,6 +15,7 @@ enrich, then on a board page the write-up, then related, on any page.
 | Photo capture of a document, handwriting, screenshot or photo | The same, with no drawing | Skipped (Ask only) | — | Once when all of its first photo capture is read; nightly if changed or a photo is read; Ask. Sees the images' text |
 | File capture (PDF and the like) | — (PDF summaries: #234) | Skipped (Ask only) | — | Nightly if changed; Ask. Sees title, tags and text only |
 | Whiteboard or document page typed, not photographed | — | Skipped (Ask only) | — | Nightly if changed; Ask |
+| Topic page (Claude's, kind `reference`; its text is the owner's notes) | — | Never: its text is not read, Ask makes its synthesis instead | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
 
 What each call sees. Enrich gets the page's kind, tags, title and text as plain words (at most
 12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched
@@ -29,3 +32,15 @@ by number, and scrap makes those `[[slug]]` links ({ref}`ingest-writeup`).
 
 Imports are not read as text unless `scrap enrich --backfill` queues them (their first enrich then
 queues the related call). Their photos are read only with `scrap import --ingest`.
+
+Topic discovery (`scrap enrich --topics`, weekly) is one call over the whole library: an index of
+every page not in the trash and not a topic (at most 2,000, the most recently changed: number,
+title, up to 6 tags, a summary cut to 150 characters), the existing topics with their sources'
+numbers, and the keys of the topics in the trash (rejected, never made again). It returns new
+topics (at most 5 a pass, each with at least 2 sources) and new sources for existing topics, by
+number only; new topics are made at once, then each topic due is queued for its synthesis. A
+topic's synthesis gets each source's title, kind and tags, its summary, Claude's write-up of it,
+what was read from its images and its text (at most 6,000 characters a source and 60,000 in all),
+in numbered `<source>` blocks, the owner's notes in a `<notes>` block and guidance in a
+`<guidance>` block; it cites sources by number, made `[[slug]]` links as a write-up's are
+({ref}`ingest-topics`). Neither writes into any page's text.

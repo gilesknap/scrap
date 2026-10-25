@@ -135,14 +135,15 @@ always live under `~/.config`: the units name `%h/.config/scrap/env` and a unit 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
 - copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`, `scrap-gc.service`,
-  `scrap-gc.timer`, `scrap-enrich-related.service` and `scrap-enrich-related.timer` to
+  `scrap-gc.timer`, `scrap-enrich-related.service`, `scrap-enrich-related.timer`,
+  `scrap-enrich-topics.service` and `scrap-enrich-topics.timer` to
   `~/.config/systemd/user/`, and the scripts `scrap-run`, `scrap-backup` and `scrap-gc` to
   `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
 - enables and starts `scrap.service` if the image named in the settings is present, and the daily
   backup timer only if that image has the `scrap backup` command, the nightly gc timer only if
-  it has `scrap gc`, and the nightly related-pages timer only if it has `scrap enrich --related`
-  (images built before them do not; re-run the script after updating the image);
+  it has `scrap gc`, the nightly related-pages timer only if it has `scrap enrich --related`,
+  and the weekly topics timer only if it has `scrap enrich --topics` (images built before them do not; re-run the script after updating the image);
 - restarts a running `scrap.service` if the image it runs, the unit or the `scrap-run` launcher
   has changed (see {ref}`scrap-update`);
 - prints where scrap listens, and a note if that is a TCP port (see {ref}`scrap-listen`).
@@ -263,6 +264,13 @@ the service fails) at a queue pause; while ingest is off or no key (or seat toke
 so and succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it
 would do.
 
+Topic pages come from a weekly pass, `scrap-enrich-topics.timer` (Sundays about 04:11, run in the
+scrap container), which `install.sh` also enables: one Claude call finds topics, making new topic
+pages and adding their sources, then each topic's synthesis that is due is queued for the
+service's worker ({ref}`ingest-topics`). It has the same budget, pause and off rules, and its
+service also fails if the discovery call fails. `podman exec scrap scrap enrich --topics
+--dry-run` prints what it would make, but still makes (and pays for) the discovery call.
+
 #### On a Claude seat, with no API key
 
 On a Team or Enterprise seat, ingest can run through Claude Code instead
@@ -320,7 +328,7 @@ systemctl --user list-timers
 caller's `~/.config/scrap/env`, so run by anyone else it falls back to TCP port 8790 and fails on
 a socket install. Logs:
 `journalctl --user -u scrap`. `list-timers` should show `scrap-backup.timer`,
-`scrap-gc.timer` and `scrap-enrich-related.timer`; one that is missing was skipped because the
+`scrap-gc.timer`, `scrap-enrich-related.timer` and `scrap-enrich-topics.timer`; one that is missing was skipped because the
 image lacks its command (see {ref}`scrap-install-script`).
 
 (scrap-publish)=
@@ -582,14 +590,14 @@ You can instead keep hand backups outside `SCRAP_BACKUPS`, in a folder you mount
 ### Checking the timers
 
 Nothing notifies you when a timer's service fails: `SCRAP_NOTIFY_URL` is for ingest pauses only.
-All three services (`scrap-backup`, `scrap-gc`, `scrap-enrich-related`) are one-shot, so a failed
-night shows only in systemd, and you find out by looking:
+All four services (`scrap-backup`, `scrap-gc`, `scrap-enrich-related`, `scrap-enrich-topics`)
+are one-shot, so a failed run shows only in systemd, and you find out by looking:
 
 ```
 systemctl --user list-timers                        # next and last run of each timer
 systemctl --user status scrap-backup scrap-gc       # the last result of each service
 systemctl --user --failed                           # any unit whose last run failed
-journalctl --user -u scrap-backup -u scrap-gc -u scrap-enrich-related
+journalctl --user -u scrap-backup -u scrap-gc -u scrap-enrich-related -u scrap-enrich-topics
 ```
 
 A failed service stays listed as failed until it next runs. The two scripts report on stderr,
@@ -775,9 +783,10 @@ As the `scrap` user:
 
 ```
 systemctl --user disable --now scrap.service scrap-backup.timer scrap-gc.timer \
-    scrap-enrich-related.timer
+    scrap-enrich-related.timer scrap-enrich-topics.timer
 rm ~/.config/systemd/user/scrap.service ~/.config/systemd/user/scrap-backup.* \
-    ~/.config/systemd/user/scrap-gc.* ~/.config/systemd/user/scrap-enrich-related.*
+    ~/.config/systemd/user/scrap-gc.* ~/.config/systemd/user/scrap-enrich-related.* \
+    ~/.config/systemd/user/scrap-enrich-topics.*
 rm -r ~/.local/lib/scrap
 systemctl --user daemon-reload
 set -a; . ~/.config/scrap/env; set +a
@@ -796,7 +805,8 @@ backups and the settings in `~/.config/scrap/` stay until you delete them;
 create `~/.config/scrap/env` and `ingest.env` (the templates are in the script), copy the
 units from `deploy/` to `~/.config/systemd/user/` and the scripts to `~/.local/lib/scrap/`,
 then edit the copies as below, `systemctl --user daemon-reload`, and enable `scrap.service` and
-the timers you want (`scrap-backup.timer`, `scrap-gc.timer`, `scrap-enrich-related.timer`)
+the timers you want (`scrap-backup.timer`, `scrap-gc.timer`, `scrap-enrich-related.timer`,
+`scrap-enrich-topics.timer`)
 with `systemctl --user enable --now`.
 
 In `scrap.service`: replace `/usr/bin/podman` with
@@ -807,7 +817,8 @@ and drop `-i` from the `rm` commands. In `~/.local/lib/scrap/scrap-run`: replace
 `/usr/bin/docker` and drop `--replace`. In all three
 scripts, replace `--userns=keep-id:uid=10001,gid=10001` with `--user <uid>:<gid>` of the user
 that owns `SCRAP_DATA`, `SCRAP_BACKUPS` and the socket's folder (`id -u`, `id -g`). In
-`scrap-enrich-related.service`, replace `/usr/bin/podman` with `/usr/bin/docker` in `ExecStart`.
+`scrap-enrich-related.service` and `scrap-enrich-topics.service`, replace `/usr/bin/podman` with
+`/usr/bin/docker` in `ExecStart`.
 Copying the files again (an update) overwrites these edits. The commands elsewhere in this guide
 that start `podman run` need `docker run` and `--user` likewise. Membership of the `docker` group
 is equivalent to root, so on a shared machine prefer rootless podman.

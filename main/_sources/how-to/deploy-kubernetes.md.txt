@@ -24,6 +24,7 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | CronJob + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs. |
 | CronJob (on by default) | Nightly `scrap gc` (04:30), after the backup: see {ref}`k8s-gc`. |
 | CronJob (on with ingest) | Nightly `scrap enrich --related` (03:41): see {ref}`k8s-gc`. |
+| CronJob (on with ingest) | Weekly `scrap enrich --topics` (Sundays 04:11): see {ref}`k8s-gc`. |
 | Ingress, NetworkPolicy (off by default) | See below. |
 
 The pod meets the `restricted` [Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/):
@@ -130,6 +131,7 @@ checked, so a typo inside them is silently ignored. The main ones:
 | `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
 | `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, the cluster's default | The related-pages CronJob. It exists only while `ingest.enabled` is true. |
+| `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, the cluster's default | The topics CronJob (Sundays). It exists only while `ingest.enabled` is true. |
 | `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + 1` times the data. |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
 | `ingress.*`, `service.annotations` | off | Exposure, below. |
@@ -507,9 +509,10 @@ if set, and are visible at `GET /api/ingest`. The backup CronJob's failed jobs s
 (`kubectl -n scrap get jobs`); alert on them with whatever watches your cluster.
 
 (k8s-gc)=
-## Scheduled gc and related pages
+## Scheduled gc, related pages and topics
 
-Two more CronJobs, `<fullname>-gc` and `<fullname>-enrich-related` (shortened with a hash like the
+Three more CronJobs, `<fullname>-gc`, `<fullname>-enrich-related` and `<fullname>-enrich-topics`
+(shortened with a hash like the
 backup's when the fullname is long), do what the single-server timers do. Like the backup job they
 run beside the scrap pod (pod affinity: the data claim is `ReadWriteOnce`, and SQLite's write-ahead
 log must be shared on one node), never overlap themselves (`concurrencyPolicy: Forbid`), and give up
@@ -539,6 +542,11 @@ pending until it is back.
   so it is not retried; the next night's run carries on). Unlike the single server's timer, which
   runs it inside the service's container, this runs in its own pod, so a Secret change needs
   no restart of it.
+- **`scrap enrich --topics`** at `11 4 * * 0` (Sundays), only while `ingest.enabled` is true,
+  with the same environment and rules: one Claude call finds topics, making new topic pages and
+  adding sources, then each topic's synthesis that is due is queued for the scrap pod's worker
+  ({ref}`ingest-topics`). It exits non-zero when it stops at a queue pause (then it queues no
+  syntheses) or the discovery call fails; the next week's run carries on. It is given an hour.
 
 gc's deletes are permanent: it removes only files nothing refers to (no page's text, trashed
 pages included, no capture, no derived result, no job, no model run) and older than
@@ -548,7 +556,8 @@ descriptions or drawings, and the trash is not purged. A capture's file no page 
 is gathered onto a review page instead (see {ref}`scrap-gc`). Set `gc.delete: false` to have it
 only count until you trust it.
 
-Set `gc.enabled: false` or `enrichRelated.enabled: false` to turn either off. Run one now:
+Set `gc.enabled: false`, `enrichRelated.enabled: false` or `enrichTopics.enabled: false` to turn
+one off. Run one now:
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-gc scrap-gc-now
@@ -659,7 +668,7 @@ PersistentVolume by hand.
 - Copy backups off the cluster.
 - Restrict egress (ingest needs `api.anthropic.com`, and any public site a saved link points to
   while `SCRAP_ENRICH` is on; notifications need your notify URL).
-- Run gc or the related pass anywhere but beside the scrap pod, or without the pod running (see
+- Run gc, the related pass or the topics pass anywhere but beside the scrap pod, or without the pod running (see
   {ref}`k8s-gc`).
 - Publish a Helm repository: releases publish the chart as an OCI artifact only
   (`oci://ghcr.io/gilesknap/charts/scrap`); a checkout or a Git source also works, with
