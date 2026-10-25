@@ -194,7 +194,11 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
   has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Capture
   for any other page.
 - On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
-  wide.
+  wide. On a computer (with a mouse) the layout suits the mouse rather than the
+  thumb: Capture, Todos and Search are tabs in the top bar, Camera, Gallery and Note sit over
+  the list, a page's buttons (Mark done, Edit, Share, Delete) are a row under its title and
+  details, and messages appear at the bottom of the window. Phones and touch tablets keep the
+  bars at the bottom.
 - Every row, a page's tags, its `[[links]]` and the pager's ∧ ∨ are ordinary links with their own
   address, so you can open one in a new tab: on a phone, long-press it and choose *Open in new
   tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,

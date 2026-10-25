@@ -25,6 +25,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(
  * CSS). placeToasts() places them again once a new view has drawn (main.ts), e.g. "Page
  * deleted" shown on the way back to a list. */
 function place(el: HTMLElement) {
+  // A computer: the foot of the window (css/desktop.css), its bars being at the top
+  if (matchMedia(DESK).matches) return void Object.assign(el.style, { top: "", bottom: "" });
   const tops = [
     ...document.querySelectorAll(
       ".viewer .tools, body:not(.editing) :is(.actions, .page > .tools, nav)",
@@ -35,6 +37,8 @@ function place(el: HTMLElement) {
   el.style.top = tops.length ? "auto" : "";
   el.style.bottom = tops.length ? `${innerHeight - Math.min(...tops) + 8}px` : "";
 }
+/** A computer, as css/desktop.css has it: a mouse and a wide window. */
+export const DESK = "(min-width: 900px) and (hover: hover) and (pointer: fine)";
 export function placeToasts() {
   for (const el of document.querySelectorAll<HTMLElement>(".toast")) place(el);
 }
