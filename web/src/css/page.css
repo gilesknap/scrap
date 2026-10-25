@@ -67,9 +67,9 @@
 .meta > span + span::before {
   content: "· ";
 }
-.meta .badge {
-  margin-inline-start: var(--s-2);
-  padding: 0 var(--s-2);
+.meta .written {
+  padding: 0 var(--s-2); /* one line high, as the kind chip at the line's start */
+  line-height: 1.6;
   border: 1px solid currentColor;
   border-radius: 999px;
   color: var(--ink-2);

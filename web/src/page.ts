@@ -212,7 +212,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           h(
             "a",
             {
-              className: "badge",
+              className: "written", // not .badge: that is the top bar's queue pill (36 px, a dot)
               href: "/search?q=is%3Aclaude",
               title: String(p.fields.origin ?? "Written by Claude over MCP"),
             },

@@ -23,7 +23,7 @@ test("a page written over MCP shows a Written by Claude badge", async ({ page, r
   expect(r.ok()).toBeTruthy();
   const { slug } = (await r.json()).result.structuredContent;
   await page.goto(`/p/${slug}`);
-  const badge = page.locator(".meta .badge");
+  const badge = page.locator(".meta .written");
   await expect(badge).toHaveText("Written by Claude");
   await expect(badge).toHaveAttribute("title", "e2e test");
   await badge.click();

@@ -1,4 +1,5 @@
-// Claude's write-up of a board page (#256): its own folded section under the text, plainly
+// Claude's write-up of a board page (#256): In detail, a fold of the page's one Claude card
+// (About this page) under the text, plainly
 // Claude's, with who wrote it and when, its links as page links, the owner's guidance, its
 // versions with Restore, and Regenerate. The board is synthetic: e2e/writeup.py stores it and
 // two write-ups with a fake Claude. The e2e server runs with Claude off, so Regenerate is
@@ -18,7 +19,8 @@ const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
 };
-const section = (page: Page) => page.getByRole("region", { name: "Claude's write-up" });
+/** The page's one Claude card: the write-up is its In detail fold. */
+const section = (page: Page) => page.getByRole("region", { name: "About this page" });
 /** The write-up's fold opened, as once tapped (it is folded until then, and remembered). */
 const opened = (page: Page) =>
   page.addInitScript(() => localStorage.setItem("scrap.fold.writeup", "open"));
@@ -30,12 +32,14 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
   await expect(s).toBeVisible();
-  // A Claude card of its own after the page's text (the brown card all of Claude's work is
-  // in, so not the owner's), titled by what it holds; the write-up a fold, folded to start with
+  // In the page's one Claude card after its text (the brown card all of Claude's work is in,
+  // so not the owner's): its lead is the card's Summary, the write-up a fold, In detail,
+  // folded to start with
   await expect(s).toHaveClass(/\bclaude\b/);
-  await expect(s.getByRole("heading", { name: "What it means" })).toBeVisible();
-  const fold = s.locator(":scope > details");
-  await expect(fold.locator("> summary")).toHaveText("Read it");
+  await expect(s.getByRole("heading", { name: "About this page" })).toBeVisible();
+  await expect(page.locator(".page section.claude")).toHaveCount(1); // one card, not two
+  const fold = s.locator("details.writeup");
+  await expect(fold.locator("> summary")).toHaveText("In detail");
   await expect(fold).not.toHaveAttribute("open", "");
   const card = s.locator(".card");
   await expect(card).toBeHidden();
@@ -81,7 +85,7 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   // Opened, it stays open when the page is opened again; folded again, it stays folded
   await page.reload();
   await expect(section(page).locator(".card")).toBeVisible();
-  await section(page).locator(":scope > details > summary").click();
+  await section(page).locator("details.writeup > summary").click();
   await expect(section(page).locator(".card")).toBeHidden();
   await page.reload();
   await expect(section(page).locator(".card")).toBeHidden();
@@ -149,11 +153,11 @@ test("a write-up shows no link but a page link, whatever its text holds", async 
   await expect(s.getByRole("link", { name: "that page" })).toHaveAttribute("href", `/p/${linked}`);
 });
 
-test("a page with no board has no write-up section", async ({ page }) => {
+test("a page with no board has no write-up in its card", async ({ page }) => {
   const r = await page.request.post("/api/captures", {
     data: { id: ulid(), text: "A plain note" },
   });
   await page.goto(`/p/${(await r.json()).slug}`);
   await expect(page.locator("h1")).toHaveText("A plain note");
-  await expect(section(page)).toHaveCount(0);
+  await expect(page.locator("details.writeup")).toHaveCount(0);
 });
