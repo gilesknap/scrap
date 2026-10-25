@@ -527,7 +527,8 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
 board a description, its text and a drawing, which say what is on it but not what it means. A
 write-up explains it: Markdown sections (overview, structure, decisions, open questions, related
 pages, and a "What it suggests" section marked as interpretation, which may draw on general
-knowledge of the tools it names) of about 200 to 800 words, and a one or two sentence lead. The
+knowledge of the tools it names) of about 200 to 700 words (shorter for a simple board; it explains rather than re-types the
+board's text, which the page already shows), and a one or two sentence lead. The
 page text is context that may be wrong (it may be another app's): the photo wins. It is derived data, never
 the page's text.
 
