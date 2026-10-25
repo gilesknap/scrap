@@ -1,7 +1,7 @@
 // A page in the editor (page.ts's Edit): its text, title, kind, tags and a todo's due date
 // and priority, with the draft kept on the phone, and a conflict shown if it changed
 // elsewhere meanwhile. A chunk of its own with editor.ts, kept offline (vite.config.ts).
-import { adopt, photoAdder } from "./addphoto";
+import { adopt, photoAdder, takesPhotos } from "./addphoto";
 import { ADDED, ApiError, api, type Page } from "./api";
 import { drafts } from "./db";
 import {
@@ -162,7 +162,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     text,
     read: body,
     before: [kind.el, title, tagLine.el, todoLine.el],
-    after: [photoAdder(p), conflict],
+    after: [...(takesPhotos(p) ? [photoAdder(p)] : []), conflict],
     foot: embeds.chips,
     key,
     draft: (): Draft => ({

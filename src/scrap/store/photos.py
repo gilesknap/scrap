@@ -8,6 +8,7 @@ from .core import Core
 from .db import transaction
 from .errors import InvalidError
 from .helpers import boxes_before, check_page, embeds, now
+from .topics import is_topic
 
 Blob = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 
@@ -44,7 +45,9 @@ class PhotosMixin(Core):
                     raise InvalidError("id is already another page's capture")
                 return {**page, "appended_on": None}, False
             page = self._page_row(conn, key)
-            new = embeds(blobs, page["body"])
+            if is_topic(conn, page["id"]):  # its synthesis is its write-up: a board
+                raise InvalidError("Photos can't be added to a topic page")  # would
+            new = embeds(blobs, page["body"])  # queue one over it
             body = "\n\n".join(x for x in (page["body"].rstrip(), *new) if x)
             if new:
                 body = check_page(body)  # before anything is written

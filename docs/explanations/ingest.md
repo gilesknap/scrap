@@ -240,7 +240,8 @@ hand at any time. One SQL test says which capture is the page's first
 `by_claude` (a page written over MCP).
 
 **Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
-page that exists, as a photo capture of its own (`POST /api/pages/{id}/captures`, images only,
+page that exists (not a topic page: its synthesis is its write-up, which a board photo would
+replace), as a photo capture of its own (`POST /api/pages/{id}/captures`, images only,
 `Store.add_photos`): its images are stored, each new one's embed goes to the end of the text as
 it is now, as one text revision (not a save: it queues no enrich, which would run before the
 photos are read), and they are queued and read as any capture's photos are. No

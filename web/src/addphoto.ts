@@ -34,6 +34,10 @@ export function uploads(files: File[], page: { id: string; title: string }): Cap
   return overLimit(size) ? files.map((f) => one([f])) : [one(files)];
 }
 
+/** Whether the editor offers Add photo: not on a topic page, whose synthesis is its write-up
+ * (a board photo would queue one over it; the server refuses them too). */
+export const takesPhotos = (page: { topic?: unknown }) => !page.topic;
+
 /** Add photo and From gallery, for the page editor. */
 export function photoAdder(page: { id: string; title: string }) {
   const add = async (files: File[]) => {

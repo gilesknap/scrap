@@ -475,7 +475,8 @@ How matching works:
   tags and a todo's due date are folded into a line each under the title, as in the composer.
 - **Add photo** (the camera) and **From gallery**, under the text in **Edit**, add photos to the
   end of the page, as a capture of its own: Claude reads them as it reads any capture's, and
-  search finds what it read, but they never change the page's kind, title or tags. They upload at once, apart from **Save**, and their tokens
+  search finds what it read, but they never change the page's kind, title or tags. A topic
+  page has no Add photo. They upload at once, apart from **Save**, and their tokens
   join the editor's text after what you typed (if the page was changed elsewhere meanwhile,
   **Save** shows the conflict instead); offline they wait on the phone like a capture
   (the capture screen lists them as *Photo for* the page) and are added once it is back online.

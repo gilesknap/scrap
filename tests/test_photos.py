@@ -10,7 +10,7 @@ from PIL import Image
 
 from scrap import claude, ingest
 from scrap.app import create_app
-from scrap.store import Store, connect, new_ulid
+from scrap.store import Store, connect, new_ulid, now, topics, transaction
 from scrap.store.indexing import should_enrich
 
 BOARD = {
@@ -265,3 +265,14 @@ def test_adding_photos_queues_no_save_enrich(client, note, tmp_path, monkeypatch
     with closing(connect(tmp_path / "data" / "scrap.db")) as conn:
         reasons = [r[0] for r in conn.execute("SELECT reason FROM enrich_job")]
     assert reasons == ["capture"]  # the note's own; the photos' reading brings the rest
+
+
+def test_a_topic_page_takes_no_photos(client, tmp_path):
+    # Its synthesis is its write-up: a board photo would queue one over it
+    s = Store(tmp_path / "data")
+    with closing(connect(s.db)) as conn, transaction(conn):
+        page_id = topics.create(conn, "Queues", "queues", "queues", "me", now())
+    r = add(client, "queues", jpeg())
+    assert r.status_code == 422 and "topic page" in r.json()["detail"]
+    page = client.get(f"/api/pages/{page_id}").json()
+    assert (page["rev"], page["captures"], page["topic"]["key"]) == (1, [], "queues")

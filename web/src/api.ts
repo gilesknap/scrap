@@ -83,6 +83,7 @@ export interface Page extends Summary {
     summary: string | null;
   } | null;
   writeup?: Writeup | null; // a board page's (writeup.ts)
+  topic?: { key: string } | null; // set on a topic page
 }
 export interface Hit
   extends Pick<

@@ -7,7 +7,13 @@ import { type Item, newItem, Queue } from "../src/queue";
 // The editor's pieces (the picker, the app's queue) need a page: not under test here
 vi.mock("../src/capture", () => ({ picker: () => null }));
 vi.mock("../src/app", () => ({ queue: null }));
-const { adopt, uploads } = await import("../src/addphoto");
+const { adopt, takesPhotos, uploads } = await import("../src/addphoto");
+
+it("offers Add photo on any page but a topic page", () => {
+  expect(takesPhotos({})).toBe(true);
+  expect(takesPhotos({ topic: null })).toBe(true);
+  expect(takesPhotos({ topic: { key: "queues" } })).toBe(false);
+});
 
 const IMG = "![](/api/blobs/aa/preview?size=2048)";
 
