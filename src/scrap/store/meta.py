@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any
 
 from .constants import (
+    FIRST_CAPTURE,
     KIND_NAMES,
     KINDS,
     MAX_FIELDS,
@@ -26,8 +27,7 @@ class MetaMixin(Core):
     def by_claude(self, conn: sqlite3.Connection, page_id: str) -> bool:
         """Whether a page was written over MCP (its first capture's source)."""
         row = conn.execute(
-            "SELECT source FROM capture WHERE page_id = ?"
-            " ORDER BY received_at, id LIMIT 1",
+            "SELECT source FROM capture WHERE id = " + FIRST_CAPTURE.format(page="?"),
             (page_id,),
         ).fetchone()
         return bool(row) and row[0] == MCP

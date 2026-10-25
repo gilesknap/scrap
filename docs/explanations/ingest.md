@@ -235,13 +235,15 @@ added to a page are read (description, OCR, drawing), searched, and fed to the w
 related pages, but what Claude infers from them never changes the page's kind, title or tags,
 or whether enrich or ingest maintains it. The owner can still change kind, title and tags by
 hand at any time. One SQL test says which capture is the page's first
-(`store.constants.FIRST_CAPTURE`: the earliest received; among captures received at the same moment, as an import's are, one with no files before one with files, then the lowest id), used by
-`TITLE_CAS`, the photo worker's page fields and task boxes, and `NOT_BY_INGEST`.
+(`store.constants.FIRST_CAPTURE`: the earliest received; among captures received at the same moment, as an import's are, a file capture last, then one with no files before one with files, then the lowest id, so an import's main capture (its text, with its images) is first), used by
+`TITLE_CAS`, the photo worker's page fields and task boxes, `NOT_BY_INGEST` and
+`by_claude` (a page written over MCP).
 
 **Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
 page that exists, as a photo capture of its own (`POST /api/pages/{id}/captures`, images only,
 `Store.add_photos`): its images are stored, each new one's embed goes to the end of the text as
-it is now, as one text revision, and they are queued and read as any capture's photos are. No
+it is now, as one text revision (not a save: it queues no enrich, which would run before the
+photos are read), and they are queued and read as any capture's photos are. No
 revision is checked: appending loses nothing, so a photo that waited on the phone while the page
 changed goes onto the newer text. Following the rule above, their reading sets no title, tags
 or kind and writes no task boxes ({ref}`ingest-actions`), and a page made as text stays

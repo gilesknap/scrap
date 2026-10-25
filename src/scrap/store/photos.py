@@ -1,12 +1,13 @@
 """Adding photos to a page that already exists (#260)."""
 
+import sqlite3
 from typing import Any
 
 from .constants import ENQUEUE, ULID
 from .core import Core
 from .db import transaction
 from .errors import InvalidError
-from .helpers import check_page, embeds, now
+from .helpers import boxes_before, check_page, embeds, now
 
 Blob = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 
@@ -59,9 +60,29 @@ class PhotosMixin(Core):
                 "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
                 [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
             )
-            if new:
-                self._put_text(conn, page, page["title"], body, author, False)
+            if new:  # a revision, as _put_text's, but no enrich: the photos' reading
+                self._append_text(
+                    conn, page, body, author, stamp
+                )  # brings what follows
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
             added = self.page_in(conn, page["id"])
             return {**added, "appended_on": page["rev"]}, True
+
+    def _append_text(
+        self, conn: sqlite3.Connection, page: sqlite3.Row, body: str, author: str,
+        stamp: str,
+    ) -> None:  # fmt: skip
+        """The page's text with the embeds appended, as text revision rev + 1. Not a
+        save: no enrich is queued (it would run before the photos are read; their
+        reading brings the write-up and related calls)."""
+        conn.execute(
+            "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
+            (body, stamp, page["id"]),
+        )
+        conn.execute(
+            "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
+            (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
+        )
+        self._body(conn, page["id"], boxes_before(page))
+        self.reindex(conn, page["id"])

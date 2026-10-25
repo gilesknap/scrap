@@ -238,3 +238,30 @@ def test_a_text_page_stays_enrichs_with_photos_added(client, note, tmp_path):
     with closing(connect(tmp_path / "data" / "scrap.db")) as conn:
         assert should_enrich(conn, text["page_id"])  # saves queue enrich still
         assert not should_enrich(conn, photo["page_id"])  # ingest's
+
+
+def test_a_photo_and_files_import_reads_its_photo_first(tmp_path):
+    # Received together: the file capture is last, whatever its (hash-derived) id
+    s = Store(tmp_path / "data")
+    s.migrate()
+    img, size = s.put_blob(io.BytesIO(jpeg()))
+    pdf, n = s.put_blob(io.BytesIO(b"%PDF"))
+    stamp = "2026-01-01T00:00:00.000Z"
+    p = {"slug": "board", "title": "Board", "body": "notes", "kind": "note",
+         "fields": {}, "tags": [], "created_at": stamp,
+         "updated_at": stamp}  # fmt: skip
+    main, files = "01J0000000000000000000000F", "01J0000000000000000000000E"
+    caps = [(main, "photo", "notes", [(img, "image/jpeg", size, None)]),
+            (files, "file", None, [(pdf, "application/pdf", n, None)])]  # fmt: skip
+    s.import_page(p, caps, "me", enqueue=True)
+    run_all(tmp_path, BOARD)
+    assert s.page("board")["tags"] == ["design", "queues"]  # Claude's, from the photo
+
+
+def test_adding_photos_queues_no_save_enrich(client, note, tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_INGEST", "on")
+    ref = note("Typed first")
+    add(client, ref["page_id"], jpeg())
+    with closing(connect(tmp_path / "data" / "scrap.db")) as conn:
+        reasons = [r[0] for r in conn.execute("SELECT reason FROM enrich_job")]
+    assert reasons == ["capture"]  # the note's own; the photos' reading brings the rest
