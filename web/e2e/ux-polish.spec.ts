@@ -85,13 +85,6 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("button", { name: "Camera" })).toBeVisible();
 
-  // Tags: titled in the top bar, its parent Search
-  await page.goto("/tags");
-  await expect(page.locator("header #where")).toHaveText("Tags");
-  await expect(page.locator("#backto")).toHaveText("Search");
-  await back(page).click();
-  await expect(page).toHaveURL(/\/search$/);
-
   // Opened from a list: Back is history's, the list as it was (Forward still has the page)
   await page.goto(`/search?q=${tag}`);
   await page.locator(".hits a", { hasText: `Back note ${tag}` }).click();

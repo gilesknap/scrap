@@ -1,6 +1,6 @@
-// The search query as text the chips edit (the server parses it: scrap/query.py), and
-// the tree of tags. No DOM here, so the unit tests run it; no regular expressions over the
-// query, so any input is handled in linear time.
+// The search query as text the chips edit (the server parses it: scrap/query.py). No DOM
+// here, so the unit tests run it; no regular expressions over the query, so any input is
+// handled in linear time.
 
 /** A filter as typed: kind:todo, tag:tech/epics, tag:"two words". The query has no escape
  * for a quote, so a tag with one is asked for by its segments before the quote (tag:a for

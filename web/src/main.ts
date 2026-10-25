@@ -2,7 +2,7 @@
 // worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
-import { view as current, go, markNav, plain, queue } from "./app";
+import { address, view as current, go, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
@@ -32,7 +32,15 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/$/, () => capture()],
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
-  [/^\/tags$/, () => import("./tags").then((m) => m.tags())],
+  // The Tags screen is retired (the Filters panel's Tags row offers and matches tags): its old
+  // links and bookmarks are the search screen's, keeping Back's mark on the entry
+  [
+    /^\/tags$/,
+    () => {
+      address("/search");
+      return search();
+    },
+  ],
   [/^\/todos$/, () => todos()],
   [
     /^\/p\/([^/]+)$/,
@@ -65,7 +73,6 @@ const logo = document.querySelector(".logo") as HTMLElement;
 const up = document.getElementById("back") as HTMLButtonElement;
 const backTo = document.getElementById("backto") as HTMLElement;
 const pos = document.getElementById("pos") as HTMLElement; // a page's place in its list
-const where = document.getElementById("where") as HTMLElement;
 // Back, named for where it goes: straight to the list the page was opened from (past the
 // pages stepped through or followed meanwhile; the phone's own Back goes one at a time), else
 // up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's Capture
@@ -79,14 +86,12 @@ up.onclick = () => {
 };
 /** The top bar's Back says where it goes: the list, else the parent (for a page, once its
  * kind is known). */
-const nameBack = (path: string) => {
+const nameBack = () => {
   const to =
     history.state?.back?.name ??
-    (path === "/tags"
-      ? "Search"
-      : document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind === "todo"
-        ? "Todos"
-        : "Capture");
+    (document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind === "todo"
+      ? "Todos"
+      : "Capture");
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
 };
@@ -103,17 +108,14 @@ async function render() {
   clearToasts();
   const path = location.pathname;
   markNav();
-  // A page and Tags are reached from elsewhere: Back in the top bar instead of the wordmark,
-  // on every phone and browser (named for where it goes: nameBack)
-  const sub = path.startsWith("/p/") ? "" : path === "/tags" ? "Tags" : null;
-  const arrow = sub !== null;
+  // A page is reached from elsewhere: Back in the top bar instead of the wordmark, on every
+  // phone and browser (named for where it goes: nameBack)
+  const arrow = path.startsWith("/p/");
   pos.replaceChildren(); // a page puts its pager here
-  if (arrow) nameBack(path);
+  if (arrow) nameBack();
   logo.hidden = arrow;
   up.hidden = !arrow;
-  where.hidden = !(arrow && sub);
-  where.textContent = sub;
-  document.body.classList.toggle("paged", sub === ""); // its toolbar is the bottom bar: no nav
+  document.body.classList.toggle("paged", arrow); // its toolbar is the bottom bar: no nav
   if (path !== "/todos") add.hidden = true; // shown with the Todos list, once it is drawn
   for (const [re, fn] of routes) {
     const m = path.match(re);
@@ -154,7 +156,7 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
-    if (arrow) nameBack(path); // a page opened cold: its kind is known now
+    if (arrow) nameBack(); // a page opened cold: its kind is known now
     add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
     placeToasts(); // e.g. one placed for the view before
     return;

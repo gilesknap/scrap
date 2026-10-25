@@ -565,7 +565,7 @@ session has. Tools and limits: [](../reference/mcp.md).
 
 Vanilla TypeScript built by Vite into the Python package (`scrap/static`); React and Excalidraw
 (the drawing viewer) and Mermaid load only when needed. The screens are `/` (capture), `/search`
-(`/recent` redirects there), `/tags`, `/todos` and `/p/<slug>`. The service worker precaches the
+(`/recent` and the retired `/tags` redirect there), `/todos` and `/p/<slug>`. The service worker precaches the
 app shell and the lazy chunks that work offline (the page view, the composer and editors, the Markdown renderer,
 the sharing code, and the search screen's Filters and recent searches), and also catches the share
 target's POST, queueing it in IndexedDB like any capture; the server's `POST /share` is a fallback

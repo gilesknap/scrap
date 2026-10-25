@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { day, sortsIn, tree, unsorted } from "../src/filters";
+import { day, sortsIn, unsorted } from "../src/filters";
 import { adding, has, kindsIn, listing, removing, token, unkinded, withKind } from "../src/terms";
 
 it("writes a filter, quoting a value with spaces", () => {
@@ -53,19 +53,6 @@ it("reads orders the way the server does: any case, - or !, quotes are text", ()
   expect(unsorted('a sort:"due" b')).toBe("a b");
   expect(sortsIn("--sort:x sort tsort:x")).toEqual([]);
   expect(sortsIn("a\x01sort:due b")).toEqual(["sort:due"]); // a control character: a space
-});
-
-it("makes a tree of tags, parents first", () => {
-  const t = tree([
-    ["home", 3],
-    ["home-x", 1],
-    ["home/garden", 2],
-    ["home/garden/diy", 1],
-    ["work", 1],
-  ]);
-  expect(t.map((n) => n.path)).toEqual(["home", "home-x", "work"]);
-  expect(t[0].kids.map((n) => [n.name, n.n])).toEqual([["garden", 2]]);
-  expect(t[0].kids[0].kids[0].path).toBe("home/garden/diy");
 });
 
 it("clamps a picked date to what after: and before: take", () => {

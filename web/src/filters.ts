@@ -1,5 +1,5 @@
-// What only the Filters panel and the tags screen need of the query (a chunk of their own, out
-// of the app shell): the orders, a picked date, the tree of tags.
+// What only the Filters panel needs of the query (a chunk of its own, out of the app shell): the
+// orders, a picked date.
 import { without, words } from "./terms";
 
 const orders = (q: string) => words(q).filter(([, , key]) => key === "sort");
@@ -15,24 +15,4 @@ export const unsorted = (q: string) => without(q, orders(q));
 export function day(v: string): string {
   if (v.length === 10 && v[4] === "-" && v[7] === "-") return v;
   return v.length > 10 && /^\+?\d{5,}-/.test(v) ? "9999-12-31" : "";
-}
-
-export interface TagNode {
-  path: string;
-  name: string; // its last part
-  n: number; // pages with it or a tag under it
-  kids: TagNode[];
-}
-
-/** The tree of tags; the server lists a/b's parent a too, in order. */
-export function tree(list: [string, number][]): TagNode[] {
-  const top: TagNode[] = [];
-  const at = new Map<string, TagNode>();
-  for (const [path, n] of list) {
-    const cut = path.lastIndexOf("/");
-    const node = { path, name: path.slice(cut + 1), n, kids: [] };
-    at.set(path, node);
-    (at.get(path.slice(0, Math.max(cut, 0)))?.kids ?? top).push(node);
-  }
-  return top;
 }

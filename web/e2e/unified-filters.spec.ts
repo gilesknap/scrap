@@ -107,7 +107,7 @@ test("Tags offers only tags that narrow the results; typed, those of the results
   const panel = await filters(page);
   // The results' top tags, with how many of them have each; not a tag of no result
   await expect(offers(page)).toHaveText(["#marsupial2", "#hop1"]);
-  await expect(panel.getByRole("link", { name: "All tags" })).toBeVisible();
+  await expect(panel.getByRole("link", { name: "All tags" })).toHaveCount(0); // retired
   await offers(page).filter({ hasText: "#marsupial" }).click();
   // Now from these two: #hop narrows them, #marsupial (on every one) does not
   await expect(hits(page)).toHaveCount(2);
@@ -116,7 +116,6 @@ test("Tags offers only tags that narrow the results; typed, those of the results
   const box = panel.getByRole("textbox", { name: "Add a tag filter" });
   await box.fill("ho");
   await expect(offers(page)).toHaveText(["#hop1"]);
-  await expect(panel.getByRole("link", { name: "All tags" })).toHaveCount(0);
   await box.fill("hopp");
   await expect(offers(page)).toHaveCount(0);
   await expect(panel.locator(".none")).toHaveText("No tag in these results has “hopp”");

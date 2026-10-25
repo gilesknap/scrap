@@ -1,4 +1,4 @@
-// Finding things (#84): refine chips under search results, a page's tags, browse by tag.
+// Finding things (#84): refine chips under search results, a page's tags, the retired /tags.
 // Runs after smoke.spec.ts (which wants an empty store); e2e/tagged.py adds synthetic pages.
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
@@ -72,20 +72,25 @@ test("a page's tag searches for it, children too", async ({ page }) => {
   await expect(hits(page)).toHaveCount(3); // and zephyr/garden/shed
 });
 
-test("browse tags as a tree, then search one", async ({ page }) => {
-  await page.goto("/search");
-  await (await filters(page)).getByRole("link", { name: "All tags" }).click();
-  await expect(page).toHaveURL(/\/tags$/);
-  const tree = page.locator(".tagtree");
-  await expect(tree.getByRole("link", { name: "#zephyr 4" })).toBeVisible();
-  await expect(tree.getByRole("link", { name: "#garden 3" })).toBeHidden();
-  await tree.getByRole("button", { name: "Show tags under zephyr" }).click();
-  await expect(tree.getByRole("link", { name: "#garden 3" })).toBeVisible();
-  await page.getByRole("searchbox", { name: "Filter tags" }).fill("shed");
-  await expect(tree.getByRole("link", { name: "#shed 1" })).toBeVisible(); // its parents open
-  await expect(tree.getByRole("link", { name: "#books 1" })).toBeHidden();
-  await tree.getByRole("link", { name: "#shed 1" }).click();
-  await expect(hits(page)).toHaveText(["Zephyr shed plans"]);
+test("the retired Tags screen's old address opens the search screen", async ({ page }) => {
+  for (const old of ["/tags", "/tags?sort=n"]) {
+    await page.goto(old);
+    await expect(page).toHaveURL(/\/search$/);
+    await expect(page.getByRole("searchbox")).toBeVisible();
+    await expect(page.locator('nav a[href="/search"]')).toHaveAttribute("aria-current");
+  }
+  // Reached in the app, Back still goes back to where it came from
+  await page.goto("/todos");
+  await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
+  // As the app's router goes to an address (go() in app.ts: a pushed entry, then a render)
+  await page.evaluate(() => {
+    history.pushState({ at: 1 }, "", "/tags");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(page.getByRole("searchbox")).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/todos$/);
 });
 
 test("the new views meet AA contrast, in both themes", async ({ page }) => {
@@ -101,9 +106,6 @@ test("the new views meet AA contrast, in both themes", async ({ page }) => {
     await page.goto(`/p/${slugs[0]}`);
     await page.locator(".page .tags a").first().waitFor();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page tags`).toEqual([]);
-    await page.goto("/tags");
-    await page.locator(".tagtree a").first().waitFor();
-    expect(await page.evaluate(lowContrast, ""), `${colorScheme} tags`).toEqual([]);
   }
 });
 
@@ -142,10 +144,6 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await panel.getByRole("button", { name: "By created date" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue(/ date:created$/);
   await expect(hits(page)).toHaveCount(2);
-  await panel.getByRole("link", { name: "All tags" }).click();
-  await expect(page).toHaveURL(/\/tags$/);
-  await page.goBack(); // the search, as it was
-  await expect(page.getByRole("searchbox")).toHaveValue(/ date:created$/);
 });
 
 test("tags are edited on the page, and in the editor (a row's swipe opens it)", async ({
