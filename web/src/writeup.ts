@@ -44,11 +44,13 @@ export const byline = (v: WriteupVersion) =>
     .filter(Boolean)
     .join(" · ");
 
-/** A write-up's text with no link but to a page here: the server keeps only its [[slug]]
- * links, and anything else that renders as one (linkify) is shown as its words. */
-export function pageLinksOnly(el: HTMLElement): HTMLElement {
+/** A write-up's text with no link but to the pages the server says it links (that exist):
+ * the server keeps only its [[slug]] links, and anything else that renders as one (linkify,
+ * a page not there) is shown as its words. */
+export function pageLinksOnly(el: HTMLElement, slugs: string[]): HTMLElement {
+  const ok = new Set(slugs.map((s) => `/p/${s}`));
   for (const a of el.querySelectorAll("a"))
-    if (!/^\/p\/[a-z0-9-]+$/.test(a.getAttribute("href") ?? "")) a.replaceWith(...a.childNodes);
+    if (!ok.has(a.getAttribute("href") ?? "")) a.replaceWith(...a.childNodes);
   return el;
 }
 
@@ -102,7 +104,7 @@ export function writeupPanel(p: Page, show: (p: Page) => void): HTMLElement | nu
     up ? h("p", { className: "by" }, byline(up)) : "",
     up ? h("p", { className: "summary", dir: "auto" }, up.summary) : "",
     up
-      ? pageLinksOnly(bodyView(up.text, false))
+      ? pageLinksOnly(bodyView(up.text, false), up.links ?? [])
       : h("p", { className: "by" }, "Claude hasn't written one yet."),
     guidanceFold(p, w, show),
     up && w.versions > 1 ? versionsFold(p, up, show) : "",

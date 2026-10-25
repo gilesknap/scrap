@@ -600,8 +600,8 @@ def test_no_link_but_a_mapped_page_link_survives():
     out = enrich.checked_writeup({"summary": "s", "text": text}, ["enc"])["text"]
     assert out == (
         "## A\nSee evil.example/x, a.example, me@x.example and me@x.example.\n"
-        "Ref click, other and img; [[enc]].\nKept[^1].\n\n[^1]: a footnote"
-    )
+        "Ref click, other and img; [[enc]].\nKept[^1].\n\n[^1] : a footnote"
+    )  # a footnote is split from its text too: no "]:" is left to define anything
     assert "://" not in out and "/p/" not in out and "mailto" not in out
 
 
@@ -648,3 +648,26 @@ def test_an_ask_retried_after_its_related_call_does_not_write_up_again(store):
     assert fake.kinds() == ["enrich", "writeup", "related", "enrich", "related"]
     assert jobs(store)[-1] == ("ask", "done")
     assert store.page(ref["page_id"])["writeup"]["current"]["version"] == 2
+
+
+@pytest.mark.parametrize(
+    ("text", "kept"),
+    [
+        # dropping a bad citation leaves a definition behind: it goes too
+        ("[r]\n\n[[zz]][r]: /p/evil-page", "[r]"),
+        # taking out one scheme leaves another
+        ("x https:a:////evil.example/x", "x evil.example/x"),
+        # nested: a citation's words, a link around one, a definition after one
+        (
+            "[[1|see https://e.example]] [w]([[1]]) [[1]]: /p/evil [[1]](/p/evil)"
+            " [a\\]b]: /p/evil [x]( /p/evil ) [[ [[9]] ]]",
+            "[[enc|see e.example]] w [[enc]] : /p/evil [[enc]] (/p/evil)"
+            " [a\\]b] : /p/evil [x] ( /p/evil )",
+        ),
+    ],
+)
+def test_stripping_one_link_never_leaves_another(text, kept):
+    out = enrich.cited(text, ["enc"])
+    assert out.strip() == kept
+    assert "](" not in out.replace("]] (", "") and "]:" not in out
+    assert "://" not in out

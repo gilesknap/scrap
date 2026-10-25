@@ -30,6 +30,10 @@ REF_DEF = re.compile(r"^ {0,3}\[(?!\^)[^\]\n]+\]:.*$\n?", re.MULTILINE)
 REF_LINK = re.compile(r"(?<!\[)!?\[([^\[\]\n]*)\]\[[^\[\]\n]*\]")
 AUTOLINK = re.compile(r"<((?:[a-z][a-z0-9+.-]*:|[^<>\s@]+@)[^<>\s]*)>", re.IGNORECASE)
 SCHEME = re.compile(r"\b(?:[a-z][a-z0-9+.-]*://|mailto:)", re.IGNORECASE)
+# A cited page while the rest is stripped: \x00 never survives TEXT_CONTROL, so the
+# model cannot write one
+HELD = re.compile(r"\x00(\d+)\x00")
+MAX_PASSES = 100  # each pass that changes the text takes something out of it
 
 
 def clean_tag(tag: Any) -> str | None:
@@ -84,34 +88,54 @@ def checked_related(out: dict[str, Any], n_candidates: int) -> list[int]:
     return related[:MAX_RELATED]
 
 
+def unlinked(text: str) -> str:
+    """Text with nothing Markdown or linkify would link: inline, reference and auto
+    links and images, reference definitions, URL schemes and [[...]] keep only their
+    words, and any "](" or "]:" left is split so it cannot start a link or a
+    definition (in code spans too: safety first). Repeated until nothing changes, as
+    taking one out can make another (https:a:////x). ValueError if it never settles."""
+    for _ in range(MAX_PASSES):
+        was = text
+        text = REF_DEF.sub("", MD_LINK.sub(r"\1", text))
+        text = SCHEME.sub("", AUTOLINK.sub(r"\1", REF_LINK.sub(r"\1", text)))
+        text = WIKI_LINK.sub(lambda m: (m[2] or "").strip(), text)
+        text = text.replace("](", "] (").replace("]:", "] :")
+        if text == was:
+            return text
+    raise ValueError("the write-up's links did not settle")
+
+
 def cited(text: str, slugs: Sequence[str]) -> str:
     """A write-up's links as the model wrote them, [[n]] or [[n|words]] with n a
-    number of its index, as page links: [[slug]], [[slug|words]]. Any other [[...]]
-    (a number not in the index, a name) is no link: its words stay, if it had any, so
-    the model cannot link to a page that is not there."""
+    number of its index, as page links: [[slug]], [[slug|words]]; nothing else in it
+    links (unlinked). The cited links are held aside (HELD) while the rest is
+    stripped, so stripping can neither break one nor make one: a number not in the
+    index, a name or a link made by taking something out keeps only its words."""
+    held: list[str] = []
 
-    def link(m: re.Match[str]) -> str:
-        target, words = m[1].strip(), (m[2] or "").strip()
+    def hold(m: re.Match[str]) -> str:
+        target, words = m[1].strip(), unlinked((m[2] or "").strip())
         if target.isdecimal() and 1 <= int(target) <= len(slugs):
             slug = slugs[int(target) - 1]
-            return f"[[{slug}|{words}]]" if words else f"[[{slug}]]"
+            held.append(f"[[{slug}|{words}]]" if words else f"[[{slug}]]")
+            return f"\x00{len(held) - 1}\x00"
         return words
 
-    return WIKI_LINK.sub(link, text)
+    text = unlinked(WIKI_LINK.sub(hold, TEXT_CONTROL.sub("", text)))
+    text = HELD.sub(lambda m: held[int(m[1])], text)
+    # one next to its own ":" or "(" is not read as a definition or a destination
+    return text.replace("]]:", "]] :").replace("]](", "]] (")
 
 
 def checked_writeup(out: dict[str, Any], slugs: Sequence[str]) -> dict[str, str]:
     """A write-up within bounds: its summary one line, its text Markdown without
-    control characters or any link but its own (inline, reference and autolinks,
-    reference definitions and URL schemes, which linkify would link: their words
-    kept), its [[n]] links made page links (cited), at most MAX_WRITEUP characters.
-    ValueError if it is not an answer, or its text is empty."""
+    control characters or any link but its cited pages' (cited: their words kept),
+    at most MAX_WRITEUP characters. ValueError if it is not an answer, or its text is
+    empty."""
     if not isinstance(out.get("summary"), str) or not isinstance(out.get("text"), str):
         raise ValueError("output lacks summary or text")
     summary = " ".join(CONTROL.sub(" ", out["summary"]).split())[:MAX_SUMMARY]
     text = out["text"].replace("\r\n", "\n").replace("\r", "\n")
-    text = REF_DEF.sub("", MD_LINK.sub(r"\1", TEXT_CONTROL.sub("", text)))
-    text = SCHEME.sub("", AUTOLINK.sub(r"\1", REF_LINK.sub(r"\1", text)))
     text = cited(text, slugs).strip()[:MAX_WRITEUP]
     if not text:
         raise ValueError("the write-up is empty")

@@ -219,7 +219,8 @@ def view(
     """A page's write-up as the page shows it, None unless it is a board page (one
     that is no longer keeps its versions, unseen): board (always true), enrich on,
     the owner's guidance, the state of a write-up queued or being made (its latest
-    write-up or Ask job's), how many versions, and the current one."""
+    write-up or Ask job's), how many versions, and the current one, with links: the
+    slugs of the pages (not in the trash) it links to."""
     board = has_board(conn, page_id)
     if not board:
         return None
@@ -250,5 +251,10 @@ def view(
         "state": state,
         "error": job["last_error"] if job is not None and state == "failed" else None,
         "versions": count,
-        "current": up and {k: up[k] for k in shown},
+        # with the pages it links that exist: the PWA links no other
+        "current": up
+        and {
+            **{k: up[k] for k in shown},
+            "links": [p["slug"] for p in links(conn, page_id)],
+        },
     }

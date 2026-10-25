@@ -63,7 +63,8 @@ todo), and:
   none and no board. `board`: whether one can be written; `on`: enrichment is on; `guidance`: the
   owner's for the next one; `state`: its latest write-up or Ask job's, as `enrich.state`;
   `versions`: how many; `current`: `null` or `{version, producer, created_at, prompt_version,
-  summary, text, guidance, restored_from}` (`text` is Markdown, its links `[[slug]]`).
+  summary, text, guidance, restored_from, links}` (`text` is Markdown, its links `[[slug]]`;
+  `links`: the slugs of the pages, not in the trash, it links to: the PWA links no others).
 
 The rows of `GET /api/pages` and of a search are the page without `body`, `captures`, `tags`,
 `removed`, `rev`, `model_tags`, `related`, `enrich` and `writeup`, plus `thumb`; search rows also have no

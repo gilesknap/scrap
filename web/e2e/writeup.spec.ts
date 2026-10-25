@@ -120,21 +120,21 @@ test("Regenerate queues a new write-up and the section says it waits", async ({ 
 
 test("a write-up shows no link but a page link, whatever its text holds", async ({ page }) => {
   const b = board();
-  // As if the stored text had a web address in it (the server strips them: this is the PWA's
-  // own guard against linkify)
+  // As if the stored text had a web address and a page it doesn't link in it (the server
+  // strips them: this is the PWA's own guard against linkify)
+  let linked = "";
   await page.route(`**/api/pages/${b.slug}`, async (r) => {
     const json = await (await r.fetch()).json();
-    json.writeup.current.text = `See https://evil.example/x and [[${b.target}|that page]].`;
+    linked = json.writeup.current.links[0]; // a page it does link
+    json.writeup.current.text = `See https://evil.example/x, [[${linked}|that page]] and [[e2e-not-there|gone]].`;
     await r.fulfill({ json });
   });
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
   await expect(s.getByText("evil.example/x")).toBeVisible();
+  await expect(s.getByText("gone")).toBeVisible(); // a page it doesn't link: words only
   await expect(s.locator(".body a")).toHaveCount(1);
-  await expect(s.getByRole("link", { name: "that page" })).toHaveAttribute(
-    "href",
-    `/p/${b.target}`,
-  );
+  await expect(s.getByRole("link", { name: "that page" })).toHaveAttribute("href", `/p/${linked}`);
 });
 
 test("a page with no board has no write-up section", async ({ page }) => {

@@ -558,9 +558,12 @@ the page's text.
   each valid number a `[[slug]]` (or `[[slug|words]]`) link; any other `[[...]]` keeps only its
   words. Everything else Markdown would make a link of keeps only its words too: inline and
   reference links and images, reference definitions (`[r]: url`), autolinks (`<https://…>`) and
-  URL schemes that the renderer's linkify would link (`https://`, `mailto:`). So a write-up cannot
-  link a page that is not there, one in the trash, or anything outside scrap; the PWA also shows
-  any link in it but a page link as its words.
+  URL schemes that the renderer's linkify would link (`https://`, `mailto:`), and any `](` or
+  `]:` left is split (`] (`), so nothing can start a link or a definition (in code spans too).
+  The cited links are held aside meanwhile, and the stripping is repeated until nothing changes,
+  since taking one link out can make another. So a write-up cannot link a page that is not
+  there, one in the trash, or anything outside scrap. The PWA also shows any link in it as its
+  words unless it goes to a page the server lists as one the write-up links (`links`).
 - **Output, checked.** `summary`: one line, at most 600 characters; `text`: Markdown without
   control characters, at most 20,000 characters, not empty (else the run is invalid and retried).
 - **Stored apart from the text** (migration 12): each write-up is a new version in `writeup`

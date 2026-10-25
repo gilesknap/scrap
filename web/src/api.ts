@@ -54,6 +54,7 @@ export interface WriteupVersion {
   guidance: string | null; // the owner's guidance it was written with
   restored_from: number | null; // a copy of this version, made by Restore
   current?: boolean; // in the versions list
+  links?: string[]; // the current one's: the slugs of the pages it links that exist
 }
 /** A board page's write-up: Claude's explanation, apart from the text (#256). */
 export interface Writeup {
