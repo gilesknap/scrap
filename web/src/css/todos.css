@@ -18,9 +18,27 @@
 }
 .todos .sub .due {
   order: -1;
+  flex-basis: auto; /* the line's lead here, not a line of its own (as in search): the photo
+                       mark beside it */
 }
-.todos .noimg {
-  display: none; /* every row here is a todo: the room goes to its title */
+.todos .noimg,
+.todos .list a > img {
+  display: none; /* every row here is a todo: the room goes to its title, every title in line */
+}
+/* A todo with a photo says so in its line, as a small picture after its details (the photo
+   itself is on its page); hidden (lazy), its thumbnail is never fetched */
+.todos .list li:has(a > img) .sub::after {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  color: var(--ink-2);
+  -webkit-mask: var(--photo-mark) center / contain no-repeat;
+  mask: var(--photo-mark) center / contain no-repeat;
+}
+.todos {
+  --photo-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='4.5' width='17' height='15' rx='2'/%3E%3Ccircle cx='9' cy='10' r='1.6'/%3E%3Cpath d='m4 18 5-5 4 4 3-3 4 4'/%3E%3C/svg%3E");
 }
 .donefold {
   margin-top: var(--s-4);

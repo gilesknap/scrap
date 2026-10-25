@@ -414,3 +414,38 @@ test("a snooze on or before the due date saves without asking", async ({ page })
   await expect(page.getByRole("group", { name: "Due date" })).toHaveCount(0);
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(day(9));
 });
+
+test("a todo's row has no thumbnail, every title in line; a photo is a mark on its line", async ({
+  page,
+}) => {
+  // A 1x1 PNG: the todo has a photo, so its row would have had a thumbnail
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  const r = await page.request.post("/api/captures", {
+    multipart: {
+      id: "01E2ETDNWPH0T0".padEnd(26, "0"),
+      text: "Wombat photo todo",
+      kind: "todo",
+      file: { name: "w.png", mimeType: "image/png", buffer: png },
+    },
+  });
+  expect(r.ok()).toBeTruthy();
+  await page.goto("/todos?view=all");
+  const row = page.locator(".todos .list li", { hasText: "Wombat photo todo" });
+  await expect(row.locator("a strong")).toBeVisible();
+  await expect(row.locator("a > img")).toBeHidden();
+  const plain = page.locator(".todos .list li").filter({ hasNotText: "Wombat" }).first();
+  const x = async (l: typeof row) => (await l.locator("a strong").boundingBox())?.x;
+  expect(await x(row)).toBe(await x(plain)); // in line with the rest
+  const mark = await row
+    .locator(".sub")
+    .evaluate((el) => getComputedStyle(el, "::after").getPropertyValue("mask-image"));
+  expect(mark).toContain("svg");
+  // Search still shows it
+  await page.goto(`/search?q=${encodeURIComponent("Wombat photo todo")}`);
+  await expect(
+    page.locator(".list li", { hasText: "Wombat photo todo" }).locator("img"),
+  ).toBeVisible();
+});
