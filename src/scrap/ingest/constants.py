@@ -1,5 +1,7 @@
 """The ingest queue's limits and SQL."""
 
+from ..store.constants import FIRST_CAPTURE
+
 FAR = "9999-12-31T00:00:00.000Z"  # paused until Resume
 MAX_FAILURES = 3
 RETRY = 600  # seconds after a charged failure (invalid output: at once)
@@ -25,9 +27,10 @@ WHERE id = :page AND deleted_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM page_rev WHERE page_id = :page AND rev > 1)
   AND EXISTS (SELECT 1 FROM capture c WHERE c.id = :capture AND c.page_id = :page
               AND c.text IS NULL
+              AND c.id = {first}
               AND :photo = (SELECT sha256 FROM capture_blob
                             WHERE capture_id = c.id ORDER BY ord LIMIT 1))
-"""
+""".format(first=FIRST_CAPTURE.format(page=":page"))
 INSERT_DERIVED = """
 INSERT INTO derived (capture_id, source_sha256, kind, version, producer, run_id, author,
                      text, data, superseded_at, created_at)

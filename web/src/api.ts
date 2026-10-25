@@ -154,6 +154,10 @@ export const setStatus = (id: string, status: string) =>
     body: JSON.stringify({ fields: { status } }),
   });
 
+/** Photos were added to a page: CustomEvent detail, the page now, with appended_on (the
+ * revision its text was when their embeds went onto it). */
+export const ADDED = "scrap:added";
+
 /** Post a queued capture: JSON, or multipart with its files. Rejects if offline or stalled.
  *
  * XMLHttpRequest, not fetch, because only it reports upload progress: a slow upload that keeps
@@ -168,9 +172,12 @@ export function send(
   stallMs = 60_000,
 ): Promise<{ status: number; detail?: string }> {
   const { id, text, url, kind, hint, source, created_at, tags, due, priority, files } = item;
-  const fields = { id, text, url, kind, hint, source, created_at, tags, due, priority };
+  const { page } = item; // photos for a page that exists: its own address
+  const fields = page
+    ? { id, source, created_at }
+    : { id, text, url, kind, hint, source, created_at, tags, due, priority };
   let body: string | FormData = JSON.stringify(fields);
-  if (files.length) {
+  if (files.length || page) {
     body = new FormData(); // its text fields go as CRLF; the server makes them LF
     // a field per tag
     for (const [k, v] of Object.entries(fields))
@@ -191,7 +198,7 @@ export function send(
       clearTimeout(stall);
       fail(new DOMException("no upload progress", "TimeoutError"));
     };
-    xhr.open("POST", "/api/captures");
+    xhr.open("POST", page ? `/api/pages/${encodeURIComponent(page)}/captures` : "/api/captures");
     xhr.timeout = 15 * 60_000;
     xhr.upload.onprogress = moving;
     xhr.upload.onload = sent;
@@ -202,13 +209,14 @@ export function send(
     };
     xhr.onload = () => {
       clearTimeout(stall);
-      let detail: string | undefined;
-      if (xhr.status >= 300) {
-        try {
-          detail = JSON.parse(xhr.responseText).detail;
-        } catch {}
-      }
-      ok({ status: xhr.status, detail });
+      let reply: { detail?: string } | undefined;
+      try {
+        reply = JSON.parse(xhr.responseText);
+      } catch {}
+      if (xhr.status >= 300) return ok({ status: xhr.status, detail: reply?.detail });
+      // Added to a page: the page as it is now, for an editor open on it (pageedit.ts)
+      if (page && reply) dispatchEvent(new CustomEvent(ADDED, { detail: reply }));
+      ok({ status: xhr.status, detail: undefined });
     };
     if (typeof body === "string") xhr.setRequestHeader("Content-Type", "application/json");
     moving();
@@ -237,6 +245,13 @@ const LIMIT = "scrap.max_upload_bytes";
 
 /** The server's upload limit as last seen (0 if never), so the check works offline. */
 export const uploadLimit = () => Number(kept(LIMIT)) || 0;
+
+/** Whether bytes of files are too many to send in one request: over the limit, less room
+ * for the form's other fields. False if the limit was never seen. */
+export function overLimit(bytes: number) {
+  const max = uploadLimit();
+  return max > 0 && bytes > max - 64 * 1024;
+}
 
 export async function learnLimit() {
   try {

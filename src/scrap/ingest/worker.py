@@ -19,6 +19,7 @@ from ..store import (
     queue_after_read,
     transaction,
 )
+from ..store.constants import FIRST_CAPTURE
 from .constants import PAUSES, POLL, REV, TITLE_CAS
 from .jobs import (
     charge,
@@ -309,12 +310,15 @@ class Worker:
             resume(conn, stamp)  # a success ends any pause
             page = conn.execute(
                 f"SELECT p.id, {REV} AS rev, (SELECT sha256 FROM capture_blob WHERE"
-                " capture_id = c.id ORDER BY ord LIMIT 1) AS first FROM capture c"
+                " capture_id = c.id ORDER BY ord LIMIT 1) AS first,"
+                f" c.id = {FIRST_CAPTURE.format(page='c.page_id')} AS original"
+                " FROM capture c"
                 " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
             ).fetchone()  # fmt: skip
         items = [(i["text"], i["done"]) for i in out["items"]]
         if (
             page is not None
+            and page["original"]  # an added photo's boxes would file the page a todo
             and page["first"] == photo
             and actions.accepted(out["intent"], out["confidence"], items)
         ):  # a Claude-authored revision of its own, once the reading is stored
@@ -330,19 +334,22 @@ class Worker:
         stamp: str,
         producer: str = "",
     ) -> None:
-        """Title, tags and kind from a capture's first photo; the user's win. Claude's
-        tags join the user's on its first reading of the photo (tagging a photo in the
-        composer keeps both); a later reading (Reprocess) adds them only to a page with
-        none, so a tag the user took off since does not come back. The page keeps at
-        most MAX_TAGS: Claude's fill what the user's leave."""
-        page_id = conn.execute(
-            "SELECT page_id FROM capture WHERE id = ?", (cid,)
-        ).fetchone()[0]
+        """Title, tags and kind from the first photo of the page's first capture (it
+        decides what the page is: photos added later only add content, #260); the
+        user's win. Claude's tags join the user's on its first reading of the photo
+        (tagging a photo in the composer keeps both); a later reading (Reprocess) adds
+        them only to a page with none, so a tag the user took off since does not come
+        back. The page keeps at most MAX_TAGS: Claude's fill what the user's leave."""
+        page_id, original = conn.execute(
+            f"SELECT c.page_id, c.id = {FIRST_CAPTURE.format(page='c.page_id')}"
+            " FROM capture c WHERE c.id = ?",
+            (cid,),
+        ).fetchone()
         first = conn.execute(
             "SELECT sha256 FROM capture_blob WHERE capture_id = ? ORDER BY ord LIMIT 1",
             (cid,),
         ).fetchone()[0]
-        if photo != first:
+        if photo != first or not original:
             return
         if out["title"]:
             args = {"title": out["title"], "now": stamp, "page": page_id}

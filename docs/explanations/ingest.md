@@ -205,10 +205,11 @@ Migration 0002 creates `derived`, which holds results as versions:
 - **Restore** copies the version's producer, run, author and text; its `data` adds
   `restored_from` and `restored_by`, so the history can say so.
 
-**Page fields** come from the first photo, and the user wins:
+**Page fields** come from the first photo of the page's first capture (photos added later set
+none: {ref}`ingest-first-capture`), and the user wins:
 
 - **Title.** The provisional title (first line of text, else the URL, else the device date)
-  stays in rev 1 as captured. Only the first photo of a capture without text may replace it,
+  stays in rev 1 as captured. Only the first photo of the page's first capture, if it has no text, may replace it,
   once, on the page row only, adding no revision (`ingest.TITLE_CAS`: it applies only while the
   title still equals rev 1's and there is no later revision). The same transaction re-indexes the
   page. `PATCH /api/pages/{id}` treats a title equal to the title at its `base_rev` as unchanged,
@@ -225,6 +226,33 @@ Migration 0002 creates `derived`, which holds results as versions:
 `derived_id`), and superseding removes it. That covers OCR, the description and a human drawing's
 labels; a model drawing's text is empty, because its words are the OCR. `Store.index_page`
 rewrites only the chunks with `derived_id IS NULL`, and search groups hits by page.
+
+(ingest-first-capture)=
+### Added photos: the first capture decides
+
+**A page's first capture decides what the page is; later captures only add content.** Photos
+added to a page are read (description, OCR, drawing), searched, and fed to the write-up and
+related pages, but what Claude infers from them never changes the page's kind, title or tags,
+or whether enrich or ingest maintains it. The owner can still change kind, title and tags by
+hand at any time. One SQL test says which capture is the page's first
+(`store.constants.FIRST_CAPTURE`: the earliest received, then the lowest id), used by
+`TITLE_CAS`, the photo worker's page fields and task boxes, and `NOT_BY_INGEST`.
+
+**Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
+page that exists, as a photo capture of its own (`POST /api/pages/{id}/captures`, images only,
+`Store.add_photos`): its images are stored, each new one's embed goes to the end of the text as
+it is now, as one text revision, and they are queued and read as any capture's photos are. No
+revision is checked: appending loses nothing, so a photo that waited on the phone while the page
+changed goes onto the newer text. Following the rule above, their reading sets no title, tags
+or kind and writes no task boxes ({ref}`ingest-actions`), and a page made as text stays
+enrich's, so its saves still queue enrich ({ref}`ingest-enrich`). Once the photos are read, a
+board page gets a new write-up; a page whose first photos these are gets its related call
+then, and any other the nightly related pass. The page's images are in the order the server
+received their captures, so the added ones come after the page's own. The PWA queues the upload
+like a capture, so it waits on the phone while offline. The reply says which revision the
+embeds went onto (`appended_on`): an editor still open on that revision takes them into its own
+text and moves on to the new revision, so its **Save** is no conflict; otherwise **Save** shows
+the conflict, as for any change made elsewhere.
 
 ## Excalidraw in the PWA
 
@@ -320,7 +348,8 @@ Photo ingest and enrich share one prompt section (`prompts/items.md`, added to b
   text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
   and is a `note` with `kind_fixed` 0 (for a photo also a `whiteboard` that ingest, not the user,
   chose, which becomes a note and then a todo). A saved link is never written to. For a photo
-  it is the capture's first image. A fixed kind, a page with boxes and any other reading change
+  it is the first image of the page's first capture: a photo added later writes none
+  ({ref}`ingest-first-capture`). A fixed kind, a page with boxes and any other reading change
   nothing.
 - **How.** The entries are appended below the user's text as `- [ ] item` (`- [x]` for done),
   separated by a blank line, in one text revision by `claude` that never folds into another
@@ -434,8 +463,10 @@ page's text, except that a confident list of actions gets task boxes appended
   **Ask Claude** on the page (`POST /api/pages/{id}/enrich`) queues it now and also picks its
   related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags
   that Claude has not read, once, by hand (never automatic). Some things queue nothing:
-  - A photo or file capture, even with a typed note (`should_enrich` in `store/indexing.py`, #155): photo ingest reads the photo, and the
-    page's first text reading comes with a later save of its title or text (or Ask Claude).
+  - A page whose first capture is a photo or file, even with a typed note (`should_enrich` in
+    `store/indexing.py`, #155): photo ingest reads the photo, and the page's first text reading
+    comes with a later save of its title or text (or Ask Claude). Photos added to a text page
+    later leave it enrich's ({ref}`ingest-first-capture`).
   - A whiteboard or document page: it is not read as text (#155).
   - Pages Claude Code adds with the MCP `write` tool count as notes, whatever their kind, so a
     new one is read after the debounce like a user's note: Claude's own pages get model tags and

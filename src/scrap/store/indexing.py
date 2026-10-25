@@ -80,7 +80,7 @@ def enrich_on() -> bool:
 
 def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether enrich reads this page on a capture, save or backfill: its kind is in
-    ENRICH_KINDS and it has no photo or file capture."""
+    ENRICH_KINDS and it was not made with a photo or file capture (NOT_BY_INGEST)."""
     row = conn.execute(
         "SELECT p.kind FROM page p WHERE p.id = ? AND " + NOT_BY_INGEST.format(p="p"),
         (page_id,),

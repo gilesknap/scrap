@@ -473,6 +473,13 @@ How matching works:
 - **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
   **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
   tags and a todo's due date are folded into a line each under the title, as in the composer.
+- **Add photo** (the camera) and **From gallery**, under the text in **Edit**, add photos to the
+  end of the page, as a capture of its own: Claude reads them as it reads any capture's, and
+  search finds what it read, but they never change the page's kind, title or tags. They upload at once, apart from **Save**, and their tokens
+  join the editor's text after what you typed (if the page was changed elsewhere meanwhile,
+  **Save** shows the conflict instead); offline they wait on the phone like a capture
+  (the capture screen lists them as *Photo for* the page) and are added once it is back online.
+  Photos too big to send together go one by one; one over the server's limit alone is refused.
 - Writing lists in the composer or editor: Enter on a bullet (`- `), numbered (`1. `) or task
   (`- [ ] `) line starts the next item, and Enter on an empty item ends the list. Just above
   the keyboard, five keys act on the line (or the lines selected): **Task** makes it a task,

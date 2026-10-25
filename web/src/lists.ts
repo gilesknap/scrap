@@ -79,7 +79,12 @@ export async function pendingList(): Promise<Node> {
     { className: "list pending" },
     ...items.map((i) => {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
-      const title = i.text?.split("\n")[0] || i.url || i.files[0]?.name || "capture";
+      const title =
+        (i.page && `Photo for ${i.to || "a page"}`) ||
+        i.text?.split("\n")[0] ||
+        i.url ||
+        i.files[0]?.name ||
+        "capture";
       const lost = i.error === "connection lost" && !navigator.onLine; // as now, not as it failed
       const why = lost ? "offline" : (i.error ?? (navigator.onLine ? "uploading" : "offline"));
       const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;

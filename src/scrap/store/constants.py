@@ -126,11 +126,21 @@ PAGE_KINDS = {
 }
 
 
-# A page with a photo or file capture is read by ingest, not enrich, whatever its kind
-# (a photo page is stored as a note until ingest reclassifies it).
+# The id of a page's first capture (SQL; page: an expression for the page's id).
+# A page's first capture decides what the page is; later captures only add content
+# (#260): what automation infers from them never changes its kind, title or tags, or
+# whether enrich or ingest maintains it. The one test of it, for TITLE_CAS, the photo
+# worker and NOT_BY_INGEST.
+FIRST_CAPTURE = (
+    "(SELECT f.id FROM capture f WHERE f.page_id = {page}"
+    " ORDER BY f.received_at, f.id LIMIT 1)"
+)
+# A page made by a photo or file capture (its first) is read by ingest, not enrich,
+# whatever its kind (a photo page is stored as a note until ingest reclassifies it).
 NOT_BY_INGEST = (
-    "NOT EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id"
-    " AND c.kind IN ('photo', 'file'))"
+    "coalesce((SELECT c.kind FROM capture c WHERE c.id = "
+    + FIRST_CAPTURE.format(page="{p}.id")
+    + "), '') NOT IN ('photo', 'file')"
 )
 
 

@@ -953,18 +953,28 @@ def test_a_save_on_a_photo_page_queues_nothing(store):
     assert jobs(store) == []
 
 
-def test_a_page_with_a_note_and_a_photo_capture_is_left_to_ingest(store):
-    """Only an import makes one page of both (an append is to a page Claude wrote)."""
+def test_a_page_is_enrichs_or_ingests_by_its_first_capture(store):
+    """A page's first capture decides (#260): a note first, then a photo: enrich's."""
     sha, size = store.put_blob(io.BytesIO(b"jpeg"))
     stamp = "2026-01-01T00:00:00.000Z"
     p = {"slug": "both", "title": "Both", "body": "a note", "kind": "note",
          "fields": {}, "tags": [], "created_at": stamp,
          "updated_at": stamp}  # fmt: skip
-    caps = [(new_ulid(), "note", "a note", []),
-            (new_ulid(), "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
+    # Received at the same time (an import's are): the lower id is first
+    lo, hi = "01J0000000000000000000000A", "01J0000000000000000000000B"
+    caps = [(lo, "note", "a note", []),
+            (hi, "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
     page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
     store.update_page(page_id, 1, None, "a note, edited", "me")
-    assert jobs(store) == []
+    assert [j[:2] for j in jobs(store)] == [("save", "queued")]
+    # A photo first (the lower id, received at the same time), then a note: ingest's
+    lo, hi = "01J0000000000000000000000C", "01J0000000000000000000000D"
+    caps = [(lo, "photo", None, [(sha, "image/jpeg", size, None)]),
+            (hi, "note", "a note", [])]  # fmt: skip
+    p = {**p, "slug": "photo-first"}
+    page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
+    store.update_page(page_id, 1, None, "a note, edited", "me")
+    assert len(jobs(store)) == 1
 
 
 def test_backfill_skips_a_photo_page_of_kind_note(store, monkeypatch):
@@ -1013,7 +1023,8 @@ def test_an_mcp_append_queues_nothing_with_enrich_off(store, monkeypatch):
     assert jobs(store) == [("capture", "done", 0), ("related", "done", 0)]
 
 
-def test_an_mcp_append_to_a_photo_page_queues_nothing(store):
+def test_an_mcp_append_to_a_text_page_with_a_photo_added_still_queues(store):
+    # A page made as text stays enrich's when a photo is added later (#260)
     page_id = mcp_page(store)
     run_all(worker(store, Fake(answer())))
     stamp = "2030-01-01T00:00:00.000Z"  # after the MCP capture: it stays the first
@@ -1024,7 +1035,8 @@ def test_an_mcp_append_to_a_photo_page_queues_nothing(store):
         )
         conn.commit()
     append(store, page_id)
-    assert jobs(store) == [("capture", "done", 0), ("related", "done", 0)]
+    assert jobs(store)[:2] == [("capture", "done", 0), ("related", "done", 0)]
+    assert jobs(store)[2][:2] == ("save", "queued")
 
 
 def test_an_mcp_append_with_no_text_queues_nothing(store):
