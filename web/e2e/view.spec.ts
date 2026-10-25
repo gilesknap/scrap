@@ -60,11 +60,10 @@ test("a page and its photos download", async ({ page }) => {
     page.locator(".page > .bar").getByRole("link", { name: "Download" }).click(),
   ]);
   expect(zip.suggestedFilename()).toBe("with-a-photo.zip");
-  // The photo's own file: saved from the viewer (no caption under it on the page)
-  await page.locator(".md .orig img").click();
+  // The photo's own file (no preview of these bytes: a file row, with its Download)
   const [orig] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("dialog").getByRole("link", { name: "Download" }).click(),
+    page.locator(".md .orig").getByRole("link", { name: "Download" }).click(),
   ]);
   expect(orig.suggestedFilename()).toBe("pic.png");
   await expect(page.getByText(/^Downloaded pic\.png/)).toBeVisible();
@@ -468,13 +467,13 @@ test("every photo of the page can be opened, saved and sent, wherever the text p
   // Two lines of images alone: a figure each, in the text
   const alts = (l: import("@playwright/test").Locator) =>
     l.evaluateAll((els) => els.map((e) => e.getAttribute("alt")));
-  expect(await alts(page.locator(".md > .photo-panel figure.orig img"))).toEqual([
-    "line1.png",
-    "line2.png",
-  ]);
+  const lines = page.locator(".md > .photo-panel figure.orig img");
+  await expect(lines).toHaveCount(2);
+  expect(await alts(lines)).toEqual(["line1.png", "line2.png"]);
   // In a list, beside text or in a quote: as typed, and below the text with the rest
   await expect(page.locator(".md li img, .md p img, .md blockquote img")).toHaveCount(3);
   const below = page.locator(".originals figure.orig");
+  await expect(below.locator("img")).toHaveCount(3);
   expect(await alts(below.locator("img"))).toEqual(["list.png", "beside.png", "quote.png"]);
   await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(5);
   // Saved from the viewer, not a caption
