@@ -133,7 +133,8 @@ def test_mcp_writes_and_shows_it_and_todos_leaves_it_out(store):
     write(store, title="Open by Claude", kind="todo")
     read = ok(store, "read", page=page["id"])
     assert read["page"]["snoozed_until"] == LATER
-    titles = [r["title"] for r in ok(store, "todos")["results"]]
+    to_do = "kind:todo -is:done -is:cancelled -is:snoozed"
+    titles = [r["title"] for r in ok(store, "search", query=to_do)["results"]]
     assert "Open by Claude" in titles and "Snoozed by Claude" not in titles
     found = ok(store, "search", query="kind:todo is:snoozed")["results"]
     assert [(r["title"], r["snoozed_until"]) for r in found] == [

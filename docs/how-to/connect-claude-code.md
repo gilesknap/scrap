@@ -63,10 +63,11 @@ your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
 
-The server has ten tools, which appear as `mcp__scrap__search`, `mcp__scrap__read`,
-`mcp__scrap__recent`, `mcp__scrap__todos`, `mcp__scrap__tags`, `mcp__scrap__write`,
-`mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`, `mcp__scrap__revisions` and
-`mcp__scrap__revert`; the Tools table in [](../reference/mcp.md) says what each takes and
+The server has twelve tools, which appear as `mcp__scrap__search` (it also lists the recent
+pages and the todos), `mcp__scrap__read`, `mcp__scrap__drawing`, `mcp__scrap__tags`,
+`mcp__scrap__write`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
+`mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__edit_page`, `mcp__scrap__trash` and
+`mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
 returns.
 
 Try it: ask "get my recent photos". Search results say which pages hold images (`image_count`,
@@ -83,7 +84,7 @@ curl -si https://myhost.my-tailnet.ts.net:8446/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-It should print an HTTP `200` status and JSON with ten tools in `result.tools`.
+It should print an HTTP `200` status and JSON with twelve tools in `result.tools`.
 
 Off the tailnet, or for a quick test, use the SSH tunnel fallback ({ref}`scrap-ssh-tunnel`) and
 add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A session that
@@ -152,8 +153,7 @@ line.
 | Command | What it does |
 | --- | --- |
 | `/sc-post [title]` | Posts Claude's previous response to scrap verbatim, as one page. "post this to scrap" works too. |
-| `/sc-summarise` | Summarises the current topic (the latest activity) into one page and posts it (below). |
-| `/sc-session` | Summarises the whole conversation into one page: overview, timeline, findings, decisions, changes made and open questions. |
+| `/sc-summarise [all] [title]` | Summarises the current topic (the latest activity) into one page and posts it (below). With `all`, the whole conversation: overview, timeline, findings, decisions, changes made and open questions. |
 | `/sc-find <words>` | Searches scrap and shows the top results as short lines. |
 | `/sc-todos` | What to do now, overdue first. |
 | `/sc-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
@@ -180,9 +180,8 @@ these. Only the scrap tools are used. `<SCRAP_URL>` in the
 commands is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 
-`/sc-summarise` makes Claude summarise the useful findings of the current topic into one page (use
-`/sc-session` for the whole conversation),
-reusing existing tags and linking related pages, and show you the title and tags before it
+`/sc-summarise` makes Claude summarise the useful findings of the current topic into one page (`/sc-summarise all` for the whole
+conversation), reusing existing tags and linking related pages, and show you the title and tags before it
 writes; say "just post" to skip the question.
 
 The summary has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
@@ -198,7 +197,7 @@ Pages written this way carry a *Written by Claude* badge and the origin the sess
 ask it to list (`revisions`) and undo (`revert`). It can also edit the text of a page you name
 ("fix the typo in my trip notes", with `edit_page`): it replaces one passage it quotes exactly,
 shows you a diff first if you ask, and refuses if the page changed since it read it. Each text
-edit is a revision too, which `revert_text` undoes, and `is:claude-edited` finds the pages whose
+edit is a revision too, which `revert` (with `to_rev`) undoes, and `is:claude-edited` finds the pages whose
 text it changed. A bulk change
 given as a search is refused if it finds more than 50 pages unless `limit` is raised (up to
 200; naming the pages takes up to 200 as well), and Claude is told to try `dry_run` first. See "Kinds and tags" in [](../reference/mcp.md).
@@ -206,13 +205,13 @@ given as a search is refused if it finds more than 50 pages unless `limit` is ra
 ## Permissions and security
 
 Claude Code asks before using an MCP tool unless you allow it, and the `sc` commands allow none. You
-might allow the read tools (`mcp__scrap__search`, `read`, `recent`, `todos`, `tags`) and let
+might allow the read tools (`mcp__scrap__search`, `read`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
 
 To keep Claude off the text of your pages, set `SCRAP_MCP_CONTENT_EDIT=0` on the server
-(`edit_page` and `revert_text` are then not offered at all), or deny the two tools in one
-client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page",
-"mcp__scrap__revert_text"]}`.
+(`edit_page` is then not offered, and `revert` refuses `to_rev`), or deny `edit_page` in one
+client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page"]}`. A client
+setting cannot deny only the text mode of `revert`, which also undoes kinds and tags.
 
 scrap has no login: any device on the tailnet that can reach the port can use `/mcp`, so
 restrict that with the tailnet ACL (see [](deploy-single-server.md)). Off the tailnet, `/mcp`

@@ -497,8 +497,9 @@ local, and it works the same behind the cluster's ingress. A stdio `scrap mcp` c
 alternative: it needs a shell where the database is (inside the container), which no client
 session has. Tools and limits: [](../reference/mcp.md).
 
-- `search`, `read`, `recent`, `todos`, `tags`: thin wrappers over the store; `search` takes the
-  search box's syntax. Results carry each page's PWA URL (`$SCRAP_PUBLIC_URL/p/<slug>`) and its
+- `search`, `read`, `tags`: thin wrappers over the store; `search` takes the
+  search box's syntax, and with an empty query lists the recent pages (the todos are `kind:todo
+  -is:done -is:cancelled -is:snoozed sort:due`). Results carry each page's PWA URL (`$SCRAP_PUBLIC_URL/p/<slug>`) and its
   images as URLs, so Claude links there instead of trying to show them. Page text is returned in
   JSON fields, as data. `read` also returns `by_model`: Claude's own summary, the tags it added and
   the pages it found related, labelled as written by a model.
@@ -507,7 +508,7 @@ session has. Tools and limits: [](../reference/mcp.md).
   whole bulk change by its batch id): metadata only, made safe by revisions
   ([](decisions/0019-kinds-and-tags-editable-with-revisions.md)).
 - `edit_page` changes the text of any page narrowly (one passage found exactly once, or the whole
-  body given its current `rev`) and `revert_text` restores an earlier text, each as a new
+  body given its current `rev`) and `revert` with `to_rev` restores an earlier text, each as a new
   `page_rev` revision by author `claude`, which `is:claude-edited` finds
   ([](decisions/0022-page-text-editable-over-mcp-with-revisions.md)). `SCRAP_MCP_CONTENT_EDIT=0`
   turns both off. No tool deletes a page or overwrites a body unconditionally.
