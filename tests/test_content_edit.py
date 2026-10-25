@@ -82,6 +82,26 @@ def test_old_must_occur_exactly_once(store):
     assert store.page(ref["slug"])["body"] == "a bird, a bird"
 
 
+def test_delete_removes_old_without_new(store):
+    """For clients that cannot send an empty string (#252)."""
+    ref = human(store, "a cat, a cat and a dog")
+    error = refused(store, "edit_page", page=ref["slug"], old="a cat", delete=True)
+    assert "occurs 2 times" in error  # the same matching rules as a replace
+    out = ok(store, "edit_page", page=ref["slug"], old=" and a dog", delete=True,
+             dry_run=True)  # fmt: skip
+    assert out["dry_run"] and "+a cat, a cat\n" in out["diff"]
+    assert store.page(ref["slug"])["rev"] == 1
+    out = ok(store, "edit_page", page=ref["slug"], old=" and a dog", delete=True,
+             rev=1)  # fmt: skip
+    assert out["replacements"] == 1 and out["rev"] == 2
+    out = ok(store, "edit_page", page=ref["slug"], old="a cat", delete=True,
+             new="", replace_all=True)  # fmt: skip
+    assert out["replacements"] == 2
+    assert store.page(ref["slug"])["body"] == ", "
+    error = refused(store, "edit_page", page=ref["slug"], old=", ", delete=True)
+    assert "empty" in error  # allow_empty still applies
+
+
 def test_bad_requests_are_refused(store):
     ref = human(store, TEXT)
     for args, error in [
@@ -91,6 +111,11 @@ def test_bad_requests_are_refused(store):
         ({"old": "milk", "new": "x", "body": "y", "rev": 1}, "not both"),
         ({"body": "everything new"}, "needs rev"),
         ({"old": "", "new": "x"}, "old must not be empty"),
+        ({"old": "milk", "new": "x", "delete": True}, "new or delete, not both"),
+        ({"delete": True}, "delete needs old"),
+        ({"new": "", "delete": True}, "delete needs old"),
+        ({"body": "y", "rev": 1, "delete": True}, "delete needs old"),
+        ({"old": "", "delete": True}, "old must not be empty"),
         ({"title": "  "}, "title must not be empty"),
         ({"old": "milk", "new": "x\x00"}, "NUL"),
     ]:
