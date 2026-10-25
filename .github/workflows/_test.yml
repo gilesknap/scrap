@@ -29,10 +29,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.0.0
 
+      # Coverage tracing makes the timing-heavy tests ~4x slower on the 3.11/3.12 tracer,
+      # and one interpreter's report is enough: trace on 3.14 only
       - name: Run tests
-        run: uv run --locked tox -e tests
+        run: uv run --locked tox -e tests ${{ inputs.python-version != '3.14' && '-- --no-cov' || '' }}
 
       - name: Upload coverage to Codecov
+        if: inputs.python-version == '3.14'
         uses: codecov/codecov-action@v7
         with:
           name: ${{ inputs.python-version }}/${{ inputs.runs-on }}

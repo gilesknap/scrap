@@ -39,6 +39,7 @@ dev = [
     "pyright",
     "pytest",
     "pytest-cov",
+    "pytest-xdist",
     "ruff",
     "sphinx-autobuild",
     "sphinx-copybutton",
@@ -123,6 +124,8 @@ description = "Run tests with coverage"
 commands = [
     [
         "pytest",
+        "-n",
+        "auto",
         "--cov=scrap",
         "--cov-report",
         "term",
