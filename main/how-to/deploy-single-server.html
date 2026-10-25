@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.8.2.dev1+g14198f811 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.8.2.dev2+g39b1e6687 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=973ae754"></script>
+    <script src="../_static/documentation_options.js?v=4b32bfb4"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1132,6 +1132,18 @@ conversation), while it is the newest for its page or photo, while it is still r
 it is younger than <code class="docutils literal notranslate"><span class="pre">--run-days</span></code> (default 30, at least 1). Counts are in the report, and <code class="docutils literal notranslate"><span class="pre">--delete</span></code>
 removes the rest. A deleted model run no longer keeps the JPEG it sent, which the next gc finds
 unused.</p>
+<p><strong>Files no page shows are gathered, not deleted.</strong> gc never deletes a file of a capture (a photo,
+a PDF). When you delete the last embed or link of one from a page’s text, the next <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> (once the grace period has passed since that edit) appends it to the month’s review
+page, a todo titled <em>Orphaned assets YYYY-MM</em>, due 7 days after gc made it. Each item is the
+image (or a link to the file), the page it was last shown on and when, and Claude’s description
+if there is one; its drawing and Claude’s results stay with the file. To keep an item, cut it into
+another page. Once you have looked through the page, delete it (its files go to the trash with
+it) or tick it done; later orphans that month then start a new page, and an item you cut out and
+pasted nowhere is not gathered again. Later orphans are appended to the open page without moving
+its due date. A file still shown by another page, by a page in the trash, or listed below a page
+that never embedded it (an older photo, a PDF) is not an orphan. Nothing records what was
+gathered beyond the pages’ text, so running gc twice adds nothing twice. The dry run counts what
+it would gather.</p>
 <p><strong>Deleting is not erasing.</strong> A trashed page keeps its text, its revisions, its captures, what
 Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
 no disk space and removes none of its content from the data folder or from your backups. There is

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>15. Images are embedded in the page text; scrap gc is conservative &#8212; scrap 0.8.2.dev1+g14198f811 documentation</title>
+    <title>15. Images are embedded in the page text; scrap gc is conservative &#8212; scrap 0.8.2.dev2+g39b1e6687 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=973ae754"></script>
+    <script src="../../_static/documentation_options.js?v=4b32bfb4"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -559,6 +559,9 @@ after backup (the Helm chart has no gc job).</p></li>
 <li><p>A manual gc takes no lock and can race the nightly run harmlessly.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is a <strong>dry run unless <code class="docutils literal notranslate"><span class="pre">--delete</span></code></strong> is given (<code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> forces it): it only counts
 what it would remove. <code class="docutils literal notranslate"><span class="pre">--grace-hours</span></code> (default 24) sets the age below which a file is kept.</p></li>
+<li><p>A capture’s file that no page shows any more is never deleted: <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> gathers it
+onto the month’s <em>Orphaned assets YYYY-MM</em> todo page for the user to review (issue #124), worked
+out from page text and revisions alone, so a second run adds nothing.</p></li>
 <li><p>It also prunes the <code class="docutils literal notranslate"><span class="pre">model_run</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> records (issue #151): those older than
 <code class="docutils literal notranslate"><span class="pre">--run-days</span></code> (default 30) that nothing refers to and that are not the latest for their page or
 photo, so the stored prompts and responses do not grow for ever.</p></li>

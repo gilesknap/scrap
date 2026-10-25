@@ -610,6 +610,7 @@ a photo capture writes one per photo), and only there: a photo whose embed is de
 text is no longer shown or used as the page's thumbnail. A photo of a page made before photos were
 embedded, which no revision ever embedded, is still listed below the text. The editor warns on
 Save when an embed of a stored file goes, naming the file and how many other pages still show it.
+Such a file is never deleted: gc gathers it onto a review page (below).
 
 `scrap gc` deletes the files nothing uses, and is a dry run unless given `--delete` (`--dry-run`
 overrides it): a file is in use while any page's text (the trash's too) mentions its address, or a
@@ -631,6 +632,20 @@ every such file whose name is free before it looks at anything. On a single serv
 runs it, after the backup, and only deletes if there was a completed backup (one that passed an integrity check and
 wrote its `COMPLETE` marker) in the last 26 hours. See
 {ref}`the deploy guide <scrap-gc>`.
+
+A capture's file that no page shows any more (an orphan) is gathered by `scrap gc --delete`
+onto the month's review page, `scrap.orphans` (#124): an open todo titled *Orphaned assets
+YYYY-MM*, due 7 days after gc makes it, written as the user's page (its capture's source is `gc`,
+of kind `file` with no files, so enrichment leaves it alone). Each item is the file's embed (a link
+for one that is not an image), the page it last left and when, and Claude's description. An
+orphan is a file of a capture that no page's current text mentions (the trash's too), whose every
+capture is on a page not in the trash whose text once showed it (one never embedded is still
+listed below its page), that left its last page longer ago than the grace period, and whose last
+page was not an orphan page. All of it is read from page text and revisions, with no table of its
+own: a file on the review page is in use, so a second run adds nothing, and one cut out of it and
+pasted nowhere has been reviewed. Later orphans go on the month's open page (not done, cancelled
+or trashed), else a new one, and on a new page once one is full (1 MB). Deleting the page is the
+review: its files stay with it in the trash, where gc counts them as used.
 
 ## Import
 

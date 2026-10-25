@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.2.dev1+g14198f811 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.8.2.dev2+g39b1e6687 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=973ae754"></script>
+    <script src="../_static/documentation_options.js?v=4b32bfb4"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1033,8 +1033,9 @@ longer one (counting the photo links a capture adds), and keeps it in the editor
 <li><p>Deleting a photo’s line (its token, in the editor) removes the photo from the page. <strong>Save</strong> warns first, naming each
 photo whose line went: <em>no longer shown on any page</em>, or <em>still shown on N other pages</em>. This
 doesn’t delete the stored file. <strong>Cancel</strong> goes back to the editor with your text as it was (undo brings the
-line back); <strong>OK</strong> saves. The file and what Claude made of it are kept while anything still
-uses it; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> (nightly on a single-server install) deletes files nothing uses.</p></li>
+line back); <strong>OK</strong> saves. The file and what Claude made of it are kept: once no page shows it, the
+nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> gathers it onto the month’s <em>Orphaned assets</em> todo page, where you cut it into
+another page to keep it or delete the page when you have looked through it (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
 <li><p><strong>Delete</strong> moves the page to the trash, with <strong>Undo</strong> for a few seconds, and goes back to the
 list or search it was opened from (else to every page, newest first). The app has no trash
 screen: once the Undo has gone, a page can be brought back with
