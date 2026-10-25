@@ -3,7 +3,7 @@
 // folded away at the end), Upcoming (due from tomorrow to a week away) or All (last edited first). The address
 // says which (/todos, /todos?view=upcoming, /todos?view=all), so Back and a reload come back
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
-import { api, type Hit } from "./api";
+import { api, type Hit, writeClock } from "./api";
 import { view } from "./app";
 import { icon } from "./icons";
 import type { pageRow } from "./lists";
@@ -69,19 +69,19 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   // A todo saved meanwhile (New todo, in the top bar): the list again once its upload is done.
   // Each change asks again; only the newest answer is drawn (an older one may land last)
   let asked = 0;
-  document.addEventListener(
-    "queuechange",
-    async () => {
-      const mine = ++asked;
-      try {
-        const got = await fetchAll();
-        if (mine !== asked) return; // a newer ask is on its way
-        list = got;
-        draw();
-      } catch {} // offline, or the server unreachable: the list as it was
-    },
-    { signal },
-  );
+  const again = async () => {
+    const mine = ++asked;
+    try {
+      const clock = writeClock();
+      const got = await fetchAll();
+      if (mine !== asked || signal.aborted) return; // a newer ask is on its way, or we left
+      // A change (a tick) began or ended meanwhile: this may predate it. Ask again
+      if (clock !== writeClock()) return void again();
+      list = got;
+      draw();
+    } catch {} // offline, or the server unreachable: the list as it was
+  };
+  document.addEventListener("queuechange", again, { signal });
   const keep = () => history.replaceState({ ...history.state, scroll: scrollY }, "");
   const body = h("div");
   const count = h("p", { className: "count" });

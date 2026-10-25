@@ -6,7 +6,7 @@
 // filters on, the count on a short line over the list. All of it is
 // the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
-import { api, type Hit } from "./api";
+import { api, type Hit, writeClock } from "./api";
 import { address, go, markNav, view } from "./app";
 import { icon, kindIcon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
@@ -112,9 +112,11 @@ export async function search(): Promise<Node> {
   // a scroll is being restored, nor with focus or a selection inside the results: it waits and
   // tries again, so a swipe, tap or selection is never replaced under the user.
   let keeps: typeof import("./refresh").keeps = () => true; // whether a refresh leaves the rows be
+  let calm = () => true; // whether the user has the rows to themselves again
+  let kick = () => {}; // asks for a refresh (it waits until it is safe)
   const watching = import("./refresh").then((m) => {
     keeps = m.keeps;
-    return m.watch(
+    const refresh = m.watch(
       view.signal,
       input,
       () => scroll !== 0,
@@ -123,6 +125,9 @@ export async function search(): Promise<Node> {
         void run(true, true);
       },
     );
+    calm = refresh.calm;
+    kick = refresh;
+    return refresh;
   });
   // (a change before the chunk is here waits for it; offline before it was kept: no refresh)
   document.addEventListener(
@@ -167,8 +172,13 @@ export async function search(): Promise<Node> {
         .catch(() => signal.aborted || chips.replaceChildren());
       clearTimeout(settle);
     }
+    const clock = writeClock();
     const shown = await list(query, signal);
     if (signal.aborted) return;
+    // A change (a tick) began or ended while it was read: it may predate it. Read again
+    if (quiet && clock !== writeClock()) return run(first, quiet);
+    // A finger, scroll or selection came while it was read: not under them. Later
+    if (quiet && !calm()) return kick();
     // A refresh that found nothing new leaves the rows (and any gesture or lookup on them) be
     if (quiet && keeps(shown, results)) {
       scroll = 0;
