@@ -90,11 +90,11 @@ def related_pass(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """The nightly related pass (scrap enrich --related): a related call for each page
-    changed since its related pages were last picked (or every page), oldest first.
-    New pages pick older ones, and Related shows both ways, so older pages learn of
-    new ones without a call of their own. It stops at a queue pause (or makes one:
-    outage, credit, auth, the day's budget), as the worker does; other failures are
-    counted and the next page tried. Returns the counts."""
+    changed, or with a photo read, since its related pages were last picked (or every
+    page), oldest first. New pages pick older ones, and Related shows both ways, so
+    older pages learn of new ones without a call of their own. It stops at a queue
+    pause (or makes one: outage, credit, auth, the day's budget), as the worker does;
+    other failures are counted and the next page tried. Returns the counts."""
     call = call or claude.complete
     budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
     with store.connect() as conn:

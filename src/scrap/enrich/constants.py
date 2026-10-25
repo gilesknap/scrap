@@ -69,7 +69,7 @@ IMAGES = """
 WITH once AS (
     SELECT c.id AS capture_id, cb.sha256, c.received_at, cb.ord,
            row_number() OVER (PARTITION BY cb.sha256
-                              ORDER BY c.received_at, cb.ord) AS copy
+                              ORDER BY c.received_at, c.id, cb.ord) AS copy
     FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id
     JOIN blob b USING (sha256)
     WHERE c.page_id = ? AND b.mime LIKE 'image/%')
@@ -80,15 +80,19 @@ SELECT
     (SELECT d.text FROM derived d WHERE d.capture_id = o.capture_id
        AND d.source_sha256 = o.sha256 AND d.kind = 'ocr'
        AND d.superseded_at IS NULL) AS text
-FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.ord
+FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
 """
 
 
-# Pages whose related pages are older than their last change (or never picked)
+# Pages whose related pages are older than their last change, or than what photo ingest
+# last read from one of their images (a current description or text), or never picked
 STALE = """
-SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND (:all OR NOT EXISTS (
-    SELECT 1 FROM enrich_run r WHERE r.page_id = p.id AND r.status = 'ok'
-      AND json_extract(r.request, '$.purpose') = 'related'
-      AND r.started_at >= p.updated_at))
+SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND (:all OR coalesce((
+    SELECT max(r.started_at) FROM enrich_run r WHERE r.page_id = p.id
+      AND r.status = 'ok' AND json_extract(r.request, '$.purpose') = 'related'), '')
+  < max(p.updated_at, coalesce((
+    SELECT max(d.created_at) FROM derived d JOIN capture c ON c.id = d.capture_id
+    WHERE c.page_id = p.id AND d.kind IN ('description', 'ocr')
+      AND d.superseded_at IS NULL), '')))
 ORDER BY p.created_at LIMIT :limit
 """

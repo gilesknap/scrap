@@ -3,6 +3,7 @@
 
 import io
 import json
+import time
 from contextlib import closing
 from typing import Any
 
@@ -13,7 +14,7 @@ from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
 from scrap.ingest import FAR, Worker, spent_today
-from scrap.store import Store, connect, new_ulid
+from scrap.store import Store, connect, new_ulid, now
 
 LONG = "Plans for the garden shed.\n\n" + "We will build it from larch. " * 12
 
@@ -314,6 +315,39 @@ def test_enrich_sees_what_was_read_from_the_images(store):
         sql = "SELECT request FROM enrich_run ORDER BY id LIMIT 1"
         stored = json.loads(conn.execute(sql).fetchone()[0])
     assert user_turn(stored) == text
+
+
+def test_a_photo_read_after_the_last_picks_makes_the_page_stale(store, monkeypatch):
+    """Photo ingest seldom moves updated_at: what it reads counts as a change."""
+    monkeypatch.setenv("SCRAP_INGEST", "off")
+    page_id = imported_photos(store, (None, None))
+    fake = Fake(answer())
+    assert enrich.related_pass(store, fake)["done"] == 1
+    assert enrich.related_pass(store, fake, dry_run=True)["pages"] == 0
+    cid = store.page(page_id)["captures"][0]["id"]
+    sha = store.page(page_id)["captures"][0]["blobs"][0]["sha256"]
+
+    def read(kind, superseded=None):
+        time.sleep(0.002)  # stamps are to the millisecond: after the last run's
+        with closing(connect(store.db)) as conn, conn:
+            conn.execute(
+                "INSERT INTO derived (capture_id, source_sha256, kind, version,"
+                " producer, text, superseded_at, created_at) VALUES (?, ?, ?,"
+                " (SELECT coalesce(max(version), 0) + 1 FROM derived WHERE kind = ?),"
+                " 'claude', 'read', ?, ?)",
+                (cid, sha, kind, kind, superseded, now()),
+            )
+
+    read("ocr", superseded=now())  # an old version only: no change
+    read("excalidraw")  # a drawing is not sent to the related call
+    assert enrich.related_pass(store, fake, dry_run=True)["pages"] == 0
+    read("description")
+    assert enrich.related_pass(store, fake, dry_run=True)["pages"] == 1
+    assert enrich.related_pass(store, fake)["done"] == 1
+    assert "Image 1, its description: read" in user_turn(fake.calls[-1])
+    assert enrich.related_pass(store, fake, dry_run=True)["pages"] == 0
+    read("ocr")  # a Reprocess, or a later image's text, counts too
+    assert enrich.related_pass(store, fake, dry_run=True)["pages"] == 1
 
 
 def test_the_related_pass_stops_at_a_pause_and_the_budget(store, monkeypatch):

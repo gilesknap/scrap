@@ -386,8 +386,8 @@ Only when ingest is on and only to the Claude API:
   the fixed prompt. Nothing else about the page is sent.
 - **A note, todo or read:** its kind, tags, title and text as plain words (at most 12,000
   characters), what photo ingest read from its images, if any (each image's description and
-  text, at most 8,000 characters in all), a list of the tags already in use with their counts (at most 600 tags), and the
-  fixed prompt.
+  text, at most 8,000 characters in all), a list of the tags already in use with their counts
+  (at most 600 tags), and the fixed prompt.
 - **A saved link:** the same, plus the link's readable text (at most 20,000 characters) fetched by
   scrap. The fetched text is sent, not stored.
 - **Related pages:** the page in brief (its kind, title, tags, summary, the first 2,000
@@ -480,7 +480,8 @@ so it cannot name a page that is not there.
   words), then the most recently changed.
 - **When.** On Ask Claude, at once. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
-  newer than its `updated_at`; `--all`: every page). It runs in the command's process (in the
+  newer than its `updated_at`, or than the newest current description or text photo ingest read
+  from one of its images; `--all`: every page). It runs in the command's process (in the
   container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and the
   day's budget before each call, and stops at either (an outage, credit or auth error pauses the
   queue as the worker does); other failures are counted and it goes on. Exit status 1 when
