@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.5.2.dev10+g17ac5654a documentation</title>
+    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.5.2.dev11+g57c9bf3d4 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=2762186a"></script>
+    <script src="../../_static/documentation_options.js?v=9c52844f"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -455,6 +455,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
 </ul>
 </div>
@@ -555,7 +556,13 @@ candidate pages, chosen by shared tags and then full-text search (<code class="d
 not embeddings), and it answers with index numbers, so it cannot name a page that does not exist.
 It runs on <strong>Ask Claude</strong> (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/enrich</span></code>) and in a nightly pass,
 <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>, for each page changed since its last picks (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page).
-Related shows both ways, so an older page learns of a newer one that picked it without a call of
+Amended (#255): also once when a page is first read (its first enrich, or photo ingest of all
+of its first photo capture), as an enrich job of reason <code class="docutils literal notranslate"><span class="pre">related</span></code> (migration 11), so a new
+page has related pages before the night. Saves do not queue one. To roll back to a scrap
+before migration 11 (0.5.1 refuses schema 11), run <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">10;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">FROM</span> <span class="pre">enrich_job</span> <span class="pre">WHERE</span> <span class="pre">reason</span> <span class="pre">=</span> <span class="pre">'related'</span> <span class="pre">AND</span> <span class="pre">state</span> <span class="pre">=</span> <span class="pre">'queued';</span></code> (older code would run
+a queued <code class="docutils literal notranslate"><span class="pre">related</span></code> job as a full enrich, adding tags and redoing the summary). Upgrading again
+is safe: migration 11 skips the rebuild when the table already takes <code class="docutils literal notranslate"><span class="pre">'related'</span></code>. Related shows both ways, so an older page learns of a newer one that picked it without a call of
 its own.</p></li>
 <li><p><strong>Triggers.</strong> A note or link capture queues a job (a link at once, a note after
 <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds, default 60). A save of a page’s title or text moves its one

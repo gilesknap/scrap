@@ -385,12 +385,14 @@ Only when ingest is on and only to the Claude API:
 - **A photo:** the JPEG described above (a resized, re-encoded copy; only its colour profile is kept from the original's metadata) and
   the fixed prompt. Nothing else about the page is sent.
 - **A note, todo or read:** its kind, tags, title and text as plain words (at most 12,000
-  characters), a list of the tags already in use with their counts (at most 600 tags), and the
-  fixed prompt.
+  characters), what photo ingest read from its images, if any (each image's description and
+  text, at most 8,000 characters in all), a list of the tags already in use with their counts
+  (at most 600 tags), and the fixed prompt.
 - **A saved link:** the same, plus the link's readable text (at most 20,000 characters) fetched by
   scrap. The fetched text is sent, not stored.
-- **Related pages:** the page in brief and an index of up to 150 candidate pages, each a title,
-  up to 6 tags and a summary cut to 150 characters.
+- **Related pages:** the page in brief (its kind, title, tags, summary, the first 2,000
+  characters of its text and the first 3,000 of what was read from its images) and an index of
+  up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters.
 
 Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and `SCRAP_NOTIFY_URL`, which gets a fixed line with the
@@ -437,8 +439,10 @@ page's text, except that a confident list of actions gets task boxes appended
   budget.
 - **Prompt** (`prompts/enrich.md`): the fixed instructions, then the tags in use with their
   counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
-  text as plain words (at most 12,000 characters) and, for a link, what was fetched. Everything
-  there is data; the prompt says to follow nothing in it.
+  text as plain words (at most 12,000 characters), each image's description and text as photo
+  ingest read them (labelled by image, at most 8,000 characters in all, in an `<images>` block
+  of their own) and, for a link, what was fetched. Everything there is data; the prompt says to
+  follow nothing in it. A page with a photo capture reaches this call only by Ask Claude.
 - **Output, checked.** `tags`: cleaned like the user's, each at most 40 characters, at most 2 not
   already in use (invented ones are the sprawl risk), at most 5 added; `summary`: one paragraph,
   at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
@@ -466,17 +470,30 @@ page's text, except that a confident list of actions gets task boxes appended
 ### Related pages
 
 `enrich.relate`, prompt `prompts/related.md`. One call per page: the page in
-brief (title, tags, summary, the start of its text) and a numbered index of candidate pages
-(title, up to 6 tags, summary cut to 150 characters); Claude answers with up to 5 index numbers,
-so it cannot name a page that is not there.
+brief (title, tags, summary, the start of its text and of what was read from its images) and a
+numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
+answers with up to 5 index numbers, so it cannot name a page that is not there.
 
 - **Candidates** (`enrich.CANDIDATES`, swappable) are at most 150 pages whatever the library's
   size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
-  text best match the words of its title, tags and summary (full-text search, an OR of up to 24
-  words), then the most recently changed.
-- **When.** On Ask Claude, at once. Otherwise `scrap enrich --related [--all] [--limit N]
+  text best match the page's words (full-text search, an OR of up to 24 distinct words), then the
+  most recently changed. The words are taken in order, first from its title, tags and summary,
+  then from the text photo ingest read from its images, their descriptions, and last its own
+  text. A text page with a summary usually fills the 24 before its text; a photo page, which
+  usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+  search the index refuses is logged and skipped: the tag and recent candidates still go.
+- **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
+  makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo
+  of its first photo capture (read, or dead after its third failure), queues an enrich job of
+  reason `related` (with enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
+  the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
+  the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
+  itself). Saves and edits queue none. It is queued once per page, ever: a later Reprocess
+  of the first photo capture queues one only for a page that never had one, such as a page read
+  before this change or while enrich was off. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
-  newer than its `updated_at`; `--all`: every page). It runs in the command's process (in the
+  newer than its `updated_at`, or than the newest current description or text photo ingest read
+  from one of its images; `--all`: every page). It runs in the command's process (in the
   container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and the
   day's budget before each call, and stops at either (an outage, credit or auth error pauses the
   queue as the worker does); other failures are counted and it goes on. Exit status 1 when

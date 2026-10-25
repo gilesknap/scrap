@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap design &#8212; scrap 0.5.2.dev10+g17ac5654a documentation</title>
+    <title>scrap design &#8212; scrap 0.5.2.dev11+g57c9bf3d4 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2762186a"></script>
+    <script src="../_static/documentation_options.js?v=9c52844f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -455,6 +455,7 @@
 <li class="toctree-l1"><a class="reference internal" href="design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
 </ul>
 </div>
@@ -989,7 +990,14 @@ a saved link its title as well; the link is fetched first, under strict address 
 <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds (default 60; each save moves it later) so a burst of edits makes
 one call, a link at once. <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> keeps Claude to photos. Nothing edits the page’s text.</p>
 <p><strong>Related pages.</strong> A separate call per page picks up to five related pages from a numbered
-candidate list, on <em>Ask Claude</em> at once and otherwise in the nightly pass, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>, for pages changed since their last picks.</p>
+candidate list, on <em>Ask Claude</em> at once, once when the page is first read (its first enrich, or
+photo ingest of its first photos: an enrich job of reason <code class="docutils literal notranslate"><span class="pre">related</span></code>), and otherwise in the nightly
+pass, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>, for pages changed (or with a photo read) since their last picks. It sees the page in
+brief: its title, tags, summary, the start of its text and the start of what photo ingest read
+from its images (each one’s description and text), so a photo page whose text is only the image
+is judged by what is in it. Its candidates come from shared tags, then a full-text search for its
+words (title, tags and summary first, then what was read from its images, then its text), then
+the most recently changed.</p>
 <p><strong>Queue and budget.</strong> One worker thread wakes every 30 seconds or when a job is queued, and runs one
 job at a time. Outages, spend limits and a bad key pause the queue without failing jobs; any other
 failure is charged to the job, retried 10 minutes later (invalid output at once), and the job is

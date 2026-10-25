@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.5.2.dev10+g17ac5654a documentation</title>
+    <title>Claude ingest &#8212; scrap 0.5.2.dev11+g57c9bf3d4 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2762186a"></script>
+    <script src="../_static/documentation_options.js?v=9c52844f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -58,7 +58,7 @@
     <link rel="icon" href="../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Scope and stack" href="overview.html" />
+    <link rel="next" title="What Claude is asked, per page" href="llm-calls.html" />
     <link rel="prev" title="The PWA’s design system" href="design-system.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
@@ -455,6 +455,7 @@
 <li class="toctree-l1"><a class="reference internal" href="design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
 </ul>
 </div>
@@ -986,12 +987,14 @@ names only the reason, never titles, OCR or API errors.</p>
 <li><p><strong>A photo:</strong> the JPEG described above (a resized, re-encoded copy; only its colour profile is kept from the original’s metadata) and
 the fixed prompt. Nothing else about the page is sent.</p></li>
 <li><p><strong>A note, todo or read:</strong> its kind, tags, title and text as plain words (at most 12,000
-characters), a list of the tags already in use with their counts (at most 600 tags), and the
-fixed prompt.</p></li>
+characters), what photo ingest read from its images, if any (each image’s description and
+text, at most 8,000 characters in all), a list of the tags already in use with their counts
+(at most 600 tags), and the fixed prompt.</p></li>
 <li><p><strong>A saved link:</strong> the same, plus the link’s readable text (at most 20,000 characters) fetched by
 scrap. The fetched text is sent, not stored.</p></li>
-<li><p><strong>Related pages:</strong> the page in brief and an index of up to 150 candidate pages, each a title,
-up to 6 tags and a summary cut to 150 characters.</p></li>
+<li><p><strong>Related pages:</strong> the page in brief (its kind, title, tags, summary, the first 2,000
+characters of its text and the first 3,000 of what was read from its images) and an index of
+up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters.</p></li>
 </ul>
 <p>Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
 link fetches above (to the linked site) and <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>, which gets a fixed line with the
@@ -1040,8 +1043,10 @@ retry delay does not hold text back, but a pause stops both kinds, and they shar
 budget.</p></li>
 <li><p><strong>Prompt</strong> (<code class="docutils literal notranslate"><span class="pre">prompts/enrich.md</span></code>): the fixed instructions, then the tags in use with their
 counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
-text as plain words (at most 12,000 characters) and, for a link, what was fetched. Everything
-there is data; the prompt says to follow nothing in it.</p></li>
+text as plain words (at most 12,000 characters), each image’s description and text as photo
+ingest read them (labelled by image, at most 8,000 characters in all, in an <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> block
+of their own) and, for a link, what was fetched. Everything there is data; the prompt says to
+follow nothing in it. A page with a photo capture reaches this call only by Ask Claude.</p></li>
 <li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">tags</span></code>: cleaned like the user’s, each at most 40 characters, at most 2 not
 already in use (invented ones are the sprawl risk), at most 5 added; <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one paragraph,
 at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
@@ -1068,16 +1073,29 @@ fetched. The PWA does not show why; see <a class="reference internal" href="#ing
 <section id="related-pages">
 <span id="ingest-enrich-related"></span><h3>Related pages<a class="headerlink" href="#related-pages" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">enrich.relate</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/related.md</span></code>. One call per page: the page in
-brief (title, tags, summary, the start of its text) and a numbered index of candidate pages
-(title, up to 6 tags, summary cut to 150 characters); Claude answers with up to 5 index numbers,
-so it cannot name a page that is not there.</p>
+brief (title, tags, summary, the start of its text and of what was read from its images) and a
+numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
+answers with up to 5 index numbers, so it cannot name a page that is not there.</p>
 <ul class="simple">
 <li><p><strong>Candidates</strong> (<code class="docutils literal notranslate"><span class="pre">enrich.CANDIDATES</span></code>, swappable) are at most 150 pages whatever the library’s
 size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
-text best match the words of its title, tags and summary (full-text search, an OR of up to 24
-words), then the most recently changed.</p></li>
-<li><p><strong>When.</strong> On Ask Claude, at once. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code> run
-newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in the
+text best match the page’s words (full-text search, an OR of up to 24 distinct words), then the
+most recently changed. The words are taken in order, first from its title, tags and summary,
+then from the text photo ingest read from its images, their descriptions, and last its own
+text. A text page with a summary usually fills the 24 before its text; a photo page, which
+usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+search the index refuses is logged and skipped: the tag and recent candidates still go.</p></li>
+<li><p><strong>When.</strong> On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
+makes its <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> row, unless that was an Ask), or photo ingest finishing the last photo
+of its first photo capture (read, or dead after its third failure), queues an enrich job of
+reason <code class="docutils literal notranslate"><span class="pre">related</span></code> (with enrich on). It runs on the worker like any enrich job (pause, budget, retries). It never takes
+the place of a queued job: a save queued meanwhile stays, and the page, being changed, is in
+the next nightly pass; a save or Ask queued after takes it over (Ask picks related pages
+itself). Saves and edits queue none. It is queued once per page, ever: a later Reprocess
+of the first photo capture queues one only for a page that never had one, such as a page read
+before this change or while enrich was off. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code> run
+newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, or than the newest current description or text photo ingest read
+from one of its images; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in the
 container: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>), checks the shared queue pause and the
 day’s budget before each call, and stops at either (an outage, credit or auth error pauses the
 queue as the worker does); other failures are counted and it goes on. Exit status 1 when
@@ -1370,11 +1388,11 @@ effort if drawings fall short); Excalidraw API drift (the version is pinned); mo
       </div>
     </a>
     <a class="right-next"
-       href="overview.html"
+       href="llm-calls.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Scope and stack</p>
+        <p class="prev-next-title">What Claude is asked, per page</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
