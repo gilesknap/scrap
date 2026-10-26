@@ -98,7 +98,8 @@ export async function topics(): Promise<Node> {
   } catch (e) {
     return problem(e);
   }
-  if (!rows.length)
+  if (!rows.length) {
+    look(rows); // looked, with none: the first ones made after this have a dot
     return h(
       "section",
       { className: "topics" },
@@ -112,6 +113,7 @@ export async function topics(): Promise<Node> {
         ),
       ),
     );
+  }
   // Looked: the dots stay while the app is open (Back from a topic keeps them, bar that one's),
   // and next time only what changed after now has one
   for (const id of changed(rows, seen())) dots.add(id);

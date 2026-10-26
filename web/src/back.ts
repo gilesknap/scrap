@@ -6,8 +6,8 @@ async function kindShown() {
   const drawn = document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind;
   if (drawn) return drawn;
   const key = decodeURIComponent(location.pathname.slice("/p/".length));
-  return api<{ kind: string }>(`pages/${encodeURIComponent(key)}`).then(
-    (p) => p.kind,
+  return api<{ kind: string; topic?: unknown }>(`pages/${encodeURIComponent(key)}`).then(
+    (p) => (p.topic ? "topic" : p.kind), // as page.ts marks it
     () => "",
   );
 }
