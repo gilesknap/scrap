@@ -30,7 +30,7 @@ export function drawSections<T extends RowPage>(
     return h(
       "section",
       { "aria-labelledby": hid },
-      h("h2", { className: "label", id: hid }, said),
+      h("h2", { className: "label", id: hid }, s.href ? h("a", { href: s.href }, said) : said),
       ul,
     );
   });

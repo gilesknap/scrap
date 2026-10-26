@@ -22,6 +22,7 @@ import {
   KIND_ROW,
   kindsIn,
   listing,
+  MEDIA,
   removing,
   served,
   tagsIn,
@@ -126,6 +127,8 @@ function label(a: Facets["active"][number]) {
     return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
   const check = checkName(`${a.key}:${a.value}`); // a store health check: its name
   if (check) return `${not}${check}`;
+  if (a.key === "media") return `${not}${MEDIA[a.value] ?? a.value}`;
+  if (a.key === "later") return `${not}to ${a.value}`;
   if (a.key === "is") return `${not}${IS[a.value] ?? a.value.replace("_", " ")}`;
   if (a.key === "kind") {
     const k = KIND_ROW.find(([, , names]) => names.includes(a.value.toLowerCase()));

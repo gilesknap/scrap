@@ -8,13 +8,19 @@ import { address, view } from "./app";
 import type { Section } from "./groups";
 import { icon } from "./icons";
 import type { pageRow } from "./lists";
-import { isOpen, now, toDo, upcoming } from "./now";
+import { isOpen, now, toDo, UPCOMING, upcoming } from "./now";
 import { drawSections } from "./sections";
 import { today } from "./status";
 import { empty, h, problem } from "./ui";
 
 // The snoozed todos, as the search screen has them (the count of them links there)
 const SNOOZED = "kind:todo is:snoozed sort:due";
+// Each view as a search, for Refine at the count line's end (Now is Todos' own grouping there)
+const AS_SEARCH: Record<string, string> = {
+  now: "kind:todo",
+  upcoming: UPCOMING,
+  all: "kind:todo sort:updated group:none",
+};
 
 // Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
 // All search's All
@@ -147,6 +153,18 @@ export async function todos(row: typeof pageRow): Promise<Node> {
           `${asleep} snoozed`,
         ),
       );
+    // The view in Search, its query filled in, to narrow or regroup it there
+    count.append(
+      " · ",
+      h(
+        "a",
+        {
+          href: `/search?q=${encodeURIComponent(AS_SEARCH[m])}`,
+          "aria-label": `Refine in Search: ${AS_SEARCH[m]}`,
+        },
+        "Refine",
+      ),
+    );
     const none = [
       "Nothing to do: every todo is done.",
       "Nothing due in the next 7 days.",

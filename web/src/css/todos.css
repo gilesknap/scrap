@@ -260,3 +260,13 @@
 .enrich small {
   color: var(--ink-2);
 }
+/* A section's heading that goes to its search (a Type: later:watch) reads as the heading
+   still: no colour or underline, only the press */
+.groups h2.label a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-block: calc((var(--tap) - 1lh) / -2);
+  color: inherit;
+  text-decoration: none;
+}

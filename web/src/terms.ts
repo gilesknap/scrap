@@ -196,6 +196,21 @@ export function served(q: string): string {
   return groupBy(q) === "letter" && !keyed(rest, "sort").length ? adding(rest, "sort:title") : rest;
 }
 
+// ---- Later's own: media:book (its medium) and later:watch (what it is for: read, watch,
+// listen, play): the server filters by both; the app says them as chips
+
+/** media: values, and how a filter chip says each. */
+export const MEDIA: Record<string, string> = {
+  book: "books",
+  article: "articles",
+  film: "films",
+  tv: "TV",
+  video: "videos",
+  podcast: "podcasts",
+  music: "music",
+  game: "games",
+};
+
 // ---- due: a todo's due day, as the server reads it (scrap/query.py due), plus days from
 // today: due:<=7d (on or before 7 days from now), due:>=2w; d, w, m (30 days) and y as after:
 // takes them, the number 1 to 100 and left out for 1

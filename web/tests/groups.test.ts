@@ -92,6 +92,8 @@ describe("sections", () => {
       "Done: Old",
     ]);
     expect(s.at(-1)).toMatchObject({ fold: true, open: false });
+    // each type says its later: value, for its heading's search
+    expect(s.map((x) => x.key)).toEqual(["read", "watch", "listen", "play", undefined]);
     // all done: the fold is open, not one closed line
     expect(sections("type", [list[3]])[0]).toMatchObject({ fold: true, open: true });
   });

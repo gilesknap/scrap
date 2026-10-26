@@ -5,7 +5,7 @@ import type { Hit } from "./api";
 import { sections } from "./groups";
 import { drawSections } from "./sections";
 import { today } from "./status";
-import { type Group, tagsIn } from "./terms";
+import { adding, type Group, tagsIn, words } from "./terms";
 import { h } from "./ui";
 
 // The tags each hit has, for group:tag (the mock's server sends them with each hit)
@@ -21,5 +21,10 @@ export function grouped(
 ) {
   const ranked = !/(^|\s)-?sort:/.test(query); // no order chosen: Now ranks its own
   const secs = sections(how, hits, { tag: tagsIn(query)[0], today: today(), ranked });
+  // A Type heading is a quiet link to that type alone (later:watch), unless one is asked
+  const typed = words(query).some(([, , k]) => k === "later");
+  for (const s of secs)
+    if (s.key && !typed)
+      s.href = `/search?q=${encodeURIComponent(adding(query, `later:${s.key}`))}`;
   return h("div", { className: "groups" }, ...drawSections(secs, row, label, "group"));
 }

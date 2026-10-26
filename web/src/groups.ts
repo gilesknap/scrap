@@ -7,6 +7,8 @@ import type { Group } from "./terms";
 
 export interface Section<T> {
   label: string; // "" for no heading
+  key?: string; // what it stands for, as a term's value (a Type section's later:watch)
+  href?: string; // where its heading goes (grouped.ts: the search for that section alone)
   items: T[];
   fold?: boolean; // folded away at the end (Done)
   open?: boolean; // a fold open to start with
@@ -77,14 +79,13 @@ export function sections<T extends Item>(
       const s = String(t.fields.subtype ?? "read");
       return TYPES.find(([k]) => k === s)?.[1] ?? "To read";
     };
-    return [
-      ...bucket(
-        open,
-        type,
-        TYPES.map(([, label]) => label),
-      ),
-      ...fold,
-    ];
+    const typed = bucket(
+      open,
+      type,
+      TYPES.map(([, label]) => label),
+    );
+    for (const s of typed) s.key = TYPES.find(([, label]) => label === s.label)?.[0];
+    return [...typed, ...fold];
   }
   if (how === "due") {
     // By when due, soonest first in each: Overdue, Today, Tomorrow, This week (the rest of
