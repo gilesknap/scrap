@@ -42,12 +42,6 @@ function row(
   return h("li", {}, href ? h("a", { href }, img, body) : h("div", {}, img, body));
 }
 
-/** A Later's medium as a word ("Book", "TV", "Game"), or "". */
-const mediaOf = (p: Pick<Summary, "kind" | "fields">) => {
-  const m = p.kind === "consume" ? String(p.fields.media_type ?? "") : "";
-  return m === "tv" ? "TV" : m.charAt(0).toUpperCase() + m.slice(1);
-};
-
 /** A page's row, however it was found: its thumbnail (else its kind's icon), title, when last
  * edited (a Later's medium after it: "Book") and its chip; a search's hit also has its
  * snippet. */
@@ -77,8 +71,9 @@ export const pageRow = (
     snippet && chipOf(p.kind, p.fields),
     dueOf(p),
   );
-  const media = mediaOf(p);
-  if (media) li.querySelector(".sub > small")?.after(h("small", { className: "media" }, media));
+  const media = p.kind === "consume" ? String(p.fields.media_type ?? "") : "";
+  if (media)
+    li.querySelector(".sub > small")?.after(h("small", { className: `media ${media}` }, media));
   return li;
 };
 
