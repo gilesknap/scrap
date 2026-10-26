@@ -199,7 +199,9 @@ async function render() {
     if (!arrow && LISTS[location.pathname]) remember(LISTS[location.pathname]);
     if (arrow) nameBack(); // a page opened cold: its kind is known now
     restoreScroll(c.signal); // Back or Forward: where it was left (scroll.ts)
-    add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
+    // New todo, on the Todos screen (not on a problem); a search's New is searchacts.ts's
+    if (!(el instanceof Element && el.classList.contains("search")))
+      add.hidden = !(el instanceof Element && el.classList.contains("todos"));
     placeToasts(); // e.g. one placed for the view before
     return;
   }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { dueBound, dueMeets, duesIn } from "../src/dues";
-import { sections } from "../src/groups";
+import { byArea, sections } from "../src/groups";
 import { withGroup } from "../src/termedit";
-import { groupBy, served, ungrouped } from "../src/terms";
+import { groupBy, groupDefault, served, ungrouped } from "../src/terms";
 
 const T = "2026-10-21";
 const at = "2026-10-01T00:00:00Z";
@@ -183,4 +183,21 @@ describe("due: from today", () => {
     expect(dueMeets("<=7d", null, T)).toBe(false);
     expect(duesIn("kind:todo due:>today -due:none due:<=7d")).toEqual([">today", "<=7d"]);
   });
+});
+
+it("groups topics by area, the biggest first and Other last, by default for is:topic", () => {
+  expect(groupDefault("is:topic")).toBe("area");
+  expect(groupDefault("is:topic garden")).toBe("area");
+  expect(groupDefault("-is:topic")).toBe(null);
+  expect(groupDefault("is:topic kind:note")).toBe(null);
+  expect(groupBy("is:topic group:area")).toBe("area");
+  expect(groupBy("kind:note group:area")).toBe(null);
+  expect(groupBy("is:topic group:none")).toBe(null);
+  const t = (title: string, area: string | null) => ({ title, area });
+  const secs = byArea([t("a", null), t("b", "home"), t("c", "scrap"), t("d", "scrap")]);
+  expect(secs.map((s) => [s.label, s.items.map((x) => x.title)])).toEqual([
+    ["scrap", ["c", "d"]],
+    ["home", ["b"]],
+    ["Other", ["a"]],
+  ]);
 });

@@ -137,7 +137,7 @@ test("search results page on with Show more, as far as the count says", async ({
   await page.goto(`/search?q=${tag}`);
   const rows = page.locator(".hits > li");
   await expect(rows).toHaveCount(100);
-  await expect(page.locator(".found")).toContainText("105 pages"); // above the list
+  await expect(page.locator(".rhead .count")).toContainText("105 pages"); // above the list
   await page.getByRole("button", { name: "Show more" }).click();
   await expect(rows).toHaveCount(105);
   await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
@@ -189,12 +189,12 @@ test("the kind row: each kind's own icon over its word, at 320 px too", async ({
     }),
   );
   expect(over).toEqual([true, true, true, true, true, true]);
-  // Shown with a query and filters too, under the filters on
+  // Shown with a query and filters too, over the filters on (the order is the mock's, #314)
   await page.goto("/search?q=x%20after%3A1w");
   await expect(row).toBeVisible();
   const [on, kinds] = [
     await page.getByRole("group", { name: "Filters on" }).boundingBox(),
     await row.boundingBox(),
   ];
-  expect((on?.y ?? 0) + (on?.height ?? 0)).toBeLessThanOrEqual(kinds?.y ?? 0);
+  expect((kinds?.y ?? 0) + (kinds?.height ?? 0)).toBeLessThanOrEqual(on?.y ?? 0);
 });

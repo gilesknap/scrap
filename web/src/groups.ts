@@ -18,7 +18,27 @@ export interface Section<T> {
 type Item = Pick<
   Summary,
   "title" | "kind" | "fields" | "due" | "priority" | "updated_at" | "snoozed_until"
-> & { tags?: string[] };
+> & { tags?: string[]; area?: string | null };
+
+/** The section of topics whose sources have no tags. */
+export const NO_AREA = "Other";
+
+/** Topics by area (the top-level tag most common among a topic's sources, the server's): the
+ * biggest area first, those of equal size by name, Other last. The Topics
+ * screen's sections, and the search's for is:topic. */
+export function byArea<T extends { area?: string | null }>(items: T[]): Section<T>[] {
+  const by = new Map<string, T[]>();
+  for (const t of items) {
+    const a = t.area || NO_AREA;
+    by.set(a, [...(by.get(a) ?? []), t]);
+  }
+  return [...by]
+    .sort(
+      ([a, x], [b, y]) =>
+        Number(a === NO_AREA) - Number(b === NO_AREA) || y.length - x.length || a.localeCompare(b),
+    )
+    .map(([label, ts]) => ({ label, items: ts }));
+}
 
 /** Later's types, in their order: [subtype, heading]. */
 const TYPES = [
@@ -55,6 +75,7 @@ export function sections<T extends Item>(
     );
     return bucket(items, (t) => letterOf(t.title), keys);
   }
+  if (how === "area") return byArea(items);
   if (how === "tag") {
     // One section per tag under the one filtered by (person: person/family as "family"),
     // alphabetically; a page with two goes in the first; one with none in Other, last

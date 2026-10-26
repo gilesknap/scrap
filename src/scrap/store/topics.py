@@ -229,3 +229,8 @@ def index(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows.sort(key=lambda r: (r["area"] is None, -size[r["area"]], r["area"] or "",
                              r["title"].casefold(), r["id"]))  # fmt: skip
     return rows
+
+
+def areas(conn: sqlite3.Connection) -> dict[str, str | None]:
+    """Each topic's area (as index has it), by id, in the order index shows them."""
+    return {row["id"]: row["area"] for row in index(conn)}

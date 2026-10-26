@@ -22,6 +22,7 @@ def backfill(store: Store, limit: int | None = None, dry_run: bool = False) -> i
             "SELECT p.id FROM page p WHERE p.deleted_at IS NULL"
             f" AND p.kind IN ({','.join('?' * len(ENRICH_KINDS))})"
             " AND NOT EXISTS (SELECT 1 FROM tag t WHERE t.page_id = p.id)"
+            " AND p.slug != 'pinned'"
             f" AND {NOT_BY_INGEST.format(p='p')}"
             " AND NOT EXISTS (SELECT 1 FROM enrichment e WHERE e.page_id = p.id)"
             " ORDER BY p.created_at LIMIT ?",

@@ -101,7 +101,7 @@ npm --prefix web run dev     # Vite dev server; run scrap serve beside it, it pr
 npm --prefix web run check   # Biome and tsc
 npm --prefix web run fix     # Biome, applying fixes
 npm --prefix web test        # vitest unit tests
-npm --prefix web run size    # after a build: the app shell stays within 16 kB gzipped
+npm --prefix web run size    # after a build: the app shell stays within 16.5 kB gzipped
 npm --prefix web run e2e     # Playwright against a real scrap serve
 ```
 

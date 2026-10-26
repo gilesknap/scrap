@@ -14,10 +14,15 @@ from .store import Store, topics
 
 def marked(store: Store, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Search hits, each with topic: whether it is a topic page (the PWA labels
-    those)."""
+    those); a topic's also has its area, as /api/topics has it (group:area)."""
     with store.connect() as conn:
         for hit in hits:
             hit["topic"] = topics.is_topic(conn, hit["id"])
+        if any(hit["topic"] for hit in hits):
+            areas = topics.areas(conn)
+            for hit in hits:
+                if hit["topic"]:
+                    hit["area"] = areas.get(hit["id"])
     return hits
 
 

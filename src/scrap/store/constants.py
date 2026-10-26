@@ -128,6 +128,8 @@ MAX_INT = 2**53  # the most a browser holds exactly: a field's number is within 
 # and reads (consume). A photo, whiteboard or document page is not read as text (#155).
 # Ask Claude is an explicit act and still works on any page.
 ENRICH_KINDS = ("note", "todo", "consume")
+# The slug of the Pinned page (pinned.py): a list of links, which Claude does not read
+PINNED_SLUG = "pinned"
 # The page kind photo ingest files an image of each kind as (a note nobody filed)
 PAGE_KINDS = {
     "whiteboard": "whiteboard",

@@ -66,7 +66,7 @@ flowchart LR
 - **Not precached**: the Excalidraw board chunk and its fonts (served from `/excalidraw/fonts/`,
   not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.
 - **Filters** is an in-place panel (`refine.ts`), not a modal or sheet.
-- **Size budget**: the shell's JavaScript must stay under 16 kB gzipped and must not pull in the
+- **Size budget**: the shell's JavaScript must stay under 16.5 kB gzipped and must not pull in the
   board chunk. `npm run size` (`web/scripts/size.mjs`) checks both after a build.
 - **Upcoming** (Todos) is due tomorrow to 7 days ahead (`AHEAD` in `web/src/now.ts`).
 
@@ -150,7 +150,7 @@ save carries its `base_version`, a stale one gets `409`. Server side:
 
 ## Invariants
 
-- The shell stays under 16 kB gzipped JS and never imports the board chunk.
+- The shell stays under 16.5 kB gzipped JS and never imports the board chunk.
 - A capture is in IndexedDB before any network call, under an id minted client-side.
 - The service worker never caches API responses.
 - Chunk loads can fail (offline): every dynamic import has a fallback (a toast, Capture, or the

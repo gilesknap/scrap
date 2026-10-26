@@ -109,7 +109,7 @@ export interface Sharing {
   what: () => { title: string; text?: string; file?: string[] };
   link?: string; // the page's address: Share then asks Link or the content
   content: [Icon, string]; // the content's choice: its icon and word
-  more?: HTMLElement; // a last row for the menu (a page's Download), closing it when tapped
+  more?: HTMLElement[]; // last rows for the menu (a page's Download), closing it when tapped
 }
 
 /** Share's taps on button b: given a link, the first opens a menu of Link and the content
@@ -148,9 +148,9 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     pick("link", "Link", () => void send({ title: s.what().title, url: link })),
     pick(...s.content, () => void shareContent()),
   );
-  if (s.more) {
-    s.more.addEventListener("click", () => menu.hidePopover());
-    menu.append(s.more);
+  for (const row of s.more ?? []) {
+    row.addEventListener("click", () => menu.hidePopover());
+    menu.append(row);
   }
   b.setAttribute("aria-expanded", "false"); // a disclosure of its rows, not a menu role
   const isOpen = () => menu.matches(":popover-open");

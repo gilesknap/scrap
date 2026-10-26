@@ -6,9 +6,9 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const OUT = new URL("../../src/scrap/static/", import.meta.url).pathname;
-const BUDGET = 16 * 1024; // the shell's JavaScript, gzipped (15 kB until 2026-10-21, raised a
+const BUDGET = 16.5 * 1024; // the shell's JavaScript, gzipped (15 kB until 2026-10-21, raised a
 // little for the search screen's Filters, then a sheet in the shell, now the lazy refine
-// chunk; the Todos screen is a lazy chunk too)
+// chunk; the Todos screen is a lazy chunk too; 16 kB until search pins, #314)
 
 const gz = (file) => gzipSync(readFileSync(join(OUT, file))).length;
 const kb = (n) => `${(n / 1024).toFixed(1)} kB`;

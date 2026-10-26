@@ -17,6 +17,7 @@ from .store import (
     MAX_FIELDS,
     MAX_TAGS,
     InvalidError,
+    NotFoundError,
     Store,
     TooLargeError,
     enrich_on,
@@ -140,6 +141,23 @@ def add_routes(app: FastAPI, store: Store, limit: int) -> None:
     def page(key: str) -> dict[str, Any]:
         """A page by id or slug, with its captures and their files."""
         return store.page(key)
+
+    @app.get("/api/pinned")
+    def pins() -> dict[str, Any] | None:
+        """The Pinned page as GET /api/pages/pinned has it, or null while there is none
+        (the search screen asks on every visit: a 200, not a 404 in the console)."""
+        try:
+            return store.page("pinned")
+        except NotFoundError:
+            return None
+
+    @app.post("/api/pinned")
+    def pinned(request: Request) -> dict[str, Any]:
+        """The Pinned page (slug pinned): a list of links the search screen shows
+        first. Made if there is none (brought back from the trash if it is there),
+        so two first pins at once make one; a page already called pinned is it. The
+        page as GET /api/pages/pinned has it. Claude does not read it."""
+        return store.ensure_pinned(author(request))
 
     @app.patch("/api/pages/{key}")
     def edit(key: str, edit: PageEdit, request: Request) -> dict[str, Any]:

@@ -36,9 +36,10 @@ export interface Draft {
 /** What the text box asks for, by kind. */
 const ASK: Record<string, string> = { todo: "What needs doing?", consume: "Link or title" };
 
-/** as: a kind chosen before it opens (the Todos screen's New todo). resume: open the kept
- * draft (Capture's draft row); otherwise a fresh capture (the tiles, New todo). */
-export async function compose(picked: File[], as?: string, resume = false) {
+/** as: a kind chosen before it opens (the Todos screen's New todo, or a search's New for its
+ * kind). resume: open the kept draft (Capture's draft row); otherwise a fresh capture (the
+ * tiles, New todo). given: tags filled in to start with (a search's New, for its tags). */
+export async function compose(picked: File[], as?: string, resume = false, given: string[] = []) {
   // A fresh capture left behind by a killed app first becomes the kept draft (fresh.ts)
   await recover();
   // The kept draft comes back only when asked for: a tile always starts afresh.
@@ -60,7 +61,8 @@ export async function compose(picked: File[], as?: string, resume = false) {
     showTodo(); // a suggested kind (a link: Later) asks for it in its own words
   });
   // Its tags, as the page's editor has them; photos too (Claude's join them on its first reading)
-  const tags = tagField(kept?.tags ?? [], () => ed.keep());
+  const start = kept?.tags ?? given;
+  const tags = tagField(start, () => ed.keep());
   // A todo's due date (Today, Tomorrow, Next week or a date) and priority, as on its page:
   // shown while the kind is Todo (photos have no kind here, so none with them)
   const todo = todoField(kept?.todo?.due ?? null, kept?.todo?.priority ?? null);
@@ -129,7 +131,12 @@ export async function compose(picked: File[], as?: string, resume = false) {
       ...(dated() && { todo: todo.value() }),
       files,
     }),
-    dirty: () => !!text.value.trim() || files.length > 0 || tags.value().length > 0 || dated(),
+    // (the tags it opened with are no change: a search's New, closed at once, keeps nothing)
+    dirty: () =>
+      !!text.value.trim() ||
+      files.length > 0 ||
+      tags.value().join("\n") !== (kept ? "" : given.join("\n")) ||
+      dated(),
     restored: !!kept,
     left: () => {
       // Its row is on Capture: elsewhere (Todos), say where

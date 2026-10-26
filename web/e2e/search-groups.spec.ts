@@ -86,7 +86,7 @@ test("the Group row: A–Z, Tag and None, and the order of the page is the serve
   await page.goto(`/search?q=${encodeURIComponent(`tag:${tag} kind:later`)}`);
   const panel = await filters(page);
   await panel.getByRole("button", { name: "Group by A–Z" }).click();
-  await expect(heads(page).first()).toHaveText(/^A · /);
+  await expect(heads(page).first()).toHaveText("A");
   const letters = await heads(page).allTextContents();
   expect(letters.map((t) => t[0])).toEqual([...letters.map((t) => t[0])].sort());
   await (await filters(page)).getByRole("button", { name: "Not grouped" }).click();

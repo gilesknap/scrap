@@ -46,7 +46,8 @@ export function watch(
       down ||
       Date.now() - moved < 400 ||
       Date.now() - touched < 400 ||
-      (document.activeElement !== input && document.activeElement !== document.body) ||
+      // (focus on the screen's own controls: the top bar's New, back from its composer, is not)
+      (document.activeElement !== input && !!document.activeElement?.closest("#view")) ||
       (sel && !sel.isCollapsed)
     );
   };

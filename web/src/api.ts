@@ -126,6 +126,7 @@ export interface Hit
   snippet: string;
   topic?: boolean; // a topic page (#261): labelled in the results
   tags: string[]; // for group:tag
+  area?: string | null; // a topic's area, as GET /api/topics has it (group:area)
 }
 
 /** An error's detail as text: a string as is; a validation list's first "field: msg". */
