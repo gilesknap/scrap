@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>scrap design &#8212; scrap 0.11.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=f3b36f1a"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'explanations/design';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.11.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Design handover, 2026-10-21 (superseded)" href="design-handover-2026-10-21.html" />
+    <link rel="prev" title="29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate" href="decisions/0029-store-health-checks-as-search-filters.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.11.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0003-one-process-sqlite-and-a-folder.html">3. One process, one SQLite database, one folder of files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0004-originals-kept-everything-else-derived.html">4. Originals are kept; everything else is derived, versioned or disposable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0005-capture-never-waits.html">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0006-vanilla-typescript-pwa-with-lazy-chunks.html">6. A vanilla TypeScript PWA with a size budget and lazy chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html">7. Tailscale Serve is the only way in; no login code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0008-search-fts5-only-for-now.html">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0009-claude-ingest-via-messages-api.html">9. Claude ingest: Messages API, no tools, one structured call per photo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0010-job-queue-pauses-instead-of-failing.html">10. Queue error classes: outages pause, charged failures count, spend is capped</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0011-drawings-as-skeletons-excalidraw.html">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0012-kinds-flat-fields-and-typed-todo-columns.html">12. Page kinds with flat fields; due date and priority as typed columns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0013-mcp-server-inside-the-app.html">13. The MCP server is part of the app: streamable HTTP, add-only writes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0014-markdown-parsed-by-a-library-on-both-sides.html">14. Page text is Markdown, parsed by a library on both sides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0015-images-in-text-and-gc.html">15. Images are embedded in the page text; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is conservative</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0016-deployment-single-server-and-helm.html">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0022-page-text-editable-over-mcp-with-revisions.html">22. Page text editable over MCP, made safe by text revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0027-fewer-mcp-tools.html">27. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">scrap design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-handover-2026-10-21.html">Design handover, 2026-10-21 (superseded)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../explanations.html" class="nav-link">Explanations</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">scrap design</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="scrap-design">
+<h1>scrap design<a class="headerlink" href="#scrap-design" title="Link to this heading">#</a></h1>
+<p>Status: built through milestone 2 (capture, search, kinds and todos, revisions, Claude ingest of
+photos, drawings, MCP, import, gc, backup and export) plus Claude’s reading of text pages
+(enrich). This page describes scrap as built. It keeps the ideas of an earlier, much larger system
+(classified pages, semantic recall, MCP tools) and drops its machinery (a git-synced vault, a
+chat-bot daemon, a stack of paid-API integrations). The <a class="reference internal" href="decisions.html"><span class="std std-doc">decision records</span></a> give the
+reasons, and where one says it supersedes the first design, the record wins.</p>
+<p><strong>Changed from the first design:</strong></p>
+<ul class="simple">
+<li><p>Search is FTS5 only. There are no embeddings, no <code class="docutils literal notranslate"><span class="pre">sqlite-vec</span></code>, no <code class="docutils literal notranslate"><span class="pre">meta</span></code> table and no <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">reindex</span></code> (<a class="reference internal" href="decisions/0008-search-fts5-only-for-now.html"><span class="std std-doc">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</span></a>).</p></li>
+<li><p>Claude is called through the Messages API with no tools, one structured call per photo. There is
+no <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> backend and no Read tool. The <code class="docutils literal notranslate"><span class="pre">extract</span></code>, <code class="docutils literal notranslate"><span class="pre">redraw</span></code>, <code class="docutils literal notranslate"><span class="pre">summarise</span></code> and <code class="docutils literal notranslate"><span class="pre">index</span></code> jobs
+became one <code class="docutils literal notranslate"><span class="pre">ingest</span></code> job; failures pause the queue instead of burning five retries
+(<a class="reference internal" href="decisions/0009-claude-ingest-via-messages-api.html"><span class="std std-doc">9. Claude ingest: Messages API, no tools, one structured call per photo</span></a>,
+<a class="reference internal" href="decisions/0010-job-queue-pauses-instead-of-failing.html"><span class="std std-doc">10. Queue error classes: outages pause, charged failures count, spend is capped</span></a>).</p></li>
+<li><p>Deleting a page moves it to the trash. Nothing is purged, so there is no cascade on delete.</p></li>
+<li><p>Derived results are versioned rather than overwritten
+(<a class="reference internal" href="decisions/0011-drawings-as-skeletons-excalidraw.html"><span class="std std-doc">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</span></a>).</p></li>
+<li><p>There is no <code class="docutils literal notranslate"><span class="pre">link</span></code> table: links and backlinks are read from the page text.</p></li>
+<li><p>Deployment is rootless podman units for one server (listening on a Unix socket by default) or a
+Helm chart, not a k3s sidecar (<a class="reference internal" href="decisions/0016-deployment-single-server-and-helm.html"><span class="std std-doc">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</span></a>,
+<a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>). Tailscale Serve is still the way in
+(<a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>).</p></li>
+</ul>
+<section id="principles">
+<h2>Principles<a class="headerlink" href="#principles" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Tiny.</strong> One process, one database file, one folder of files. If a feature needs a second
+service, it waits (<a class="reference internal" href="decisions/0003-one-process-sqlite-and-a-folder.html"><span class="std std-doc">3. One process, one SQLite database, one folder of files</span></a>).</p></li>
+<li><p><strong>Off the shelf.</strong> Claude does the reading and writing that needs judgement. SQLite does storage
+and search. Tailscale does networking and identity. Excalidraw does drawings. scrap is the glue.</p></li>
+<li><p><strong>Originals are kept, everything else is derived</strong> and can be regenerated, except a saved
+link’s article, which is fetched to be read and not stored. The search index is disposable and
+is rebuilt by a migration, not a command. Deleting a page moves it to the trash and keeps its
+captures and files; only <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> removes files nothing refers to
+(<a class="reference internal" href="decisions/0004-originals-kept-everything-else-derived.html"><span class="std std-doc">4. Originals are kept; everything else is derived, versioned or disposable</span></a>).</p></li>
+<li><p><strong>Capture never waits.</strong> Saving is a file write and a few row inserts; anything slow runs later
+in the background (<a class="reference internal" href="decisions/0005-capture-never-waits.html"><span class="std std-doc">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</span></a>).</p></li>
+<li><p><strong>Claude reasons, the PWA shows.</strong> Claude (over MCP) is for asking and writing; the PWA is for
+capturing and looking. Answers link into the PWA.</p></li>
+</ol>
+</section>
+<section id="what-is-built">
+<h2>What is built<a class="headerlink" href="#what-is-built" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>One Python process.</strong> FastAPI serves the built PWA, its JSON API and an MCP server (streamable
+HTTP). One worker thread, started from the FastAPI lifespan, runs the Claude jobs. It runs only
+when <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> (the default is off); capture, search and everything else work without
+it.</p></li>
+<li><p><strong>Storage.</strong> SQLite in WAL mode and a <code class="docutils literal notranslate"><span class="pre">files/</span></code> folder keyed by SHA-256, on one persistent volume.
+Backup is a SQLite online backup plus a copy of <code class="docutils literal notranslate"><span class="pre">files/</span></code>. The API and the worker both write, so
+every connection runs <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">foreign_keys</span> <span class="pre">=</span> <span class="pre">ON</span></code> and <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">busy_timeout</span> <span class="pre">=</span> <span class="pre">5000</span></code> on open,
+outside any transaction. The cascading foreign keys are a safety net for a future purge; today a
+delete only sets <code class="docutils literal notranslate"><span class="pre">page.deleted_at</span></code>.</p></li>
+<li><p><strong>Capture.</strong> Notes, links, photos and files, from a phone-first PWA with an offline queue and an
+Android share target (<a class="reference internal" href="decisions/0006-vanilla-typescript-pwa-with-lazy-chunks.html"><span class="std std-doc">6. A vanilla TypeScript PWA with a size budget and lazy chunks</span></a>).</p></li>
+<li><p><strong>Search.</strong> SQLite FTS5 with one query syntax shared by the PWA and MCP (see
+<a class="reference internal" href="#search">Search</a>).</p></li>
+<li><p><strong>Kinds, todos and revisions.</strong> Pages have a kind, flat fields, tags, task boxes and, for todos,
+a due date, priority and snooze (<a class="reference internal" href="decisions/0012-kinds-flat-fields-and-typed-todo-columns.html"><span class="std std-doc">12. Page kinds with flat fields; due date and priority as typed columns</span></a>,
+<a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>).</p></li>
+<li><p><strong>Claude.</strong> Photo ingest with drawings, text enrich, related pages, write-ups of boards and a
+daily budget (see
+<a class="reference internal" href="#claude-features">Claude features</a>).</p></li>
+<li><p><strong>MCP.</strong> Search, read and write tools served at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
+(<a class="reference internal" href="decisions/0013-mcp-server-inside-the-app.html"><span class="std std-doc">13. The MCP server is part of the app: streamable HTTP, add-only writes</span></a>).</p></li>
+<li><p><strong>Keeping and moving data.</strong> Import of a Thoth vault, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code>, <code class="docutils literal notranslate"><span class="pre">restore</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span></code> and
+<code class="docutils literal notranslate"><span class="pre">gc</span></code> (<a class="reference internal" href="decisions/0017-thoth-vault-import-through-the-store.html"><span class="std std-doc">17. Import from a Thoth vault goes through Store and is idempotent</span></a>,
+<a class="reference internal" href="decisions/0015-images-in-text-and-gc.html"><span class="std std-doc">15. Images are embedded in the page text; scrap gc is conservative</span></a>).</p></li>
+<li><p><strong>Access.</strong> No login code. Tailscale Serve is the recommended way in (Funnel stays off); on
+Kubernetes a proxy such as Cloudflare Access fronts it, with an optional bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
+(<a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>). See
+<a class="reference internal" href="overview.html"><span class="std std-doc">Scope and stack</span></a>.</p></li>
+<li><p><strong>Deployment.</strong> A multi-arch image (<code class="docutils literal notranslate"><span class="pre">linux/amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">linux/arm64</span></code>) run either under rootless
+podman and systemd on one server (<a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>) or by the Helm chart on
+Kubernetes (<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>).</p></li>
+</ul>
+<p><strong>One capture is one page.</strong> Each capture creates its own page at once.</p>
+<ul class="simple">
+<li><p>A <em>note</em>: the text is the body, and its first line (without any leading <code class="docutils literal notranslate"><span class="pre">#</span></code> of a heading, at
+most 200 characters) is the title. A note whose whole text is a bare URL is a link instead.</p></li>
+<li><p>A <em>link</em>: the body is the URL, followed by any text given with it. The title is the URL, or the
+first line of that text if there is any.</p></li>
+<li><p>A <em>photo</em>: the body is the capture’s text, if any, then one image embed per image (see
+<a class="reference internal" href="#images-in-the-text">Images in the text</a>). The title is the text’s first line, else the time on
+the device (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span> <span class="pre">HH:MM</span></code>), which photo ingest replaces if there is no text.</p></li>
+<li><p>A <em>file</em> capture (the files include something that is not an image, such as a PDF): the body is
+the capture’s text, if any, with an embed for any image among the files. With no text the title
+is the device time.</p></li>
+</ul>
+<p>Claude then adds derived text, a better title, tags and a summary. Merging and cross-linking pages
+come later, by hand or through MCP <code class="docutils literal notranslate"><span class="pre">write</span></code>. Ingest stays a fixed pipeline with no search-then-decide
+loop.</p>
+</section>
+<section id="data-model">
+<h2>Data model<a class="headerlink" href="#data-model" title="Link to this heading">#</a></h2>
+<p>The source of truth is <strong>captures</strong> (what arrived), <strong>blobs</strong> (the bytes) and <strong>pages</strong> (what you
+read and edit). <strong>Derived</strong> rows cost an LLM call to remake, so they are stored. <strong>Chunks and the
+search indexes</strong> are a cache. The schema is the numbered scripts in <code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code>;
+this is the core of it as built:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="n">PRAGMA</span><span class="w"> </span><span class="n">foreign_keys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ON</span><span class="p">;</span><span class="w">  </span><span class="c1">-- per connection: the app sets it on every open</span>
+
+<span class="c1">-- Bytes of every original and binary derived artifact, at files/&lt;sha[0:2]&gt;/&lt;sha&gt;.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="nb">blob</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">sha256</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mime</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">size</span><span class="w">        </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">          </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span><span class="w">              </span><span class="c1">-- ULID</span>
+<span class="w">    </span><span class="n">slug</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">UNIQUE</span><span class="p">,</span><span class="w">          </span><span class="c1">-- made from the title at creation, never changes</span>
+<span class="w">    </span><span class="n">title</span><span class="w">       </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">body</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span><span class="w">      </span><span class="c1">-- Markdown, may contain [[slug]] links</span>
+<span class="w">    </span><span class="n">kind</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'note'</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'note'</span><span class="p">,</span><span class="w"> </span><span class="s1">'todo'</span><span class="p">,</span><span class="w"> </span><span class="s1">'consume'</span><span class="p">,</span>
+<span class="w">                  </span><span class="s1">'memory'</span><span class="p">,</span><span class="w"> </span><span class="s1">'reference'</span><span class="p">,</span><span class="w"> </span><span class="s1">'whiteboard'</span><span class="p">,</span><span class="w"> </span><span class="s1">'document'</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">kind_fixed</span><span class="w">  </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">kind_fixed</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)),</span><span class="w">  </span><span class="c1">-- 1: the user chose it</span>
+<span class="w">    </span><span class="n">fields</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'{}'</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">json_type</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'object'</span><span class="p">),</span><span class="w">  </span><span class="c1">-- flat</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">deleted_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                          </span><span class="c1">-- set: in the trash</span>
+<span class="w">    </span><span class="n">due</span><span class="w">         </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                          </span><span class="c1">-- a todo's, YYYY-MM-DD   (migration 5)</span>
+<span class="w">    </span><span class="n">priority</span><span class="w">    </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                          </span><span class="c1">-- a todo's, high|medium|low   (migration 5)</span>
+<span class="w">    </span><span class="n">snoozed_until</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                        </span><span class="c1">-- a todo's, YYYY-MM-DD   (migration 6)</span>
+<span class="w">    </span><span class="n">task_done</span><span class="w">   </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">    </span><span class="c1">-- task boxes ticked   (migration 7)</span>
+<span class="w">    </span><span class="n">task_total</span><span class="w">  </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="w">     </span><span class="c1">-- task boxes in all</span>
+<span class="p">);</span>
+
+<span class="c1">-- Rev 1 is written at creation; every title or body change adds one (MCP's edit_page</span>
+<span class="c1">-- folds a quick burst into one, with a new number: see ADR 22).</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">page_rev</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">page_id</span><span class="w">     </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">page</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">rev</span><span class="w">         </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">title</span><span class="w">       </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">body</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">author</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">page_id</span><span class="p">,</span><span class="w"> </span><span class="n">rev</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">tag</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">page_id</span><span class="w">     </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">page</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tag</span><span class="w">         </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">lower</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">length</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">64</span><span class="p">),</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">page_id</span><span class="p">,</span><span class="w"> </span><span class="n">tag</span><span class="p">)</span><span class="w">                 </span><span class="c1">-- '/' allowed in a tag</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">capture</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">          </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span><span class="w">              </span><span class="c1">-- ULID minted by the client: the retry key</span>
+<span class="w">    </span><span class="n">kind</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'photo'</span><span class="p">,</span><span class="w"> </span><span class="s1">'note'</span><span class="p">,</span><span class="w"> </span><span class="s1">'url'</span><span class="p">,</span><span class="w"> </span><span class="s1">'file'</span><span class="p">)),</span>
+<span class="w">    </span><span class="nb">text</span><span class="w">        </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="n">url</span><span class="w">         </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="k">source</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">                 </span><span class="c1">-- 'pwa', 'share', 'mcp' or 'import'</span>
+<span class="w">    </span><span class="n">author</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">                 </span><span class="c1">-- on the device</span>
+<span class="w">    </span><span class="n">received_at</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">                 </span><span class="c1">-- on the server</span>
+<span class="w">    </span><span class="n">page_id</span><span class="w">     </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">page</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">capture_blob</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">capture_id</span><span class="w">  </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">capture</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ord</span><span class="w">         </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">sha256</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="nb">blob</span><span class="p">(</span><span class="n">sha256</span><span class="p">),</span>
+<span class="w">    </span><span class="n">filename</span><span class="w">    </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">capture_id</span><span class="p">,</span><span class="w"> </span><span class="n">ord</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="c1">-- What Claude made of a photo, as versions: one current row (superseded_at IS NULL) per</span>
+<span class="c1">-- (capture, photo, kind). Rows never change; a new current one supersedes the old.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">derived</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">            </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">capture_id</span><span class="w">    </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">capture</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">source_sha256</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span>
+<span class="w">    </span><span class="n">kind</span><span class="w">          </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="w"> </span><span class="k">IN</span>
+<span class="w">                    </span><span class="p">(</span><span class="s1">'ocr'</span><span class="p">,</span><span class="w"> </span><span class="s1">'description'</span><span class="p">,</span><span class="w"> </span><span class="s1">'summary'</span><span class="p">,</span><span class="w"> </span><span class="s1">'fetched'</span><span class="p">,</span><span class="w"> </span><span class="s1">'excalidraw'</span><span class="p">)),</span>
+<span class="w">    </span><span class="k">version</span><span class="w">       </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="k">version</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span>
+<span class="w">    </span><span class="n">producer</span><span class="w">      </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">               </span><span class="c1">-- model id, or 'human'</span>
+<span class="w">    </span><span class="n">run_id</span><span class="w">        </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">model_run</span><span class="p">(</span><span class="n">id</span><span class="p">),</span><span class="w">  </span><span class="c1">-- the call that made it; NULL if human</span>
+<span class="w">    </span><span class="n">author</span><span class="w">        </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                        </span><span class="c1">-- of a human version</span>
+<span class="w">    </span><span class="nb">text</span><span class="w">          </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                        </span><span class="c1">-- indexed while current</span>
+<span class="w">    </span><span class="k">data</span><span class="w">          </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">json_valid</span><span class="p">(</span><span class="k">data</span><span class="p">)),</span><span class="w">  </span><span class="c1">-- excalidraw: {"format", "width", "height", "elements"}</span>
+<span class="w">    </span><span class="n">superseded_at</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                        </span><span class="c1">-- NULL: the current version</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">    </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">UNIQUE</span><span class="w"> </span><span class="p">(</span><span class="n">capture_id</span><span class="p">,</span><span class="w"> </span><span class="n">source_sha256</span><span class="p">,</span><span class="w"> </span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="k">version</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="c1">-- ---- Index: a cache, rebuilt from page and derived. ----</span>
+
+<span class="c1">-- Chunks are never updated: delete and insert.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">chunk</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">          </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">page_id</span><span class="w">     </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">page</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ord</span><span class="w">         </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">text</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">derived_id</span><span class="w">  </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">derived</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span><span class="w">  </span><span class="c1">-- NULL: the page's own</span>
+<span class="w">    </span><span class="n">title</span><span class="w">       </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span><span class="w">      </span><span class="c1">-- the page's own chunk only, with tags and summary</span>
+<span class="w">    </span><span class="n">tags</span><span class="w">        </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span>
+<span class="w">    </span><span class="n">summary</span><span class="w">     </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">''</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="n">VIRTUAL</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">chunk_fts</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">fts5</span><span class="p">(</span>
+<span class="w">    </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="n">tags</span><span class="p">,</span><span class="w"> </span><span class="n">summary</span><span class="p">,</span><span class="w"> </span><span class="nb">text</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="o">=</span><span class="s1">'chunk'</span><span class="p">,</span><span class="w"> </span><span class="n">content_rowid</span><span class="o">=</span><span class="s1">'id'</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tokenize</span><span class="o">=</span><span class="s1">'porter unicode61'</span>
+<span class="p">);</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">chunk_ai</span></code> and <code class="docutils literal notranslate"><span class="pre">chunk_ad</span></code> triggers keep <code class="docutils literal notranslate"><span class="pre">chunk_fts</span></code> in step with <code class="docutils literal notranslate"><span class="pre">chunk</span></code>, including cascaded
+deletes, and <code class="docutils literal notranslate"><span class="pre">chunk_bu</span></code> refuses an <code class="docutils literal notranslate"><span class="pre">UPDATE</span></code>. Not shown: the <code class="docutils literal notranslate"><span class="pre">CHECK</span></code>s on <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and
+<code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>, the immutability and supersede triggers on <code class="docutils literal notranslate"><span class="pre">derived</span></code>, and the indexes.</p>
+<p>Notes:</p>
+<ul class="simple">
+<li><p><strong>IDs</strong> are ULIDs as text, safe to mint on the phone. Times are ISO 8601 UTC. Blobs are
+content-addressed, so a photo shared twice is stored once.</p></li>
+<li><p><strong>Derived</strong> rows sit beside the untouched original and are versions. A new current version
+supersedes the old by trigger (<code class="docutils literal notranslate"><span class="pre">derived_supersede</span></code>); another trigger refuses to change a
+version, and a superseded one stays superseded, so Restore inserts a copy. Never
+<code class="docutils literal notranslate"><span class="pre">INSERT</span> <span class="pre">OR</span> <span class="pre">REPLACE</span></code> into <code class="docutils literal notranslate"><span class="pre">derived</span></code> or <code class="docutils literal notranslate"><span class="pre">chunk</span></code>: REPLACE deletes without firing <code class="docutils literal notranslate"><span class="pre">chunk_ad</span></code>. Only
+<code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code> and <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> are written; <code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code> are allowed by the
+<code class="docutils literal notranslate"><span class="pre">CHECK</span></code> but reserved.</p></li>
+<li><p><strong>One own chunk per page.</strong> A page has exactly one chunk of its own (<code class="docutils literal notranslate"><span class="pre">ord</span></code> 0, <code class="docutils literal notranslate"><span class="pre">derived_id</span></code> NULL)
+with the columns title, tags, summary and text, where text is the body as plain words
+(<code class="docutils literal notranslate"><span class="pre">markdown.plain</span></code>). It is rebuilt inside the same write transaction as any capture, save, tag
+change or enrich result, so there is no index job. Each <em>current</em> derived text (OCR, a photo’s
+description, a human drawing’s labels) is a further chunk, made by the <code class="docutils literal notranslate"><span class="pre">derived_index</span></code> trigger
+when the version is inserted and deleted by <code class="docutils literal notranslate"><span class="pre">derived_unindex</span></code> when it is superseded.</p></li>
+<li><p><strong>What is indexed</strong> is text only: the title, the tags, the summary, the body as plain text, and
+the current OCR and description of each photo. The summary is the page’s <code class="docutils literal notranslate"><span class="pre">summary</span></code> field if it
+has one (an import’s or the user’s), else Claude’s enrichment summary. Fetched article text is
+not stored and so not indexed. Not pixels, and not raw Excalidraw JSON (coordinates and IDs).</p></li>
+</ul>
+<section id="tables-beyond-the-core">
+<h3>Tables beyond the core<a class="headerlink" href="#tables-beyond-the-core" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Table</p></th>
+<th class="head"><p>For</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code></p></td>
+<td><p>Revisions of a page’s kind and tags (migration 8); see <a class="reference internal" href="#revisions-and-conflicts">Revisions and conflicts</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">job</span></code></p></td>
+<td><p>One <code class="docutils literal notranslate"><span class="pre">ingest</span></code> job per photo; <code class="docutils literal notranslate"><span class="pre">state</span></code> <code class="docutils literal notranslate"><span class="pre">queued</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code> or <code class="docutils literal notranslate"><span class="pre">dead</span></code>, <code class="docutils literal notranslate"><span class="pre">failures</span></code>, <code class="docutils literal notranslate"><span class="pre">run_after</span></code>, <code class="docutils literal notranslate"><span class="pre">last_error</span></code> (migration 2)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">queue_state</span></code></p></td>
+<td><p>One row: whether the Claude queue is paused, until when and why (<code class="docutils literal notranslate"><span class="pre">auth</span></code>, <code class="docutils literal notranslate"><span class="pre">credit</span></code>, <code class="docutils literal notranslate"><span class="pre">outage</span></code>, <code class="docutils literal notranslate"><span class="pre">budget</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">model_run</span></code></p></td>
+<td><p>Every photo call: request, response blocks, sanitised output, usage, <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, error class; the JPEG sent is kept as a blob</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code></p></td>
+<td><p>The same for text pages (migration 9): one queued job per page, and every call with its cost</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichment</span></code></p></td>
+<td><p>A page’s Claude summary and, for a link, the fetched address and title</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">model_tag</span></code></p></td>
+<td><p>Which tags Claude added (<code class="docutils literal notranslate"><span class="pre">on</span></code>), and which the user took off (<code class="docutils literal notranslate"><span class="pre">off</span></code>: never added again)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">related</span></code></p></td>
+<td><p>The pages Claude picked as related to each page, in order</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code></p></td>
+<td><p>Claude’s write-ups of a board page (migration 12): versions, one current (<code class="docutils literal notranslate"><span class="pre">superseded_at</span></code> NULL), never changed; each with its <code class="docutils literal notranslate"><span class="pre">producer</span></code>, <code class="docutils literal notranslate"><span class="pre">run_id</span></code> (its <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>), <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, Markdown <code class="docutils literal notranslate"><span class="pre">text</span></code>, the <code class="docutils literal notranslate"><span class="pre">guidance</span></code> it was written with and <code class="docutils literal notranslate"><span class="pre">restored_from</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code></p></td>
+<td><p>The owner’s guidance for a page’s next write-up</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="migrations">
+<h3>Migrations<a class="headerlink" href="#migrations" title="Link to this heading">#</a></h3>
+<p>Scripts are numbered, and script <em>N</em> sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code>. <code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an
+exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">db.lock</span></code> so two processes cannot migrate at once, turns on WAL, and applies
+each missing script in one transaction. A migration can have a Python step in <code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code>, run in
+that same transaction after its script: migrations 3 and 4 re-index every page with <code class="docutils literal notranslate"><span class="pre">index_all</span></code>
+(that is how the search index is rebuilt), 5 moves an import’s <code class="docutils literal notranslate"><span class="pre">due</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code> fields into
+their columns, and 7 counts every page’s task boxes. Migrations 6 to 9 are additive (their Python
+step adds a column or table only if it is missing), so an older scrap still runs on a newer
+database if you set <code class="docutils literal notranslate"><span class="pre">user_version</span></code> back to its own. Migrations 11 and 12 rebuild <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> for
+its reason <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> (<code class="docutils literal notranslate"><span class="pre">related</span></code>, then <code class="docutils literal notranslate"><span class="pre">writeup</span></code>), keeping its rows and the runs’ <code class="docutils literal notranslate"><span class="pre">job_id</span></code>, unless it
+takes the reason already; 12 also adds the write-up tables if missing. A database newer than the code is refused, as
+is a backup newer than the code on restore.</p>
+</section>
+<section id="page-identity-links-tags">
+<h3>Page identity, links, tags<a class="headerlink" href="#page-identity-links-tags" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Identity.</strong> The ULID. The slug is made from the title when the page is created (ASCII,
+lower-case, hyphens, at most 60 characters, <code class="docutils literal notranslate"><span class="pre">-2</span></code>, <code class="docutils literal notranslate"><span class="pre">-3</span></code> on collision) and never changes, so
+<code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links survive renames, at the cost of a slug that drifts from the title. A trashed
+page keeps its slug, so slugs are never reused. The API takes a page’s id or its slug.</p></li>
+<li><p><strong>Titles.</strong> Two rules replace a provisional title, and neither makes a revision or touches the
+slug. Photo ingest replaces it once, only while it is still the title of rev 1 with no later
+revision, the capture has no text, and the photo is the capture’s first. Enrich replaces a saved
+link’s title only while it is still the URL as captured (<a class="reference internal" href="ingest.html"><span class="std std-doc">Claude ingest</span></a>). A title the user edits
+is never replaced.</p></li>
+<li><p><strong>Links.</strong> <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> in Markdown, read from the body when needed; there is no
+<code class="docutils literal notranslate"><span class="pre">link</span></code> table. Outgoing links come from scanning the body, and backlinks from an <code class="docutils literal notranslate"><span class="pre">instr()</span></code> scan of
+the bodies of pages not in the trash. That is fine at single-user scale, and an index is the
+upgrade path. Dangling links are allowed.</p></li>
+<li><p><strong>Tags.</strong> Flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed. The PWA edits them. Claude’s (photo ingest, and enrich
+for text pages: <a class="reference internal" href="ingest.html"><span class="std std-doc">Claude ingest</span></a>) are marked in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> and shown dashed; a tag the user takes
+off is never added back, and Claude never removes one.</p></li>
+<li><p><strong>Related.</strong> Enrich stores the pages Claude picked as related apart from the text (a nightly
+pass and Ask Claude, not every save); the page shows them as Related both ways, merged with
+backlinks and with the pages a board’s current write-up links to (or whose write-up links
+here, <code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">writeup</span></code>). Write-up links are not the body’s links or backlinks.</p></li>
+</ul>
+</section>
+<section id="kinds">
+<h3>Kinds<a class="headerlink" href="#kinds" title="Link to this heading">#</a></h3>
+<p>A page’s <code class="docutils literal notranslate"><span class="pre">kind</span></code> is <code class="docutils literal notranslate"><span class="pre">note</span></code> (default and fallback), <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">consume</span></code> (to read, watch or listen to),
+<code class="docutils literal notranslate"><span class="pre">memory</span></code>, <code class="docutils literal notranslate"><span class="pre">reference</span></code>, <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> or <code class="docutils literal notranslate"><span class="pre">document</span></code>. scrap classifies and summarises; it never
+rewrites the user’s words or fits them to templates.</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> is a flat JSON object (no nulls, no nested values, at most 32 fields, a kind’s defaults added only while there is room; numbers finite and within ±2^53, the most a browser holds exactly), not per-kind
+tables. In use: <code class="docutils literal notranslate"><span class="pre">status</span></code> on todo and consume, <code class="docutils literal notranslate"><span class="pre">subtype</span></code> (<code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">watch</span></code>, <code class="docutils literal notranslate"><span class="pre">listen</span></code>) and <code class="docutils literal notranslate"><span class="pre">source</span></code>
+(the link) on consume, <code class="docutils literal notranslate"><span class="pre">summary</span></code> (an import’s or the user’s, which wins over Claude’s in the
+index) and <code class="docutils literal notranslate"><span class="pre">origin</span></code> (where a page written over MCP came from).</p></li>
+<li><p><strong>A todo’s due date, priority and snooze</strong> are typed columns of <code class="docutils literal notranslate"><span class="pre">page</span></code>, not fields, so <code class="docutils literal notranslate"><span class="pre">due:</span></code>
+and <code class="docutils literal notranslate"><span class="pre">priority:</span></code> filters and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> / <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code> are plain indexed SQL
+(<a class="reference external" href="https://github.com/gilesknap/scrap/issues/104">issue 104</a>). <code class="docutils literal notranslate"><span class="pre">due</span></code> is a calendar day
+(<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>, no time, no time zone: “today” is the server’s local day in searches and the
+phone’s on rows); <code class="docutils literal notranslate"><span class="pre">priority</span></code> is <code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code> or <code class="docutils literal notranslate"><span class="pre">low</span></code> (three: enough to sort by, few enough
+to pick without thinking; Thoth’s <code class="docutils literal notranslate"><span class="pre">urgent</span></code> imports as <code class="docutils literal notranslate"><span class="pre">high</span></code>). <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> is a day too: a
+snoozed todo is left out of Now and of the Todos count until then, and <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> finds it.
+They belong to the todo kind: the API refuses them on another, and a todo made a note keeps them
+(a stray tap loses nothing) but they are ignored (not returned, filtered, sorted or exported)
+until it is a todo again. Setting them is like ticking: not a revision, no new <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>. The
+Markdown download and export write them as front matter, so a page stays portable. Deliberately
+out: recurring tasks, sub-tasks and projects (that is a task app).</p></li>
+<li><p><strong>Task boxes.</strong> Task list items (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[x]</span></code>) in the body are counted per page
+(<code class="docutils literal notranslate"><span class="pre">task_done</span></code>, <code class="docutils literal notranslate"><span class="pre">task_total</span></code>) whatever its kind. A note nobody filed (<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> 0) that has
+boxes becomes a todo, filed as a new capture of that text would be. On a todo, ticking the last
+box marks it done, and unticking one (or adding an unticked one) reopens a todo that was done
+with all boxes ticked. A <code class="docutils literal notranslate"><span class="pre">cancelled</span></code> todo is left alone, and a status set by hand in the same
+edit wins. None of it is a revision.
+Claude can add the boxes: when photo ingest or text enrich reads an unfixed note as a list of
+actions, with high confidence, and it has no boxes yet, one text revision by <code class="docutils literal notranslate"><span class="pre">claude</span></code> appends
+<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> <span class="pre">item</span></code> lines below the user’s text, and this rule then files it as a todo
+(<a class="reference internal" href="decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html"><span class="std std-doc">26. Claude appends task boxes to a list of actions</span></a>).</p></li>
+<li><p><strong>Status</strong> is one lifecycle for todo and consume, Thoth’s: <code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cancelled</span></code>. New pages start <code class="docutils literal notranslate"><span class="pre">open</span></code>; ticking a todo toggles <code class="docutils literal notranslate"><span class="pre">open</span></code> and <code class="docutils literal notranslate"><span class="pre">done</span></code>, and the other two
+are stored and shown (set by an import, richer controls later).</p></li>
+<li><p><strong>Choosing a kind.</strong> The capture buttons (camera, gallery, note) only choose the input; the
+kind is chosen in the PWA’s editor, for a new capture or an existing page, from Note
+(default), Todo, Later (<code class="docutils literal notranslate"><span class="pre">consume</span></code>), Whiteboard and Document (<code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code> are not
+offered until wanted; a hard-coded list until real use asks for configurable kinds). A bare
+URL pre-selects Later; photos skip the choice (ingest classifies them; the user can change it).
+The capture’s <code class="docutils literal notranslate"><span class="pre">kind</span></code> field or <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{id}</span></code> sets it.</p></li>
+<li><p><strong>A kind the user changes</strong> (PWA edit, <code class="docutils literal notranslate"><span class="pre">PATCH</span></code>) <strong>keeps every field</strong> the page has (a summary,
+a due date, an imported status: a stray tap on a chip must lose nothing) and adds the new
+kind’s defaults for the keys it lacks. So todo -&gt; note -&gt; todo comes back as it was, and a
+status or subtype carried over keeps its value. The defaults are todo <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;open&quot;}</span></code> and
+consume <code class="docutils literal notranslate"><span class="pre">{&quot;subtype&quot;:&quot;read&quot;,&quot;status&quot;:&quot;open&quot;}</span></code> plus <code class="docutils literal notranslate"><span class="pre">source</span></code>, the capture’s own URL (omitted if it
+has none).</p></li>
+<li><p><strong>The user wins.</strong> A kind chosen at capture or in the editor sets <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>, and nothing
+else changes a fixed kind. Four other paths set a kind, each only while the page is an unfixed
+<code class="docutils literal notranslate"><span class="pre">note</span></code>:</p>
+<ul>
+<li><p>photo ingest: a <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> or <code class="docutils literal notranslate"><span class="pre">diagram</span></code> image makes the page a <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, a <code class="docutils literal notranslate"><span class="pre">document</span></code>
+image a <code class="docutils literal notranslate"><span class="pre">document</span></code> (other image kinds change nothing);</p></li>
+<li><p>enrich: a saved link becomes Later (<code class="docutils literal notranslate"><span class="pre">consume</span></code>, with its defaults and <code class="docutils literal notranslate"><span class="pre">source</span></code>);</p></li>
+<li><p>task boxes make it a todo (above);</p></li>
+<li><p>an import sets the kind and fixes it.</p></li>
+</ul>
+</li>
+<li><p><strong>Views.</strong> One list screen (Search; <code class="docutils literal notranslate"><span class="pre">/recent</span></code> redirects to it): an empty box lists every page
+newest first, a fixed kind row (All, Notes, Todos, Later, Boards, Docs) sets or clears <code class="docutils literal notranslate"><span class="pre">kind:</span></code>,
+and the query rides in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>). The Todos screen lists what to do now (open
+and not snoozed) first. A todo’s page has Mark done and Reopen, setting <code class="docutils literal notranslate"><span class="pre">fields.status</span></code>. There is
+no Inbox: <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> is only for the user-wins rule.</p></li>
+</ul>
+</section>
+<section id="revisions-and-conflicts">
+<span id="id1"></span><h3>Revisions and conflicts<a class="headerlink" href="#revisions-and-conflicts" title="Link to this heading">#</a></h3>
+<p>Text and metadata have separate histories.</p>
+<ul class="simple">
+<li><p><strong>Text revisions</strong> (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>): a change of title or body adds one. A <code class="docutils literal notranslate"><span class="pre">PATCH</span></code> that changes either
+must send <code class="docutils literal notranslate"><span class="pre">base_rev</span></code>, the revision the edit started from, and gets <code class="docutils literal notranslate"><span class="pre">409</span></code> with the current <code class="docutils literal notranslate"><span class="pre">rev</span></code>
+if it is stale, saving nothing. A title equal to the title at <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> counts as unchanged, so a client that sends back
+the title it loaded never undoes a title Claude set meanwhile. A page’s text is at most 1 MB.</p></li>
+<li><p><strong>Metadata revisions</strong> (<code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code>): each change to a page’s kind or tags, by the user in
+the PWA or by Claude over MCP, records the kind and tags before and after. One author’s changes
+within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> (300 s by default) fold into one revision. MCP <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists
+both kinds, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes a metadata revision or a whole bulk change by its batch id
+(<a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>).</p></li>
+<li><p><strong>Not revisions:</strong> <code class="docutils literal notranslate"><span class="pre">fields</span></code> (status), due date, priority and snooze, task counts, and a
+provisional title replaced by ingest or enrich.</p></li>
+</ul>
+</section>
+</section>
+<section id="search">
+<h2>Search<a class="headerlink" href="#search" title="Link to this heading">#</a></h2>
+<p>Search is SQLite FTS5 (<code class="docutils literal notranslate"><span class="pre">porter</span> <span class="pre">unicode61</span></code>) over the chunks above. Every word of a query must match
+somewhere in the page, as a prefix, wherever it stands in the query. Pages with every word in the
+title rank first, then those with every word in the title, tags or summary, then by <code class="docutils literal notranslate"><span class="pre">bm25</span></code> with
+column weights 10, 5, 3, 1 (title, tags, summary, text), so a short body that says a word twice
+does not beat a long page tagged with it. Hits are grouped by page (a page’s best chunk wins,
+because <code class="docutils literal notranslate"><span class="pre">bm25()</span></code> and <code class="docutils literal notranslate"><span class="pre">snippet()</span></code> refuse <code class="docutils literal notranslate"><span class="pre">GROUP</span> <span class="pre">BY</span></code>, so it is done in Python). One parser,
+<code class="docutils literal notranslate"><span class="pre">query.py</span></code>, serves the PWA’s search box and MCP, with filters such as <code class="docutils literal notranslate"><span class="pre">kind:</span></code>, <code class="docutils literal notranslate"><span class="pre">tag:</span></code>, <code class="docutils literal notranslate"><span class="pre">is:</span></code>,
+<code class="docutils literal notranslate"><span class="pre">has:</span></code>, <code class="docutils literal notranslate"><span class="pre">image:</span></code>, <code class="docutils literal notranslate"><span class="pre">due:</span></code>, <code class="docutils literal notranslate"><span class="pre">priority:</span></code>, <code class="docutils literal notranslate"><span class="pre">after:</span></code> / <code class="docutils literal notranslate"><span class="pre">before:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:</span></code>; the full syntax is under
+<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search</span></code> in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>. The PWA’s facets and tag browsing come from the same
+code. The title, tags and summary columns are why ranking can weigh them
+(<a class="reference external" href="https://github.com/gilesknap/scrap/issues/84">issue 84</a>).</p>
+<p><strong>Store health.</strong> The health checks are search filters too, SQL fragments in one module
+(<code class="docutils literal notranslate"><span class="pre">store/health.py</span></code>): <code class="docutils literal notranslate"><span class="pre">is:orphan</span></code>, <code class="docutils literal notranslate"><span class="pre">is:untagged</span></code>, <code class="docutils literal notranslate"><span class="pre">is:stale</span></code>, <code class="docutils literal notranslate"><span class="pre">is:duplicate</span></code>, <code class="docutils literal notranslate"><span class="pre">has:dangling</span></code>
+and <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code>. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code> counts each for the PWA’s Store health screen (Settings),
+whose rows run the searches. Nothing is stored, so a finding is always current, and no model
+is called. <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> lists only outdated board write-ups, the owner’s to regenerate (or
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code>), by the same definition. A topic’s synthesis (the weekly
+pass) and related pages (the nightly pass) have theirs in the same module but are no finding:
+the passes refresh them (<a class="reference internal" href="decisions/0029-store-health-checks-as-search-filters.html"><span class="std std-doc">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</span></a>).</p>
+</section>
+<section id="phone-quick-capture">
+<h2>Phone quick capture<a class="headerlink" href="#phone-quick-capture" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Tap the icon.</strong> The installed PWA opens from the service worker cache, even offline, on the
+capture screen: camera, gallery and note buttons (how to capture; the kind is chosen in the
+composer), what is still waiting on the phone, and the newest pages.</p></li>
+<li><p><strong>Choose an input.</strong></p>
+<ul class="simple">
+<li><p><em>Camera</em>: <code class="docutils literal notranslate"><span class="pre">&lt;input</span> <span class="pre">type=&quot;file&quot;</span> <span class="pre">accept=&quot;image/*&quot;</span> <span class="pre">capture=&quot;environment&quot;&gt;</span></code>, or the gallery;
+several shots can go into one capture.</p></li>
+<li><p><em>Note</em>: a text box.</p></li>
+<li><p><em>Share</em>: the manifest’s <code class="docutils literal notranslate"><span class="pre">share_target</span></code> takes URLs, text and files from the share sheet. It
+works for installed PWAs on Android, not iOS (where a Shortcut could post to the API).
+Android often sends a link as <code class="docutils literal notranslate"><span class="pre">text</span></code>, so the server lifts a bare URL in <code class="docutils literal notranslate"><span class="pre">text</span></code> into <code class="docutils literal notranslate"><span class="pre">url</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>Save.</strong> The client mints a ULID, stores the capture in IndexedDB and shows it as <em>queued</em>.</p></li>
+<li><p><strong>Upload.</strong> The app posts it to <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/captures</span></code> and deletes the local copy on success. On
+failure it stays queued and retries with backoff while the app is open, and on next open. A
+capture that is waiting or failed shows on the capture screen with <em>Retry</em> (and <em>Split and
+retry</em> for one with several files).</p></li>
+<li><p><strong>Store.</strong> The server writes the files to <code class="docutils literal notranslate"><span class="pre">files/</span></code>, then in one <code class="docutils literal notranslate"><span class="pre">BEGIN</span> <span class="pre">IMMEDIATE</span></code> transaction
+looks up the capture id (found: a retry, return <code class="docutils literal notranslate"><span class="pre">200</span></code>), else inserts blobs (<code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">DO</span> <span class="pre">NOTHING</span></code>), the page (before the capture, for the foreign key; a chosen kind sets <code class="docutils literal notranslate"><span class="pre">kind</span></code>,
+<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> and default <code class="docutils literal notranslate"><span class="pre">fields</span></code>), <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> 1, the capture, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, the tags, the
+page’s search chunk, and an <code class="docutils literal notranslate"><span class="pre">ingest</span></code> job per distinct image of a photo capture. A note or link
+also gets an <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> when enrich is on: a link at once, a note after the debounce. It
+returns <code class="docutils literal notranslate"><span class="pre">201</span></code>. No LLM call is on this path, so the note or title is searchable even if Claude
+is down.</p></li>
+<li><p><strong>Process.</strong> The worker, if ingest is on, runs the jobs. The page view polls <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/{id}</span></code> and <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code> every 10 seconds while a photo of that page is queued or
+processing, so it shows the result when it lands.</p></li>
+</ol>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Phone (PWA)                           scrap API                 worker (if on)           Claude
+   |                                      |                          |                       |
+   | save -&gt; IndexedDB, show "queued"     |                          |                       |
+   |-- POST /api/captures (ULID) --------&gt;|                          |                       |
+   |                                      | page, rev 1, capture,    |                       |
+   |                                      | search chunk, ingest and |                       |
+   |                                      | enrich jobs              |                       |
+   |&lt;----------------- 201 ---------------|                          |                       |
+   | delete local copy                    |        claim job -------&gt;|                       |
+   |                                      |                          |-- one call ----------&gt;|
+   |                                      |                          |&lt;-- structured JSON ---|
+   |                                      |   derived versions, title, tags, kind, chunks    |
+   |-- GET /api/pages/{id}, /api/ingest -&gt;|  (while a photo is busy) |                       |
+   |&lt;-- page with ingest state -----------|                          |                       |
+</pre></div>
+</div>
+<p>What the user sees of a photo’s progress is on its page: <em>queued</em>, <em>processing</em>, <em>done</em>, <em>failed</em>
+(with the reason and a <em>Retry</em>) or <em>paused</em> (with a <em>Resume</em> banner while the queue is paused).
+The original and the page already exist, so nothing is lost when a job fails.</p>
+</section>
+<section id="claude-features">
+<span id="id2"></span><h2>Claude features<a class="headerlink" href="#claude-features" title="Link to this heading">#</a></h2>
+<p>All Claude work is behind <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> (default off) and <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>; the details and
+the rules are in <a class="reference internal" href="ingest.html"><span class="std std-doc">Claude ingest</span></a> and are not repeated here.</p>
+<p><strong>Calling Claude.</strong> One function, <code class="docutils literal notranslate"><span class="pre">claude.complete()</span></code>, makes one Messages API request with no
+tools and a JSON schema for the output. It never retries: the queue does, so one claim is one call.
+The key comes from <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>. Photos go to <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code> (default
+<code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code>) and text pages to <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code> (default <code class="docutils literal notranslate"><span class="pre">claude-haiku-5-5</span></code>, effort
+<code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code>, default <code class="docutils literal notranslate"><span class="pre">low</span></code>). The cost of every call is recorded. There is no other backend.</p>
+<p><strong>Photo ingest.</strong> An <code class="docutils literal notranslate"><span class="pre">ingest</span></code> job per distinct image of a photo capture sends a JPEG made from it
+and gets back, in one call, the text (OCR), a description, the image kind, a title, tags and
+Excalidraw skeleton elements for a board or diagram. These are saved as derived versions and the
+title, tags and kind rules above applied. The image kinds are <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">handwriting</span></code>,
+<code class="docutils literal notranslate"><span class="pre">diagram</span></code>, <code class="docutils literal notranslate"><span class="pre">screenshot</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code>, <code class="docutils literal notranslate"><span class="pre">photo</span></code> and <code class="docutils literal notranslate"><span class="pre">other</span></code>. The drawing is the elements the model
+returned, sanitised and checked (<code class="docutils literal notranslate"><span class="pre">sanitise.py</span></code>) and saved as the derived kind <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code>, with
+the JSON in <code class="docutils literal notranslate"><span class="pre">derived.data</span></code>; there is no separate redraw job.</p>
+<p><strong>Text enrich.</strong> An <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> per text page gets tags and a summary from a small model, and for
+a saved link its title as well; the link is fetched first, under strict address checks
+(<code class="docutils literal notranslate"><span class="pre">fetch.py</span></code>), and the fetched text is sent but not kept. A note is read after
+<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds (default 60; each save moves it later) so a burst of edits makes
+one call, a link at once. <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> keeps Claude to photos. Nothing edits the page’s text.</p>
+<p><strong>Related pages.</strong> A separate call per page picks up to five related pages from a numbered
+candidate list, on <em>Ask Claude</em> at once, once when the page is first read (its first enrich, or
+photo ingest of its first photos, or for a board its write-up: an enrich job of reason
+<code class="docutils literal notranslate"><span class="pre">related</span></code>), and otherwise in the nightly
+pass, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>, for pages changed (or with a photo read) since their last picks. It sees the page in
+brief: its title, tags, summary, the start of its text and the start of what photo ingest read
+from its images (each one’s description and text) and of its write-up, so a photo page whose text is only the image
+is judged by what is in it. Its candidates come from shared tags, then a full-text search for its
+words (title, tags and summary first, then what was read from its images, then its text), then
+the most recently changed.</p>
+<p><strong>Write-ups of boards.</strong> A board page (one with a whiteboard or diagram image that the photo
+call did not judge a list of actions) gets Claude’s write-up: one Opus call
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>) with the board photos themselves (at most four, the JPEGs photo ingest
+sent), what was read from them, the page’s title, tags and text as context, the owner’s guidance,
+and the related candidates as a numbered index. It answers with a one or two sentence <code class="docutils literal notranslate"><span class="pre">summary</span></code>
+and Markdown <code class="docutils literal notranslate"><span class="pre">text</span></code> (overview, structure, decisions, open questions, related pages); the numbers
+it cites become <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links, any other link is dropped. It is stored apart from the text in
+<code class="docutils literal notranslate"><span class="pre">writeup</span></code> as a new version, never in the body, and nobody edits it: Regenerate makes a new one,
+Restore copies an old one. It is queued (an enrich job of reason <code class="docutils literal notranslate"><span class="pre">writeup</span></code>) when photo ingest of
+the page finishes and a board image was read since its last write-up, so a first reading,
+Reprocess and a new board photo all write it again; the page’s first related call follows it, so
+it sees the write-up. Ask Claude on a board page writes one too, before its related call. Its
+summary is the page’s model summary (before enrich’s), its text is searched, and a write-up newer
+than the page’s last related picks makes it stale for the nightly pass. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code>
+writes them for board pages with none. A write-up is outdated once the page’s text, title, kind
+or tags change after it, or the prompt changes (or a board image is read, which writes it again
+anyway), but never one the owner restored: its card says so quietly, and the owner regenerates it
+(<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code> does them all, as after a prompt change). See
+<a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html"><span class="std std-doc">27. Claude’s write-ups of boards, apart from the text</span></a>.</p>
+<p><strong>Queue and budget.</strong> One worker thread wakes every 30 seconds or when a job is queued, and runs one
+job at a time. Outages, spend limits and a bad key pause the queue without failing jobs; any other
+failure is charged to the job, retried 10 minutes later (invalid output at once), and the job is
+<code class="docutils literal notranslate"><span class="pre">dead</span></code> on the third. A job found <code class="docutils literal notranslate"><span class="pre">running</span></code> at start-up is charged as crashed. A daily budget
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, default $3, from recorded usage and counting photos, text pages and
+related calls together) pauses the queue until UTC midnight. The first pause of an episode POSTs
+once to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>, if set. <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> returns <code class="docutils literal notranslate"><span class="pre">503</span></code> if ingest is on and the worker thread
+has died.</p>
+</section>
+<section id="images-in-the-text">
+<span id="id3"></span><h2>Images in the text<a class="headerlink" href="#images-in-the-text" title="Link to this heading">#</a></h2>
+<p>Every page is Markdown with its images embedded
+(<a class="reference external" href="https://github.com/gilesknap/scrap/issues/48">issue 48</a>). A photo capture’s page text is its
+text, if any, then one <code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code> per image, in order; from then on
+the text is the user’s: ingest never touches it, and reprocessing only adds derived versions. The
+PWA shows each embedded image of this server’s files where the text puts it, as a figure: a tap
+opens the photo viewer (every image of the page, in order), and its caption has the file’s name,
+Download and <em>Ask Claude</em>, which queues ingest for that one image (on any capture holding it,
+not only photo captures). Once queued it is the photo’s panel instead: its state, then what
+Claude read, described and drew. Below the text are only the files it doesn’t embed (PDFs, or
+photos of pages made before this). Images on lines of their own (one or several in a row) become
+figures; one in a link, heading, list or quote, or beside text, stays a plain image, and its file
+is listed below the text as well. A page’s download (and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>) points the text’s images
+and links at the files beside it (never inside code) and doesn’t list a shown image again. Share
+leaves out lines that only embed images. The figure code is a lazy chunk, outside the app shell.</p>
+</section>
+<section id="excalidraw">
+<h2>Excalidraw<a class="headerlink" href="#excalidraw" title="Link to this heading">#</a></h2>
+<p>The PWA embeds the Excalidraw React component, in a lazy chunk, to view and edit a photo’s
+drawing. On the page the drawing sits beside the photo when there is room (a Photo / Drawing
+switch on a phone); tapping it opens a full-screen viewer where view and edit are one Excalidraw
+scene.</p>
+<p>Drawings are versioned. A human edit saves a new current version (producer <code class="docutils literal notranslate"><span class="pre">human</span></code>, author
+recorded) and carries the <code class="docutils literal notranslate"><span class="pre">base_version</span></code> it was edited from, so a stale save gets <code class="docutils literal notranslate"><span class="pre">409</span></code>. The
+history lists every version and Restore makes an old one current again as a copy. Reprocess never
+replaces a human version unless the user confirms (<em>Replace mine</em> or <em>Keep mine</em>); otherwise the
+new drawing is kept in the history only.</p>
+</section>
+<section id="mcp-tools">
+<h2>MCP tools<a class="headerlink" href="#mcp-tools" title="Link to this heading">#</a></h2>
+<p>Served at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> by the official MCP SDK inside the FastAPI app (Streamable HTTP, stateless,
+JSON replies), so a session adds it with one <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span> <span class="pre">--transport</span> <span class="pre">http</span></code> line and nothing
+local, and it works the same behind the cluster’s ingress. A stdio <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">mcp</span></code> command was the
+alternative: it needs a shell where the database is (inside the container), which no client
+session has. Tools and limits: <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>: thin wrappers over the store; <code class="docutils literal notranslate"><span class="pre">search</span></code> takes the
+search box’s syntax, and with an empty query lists the recent pages (the todos are <code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">-is:done</span> <span class="pre">-is:cancelled</span> <span class="pre">-is:snoozed</span> <span class="pre">sort:due</span></code>). Results carry each page’s PWA URL (<code class="docutils literal notranslate"><span class="pre">$SCRAP_PUBLIC_URL/p/&lt;slug&gt;</span></code>) and its
+images as URLs, so Claude links there instead of trying to show them. Page text is returned in
+JSON fields, as data. <code class="docutils literal notranslate"><span class="pre">read</span></code> also returns <code class="docutils literal notranslate"><span class="pre">by_model</span></code>: Claude’s own summary, the tags it added,
+the pages it found related and a board’s write-up, labelled as written by a model.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> change the kind and tags of any page, <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists a page’s
+text and metadata revisions (the way to find an id), and <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes a metadata change (or a
+whole bulk change by its batch id): metadata only, made safe by revisions
+(<a class="reference internal" href="decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">19. Kinds and tags editable over MCP, made safe by metadata revisions</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code> changes the text of any page narrowly (one passage found exactly once, or the whole
+body given its current <code class="docutils literal notranslate"><span class="pre">rev</span></code>) and <code class="docutils literal notranslate"><span class="pre">revert</span></code> with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> restores an earlier text, each as a new
+<code class="docutils literal notranslate"><span class="pre">page_rev</span></code> revision by author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, which <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds
+(<a class="reference internal" href="decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">22. Page text editable over MCP, made safe by text revisions</span></a>). <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>
+turns both off. No tool deletes a page or overwrites a body unconditionally.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">write</span></code> only adds: a new page, or a section appended to a page written over MCP (<code class="docutils literal notranslate"><span class="pre">append_to</span></code>).
+It can also set <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>. Provenance is the capture’s
+source <code class="docutils literal notranslate"><span class="pre">mcp</span></code> (which clients of the HTTP API cannot send), author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, and a free-text
+<code class="docutils literal notranslate"><span class="pre">fields.origin</span></code>; no migration was needed. The PWA shows a badge; <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> filters. A client
+key is hashed into the capture id, the store’s existing retry key. The tools take the short kind
+names <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code> and <code class="docutils literal notranslate"><span class="pre">doc</span></code>, and results always show the stored ones
+(<code class="docutils literal notranslate"><span class="pre">read</span></code> is <code class="docutils literal notranslate"><span class="pre">consume</span></code>, <code class="docutils literal notranslate"><span class="pre">board</span></code> is <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code>, <code class="docutils literal notranslate"><span class="pre">doc</span></code> is <code class="docutils literal notranslate"><span class="pre">document</span></code>).</p></li>
+<li><p>Limits per write: a body of at most 200 000 bytes, 20 tags, a 200-character title, and 200 pages
+in a bulk <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>; a request body of at most 2 MB.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/mcp</span></code> checks the <code class="docutils literal notranslate"><span class="pre">Host</span></code> and <code class="docutils literal notranslate"><span class="pre">Origin</span></code> of every request (DNS rebinding protection): loopback and
+the hosts of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (comma separated; the first also makes the page links) are
+allowed. Set it to the Tailscale Serve address or an MCP client gets <code class="docutils literal notranslate"><span class="pre">421</span></code> or <code class="docutils literal notranslate"><span class="pre">403</span></code>. The status
+codes are in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>.</p></li>
+<li><p>Deferred: <code class="docutils literal notranslate"><span class="pre">ingest</span></code> (a URL or text as a capture), a <code class="docutils literal notranslate"><span class="pre">context</span></code> tool for a photo’s stored model
+run, deleting and ticking a todo (PWA actions).</p></li>
+</ul>
+</section>
+<section id="security-posture">
+<h2>Security posture<a class="headerlink" href="#security-posture" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>One gate in front.</strong> On a server, Tailscale Serve is the only way in and Funnel stays off; the
+tailnet policy grants the scrap device to the owner’s own devices only, and tagged servers (for
+example any internet-facing box) must not be able to reach it. On Kubernetes the gate is
+Cloudflare Access, with a service token and <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
+(<a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>).</p></li>
+<li><p><strong>What listens where.</strong> A single-server install listens by default only on a Unix socket (mode
+600, in a folder closed to other users; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--uds</span></code>), with Serve proxying to it, so
+only that user, root and Serve can reach it and set the identity headers. Loopback TCP
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code>, published on <code class="docutils literal notranslate"><span class="pre">127.0.0.1:$SCRAP_PORT</span></code>, default 8790) is an opt-in there, and
+what an env file from before the socket keeps; any local process can reach it and send any
+<code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code>. Running <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> yourself listens on <code class="docutils literal notranslate"><span class="pre">127.0.0.1:8000</span></code> unless told
+otherwise, with the same caveat. Under Helm the Service is in-cluster (a ClusterIP), with an
+optional NetworkPolicy. The caveats of
+<a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a> stand: root (and so <code class="docutils literal notranslate"><span class="pre">sudo</span></code>) and
+anything running as the scrap user can still open the socket and forge the header, so run scrap
+as its own user.</p></li>
+<li><p><strong>Identity is attribution, not the gate.</strong> The ACL is the gate. <code class="docutils literal notranslate"><span class="pre">author</span></code> is the
+<code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header. Tagged devices send none, so their requests are recorded with the
+fallback author <code class="docutils literal notranslate"><span class="pre">tagged</span></code>. Whether the Tailscale Kubernetes operator’s ingress passes the header
+is expected from its source but not yet verified
+(<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>).</p></li>
+<li><p><strong>What it holds.</strong> Its database, files and Claude API key. No cluster or git credentials
+(service-account token automount off in the chart), no shell tools.</p></li>
+<li><p><strong>Prompt injection.</strong> Ingested content is untrusted data. Claude is called with a fixed prompt, no
+tools and a JSON schema, so there is nothing to call, no file to read and no shell. The output is
+checked against the schema and sanitised, and the user’s text is never edited. The worst outcome
+is a wrong page, a wrong provisional title or wrong tags and kind, which <code class="docutils literal notranslate"><span class="pre">page_rev</span></code> and
+<code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code> can undo. URL fetching refuses private and tailnet addresses, re-checked after
+DNS resolution and after every redirect, and connects to the address it checked (<code class="docutils literal notranslate"><span class="pre">fetch.py</span></code>).</p></li>
+<li><p><strong>Reading is not acting.</strong> Sessions holding cluster or other powerful credentials should not
+mount the scrap MCP server, since pages may hold injected text.</p></li>
+</ul>
+</section>
+<section id="the-pwa">
+<h2>The PWA<a class="headerlink" href="#the-pwa" title="Link to this heading">#</a></h2>
+<p>Vanilla TypeScript built by Vite into the Python package (<code class="docutils literal notranslate"><span class="pre">scrap/static</span></code>); React and Excalidraw
+(the drawing viewer) and Mermaid load only when needed. The screens are <code class="docutils literal notranslate"><span class="pre">/</span></code> (capture), <code class="docutils literal notranslate"><span class="pre">/search</span></code>
+(<code class="docutils literal notranslate"><span class="pre">/recent</span></code> and the retired <code class="docutils literal notranslate"><span class="pre">/tags</span></code> redirect there), <code class="docutils literal notranslate"><span class="pre">/todos</span></code> and <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>. The service worker precaches the
+app shell and the lazy chunks that work offline (the page view, the composer and editors, the Markdown renderer,
+the sharing code, and the search screen’s Filters and recent searches), and also catches the share
+target’s POST, queueing it in IndexedDB like any capture; the server’s <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/share</span></code> is a fallback
+if it does not. See
+<a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>.</p>
+</section>
+<section id="unused-files-scrap-gc">
+<h2>Unused files (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>)<a class="headerlink" href="#unused-files-scrap-gc" title="Link to this heading">#</a></h2>
+<p>A page shows its images by embedding them in its text (<code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code>;
+a photo capture writes one per photo), and only there: a photo whose embed is deleted from the
+text is no longer shown or used as the page’s thumbnail. A photo of a page made before photos were
+embedded, which no revision ever embedded, is still listed below the text. The editor warns on
+Save when an embed of a stored file goes, naming the file and how many other pages still show it.
+Such a file is never deleted: gc gathers it onto a review page (below).</p>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> deletes the files nothing uses, and is a dry run unless given <code class="docutils literal notranslate"><span class="pre">--delete</span></code> (<code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>
+overrides it): a file is in use while any page’s text (the trash’s too) mentions its address, or a
+capture, a <code class="docutils literal notranslate"><span class="pre">derived</span></code> row, an ingest <code class="docutils literal notranslate"><span class="pre">job</span></code> or a <code class="docutils literal notranslate"><span class="pre">model_run</span></code> (its photo or <code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code>) refers to
+it. Captures are never purged, so a photo’s own file, and its Claude results, stay after its embed
+is deleted and after its page is trashed; what gc deletes today is files nobody recorded (failed
+or abandoned uploads), leftover upload temporaries and files only a page’s text used. Only each
+page’s current text counts: old revisions are not references, so a file only an old revision
+embedded can go (harmless while captures keep their photos; it would matter if Save ever unlinked
+a photo from its capture). Page text is read for references by one function, <code class="docutils literal notranslate"><span class="pre">store.body_refs</span></code>: any
+mention of a file’s address counts, even in code or a full URL. It deliberately does not use the
+Markdown parser, as gc deletes whatever it misses. A run reads every reference in one transaction
+(and refuses if it cannot), skips files younger than the grace period (<code class="docutils literal notranslate"><span class="pre">--grace-hours</span></code>, 24 by
+default), then rereads the references inside a write transaction before deleting; each file is
+renamed aside and its age checked again, because <code class="docutils literal notranslate"><span class="pre">Store.put_blob</span></code> touches a file it finds already
+stored, so an upload of the same bytes in flight keeps it. Its previews go with it. A run that
+stops between the rename and the delete or relink leaves the file aside; the next run puts back
+every such file whose name is free before it looks at anything. On a single server a nightly timer
+runs it, after the backup, and only deletes if there was a completed backup (one that passed an integrity check and
+wrote its <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> marker) in the last 26 hours. See
+<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-gc"><span class="std std-ref">the deploy guide</span></a>.</p>
+<p>A capture’s file that no page shows any more (an orphan) is gathered by <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code>
+onto the month’s review page, <code class="docutils literal notranslate"><span class="pre">scrap.orphans</span></code> (#124): an open todo titled <em>Orphaned assets
+YYYY-MM</em>, due 7 days after gc makes it, written as the user’s page (its capture’s source is <code class="docutils literal notranslate"><span class="pre">gc</span></code>,
+of kind <code class="docutils literal notranslate"><span class="pre">file</span></code> with no files, so enrichment leaves it alone). Each item is the file’s embed (a link
+for one that is not an image), the page it last left and when, and Claude’s description. An
+orphan is a file of a capture that no page’s current text mentions (the trash’s too), whose every
+capture is on a page not in the trash whose text once showed it (one never embedded is still
+listed below its page), that left its last page longer ago than the grace period, and whose last
+page was not an orphan page. All of it is read from page text and revisions, with no table of its
+own: a file on the review page is in use, so a second run adds nothing, and one cut out of it and
+pasted nowhere has been reviewed. Later orphans go on the month’s open page (not done, cancelled
+or trashed), else a new one, and on a new page once one is full (1 MB). Deleting the page is the
+review: its files stay with it in the trash, where gc counts them as used.</p>
+</section>
+<section id="import">
+<h2>Import<a class="headerlink" href="#import" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> brings in a Thoth vault (<a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">how-to</span></a>) through <code class="docutils literal notranslate"><span class="pre">Store</span></code>,
+so revisions and the search index stay consistent. Each page keeps the vault’s dates (its
+<code class="docutils literal notranslate"><span class="pre">created_at</span></code>, <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> and revision 1), kind (fixed), fields and tags; its capture has source
+<code class="docutils literal notranslate"><span class="pre">import</span></code>, the vault file as its text (which also keeps ingest from retitling it) and the page’s
+images, PDFs in a second <code class="docutils literal notranslate"><span class="pre">file</span></code> capture. The capture id is made from the page’s path, so a second
+run skips pages already imported. Links between pages become <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, which the PWA
+renders as links to <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>; images are embedded as <code class="docutils literal notranslate"><span class="pre">![](/api/blobs/&lt;sha&gt;/preview?size=2048)</span></code>,
+as a photo capture’s are. Dates alone become noon UTC. A rerun never updates a page already
+imported.</p>
+<p>The search index holds the labels of links and images, not their addresses (for every page, not
+only imported ones), so <code class="docutils literal notranslate"><span class="pre">/api/blobs/...</span></code> and URLs in Markdown links (<code class="docutils literal notranslate"><span class="pre">&lt;...&gt;</span></code> addresses too) are
+not words to find: a hand-written link is found by its text, not its domain, by choice.</p>
+<section id="markdown">
+<h3>Markdown<a class="headerlink" href="#markdown" title="Link to this heading">#</a></h3>
+<p>Page text is Markdown (<a class="reference external" href="https://github.com/gilesknap/scrap/issues/71">issue 71</a>), parsed by a
+library on both sides with the same grammar: CommonMark plus GitHub’s tables, strikethrough and
+footnotes, <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> page links, raw HTML as text and a line break kept as one. The PWA
+renders it with markdown-it (task lists, bare <code class="docutils literal notranslate"><span class="pre">https://</span></code> links and heading ids too) in
+<code class="docutils literal notranslate"><span class="pre">render.ts</span></code>, a lazy chunk the service worker keeps for offline use, so the app shell stays within
+its 16 kB gzipped budget; the page view loads it while it fetches the page, and without it (offline before
+it was kept) shows the text as typed. A post-parse pass allows only http(s), mailto, page and
+in-page links (opened with <code class="docutils literal notranslate"><span class="pre">rel=noopener</span></code>), and only this server’s own images, each marked with its
+<code class="docutils literal notranslate"><span class="pre">data-sha</span></code> for <code class="docutils literal notranslate"><span class="pre">figure.ts</span></code>. A <code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block is drawn by Mermaid, a separate chunk loaded only
+for a page that has one (not kept offline: it is big), with <code class="docutils literal notranslate"><span class="pre">securityLevel:</span> <span class="pre">'strict'</span></code>; it is
+bundled, not loaded from a CDN, so the CSP needs no change. That CSP (a <code class="docutils literal notranslate"><span class="pre">&lt;meta&gt;</span></code> in <code class="docutils literal notranslate"><span class="pre">index.html</span></code>)
+sets <code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'self'</span></code> and <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span> <span class="pre">'wasm-unsafe-eval'</span></code>: the theme is applied before first paint by
+<code class="docutils literal notranslate"><span class="pre">/theme-init.js</span></code>, not an inline script. <code class="docutils literal notranslate"><span class="pre">style-src</span></code> keeps <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code> because Mermaid and
+Excalidraw write style attributes and elements. <code class="docutils literal notranslate"><span class="pre">'wasm-unsafe-eval'</span></code> is there because the bundle
+compiles WebAssembly (pica and image-blob-reduce resize an image added to a drawing; Excalidraw’s
+font subsetting is an Emscripten module), which <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span></code> alone blocks; it allows
+WebAssembly only, not <code class="docutils literal notranslate"><span class="pre">eval()</span></code>, <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">Function()</span></code> or inline scripts, and <code class="docutils literal notranslate"><span class="pre">tests/csp.test.ts</span></code> keeps
+<code class="docutils literal notranslate"><span class="pre">'unsafe-eval'</span></code> and <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code> out of <code class="docutils literal notranslate"><span class="pre">script-src</span></code>. The font subsetting module also builds
+functions with <code class="docutils literal notranslate"><span class="pre">Function()</span></code>, which only <code class="docutils literal notranslate"><span class="pre">'unsafe-eval'</span></code> would allow; that is refused, so Excalidraw
+logs “Skipped glyph subsetting” and an SVG export embeds the whole font it uses instead of
+the glyphs drawn (about 40 kB against 13 kB for a three-box sketch); PNG exports, the stored
+drawing, which holds no fonts, and what shows on screen are unchanged
+(<a class="reference external" href="https://github.com/gilesknap/scrap/issues/105">issue 105</a>).</p>
+<p>The server parses with markdown-it-py (<code class="docutils literal notranslate"><span class="pre">scrap/markdown.py</span></code>, with mdit-py-plugins for footnotes):
+the search index holds plain text from the parse (link and image text, not addresses; a page
+link’s label; code as typed; a table’s cells; no markup), and the importer rewrites links,
+images and wiki links found by the parse, mapped back to their place in the text, so code is
+never rewritten and a link in a table cell escapes every pipe (a block whose lines can’t be
+mapped back keeps its links as typed, and the import plan says so). Tests keep both parsers linear
+in the length of the text on hostile input (long runs of brackets, say). Migration 4 re-indexed
+every page this way.</p>
+</section>
+</section>
+<section id="operating-it">
+<h2>Operating it<a class="headerlink" href="#operating-it" title="Link to this heading">#</a></h2>
+<p>The commands and settings are in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>; this is how they fit together.</p>
+<ul class="simple">
+<li><p><strong>Commands.</strong> <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> (migrates, then serves), <code class="docutils literal notranslate"><span class="pre">backup</span> <span class="pre">DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">restore</span> <span class="pre">DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">DIR</span></code>,
+<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">--backfill</span></code>, <code class="docutils literal notranslate"><span class="pre">--related</span></code>, <code class="docutils literal notranslate"><span class="pre">--writeups</span></code>) and <code class="docutils literal notranslate"><span class="pre">ingest-once</span> <span class="pre">IMAGE</span></code>. Every command
+takes <code class="docutils literal notranslate"><span class="pre">--data-dir</span></code> (default <code class="docutils literal notranslate"><span class="pre">$SCRAP_DATA_DIR</span></code>, else <code class="docutils literal notranslate"><span class="pre">./data</span></code>).</p></li>
+<li><p><strong>Settings</strong> are environment variables: <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_WEB_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (50), <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> (300), <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code> (off), <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>
+(on, but only with ingest on), <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> (60), <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (3) and
+<code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>. “Today” in <code class="docutils literal notranslate"><span class="pre">due:today</span></code> is the server’s local day, so set <code class="docutils literal notranslate"><span class="pre">TZ</span></code>.</p></li>
+<li><p><strong>Backup.</strong> <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> takes an online SQLite backup plus a copy of <code class="docutils literal notranslate"><span class="pre">files/</span></code>, safe while
+serving. <code class="docutils literal notranslate"><span class="pre">restore</span></code> checks the copy’s integrity and that its schema is not newer than the code,
+works from read-only media (it opens a copy made in the data folder), and refuses a non-empty
+data folder unless given <code class="docutils literal notranslate"><span class="pre">--force</span></code>. The preview cache is never backed up.</p></li>
+<li><p><strong>Timers.</strong> On a single server <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> sets up three systemd user timers: a nightly backup
+(keeping the newest <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> runs), <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> after it, and the related-pages pass
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>. The Helm chart has only the backup CronJob. A health check is <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code>, which also reports the upload limit.</p></li>
+<li><p><strong>Cost.</strong> Every call records its cost from the usage and a price table, and the daily budget
+and the Console spend limit cap the total. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span></code> prints what one photo costs
+(<a class="reference internal" href="ingest.html"><span class="std std-doc">Claude ingest</span></a>).</p></li>
+</ul>
+</section>
+<section id="deferred">
+<h2>Deferred<a class="headerlink" href="#deferred" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Voice memos (needs a transcriber).</p></li>
+<li><p>Background Sync for the upload queue.</p></li>
+<li><p>Filing captures into existing pages, and automatic cross-linking.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">namespace</span></code> column for read scoping by less trusted surfaces.</p></li>
+<li><p>Embeddings and hybrid search, if exact words and filters stop being enough
+(<a class="reference internal" href="decisions/0008-search-fts5-only-for-now.html"><span class="std std-doc">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</span></a>).</p></li>
+<li><p>Purging trashed pages and their captures (there is no empty-trash command).</p></li>
+<li><p>A page listing dead jobs. The queue’s state is shown on each page and in <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code>, with
+<em>Resume</em> and per-photo <em>Retry</em>, but there is no overview.</p></li>
+<li><p>Chat and refine on a photo’s stored model run.</p></li>
+</ul>
+<p>Larger ideas:</p>
+<ul class="simple">
+<li><p><strong>Work browser route.</strong> A Cloudflare tunnel plus Access (passkey-capable IdP, short sessions) in
+front of the PWA only; the service verifies the Access JWT itself. Cloudflare sees plaintext.</p></li>
+<li><p><strong>Work sandbox.</strong> Userspace Tailscale (no root, no TUN), an ephemeral tagged key, an ACL to the
+MCP port only; scoped <code class="docutils literal notranslate"><span class="pre">search</span></code> and <code class="docutils literal notranslate"><span class="pre">read</span></code>, inbox-only writes.</p></li>
+<li><p><strong>PKM session pod.</strong> A remote Claude Code session in the cluster with only the scrap MCP server.</p></li>
+<li><p><strong>Separate ingest worker.</strong> The same image with another command, if LLM work needs isolating.</p></li>
+</ul>
+</section>
+<section id="open-questions">
+<h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Headless terms.</strong> Partly settled: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code> is Claude Code’s own route for
+headless use, and the seat backend uses it (<a class="reference internal" href="decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>).
+Whether an organisation allows a seat to run unattended is its own policy: users check with
+its Claude admin.</p></li>
+<li><p><strong>Audio transcription</strong> (for voice memos). Local faster-whisper or a hosted API.</p></li>
+<li><p><strong>Postgres and pgvector</strong>, only if SQLite is outgrown.</p></li>
+<li><p><strong>Cloudflare route auth.</strong> Which identity provider and session length; capture or view only.</p></li>
+<li><p><strong>Work sandbox scope.</strong> Namespaced reads or full read; whether work material gets a namespace.</p></li>
+<li><p><strong>Tailscale Kubernetes operator.</strong> Whether its ingress passes the identity headers through; its
+source says it does, but this is not yet verified (<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>).</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="decisions/0029-store-health-checks-as-search-filters.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="design-handover-2026-10-21.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Design handover, 2026-10-21 (superseded)</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#principles">Principles</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-built">What is built</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-model">Data model</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tables-beyond-the-core">Tables beyond the core</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrations">Migrations</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#page-identity-links-tags">Page identity, links, tags</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kinds">Kinds</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#revisions-and-conflicts">Revisions and conflicts</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#search">Search</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phone-quick-capture">Phone quick capture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-features">Claude features</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#images-in-the-text">Images in the text</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw">Excalidraw</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mcp-tools">MCP tools</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#security-posture">Security posture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-pwa">The PWA</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unused-files-scrap-gc">Unused files (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#import">Import</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#markdown">Markdown</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#operating-it">Operating it</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deferred">Deferred</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-questions">Open questions</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.11.0/docs/explanations/design.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/explanations/design.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

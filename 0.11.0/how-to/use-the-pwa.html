@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.11.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=f3b36f1a"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/use-the-pwa';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.11.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Explanations" href="../explanations.html" />
+    <link rel="prev" title="Use scrap on your phone over Tailscale" href="use-scrap-on-your-phone.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.11.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-code.html">Connect a Claude Code session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="import-a-vault.html">Import a Thoth vault</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Capture from your phone (the PWA)</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../how-to.html" class="nav-link">How-to Guides</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Capture from your phone (the PWA)</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="capture-from-your-phone-the-pwa">
+<h1>Capture from your phone (the PWA)<a class="headerlink" href="#capture-from-your-phone-the-pwa" title="Link to this heading">#</a></h1>
+<p>scrap serves a web app (a PWA) at the root of its address. It is built for one-handed use on a
+phone and has four tabs: <strong>Capture</strong> (the composer, camera and gallery, the share target and
+the offline queue), <strong>Todos</strong> (what to do now, soon, or ever), <strong>Search</strong> (every page, newest
+first, with kinds, filters and tags) and <strong>Topics</strong> (the topic pages Claude keeps). Opening a page gives a page view with an editor, photo and
+drawing viewers and, with Claude on, what Claude made of it.</p>
+<p>This page covers, in order: installing it, capturing, sharing into scrap, the offline queue, what
+scrap stores on the phone and what works offline; then viewing, editing and searching (navigating
+and the keyboard, search and its syntax, tags, todos, the page view, editing and deleting); what
+Claude makes of a photo and of a note or link, and its topic pages;
+the iPhone and iPad limits, updates and the screen-layout debug panel; and, for developers, how
+to build the app, with the licences of what it bundles.</p>
+<section id="install-it-on-android">
+<h2>Install it on Android<a class="headerlink" href="#install-it-on-android" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Open scrap’s HTTPS address in Chrome. A PWA needs HTTPS; <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1</span></code> also works for
+trying it out on the server itself. Get an address with the <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> URL from
+<a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>, or the Tailscale operator or an ingress from
+<a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p></li>
+<li><p>Chrome menu, <strong>Add to home screen</strong> (or <strong>Install app</strong>), then <strong>Install</strong>.</p></li>
+<li><p>Open scrap from its icon. It opens on the capture screen, in its own window.</p></li>
+</ol>
+<p>Installing is what puts scrap in the Android <strong>share sheet</strong>.</p>
+<p>scrap has no login of its own: anyone who can reach its address can use the app, so reach it
+only over your tailnet or behind a proxy that authenticates (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
+</section>
+<section id="capture">
+<h2>Capture<a class="headerlink" href="#capture" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Button</p></th>
+<th class="head"><p>Does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Camera</strong></p></td>
+<td><p>Opens the camera</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Gallery</strong></p></td>
+<td><p>Picks one or more images from the phone</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Note</strong></p></td>
+<td><p>A text box; a pasted link alone becomes a link capture</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The buttons say how you capture, not what the page is. Its <strong>kind</strong> is chosen in the composer
+(and changed later in the page’s editor) with the row of chips above the text: <strong>Note</strong> (the
+default), <strong>Todo</strong>, <strong>Later</strong> (to read, watch or listen to later), <strong>Board</strong> (a whiteboard) or <strong>Doc</strong> (a document). A link on its own
+picks <strong>Later</strong> for you until you pick something else. Photos skip the choice: Claude reads them
+and makes a whiteboard or document a page of that kind, and you can change it after. A kind
+you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
+already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
+changing it back gives the page as it was. While the kind is <strong>Todo</strong> (and there are no
+photos), the composer also has the todo’s <strong>Due</strong> date (<strong>Today</strong>, <strong>Tomorrow</strong>, <strong>Next week</strong>
+or a date) and <strong>Priority</strong>, as on its page; the text box asks <em>What needs doing?</em>. The due
+date and the tags are each folded into one line above the text (<strong>Due</strong> <em>24 Oct · high</em>,
+<strong>Tags</strong> <em>2 · #home #garden</em>), so the text stays in front: tap the line to open it, and again to
+fold it.</p>
+<p>In the composer, <strong>Camera</strong> and <strong>Gallery</strong> add more photos (to a note too), and the cross
+on a thumbnail removes one: all the photos and the text become one capture and one page.
+If the photos together are over the server’s upload limit (50 MB by default, set with
+<code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code>: see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>; the server tells the app, which remembers
+it for offline use), Save says so: remove some, or <strong>Save separately</strong>, one capture per photo
+with the text on the first. A proxy in front of scrap may have a lower limit of its own.
+The <strong>Tags</strong> line opens a tags box that works as on a page (see Tags, below): type a tag and press Enter
+or a comma, or tap one of the tags offered in a row under the box (your most used tags, or as
+you type, the tags in use that match); tap a tag’s ✕ to take it off; what is still in the box
+when you save counts too. The page is made with its tags, so search finds it by them at once,
+also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude’s
+join them when it first reads the photo (a later Regenerate adds its tags only to a page with
+none, so one you took off stays off). Saved separately, every photo’s page gets the tags.
+<strong>Save</strong> returns at once: the capture is stored on the phone first and uploaded in the
+background. The four newest pages are listed above the buttons.</p>
+<p>Leave the composer with the phone’s Back and what you typed is kept as a <strong>draft</strong>: a row over
+the buttons (its kind’s icon, <em>Draft:</em> and its first line). Tap it to carry on, or its <strong>✕</strong> to
+discard it (with <strong>Undo</strong>). The buttons (and <strong>New todo</strong>) always start a fresh capture: left by
+Back with something in it, the fresh one takes the older draft’s place, and <strong>Undo</strong> in the
+message puts the older one back. There is one kept draft at a time. The fresh one is kept on
+the phone as you type too, so if the app is closed or killed before you save it (a phone short
+of memory may do that after the camera), it is the draft the next time you open scrap, again
+with <strong>Undo</strong> for the older one.</p>
+</section>
+<section id="share-into-scrap">
+<h2>Share into scrap<a class="headerlink" href="#share-into-scrap" title="Link to this heading">#</a></h2>
+<p>From any Android app, <strong>Share</strong>, then <strong>scrap</strong>. Links, text, photos and other files (scrap’s
+share target accepts any file type) are queued like any other capture and the app opens on the
+capture screen saying <em>Shared item saved</em>. The service worker queues the share on the phone, so
+it is saved even if the app was not open; the capture is recorded with source <code class="docutils literal notranslate"><span class="pre">share</span></code>. What
+becomes of what was shared:</p>
+<ul class="simple">
+<li><p><strong>The link</strong> is the shared URL, or, if there is none, a link at the very end of the shared
+text. Android often sends a link as text after the page title, so scrap takes the link off the
+end and keeps the rest as the note.</p></li>
+<li><p><strong>The note</strong> is the shared text, with the shared title put in front of it as its first line,
+which titles the page, unless the text already contains the title.</p></li>
+<li><p><strong>Files</strong> of zero size are dropped.</p></li>
+<li><p>A share with no text, link or usable file is ignored: the app opens on the capture screen with
+no message.</p></li>
+</ul>
+</section>
+<section id="the-offline-queue">
+<h2>The offline queue<a class="headerlink" href="#the-offline-queue" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Every capture gets its id (a ULID) on the phone before it is queued, so an upload that is
+retried after a lost answer saves it once, not twice.</p></li>
+<li><p>The queue lives in the browser’s IndexedDB (photos as they are, not re-encoded) and survives
+closing the app and restarting the phone.</p></li>
+<li><p>The header badge shows what is on the phone: <strong>2 waiting · 1 failed</strong>. Tap it to retry
+everything now. Waiting items are also listed at the top of the capture and search screens,
+oldest first; a row says <em>waiting to upload</em> with the last problem after it (<em>offline</em>, <em>server
+error (503)</em>, <em>connection lost</em>, <em>timed out</em>), or <em>not saved</em> with the server’s reason.
+Offline, the capture screen shows the badge, the waiting rows and one quiet line, <em>Offline:
+showing what’s on this phone</em>, in place of the newest pages: no error card, no Retry, no
+message on Save (the waiting row says it). When the phone is back online the newest pages
+come back by themselves.
+Opening scrap, coming back to it or coming back online sends what waits at once (another
+tab’s upload first, if one is running). A screen still waiting for the server after a moment
+says <em>Loading…</em>, and an upload that drops while the phone is online says <em>connection lost</em>.</p></li>
+<li><p>Uploads start at once, again when the phone comes back online, whenever the app is opened or
+brought to the front, and on a timer with backoff (2 s doubling to 5 minutes) while it is open.
+Android gives web apps no reliable background upload, so a capture made offline uploads the
+next time scrap is open with a connection.</p></li>
+<li><p>Uploads go oldest first and one at a time; with no network the rest wait for the next try.
+What happens to a capture depends on the answer. A network error, a <code class="docutils literal notranslate"><span class="pre">5xx</span></code> answer, <code class="docutils literal notranslate"><span class="pre">408</span></code> and
+<code class="docutils literal notranslate"><span class="pre">429</span></code> are retried by themselves with the backoff above. Any other <code class="docutils literal notranslate"><span class="pre">4xx</span></code> answer is permanent: a
+capture the server refuses (for example over the upload limit, <code class="docutils literal notranslate"><span class="pre">413</span></code>) is marked <strong>failed</strong>
+with the server’s reason (<em>refused:</em> or <em>too large:</em>), and stays on the phone with <strong>Retry</strong>
+and <strong>Discard</strong> (which asks first, then deletes it and its photos from the phone). A failed
+capture is not tried again until you tap <strong>Retry</strong> or the header badge. A multi-photo capture
+refused as too large offers <strong>Split and retry</strong> instead of Retry: one capture per photo, the
+text on the first, the tags and any kind on every one. Retry, Split and Discard wait for an
+upload already in progress, so a tapped button says <em>Waiting for upload…</em> until it is done.</p></li>
+<li><p>A page made from a queued capture is dated when the server receives it, not when it was
+written on the phone, so a capture made offline sorts as new when it uploads, and the
+<code class="docutils literal notranslate"><span class="pre">date:created</span></code>, <code class="docutils literal notranslate"><span class="pre">after:</span></code> and <code class="docutils literal notranslate"><span class="pre">before:</span></code> searches use that day. The phone’s time is kept only on
+the capture itself (its <code class="docutils literal notranslate"><span class="pre">created_at</span></code> in the API) and, for a capture of photos or files alone, in the
+page’s first title (a time such as <code class="docutils literal notranslate"><span class="pre">2026-10-22</span> <span class="pre">13:04</span></code>, in UTC) until you retitle the page or
+Claude titles it from the photo.</p></li>
+<li><p>A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
+no progress for a minute is given up and retried later. Once the phone has handed over the whole
+upload, it waits at least two minutes for the answer (longer for big uploads, which may still
+be draining from the phone’s network buffer). Network and server errors just wait
+and retry.</p></li>
+<li><p>If the phone refuses to store a capture (storage full), the composer stays open with your text
+and photos and says so. A share that cannot be stored goes straight to the server instead (its
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/share</span></code>: see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>), or, with no connection either, shows a page
+saying it was not saved.</p></li>
+<li><p>Two open scrap tabs take turns (Web Locks), so one capture is never uploaded twice at once.</p></li>
+</ul>
+</section>
+<section id="what-scrap-stores-on-the-phone">
+<h2>What scrap stores on the phone<a class="headerlink" href="#what-scrap-stores-on-the-phone" title="Link to this heading">#</a></h2>
+<p>All of it stays in the browser, for scrap’s own address, and none of it is sent anywhere:</p>
+<ul class="simple">
+<li><p><strong>IndexedDB</strong>: the upload queue (photos as they are) and the drafts, which are the composer’s,
+a page edit’s and a drawing edit’s.</p></li>
+<li><p><strong>Local storage</strong>: your recent searches, whether Claude’s <strong>Description</strong> and <strong>Text Claude
+read</strong> on a photo are folded, the debug panel’s switch (see Troubleshooting the screen layout,
+below) and the server’s upload limit, learned from <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> each time the app opens, comes
+back or goes online, so a photo that is too big is caught offline.</p></li>
+<li><p><strong>Cache Storage</strong>: the app’s own files only, in a cache named for the build (<code class="docutils literal notranslate"><span class="pre">scrap-</span></code> and the
+build id). A new build makes a new cache and the old ones are deleted when it takes over.
+API answers and files are never cached.</p></li>
+</ul>
+<p>Clearing the site’s data for scrap’s address in the browser (or iOS evicting it, see iPhone and
+iPad, below) deletes anything still queued and every draft. If the browser blocks local storage
+(a private tab, say), scrap carries on without it: no recent searches, no remembered folds, no
+offline size check. If it refuses to store a capture, the composer says so (see above).</p>
+</section>
+<section id="what-works-offline">
+<h2>What works offline<a class="headerlink" href="#what-works-offline" title="Link to this heading">#</a></h2>
+<p>The app’s own files are kept on the phone, so it opens without a connection. API answers and
+files are never cached, so anything that reads from or writes to the server needs it.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Works offline</p></th>
+<th class="head"><p>Needs the server</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Opening the app, the capture screen and the badge</p></td>
+<td><p>Opening any page</p></td>
+</tr>
+<tr class="row-odd"><td><p>The composer, with photos and tags, and its drafts</p></td>
+<td><p>Search results and the Todos screen</p></td>
+</tr>
+<tr class="row-even"><td><p>Saving a capture (it is queued and uploaded later)</p></td>
+<td><p>Changing a page’s tags or kind, and saving its due date or snooze</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sharing into scrap</p></td>
+<td><p>Ticking a task box on a page</p></td>
+</tr>
+<tr class="row-even"><td><p>The editor (on a page already open) and its drafts, and the search screen’s recent searches</p></td>
+<td><p>Viewing or editing a drawing, and Mermaid diagrams (shown as code)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Waiting items: retry, discard, split</p></td>
+<td><p>Claude’s summary and related pages, and the pager and swipes</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Saving an edit of a page also needs the server; the editor keeps what you typed as a draft until
+you can. The cached files are replaced when a new scrap is deployed (see Updates, below).</p>
+</section>
+<section id="view-edit-search">
+<h2>View, edit, search<a class="headerlink" href="#view-edit-search" title="Link to this heading">#</a></h2>
+<section id="screens-and-navigation">
+<h3>Screens and navigation<a class="headerlink" href="#screens-and-navigation" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>The nav has four tabs, <strong>Capture</strong>, <strong>Todos</strong>, <strong>Search</strong> and <strong>Topics</strong> (see Claude’s topic
+pages, below). <strong>Todos</strong> opens the Todos
+screen on <strong>Now</strong> (see Todos, below); its badge counts the open todos due today or overdue, by your
+phone’s day (none: no badge), and is counted again when the app opens or comes back and
+after a tick or an edit. <strong>Search</strong> opens the list screen for everything else: with
+nothing in the search box it lists every page newest first, with a thumbnail of the first
+photo (<strong>Show more</strong> at the end for older ones). The keyboard only comes up when you tap the
+box. There is no separate Recent screen: the empty box is it.</p></li>
+<li><p>A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
+bottom. In the top bar, in place of the wordmark, Back names where it goes and goes up one
+level: to the page you followed a link from (<strong>‹ Its title</strong>), else to the list you opened
+the page from (<strong>‹ Search</strong>, <strong>‹ Todos</strong>, <strong>‹ Topics</strong> or <strong>‹ Capture</strong>), as you left it, even
+after stepping through its pages. When Back goes to a page, the list’s name follows it, as in
+<strong>‹ Its title · Search</strong>: tap the list’s name to jump straight back to the list. The phone’s
+or the browser’s own Back goes back one step at a time. A page opened from a link or a share
+has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Topics for
+a topic page, to Capture for any other page.</p></li>
+<li><p>Going back, by any Back or Forward, a screen comes back scrolled where you left it.</p></li>
+<li><p>On a narrow phone, a page’s top bar shortens the upload badge to its dot and count (● 2) when
+it shares the bar with the jump to the list or the pager.</p></li>
+<li><p>On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
+wide. On a computer (with a mouse) the layout suits the mouse rather than the
+thumb: Capture, Todos, Search and Topics are tabs in the top bar, Camera, Gallery and Note sit over
+the list, a page’s buttons (Mark done, Edit, Share, Delete) are a row under its title and
+details, and messages appear at the bottom of the window. Phones and touch tablets keep the
+bars at the bottom.</p></li>
+<li><p>Every row, a page’s tags, its <code class="docutils literal notranslate"><span class="pre">[[links]]</span></code> and the pager’s ∧ ∨ are ordinary links with their own
+address, so you can open one in a new tab: on a phone, long-press it and choose <em>Open in new
+tab</em> (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
+Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
+wasn’t opened from a list. A plain tap opens it in place.</p></li>
+<li><p>A row in a list shows a page’s kind by its icon (a checklist for a todo, a bookmark for
+Later); a page says it in a chip at the start of its line under the title, with its status
+if it has one: <em>Todo · open</em>, <em>Later · done</em>, <em>Note</em>.</p></li>
+<li><p>A page opened from the list or a search shows where it is in that list at the right of the
+top bar, as a mail app does: <em>3 of 23</em> with <strong>∧</strong> (previous) and <strong>∨</strong> (next). Swipe left for
+the next one and right for the previous one, or use the arrows (or the arrow keys). The page
+follows your finger and slides away to the next one; a short drag settles back, and at the
+first or last it only gives a little and says so. Back returns to the list. Swipes start
+away from the screen’s edges (the phone’s own Back gesture lives there) and are ignored on
+text that scrolls sideways, while zoomed in or while selecting text. The pager needs the
+server’s list, so a page has none when it is opened offline from a list (and a page cannot be
+opened offline in any case).</p></li>
+<li><p>Swipe a row of the list, the capture screen’s list or search results: to the <strong>right</strong> to
+edit it (the page opens in its editor), to the <strong>left</strong> to delete it (with <strong>Undo</strong> for a few
+seconds). The row follows your finger with <em>Edit</em> or <em>Delete</em> showing behind it; past a third
+of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
+it slides back. The page itself has the same Edit and Delete.</p></li>
+<li><p>An address scrap doesn’t know shows <em>Not found</em>.</p></li>
+<li><p>On a computer the keyboard does these:</p>
+<ul>
+<li><p><strong>Enter</strong> in the search box opens the first result and keeps the search under Recent.</p></li>
+<li><p><strong>Left</strong> and <strong>Right</strong> arrows go to the previous or next page in the pager, and to the
+previous or next photo in the photo viewer. The pager’s arrows do nothing while you are
+typing in a box, editing, or have a photo or drawing open, or with Ctrl, Alt, Shift or Cmd
+held.</p></li>
+<li><p><strong>Escape</strong> closes the photo viewer (its Share menu first), the drawing viewer (not while you
+are editing the drawing), and a page’s <strong>Tags</strong> and <strong>Due</strong> forms.</p></li>
+<li><p><strong>Ctrl+Enter</strong> (<strong>Cmd+Enter</strong> on a Mac) saves in the editor and the composer.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="search">
+<h3>Search<a class="headerlink" href="#search" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Search</strong> searches titles, tags, summaries and text as you type (each word as the start of a
+word: <code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>); a title or tag match ranks first. Each result shows a snippet of
+the matching text, unless it only says the title again. Search needs the server: offline, the
+screen says so.</p></li>
+<li><p>Tap the empty search box for <strong>Recent</strong>: your last ten searches, newest first, filters and
+all (<code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">tag:home</span></code>). Tap one to run it again, its <strong>✕</strong> to forget it, or <strong>Clear all</strong>.
+A search is kept once it is run: Enter, opening a result, or leaving it a few seconds with
+results; not as you type. They are kept on this phone only, never sent to scrap; in a
+private tab, or with site storage blocked, there are none and search works as before.</p></li>
+<li><p>Under the search box (and any filters on), a row of kinds, always shown, each an icon over
+its word: <strong>All</strong>, <strong>Notes</strong>, <strong>Todos</strong>, <strong>Later</strong>, <strong>Boards</strong>, <strong>Docs</strong>. One tap shows only
+that kind (it writes <code class="docutils literal notranslate"><span class="pre">kind:later</span></code> into the query), a second tap on it (or <strong>All</strong>) shows
+every kind again. A kind alone still lists newest first. <strong>Todos</strong> works as the others do: it
+narrows the list to todos (<code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>) in place; the Todos tab is the Todos screen.</p></li>
+<li><p>Whenever anything is chosen or typed, the search box has a <strong>✕</strong> at its end: one tap goes
+back to every page, newest first (the keyboard stays down).</p></li>
+<li><p><strong>Filters</strong> is the slider button at the end of the search box; with filters on, it shows how
+many. Each filter that is on is a chip with a ✕ in a row under the box (<em>#home</em>, <em>past
+month</em>, <em>A–Z</em>): tap it to take that filter out. So nothing chosen is hidden. How many pages
+were found leads that row (with no filters on, it is a short line over the list).</p></li>
+<li><p>Tap <strong>Filters</strong> to open its panel in place, under the box, and tap it again to fold it (it
+stays as you left it for the next search). Its rows: <strong>Tags</strong> (type in its box for the tags
+in use that match, or with nothing typed tap one of the results’ top tags, with their counts:
+only tags that narrow what was found are offered),
+<strong>Order</strong> (<strong>Best match</strong> or <strong>Last edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>A–Z</strong>, and for todos
+<strong>Due soonest</strong> and <strong>Priority</strong>) and <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>, <strong>Dates…</strong> with a
+From and a To, and <strong>By created date</strong> once a range is on). Each row scrolls sideways. Each
+tap changes the search at once, and the list under it follows; a chosen one is shown pressed
+and a second tap takes it off. <strong>Clear filters</strong> takes every filter off and keeps the words.
+For todos due today, overdue or soon, use the Todos screen, or type <code class="docutils literal notranslate"><span class="pre">due:</span></code> in the box.</p></li>
+<li><p>The list shows 100 pages at first and <strong>Show more</strong> adds 100 each time. The newest-first list
+(empty box, or a kind alone) stops at 500 pages and a search at 1000 results, then there is no
+more button. That is how far the screen goes, not a limit on what is stored: to reach further,
+narrow the query with filters or a date (<code class="docutils literal notranslate"><span class="pre">after:</span></code>, <code class="docutils literal notranslate"><span class="pre">before:</span></code>), or turn the order round
+(<code class="docutils literal notranslate"><span class="pre">-sort:created</span></code> lists the oldest first).</p></li>
+<li><p>The query and its filters are in the address (<code class="docutils literal notranslate"><span class="pre">/search?q=...</span></code>), so a reload keeps them, and
+Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
+<code class="docutils literal notranslate"><span class="pre">/recent</span></code> links open this screen (<code class="docutils literal notranslate"><span class="pre">/recent?kind=todo</span></code> the Todos screen).</p></li>
+</ul>
+<section id="search-syntax">
+<h4>Search syntax<a class="headerlink" href="#search-syntax" title="Link to this heading">#</a></h4>
+<p>The chips and panels only write the query, which you can also type:</p>
+<ul class="simple">
+<li><p>Words match as the start of a word. <code class="docutils literal notranslate"><span class="pre">-word</span></code> or <code class="docutils literal notranslate"><span class="pre">!word</span></code> leaves out pages with the word, and
+<code class="docutils literal notranslate"><span class="pre">&quot;a</span> <span class="pre">phrase&quot;</span></code> matches those words together, in order. A <code class="docutils literal notranslate"><span class="pre">-</span></code> or <code class="docutils literal notranslate"><span class="pre">!</span></code> in front of any filter below
+leaves out the pages it matches. A query may have at most 64 terms and 64 filters (more is
+refused, not cut short), and a word with no letter or digit in it (<code class="docutils literal notranslate"><span class="pre">&amp;</span></code>, <code class="docutils literal notranslate"><span class="pre">?</span></code>) is ignored.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">kind:todo</span></code> (or <code class="docutils literal notranslate"><span class="pre">kind:later</span></code>, also <code class="docutils literal notranslate"><span class="pre">kind:read</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:board</span></code>, <code class="docutils literal notranslate"><span class="pre">kind:doc</span></code>…).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tag:tech</span></code> (also <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code>; <code class="docutils literal notranslate"><span class="pre">tag:epics</span></code> finds <code class="docutils literal notranslate"><span class="pre">tech/epics</span></code> too).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">is:STATUS</span></code> for a todo’s or Later page’s status: <code class="docutils literal notranslate"><span class="pre">is:open</span></code>, <code class="docutils literal notranslate"><span class="pre">is:in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">is:done</span></code>,
+<code class="docutils literal notranslate"><span class="pre">is:cancelled</span></code>. <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> finds open todos snoozed till later. <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> finds pages
+Claude wrote over MCP, which show a <em>Written by Claude</em> badge, and <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> pages
+whose text Claude changed over MCP. <code class="docutils literal notranslate"><span class="pre">is:personal</span></code> and <code class="docutils literal notranslate"><span class="pre">is:work</span></code>
+(a page not marked personal) use the page’s <code class="docutils literal notranslate"><span class="pre">personal</span></code> flag, which an import sets (see
+<a class="reference internal" href="import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a>); the app cannot set it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with an image file) and <code class="docutils literal notranslate"><span class="pre">has:drawing</span></code> (pages with a drawing made from a
+photo). <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for).</p></li>
+<li><p>The store’s health checks (the <strong>Store health</strong> screen below counts them): <code class="docutils literal notranslate"><span class="pre">is:orphan</span></code>
+(no page link either way, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or a Markdown link to its address, no related pages
+and no topic; not an Orphaned assets page), <code class="docutils literal notranslate"><span class="pre">is:untagged</span></code> (no tags; topic
+pages and gc’s Orphaned assets pages aside), <code class="docutils literal notranslate"><span class="pre">is:stale</span></code> (an open todo not edited, its text,
+title, kind or tags, for 60 days, not snoozed and not due today or later), <code class="docutils literal notranslate"><span class="pre">is:duplicate</span></code> (a photo or file shared
+with another page, not one in the trash or an Orphaned assets page), <code class="docutils literal notranslate"><span class="pre">has:dangling</span></code> (a
+<code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> or a Markdown link to a page’s address in its text, outside code, to no page or to
+one in the trash: any the server reads as a page link, including forms the app shows as plain
+text, such as <code class="docutils literal notranslate"><span class="pre">[[Some</span> <span class="pre">Title]]</span></code>) and <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> (Claude’s
+write-up of a board older than the board’s photos, text, title, kind or tags, or made with
+an older prompt; never a version you restored).</p></li>
+<li><p>A todo’s <code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> (overdue), <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code> (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code>, and <code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">after:1w</span></code> or <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code> (last edited; dates are UTC days, both ends included; a time
+ago is <code class="docutils literal notranslate"><span class="pre">Nd</span></code>, <code class="docutils literal notranslate"><span class="pre">Nw</span></code>, <code class="docutils literal notranslate"><span class="pre">Nm</span></code> or <code class="docutils literal notranslate"><span class="pre">Ny</span></code> with N up to 100; add <code class="docutils literal notranslate"><span class="pre">date:created</span></code> for when it was made).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sort:title</span></code> (A to Z; also <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, newest first, <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, and a todo’s
+<code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, soonest first, and <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code>, high first; <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> turns one round:
+<code class="docutils literal notranslate"><span class="pre">-sort:created</span></code> is oldest first). The Filters panel’s <strong>Order</strong> writes the commonest <code class="docutils literal notranslate"><span class="pre">sort:</span></code>
+for you, and works with nothing typed too.</p></li>
+</ul>
+<p>Filters alone list their pages, newest first. <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a> has the full grammar.</p>
+</section>
+<section id="store-health">
+<h4>Store health<a class="headerlink" href="#store-health" title="Link to this heading">#</a></h4>
+<p><strong>Settings</strong> (the cog) has <strong>Store health</strong>: a screen listing each health check above with how
+many pages it finds, one count each from the server (<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code>). A tap on a check runs
+its search, and Back comes back to the screen. Nothing is dismissed there: a check that keeps
+finding a page you are happy with is the check to change. <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> lists only board
+write-ups, which wait for you (the card says so, below). Related pages and topic syntheses are
+not listed: the nightly and weekly passes refresh them on their own
+(<a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>).</p>
+<p>How matching works:</p>
+<ul class="simple">
+<li><p>Words are stemmed and accents are folded: <code class="docutils literal notranslate"><span class="pre">running</span></code> finds <code class="docutils literal notranslate"><span class="pre">run</span></code>, <code class="docutils literal notranslate"><span class="pre">runs</span></code> and <code class="docutils literal notranslate"><span class="pre">running</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">cafe</span></code> finds <code class="docutils literal notranslate"><span class="pre">café</span></code>. The stemming is English; <code class="docutils literal notranslate"><span class="pre">ß</span></code> is not folded to <code class="docutils literal notranslate"><span class="pre">ss</span></code>.</p></li>
+<li><p>Punctuation splits words, and so does <code class="docutils literal notranslate"><span class="pre">_</span></code>. <code class="docutils literal notranslate"><span class="pre">e-mail</span></code> is searched as <code class="docutils literal notranslate"><span class="pre">e</span></code> and <code class="docutils literal notranslate"><span class="pre">mail</span></code>, so <code class="docutils literal notranslate"><span class="pre">email</span></code>
+does not find it, and <code class="docutils literal notranslate"><span class="pre">don't</span></code> is <code class="docutils literal notranslate"><span class="pre">don</span></code> and <code class="docutils literal notranslate"><span class="pre">t</span></code>.</p></li>
+<li><p>A phrase in quotes matches whole words next to each other: <code class="docutils literal notranslate"><span class="pre">&quot;hello</span> <span class="pre">wor&quot;</span></code> does not find
+<code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code>, as <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">wor</span></code> does.</p></li>
+<li><p>Filter names and values are not case-sensitive: <code class="docutils literal notranslate"><span class="pre">Kind:Todo</span></code> works.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">date:</span></code> takes only <code class="docutils literal notranslate"><span class="pre">created</span></code>, which makes <code class="docutils literal notranslate"><span class="pre">after:</span></code> and <code class="docutils literal notranslate"><span class="pre">before:</span></code> use the creation date; any
+other <code class="docutils literal notranslate"><span class="pre">date:</span></code> value is ignored.</p></li>
+<li><p>A value scrap doesn’t know does not give an error. An unknown <code class="docutils literal notranslate"><span class="pre">kind:</span></code>, <code class="docutils literal notranslate"><span class="pre">is:</span></code>, <code class="docutils literal notranslate"><span class="pre">has:</span></code> or
+<code class="docutils literal notranslate"><span class="pre">image:</span></code> value, or a <code class="docutils literal notranslate"><span class="pre">due:</span></code>, <code class="docutils literal notranslate"><span class="pre">after:</span></code> or <code class="docutils literal notranslate"><span class="pre">before:</span></code> that is not a date or a time ago, finds
+nothing (after a <code class="docutils literal notranslate"><span class="pre">-</span></code>, it leaves out nothing).</p></li>
+</ul>
+</section>
+</section>
+<section id="tags">
+<h3>Tags<a class="headerlink" href="#tags" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>A page shows its <strong>tags</strong> in one line under its title, most used first (swipe it for more):
+tap one to search for it. A tag Claude added is marked as such. <strong>Tags</strong> (or <strong>Add tags</strong>),
+first in that line, edits them in place: tap a tag’s ✕ to take it off, type one in the box and
+press Enter or type a comma to add it, or tap one of the tags offered in a row under the box
+(the six most used, or as you type, the tags in use that match: a tap adds it in place of what
+you typed), then <strong>Save</strong>; what is still in the box when you save counts too. Tags are kept
+as the importer keeps them: lower case, without a leading <code class="docutils literal notranslate"><span class="pre">#</span></code>, at most 64 characters each and
+64 per page (the box says when one is too long). Tag editing needs the server.</p></li>
+<li><p><strong>Edit</strong> (also a list row swiped right) has the same tags box, in its <strong>Tags</strong> line under the
+title, and saves them with the text; the composer has it too, for a new page. Changing tags is
+not a new revision and does not move the page up the list.</p></li>
+<li><p>To find pages by tag, use the Filters panel’s <strong>Tags</strong> row: type in its box to see the
+matching tags of the results (before any search, of every tag in use). (There used to be a separate Tags screen; an old <code class="docutils literal notranslate"><span class="pre">/tags</span></code> link now opens
+Search.)</p></li>
+</ul>
+</section>
+<section id="todos">
+<h3>Todos<a class="headerlink" href="#todos" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Todos and Later pages carry a status (open, in progress, done or cancelled). The page’s
+toolbar starts with <strong>Mark done</strong> (the filled button) while it is open or in progress, or
+<strong>Reopen</strong> once it is done or cancelled, then <strong>Edit</strong>, <strong>Share</strong> and <strong>Delete</strong>. In the list, the capture screen’s list and search results, their
+rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
+open it again; the row stays where it is and gets a <em>done</em> chip (an open row has no chip). A
+cancelled one looks closed: its title struck through and greyed, a dash in its box, a
+<em>cancelled</em> chip; its tick box marks it done. Ticking
+it or changing a kind doesn’t move the page up the list. In the app a todo only moves between
+open and done: <strong>in progress</strong> and <strong>cancelled</strong> are set through the API (a page’s <code class="docutils literal notranslate"><span class="pre">status</span></code>
+field: <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) or by Claude over MCP (<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>), and the app
+shows them.</p></li>
+<li><p>A todo may have a <strong>due date</strong> and a <strong>priority</strong> (high, medium or low). Its page shows them
+in a line under its tags (<em>high · due 3 Nov</em>, or <strong>Add due date</strong>): tap it to pick a date,
+or set one in a tap with <strong>Today</strong>, <strong>Tomorrow</strong> or <strong>Next week</strong> (<strong>No date</strong> clears it),
+and a priority, then <strong>Save</strong>. <strong>Edit</strong> has the same two under the
+tags while the kind is Todo. A todo’s row in a list says them too; one due before today and
+not done says <em>overdue</em> in red, until ticked off. Once done or cancelled it keeps its due
+date, greyed. They are a todo’s only: a page made a note
+keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
+nor moves the page up the list. Today is your phone’s day on rows and pages, and the server’s
+for <code class="docutils literal notranslate"><span class="pre">due:</span></code> searches.</p></li>
+<li><p><strong>Task lists drive a todo.</strong> A note with task boxes (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span></code>) becomes a todo when it is saved
+(done, if every box is ticked), unless its kind was chosen: the server files it, and the
+composer and editor don’t suggest a kind for boxes (the kind picker still shows <strong>Note</strong>, and
+leaving it so is no choice). To keep such a page a note, <strong>Edit</strong> it and pick <strong>Note</strong>: a kind
+picked by hand is kept. A Later, Board or Doc never changes. Boxes in code (a fenced or
+indented block) don’t count. Its row and page say how many are ticked (<em>2 of 5</em>), and its
+tick box on rows shows a bar while only some are. Ticking the last box (on the page, or in
+the editor) marks it done. While every box is ticked, unticking one or adding a new unticked
+one opens a done todo again; otherwise a todo marked done by hand stays done. <strong>Mark done</strong>
+ticks no box, and a cancelled todo is left as it is.</p></li>
+<li><p><strong>Snooze</strong> a todo to put it out of the way until a day: on its page, tap the line under its
+tags and pick a <strong>Snooze until</strong> date, or <strong>Tomorrow</strong> or <strong>Next week</strong> (<strong>No snooze</strong> wakes
+it), then <strong>Save</strong>. A snooze later than the todo’s due date asks first whether the due date
+moves with it: <strong>Move due date</strong> (to the snooze’s day) or <strong>Keep due date</strong>. Until that day it is out of <strong>Now</strong> and <strong>Upcoming</strong> and the Todos
+tab’s count (Now’s count says how many are snoozed: tap <em>1 snoozed</em> for a search of them,
+<code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">is:snoozed</span> <span class="pre">sort:due</span></code>); <strong>All</strong> shows it, marked <em>snoozed till 3 Nov</em>, and
+<code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> finds them (open ones only: a done or cancelled todo’s snooze no longer hides
+anything). On its day it comes back by itself.</p></li>
+<li><p>The <strong>Todos</strong> screen (<code class="docutils literal notranslate"><span class="pre">/todos</span></code>, the Todos tab) opens on <strong>Now</strong>: the todos not done or
+cancelled, what to do first at the top, in groups: <strong>Overdue</strong> (oldest due date first),
+<strong>Today</strong>, <strong>High priority</strong> (no due date), then <strong>Open</strong> (the rest, by priority, then due
+date, then last edited). Each row is two lines on every list: its title, then its priority and
+due date (no edit date). Done and cancelled todos are
+folded away at the end (<strong>Done</strong>, tap to open; those among the 500 todos last edited). A
+switch at the top, an icon over each word like the search screen’s kinds (<strong>Now</strong> a clock),
+picks the list instead: <strong>Upcoming</strong> (a calendar: due from tomorrow to a week away, soonest
+first) or <strong>All</strong> (every open todo and those done ones, last edited first). Each list
+sets its own order: there is no Sort here. The address says which list
+(<code class="docutils literal notranslate"><span class="pre">/todos?view=upcoming</span></code>; switching changes it in place, so Back leaves Todos rather than
+stepping through the lists), so
+Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
+To search todos, use <strong>Todos</strong> in the search screen’s kind row (<code class="docutils literal notranslate"><span class="pre">kind:todo</span></code>), where <code class="docutils literal notranslate"><span class="pre">due:</span></code>,
+<code class="docutils literal notranslate"><span class="pre">priority:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> still search and order them.</p></li>
+<li><p><strong>New todo</strong>, the <strong>+</strong> at the right of the top bar on the Todos screen (its accessible name
+is <em>New todo</em>), opens the composer on <strong>Todo</strong>; save, and you are back on the list with the
+new todo in it once it has uploaded.</p></li>
+<li><p>Opened from the Todos screen, <strong>Mark done</strong> moves on to the next todo in that list (the top
+bar says <em>3 of 9</em>) with <strong>Undo</strong> for a few seconds; on the last one it stays, and offers
+<strong>Back to list</strong>. <strong>‹ Todos</strong> in the top bar goes back to the list at any time.
+Opened from anywhere else, Mark done stays on the page.</p></li>
+</ul>
+</section>
+<section id="the-page-view">
+<h3>The page view<a class="headerlink" href="#the-page-view" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Page text is shown as Markdown, as GitHub writes it: headings (each level a size smaller,
+all under the page’s title), <strong>bold</strong>, <em>italic</em>,
+~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
+<code class="docutils literal notranslate"><span class="pre">https://</span></code> addresses (a <code class="docutils literal notranslate"><span class="pre">www.</span></code> address without <code class="docutils literal notranslate"><span class="pre">https://</span></code> stays plain text), tables
+(a <code class="docutils literal notranslate"><span class="pre">|</span></code> inside a cell is written <code class="docutils literal notranslate"><span class="pre">\|</span></code>), task lists (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span></code> and <code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[x]</span></code>, shown as boxes: tap one on the
+page to tick it, or untick it, and that item’s line in the text is saved at once, with no
+editor; the same words twice still tick the right one, and a box in code is no box. If the
+page was changed elsewhere meanwhile, it is shown as it is now, and the tap is not saved: tap
+again. Offline, and in <strong>Preview</strong>, the boxes don’t tick) and footnotes (<code class="docutils literal notranslate"><span class="pre">[^1]</span></code>); <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> links to another
+page (in a table cell write <code class="docutils literal notranslate"><span class="pre">[[slug\|label]]</span></code>: a bare <code class="docutils literal notranslate"><span class="pre">|</span></code> starts the next cell). A
+<code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block is drawn as a <a class="reference external" href="https://mermaid.js.org">Mermaid</a> diagram (flowcharts,
+sequence diagrams and the rest); offline, or if it has a mistake, it shows as code. A link to
+<code class="docutils literal notranslate"><span class="pre">#a-heading</span></code> scrolls to that heading: write the heading in lower case with hyphens for the
+spaces (<code class="docutils literal notranslate"><span class="pre">[top](#my-heading)</span></code> for <code class="docutils literal notranslate"><span class="pre">##</span> <span class="pre">My</span> <span class="pre">Heading</span></code>), as a link with a space in it is no link.
+HTML is shown as typed, never run; images show only
+when they are this server’s own photos (an image from another site is not fetched: a web
+address shows as a link to it, named by the image’s alt text, and anything else as its alt
+text); links open only to the web (<code class="docutils literal notranslate"><span class="pre">https</span></code>, <code class="docutils literal notranslate"><span class="pre">http</span></code>, <code class="docutils literal notranslate"><span class="pre">mailto</span></code>) or to pages here, and any other
+link is left as plain text. A full web address of a page here (<code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/slug</span></code>,
+on the address you opened the app at or any other listed in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>) opens in the
+app, as <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> does, so the phone’s Back comes back to the page it was in. A line break
+stays a line break. A wide table scrolls sideways in its own box. On a Later page, a link on a line of its own shows as a card: the site, the
+path in words, and <strong>Open</strong>. The text is always stored as typed, and <strong>Edit</strong> shows it so
+(but for the photo tokens, below).</p></li>
+<li><p><strong>Linking pages.</strong> A page is linked by its slug, the last part of its address: <code class="docutils literal notranslate"><span class="pre">[[shopping-list]]</span></code>
+or <code class="docutils literal notranslate"><span class="pre">[[shopping-list|the</span> <span class="pre">list]]</span></code> for <code class="docutils literal notranslate"><span class="pre">/p/shopping-list</span></code>. Only a slug of lower-case letters,
+digits and hyphens is a link, so a title such as <code class="docutils literal notranslate"><span class="pre">[[Shopping</span> <span class="pre">list]]</span></code> stays as typed. The slug
+is made when the page is created, from its title (letters and digits without accents, lower
+case, hyphens between words, at most 60 characters; <code class="docutils literal notranslate"><span class="pre">-2</span></code>, <code class="docutils literal notranslate"><span class="pre">-3</span></code> if it is taken), and is never
+changed or reused, not when the page is retitled nor when it is trashed, so links survive
+renames. A title with no letter or digit that can be written in ASCII (all Chinese, or only
+emoji) gets the slug <code class="docutils literal notranslate"><span class="pre">page</span></code>, then <code class="docutils literal notranslate"><span class="pre">page-2</span></code> and so on. A page’s backlinks (under <strong>Related</strong>)
+are the pages whose text links it, outside code: with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, or with
+a Markdown link to its address, <code class="docutils literal notranslate"><span class="pre">[label](https://&lt;your</span> <span class="pre">scrap&gt;/p/slug)</span></code> or
+<code class="docutils literal notranslate"><span class="pre">&lt;https://&lt;your</span> <span class="pre">scrap&gt;/p/slug&gt;</span></code>, on any address in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, or as a path,
+<code class="docutils literal notranslate"><span class="pre">[label](/p/slug)</span></code> (a bare address that the app shows as a link is not counted: write it as
+a Markdown link). <code class="docutils literal notranslate"><span class="pre">![[slug]]</span></code> is not an embed here: it shows as <code class="docutils literal notranslate"><span class="pre">!</span></code> and a link, but is not
+counted.</p></li>
+<li><p><strong>Share</strong> on a page asks <strong>Link</strong>, <strong>Text</strong> or <strong>Download</strong>: <strong>Link</strong> sends the page’s
+address (such as <code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/shopping-list</span></code>), which opens the page for anyone who
+can reach your scrap; <strong>Text</strong> sends its title and text, as typed but without the lines that
+only show a photo (no link to scrap in it); <strong>Download</strong> saves it as Markdown, or as a zip of
+the Markdown and its files when it has any (its photos are in the zip and its text points at
+them there). Tap <strong>Share</strong> again, or anywhere else, to close the choice. Where the browser
+can’t share, there is no Share and <strong>Download</strong> is in the toolbar in its place. While a
+Share or Download is fetching its file, the button says <em>Preparing…</em> and ignores taps. A
+finished Download says <em>Downloaded</em> with the file’s name and size. A failure says <em>Download
+failed</em> or <em>Share failed</em> and why (<em>can’t reach the server</em>, say) for about 8 seconds.
+Closing the phone’s share sheet without choosing is no failure and says nothing. Where the
+browser can’t share a file, <strong>Photo</strong> says <em>Sharing files is not supported here</em>: use
+<strong>Download</strong>. If the part of the app that does it can’t be loaded, you get <em>Can’t do that
+offline: reload scrap and try again</em>.</p></li>
+<li><p>A photo capture’s photos are part of its page’s text, one line each (<code class="docutils literal notranslate"><span class="pre">![](/api/blobs/...)</span></code>),
+in the order taken: edit the text to move or remove them. <strong>Edit</strong> shows each of the page’s
+own photos and files as a short token instead, <code class="docutils literal notranslate"><span class="pre">⟦image</span> <span class="pre">1⟧</span></code> or <code class="docutils literal notranslate"><span class="pre">⟦file</span> <span class="pre">2:</span> <span class="pre">scan.pdf⟧</span></code>, with a
+chip for it under the text box (a thumbnail and its name): tap a chip to select its token (to
+cut and paste it elsewhere), or its <strong>✕</strong> to take it out. Saving puts back the Markdown each
+token stands for, exactly as it was; a token you delete or change is no photo any more. Claude reading a photo never
+changes the text. The page shows each photo where its line is, as a preview the server makes
+(so iPhone HEIC photos show too), with no caption: tap it for the viewer, which names it
+and has the <strong>Download</strong> of the original. Under a photo Claude hasn’t read, a Claude card
+(<strong>What’s in the photo</strong>) says what Claude would do, with <strong>Generate</strong>; once sent, the card
+shows Claude’s progress (waiting, reading, paused) and then what it read, described and drew. Below the text
+are the files it doesn’t show, such as PDFs, as links with a <strong>Download</strong>.</p></li>
+<li><p>Tap a photo to view it full screen (its file name at the top left): it opens fitted to the screen; pinch or double-tap to zoom,
+drag to pan, swipe (or the arrows) for the page’s other photos. <strong>Fit</strong>, <strong>100%</strong>,
+<strong>Download</strong> and <strong>Share</strong> are along the bottom and the cross at the top right closes it, as
+does the phone’s Back button. <strong>Share</strong> asks <strong>Link</strong> or <strong>Photo</strong>: <strong>Link</strong> sends the
+address of the photo’s page; <strong>Photo</strong> sends the photo to another app: the original if it is
+a JPEG, PNG, GIF or WebP of up to 20 MB, otherwise a JPEG of up to 2048 px that the server
+makes (HEIC and other formats, or anything larger). If a big photo takes longer to download
+than the phone allows, a <strong>Photo ready</strong> message offers <strong>Share</strong> again.</p></li>
+</ul>
+</section>
+<section id="editing-and-deleting">
+<h3>Editing and deleting<a class="headerlink" href="#editing-and-deleting" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Edit</strong> changes the title and text in a full-screen editor, like the composer: <strong>Cancel</strong>,
+<strong>Preview</strong> and <strong>Save</strong> stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
+tags and a todo’s due date are folded into a line each under the title, as in the composer.</p></li>
+<li><p><strong>Add photo</strong> (the camera) and <strong>From gallery</strong>, under the text in <strong>Edit</strong>, add photos to the
+end of the page, as a capture of its own: Claude reads them as it reads any capture’s, and
+search finds what it read, but they never change the page’s kind, title or tags. A topic
+page has no Add photo. They upload at once, apart from <strong>Save</strong>, and their tokens
+join the editor’s text after what you typed (if the page was changed elsewhere meanwhile,
+<strong>Save</strong> shows the conflict instead); offline they wait on the phone like a capture
+(the capture screen lists them as <em>Photo for</em> the page) and are added once it is back online.
+Photos too big to send together go one by one; one over the server’s limit alone is refused.</p></li>
+<li><p>Writing lists in the composer or editor: Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task
+(<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next item, and Enter on an empty item ends the list. Just above
+the keyboard, five keys act on the line (or the lines selected): <strong>Task</strong> makes it a task,
+<strong>Bullet</strong> a bullet and <strong>Number</strong> a numbered item (1, 2, 3 in order), each a plain line again
+if they all are already; <strong>Indent</strong> nests it under the item above and <strong>Outdent</strong> moves it
+back out, renumbering numbered items. In a code block only Indent and Outdent work (two
+spaces). On a page, a task list sits as tight as a bulleted one.</p></li>
+<li><p>Nothing typed is lost (tags too): the composer and <strong>Edit</strong> keep a draft on the phone as you type
+(photos too), so after the phone’s Back button, a reload or a closed app, it comes back: the
+composer’s as the draft row on the capture screen (above), an edit as <strong>Edit draft</strong> on its
+page (<strong>Discard it</strong> drops either). Back closes the editor, not the app. <strong>Cancel</strong> asks
+before discarding changes. If the page was changed elsewhere since you opened it, the
+other version is shown under yours: merge what you want into your text and save again (this
+overwrites theirs), or discard yours.</p></li>
+<li><p>Every save that changes a page’s title or text is kept as a revision, whether you made it in
+the app or Claude over MCP. The app has no screen to browse or restore them. Claude can read
+them with the MCP <code class="docutils literal notranslate"><span class="pre">revisions</span></code> tool (see <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>); to go back to an old text,
+copy it back into the page by hand. A change of tags or kind is kept apart from these.
+<strong>Download</strong> and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> hold only the current text.</p></li>
+<li><p>A page’s text holds at most 1 MB (about a million letters). Save says so before sending a
+longer one (counting the photo links a capture adds), and keeps it in the editor (and the composer) for you to shorten or split. A page imported over the limit can still be edited: only its text must stay as it is, or shrink, for the title, kind and tags to save.</p></li>
+<li><p>Deleting a photo’s line (its token, in the editor) removes the photo from the page. <strong>Save</strong> warns first, naming each
+photo whose line went: <em>no longer shown on any page</em>, or <em>still shown on N other pages</em>. This
+doesn’t delete the stored file. <strong>Cancel</strong> goes back to the editor with your text as it was (undo brings the
+line back); <strong>OK</strong> saves. The file and what Claude made of it are kept: once no page shows it, the
+nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> gathers it onto the month’s <em>Orphaned assets</em> todo page, where you cut it into
+another page to keep it or delete the page when you have looked through it (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
+<li><p><strong>Delete</strong> moves the page to the trash, with <strong>Undo</strong> for a few seconds, and goes back one
+step, as the phone’s Back would: to the list or search it was opened from, or to the page
+whose link you followed to it. A page opened cold (from a link outside scrap or a share)
+goes where the top bar’s Back names: Todos for a todo, Topics for a topic, else Capture. The app has no trash
+screen: once the Undo has gone, a page can be brought back with
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/undelete</span></code> (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p></li>
+</ul>
+</section>
+</section>
+<section id="what-claude-made-of-a-photo">
+<h2>What Claude made of a photo<a class="headerlink" href="#what-claude-made-of-a-photo" title="Link to this heading">#</a></h2>
+<p>Claude reads photos only with ingest on. It is <strong>off by default</strong>: set <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> and
+give scrap an <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> (the Helm chart’s <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>, with an existing Secret
+holding the key) as in <a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a> and the deploy guides.
+Without ingest photos are still stored and queued, and each shows <em>Waiting: Claude ingest is off</em>.</p>
+<p>Everything Claude makes is shown in a brown card of its own, titled by what it holds, so it
+never reads as your text: <strong>What’s in the photo</strong> under each photo, and one <strong>About this
+page</strong> after the page’s text (its summary, a board’s write-up and related pages). Each card’s action is at the end of
+its title line: <strong>Generate</strong> the first time, <strong>Regenerate</strong> after (<strong>Retry</strong> if it failed). Its
+parts are folds: tap a heading (its arrow) to open or close it, and the phone remembers that.</p>
+<p>With Claude ingest on, each photo on a page has, under it, <strong>What’s in the photo</strong>:</p>
+<ul class="simple">
+<li><p>Its state, only while Claude has it: <em>Waiting for Claude</em> (or <em>Waiting: Claude ingest is
+off</em>), <em>Claude is reading it…</em>, <em>Failed</em> with the reason and <strong>Retry</strong>, or <em>Paused</em> with the
+reason and <strong>Resume</strong> (nothing is lost while paused). The page checks again every 10 seconds
+while a photo waits. <strong>Regenerate</strong>, a quiet text button at the end of the title line, sends
+it to Claude again; if you have edited its drawing, it asks first: <strong>Replace mine</strong>, or
+<strong>Keep mine</strong> (Claude’s new drawing goes into History).</p></li>
+<li><p><strong>Description</strong> and <strong>Text in the photo</strong>, folded until you open them. The text can be
+selected and copied.</p></li>
+<li><p><strong>The drawing</strong> of a whiteboard or diagram, beside the photo when the screen is wide enough
+(a tablet, or a phone on its side), else under a <strong>Photo</strong> / <strong>Drawing</strong> switch. It is a
+picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
+the drawing is made in the photo’s own pixels.</p></li>
+</ul>
+<p>Tap the drawing to open it full screen:</p>
+<ul class="simple">
+<li><p>Pinch and drag to zoom and pan; <strong>Fit</strong> shows all of it again. <strong>Photo</strong> shows the photo
+beside the drawing (on its side) or over it (upright), to compare. The phone’s Back button
+closes it.</p></li>
+<li><p><strong>Edit</strong> turns on Excalidraw’s tools (draw, shapes, arrows, text, the eraser; not images).
+<strong>Undo</strong> is in the top bar, <strong>Cancel</strong> puts the drawing back, <strong>Save</strong> stores it as a new
+version. Zoom, scroll and the edit are kept when switching between viewing and editing.</p></li>
+<li><p>Nothing drawn is lost: the edit is kept as a draft on the phone as you draw, so after Back, a
+failed save, a reload or a closed app, <strong>Edit</strong> (with a dot, and a line under the bar
+saying so) brings it back
+(<strong>Discard it</strong> drops it). If the drawing was changed elsewhere meanwhile, saving says so:
+<strong>Save mine</strong> adds yours as a newer version (theirs stays in History), or <strong>Discard mine,
+show theirs</strong>.</p></li>
+<li><p><strong>More</strong>, <strong>History</strong> lists every version (Claude’s, yours, restored ones) with <strong>Restore</strong>,
+which makes an old version current again as a new copy: nothing is ever overwritten.</p></li>
+<li><p><strong>More</strong>, <strong>Export</strong> saves the drawing as <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code> (opens in excalidraw.com or the
+Excalidraw app), PNG or SVG. The page’s <strong>Download</strong> zip has it too, beside the photo, with
+the description and text in the Markdown.</p></li>
+<li><p>The drawing follows the phone’s light or dark theme. Viewing a drawing needs the server: the
+app shell works offline, but a page and its drawing are not cached.</p></li>
+<li><p>Excalidraw is loaded only when a drawing is first shown (about 430 kB compressed over the
+network; then cached by the browser), never for capture or the search screen. Mermaid is
+loaded the same way, for a page with a diagram. <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">size</span></code> prints the
+current figures. Excalidraw’s fonts are served by scrap itself, never
+from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.</p></li>
+</ul>
+</section>
+<section id="what-claude-makes-of-a-note-or-link">
+<h2>What Claude makes of a note or link<a class="headerlink" href="#what-claude-makes-of-a-note-or-link" title="Link to this heading">#</a></h2>
+<p>With ingest on and <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> not set to <code class="docutils literal notranslate"><span class="pre">off</span></code> (see <a class="reference internal" href="../explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a>), a text
+or link page gets an <strong>About this page</strong> card on its page view, under its text. Enrichment is on by
+default once <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>; without ingest the panel is not shown unless the page already
+has a summary or related pages. The panel has:</p>
+<ul class="simple">
+<li><p><strong>Regenerate</strong> at the end of its title line, to have Claude read the page again (a saved
+link is fetched again; on a board it writes the write-up and finds related pages again too). While it works the line says <em>Waiting for Claude</em> (or <em>Waiting:
+Claude is off</em>) or <em>Claude is reading it…</em>; <em>Paused</em> with the reason and <strong>Resume</strong> (the
+queue is shared with photos; nothing is lost while paused); <em>Claude couldn’t read it</em> with
+the reason, and <strong>Retry</strong>. Before Claude has read the page, the card says what it would do
+(summarise it, suggest tags, find related pages), with <strong>Generate</strong>.</p></li>
+<li><p><strong>Summary</strong>: Claude’s one-line summary of the page, which search also looks in. On a board
+it is the lead of Claude’s write-up.</p></li>
+<li><p><strong>Related</strong>: pages Claude picked, merged with the pages that link here (marked <em>· links
+here</em>), and the topics whose synthesis cites the page (marked <em>· in a topic</em>).</p></li>
+<li><p><strong>Topics</strong>: on a page that is a source of any of Claude’s topic pages, a line at the top of
+the card names them (<em>Topics: ibek · RTEMS IOCs</em>), each a link to its topic.</p></li>
+<li><p>Summary and Related are open until you close them. The tags Claude added are marked with a
+dashed outline in the tag line.</p></li>
+</ul>
+<p>Reading a page needs the server, like opening it; the page checks again while Claude has it
+queued or is reading it.</p>
+</section>
+<section id="claude-s-write-up-of-a-board">
+<h2>Claude’s write-up of a board<a class="headerlink" href="#claude-s-write-up-of-a-board" title="Link to this heading">#</a></h2>
+<p>A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
+Claude’s write-up: a detailed description of the board, in its <strong>About this page</strong> card under
+the page’s text, as the fold <strong>In detail</strong> (closed until you open it, and remembered). Its lead
+is the card’s <strong>Summary</strong>. It is Claude’s, not yours, so it is never part of the text you edit.
+The card’s <strong>Regenerate</strong> has Claude read the board again, writing it up and finding its
+related pages afresh. It has:</p>
+<ul class="simple">
+<li><p>Who wrote it and when: the model, the date and its version (and <em>restored from version N</em>
+after a restore).</p></li>
+<li><p>A one or two sentence lead, the page’s summary (shown as the card’s Summary), then the
+write-up itself:
+overview, structure, decisions, open questions and related pages, as fits the board. Its links
+open those pages, and the pages it links show in <strong>Related</strong> (marked <em>· in a write-up</em>) on both
+pages. Search finds words in it.</p></li>
+<li><p><strong>Regenerate</strong> (while Claude is on): have Claude write it again (<strong>Generate</strong> before there is
+one). While it works the card says <em>Waiting for Claude</em> or <em>Claude is writing it…</em>. A
+<strong>Regenerate</strong> of a board photo, or a new board photo, writes it again anyway.</p></li>
+<li><p><em>The page (or Claude’s prompt) has changed since this write-up.</em>: a quiet line under the
+card’s title once you have edited the page’s text, title or tags since it was written, or
+Claude’s write-up prompt has changed (not for a version you restored). Nothing writes it
+again on its own: <strong>Regenerate</strong> when you want it to catch up. <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> lists such pages.</p></li>
+<li><p><strong>Guidance for Claude</strong>: a note for the next write-up, such as “focus on the data flow; ‘Enc’
+means encoder”. <strong>Save</strong> keeps it (apart from the page’s text) without writing anything;
+<strong>Regenerate</strong> then uses it, and the new version keeps a copy.</p></li>
+<li><p><strong>Versions</strong> (once there are two): every write-up, newest first, with <strong>Restore</strong> to make an
+older one current again (as a new version: nothing is lost).</p></li>
+</ul>
+<p>The first write-up comes once Claude has read all of the board’s photos; its related pages are
+picked after it. Write-ups for boards read before this feature come from <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code> (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
+</section>
+<section id="claude-s-topic-pages">
+<h2>Claude’s topic pages<a class="headerlink" href="#claude-s-topic-pages" title="Link to this heading">#</a></h2>
+<p>Each week (with Claude on; see <a class="reference internal" href="../explanations/ingest.html#ingest-topics"><span class="std std-ref">Topic pages</span></a>) Claude looks across your pages for
+things they keep coming back to, such as a tool or a family of systems, and makes a topic page
+for each: what those pages say about it, citing them. The topic pages are Claude’s, kept apart
+from your own pages.</p>
+<ul class="simple">
+<li><p><strong>The Topics tab</strong> (<code class="docutils literal notranslate"><span class="pre">/topics</span></code>) lists them, grouped by area (the top-level tag most common
+among a topic’s sources, the biggest group first; <em>Other</em> for topics whose sources have no
+tags). Each row has the topic’s title, its one-line summary, how many sources it has and
+when it last changed. A dot at the end of a row marks a topic that is new or has changed
+since you last opened the tab or that topic on this device (kept on the phone, never sent anywhere; the
+very first time, there are no dots). The filter box at the top narrows the list as you type,
+matching the title, summary and area. With no topics yet, the tab says what they are and
+that they come from the weekly pass.</p></li>
+<li><p><strong>A topic page</strong> says <em>Topic by Claude</em> in the line under its title (tap it for the Topics
+tab). Its text is yours: notes on the topic, empty at first (the page says so), edited as any
+page’s text is. Claude never writes there. Claude’s synthesis is in the <strong>About this page</strong>
+card under it, as for a board’s write-up: its lead is the <strong>Summary</strong>, and the rest is
+<strong>In detail</strong> (open until you close it): an overview, key facts with links to the pages they
+come from, how the sources relate, and contradictions and open questions. <strong>Regenerate</strong>,
+<strong>Guidance for Claude</strong> and <strong>Versions</strong> work as for a board’s write-up (above).</p></li>
+<li><p><strong>Sources</strong> in the same card lists the pages the topic is made from, each with its title (a
+link) and kind. Its <strong>✕</strong> takes a page out: Claude’s next synthesis leaves it out, and the
+weekly pass never adds it again. A page taken out stays in the list, struck through and
+marked <em>taken out</em>, with <strong>Put back</strong> (the toast’s <strong>Undo</strong> does the same). Offline they
+are off: changing the sources needs the server. Either way the
+synthesis is written again. The topic’s Related leaves out its sources, which Sources lists.</p></li>
+<li><p><strong>Search</strong> puts a matching topic page first, with a small <em>Topic</em> label after its date and
+an open book for its icon; <code class="docutils literal notranslate"><span class="pre">is:topic</span></code> lists them all.</p></li>
+<li><p>To get rid of a topic, delete it: it goes to the trash, and the weekly pass does not make it
+again.</p></li>
+</ul>
+</section>
+<section id="licences-of-the-markdown-libraries">
+<h2>Licences of the Markdown libraries<a class="headerlink" href="#licences-of-the-markdown-libraries" title="Link to this heading">#</a></h2>
+<p>Page text is rendered by <a class="reference external" href="https://github.com/markdown-it/markdown-it">markdown-it</a> and its
+<a class="reference external" href="https://github.com/markdown-it/markdown-it-footnote">footnote plugin</a> (MIT), and diagrams by
+<a class="reference external" href="https://github.com/mermaid-js/mermaid">Mermaid</a> (MIT), all bundled with scrap and served by
+it, never from a CDN.</p>
+</section>
+<section id="licences-of-the-drawing-fonts">
+<h2>Licences of the drawing fonts<a class="headerlink" href="#licences-of-the-drawing-fonts" title="Link to this heading">#</a></h2>
+<p>The drawing viewer is <a class="reference external" href="https://github.com/excalidraw/excalidraw">Excalidraw</a> (MIT). scrap serves
+the drawing fonts that come with it: Excalifont, Virgil, Nunito, Lilita One, Cascadia Code and
+Liberation Sans under the SIL Open Font License 1.1, and Comic Shanns under the MIT licence;
+Excalidraw’s interface font, Assistant, is OFL 1.1 too. The CJK font (Xiaolai, 14 MB) is left
+out. The font files are served as they come from Excalidraw’s package, without licence texts
+beside them; the licences are in the fonts’ own projects (the OFL is at
+<a class="reference external" href="https://openfontlicense.org">https://openfontlicense.org</a>).</p>
+</section>
+<section id="troubleshooting-the-screen-layout">
+<h2>Troubleshooting the screen layout<a class="headerlink" href="#troubleshooting-the-screen-layout" title="Link to this heading">#</a></h2>
+<p>Tapping the build id at the bottom of the search screen five times turns on a small debug panel of
+viewport numbers (and five more taps turn it off). It helps to report how a phone’s keyboard
+resizes the page.</p>
+</section>
+<section id="updates">
+<h2>Updates<a class="headerlink" href="#updates" title="Link to this heading">#</a></h2>
+<p>The app’s files are cached on the phone so it opens instantly and offline, the composer and
+editor included; API answers and files are never cached (see What works offline, above).
+Some parts load only when first used and are not cached ahead: the Todos screen, a
+page’s pager and list swipes, Claude’s summary and related pages, what Claude made of a photo,
+Mermaid and the drawing viewer. After a new scrap is deployed, the app shows <strong>Update available,
+Reload</strong>. Until you tap it the old version keeps running; it is also replaced the next time the
+app is opened after being closed. The app looks for a new build each time it comes to the front,
+not only when it starts. The build id at the bottom of the search screen (<code class="docutils literal notranslate"><span class="pre">scrap-</span></code> and the
+build) says which build a phone is running, so after a deploy you can tell whether it has
+updated.</p>
+</section>
+<section id="iphone-and-ipad">
+<h2>iPhone and iPad<a class="headerlink" href="#iphone-and-ipad" title="Link to this heading">#</a></h2>
+<p>Safari can add scrap to the home screen and capture, view, search and the offline queue work, with
+these limits:</p>
+<ul class="simple">
+<li><p><strong>No share target</strong>: scrap does not appear in the iOS share sheet. A Shortcut that posts to
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/captures</span></code> (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) can stand in.</p></li>
+<li><p>iOS may evict a home-screen app’s storage after weeks of non-use, which would drop anything
+still queued; open it once a connection is back.</p></li>
+<li><p>The app follows the iPhone’s text size (<strong>Text Size</strong> in Settings, and <strong>Larger Text</strong> in
+Accessibility), keeping its own font and line spacing, and never goes below its
+usual 17 px. At the largest sizes the kind rows wrap rather than clip and the nav grows with
+its labels; a page’s toolbar may wrap <strong>Delete</strong> onto a second row.</p></li>
+</ul>
+</section>
+<section id="build-it-developers">
+<h2>Build it (developers)<a class="headerlink" href="#build-it-developers" title="Link to this heading">#</a></h2>
+<p>The PWA’s source is in <code class="docutils literal notranslate"><span class="pre">web/</span></code> (TypeScript, Vite, no UI framework; the drawing viewer in
+<code class="docutils literal notranslate"><span class="pre">web/src/board/</span></code> uses Excalidraw and React, in a chunk of its own). The container image builds
+it; for <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> from a checkout, build it once with Node 22:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span>--prefix<span class="w"> </span>web<span class="w"> </span>ci
+npm<span class="w"> </span>--prefix<span class="w"> </span>web<span class="w"> </span>run<span class="w"> </span>build<span class="w">   </span><span class="c1"># writes src/scrap/static/, which scrap serve picks up</span>
+</pre></div>
+</div>
+<p>Without it <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> still serves the API, and <code class="docutils literal notranslate"><span class="pre">/</span></code> says how to build the app. To try a build
+from another folder without restarting, point <code class="docutils literal notranslate"><span class="pre">SCRAP_WEB_DIR</span></code> at it. For working on
+the app, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> (it listens on 127.0.0.1:8000 by default) and
+<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">dev</span></code> (Vite proxies <code class="docutils literal notranslate"><span class="pre">/api</span></code> and <code class="docutils literal notranslate"><span class="pre">/share</span></code> to port 8000).</p>
+<p>Checks: <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">check</span></code> (Biome, TypeScript), <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">test</span></code> (unit tests),
+<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">size</span></code> (after a build: the app shell stays within its 16 kB gzipped budget and
+never loads Excalidraw). <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">e2e</span></code> runs Playwright against a real
+<code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">scrap</span> <span class="pre">serve</span></code> on a throwaway data folder, so it needs <code class="docutils literal notranslate"><span class="pre">uv</span></code>, a built PWA and Playwright’s
+browser, installed once with <code class="docutils literal notranslate"><span class="pre">npx</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">playwright</span> <span class="pre">install</span> <span class="pre">chromium</span></code>.
+<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">icons</span></code> regenerates the app’s icons.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="use-scrap-on-your-phone.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Use scrap on your phone over Tailscale</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../explanations.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Explanations</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-it-on-android">Install it on Android</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#capture">Capture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#share-into-scrap">Share into scrap</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-scrap-stores-on-the-phone">What scrap stores on the phone</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-works-offline">What works offline</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#view-edit-search">View, edit, search</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#screens-and-navigation">Screens and navigation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#search">Search</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#search-syntax">Search syntax</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#store-health">Store health</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tags">Tags</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#todos">Todos</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#the-page-view">The page view</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#editing-and-deleting">Editing and deleting</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-made-of-a-photo">What Claude made of a photo</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-makes-of-a-note-or-link">What Claude makes of a note or link</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-s-write-up-of-a-board">Claude’s write-up of a board</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-s-topic-pages">Claude’s topic pages</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#licences-of-the-markdown-libraries">Licences of the Markdown libraries</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#licences-of-the-drawing-fonts">Licences of the drawing fonts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-the-screen-layout">Troubleshooting the screen layout</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#updates">Updates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#iphone-and-ipad">iPhone and iPad</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-it-developers">Build it (developers)</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.11.0/docs/how-to/use-the-pwa.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/how-to/use-the-pwa.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
