@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.12.1.dev1+g6b1183f92 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.12.1.dev2+g77d3dd778 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=8bc5a7b3"></script>
+    <script src="../_static/documentation_options.js?v=095653d0"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1202,16 +1202,25 @@ first; the full grammar is in <a class="reference internal" href="../reference/a
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">image:photo</span></code>, <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code></p></td>
 <td><p>What Claude took the photo for</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code> (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;=7d</span></code> (a week on; <code class="docutils literal notranslate"><span class="pre">2w</span></code>, <code class="docutils literal notranslate"><span class="pre">1m</span></code>, <code class="docutils literal notranslate"><span class="pre">1y</span></code>) (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code></p></td>
 <td><p>A todo’s due day</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
 <td><p>A todo’s priority</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">after:1w</span></code>, <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">media:book</span></code> (<code class="docutils literal notranslate"><span class="pre">article</span></code>, <code class="docutils literal notranslate"><span class="pre">film</span></code>, <code class="docutils literal notranslate"><span class="pre">tv</span></code>, <code class="docutils literal notranslate"><span class="pre">video</span></code>, <code class="docutils literal notranslate"><span class="pre">podcast</span></code>, <code class="docutils literal notranslate"><span class="pre">music</span></code>, <code class="docutils literal notranslate"><span class="pre">game</span></code>)</p></td>
+<td><p>A Later page’s type</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">later:read</span></code> (<code class="docutils literal notranslate"><span class="pre">watch</span></code>, <code class="docutils literal notranslate"><span class="pre">listen</span></code>, <code class="docutils literal notranslate"><span class="pre">play</span></code>)</p></td>
+<td><p>What a Later page is for</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">group:letter</span></code> (<code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">now</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
+<td><p>Group the results in sections. <strong>Group</strong> writes it; Later’s own is type, Todos’ is Now</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">after:1w</span></code>, <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code></p></td>
 <td><p>Last edited; dates are UTC days, both ends included; a time ago is <code class="docutils literal notranslate"><span class="pre">Nd</span></code>, <code class="docutils literal notranslate"><span class="pre">Nw</span></code>, <code class="docutils literal notranslate"><span class="pre">Nm</span></code>, <code class="docutils literal notranslate"><span class="pre">Ny</span></code>, N up to 100. Add <code class="docutils literal notranslate"><span class="pre">date:created</span></code> to use the creation date (the only <code class="docutils literal notranslate"><span class="pre">date:</span></code> value; others are ignored)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sort:title</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sort:title</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code></p></td>
 <td><p>Order (A-Z; newest; last edited; soonest due; high first). <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> reverses. <strong>Order</strong> writes the commonest</p></td>
 </tr>
 </tbody>

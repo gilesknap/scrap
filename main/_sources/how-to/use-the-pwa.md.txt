@@ -255,8 +255,11 @@ first; the full grammar is in [](../reference/api.md).
 | `is:topic` | Claude's topic pages |
 | `has:image`, `has:drawing` | Pages with an image file; with a drawing made from a photo |
 | `image:photo`, `image:whiteboard` | What Claude took the photo for |
-| `due:today`, `due:<today`, `due:>today`, `due:2026-11-01` (also `<=`, `>=`), `due:none` | A todo's due day |
+| `due:today`, `due:<today`, `due:>today`, `due:2026-11-01`, `due:<=7d` (a week on; `2w`, `1m`, `1y`) (also `<=`, `>=`), `due:none` | A todo's due day |
 | `priority:high` (`medium`, `low`, `none`) | A todo's priority |
+| `media:book` (`article`, `film`, `tv`, `video`, `podcast`, `music`, `game`) | A Later page's type |
+| `later:read` (`watch`, `listen`, `play`) | What a Later page is for |
+| `group:letter` (`tag`, `type`, `now`, `due`, `none`) | Group the results in sections. **Group** writes it; Later's own is type, Todos' is Now |
 | `after:1w`, `before:2026-03-01` | Last edited; dates are UTC days, both ends included; a time ago is `Nd`, `Nw`, `Nm`, `Ny`, N up to 100. Add `date:created` to use the creation date (the only `date:` value; others are ignored) |
 | `sort:title`, `sort:created`, `sort:updated`, `sort:due`, `sort:priority` | Order (A-Z; newest; last edited; soonest due; high first). `-sort:` reverses. **Order** writes the commonest |
 
