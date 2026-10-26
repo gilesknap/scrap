@@ -15,7 +15,7 @@ never with a port forward on your router.
 
 ## Start from the README
 
-Run scrap as in [Try it](https://github.com/gilesknap/scrap#try-it) in the README, which covers
+Run scrap as in [Try it](../index.md#try-it) on the front page, which covers
 the API key prompt, the container and connecting Claude Code. This page only adds what changes
 when the browser or Claude is on another device.
 

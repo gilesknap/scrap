@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap &#8212; scrap 0.9.1.dev4+ga2eef46b6 documentation</title>
+    <title>scrap &#8212; scrap 0.9.1.dev5+g40c059e4f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="_static/documentation_options.js?v=28b07d8a"></script>
+    <script src="_static/documentation_options.js?v=efb1da66"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -435,30 +435,62 @@
                   
   <section id="scrap">
 <h1>scrap<a class="headerlink" href="#scrap" title="Link to this heading">#</a></h1>
-<p>scrap is a personal knowledge store: a “second brain” you feed from your phone and query
-through Claude. Snap a whiteboard, jot a note or share a link; scrap keeps the original at once and
-can later read, summarise, redraw and index it in the background. Claude reaches it over MCP to
-search, read and add pages; a small PWA is where you capture and look at things, because chat is
-poor at showing images.</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head text-center"><p>What</p></th>
-<th class="head text-center"><p>Where</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td class="text-center"><p>Source</p></td>
-<td class="text-center"><p><a class="github reference external" href="https://github.com/gilesknap/scrap">gilesknap/scrap</a></p></td>
-</tr>
-<tr class="row-odd"><td class="text-center"><p>Container image</p></td>
-<td class="text-center"><p><code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code> (arm64 and amd64)</p></td>
-</tr>
-<tr class="row-even"><td class="text-center"><p>Releases</p></td>
-<td class="text-center"><p><a class="github reference external" href="https://github.com/gilesknap/scrap/releases">gilesknap/scrap</a></p></td>
-</tr>
-</tbody>
-</table>
+<p>scrap is a personal knowledge store built as an <a class="reference external" href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">LLM Wiki</a>:
+you capture from your phone, Claude compiles and cross-links it into pages and topics, and you query
+it through Claude. <strong>Your words and Claude’s never mix</strong>: page text is yours, and everything Claude adds
+is stored apart, labelled and regenerable.</p>
+<p><strong>Status:</strong> in daily use, and deployed on Kubernetes.</p>
+<section id="goals">
+<h2>Goals<a class="headerlink" href="#goals" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Simple: one service, one process, one SQLite file.</p></li>
+<li><p>Off-the-shelf parts wherever they exist: Claude for chat and reasoning, SQLite for storage and
+search, Tailscale for access and identity, Excalidraw for drawings.</p></li>
+<li><p>Quick capture from a phone that never waits on an LLM.</p></li>
+<li><p>Originals are always kept; what is derived from them can be regenerated (a saved link’s article
+only while its source is online).</p></li>
+<li><p>Human and model content kept apart: model output is derived, labelled and regenerable, and
+write-ups are refreshed when you choose.</p></li>
+</ul>
+</section>
+<section id="what-claude-adds">
+<h2>What Claude adds<a class="headerlink" href="#what-claude-adds" title="Link to this heading">#</a></h2>
+<p>Snap a whiteboard, jot a note or share a link; scrap keeps the original at once, and Claude adds:</p>
+<ul class="simple">
+<li><p>a reading of each photo: a description, the text on it, and a drawing;</p></li>
+<li><p>a write-up of each whiteboard and diagram;</p></li>
+<li><p>tags and a summary;</p></li>
+<li><p>related pages;</p></li>
+<li><p>topic pages that draw your pages together.</p></li>
+</ul>
+<p>Store health checks then find orphans, dangling links and outdated write-ups.</p>
+<p>Claude searches, reads and adds pages over MCP; the PWA is for capturing and looking. See
+<a class="reference external" href="https://gilesknap.github.io/scrap/main/explanations/llm-calls.html">what Claude is asked, per page</a>.</p>
+</section>
+<section id="try-it">
+<h2>Try it<a class="headerlink" href="#try-it" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>printf 'Anthropic API key (Enter to skip): '; read -rs ANTHROPIC_API_KEY; export ANTHROPIC_API_KEY
+podman run --network=host -v scrap-data:/data -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY ghcr.io/gilesknap/scrap:latest serve
+</pre></div>
 </div>
+<p>The key is optional: it lets Claude read your photos and tag your notes.</p>
+<p>Open <a class="reference external" href="http://localhost:8000/">http://localhost:8000/</a>. Then add scrap to Claude Code and install the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">mcp</span>
+<span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">commands</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">sh</span>
+</pre></div>
+</div>
+<p>Start a new Claude Code session, save a note in the browser, then try</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">sc</span><span class="o">-</span><span class="n">find</span> <span class="o">&lt;</span><span class="n">word</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">search</span> <span class="n">scrap</span> <span class="k">for</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Connect your phone for quick capture. See <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html">use scrap on your phone over Tailscale</a>.</p>
+<p>Claude Code in a sandbox? See <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/connect-claude-sandbox.html">connecting Claude Code in claude-sandbox</a>.</p>
+<p>More: <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html">connect Claude Code and the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands</a>, <a class="reference external" href="https://gilesknap.github.io/scrap/main/reference/mcp.html">MCP reference</a>.</p>
+</section>
 <section id="what-works-today">
 <h2>What works today<a class="headerlink" href="#what-works-today" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -486,6 +518,25 @@ Never expose it on a public address without one of them.</p>
 <h2>Choose your install<a class="headerlink" href="#choose-your-install" title="Link to this heading">#</a></h2>
 <p>scrap is not published on PyPI (the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> package there is an unrelated project); you run the
 container image. Each tutorial is one short path from nothing to a running scrap.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-center"><p>What</p></th>
+<th class="head text-center"><p>Where</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-center"><p>Source</p></td>
+<td class="text-center"><p><a class="github reference external" href="https://github.com/gilesknap/scrap">gilesknap/scrap</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-center"><p>Container image</p></td>
+<td class="text-center"><p><code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code> (arm64 and amd64)</p></td>
+</tr>
+<tr class="row-even"><td class="text-center"><p>Releases</p></td>
+<td class="text-center"><p><a class="github reference external" href="https://github.com/gilesknap/scrap/releases">gilesknap/scrap</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-1 sd-row-cols-xs-1 sd-row-cols-sm-1 sd-row-cols-md-3 sd-row-cols-lg-3 sd-g-3 sd-g-xs-3 sd-g-sm-3 sd-g-md-3 sd-g-lg-3 docutils">
 <div class="sd-col sd-d-flex-row docutils">
