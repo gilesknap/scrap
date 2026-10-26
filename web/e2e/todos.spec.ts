@@ -340,24 +340,42 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
 });
 
 test("a todo uploaded while the Todos list is fetched still joins it", async ({ page }) => {
-  await page.goto("/todos?view=all");
-  await expect(page.locator("header #new")).toBeVisible();
-  // The list answers as it was before the upload, but only after the upload is done
+  // Installed before the screen opens, so no list request escapes them; armed at Save. Then
+  // the upload waits a little, so the list fetched as the composer closes is the one from
+  // before it, and that answer is held until the upload is done and its queue change has
+  // fired: the screen must notice the change it missed. Requests after the upload: as is.
+  let armed = false;
+  let isIn = false; // the upload is done
+  let uploaded = () => {};
+  const done = new Promise<void>((ok) => {
+    uploaded = ok;
+  });
   await page.route("**/api/captures", async (r) => {
+    if (!armed) return r.continue();
     await new Promise((ok) => setTimeout(ok, 300));
-    await r.continue();
+    await r.fulfill({ response: await r.fetch() });
+    isIn = true;
+    uploaded();
   });
   await page.route(/\/api\/(search|pages)\?/, async (r) => {
-    const answer = await r.fetch();
-    await new Promise((ok) => setTimeout(ok, 1500));
+    if (!armed) return r.continue();
+    const answer = await r.fetch(); // as the store is now
+    if (!isIn) {
+      await done; // fetched before the upload: held until it is in
+      await new Promise((ok) => setTimeout(ok, 500)); // and its queue change has been sent
+    }
     await r.fulfill({ response: answer });
   });
+  await page.goto("/todos?view=all");
+  await expect(page.locator("header #new")).toBeVisible();
   await page.locator("header #new").click();
   const editor = page.locator(".editor");
-  await editor.locator("textarea").fill("Wombat raced todo");
+  const text = `Wombat raced ${ulid().slice(-6)}`;
+  await editor.locator("textarea").fill(text);
+  armed = true;
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
-  await expect(page.locator(".list li", { hasText: "Wombat raced todo" })).toBeVisible({
+  await expect(page.locator(".list li", { hasText: text })).toBeVisible({
     timeout: 10_000,
   });
 });
