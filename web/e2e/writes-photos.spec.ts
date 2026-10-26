@@ -80,3 +80,31 @@ test("offline, the photo waits on the phone and is added once back online", asyn
   await expect(img).toBeVisible();
   await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1);
 });
+
+// Large text sizes (Android font scaling): each label stays on one line, so the buttons keep
+// their 48 px height. They share the row while they fit, else one a line; never a sideways scroll
+for (const { width, font, rows } of [
+  { width: 390, font: 24, rows: 1 },
+  { width: 360, font: 30, rows: 2 },
+]) {
+  test(`Camera and Gallery stay 48 px high at ${font}px labels on ${width}px`, async ({ page }) => {
+    const ref = await notePage(page, `Large text ${width}`);
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/p/${ref.slug}`);
+    await page.getByRole("button", { name: "Edit" }).click();
+    await page.addStyleTag({ content: `.bar .add { font-size: ${font}px; }` });
+    const group = page.getByRole("group", { name: "Add photo" });
+    const boxes = [];
+    for (const name of ["Camera", "Gallery"]) {
+      const box = await group.getByRole("button", { name }).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.height).toBe(48);
+      boxes.push(box as NonNullable<typeof box>);
+    }
+    expect(new Set(boxes.map((b) => b.y)).size).toBe(rows);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+}
