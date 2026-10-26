@@ -81,7 +81,7 @@ your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
 
-The server has thirteen tools (eleven with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page` and `undelete`), which appear as `mcp__scrap__search` (it also lists the recent
+The server has fourteen tools (eleven with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page`, `edit_drawing` and `undelete`), which appear as `mcp__scrap__search` (it also lists the recent
 pages and the todos), `mcp__scrap__read`, `mcp__scrap__drawing`, `mcp__scrap__tags`,
 `mcp__scrap__topics`,
 `mcp__scrap__write`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
@@ -103,7 +103,7 @@ curl -si https://myhost.my-tailnet.ts.net:8446/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-It should print an HTTP `200` status and JSON with thirteen tools in `result.tools`.
+It should print an HTTP `200` status and JSON with fourteen tools in `result.tools`.
 
 Off the tailnet, or for a quick test, use the SSH tunnel fallback ({ref}`scrap-ssh-tunnel`) and
 add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A session that
@@ -215,11 +215,28 @@ Pages written this way carry a *Written by Claude* badge and the origin the sess
 ("make these 15 notes whiteboards", with `edit_meta`); each such change is a revision you can
 ask it to list (`revisions`) and undo (`revert`). It can also edit the text of a page you name
 ("fix the typo in my trip notes", with `edit_page`): it replaces one passage it quotes exactly,
-shows you a diff first if you ask, and refuses if the page changed since it read it. Each text
+shows you a diff first if you ask, and refuses if the page changed since it read it. It can save a refined drawing too (`edit_drawing`, a new version in the drawing's history). Each text
 edit is a revision too, which `revert` (with `to_rev`) undoes, and `is:claude-edited` finds the pages whose
 text it changed. A bulk change
 given as a search is refused if it finds more than 50 pages unless `limit` is raised (up to
 200; naming the pages takes up to 200 as well), and Claude is told to try `dry_run` first. See "Kinds and tags" in [](../reference/mcp.md).
+
+## Work on a phone page from Claude Code
+
+The Claude Android app cannot use scrap's MCP server, so a page you are looking at on your phone
+reaches Claude Code through the clipboard:
+
+1. On the phone, copy the page's URL (or share it to a note or message you can reach from your
+   computer).
+2. In a Claude Code session with the `sc` commands, paste it: `/sc <url>`. Claude finds the page
+   from the slug in the URL and reads it, with the image's description and transcribed text.
+3. Ask about the drawing, or ask for a change. Claude gets the drawing with `drawing` and can
+   answer questions, redraw it elsewhere (Mermaid, say) or save a refined version with
+   `edit_drawing`.
+
+A drawing saved this way is a new version, "drawn by claude", in the drawing's History in the PWA;
+nothing is overwritten, and if you edited the drawing in the meantime Claude's save is refused.
+You can restore any earlier version there.
 
 ## Permissions and security
 

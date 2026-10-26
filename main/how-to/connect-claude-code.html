@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.13.1.dev1+gf1b0f6517 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.13.1.dev2+g80c3ec2df documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=8d2b46a3"></script>
+    <script src="../_static/documentation_options.js?v=f6789b11"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -921,7 +921,7 @@ Tailscale operator’s address (no port, since it serves on 443):</p>
 your projects. Avoid <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">project</span></code>: it writes the tailnet hostname into a <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code> that
 you would commit. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">scrap</span></code>
 takes it out again.</p>
-<p>The server has thirteen tools (eleven with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
+<p>The server has fourteen tools (eleven with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
 pages and the todos), <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__tags</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__topics</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__write</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__rename_tag</span></code>,
@@ -939,7 +939,7 @@ the tailnet (see “Images” in the reference).</p>
   <span class="o">-</span><span class="n">d</span> <span class="s1">'{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</span>
 </pre></div>
 </div>
-<p>It should print an HTTP <code class="docutils literal notranslate"><span class="pre">200</span></code> status and JSON with thirteen tools in <code class="docutils literal notranslate"><span class="pre">result.tools</span></code>.</p>
+<p>It should print an HTTP <code class="docutils literal notranslate"><span class="pre">200</span></code> status and JSON with fourteen tools in <code class="docutils literal notranslate"><span class="pre">result.tools</span></code>.</p>
 <p>Off the tailnet, or for a quick test, use the SSH tunnel fallback (<a class="reference internal" href="deploy-single-server.html#scrap-ssh-tunnel"><span class="std std-ref">Fallback: an SSH tunnel</span></a>) and
 add <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790/mcp</span></code> instead; loopback needs no <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. A session that
 cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
@@ -1062,11 +1062,28 @@ appends to an earlier page only if that page was written by Claude (<code class=
 (“make these 15 notes whiteboards”, with <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>); each such change is a revision you can
 ask it to list (<code class="docutils literal notranslate"><span class="pre">revisions</span></code>) and undo (<code class="docutils literal notranslate"><span class="pre">revert</span></code>). It can also edit the text of a page you name
 (“fix the typo in my trip notes”, with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>): it replaces one passage it quotes exactly,
-shows you a diff first if you ask, and refuses if the page changed since it read it. Each text
+shows you a diff first if you ask, and refuses if the page changed since it read it. It can save a refined drawing too (<code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, a new version in the drawing’s history). Each text
 edit is a revision too, which <code class="docutils literal notranslate"><span class="pre">revert</span></code> (with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>) undoes, and <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds the pages whose
 text it changed. A bulk change
 given as a search is refused if it finds more than 50 pages unless <code class="docutils literal notranslate"><span class="pre">limit</span></code> is raised (up to
 200; naming the pages takes up to 200 as well), and Claude is told to try <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first. See “Kinds and tags” in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p>
+</section>
+<section id="work-on-a-phone-page-from-claude-code">
+<h2>Work on a phone page from Claude Code<a class="headerlink" href="#work-on-a-phone-page-from-claude-code" title="Link to this heading">#</a></h2>
+<p>The Claude Android app cannot use scrap’s MCP server, so a page you are looking at on your phone
+reaches Claude Code through the clipboard:</p>
+<ol class="arabic simple">
+<li><p>On the phone, copy the page’s URL (or share it to a note or message you can reach from your
+computer).</p></li>
+<li><p>In a Claude Code session with the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands, paste it: <code class="docutils literal notranslate"><span class="pre">/sc</span> <span class="pre">&lt;url&gt;</span></code>. Claude finds the page
+from the slug in the URL and reads it, with the image’s description and transcribed text.</p></li>
+<li><p>Ask about the drawing, or ask for a change. Claude gets the drawing with <code class="docutils literal notranslate"><span class="pre">drawing</span></code> and can
+answer questions, redraw it elsewhere (Mermaid, say) or save a refined version with
+<code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>.</p></li>
+</ol>
+<p>A drawing saved this way is a new version, “drawn by claude”, in the drawing’s History in the PWA;
+nothing is overwritten, and if you edited the drawing in the meantime Claude’s save is refused.
+You can restore any earlier version there.</p>
 </section>
 <section id="permissions-and-security">
 <h2>Permissions and security<a class="headerlink" href="#permissions-and-security" title="Link to this heading">#</a></h2>
@@ -1141,6 +1158,7 @@ them.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-the-sc-commands">3. Install the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#work-on-a-phone-page-from-claude-code">Work on a phone page from Claude Code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#permissions-and-security">Permissions and security</a></li>
 </ul>
   </nav></div>
