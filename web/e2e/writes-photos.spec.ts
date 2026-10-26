@@ -26,10 +26,13 @@ const PNG = Buffer.from(
   "base64",
 );
 
-/** Pick a photo with the editor's From gallery. */
+/** Pick a photo with the editor's Gallery. */
 async function pick(page: Page) {
   const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "From gallery" }).click();
+  await page
+    .getByRole("group", { name: "Add photo" })
+    .getByRole("button", { name: "Gallery" })
+    .click();
   await (await chooser).setFiles({ name: "board.png", mimeType: "image/png", buffer: PNG });
 }
 
@@ -77,3 +80,61 @@ test("offline, the photo waits on the phone and is added once back online", asyn
   await expect(img).toBeVisible();
   await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1);
 });
+
+/** The Camera and Gallery buttons inside `scope` (the page editor's group, or the composer's
+ * bar), as rects read together in one pass so layout cannot move between the two. */
+const addButtons = (page: Page, scope: string) =>
+  page.evaluate((sel) => {
+    const rect = (name: string) => {
+      const b = [...document.querySelectorAll(`${sel} button`)].find(
+        (e) => e.textContent?.trim() === name,
+      );
+      const r = b?.getBoundingClientRect();
+      return r ? { y: r.y, w: r.width, h: r.height } : null;
+    };
+    const root = document.documentElement;
+    return {
+      camera: rect("Camera"),
+      gallery: rect("Gallery"),
+      overflow: root.scrollWidth - root.clientWidth,
+    };
+  }, scope);
+
+/** Large text sizes (Android font scaling): each label stays on one line, so the buttons keep
+ * their 48 px height. They share the row while they fit, else one a line; never a sideways
+ * scroll. Waits for the layout to settle after the font change. */
+async function expectLargeText(page: Page, scope: string, font: number, rows: number) {
+  await page.addStyleTag({ content: `.bar .add { font-size: ${font}px; }` });
+  await expect
+    .poll(async () => {
+      const { camera, gallery, overflow } = await addButtons(page, scope);
+      if (!camera || !gallery) return "missing";
+      const tall = [camera, gallery].every((b) => Math.abs(b.h - 48) <= 1);
+      return JSON.stringify({ tall, rows: new Set([camera.y, gallery.y]).size, overflow });
+    })
+    .toBe(JSON.stringify({ tall: true, rows, overflow: 0 }));
+}
+
+const sizes = [
+  { width: 390, font: 24, rows: 1 },
+  { width: 360, font: 30, rows: 2 },
+  { width: 280, font: 20, rows: 2 }, // under 300 px each button takes a line (photo-viewer.css)
+];
+
+for (const { width, font, rows } of sizes) {
+  test(`the editor's Camera and Gallery: ${font}px labels on ${width}px`, async ({ page }) => {
+    const ref = await notePage(page, `Large text ${width}`);
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/p/${ref.slug}`);
+    await page.getByRole("button", { name: "Edit" }).click();
+    await expectLargeText(page, '.editor [role="group"][aria-label="Add photo"]', font, rows);
+  });
+
+  test(`the composer's Camera and Gallery: ${font}px labels on ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Note" }).click();
+    await expect(page.locator(".editor")).toBeVisible();
+    await expectLargeText(page, ".editor .fields > .bar", font, rows);
+  });
+}
