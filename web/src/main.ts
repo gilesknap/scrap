@@ -89,14 +89,16 @@ const marks = () => {
 };
 // Back, named for where it goes, goes up one level: to the page a link was followed from,
 // else to the list the page was opened from (past the pages stepped through by the pager),
-// else up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's
-// Capture. When it doesn't go to the list, the jump beside it does (· Search).
+// else up to a parent (back.ts, a chunk of its own), as its label says: a todo's is Todos, a
+// topic's Topics, any other page's Capture, and Capture while the page is still loading. When
+// it doesn't go to the list, the jump beside it does (· Search).
 up.onclick = () => {
   const { at, prev, list } = marks();
   const to = prev ?? list;
   if (to) return history.go(to.at - at);
+  const from = location.pathname;
   void import("./back").then(
-    (m) => m.up(go),
+    (m) => m.up(go, from), // unless gone elsewhere while it loaded
     () => go("/", true), // the chunk is not here (offline): Capture
   );
 };

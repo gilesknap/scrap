@@ -1,8 +1,8 @@
-// Back on a page opened cold, while the page itself is still loading (patchy WiFi: its
-// /api/pages request held open): Back can't learn the kind, so after a short wait it goes up to
-// Capture rather than looking dead, and the late answer doesn't move it again (#141). With the
-// page drawn, Back needs no request at all.
-import { expect, type Page, type Route, test } from "@playwright/test";
+// Back on a page opened cold goes where its label says, with no request of its own (#141): the
+// drawn page's parent (Todos for a todo), and Capture while the page is still loading (patchy
+// WiFi: its /api/pages request held open), so on a stalled link it is never a dead button. Its
+// chunk is the service worker's, so a stalled link cannot hold that either.
+import { expect, type Page, test } from "@playwright/test";
 
 const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -16,28 +16,24 @@ async function make(page: Page, text: string, kind = "note") {
 
 const back = (page: Page) => page.locator("header #back");
 
-test("Back on a cold page whose request stalls goes to Capture, quickly", async ({ page }) => {
+test("a cold page still loading: Back is Capture, and goes there at once", async ({ page }) => {
   const p = await make(page, `Cold stall ${ulid().slice(-6)}`, "todo");
-  const held: Route[] = [];
-  await page.route(`**/api/pages/${p.slug}`, (r) => {
-    held.push(r); // never answered until the end: a stalled link
+  let asked = 0;
+  await page.route(`**/api/pages/${p.slug}`, () => {
+    asked++; // never answered: a stalled link
   });
   await page.goto(`/p/${p.slug}`);
-  await expect(back(page)).toBeVisible();
   await expect(page.locator("#view")).toContainText("Loading…");
   await expect(back(page)).toHaveAccessibleName("Back to Capture"); // its kind not known yet
+  const before = asked; // the view's own
   const t0 = Date.now();
   await back(page).click();
-  await expect(page).toHaveURL("/", { timeout: 4_000 });
-  expect(Date.now() - t0).toBeLessThan(3_000);
-  // The late answer (a todo's: Todos) doesn't move Back on
-  await page.unroute(`**/api/pages/${p.slug}`);
-  for (const r of held) await r.continue().catch(() => {});
-  await page.waitForTimeout(500);
   await expect(page).toHaveURL("/");
+  expect(Date.now() - t0).toBeLessThan(1_000);
+  expect(asked).toBe(before); // none from Back
 });
 
-test("Back on a cold page that is drawn needs no request", async ({ page }) => {
+test("a cold todo drawn: Back is Todos, and goes there with no request", async ({ page }) => {
   const p = await make(page, `Cold drawn ${ulid().slice(-6)}`, "todo");
   await page.goto(`/p/${p.slug}`);
   await expect(page.locator(".page h1")).toHaveText(/Cold drawn/);
@@ -50,6 +46,25 @@ test("Back on a cold page that is drawn needs no request", async ({ page }) => {
   await back(page).click();
   await expect(page).toHaveURL("/todos");
   expect(asked).toBe(0);
+});
+
+test("a cold page drawn after it opened: Back's label and destination agree", async ({ page }) => {
+  const p = await make(page, `Cold late ${ulid().slice(-6)}`, "todo");
+  let release = () => {};
+  const held = new Promise<void>((done) => {
+    release = done;
+  });
+  await page.route(`**/api/pages/${p.slug}`, async (r) => {
+    await held;
+    await r.continue();
+  });
+  await page.goto(`/p/${p.slug}`);
+  await expect(back(page)).toHaveAccessibleName("Back to Capture");
+  release(); // the page is drawn now: a todo
+  await expect(page.locator(".page h1")).toHaveText(/Cold late/);
+  await expect(back(page)).toHaveAccessibleName("Back to Todos");
+  await back(page).click();
+  await expect(page).toHaveURL("/todos");
 });
 
 test("Back works with its chunk's request stalled: the service worker keeps it", async ({
