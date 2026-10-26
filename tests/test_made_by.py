@@ -302,3 +302,18 @@ def test_claude_revisions_are_source_mcp_and_fold_by_source(client, store):
     # The same author from another source is not folded into Claude's
     store.edit_text(page, CLAUDE, lambda c, p: (p["title"], "web"), source="web")
     assert [t["source"] for t in store.revisions(page)["text"]][:2] == ["web", MCP]
+
+
+@pytest.mark.parametrize(
+    ("value", "want"),
+    [("gh-user", "gh-user"), ("claude", "tagged"), (" CLAUDE ", "tagged"),
+     ("   ", "tagged"), ("", "tagged")],
+)  # fmt: skip
+def test_author_ignores_a_blank_header_or_one_naming_claude(monkeypatch, value, want):
+    from starlette.requests import Request
+
+    from scrap.uploads import author
+
+    monkeypatch.setenv("SCRAP_IDENTITY_HEADER", "X-Auth-Request-User")
+    headers = [(b"x-auth-request-user", value.encode())]
+    assert author(Request({"type": "http", "headers": headers})) == want

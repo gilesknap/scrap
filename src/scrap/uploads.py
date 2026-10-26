@@ -21,7 +21,7 @@ def author(request: Request) -> str:
     # (#153), and a web change's revision is source web whatever its author.
     name = os.environ.get("SCRAP_IDENTITY_HEADER", "").strip() or IDENTITY_HEADER
     who = request.headers.get(name, "")
-    return "tagged" if not who or who.strip().lower() == CLAUDE else who
+    return "tagged" if who.strip().lower() in ("", CLAUDE) else who
 
 
 def too_large(limit: int) -> str:
