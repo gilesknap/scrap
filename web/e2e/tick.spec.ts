@@ -199,6 +199,8 @@ test("unticking an in-progress row restores in_progress; a kind changed meanwhil
   const [t2, s2, id2] = await make(page, "todo");
   await page.goto("/recent");
   const row2 = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${s2}"]`) });
+  // Drawn as a todo before its kind changes: else the list may come after, drawn as a note
+  await expect(row2.getByRole("button", { name: `Done: ${t2}` })).toBeVisible();
   await page.request.patch(`/api/pages/${id2}`, { data: { kind: "note" } });
   await row2.getByRole("button", { name: `Done: ${t2}` }).click();
   await expect(row2.getByRole("button", { name: `Done: ${t2}` })).toHaveCount(0);

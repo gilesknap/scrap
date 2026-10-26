@@ -31,7 +31,11 @@ export function go(path: string, replace = false, state: object | null = null) {
   const now = history.state ?? {};
   const list = LISTS[location.pathname];
   const at = replace ? now.at : (now.at ?? 0) + 1;
-  const back = replace ? now.back : list ? { name: list, at: now.at ?? 0 } : now.back;
+  const back = replace
+    ? now.back
+    : list
+      ? { name: list, at: now.at ?? 0, path: location.pathname }
+      : now.back;
   const paged = (p: string) => p.startsWith("/p/");
   const up = replace
     ? now.up

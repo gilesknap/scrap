@@ -2,6 +2,7 @@
 // and delete with undo.
 import { ADDED, api, blobUrl, type Page, type Queue, setStatus } from "./api";
 import { go } from "./app";
+import { remember } from "./crumbs";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
@@ -141,6 +142,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     drawn++;
     // For the top bar's Back: a todo's parent is the Todos screen, a topic's the Topics screen
     root.dataset.kind = p.topic ? "topic" : p.kind;
+    // Its name as shown, for Back on the pages its links open (crumbs.ts): renamed in place too
+    if (!signal.aborted) remember(p.title);
     // A topic shown, however it was reached: its dot on the Topics screen has done its job
     if (p.topic) seenTopic(p.id, p.writeup?.current?.created_at ?? p.updated_at);
     schedule(p);

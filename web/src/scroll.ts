@@ -40,7 +40,7 @@ export function holdScroll() {
 
 /** Put the screen just drawn back where it was left, once it is tall enough (its content may
  * still be coming: a page's text, a list's rows), for up to 3 s; never against the user (a
- * touch, wheel or key stops it) and never smoothly. */
+ * touch, click, wheel or key stops it) and never smoothly. */
 export function restoreScroll(signal: AbortSignal) {
   const y = location.pathname === OWN ? 0 : Number(history.state?.y) || 0;
   if (!y) {
@@ -49,7 +49,7 @@ export function restoreScroll(signal: AbortSignal) {
   }
   const view = document.getElementById("view") as HTMLElement;
   const until = Date.now() + 3000;
-  const user = ["touchstart", "wheel", "keydown"];
+  const user = ["pointerdown", "touchstart", "wheel", "keydown"];
   const stop = () => {
     watch.disconnect();
     for (const t of user) removeEventListener(t, stop, true);
@@ -62,6 +62,7 @@ export function restoreScroll(signal: AbortSignal) {
     if (max >= y || Date.now() > until) stop();
   };
   const watch = new ResizeObserver(put);
+  signal.addEventListener("abort", stop);
   watch.observe(view);
   for (const t of user) addEventListener(t, stop, { capture: true, passive: true });
   setTimeout(stop, 3000); // not that tall by now: as far as it goes, and the user's again

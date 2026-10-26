@@ -49,7 +49,7 @@ async function queueTwo(page: Page) {
     await page.getByRole("button", { name: "Save" }).click();
   }
   await expect(page.locator("#queue")).toHaveText("1 waiting · 1 failed");
-  await expect(page.locator("#queue")).toHaveAccessibleName("1 waiting, 1 failed");
+  await expect(page.locator("#queue")).toHaveAccessibleName("2 queued: 1 waiting · 1 failed");
 }
 
 test("B, reached by a link in A: Back is ‹ A, then the jump to Search", async ({ page }) => {
@@ -187,7 +187,7 @@ for (const width of [320, 360]) {
       const { name: long } = await onB(page, " with a title far too long for any phone's top bar");
       await expect(page.locator("#backto")).toHaveText(long);
       const badge = page.locator("#queue");
-      await expect(badge).toHaveAccessibleName("1 waiting, 1 failed"); // the words, though compact
+      await expect(badge).toHaveAccessibleName("2 queued: 1 waiting · 1 failed"); // the words, though compact
       const box = async (sel: string) =>
         (await page.locator(sel).boundingBox()) ?? { x: 0, width: 0, height: 0 };
       const [label, tolist, q, settings] = await Promise.all(
@@ -209,6 +209,26 @@ for (const width of [320, 360]) {
       expect(whole).toBe(true);
       const wide = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(wide).toBeLessThanOrEqual(width);
+    });
+  });
+}
+
+for (const width of [320, 430]) {
+  test.describe(`a page with its pager at ${width} px`, () => {
+    test.use({ viewport: { width, height: 740 } });
+
+    test("the pager and the queue badge: no sideways scroll", async ({ page }) => {
+      await queueTwo(page);
+      const tag = ulid().slice(-6);
+      const a = await make(page, `Paged A ${tag} with a title long enough to be cut`);
+      await page.goto(`/search?q=${tag}`);
+      await page.locator(`.hits a[href="/p/${a.slug}"]`).first().click();
+      await expect(page.locator("#pos .pager")).toBeVisible();
+      await expect(page.locator("#queue")).toBeVisible();
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(wide).toBeLessThanOrEqual(width);
+      const s = (await page.locator("#settings").boundingBox()) as { x: number; width: number };
+      expect(s.x + s.width).toBeLessThanOrEqual(width);
     });
   });
 }
@@ -236,4 +256,62 @@ test.describe("on a computer", () => {
     await back(page).click();
     await expect(page).toHaveURL(`/p/${a.slug}`);
   });
+});
+
+test("a Todos view switch keeps Back's marks: a todo's Back names Todos", async ({ page }) => {
+  const tag = ulid().slice(-6);
+  const t = await make(page, `Switch todo ${tag}`, "todo");
+  await page.goto("/");
+  await page.locator('nav a[href="/todos"]').click();
+  await expect(page).toHaveURL(/\/todos$/);
+  await page.locator(".todos label", { hasText: "All" }).click();
+  await expect(page).toHaveURL(/view=all/);
+  await page.locator(`.todos a[href="/p/${t.slug}"]`).first().click();
+  await expect(title(page)).toHaveText(`Switch todo ${tag}`);
+  await expect(page.locator("#backto")).toHaveText("Todos");
+  await back(page).click();
+  await expect(page).toHaveURL(/\/todos\?view=all$/);
+});
+
+test("/recent after Capture in the same tab: a hit's Back names Search", async ({ page }) => {
+  const tag = ulid().slice(-6);
+  const n = await make(page, `Recent hit ${tag}`);
+  await page.goto("/");
+  await expect(page.locator("nav")).toBeVisible();
+  await page.goto("/recent");
+  await expect(page).toHaveURL("/search");
+  await page.locator(`.list a[href="/p/${n.slug}"]`).first().click();
+  await expect(title(page)).toHaveText(`Recent hit ${tag}`);
+  await expect(page.locator("#backto")).toHaveText("Search");
+});
+
+test("A renamed in place by its editor, then its link: B's Back names A as it is now", async ({
+  page,
+}) => {
+  const tag = ulid().slice(-6);
+  const b = await make(page, `Ren B ${tag}`);
+  const a = await make(page, `Ren A ${tag}\n\nSee [[${b.slug}|the B page]].`);
+  await page.goto(`/search?q=${tag}`);
+  await page.locator(`.hits a[href="/p/${a.slug}"]`).first().click();
+  await expect(title(page)).toHaveText(`Ren A ${tag}`);
+  await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Title").fill(`Fresh A ${tag}`);
+  await page.locator(".editor").getByRole("button", { name: "Save" }).click();
+  await expect(title(page)).toHaveText(`Fresh A ${tag}`);
+  await page.locator(".page .body a", { hasText: "the B page" }).click();
+  await expect(title(page)).toHaveText(`Ren B ${tag}`);
+  await expect(page.locator("#backto")).toHaveText(`Fresh A ${tag}`);
+});
+
+test("sessionStorage refused: B's Back still names A, the jump Search", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "sessionStorage", {
+      get() {
+        throw new DOMException("no", "SecurityError");
+      },
+    });
+  });
+  const { name } = await onB(page);
+  await expect(page.locator("#backto")).toHaveText(name);
+  await expect(jump(page)).toHaveText("Search");
 });

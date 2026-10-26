@@ -4,7 +4,7 @@
 // says which (/todos, /todos?view=upcoming, /todos?view=all), so Back and a reload come back
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
 import { api, type Hit, writeClock } from "./api";
-import { view } from "./app";
+import { address, view } from "./app";
 import { icon } from "./icons";
 import type { pageRow } from "./lists";
 import { isOpen, now, toDo, upcoming } from "./now";
@@ -90,7 +90,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       name: "todoview",
       value: m,
       onchange: () => {
-        history.replaceState(null, "", m === "now" ? "/todos" : `/todos?view=${m}`);
+        address(m === "now" ? "/todos" : `/todos?view=${m}`); // keeping Back's marks
         draw();
       },
     });

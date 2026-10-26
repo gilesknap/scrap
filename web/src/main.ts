@@ -61,9 +61,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
 function recent() {
   const kind = new URLSearchParams(location.search).get("kind");
   const name = KIND_ROW.find(([, , , api]) => api === kind)?.[1];
-  history.replaceState(
-    null,
-    "",
+  address(
     name === "todo"
       ? "/todos"
       : name
@@ -192,8 +190,9 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
-    // A page's name, as drawn, for Back on the entries in front of it (crumbs.ts)
-    if (arrow) remember(view.querySelector(".page h1")?.textContent ?? "");
+    // A list's name, for Back on the pages opened from it (crumbs.ts), at its own address
+    // now (/recent is the search screen's); a page records its own as it shows it (page.ts)
+    if (!arrow && LISTS[location.pathname]) remember(LISTS[location.pathname]);
     if (arrow) nameBack(); // a page opened cold: its kind is known now
     restoreScroll(c.signal); // Back or Forward: where it was left (scroll.ts)
     add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
@@ -234,9 +233,11 @@ async function showQueue() {
   const waiting = items.length - failed;
   badge.hidden = !items.length;
   badge.className = failed ? "badge failed" : "badge";
-  const said = [waiting && `${waiting} waiting`, failed && `${failed} failed`].filter(Boolean);
-  badge.textContent = said.join(" · ");
-  badge.ariaLabel = said.join(", ");
+  badge.textContent = [waiting && `${waiting} waiting`, failed && `${failed} failed`]
+    .filter(Boolean)
+    .join(" · ");
+  // The count first, as the compact badge shows it, then the words: "2 queued: 1 waiting · …"
+  badge.ariaLabel = `${items.length} queued: ${badge.textContent}`;
   badge.dataset.n = String(items.length); // on a narrow page, the count alone (topbar.css)
   document.dispatchEvent(new Event("queuechange"));
 }

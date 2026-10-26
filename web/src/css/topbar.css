@@ -97,13 +97,13 @@ header.crumb #back {
   margin-inline-end: 0; /* the jump takes the free width after it */
   padding-inline-end: var(--s-1); /* the dot as far from Back's … as from the list's name */
 }
-/* On a page, Back's label is what gives up the width: the badge and Settings stay whole, and
-   Back keeps its arrow and a few letters of where it goes */
-.paged #queue,
-.paged #settings {
+/* Beside the jump, Back's label is what gives up the width: the badge and Settings stay
+   whole, and Back keeps its arrow and a few letters of where it goes */
+header.crumb #queue,
+header.crumb #settings {
   flex: none;
 }
-.paged #back {
+header.crumb #back {
   min-width: 6.5rem;
 }
 #new,
@@ -167,11 +167,13 @@ header.crumb #back {
 .badge.failed::before {
   background: var(--danger);
 }
-/* On a narrow page the queue badge is its dot and count ("● 2"), so Back keeps its words; its
-   name keeps them too ("1 waiting, 1 failed", main.ts). The 48 px target is its own height,
-   the pill drawn inside a clear border, since ::after shows the count */
-@media (max-width: 399px) {
-  .paged #queue {
+/* Sharing the top bar with the jump or the pager, under 560 px, the queue badge is its dot
+   and count ("● 2"), so Back keeps its words; its name keeps them too ("2 queued: 1 waiting ·
+   1 failed", main.ts). The 48 px target is its own height, the pill drawn inside a clear
+   border, since ::after shows the count */
+@media (max-width: 559px) {
+  header.crumb #queue,
+  #pos:not(:empty) ~ #queue {
     gap: 0;
     min-width: var(--tap);
     min-height: var(--tap);
@@ -180,8 +182,9 @@ header.crumb #back {
     background-clip: padding-box;
     font-size: 0;
   }
-  .paged #queue::after {
-    content: attr(data-n) / "";
+  header.crumb #queue::after,
+  #pos:not(:empty) ~ #queue::after {
+    content: attr(data-n);
     position: static;
     margin-inline-start: 6px;
     font-size: var(--t-sm);
