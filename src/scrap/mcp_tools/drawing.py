@@ -145,8 +145,13 @@ def register_drawing(mcp: MCPServer, ctx: Ctx) -> None:
         dry_run, saved}."""
         key = find(page, image)
         data = {"format": format, "elements": elements}
-        if appState is not None:
+        if appState is not None and format == "scene":
             data["appState"] = appState
+        notes = (
+            ["appState is for a scene and was ignored"]
+            if (appState is not None and format != "scene")
+            else []
+        )
         try:
             done = drawings.save_claude(store, *key, base_version, data, dry_run)
         except drawings.StaleError as e:
@@ -160,6 +165,7 @@ def register_drawing(mcp: MCPServer, ctx: Ctx) -> None:
         return {
             "version": shown["version"], "base_version": base_version,
             "producer": shown["producer"], "format": shown["format"],
-            "element_count": done["element_count"], "warnings": done["warnings"],
+            "element_count": done["element_count"],
+            "warnings": notes + done["warnings"],
             "dry_run": dry_run, "saved": not dry_run,
         }  # fmt: skip

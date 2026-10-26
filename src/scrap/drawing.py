@@ -138,6 +138,8 @@ def save_claude(
         frame = json.loads(old["data"])
         size = {k: frame[k] for k in ("width", "height") if k in frame}
         warnings: list[str] = []
+        if not data["elements"]:
+            raise InvalidError("no elements: that would clear the drawing")
         if data["format"] == "scene":
             checked = sanitise.scene({**size, **data})
             text = sanitise.scene_text(checked)

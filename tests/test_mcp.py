@@ -979,6 +979,14 @@ def test_edit_drawing_dry_run_saves_nothing_and_warns(store):
     assert out["saved"] is False and out["element_count"] == 1
     assert "element 1 dropped" in out["warnings"][0]
     assert len(drawings.versions(store, cid, sha)) == 1
+    assert "would clear" in refused(
+        store, "edit_drawing", page=page, base_version=1, elements=[]
+    )
+    noted = ok(
+        store, "edit_drawing", page=page, base_version=1, elements=[BOX],
+        appState={"viewBackgroundColor": "#fff"}, dry_run=True,
+    )  # fmt: skip
+    assert "appState" in noted["warnings"][0]
     assert "no element was valid" in refused(
         store, "edit_drawing", page=page, base_version=1, elements=[bad]
     )
