@@ -19,7 +19,7 @@
   each page's enrich jobs of a reason is kept: the PWA shows a page's or a photo's
   state from it, and a page's one first related call is known by it.
 - **Model runs.** ``model_run`` and ``enrich_run`` rows past ``RUN_DAYS`` that nothing
-  needs any more are deleted (see :func:`prune_runs`, moved here from gc in #304).
+  needs any more are deleted (see :func:`prune_runs`).
 
 Every function here runs on an open connection; the caller owns the transaction.
 """
