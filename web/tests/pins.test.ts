@@ -1,5 +1,5 @@
-import { expect, it } from "vitest";
-import { adding, nameOf, parse, removing, searchHref } from "../src/pins";
+import { expect, it, vi } from "vitest";
+import { adding, change, nameOf, parse, removing, searchHref } from "../src/pins";
 
 (globalThis as { location?: { origin: string } }).location = { origin: "https://scrap.example" };
 
@@ -42,4 +42,73 @@ it("names a search by its query, as the chips say it", () => {
   expect(nameOf("kind:later later:watch")).toBe("Later · to watch");
   expect(nameOf("boiler -tag:home sort:title")).toBe("boiler · not #home · A–Z");
   expect(nameOf("kind:todo after:1w")).toBe("Todos · past week");
+});
+
+// ---- the page on the server: made by POST /api/pinned, edited with base_rev, a 409 read again
+
+function server(pages: { id: string; body: string; rev: number }[]) {
+  const calls: string[] = [];
+  const bodies: string[] = [];
+  const reply = (status: number, data: unknown) =>
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+  vi.stubGlobal("addEventListener", () => {});
+  vi.stubGlobal("dispatchEvent", () => true);
+  vi.stubGlobal("document", { addEventListener: () => {}, dispatchEvent: () => true });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const call = `${init?.method ?? "GET"} ${url}`;
+      calls.push(call);
+      const page = pages[0];
+      if (call === "GET /api/pinned") return page ? reply(200, page) : reply(200, null);
+      if (call === "POST /api/pinned") {
+        pages.push({ id: "P1", body: "# Pinned\n\n", rev: 1 });
+        return reply(200, pages[0]);
+      }
+      const sent = JSON.parse(String(init?.body));
+      bodies.push(sent.body);
+      if (sent.base_rev !== page.rev) return reply(409, { detail: "stale" });
+      page.body = sent.body;
+      page.rev++;
+      return reply(200, page);
+    }),
+  );
+  return { calls, bodies };
+}
+
+it("makes the page through the server on the first pin, once", async () => {
+  const pages: { id: string; body: string; rev: number }[] = [];
+  const { calls } = server(pages);
+  await change((b) => adding(b, "One", "/p/one"));
+  expect(calls).toEqual(["GET /api/pinned", "POST /api/pinned", "PATCH /api/pages/P1"]);
+  expect(pages[0].body).toBe("# Pinned\n- [One](/p/one)\n");
+  const none: { id: string; body: string; rev: number }[] = [];
+  const again = server(none);
+  await change((b) => removing(b, "p:one")[0]); // nothing there to take out: nothing made
+  expect(again.calls).toEqual(["GET /api/pinned"]);
+});
+
+it("reads again and retries on a 409, three tries at most", async () => {
+  const pages = [{ id: "P1", body: "- [A](/p/a)\n", rev: 1 }];
+  const { bodies } = server(pages);
+  // Another device edits between our read and our PATCH: the first PATCH carries a stale rev
+  let first = true;
+  const edit = (b: string) => {
+    if (first) {
+      first = false;
+      pages[0].rev++; // the other device's edit
+    }
+    return adding(b, "B", "/p/b");
+  };
+  await change(edit);
+  expect(bodies.length).toBe(2);
+  expect(pages[0].body).toContain("[B](/p/b)");
+  const stale = [{ id: "P1", body: "", rev: 1 }];
+  server(stale);
+  await expect(
+    change((b) => {
+      stale[0].rev++;
+      return b;
+    }),
+  ).rejects.toThrow();
 });

@@ -14,6 +14,7 @@ import {
   PINS_PAGE,
   type Pin,
   pin,
+  pinIcon,
   pins,
   searchHref,
   unpin,
@@ -116,7 +117,7 @@ export function attach(
             input.focus();
           },
         },
-        icon("pin"),
+        pinIcon(),
       );
     };
     if (!list.length) return slot.replaceChildren(...launcher);

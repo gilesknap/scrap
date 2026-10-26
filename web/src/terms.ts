@@ -156,15 +156,11 @@ export const tagsIn = (q: string) =>
     .filter(([a]) => !"-!".includes(q[a]))
     .map((w) => wordValue(q, w));
 
-/** Whether the query asks for topic pages (is:topic, not -is:topic). */
-const topical = (q: string) =>
-  keyed(q, "is").some((w) => !"-!".includes(q[w[0]]) && wordValue(q, w) === "topic");
-
 /** A list's own grouping when none is asked for: Later alone by type, Todos alone by Now,
  * topics (is:topic) by area, as the Topics screen has them. */
 export function groupDefault(q: string): Group | null {
   const on = kindsIn(q);
-  if (!on.length && topical(q)) return "area";
+  if (!on.length && has(q, "is:topic")) return "area";
   if (on.length !== 1) return null;
   return on[0][1] === "later" ? "type" : on[0][1] === "todo" ? "now" : null;
 }

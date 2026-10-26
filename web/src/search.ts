@@ -8,30 +8,13 @@
 import { api, type Hit, writeClock } from "./api";
 import { address, go, markNav, view } from "./app";
 import { icon, kindIcon } from "./icons";
-import { KINDS } from "./kinds";
 import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
-import { groupBy, KIND_ROW, kindsIn, listing, served, tagsIn, withKind } from "./terms";
+import { groupBy, KIND_ROW, kindsIn, listing, served, withKind } from "./terms";
 import { empty, failed, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
-const add = document.getElementById("new") as HTMLButtonElement; // the top bar's +
-
-/** New at the top bar's end, on a search with a tag filter or one kind (as Todos' New todo):
- * the composer opens with those tags and that kind filled in (main.ts reads them here). */
-function offerNew(query: string) {
-  const tags = tagsIn(query);
-  const one = kindsIn(query);
-  const kind = one.length === 1 ? one[0][3] : "";
-  add.hidden = !tags.length && !kind;
-  if (add.hidden) return;
-  add.dataset.kind = kind;
-  add.dataset.tags = tags.join("\n");
-  const name = kind === "consume" ? "Later item" : (KINDS.find(([k]) => k === kind)?.[2] ?? "note");
-  add.ariaLabel = "New";
-  add.title = `New ${name.toLowerCase().replace("later", "Later")}${tags.length ? ` tagged ${tags.map((t) => `#${t}`).join(" ")}` : ""}`;
-}
 const MOST = 1000; // search results, fetched PAGE at a time
 
 interface State {
@@ -179,17 +162,14 @@ export async function search(): Promise<Node> {
     if (!quiet) {
       markNav();
       showKinds(query);
-      offerNew(query);
       clear.hidden = !input.value;
       // Filters even before a query, then what refines its results
       refining
         .then((m) => m.refine(query, signal, apply, filters))
-        .then((el) => {
+        .then((els) => {
           if (signal.aborted) return;
           // (refine puts focus back on the control it was on)
-          panel.replaceChildren(el.querySelector(".fpanel") ?? "");
-          chips.replaceChildren(el.querySelector(".fon") ?? "");
-          found.replaceChildren(el.querySelector(".rhead") ?? "");
+          for (const [i, d] of [panel, chips, found].entries()) d.replaceChildren(els[i] || "");
         })
         .catch(() => signal.aborted || chips.replaceChildren());
       clearTimeout(settle);

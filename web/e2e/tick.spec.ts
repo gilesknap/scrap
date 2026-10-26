@@ -168,7 +168,12 @@ test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's
   await expect.poll(names).toEqual(["Mark done", "Edit", "Share", "Delete"]);
   await tools.getByRole("button", { name: "Share" }).click();
   const menu = page.locator(".share-menu");
-  await expect(menu.locator(":scope > *")).toHaveText(["Link", "Text", "Download"]);
+  await expect(menu.locator(":scope > *")).toHaveText([
+    "Link",
+    "Text",
+    "Download",
+    "Pin to Search",
+  ]);
   const saved = page.waitForEvent("download");
   await menu.getByRole("link", { name: "Download" }).click();
   await expect(menu).toHaveCount(0);

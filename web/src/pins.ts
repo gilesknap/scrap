@@ -7,10 +7,9 @@
 //   - [Contacts](/p/contacts)
 import { ApiError, api, type Page } from "./api";
 import { checkName } from "./checks";
-import { icon } from "./icons";
-import { KIND_ROW, MEDIA, words } from "./terms";
+import { MEDIA } from "./termedit";
+import { KIND_ROW, words } from "./terms";
 import { h, toast } from "./ui";
-import { ulid } from "./ulid";
 
 export const SLUG = "pinned";
 export const PINS_PAGE = `/p/${SLUG}`;
@@ -170,11 +169,8 @@ const watch = () => {
   document.addEventListener("visibilitychange", forget);
 };
 
-const read = (): Promise<Page | null> =>
-  api<Page>(`pages/${SLUG}`).catch((e) => {
-    if (e instanceof ApiError && e.status === 404) return null;
-    throw e;
-  });
+// (GET /api/pinned: null while there is none, not a 404 in the console on every visit)
+const read = () => api<Page | null>("pinned");
 
 /** The Pinned page (null: none yet), read once until something changes. */
 const pinnedPage = () => {
@@ -195,25 +191,15 @@ export const pins = (): Promise<Pin[]> =>
 
 export const isPinned = async (key: string) => (await pins()).some((p) => p.key === key);
 
-/** Change the Pinned page's text, making it on the first pin. Two devices at once: the PATCH
+/** Change the Pinned page's text, making it on the first pin (POST /api/pinned: the server
+ * reserves the slug, so two first pins at once make one page). Two devices at once: the PATCH
  * carries the revision it was made from, and on a 409 it is read and made again. */
-async function change(edit: (body: string) => string): Promise<void> {
+export async function change(edit: (body: string) => string): Promise<void> {
   for (let tries = 0; tries < 3; tries++) {
-    const p = await read();
+    let p = await read();
     if (!p) {
-      const text = edit("");
-      if (!text.trim()) return;
-      await api("captures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: ulid(),
-          text: `# Pinned\n\n${text}`,
-          kind: "note",
-          source: "pwa",
-        }),
-      });
-      break;
+      if (!edit("").trim()) return; // nothing to take out of a page not there
+      p = await api<Page>("pinned", { method: "POST" }); // the server makes it once
     }
     try {
       const after = await api<Page>(`pages/${p.id}`, {
@@ -273,9 +259,9 @@ export async function unpin(key: string): Promise<void> {
 export function pinPageButton(slug: string, title: string): HTMLButtonElement {
   const href = pageHref(slug);
   const key = keyOf(href);
-  const b = h("button", { type: "button" }, icon("pin"), "Pin to Search");
+  const b = h("button", { type: "button" }, pinIcon(), "Pin to Search");
   const show = (on: boolean) =>
-    b.replaceChildren(icon("pin"), on ? "Unpin from Search" : "Pin to Search");
+    b.replaceChildren(pinIcon(), on ? "Unpin from Search" : "Pin to Search");
   void isPinned(key).then(show);
   b.onclick = async () => {
     if (await isPinned(key)) await unpin(key);
@@ -283,4 +269,12 @@ export function pinPageButton(slug: string, title: string): HTMLButtonElement {
     show(await isPinned(key));
   };
   return b;
+}
+
+/** A pushpin, kept here (not icons.ts) so the app shell does not carry it. */
+export function pinIcon(): SVGSVGElement {
+  const t = document.createElement("template");
+  t.innerHTML =
+    '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3.5h7M10 3.5v5.5l-3.5 4v1.5h11V13L14 9V3.5M12 14.5v6"/></svg>';
+  return t.content.firstChild as SVGSVGElement;
 }

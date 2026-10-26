@@ -6,11 +6,13 @@ section); db.connect registers them. They mirror groups.ts and now.ts: a change 
 is a change to the other."""
 
 import json
+import sqlite3
 import unicodedata
 from datetime import date, timedelta
 from typing import Any
 
 from ..query import SUBTYPES, Query
+from . import topics
 
 # Digits to their nines' complement, so a timestamp as text sorts newest first
 NEWEST = str.maketrans("0123456789", "9876543210")
@@ -104,6 +106,18 @@ FUNCTIONS: dict[str, Any] = {
 }  # fmt: skip
 
 
+def use_areas(conn: sqlite3.Connection) -> None:
+    """Register grp_area on a connection: a topic page's place among the areas, as
+    topics.index orders them (the biggest area first, none last); any other page's is
+    after them all. Per connection, as the areas are read now (group:area)."""
+    rank: dict[str, int] = {}
+    areas: dict[str | None, int] = {}
+    for row in topics.index(conn):  # already in the order shown
+        rank[row["id"]] = areas.setdefault(row["area"], len(areas))
+    last = len(areas)
+    conn.create_function("grp_area", 1, lambda page_id: rank.get(page_id, last))
+
+
 def order(q: Query) -> tuple[str, list[Any]]:
     """The ORDER BY terms (with a trailing comma, or none) that put a query's pages in
     its group: sections, and the args their SQL takes. A tag section needs a tag:."""
@@ -113,6 +127,8 @@ def order(q: Query) -> tuple[str, list[Any]]:
     match q.group:
         case "letter":
             return "grp_letter(p.title), ", []
+        case "area":  # use_areas registers it
+            return "grp_area(p.id), ", []
         case "type":
             return f"grp_type({cols}), ", []
         case "now":

@@ -33,6 +33,7 @@ from .constants import (
 from .core import Core
 from .db import _rows
 from .grouping import order as group_order
+from .grouping import use_areas
 from .health import CHECKS, condition
 from .helpers import checked_query, tag_counts, todo_only, unlink
 from .topics import IS_TOPIC
@@ -145,6 +146,8 @@ class SearchMixin(Core):
         order = sections + order
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
+            if q.group == "area":
+                use_areas(conn)
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
                 # First the pages with every word in the title, then those with every
                 # word in the title, tags or summary: bm25 alone lets a short body

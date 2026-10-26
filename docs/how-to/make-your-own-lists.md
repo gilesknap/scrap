@@ -59,9 +59,10 @@ words to narrow it (`tag:person whitby`), or pick a sub-tag alone (`tag:person/f
 Tap the empty search box: **Pinned** is listed first, then **Recent**. There are three ways to
 add to Pinned:
 
-- **From the results.** On a search with results, the count line reads *10 pages · Pin · Copy
-  link*. Tap **Pin**. It now says **Pinned**; tap it again to unpin. When the filters on make that
-  line too long for the screen, **Pin** and **Copy link** move into a **⋯** at the count.
+- **From the results.** On a search with results, the header has the count on the left and two
+  icon buttons on the right: **Pin search** and **Copy link**. Tap the pin. It fills on an amber
+  disc and its name becomes *Unpin search*; tap it again to unpin. The header is always one
+  48 px line, so the buttons never move.
 - **From Recent.** Each search under **Recent** has a pin beside its **✕**. Tap it to pin that
   search.
 - **A page.** Open a page, tap **Share**, then **Pin to Search** (**Unpin from Search** once it
@@ -98,7 +99,7 @@ The people I keep a note on are tagged #person, with family and work under it.
 ```
 
 A link to `/search?q=...` opens the search in place, and Back returns to the page. To get a
-search's address, run it and tap **Copy link** on its count line. Then pin the page with
+search's address, run it and tap **Copy link** in the results header. Then pin the page with
 **Share**, **Pin to Search**.
 
 ## Other lists

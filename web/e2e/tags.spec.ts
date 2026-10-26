@@ -29,7 +29,7 @@ const openTags = (scope: Locator) => openFold(scope, "Tags");
 test("refine chips narrow a search and come off again", async ({ page }) => {
   await page.goto("/search?q=zephyr+fence");
   await expect(hits(page)).toHaveCount(3);
-  await expect(page.locator(".found").getByText("3 pages")).toBeVisible();
+  await expect(page.locator(".rhead .count").getByText("3 pages")).toBeVisible();
   await expect(page.getByRole("searchbox")).not.toBeFocused(); // no keyboard over the chips
   await expect(page.getByRole("group", { name: "Filters on" })).toHaveCount(0); // none on: no row
   const panel = await filters(page);

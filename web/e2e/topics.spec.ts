@@ -47,7 +47,7 @@ test("the Topics tab lists topics by area, filters them, and dots what changed",
   const filter = page.getByRole("searchbox", { name: "Filter topics" });
   await filter.fill(t.word.toUpperCase());
   await expect(page.locator(".topics .list li")).toHaveCount(1);
-  await expect(page.locator(".topics .count")).toHaveText(/^1 of \d+ topics$/);
+  await expect(page.locator(".topics .count")).toHaveText(/^1 of \d+ topics/);
   await filter.fill(`${t.word} nothing-like-it`);
   await expect(page.getByText("No topics match.")).toBeVisible();
   await filter.fill(t.word);
@@ -67,6 +67,11 @@ test("the Topics tab lists topics by area, filters them, and dots what changed",
   await expect(row(page, u.title).locator(".new")).toHaveAccessibleName("new or changed");
   await expect(row(page, t.title).locator(".new")).toHaveCount(0);
   await page.screenshot({ path: "test-results/topics.png", fullPage: true });
+  // Refine opens the same topics in Search, grouped by area there too (#314)
+  await page.getByRole("link", { name: "Refine in Search: is:topic" }).click();
+  await expect(page).toHaveURL(/\/search\?q=is(%3A|:)topic/);
+  await expect(page.locator(".groups h2.label").first()).toBeVisible();
+  await page.goBack();
   // Every text on the screen (the dot is no text) meets AA, in both themes
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });

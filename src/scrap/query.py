@@ -27,9 +27,10 @@ SORTS = {
 # group:G puts the results in sections, in the order they are shown (the PWA draws them;
 # the server orders by the section first, so a page of results never splits one):
 # letter (A-Z by title), tag (by sub-tag of the tag: filtered by), type (a Later's
-# subtype), now (the Todos screen's ranking) and due (by when due). The last one counts;
+# subtype), now (the Todos screen's ranking), due (by when due) and area (topic pages by
+# their area, as GET /api/topics has them). The last one counts;
 # group:none, or any other value, means none.
-GROUPS = ("letter", "tag", "type", "now", "due")
+GROUPS = ("letter", "tag", "type", "now", "due", "area")
 # A Later's medium (fields.media_type) and, derived from it, what it is for
 # (fields.subtype): media:book finds a book, later:watch a film, show or video
 SUBTYPES = ("read", "watch", "listen", "play")

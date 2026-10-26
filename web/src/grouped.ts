@@ -31,7 +31,7 @@ export function grouped(
 /** A–Z as a phone's contacts list has it: one card, each letter a slim divider row inside it
  * (no count), sticky under the top bar while its rows scroll by. One pager trail. */
 function lettered(
-  secs: ReturnType<typeof sections<Tagged>>,
+  secs: ReturnType<typeof sections<Hit>>,
   row: (hit: Hit) => Element,
   label: string,
 ) {

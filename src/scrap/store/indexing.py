@@ -14,6 +14,7 @@ from .constants import (
     ENRICH_KINDS,
     FIRST_READ,
     NOT_BY_INGEST,
+    PINNED_SLUG,
     RELATED_ENQUEUE,
 )
 from .helpers import now, unlink
@@ -80,10 +81,12 @@ def enrich_on() -> bool:
 
 def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether enrich reads this page on a capture, save or backfill: its kind is in
-    ENRICH_KINDS and it was not made with a photo or file capture (NOT_BY_INGEST)."""
+    ENRICH_KINDS, it was not made with a photo or file capture (NOT_BY_INGEST) and it
+    is not the Pinned page (a list of links: nothing for Claude to read)."""
     row = conn.execute(
-        "SELECT p.kind FROM page p WHERE p.id = ? AND " + NOT_BY_INGEST.format(p="p"),
-        (page_id,),
+        "SELECT p.kind FROM page p WHERE p.id = ? AND p.slug != ? AND "
+        + NOT_BY_INGEST.format(p="p"),
+        (page_id, PINNED_SLUG),
     ).fetchone()
     return row is not None and row[0] in ENRICH_KINDS
 

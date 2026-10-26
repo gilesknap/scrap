@@ -37,9 +37,6 @@ const PATHS = {
   filter:
     '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   tag: '<path d="M3.5 12.5v-8h8l9 9-8 8z"/><circle cx="8" cy="9" r="1.5"/>',
-  // A pushpin: pin a search or a page to Search's launcher
-  pin: '<path d="M8.5 3.5h7M10 3.5v5.5l-3.5 4v1.5h11V13L14 9V3.5M12 14.5v6"/>',
-  more: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
   // Settings
   // A toothed cog (8 teeth): read as Settings, as a sun-like one was not
   cog: '<path d="M18.9 9.9L21.4 10.4L21.4 13.6L18.9 14.1L18.4 15.4L19.8 17.5L17.5 19.8L15.4 18.4L14.1 18.9L13.6 21.4L10.4 21.4L9.9 18.9L8.6 18.4L6.5 19.8L4.2 17.5L5.6 15.4L5.1 14.1L2.6 13.6L2.6 10.4L5.1 9.9L5.6 8.6L4.2 6.5L6.5 4.2L8.6 5.6L9.9 5.1L10.4 2.6L13.6 2.6L14.1 5.1L15.4 5.6L17.5 4.2L19.8 6.5L18.4 8.6Z"/><circle cx="12" cy="12" r="3"/>',

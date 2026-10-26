@@ -12,7 +12,7 @@ import { api } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
-import { actions } from "./searchacts";
+import { actions, offerNew } from "./searchacts";
 import { MEDIA, removing, withGroup } from "./termedit";
 import {
   adding,
@@ -147,7 +147,8 @@ export async function refine(
   signal: AbortSignal,
   apply: (edit: Edit) => void,
   button: HTMLButtonElement,
-): Promise<HTMLElement> {
+): Promise<(HTMLElement | false | "")[]> {
+  offerNew(q); // (before the facets come: New is there as soon as the box is)
   // Where focus is now, to put it back on the same control once drawn again
   const was = document.activeElement as HTMLElement | null;
   const k = was?.closest(".fpanel, .fon") ? was.dataset.k : null;
@@ -210,7 +211,7 @@ export async function refine(
     });
   // (search.ts puts each in its place: the panel under the box, the chips under the kinds,
   // then the header over the results)
-  return h("div", {}, panel, fon, header);
+  return [panel, fon, header];
 }
 
 /** The panel's rows: Tags, When, then Arrange (Order and Group). */

@@ -219,15 +219,30 @@ Keyboard (computer):
 (`vsc` finds `vscode`); a title or tag match ranks first. Results show a snippet unless it only
 repeats the title. Search needs the server.
 
+- **Pinned.** Tap the empty box and **Pinned** is listed first, above Recent: your pinned
+  searches and pages, in the order of the page called *Pinned* (slug `pinned`), a Markdown list
+  of links. Pin a search with the pin button in the results header or on a Recent row; pin a page
+  with **Share**, **Pin to Search** (a browser with no Share menu has no such row; add a
+  `- [Name](/p/slug)` line to the Pinned page instead). The toast says *Pinned*, with **Undo**.
+  **Edit pins** opens the page: rename a pin by its link text, reorder or remove it by its line.
+  A page keeps its slug when renamed, so a pin to it survives. **Copy link** in the header copies
+  the search's address. Claude does not read the Pinned page. See
+  [](make-your-own-lists.md).
+- **New from a search.** A search with a tag filter, or a single kind, shows **New** at the right
+  end of the top bar. It opens the composer with those tags and that kind filled in (a Note when
+  no kind is chosen); cancelling straight away keeps no draft, and the saved page joins the list.
+- **Topics.** `is:topic` groups by area as the Topics tab does (**Group**: Area, None, A–Z), and
+  the Topics tab has a quiet **Refine** link on its count line that opens it in Search.
 - **Recent.** Tap the empty box for your last ten searches, newest first, filters and all. Tap one
   to run it again, **✕** to forget it, or **Clear all**. A search is kept when run (Enter, opening
   a result, or a few seconds with results), only on this phone.
 - **Kinds.** A row under the box: **All**, **Notes**, **Todos**, **Later**, **Boards**, **Docs**.
   One tap writes `kind:` into the query; a second tap (or **All**) shows every kind again.
 - **Clear.** A **✕** at the end of the box goes back to every page, newest first.
-- **Filters.** The slider button shows how many are on. Each active filter is a chip with a ✕ in a
-  row under the box (*#home*, *past month*, *A–Z*) with the count of pages found. The panel's rows
-  scroll sideways: **Tags** (type to see matching tags among the results, or tap a top tag),
+- **Filters.** The slider button turns amber while the panel is open (it shows no count). Each
+  active filter is a chip with a ✕ in a row of its own under the kinds (*#home*, *past month*,
+  *A–Z*), above the results header with the count of pages found. The panel's headings sit above
+  their chips, which wrap: **Tags** (type to see matching tags among the results, or tap a top tag),
   **Order** (**Best match**/**Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos **Due
   soonest** and **Priority**) and **When** (**1w**, **1m**, **1y**, **Dates…**, and **By created
   date** once a range is on). Each tap applies at once; a second tap removes it. **Clear filters**
@@ -259,7 +274,7 @@ first; the full grammar is in [](../reference/api.md).
 | `priority:high` (`medium`, `low`, `none`) | A todo's priority |
 | `media:book` (`article`, `film`, `tv`, `video`, `podcast`, `music`, `game`) | A Later page's type |
 | `later:read` (`watch`, `listen`, `play`) | What a Later page is for |
-| `group:letter` (`tag`, `type`, `now`, `due`, `none`) | Group the results in sections. **Group** writes it; Later's own is type, Todos' is Now |
+| `group:letter` (`tag`, `type`, `now`, `due`, `area`, `none`) | Group the results in sections. **Group** writes it; Later's own is type, Todos' is Now, topics' (`is:topic`) is area |
 | `after:1w`, `before:2026-03-01` | Last edited; dates are UTC days, both ends included; a time ago is `Nd`, `Nw`, `Nm`, `Ny`, N up to 100. Add `date:created` to use the creation date (the only `date:` value; others are ignored) |
 | `sort:title`, `sort:created`, `sort:updated`, `sort:due`, `sort:priority` | Order (A-Z; newest; last edited; soonest due; high first). `-sort:` reverses. **Order** writes the commonest |
 
