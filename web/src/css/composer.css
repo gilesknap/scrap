@@ -319,8 +319,12 @@ button.more {
   height: 16px;
   stroke-width: 2.4;
 }
+/* Add photo's Camera and Gallery, in the page editor and the composer: each label on one line.
+   They share the row while both fit, else the row wraps and each takes a line of its own,
+   rather than a word a line inside a button twice as tall (large text sizes) */
 .bar .add {
-  flex: 1;
+  flex: 1 1 auto;
+  white-space: nowrap;
 }
 /* The page editor's embeds (editor.ts embedded()): a chip each for the token that stands for
    it in the text, on one line under the fields that scrolls sideways, never taller. Its own

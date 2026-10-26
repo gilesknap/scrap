@@ -26,10 +26,13 @@ const PNG = Buffer.from(
   "base64",
 );
 
-/** Pick a photo with the editor's From gallery. */
+/** Pick a photo with the editor's Gallery. */
 async function pick(page: Page) {
   const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "From gallery" }).click();
+  await page
+    .getByRole("group", { name: "Add photo" })
+    .getByRole("button", { name: "Gallery" })
+    .click();
   await (await chooser).setFiles({ name: "board.png", mimeType: "image/png", buffer: PNG });
 }
 

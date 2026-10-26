@@ -38,7 +38,8 @@ export function uploads(files: File[], page: { id: string; title: string }): Cap
  * (a board photo would queue one over it; the server refuses them too). */
 export const takesPhotos = (page: { topic?: unknown }) => !page.topic;
 
-/** Add photo and From gallery, for the page editor. */
+/** Add photo, for the page editor: Camera and Gallery, named as the composer's are (short
+ * enough to share a row at large text sizes). */
 export function photoAdder(page: { id: string; title: string }) {
   const add = async (files: File[]) => {
     const queued = uploads(files, page);
@@ -58,7 +59,7 @@ export function photoAdder(page: { id: string; title: string }) {
   return h(
     "div",
     { className: "bar", role: "group", "aria-label": "Add photo" },
-    picker("Add photo", true, (f) => void add(f), "add"),
-    picker("From gallery", false, (f) => void add(f), "add"),
+    picker("Camera", true, (f) => void add(f), "add"),
+    picker("Gallery", false, (f) => void add(f), "add"),
   );
 }
