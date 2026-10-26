@@ -5,9 +5,10 @@ list see the documentation:
 https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
+import re
 import sys
 from pathlib import Path
-from subprocess import check_output
+from subprocess import DEVNULL, CalledProcessError, check_output
 
 import requests
 
@@ -30,6 +31,37 @@ if "+" in release:
 else:
     version = release
 
+# The latest release tag, for the pinned versions in commands (``{{ release_tag }}``).
+# A dev build (0.11.1.dev3+gabc) must not put a dev/local version in a command people
+# copy, so use the newest tag reachable from HEAD; a checkout with no tags falls back
+# to the base of the setuptools-scm version.
+try:
+    release_tag = (
+        check_output(
+            "git describe --tags --abbrev=0".split(),
+            cwd=Path(__file__).absolute().parent.parent,
+            stderr=DEVNULL,
+        )
+        .decode()
+        .strip()
+    )
+except (OSError, CalledProcessError):
+    release_tag = re.split(r"\.dev|\+", release)[0]
+
+
+def _substitute_release_tag(app, docname, source):
+    """Replace ``{{ release_tag }}`` everywhere, including inside code fences.
+
+    MyST substitutions do not apply inside fenced code blocks, which is where the
+    install commands live, so do it on the source text before parsing.
+    """
+    source[0] = source[0].replace("{{ release_tag }}", release_tag)
+
+
+def setup(app):
+    app.connect("source-read", _substitute_release_tag)
+
+
 extensions = [
     # Use this for generating API docs
     "sphinx.ext.autodoc",
@@ -49,11 +81,15 @@ extensions = [
     "sphinx_design",
     # So we can write markdown files
     "myst_parser",
+    # For ```mermaid fences (rendered in the browser)
+    "sphinxcontrib.mermaid",
 ]
 
 # So we can use the ::: syntax
 myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 3
+# Treat ```mermaid fences as the mermaid directive
+myst_fence_as_directive = ["mermaid"]
 
 # If true, Sphinx will warn about all references where the target cannot
 # be found.

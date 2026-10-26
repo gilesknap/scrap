@@ -5,6 +5,34 @@ Run scrap on a Kubernetes cluster (k3s, a home lab, a cloud cluster) with the He
 container image as the [single-server deployment](deploy-single-server.md): one pod, a persistent
 volume for the data and, by default, a nightly backup job.
 
+How the pieces fit (one pod; every CronJob runs beside it on the same node):
+
+```mermaid
+flowchart LR
+    phone["Phone and laptops<br/>(tailnet)"]:::user
+    cc["Claude Code"]:::claude
+    subgraph cluster ["Kubernetes cluster"]
+        ts["Tailscale operator<br/>proxy"]
+        ing["Ingress / Service"]
+        subgraph node ["One node"]
+            pod["scrap pod<br/>(1 replica)"]
+            data[("data PVC<br/>/data")]:::store
+            jobs["CronJobs:<br/>backup, gc,<br/>related, topics"]
+            bak[("backups PVC<br/>/backups")]:::store
+        end
+    end
+    api["api.anthropic.com"]:::claude
+    phone --> ts --> ing --> pod
+    cc -->|"/mcp"| ts
+    pod --- data
+    jobs --- data
+    jobs --> bak
+    pod -.->|"ingest on"| api
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+```
+
 ```{warning}
 scrap has **no login of its own**. Anyone who can reach its Service can read and change everything.
 Expose it only on your tailnet (see {ref}`k8s-tailscale`) or behind an authenticating proxy
@@ -21,7 +49,7 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | PersistentVolumeClaim | `/data`: the database, files and the preview cache. Kept on `helm uninstall`. |
 | Service | `ClusterIP`, port 80. |
 | ServiceAccount | No API token mounted; scrap never talks to the Kubernetes API. |
-| CronJob + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs. |
+| CronJobs + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs, and a monthly copy in its `monthly/` folder, keeping 12. |
 | CronJobs (gc on by default, the Claude ones with ingest) | gc, related pages and topics: see {ref}`k8s-gc` and [](../reference/scheduled-jobs.md). |
 | Ingress, NetworkPolicy (off by default) | See below. |
 
@@ -44,9 +72,9 @@ profile.
 
 Releases publish a public, multi-arch (amd64 and arm64) image to `ghcr.io/gilesknap/scrap`, and
 the chart's `appVersion` names the release it was made with (set from the git tag when the chart is
-published; a checkout has the placeholder `0.0.0`, so set `image.tag` with one). By default the chart runs that
-release, `ghcr.io/gilesknap/scrap:<appVersion>`, so there is nothing to build: set `image.tag`
-only to run a different release.
+published; a checkout has the placeholder `0.0.0`, so set `image.tag` with one). By default the chart
+runs that release, `ghcr.io/gilesknap/scrap:<appVersion>`, so there is nothing to build: set
+`image.tag` only to run a different release.
 
 To run your own build instead, push it to a registry your cluster can pull from, and point the
 chart at it:
@@ -113,10 +141,11 @@ and open <http://127.0.0.1:8000/> for the PWA. The PWA needs HTTPS to install on
 
 Every value is described in
 [`values.yaml`](https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml); unknown
-top-level keys, and unknown keys under `image`, `ingest`, `backup`, `persistence` and `ingress`,
-are refused, so a typo there fails the install instead of being ignored. Other groups
-(`service`, `networkPolicy`, `serviceAccount`, `resources` and the security contexts) are not
-checked, so a typo inside them is silently ignored. The main ones:
+top-level keys, and unknown keys under `image`, `ingest`, `persistence`, `ingress`,
+`mcp`, `gc`, `enrichRelated` and `enrichTopics` (and under `backup`, including `backup.monthly`)
+are refused, so a typo there fails the install instead of being ignored. Other groups (`service`,
+`networkPolicy`, `serviceAccount`, `resources` and the security contexts) are not checked, so a typo
+inside them is silently ignored. The main ones:
 
 | Value | Default | Meaning |
 | --- | --- | --- |
@@ -130,7 +159,8 @@ checked, so a typo inside them is silently ignored. The main ones:
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
 | `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, the cluster's default | The related-pages CronJob. It exists only while `ingest.enabled` is true. Every scheduled job: [](../reference/scheduled-jobs.md). |
 | `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, the cluster's default | The topics CronJob (Sundays). It exists only while `ingest.enabled` is true. |
-| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + 1` times the data. |
+| `backup.monthly.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `50 3 1 * *`, the cluster's default, `12` | The monthly copy CronJob (needs `backup.enabled`; see Backup and restore). |
+| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + monthly.keep + 1` times the data (or lower `keep` and `monthly.keep`). |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
 | `ingress.*`, `service.annotations` | off | Exposure, below. |
 | `service.type`, `service.port` | `ClusterIP`, `80` | The Service. |
@@ -379,22 +409,11 @@ them five minutes.
 Migrations are **forward only**, and an older scrap refuses a database migrated by a newer one.
 So `helm rollback` alone does not go back: roll back to the old image *and* restore the
 pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
-the database; its files stay. The one exception is migration 0004 (Markdown-aware search
-text), which changes no schema. If the database is at version 4 (you upgraded from a scrap that
-stopped at migration 3 and no later migration has run), you can go back past it without
-restoring: stop scrap, then run this in a one-off pod like `restore.yaml` below (in place of its
-`args`), with only the data claim mounted and the old image (the image has no `sqlite3` command,
-but has Python):
-
-```yaml
-command: ["python", "-c", "import sqlite3; c = sqlite3.connect('/data/scrap.db'); c.execute('PRAGMA user_version = 3'); c.close()"]
-```
-
-Migrations 0005 and later change the schema: once one has run, restore the backup instead.
+the database; its files stay.
 
 ## Backup and restore
 
-The CronJob runs `scrap backup` into a new timestamped directory on the backup claim
+The daily CronJob runs `scrap backup` into a new timestamped directory on the backup claim
 (`/backups/20261019T033000Z`), then keeps only the newest `backup.keep` runs, using the same
 rules as the single-server deployment: `keep` must be a whole number of at least 1 (the chart
 refuses anything else), and only real directories named like a run are ever deleted; anything
@@ -406,9 +425,24 @@ within an hour of its schedule is skipped. A failed run is retried once and then
 failed; the last 3 successful and the last 3 failed Jobs are kept, so `kubectl logs` still works
 on them.
 
-The CronJob is called `<fullname>-backup`, which is `scrap-backup` for the release used in this
-guide. When the fullname is longer than 45 characters, the chart shortens it and adds a 6-character
-hash, so the name differs: read it from `kubectl -n scrap get cronjob` and use it in place of
+**Monthly copy.** A second CronJob, `<fullname>-backup-monthly` (03:50 on the 1st), makes the same
+full backup into the `monthly/` folder of the backup claim and keeps the newest `backup.monthly.keep`
+(12) there. It takes the same lock as the daily backup and gc, so they never overlap. The daily
+prune, gc's recent-backup check and the restore commands below look only at runs directly in the
+claim, so none of them touches `monthly/`; to restore one, point `restore` at
+`/backups/monthly/<run>`. Switch it off with `backup.monthly.enabled: false`.
+
+```mermaid
+flowchart LR
+    d["daily CronJob<br/>03:30"] -->|"keep 7"| r[("/backups/<br/>YYYYMMDDTHHMMSSZ")]:::store
+    m["monthly CronJob<br/>03:50 on the 1st"] -->|"keep 12"| mm[("/backups/monthly/<br/>YYYYMMDDTHHMMSSZ")]:::store
+    g["gc CronJob<br/>04:30"] -.->|"needs a COMPLETE run<br/>under 26 h old"| r
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+```
+
+The daily CronJob is called `<fullname>-backup`, which is `scrap-backup` for the release used in this
+guide. When a CronJob's name would be longer than 52 characters, the chart shortens the fullname and
+adds a 6-character hash, so the name differs: read it from `kubectl -n scrap get cronjob` and use it in place of
 `scrap-backup` in the commands below and under Upgrades.
 
 Backups are on by default because the data is personal and irreplaceable; set
@@ -416,7 +450,7 @@ Backups are on by default because the data is personal and irreplaceable; set
 or Velero backups). Either way the backup claim lives in the same cluster: copy it somewhere
 else too.
 
-Run one now and list the runs:
+Run one now and follow it:
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-now
@@ -528,8 +562,8 @@ once the backup passed an integrity check) less than 26 hours old; otherwise it 
 the Job fails so a missing backup shows. Backups from before the marker existed lack it, so gc
 only counts until the next backup runs. It takes the backup's lock (`/backups/.lock`), so it
 never runs during a backup; so `gc.enabled` follows `backup.enabled` unless set, and
-`gc.enabled: true` with backups off is refused. If you back up another way, set
-`gc.requireBackup: false`. A deleting `scrap gc` also takes a lock of its own (`gc.lock` in the
+`gc.enabled: true` with backups off is refused (unless `gc.requireBackup: false`). If you back up
+another way, set `gc.requireBackup: false`. A deleting `scrap gc` also takes a lock of its own (`gc.lock` in the
 data folder), so one you run by hand (`kubectl exec`) cannot overlap the CronJob: whichever
 starts second stops with `another scrap gc is deleting`; a hand run does not wait for a backup.
 With `ingest.notifyUrlKey` set, gc pushes to `SCRAP_NOTIFY_URL` when it starts a month's

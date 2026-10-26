@@ -10,6 +10,21 @@ This page follows one happy path. For a quick try on a LAN see [](install-lan.md
 see [](install-kubernetes.md). Every option, and the update, backup, uninstall and
 troubleshooting steps, are in [](../how-to/deploy-single-server.md).
 
+Where each piece runs:
+
+```mermaid
+flowchart LR
+    phone([Phone]):::user -->|HTTPS| ts
+    cc([Claude Code]):::claude -->|HTTPS /mcp| ts
+    subgraph server [Your server]
+        ts[Tailscale Serve] -->|Unix socket| scrap[scrap in podman]
+        scrap --> data[(SQLite + files)]:::store
+    end
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+```
+
 ```{warning}
 scrap has **no login of its own**. Anyone who can reach it can read and change everything. The
 tailnet is the gate: only expose scrap through Tailscale Serve, never `tailscale funnel`.
@@ -59,16 +74,16 @@ Everything from here to the Tailscale step runs **as that user**, in a real logi
 As `scrap`, pull the image. It is public, so no login is needed:
 
 ```
-podman pull ghcr.io/gilesknap/scrap:0.2.2
-podman run --rm ghcr.io/gilesknap/scrap:0.2.2 --version
+podman pull ghcr.io/gilesknap/scrap:{{ release_tag }}
+podman run --rm ghcr.io/gilesknap/scrap:{{ release_tag }} --version
 ```
 
-The last command prints `0.2.2`. The install script and its units come from the repo, so clone it
+The last command prints `{{ release_tag }}`. The install script and its units come from the repo, so clone it
 too:
 
 ```
 cd ~
-git clone --branch 0.2.2 --depth 1 https://github.com/gilesknap/scrap.git
+git clone --branch {{ release_tag }} --depth 1 https://github.com/gilesknap/scrap.git
 cd scrap
 ```
 
@@ -84,13 +99,13 @@ The first run writes `~/.config/scrap/env` naming a local build, `localhost/scra
 the image is not here yet. Point it at the release you pulled and run the script again:
 
 ```
-sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.2.2|' ~/.config/scrap/env
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:{{ release_tag }}|' ~/.config/scrap/env
 ./deploy/install.sh
 ```
 
 The script is safe to re-run. It writes `~/.config/scrap/env` and `~/.config/scrap/ingest.env`
 (never overwriting them), copies the systemd units and helper scripts into place, enables and
-starts `scrap.service`, and enables the daily backup, nightly gc and related-pages timers. The
+starts `scrap.service`, and enables the daily backup, nightly gc, nightly related-pages and weekly topics timers. The
 defaults suit this tutorial: `SCRAP_LISTEN=socket` (a Unix socket only `scrap` and root can open,
 no TCP port), data in `~/.local/share/scrap/data` and backups in `~/.local/share/scrap/backups`.
 
@@ -106,8 +121,8 @@ logs with `journalctl --user -u scrap -n 50`.
 
 ## Publish it on your tailnet
 
-Log out of the `scrap` session. As an admin on the server, check what Serve already publishes, then add
-scrap on a port that is free (the port is yours to choose; this tutorial uses 8446):
+Log out of the `scrap` session. As an admin on the server, check what Serve already publishes,
+then add scrap on a port that is free (the port is yours to choose; this tutorial uses 8446):
 
 ```
 sudo tailscale serve status

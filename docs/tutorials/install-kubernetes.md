@@ -9,6 +9,26 @@ connected to it.
 
 The cluster makes no inbound connection and opens no port. The tunnel is outbound only.
 
+How a request reaches scrap:
+
+```mermaid
+flowchart LR
+    phone([Phone or browser]):::user -->|email PIN| cf
+    cc([Claude Code]):::claude -->|service token + bearer| cf
+    subgraph edge [Cloudflare]
+        cf[Access]
+    end
+    subgraph cluster [Your cluster]
+        cfd[cloudflared] -->|NetworkPolicy| scrap[scrap pod]
+        scrap --> pvc[(Data volume)]:::store
+        job[Backup CronJob] --> bk[(Backup volume)]:::store
+    end
+    cf -->|outbound tunnel| cfd
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+```
+
 It is the same container image as the other installs. For a first try on one machine, see
 [](install-lan.md) or [](install-server.md). This page follows one happy path; every chart value,
 upgrades, backup and restore, and troubleshooting are in [](../how-to/deploy-kubernetes.md).
@@ -24,7 +44,7 @@ directly. Do not skip either.
 - A Kubernetes cluster, version 1.27 or newer, with a StorageClass that gives `ReadWriteOnce`
   volumes on a **local or block** filesystem, and a CNI that enforces NetworkPolicy (k3s does).
   SQLite does not work reliably on network filesystems such as NFS. See {ref}`k8s-storage`.
-- `kubectl` pointed at that cluster, [Helm](https://helm.sh/docs/intro/install/) 3 or 4, and `git`.
+- `kubectl` pointed at that cluster and [Helm](https://helm.sh/docs/intro/install/) 3 or 4.
 - A domain whose DNS is on Cloudflare, and a Cloudflare account with
   [Zero Trust](https://developers.cloudflare.com/cloudflare-one/) enabled (the free plan is enough).
 - A Claude API key for ingest (read photos and tag pages). Without one, photos queue and nothing
@@ -36,18 +56,13 @@ for that reason, and the Deployment stops the old pod before it starts the new o
 
 Throughout, `scrap.example.com` is your own hostname. Replace it.
 
-## 1. Get the chart
+## 1. Choose a release
 
-The chart is not published to a chart repository. Clone the release you want and install from
-the checkout:
-
-```
-git clone --branch 0.2.2 --depth 1 https://github.com/gilesknap/scrap.git
-cd scrap
-```
-
-The chart's `appVersion` is `0.2.2`, so it runs the image `ghcr.io/gilesknap/scrap:0.2.2`
-(amd64 and arm64). There is nothing to build.
+The chart is published as an OCI artifact, `oci://ghcr.io/gilesknap/charts/scrap`, and its
+version is the release tag. This page installs `--version {{ release_tag }}`; use a newer release if there
+is one (see the [releases](https://github.com/gilesknap/scrap/releases)). The chart's
+`appVersion` is the same tag, so it runs `ghcr.io/gilesknap/scrap:{{ release_tag }}` (amd64 and arm64).
+There is nothing to build and nothing to clone.
 
 ## 2. Create the secrets
 
@@ -112,12 +127,14 @@ What each part does:
   the next step. Without it, any pod in the cluster could reach scrap directly and send its own
   identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around
   Cloudflare. Cluster admins, node access and `kubectl port-forward` are outside that guarantee.
-- `backup.enabled` is already the default. It runs a nightly `scrap backup` onto a second volume.
+- `backup.enabled` is already the default. It runs a nightly `scrap backup` onto a second volume,
+  plus a monthly one kept longer.
 
 Install it:
 
 ```
-helm install scrap ./charts/scrap --namespace scrap -f my-values.yaml
+helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ release_tag }} \
+    --namespace scrap -f my-values.yaml
 kubectl -n scrap rollout status deploy/scrap
 ```
 

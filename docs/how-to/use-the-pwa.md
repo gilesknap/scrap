@@ -1,753 +1,620 @@
 # Capture from your phone (the PWA)
 
-scrap serves a web app (a PWA) at the root of its address. It is built for one-handed use on a
-phone and has four tabs: **Capture** (the composer, camera and gallery, the share target and
-the offline queue), **Todos** (what to do now, soon, or ever), **Search** (every page, newest
-first, with kinds, filters and tags) and **Topics** (the topic pages Claude keeps). Opening a page gives a page view with an editor, photo and
-drawing viewers and, with Claude on, what Claude made of it.
+scrap serves a web app (a PWA) at the root of its address, built for one-handed use on a phone.
+It has four tabs:
 
-This page covers, in order: installing it, capturing, sharing into scrap, the offline queue, what
-scrap stores on the phone and what works offline; then viewing, editing and searching (navigating
-and the keyboard, search and its syntax, tags, todos, the page view, editing and deleting); what
-Claude makes of a photo and of a note or link, and its topic pages;
-the iPhone and iPad limits, updates and the screen-layout debug panel; and, for developers, how
-to build the app, with the licences of what it bundles.
+| Tab | For |
+| --- | --- |
+| **Capture** | The composer, camera and gallery, the share target, the offline queue |
+| **Todos** | What to do now, soon or ever |
+| **Search** | Every page, newest first, with kinds, filters and tags |
+| **Topics** | The topic pages Claude keeps |
+
+Opening a page gives a page view with an editor, photo and drawing viewers and, with Claude on,
+what Claude made of it.
+
+Jump to: [install](#install-it-on-android), [capture](#capture), [share](#share-into-scrap),
+[offline](#the-offline-queue), [navigate](#screens-and-navigation), [search](#search),
+[tags](#tags), [todos](#todos), [page view](#the-page-view), [editing](#editing-and-deleting),
+[Claude's output](#what-claude-made-of-a-photo), [topics](#claudes-topic-pages),
+[iPhone](#iphone-and-ipad), [developers](#build-it-developers).
 
 ## Install it on Android
 
-1. Open scrap's HTTPS address in Chrome. A PWA needs HTTPS; `http://127.0.0.1` also works for
-   trying it out on the server itself. Get an address with the `tailscale serve` URL from
-   [](deploy-single-server.md), or the Tailscale operator or an ingress from
-   [](deploy-kubernetes.md).
+1. Open scrap's HTTPS address in Chrome. A PWA needs HTTPS (`http://127.0.0.1` also works on the
+   server itself). Get an address from the `tailscale serve` URL in [](deploy-single-server.md),
+   or the Tailscale operator or an ingress in [](deploy-kubernetes.md).
 2. Chrome menu, **Add to home screen** (or **Install app**), then **Install**.
 3. Open scrap from its icon. It opens on the capture screen, in its own window.
 
 Installing is what puts scrap in the Android **share sheet**.
 
-scrap has no login of its own: anyone who can reach its address can use the app, so reach it
-only over your tailnet or behind a proxy that authenticates (see [](../reference/api.md)).
+scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
+over your tailnet or behind a proxy that authenticates (see [](../reference/api.md)).
 
 ## Capture
 
 | Button | Does |
 | --- | --- |
 | **Camera** | Opens the camera |
-| **Gallery** | Picks one or more images from the phone |
+| **Gallery** | Picks one or more images |
 | **Note** | A text box; a pasted link alone becomes a link capture |
 
-The buttons say how you capture, not what the page is. Its **kind** is chosen in the composer
-(and changed later in the page's editor) with the row of chips above the text: **Note** (the
-default), **Todo**, **Later** (to read, watch or listen to later), **Board** (a whiteboard) or **Doc** (a document). A link on its own
-picks **Later** for you until you pick something else. Photos skip the choice: Claude reads them
-and makes a whiteboard or document a page of that kind, and you can change it after. A kind
-you choose is kept: Claude never changes it. Changing a kind loses nothing: what the page
-already has (a status, a due date, a summary) stays, and the new kind adds what it lacks, so
-changing it back gives the page as it was. While the kind is **Todo** (and there are no
-photos), the composer also has the todo's **Due** date (**Today**, **Tomorrow**, **Next week**
-or a date) and **Priority**, as on its page; the text box asks *What needs doing?*. The due
-date and the tags are each folded into one line above the text (**Due** *24 Oct · high*,
-**Tags** *2 · #home #garden*), so the text stays in front: tap the line to open it, and again to
-fold it.
+**Save** returns at once: the capture is stored on the phone first and uploaded in the background.
+The four newest pages are listed above the buttons.
 
-In the composer, **Camera** and **Gallery** add more photos (to a note too), and the cross
-on a thumbnail removes one: all the photos and the text become one capture and one page.
-If the photos together are over the server's upload limit (50 MB by default, set with
-`SCRAP_MAX_UPLOAD_MB`: see [](../reference/api.md); the server tells the app, which remembers
-it for offline use), Save says so: remove some, or **Save separately**, one capture per photo
-with the text on the first. A proxy in front of scrap may have a lower limit of its own.
-The **Tags** line opens a tags box that works as on a page (see Tags, below): type a tag and press Enter
-or a comma, or tap one of the tags offered in a row under the box (your most used tags, or as
-you type, the tags in use that match); tap a tag's ✕ to take it off; what is still in the box
-when you save counts too. The page is made with its tags, so search finds it by them at once,
-also when it was saved offline and uploaded later. A photo you tag keeps your tags, and Claude's
-join them when it first reads the photo (a later Regenerate adds its tags only to a page with
-none, so one you took off stays off). Saved separately, every photo's page gets the tags.
-**Save** returns at once: the capture is stored on the phone first and uploaded in the
-background. The four newest pages are listed above the buttons.
+```mermaid
+flowchart LR
+    A["Camera / Gallery / Note"] --> B["Composer"]
+    S["Android Share"] --> Q
+    B -->|Save| Q["Queue on phone<br/>(IndexedDB)"]
+    Q -->|"online"| U["POST /api/captures"]
+    U --> P["Page on server"]
+    P -.->|"ingest on"| C["Claude reads it"]
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    class A,B,S user
+    class Q,U,P store
+    class C claude
+```
 
-Leave the composer with the phone's Back and what you typed is kept as a **draft**: a row over
-the buttons (its kind's icon, *Draft:* and its first line). Tap it to carry on, or its **✕** to
-discard it (with **Undo**). The buttons (and **New todo**) always start a fresh capture: left by
-Back with something in it, the fresh one takes the older draft's place, and **Undo** in the
-message puts the older one back. There is one kept draft at a time. The fresh one is kept on
-the phone as you type too, so if the app is closed or killed before you save it (a phone short
-of memory may do that after the camera), it is the draft the next time you open scrap, again
-with **Undo** for the older one.
+### The composer
+
+- **Kind.** A row of chips above the text sets the page's kind: **Note** (default), **Todo**,
+  **Later** (to read, watch or listen to), **Board** (whiteboard) or **Doc**. A link on its own
+  picks **Later** until you pick something else. Photos skip the choice: Claude reads them, and
+  makes a whiteboard or document a page of that kind. A kind you choose is kept; Claude never
+  changes it. You can change it later in the editor and nothing is lost (status, due date and
+  summary stay, so changing back restores the page).
+- **Todo.** With kind **Todo** (and no photos) the composer adds **Due** (**Today**,
+  **Tomorrow**, **Next week** or a date) and **Priority**, and asks *What needs doing?*.
+- **Folded lines.** Due and Tags are each one line above the text (**Due** *24 Oct · high*,
+  **Tags** *2 · #home #garden*); tap to open, tap again to fold.
+- **Photos.** **Camera** and **Gallery** add more photos (to a note too); the cross on a thumbnail
+  removes one. All photos and the text become one capture and one page.
+- **Upload limit.** Photos together over the server's limit (50 MB, `SCRAP_MAX_UPLOAD_MB`; the app
+  learns it from `/healthz`, so this works offline) make Save say so: remove some, or **Save
+  separately** (one capture per photo, text on the first). A proxy may have a lower limit.
+- **Tags.** The **Tags** line opens a tags box as on a page ([Tags](#tags)). The page is made with
+  its tags, so search finds it at once, also when saved offline. Your tags on a photo are kept and
+  Claude's join them on its first read (a later Regenerate adds tags only to a page with none).
+  Saved separately, every photo's page gets the tags.
+- **Drafts.** Leave the composer with the phone's Back and what you typed is kept as a **draft**:
+  a row over the buttons (*Draft:* and its first line). Tap it to carry on, or **✕** to discard
+  (with **Undo**). The buttons and **New todo** always start fresh and replace an older draft,
+  with **Undo** to put it back. One draft at a time. It is also kept as you type, so a closed or
+  killed app brings it back.
 
 ## Share into scrap
 
-From any Android app, **Share**, then **scrap**. Links, text, photos and other files (scrap's
-share target accepts any file type) are queued like any other capture and the app opens on the
-capture screen saying *Shared item saved*. The service worker queues the share on the phone, so
-it is saved even if the app was not open; the capture is recorded with source `share`. What
-becomes of what was shared:
+From any Android app, **Share**, then **scrap**. Links, text, photos and other files (any type)
+are queued like any capture, with source `share`, and the app opens on the capture screen saying
+*Shared item saved*. The service worker queues the share even if the app was not open.
 
-- **The link** is the shared URL, or, if there is none, a link at the very end of the shared
-  text. Android often sends a link as text after the page title, so scrap takes the link off the
-  end and keeps the rest as the note.
-- **The note** is the shared text, with the shared title put in front of it as its first line,
-  which titles the page, unless the text already contains the title.
-- **Files** of zero size are dropped.
-- A share with no text, link or usable file is ignored: the app opens on the capture screen with
-  no message.
+- **The link** is the shared URL, or else a link at the very end of the shared text (Android often
+  sends title then link as text); the rest stays as the note.
+- **The note** is the shared text with the shared title put first as its first line (which titles
+  the page), unless the text already contains the title.
+- Files of zero size are dropped. A share with no text, link or usable file is ignored.
 
 ## The offline queue
 
-- Every capture gets its id (a ULID) on the phone before it is queued, so an upload that is
-  retried after a lost answer saves it once, not twice.
-- The queue lives in the browser's IndexedDB (photos as they are, not re-encoded) and survives
-  closing the app and restarting the phone.
-- The header badge shows what is on the phone: **2 waiting · 1 failed**. Tap it to retry
-  everything now. Waiting items are also listed at the top of the capture and search screens,
-  oldest first; a row says *waiting to upload* with the last problem after it (*offline*, *server
-  error (503)*, *connection lost*, *timed out*), or *not saved* with the server's reason.
-  Offline, the capture screen shows the badge, the waiting rows and one quiet line, *Offline:
-  showing what's on this phone*, in place of the newest pages: no error card, no Retry, no
-  message on Save (the waiting row says it). When the phone is back online the newest pages
-  come back by themselves.
-  Opening scrap, coming back to it or coming back online sends what waits at once (another
-  tab's upload first, if one is running). A screen still waiting for the server after a moment
-  says *Loading…*, and an upload that drops while the phone is online says *connection lost*.
-- Uploads start at once, again when the phone comes back online, whenever the app is opened or
-  brought to the front, and on a timer with backoff (2 s doubling to 5 minutes) while it is open.
-  Android gives web apps no reliable background upload, so a capture made offline uploads the
-  next time scrap is open with a connection.
-- Uploads go oldest first and one at a time; with no network the rest wait for the next try.
-  What happens to a capture depends on the answer. A network error, a `5xx` answer, `408` and
-  `429` are retried by themselves with the backoff above. Any other `4xx` answer is permanent: a
-  capture the server refuses (for example over the upload limit, `413`) is marked **failed**
-  with the server's reason (*refused:* or *too large:*), and stays on the phone with **Retry**
-  and **Discard** (which asks first, then deletes it and its photos from the phone). A failed
-  capture is not tried again until you tap **Retry** or the header badge. A multi-photo capture
-  refused as too large offers **Split and retry** instead of Retry: one capture per photo, the
-  text on the first, the tags and any kind on every one. Retry, Split and Discard wait for an
-  upload already in progress, so a tapped button says *Waiting for upload…* until it is done.
-- A page made from a queued capture is dated when the server receives it, not when it was
-  written on the phone, so a capture made offline sorts as new when it uploads, and the
-  `date:created`, `after:` and `before:` searches use that day. The phone's time is kept only on
-  the capture itself (its `created_at` in the API) and, for a capture of photos or files alone, in the
-  page's first title (a time such as `2026-10-22 13:04`, in UTC) until you retitle the page or
-  Claude titles it from the photo.
-- A slow upload may take as long as it needs while it keeps moving (up to 15 minutes); one with
-  no progress for a minute is given up and retried later. Once the phone has handed over the whole
-  upload, it waits at least two minutes for the answer (longer for big uploads, which may still
-  be draining from the phone's network buffer). Network and server errors just wait
-  and retry.
-- If the phone refuses to store a capture (storage full), the composer stays open with your text
-  and photos and says so. A share that cannot be stored goes straight to the server instead (its
-  `POST /share`: see [](../reference/api.md)), or, with no connection either, shows a page
-  saying it was not saved.
-- Two open scrap tabs take turns (Web Locks), so one capture is never uploaded twice at once.
+```mermaid
+stateDiagram-v2
+    [*] --> Waiting: Save / Share
+    Waiting --> Uploading: online, app open, timer
+    Uploading --> Done: 2xx
+    Uploading --> Waiting: network error, 5xx, 408, 429
+    Uploading --> Failed: other 4xx
+    Failed --> Waiting: Retry
+    Failed --> [*]: Discard
+    Done --> [*]
+```
+
+- **Idempotent.** Every capture gets a ULID on the phone before it is queued, so a retry after a
+  lost answer saves it once.
+- **Storage.** The queue is in IndexedDB (photos as they are) and survives closing the app and
+  restarting the phone.
+- **Badge.** The header badge shows what is on the phone (**2 waiting · 1 failed**); tap it to
+  retry now. Waiting items are listed oldest first at the top of the capture and search screens:
+  *waiting to upload* with the last problem (*offline*, *server error (503)*, *connection lost*,
+  *timed out*), or *not saved* with the server's reason. Offline, the capture screen shows the
+  badge, the waiting rows and *Offline: showing what's on this phone* in place of the newest
+  pages; the pages return when the phone is back online.
+- **When it uploads.** At once, when the phone comes back online, whenever the app opens or comes
+  to the front (another tab's upload first), and on a timer with backoff (2 s doubling to 5
+  minutes) while open. Android has no reliable background upload, so a capture made offline
+  uploads the next time scrap is open with a connection. Uploads go oldest first, one at a time.
+- **Failures.** Network errors, `5xx`, `408` and `429` retry by themselves. Any other `4xx` is
+  permanent: the capture is marked **failed** with the server's reason (*refused:* or *too large:*,
+  for example `413`) and stays with **Retry** and **Discard** (asks first; deletes it and its
+  photos). A failed capture is not retried until you tap Retry or the badge. A multi-photo capture
+  refused as too large offers **Split and retry**: one capture per photo, text on the first, tags
+  and kind on every one. These buttons wait for an upload in progress (*Waiting for upload…*).
+- **Dates.** A page from a queued capture is dated when the server receives it, so `date:created`,
+  `after:` and `before:` use that day. The phone's time is kept on the capture (`created_at` in
+  the API) and, for photos or files alone, in the page's first title (UTC, such as
+  `2026-10-22 13:04`) until you retitle it or Claude titles it.
+- **Timeouts.** A slow upload may take up to 15 minutes while it keeps moving; one with no progress
+  for a minute is given up and retried. After the whole upload is handed over, the phone waits at
+  least two minutes for the answer.
+- **Storage full.** The composer stays open with your text and photos and says so. A share that
+  cannot be stored goes straight to the server (`POST /share`, see [](../reference/api.md)), or
+  shows a page saying it was not saved if there is no connection either.
+- **Tabs.** Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.
 
 ## What scrap stores on the phone
 
-All of it stays in the browser, for scrap's own address, and none of it is sent anywhere:
+All of it stays in the browser, for scrap's own address, and is never sent anywhere.
 
-- **IndexedDB**: the upload queue (photos as they are) and the drafts, which are the composer's,
-  a page edit's and a drawing edit's.
-- **Local storage**: your recent searches, whether Claude's **Description** and **Text Claude
-  read** on a photo are folded, the debug panel's switch (see Troubleshooting the screen layout,
-  below) and the server's upload limit, learned from `/healthz` each time the app opens, comes
-  back or goes online, so a photo that is too big is caught offline.
-- **Cache Storage**: the app's own files only, in a cache named for the build (`scrap-` and the
-  build id). A new build makes a new cache and the old ones are deleted when it takes over.
-  API answers and files are never cached.
+| Where | What |
+| --- | --- |
+| IndexedDB | The upload queue, and the drafts (composer, page edit, drawing edit) |
+| Local storage | Recent searches, whether Claude's **Description** and **Text in the photo** are folded, the debug panel switch, the server's upload limit |
+| Cache Storage | The app's own files only, in a cache named `scrap-` and the build id; a new build deletes the old ones when it takes over. API answers and files are never cached |
 
-Clearing the site's data for scrap's address in the browser (or iOS evicting it, see iPhone and
-iPad, below) deletes anything still queued and every draft. If the browser blocks local storage
-(a private tab, say), scrap carries on without it: no recent searches, no remembered folds, no
-offline size check. If it refuses to store a capture, the composer says so (see above).
+Clearing site data for scrap's address (or iOS evicting it) deletes anything queued and every
+draft. If the browser blocks local storage (a private tab), scrap carries on without it: no recent
+searches, remembered folds or offline size check.
 
-## What works offline
+### What works offline
 
-The app's own files are kept on the phone, so it opens without a connection. API answers and
-files are never cached, so anything that reads from or writes to the server needs it.
+The app opens without a connection. Anything that reads from or writes to the server needs it.
 
 | Works offline | Needs the server |
 | --- | --- |
-| Opening the app, the capture screen and the badge | Opening any page |
+| Opening the app, the capture screen, the badge | Opening any page |
 | The composer, with photos and tags, and its drafts | Search results and the Todos screen |
-| Saving a capture (it is queued and uploaded later) | Changing a page's tags or kind, and saving its due date or snooze |
+| Saving a capture (queued) | Changing tags, kind, due date or snooze |
 | Sharing into scrap | Ticking a task box on a page |
-| The editor (on a page already open) and its drafts, and the search screen's recent searches | Viewing or editing a drawing, and Mermaid diagrams (shown as code) |
-| Waiting items: retry, discard, split | Claude's summary and related pages, and the pager and swipes |
+| The editor on a page already open, and its drafts; recent searches | Saving an edit (the draft is kept); drawings; Mermaid (shown as code) |
+| Waiting items: retry, discard, split | Claude's summary and related pages, the pager and swipes |
 
-Saving an edit of a page also needs the server; the editor keeps what you typed as a draft until
-you can. The cached files are replaced when a new scrap is deployed (see Updates, below).
+## Screens and navigation
 
-## View, edit, search
+- **Nav.** **Todos** opens on **Now**; its badge counts open todos due today or overdue (your
+  phone's day) and refreshes when the app opens or comes back, and after a tick or edit.
+  **Search** with an empty box lists every page newest first, with a thumbnail of the first photo
+  (**Show more** for older ones); there is no separate Recent screen. The keyboard comes up only
+  when you tap the box.
+- **Back.** A page has no nav; its toolbar is the only bottom bar. In the top bar Back names where
+  it goes: the page you followed a link from (**‹ Its title**), else the list you opened it from
+  (**‹ Search**, **‹ Todos**, **‹ Topics**, **‹ Capture**), as you left it. After a page, the
+  list's name follows (**‹ Its title · Search**): tap it to jump to the list. The phone's own Back
+  goes back one step at a time. A page opened cold (a link or share) goes up instead: Todos for a
+  todo, Topics for a topic page, Capture otherwise. A screen returns scrolled where you left it.
+- **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
+  wide screen the app is one centred column about 720 px wide. With a mouse the tabs move to the
+  top bar, Camera, Gallery and Note sit over the list, a page's buttons (Mark done, Edit, Share,
+  Delete) are a row under its title, and messages appear at the bottom of the window. Touch
+  devices keep the bars at the bottom.
+- **Links.** Rows, tags, `[[links]]` and the pager's arrows are ordinary links: long-press (phone)
+  or Ctrl/Cmd-click or middle-click (computer) to open in a new tab. A page opened that way has
+  no pager. An unknown address shows *Not found*.
+- **Kind display.** A list row shows the kind by icon (checklist for a todo, bookmark for Later). A
+  page shows it as a chip with its status: *Todo · open*, *Later · done*, *Note*.
+- **Pager.** A page opened from a list or search shows its place at the right of the top bar
+  (*3 of 23*) with **∧** previous and **∨** next. Swipe left for next, right for previous, or use
+  the arrows. Swipes start away from the screen edges, and are ignored on sideways-scrolling text,
+  while zoomed in, or while selecting text. The pager needs the server's list, so a page opened
+  offline has none.
+- **Row swipes.** On any list, swipe a row **right** to edit (opens the editor) or **left** to
+  delete (with **Undo** for a few seconds). Past a third of the way or a quick flick commits; let
+  go sooner and it slides back. The page has the same Edit and Delete.
 
-### Screens and navigation
+Keyboard (computer):
 
-- The nav has four tabs, **Capture**, **Todos**, **Search** and **Topics** (see Claude's topic
-  pages, below). **Todos** opens the Todos
-  screen on **Now** (see Todos, below); its badge counts the open todos due today or overdue, by your
-  phone's day (none: no badge), and is counted again when the app opens or comes back and
-  after a tick or an edit. **Search** opens the list screen for everything else: with
-  nothing in the search box it lists every page newest first, with a thumbnail of the first
-  photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
-  box. There is no separate Recent screen: the empty box is it.
-- A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
-  bottom. In the top bar, in place of the wordmark, Back names where it goes and goes up one
-  level: to the page you followed a link from (**‹ Its title**), else to the list you opened
-  the page from (**‹ Search**, **‹ Todos**, **‹ Topics** or **‹ Capture**), as you left it, even
-  after stepping through its pages. When Back goes to a page, the list's name follows it, as in
-  **‹ Its title · Search**: tap the list's name to jump straight back to the list. The phone's
-  or the browser's own Back goes back one step at a time. A page opened from a link or a share
-  has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Topics for
-  a topic page, to Capture for any other page.
-- Going back, by any Back or Forward, a screen comes back scrolled where you left it.
-- On a narrow phone, a page's top bar shortens the upload badge to its dot and count (● 2) when
-  it shares the bar with the jump to the list or the pager.
-- On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
-  wide. On a computer (with a mouse) the layout suits the mouse rather than the
-  thumb: Capture, Todos, Search and Topics are tabs in the top bar, Camera, Gallery and Note sit over
-  the list, a page's buttons (Mark done, Edit, Share, Delete) are a row under its title and
-  details, and messages appear at the bottom of the window. Phones and touch tablets keep the
-  bars at the bottom.
-- Every row, a page's tags, its `[[links]]` and the pager's ∧ ∨ are ordinary links with their own
-  address, so you can open one in a new tab: on a phone, long-press it and choose *Open in new
-  tab* (in the installed app, Chrome may offer to open it in Chrome instead); on a computer,
-  Ctrl-click (Cmd-click on a Mac) or middle-click it. A page opened that way has no pager: it
-  wasn't opened from a list. A plain tap opens it in place.
-- A row in a list shows a page's kind by its icon (a checklist for a todo, a bookmark for
-  Later); a page says it in a chip at the start of its line under the title, with its status
-  if it has one: *Todo · open*, *Later · done*, *Note*.
-- A page opened from the list or a search shows where it is in that list at the right of the
-  top bar, as a mail app does: *3 of 23* with **∧** (previous) and **∨** (next). Swipe left for
-  the next one and right for the previous one, or use the arrows (or the arrow keys). The page
-  follows your finger and slides away to the next one; a short drag settles back, and at the
-  first or last it only gives a little and says so. Back returns to the list. Swipes start
-  away from the screen's edges (the phone's own Back gesture lives there) and are ignored on
-  text that scrolls sideways, while zoomed in or while selecting text. The pager needs the
-  server's list, so a page has none when it is opened offline from a list (and a page cannot be
-  opened offline in any case).
-- Swipe a row of the list, the capture screen's list or search results: to the **right** to
-  edit it (the page opens in its editor), to the **left** to delete it (with **Undo** for a few
-  seconds). The row follows your finger with *Edit* or *Delete* showing behind it; past a third
-  of the way (or with a quick flick) the icon grows, and letting go does it. Let go sooner and
-  it slides back. The page itself has the same Edit and Delete.
-- An address scrap doesn't know shows *Not found*.
-- On a computer the keyboard does these:
-  - **Enter** in the search box opens the first result and keeps the search under Recent.
-  - **Left** and **Right** arrows go to the previous or next page in the pager, and to the
-    previous or next photo in the photo viewer. The pager's arrows do nothing while you are
-    typing in a box, editing, or have a photo or drawing open, or with Ctrl, Alt, Shift or Cmd
-    held.
-  - **Escape** closes the photo viewer (its Share menu first), the drawing viewer (not while you
-    are editing the drawing), and a page's **Tags** and **Due** forms.
-  - **Ctrl+Enter** (**Cmd+Enter** on a Mac) saves in the editor and the composer.
+| Key | Does |
+| --- | --- |
+| **Enter** in search | Opens the first result and keeps the search under Recent |
+| **Left** / **Right** | Previous or next page in the pager, or photo in the viewer. Inactive while typing, editing, with a photo or drawing open, or with Ctrl, Alt, Shift or Cmd held |
+| **Escape** | Closes the photo viewer (its Share menu first), the drawing viewer (not while editing), and a page's **Tags** and **Due** forms |
+| **Ctrl+Enter** (**Cmd+Enter**) | Saves in the editor and composer |
 
-### Search
+## Search
 
-- **Search** searches titles, tags, summaries and text as you type (each word as the start of a
-  word: `vsc` finds `vscode`); a title or tag match ranks first. Each result shows a snippet of
-  the matching text, unless it only says the title again. Search needs the server: offline, the
-  screen says so.
-- Tap the empty search box for **Recent**: your last ten searches, newest first, filters and
-  all (`kind:todo tag:home`). Tap one to run it again, its **✕** to forget it, or **Clear all**.
-  A search is kept once it is run: Enter, opening a result, or leaving it a few seconds with
-  results; not as you type. They are kept on this phone only, never sent to scrap; in a
-  private tab, or with site storage blocked, there are none and search works as before.
-- Under the search box (and any filters on), a row of kinds, always shown, each an icon over
-  its word: **All**, **Notes**, **Todos**, **Later**, **Boards**, **Docs**. One tap shows only
-  that kind (it writes `kind:later` into the query), a second tap on it (or **All**) shows
-  every kind again. A kind alone still lists newest first. **Todos** works as the others do: it
-  narrows the list to todos (`kind:todo`) in place; the Todos tab is the Todos screen.
-- Whenever anything is chosen or typed, the search box has a **✕** at its end: one tap goes
-  back to every page, newest first (the keyboard stays down).
-- **Filters** is the slider button at the end of the search box; with filters on, it shows how
-  many. Each filter that is on is a chip with a ✕ in a row under the box (*#home*, *past
-  month*, *A–Z*): tap it to take that filter out. So nothing chosen is hidden. How many pages
-  were found leads that row (with no filters on, it is a short line over the list).
-- Tap **Filters** to open its panel in place, under the box, and tap it again to fold it (it
-  stays as you left it for the next search). Its rows: **Tags** (type in its box for the tags
-  in use that match, or with nothing typed tap one of the results' top tags, with their counts:
-  only tags that narrow what was found are offered),
-  **Order** (**Best match** or **Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos
-  **Due soonest** and **Priority**) and **When** (**1w**, **1m**, **1y**, **Dates…** with a
-  From and a To, and **By created date** once a range is on). Each row scrolls sideways. Each
-  tap changes the search at once, and the list under it follows; a chosen one is shown pressed
-  and a second tap takes it off. **Clear filters** takes every filter off and keeps the words.
-  For todos due today, overdue or soon, use the Todos screen, or type `due:` in the box.
-- The list shows 100 pages at first and **Show more** adds 100 each time. The newest-first list
-  (empty box, or a kind alone) stops at 500 pages and a search at 1000 results, then there is no
-  more button. That is how far the screen goes, not a limit on what is stored: to reach further,
-  narrow the query with filters or a date (`after:`, `before:`), or turn the order round
-  (`-sort:created` lists the oldest first).
-- The query and its filters are in the address (`/search?q=...`), so a reload keeps them, and
-  Back from a page, or deleting it, comes back to the same list, scrolled where it was. Old
-  `/recent` links open this screen (`/recent?kind=todo` the Todos screen).
+**Search** matches titles, tags, summaries and text as you type, each word as the start of a word
+(`vsc` finds `vscode`); a title or tag match ranks first. Results show a snippet unless it only
+repeats the title. Search needs the server.
 
-#### Search syntax
+- **Recent.** Tap the empty box for your last ten searches, newest first, filters and all. Tap one
+  to run it again, **✕** to forget it, or **Clear all**. A search is kept when run (Enter, opening
+  a result, or a few seconds with results), only on this phone.
+- **Kinds.** A row under the box: **All**, **Notes**, **Todos**, **Later**, **Boards**, **Docs**.
+  One tap writes `kind:` into the query; a second tap (or **All**) shows every kind again.
+- **Clear.** A **✕** at the end of the box goes back to every page, newest first.
+- **Filters.** The slider button shows how many are on. Each active filter is a chip with a ✕ in a
+  row under the box (*#home*, *past month*, *A–Z*) with the count of pages found. The panel's rows
+  scroll sideways: **Tags** (type to see matching tags among the results, or tap a top tag),
+  **Order** (**Best match**/**Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos **Due
+  soonest** and **Priority**) and **When** (**1w**, **1m**, **1y**, **Dates…**, and **By created
+  date** once a range is on). Each tap applies at once; a second tap removes it. **Clear filters**
+  keeps the words.
+- **Paging.** 100 pages at first, **Show more** adds 100. The newest-first list stops at 500 pages
+  and a search at 1000 results: narrow with filters or dates, or reverse the order
+  (`-sort:created`) to go further. That is the screen's reach, not a storage limit.
+- **Address.** The query is in the URL (`/search?q=...`), so reloads and Back keep it. Old
+  `/recent` links open Search (`/recent?kind=todo` opens Todos); an old `/tags` link opens Search.
 
-The chips and panels only write the query, which you can also type:
+### Search syntax
 
-- Words match as the start of a word. `-word` or `!word` leaves out pages with the word, and
-  `"a phrase"` matches those words together, in order. A `-` or `!` in front of any filter below
-  leaves out the pages it matches. A query may have at most 64 terms and 64 filters (more is
-  refused, not cut short), and a word with no letter or digit in it (`&`, `?`) is ignored.
-- `kind:todo` (or `kind:later`, also `kind:read`, `kind:board`, `kind:doc`...).
-- `tag:tech` (also `tech/epics`; `tag:epics` finds `tech/epics` too).
-- `is:STATUS` for a todo's or Later page's status: `is:open`, `is:in_progress`, `is:done`,
-  `is:cancelled`. `is:snoozed` finds open todos snoozed till later. `is:claude` finds pages
-  Claude wrote over MCP, which show a *Written by Claude* badge, and `is:claude-edited` pages
-  whose text Claude changed over MCP. `is:personal` and `is:work`
-  (a page not marked personal) use the page's `personal` flag, which an import sets (see
-  [](import-a-vault.md)); the app cannot set it.
-- `has:image` (pages with an image file) and `has:drawing` (pages with a drawing made from a
-  photo). `image:photo` or `image:whiteboard` (what Claude took the photo for).
-- The store's health checks (the **Store health** screen below counts them): `is:orphan`
-  (no page link either way, `[[slug]]` or a Markdown link to its address, no related pages
-  and no topic; not an Orphaned assets page), `is:untagged` (no tags; topic
-  pages and gc's Orphaned assets pages aside), `is:stale` (an open todo not edited, its text,
-  title, kind or tags, for 60 days, not snoozed and not due today or later), `is:duplicate` (a photo or file shared
-  with another page, not one in the trash or an Orphaned assets page), `has:dangling` (a
-  `[[...]]` or a Markdown link to a page's address in its text, outside code, to no page or to
-  one in the trash: any the server reads as a page link, including forms the app shows as plain
-  text, such as `[[Some Title]]`) and `is:outdated` (Claude's
-  write-up of a board older than the board's photos, text, title, kind or tags, or made with
-  an older prompt; never a version you restored).
-- A todo's `due:today`, `due:<today` (overdue), `due:>today`, `due:2026-11-01` (also `<=`,
-  `>=`), `due:none`, and `priority:high` (`medium`, `low`, `none`).
-- `after:1w` or `before:2026-03-01` (last edited; dates are UTC days, both ends included; a time
-  ago is `Nd`, `Nw`, `Nm` or `Ny` with N up to 100; add `date:created` for when it was made).
-- `sort:title` (A to Z; also `sort:created`, newest first, `sort:updated`, and a todo's
-  `sort:due`, soonest first, and `sort:priority`, high first; `-sort:` turns one round:
-  `-sort:created` is oldest first). The Filters panel's **Order** writes the commonest `sort:`
-  for you, and works with nothing typed too.
+The chips only write the query, which you can also type. Filters alone list their pages newest
+first; the full grammar is in [](../reference/api.md).
 
-Filters alone list their pages, newest first. [](../reference/api.md) has the full grammar.
-
-#### Store health
-
-**Settings** (the cog) has **Store health**: a screen listing each health check above with how
-many pages it finds, one count each from the server (`GET /api/health`). A tap on a check runs
-its search, and Back comes back to the screen. Nothing is dismissed there: a check that keeps
-finding a page you are happy with is the check to change. `is:outdated` lists only board
-write-ups, which wait for you (the card says so, below). Related pages and topic syntheses are
-not listed: the nightly and weekly passes refresh them on their own
-([](../reference/scheduled-jobs.md)).
+| Syntax | Finds |
+| --- | --- |
+| `word`, `-word` / `!word`, `"a phrase"` | Start-of-word match; leave out; whole words in order. A `-` or `!` before any filter negates it. At most 64 terms and 64 filters (more is refused). A term with no letter or digit is ignored |
+| `kind:todo` (`later`, `read`, `board`, `doc`...) | Pages of a kind |
+| `tag:tech` | A tag (`tag:epics` also finds `tech/epics`) |
+| `is:open`, `is:in_progress`, `is:done`, `is:cancelled` | A todo's or Later page's status |
+| `is:snoozed` | Open todos snoozed till later |
+| `is:claude`, `is:claude-edited` | Pages Claude wrote over MCP; pages whose text Claude changed over MCP |
+| `is:personal`, `is:work` | The page's `personal` flag, set by an import ([](import-a-vault.md)); the app cannot set it |
+| `is:topic` | Claude's topic pages |
+| `has:image`, `has:drawing` | Pages with an image file; with a drawing made from a photo |
+| `image:photo`, `image:whiteboard` | What Claude took the photo for |
+| `due:today`, `due:<today`, `due:>today`, `due:2026-11-01` (also `<=`, `>=`), `due:none` | A todo's due day |
+| `priority:high` (`medium`, `low`, `none`) | A todo's priority |
+| `after:1w`, `before:2026-03-01` | Last edited; dates are UTC days, both ends included; a time ago is `Nd`, `Nw`, `Nm`, `Ny`, N up to 100. Add `date:created` to use the creation date (the only `date:` value; others are ignored) |
+| `sort:title`, `sort:created`, `sort:updated`, `sort:due`, `sort:priority` | Order (A-Z; newest; last edited; soonest due; high first). `-sort:` reverses. **Order** writes the commonest |
 
 How matching works:
 
-- Words are stemmed and accents are folded: `running` finds `run`, `runs` and `running`, and
-  `cafe` finds `café`. The stemming is English; `ß` is not folded to `ss`.
-- Punctuation splits words, and so does `_`. `e-mail` is searched as `e` and `mail`, so `email`
-  does not find it, and `don't` is `don` and `t`.
-- A phrase in quotes matches whole words next to each other: `"hello wor"` does not find
-  `hello world`, as `hello wor` does.
-- Filter names and values are not case-sensitive: `Kind:Todo` works.
-- `date:` takes only `created`, which makes `after:` and `before:` use the creation date; any
-  other `date:` value is ignored.
-- A value scrap doesn't know does not give an error. An unknown `kind:`, `is:`, `has:` or
-  `image:` value, or a `due:`, `after:` or `before:` that is not a date or a time ago, finds
-  nothing (after a `-`, it leaves out nothing).
+- Words are stemmed (English) and accents folded: `running` finds `run`, `cafe` finds `café`;
+  `ß` is not folded to `ss`.
+- Punctuation and `_` split words: `e-mail` is `e` and `mail` (so `email` does not find it), and
+  `don't` is `don` and `t`.
+- A quoted phrase matches whole words side by side: `"hello wor"` does not find `hello world`.
+- Filter names and values are case-insensitive (`Kind:Todo`).
+- An unknown value gives no error: an unknown `kind:`, `is:`, `has:` or `image:`, or a `due:`,
+  `after:` or `before:` that is not a date or time ago, finds nothing (after `-`, leaves out
+  nothing).
 
-### Tags
+### Store health
 
-- A page shows its **tags** in one line under its title, most used first (swipe it for more):
-  tap one to search for it. A tag Claude added is marked as such. **Tags** (or **Add tags**),
-  first in that line, edits them in place: tap a tag's ✕ to take it off, type one in the box and
-  press Enter or type a comma to add it, or tap one of the tags offered in a row under the box
-  (the six most used, or as you type, the tags in use that match: a tap adds it in place of what
-  you typed), then **Save**; what is still in the box when you save counts too. Tags are kept
-  as the importer keeps them: lower case, without a leading `#`, at most 64 characters each and
-  64 per page (the box says when one is too long). Tag editing needs the server.
-- **Edit** (also a list row swiped right) has the same tags box, in its **Tags** line under the
-  title, and saves them with the text; the composer has it too, for a new page. Changing tags is
-  not a new revision and does not move the page up the list.
-- To find pages by tag, use the Filters panel's **Tags** row: type in its box to see the
-  matching tags of the results (before any search, of every tag in use). (There used to be a separate Tags screen; an old `/tags` link now opens
-  Search.)
+The health checks, one count each from `GET /api/health`, are listed on **Settings** (the cog),
+**Store health**. A tap runs the check's search; Back returns to the screen. Nothing is dismissed
+there: a check that keeps finding a page you are happy with is the check to change.
 
-### Todos
+| Search | Finds |
+| --- | --- |
+| `is:orphan` | No page link either way (`[[slug]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
+| `is:untagged` | No tags (topic pages and gc's Orphaned assets pages aside) |
+| `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not snoozed and not due today or later |
+| `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page) |
+| `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`) |
+| `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt; never a restored version. Lists only board write-ups, which wait for you |
 
-- Todos and Later pages carry a status (open, in progress, done or cancelled). The page's
-  toolbar starts with **Mark done** (the filled button) while it is open or in progress, or
-  **Reopen** once it is done or cancelled, then **Edit**, **Share** and **Delete**. In the list, the capture screen's list and search results, their
-  rows have a tick box on the right: tap it (or Tab to it and press Space) to tick it off, or to
-  open it again; the row stays where it is and gets a *done* chip (an open row has no chip). A
-  cancelled one looks closed: its title struck through and greyed, a dash in its box, a
-  *cancelled* chip; its tick box marks it done. Ticking
-  it or changing a kind doesn't move the page up the list. In the app a todo only moves between
-  open and done: **in progress** and **cancelled** are set through the API (a page's `status`
-  field: [](../reference/api.md)) or by Claude over MCP ([](../reference/mcp.md)), and the app
-  shows them.
-- A todo may have a **due date** and a **priority** (high, medium or low). Its page shows them
-  in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to pick a date,
-  or set one in a tap with **Today**, **Tomorrow** or **Next week** (**No date** clears it),
-  and a priority, then **Save**. **Edit** has the same two under the
-  tags while the kind is Todo. A todo's row in a list says them too; one due before today and
-  not done says *overdue* in red, until ticked off. Once done or cancelled it keeps its due
-  date, greyed. They are a todo's only: a page made a note
-  keeps them, hidden, and shows them again if it is made a todo again. Neither is a revision
-  nor moves the page up the list. Today is your phone's day on rows and pages, and the server's
-  for `due:` searches.
-- **Task lists drive a todo.** A note with task boxes (`- [ ]`) becomes a todo when it is saved
-  (done, if every box is ticked), unless its kind was chosen: the server files it, and the
-  composer and editor don't suggest a kind for boxes (the kind picker still shows **Note**, and
-  leaving it so is no choice). To keep such a page a note, **Edit** it and pick **Note**: a kind
-  picked by hand is kept. A Later, Board or Doc never changes. Boxes in code (a fenced or
-  indented block) don't count. Its row and page say how many are ticked (*2 of 5*), and its
-  tick box on rows shows a bar while only some are. Ticking the last box (on the page, or in
-  the editor) marks it done. While every box is ticked, unticking one or adding a new unticked
-  one opens a done todo again; otherwise a todo marked done by hand stays done. **Mark done**
-  ticks no box, and a cancelled todo is left as it is.
-- **Snooze** a todo to put it out of the way until a day: on its page, tap the line under its
-  tags and pick a **Snooze until** date, or **Tomorrow** or **Next week** (**No snooze** wakes
-  it), then **Save**. A snooze later than the todo's due date asks first whether the due date
-  moves with it: **Move due date** (to the snooze's day) or **Keep due date**. Until that day it is out of **Now** and **Upcoming** and the Todos
-  tab's count (Now's count says how many are snoozed: tap *1 snoozed* for a search of them,
-  `kind:todo is:snoozed sort:due`); **All** shows it, marked *snoozed till 3 Nov*, and
-  `is:snoozed` finds them (open ones only: a done or cancelled todo's snooze no longer hides
-  anything). On its day it comes back by itself.
-- The **Todos** screen (`/todos`, the Todos tab) opens on **Now**: the todos not done or
-  cancelled, what to do first at the top, in groups: **Overdue** (oldest due date first),
-  **Today**, **High priority** (no due date), then **Open** (the rest, by priority, then due
-  date, then last edited). Each row is two lines on every list: its title, then its priority and
-  due date (no edit date). Done and cancelled todos are
-  folded away at the end (**Done**, tap to open; those among the 500 todos last edited). A
-  switch at the top, an icon over each word like the search screen's kinds (**Now** a clock),
-  picks the list instead: **Upcoming** (a calendar: due from tomorrow to a week away, soonest
-  first) or **All** (every open todo and those done ones, last edited first). Each list
-  sets its own order: there is no Sort here. The address says which list
-  (`/todos?view=upcoming`; switching changes it in place, so Back leaves Todos rather than
-  stepping through the lists), so
-  Back from a todo and a reload come back to it; the rows tick and swipe as anywhere else.
-  To search todos, use **Todos** in the search screen's kind row (`kind:todo`), where `due:`,
-  `priority:` and `sort:due` still search and order them.
-- **New todo**, the **+** at the right of the top bar on the Todos screen (its accessible name
-  is *New todo*), opens the composer on **Todo**; save, and you are back on the list with the
-  new todo in it once it has uploaded.
-- Opened from the Todos screen, **Mark done** moves on to the next todo in that list (the top
-  bar says *3 of 9*) with **Undo** for a few seconds; on the last one it stays, and offers
-  **Back to list**. **‹ Todos** in the top bar goes back to the list at any time.
-  Opened from anywhere else, Mark done stays on the page.
+Related pages and topic syntheses are not listed: the nightly and weekly passes refresh them on
+their own ([](../reference/scheduled-jobs.md)).
 
-### The page view
+## Tags
 
-- Page text is shown as Markdown, as GitHub writes it: headings (each level a size smaller,
-  all under the page's title), **bold**, *italic*,
-  ~~strikethrough~~, lists (nested too), quotes, code (inline and fenced), links and bare
-  `https://` addresses (a `www.` address without `https://` stays plain text), tables
-  (a `|` inside a cell is written `\|`), task lists (`- [ ]` and `- [x]`, shown as boxes: tap one on the
-  page to tick it, or untick it, and that item's line in the text is saved at once, with no
-  editor; the same words twice still tick the right one, and a box in code is no box. If the
-  page was changed elsewhere meanwhile, it is shown as it is now, and the tap is not saved: tap
-  again. Offline, and in **Preview**, the boxes don't tick) and footnotes (`[^1]`); `[[slug]]` or `[[slug|label]]` links to another
-  page (in a table cell write `[[slug\|label]]`: a bare `|` starts the next cell). A
-  ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram (flowcharts,
-  sequence diagrams and the rest); offline, or if it has a mistake, it shows as code. A link to
-  `#a-heading` scrolls to that heading: write the heading in lower case with hyphens for the
-  spaces (`[top](#my-heading)` for `## My Heading`), as a link with a space in it is no link.
-  HTML is shown as typed, never run; images show only
-  when they are this server's own photos (an image from another site is not fetched: a web
-  address shows as a link to it, named by the image's alt text, and anything else as its alt
-  text); links open only to the web (`https`, `http`, `mailto`) or to pages here, and any other
-  link is left as plain text. A full web address of a page here (`https://<your scrap>/p/slug`,
-  on the address you opened the app at or any other listed in `SCRAP_PUBLIC_URL`) opens in the
-  app, as `[[slug]]` does, so the phone's Back comes back to the page it was in. A line break
-  stays a line break. A wide table scrolls sideways in its own box. On a Later page, a link on a line of its own shows as a card: the site, the
-  path in words, and **Open**. The text is always stored as typed, and **Edit** shows it so
-  (but for the photo tokens, below).
-- **Linking pages.** A page is linked by its slug, the last part of its address: `[[shopping-list]]`
-  or `[[shopping-list|the list]]` for `/p/shopping-list`. Only a slug of lower-case letters,
-  digits and hyphens is a link, so a title such as `[[Shopping list]]` stays as typed. The slug
-  is made when the page is created, from its title (letters and digits without accents, lower
-  case, hyphens between words, at most 60 characters; `-2`, `-3` if it is taken), and is never
-  changed or reused, not when the page is retitled nor when it is trashed, so links survive
-  renames. A title with no letter or digit that can be written in ASCII (all Chinese, or only
-  emoji) gets the slug `page`, then `page-2` and so on. A page's backlinks (under **Related**)
-  are the pages whose text links it, outside code: with `[[slug]]` or `[[slug|label]]`, or with
-  a Markdown link to its address, `[label](https://<your scrap>/p/slug)` or
-  `<https://<your scrap>/p/slug>`, on any address in `SCRAP_PUBLIC_URL`, or as a path,
-  `[label](/p/slug)` (a bare address that the app shows as a link is not counted: write it as
-  a Markdown link). `![[slug]]` is not an embed here: it shows as `!` and a link, but is not
-  counted.
-- **Share** on a page asks **Link**, **Text** or **Download**: **Link** sends the page's
-  address (such as `https://<your scrap>/p/shopping-list`), which opens the page for anyone who
-  can reach your scrap; **Text** sends its title and text, as typed but without the lines that
-  only show a photo (no link to scrap in it); **Download** saves it as Markdown, or as a zip of
-  the Markdown and its files when it has any (its photos are in the zip and its text points at
-  them there). Tap **Share** again, or anywhere else, to close the choice. Where the browser
-  can't share, there is no Share and **Download** is in the toolbar in its place. While a
-  Share or Download is fetching its file, the button says *Preparing…* and ignores taps. A
-  finished Download says *Downloaded* with the file's name and size. A failure says *Download
-  failed* or *Share failed* and why (*can't reach the server*, say) for about 8 seconds.
-  Closing the phone's share sheet without choosing is no failure and says nothing. Where the
-  browser can't share a file, **Photo** says *Sharing files is not supported here*: use
-  **Download**. If the part of the app that does it can't be loaded, you get *Can't do that
-  offline: reload scrap and try again*.
-- A photo capture's photos are part of its page's text, one line each (`![](/api/blobs/...)`),
-  in the order taken: edit the text to move or remove them. **Edit** shows each of the page's
-  own photos and files as a short token instead, `⟦image 1⟧` or `⟦file 2: scan.pdf⟧`, with a
-  chip for it under the text box (a thumbnail and its name): tap a chip to select its token (to
-  cut and paste it elsewhere), or its **✕** to take it out. Saving puts back the Markdown each
-  token stands for, exactly as it was; a token you delete or change is no photo any more. Claude reading a photo never
-  changes the text. The page shows each photo where its line is, as a preview the server makes
-  (so iPhone HEIC photos show too), with no caption: tap it for the viewer, which names it
-  and has the **Download** of the original. Under a photo Claude hasn't read, a Claude card
-  (**What's in the photo**) says what Claude would do, with **Generate**; once sent, the card
-  shows Claude's progress (waiting, reading, paused) and then what it read, described and drew. Below the text
-  are the files it doesn't show, such as PDFs, as links with a **Download**.
-- Tap a photo to view it full screen (its file name at the top left): it opens fitted to the screen; pinch or double-tap to zoom,
-  drag to pan, swipe (or the arrows) for the page's other photos. **Fit**, **100%**,
-  **Download** and **Share** are along the bottom and the cross at the top right closes it, as
-  does the phone's Back button. **Share** asks **Link** or **Photo**: **Link** sends the
-  address of the photo's page; **Photo** sends the photo to another app: the original if it is
-  a JPEG, PNG, GIF or WebP of up to 20 MB, otherwise a JPEG of up to 2048 px that the server
-  makes (HEIC and other formats, or anything larger). If a big photo takes longer to download
-  than the phone allows, a **Photo ready** message offers **Share** again.
+- **On a page.** Tags are in one line under the title, most used first (swipe for more). Tap one to
+  search for it; a tag Claude added is marked. **Tags** (or **Add tags**), first in the line, edits
+  in place: tap a tag's ✕ to remove it; type one and press Enter or a comma to add it, or tap one
+  of the tags offered under the box (the six most used, or those in use that match what you type);
+  then **Save**. Text still in the box when you save counts too. Needs the server.
+- **Rules.** Lower case, no leading `#`, at most 64 characters each and 64 per page (the box says
+  when one is too long), as the importer keeps them.
+- **Edit and composer.** **Edit** (or a row swiped right) has the same box in its **Tags** line and
+  saves tags with the text; so does the composer. Changing tags is not a revision and does not
+  move the page up the list.
+- **Finding by tag.** Use the Filters panel's **Tags** row (before any search it covers every tag
+  in use).
 
-### Editing and deleting
+## Todos
 
-- **Edit** changes the title and text in a full-screen editor, like the composer: **Cancel**,
-  **Preview** and **Save** stay at its top, clear of the keyboard, and Ctrl+Enter saves. The
-  tags and a todo's due date are folded into a line each under the title, as in the composer.
-- **Add photo** (the camera) and **From gallery**, under the text in **Edit**, add photos to the
-  end of the page, as a capture of its own: Claude reads them as it reads any capture's, and
-  search finds what it read, but they never change the page's kind, title or tags. A topic
-  page has no Add photo. They upload at once, apart from **Save**, and their tokens
-  join the editor's text after what you typed (if the page was changed elsewhere meanwhile,
-  **Save** shows the conflict instead); offline they wait on the phone like a capture
-  (the capture screen lists them as *Photo for* the page) and are added once it is back online.
-  Photos too big to send together go one by one; one over the server's limit alone is refused.
-- Writing lists in the composer or editor: Enter on a bullet (`- `), numbered (`1. `) or task
-  (`- [ ] `) line starts the next item, and Enter on an empty item ends the list. Just above
-  the keyboard, five keys act on the line (or the lines selected): **Task** makes it a task,
-  **Bullet** a bullet and **Number** a numbered item (1, 2, 3 in order), each a plain line again
-  if they all are already; **Indent** nests it under the item above and **Outdent** moves it
-  back out, renumbering numbered items. In a code block only Indent and Outdent work (two
-  spaces). On a page, a task list sits as tight as a bulleted one.
-- Nothing typed is lost (tags too): the composer and **Edit** keep a draft on the phone as you type
-  (photos too), so after the phone's Back button, a reload or a closed app, it comes back: the
-  composer's as the draft row on the capture screen (above), an edit as **Edit draft** on its
-  page (**Discard it** drops either). Back closes the editor, not the app. **Cancel** asks
-  before discarding changes. If the page was changed elsewhere since you opened it, the
-  other version is shown under yours: merge what you want into your text and save again (this
-  overwrites theirs), or discard yours.
-- Every save that changes a page's title or text is kept as a revision, whether you made it in
-  the app or Claude over MCP. The app has no screen to browse or restore them. Claude can read
-  them with the MCP `revisions` tool (see [](../reference/mcp.md)); to go back to an old text,
-  copy it back into the page by hand. A change of tags or kind is kept apart from these.
+- **Status.** Todos and Later pages are open, in progress, done or cancelled. The toolbar starts
+  with **Mark done** (open or in progress) or **Reopen** (done or cancelled), then **Edit**,
+  **Share**, **Delete**. List rows have a tick box on the right (tap, or Tab and Space); the row
+  stays in place with a *done* chip. A cancelled todo is struck through with a dash in its box;
+  its tick box marks it done. Ticking or changing kind does not move the page up the list. The app
+  only toggles open and done: **in progress** and **cancelled** are set through the API (a page's
+  `status`, see [](../reference/api.md)) or by Claude over MCP ([](../reference/mcp.md)), and the
+  app shows them.
+- **Due date and priority.** A todo may have a due date and a priority (high, medium, low). A
+  page shows them in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to
+  pick a date (**Today**, **Tomorrow**, **Next week**, **No date** clears), and a priority, then
+  **Save**. **Edit** has the same two. Rows show them; a todo due before today and not done says
+  *overdue* in red. They belong to todos only: a page made a note keeps them, hidden. Neither is a
+  revision nor moves the page. Today is your phone's day on rows and pages, the server's for `due:`
+  searches.
+- **Task lists drive a todo.** A note with task boxes (`- [ ]`) becomes a todo when saved (done if
+  every box is ticked), unless its kind was chosen: the server files it, and the composer and
+  editor still show **Note**. To keep such a page a note, **Edit** and pick **Note**. Later, Board
+  and Doc never change. Boxes in code do not count. Rows and pages say how many are ticked (*2 of
+  5*). Ticking the last box marks it done; while every box is ticked, unticking one or adding an
+  unticked one reopens it. A todo marked done by hand stays done. **Mark done** ticks no box; a
+  cancelled todo is left as it is.
+- **Snooze.** On a page, tap the line under the tags and pick **Snooze until** a date, **Tomorrow**
+  or **Next week** (**No snooze** wakes it), then **Save**. A snooze later than the due date asks
+  whether the due date moves too: **Move due date** or **Keep due date**. Until that day it is
+  out of **Now**, **Upcoming** and the badge (Now says *1 snoozed*; tap it for
+  `kind:todo is:snoozed sort:due`). **All** shows it as *snoozed till 3 Nov*. It returns by itself
+  on its day. Only open todos are hidden by a snooze.
+- **The Todos screen** (`/todos`) has a switch, an icon over each word:
+
+  | View | Shows |
+  | --- | --- |
+  | **Now** (clock, default) | Todos not done or cancelled, in groups: **Overdue** (oldest due first), **Today**, **High priority** (no due date), **Open** (the rest by priority, due date, last edited). Done and cancelled are folded at the end (**Done**; those among the 500 last edited) |
+  | **Upcoming** (calendar) | Due from tomorrow to a week away, soonest first |
+  | **All** | Every open todo and the done ones, last edited first |
+
+  Each list sets its own order. The view is in the address (`/todos?view=upcoming`; switching
+  changes it in place). Rows tick and swipe as anywhere. To search todos use **Todos** in the
+  search kind row (`kind:todo`) with `due:`, `priority:` and `sort:due`.
+- **New todo.** The **+** at the right of the top bar on the Todos screen opens the composer on
+  **Todo**; after saving you return to the list.
+- **Mark done from the list.** Opened from the Todos screen, **Mark done** moves to the next todo
+  (*3 of 9*) with **Undo**; on the last it stays and offers **Back to list**. Opened elsewhere it
+  stays on the page.
+
+## The page view
+
+### Text
+
+Page text is Markdown as GitHub writes it:
+
+- Headings (each a size smaller, under the title), bold, italic, strikethrough, nested lists,
+  quotes, inline and fenced code, links, bare `https://` addresses (`www.` alone stays text),
+  tables (write `|` in a cell as `\|`) and footnotes (`[^1]`).
+- **Task boxes** (`- [ ]`, `- [x]`): tap one on the page to tick or untick it; that item's line is
+  saved at once, no editor. If the page changed elsewhere meanwhile it is shown as it is now and
+  the tap is not saved: tap again. Boxes do not tick offline or in **Preview**, nor in code.
+- **`[[slug]]`, `[[slug|label]]`** link to another page (in a table cell `[[slug\|label]]`).
+- A ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram; offline, or with
+  a mistake, it shows as code.
+- `[top](#my-heading)` scrolls to `## My Heading` (lower case, hyphens for spaces).
+- HTML is shown as typed, never run. Images show only when they are this server's own photos
+  (another site's image shows as a link named by its alt text, else its alt text). Links open only
+  to `https`, `http`, `mailto` or pages here; others stay plain text. A full address of a page
+  here (on the address you opened the app at or any in `SCRAP_PUBLIC_URL`) opens in the app like
+  `[[slug]]`.
+- A line break stays a line break. A wide table scrolls sideways in its own box. On a Later page a
+  link on a line of its own shows as a card (site, path in words, **Open**).
+- The text is always stored as typed, and **Edit** shows it so (except the photo tokens, below).
+
+### Linking pages
+
+- A slug is the last part of a page's address (`[[shopping-list]]` or
+  `[[shopping-list|the list]]` for `/p/shopping-list`). Only lower-case letters, digits and hyphens
+  make a link; `[[Shopping list]]` stays as typed.
+- The slug is made at creation from the title (ASCII letters and digits, lower case, hyphens, at
+  most 60 characters; `-2`, `-3` if taken) and is never changed or reused, even when retitled or
+  trashed, so links survive renames. A title with no ASCII letter or digit gets `page`, `page-2`...
+- **Backlinks** (under **Related**) are pages whose text, outside code, links it with `[[slug]]`,
+  `[[slug|label]]`, a Markdown link to its address (`[label](https://<your scrap>/p/slug)`,
+  `<https://<your scrap>/p/slug>`, on any `SCRAP_PUBLIC_URL` address) or a path
+  (`[label](/p/slug)`). A bare address shown as a link is not counted. `![[slug]]` is not an embed
+  here and is not counted.
+
+### Sharing a page
+
+**Share** asks **Link**, **Text** or **Download**. Tap **Share** again or elsewhere to close.
+
+| Choice | Sends |
+| --- | --- |
+| **Link** | The page's address; opens the page for anyone who can reach your scrap |
+| **Text** | Title and text as typed, without lines that only show a photo; no link to scrap |
+| **Download** | Markdown, or a zip of the Markdown and its files when it has any |
+
+Where the browser cannot share, there is no Share and **Download** is in the toolbar. While it
+fetches the button says *Preparing…*; a finished Download says *Downloaded* with name and size; a
+failure says *Download failed* or *Share failed* and why, for about 8 seconds. Closing the share
+sheet is no failure. If the browser cannot share a file, **Photo** says *Sharing files is not
+supported here*: use **Download**. If the sharing code cannot load: *Can't do that offline: reload
+scrap and try again*.
+
+### Photos and files
+
+- A photo capture's photos are in the page's text, one line each (`![](/api/blobs/...)`), in the
+  order taken. **Edit** shows each own photo or file as a token (`⟦image 1⟧`, `⟦file 2:
+  scan.pdf⟧`) with a chip under the text box (thumbnail and name): tap a chip to select its token
+  (to cut and paste it elsewhere) or **✕** to remove it. Saving restores the Markdown each token
+  stands for; a token you delete or change is no photo any more. Claude reading a photo never
+  changes the text.
+- The page shows each photo where its line is, as a server-made preview (HEIC works), with no
+  caption. Tap for the viewer. Files it does not show (PDFs) are links with **Download** below the
+  text.
+- **Viewer.** Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
+  drag to pan, swipe (or arrows) for other photos. **Fit**, **100%**, **Download** and **Share**
+  are along the bottom; the cross at top right, or Back, closes. **Share** asks **Link** (the
+  photo's page) or **Photo** (the original if JPEG, PNG, GIF or WebP up to 20 MB, otherwise a JPEG
+  up to 2048 px from the server). If a big photo takes too long to download, **Photo ready**
+  offers **Share** again.
+
+## Editing and deleting
+
+- **Edit** is a full-screen editor like the composer: **Cancel**, **Preview** and **Save** stay at
+  the top, clear of the keyboard. Tags and a todo's due date are folded into one line each.
+- **Add photo** and **From gallery** under the text add photos to the end of the page as a capture
+  of their own: Claude reads them and search finds what it read, but they never change the page's
+  kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
+  their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
+  conflict). Offline they wait on the phone (listed as *Photo for* the page). Photos too big to
+  send together go one by one; one over the limit alone is refused.
+- **Lists.** Enter on a bullet (`- `), numbered (`1. `) or task (`- [ ] `) line starts the next
+  item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
+  selection: **Task**, **Bullet**, **Number** (each a plain line again if all are already),
+  **Indent** and **Outdent** (renumbering numbered items). In a code block only Indent and Outdent
+  work (two spaces).
+- **Drafts.** The composer and Edit keep a draft on the phone as you type (tags and photos too),
+  returning after Back, a reload or a closed app: the composer's as the draft row, an edit as
+  **Edit draft** on its page (**Discard it** drops either). Back closes the editor, not the app.
+  **Cancel** asks before discarding changes.
+- **Conflicts.** If the page changed elsewhere since you opened it, the other version is shown
+  under yours: merge into your text and save (overwrites theirs), or discard yours.
+- **Revisions.** Every save that changes a page's title or text is kept as a revision, whether by
+  you or Claude over MCP. The app has no screen to browse or restore them; Claude can use the MCP
+  `revisions` and `revert` tools ([](../reference/mcp.md)). Tag and kind changes are kept apart.
   **Download** and `scrap export` hold only the current text.
-- A page's text holds at most 1 MB (about a million letters). Save says so before sending a
-  longer one (counting the photo links a capture adds), and keeps it in the editor (and the composer) for you to shorten or split. A page imported over the limit can still be edited: only its text must stay as it is, or shrink, for the title, kind and tags to save.
-- Deleting a photo's line (its token, in the editor) removes the photo from the page. **Save** warns first, naming each
-  photo whose line went: *no longer shown on any page*, or *still shown on N other pages*. This
-  doesn't delete the stored file. **Cancel** goes back to the editor with your text as it was (undo brings the
-  line back); **OK** saves. The file and what Claude made of it are kept: once no page shows it, the
-  nightly `scrap gc` gathers it onto the month's *Orphaned assets* todo page, where you cut it into
-  another page to keep it or delete the page when you have looked through it (see {ref}`scrap-gc`).
-- **Delete** moves the page to the trash, with **Undo** for a few seconds, and goes back one
-  step, as the phone's Back would: to the list or search it was opened from, or to the page
-  whose link you followed to it. A page opened cold (from a link outside scrap or a share)
-  goes where the top bar's Back names: Todos for a todo, Topics for a topic, else Capture. The app has no trash
-  screen: once the Undo has gone, a page can be brought back with
-  `POST /api/pages/{id}/undelete` (see [](../reference/api.md)).
+- **Size.** A page's text holds at most 1 MB (about a million letters; photo links a capture adds
+  count). Save says so before sending and keeps the text for you to shorten or split. A page
+  imported over the limit can still be edited if its text stays as it is or shrinks.
+- **Removing a photo.** Deleting a photo's line (token) removes it from the page. **Save** warns
+  first, naming each photo whose line went: *no longer shown on any page* or *still shown on N
+  other pages*. **Cancel** returns to the editor; **OK** saves. The file and what Claude made of
+  it are kept: once no page shows it, the nightly `scrap gc` gathers it onto the month's *Orphaned
+  assets* todo page, where you cut it into another page to keep it or delete the page (see
+  {ref}`scrap-gc`).
+- **Delete** moves the page to the trash with **Undo** for a few seconds and goes back one step
+  (to the list or page you came from; a page opened cold goes where the top bar's Back names).
+  The app has no trash screen: after Undo is gone, bring a page back with
+  `POST /api/pages/{id}/undelete` ([](../reference/api.md)) or Claude's `undelete` tool.
 
 ## What Claude made of a photo
 
-Claude reads photos only with ingest on. It is **off by default**: set `SCRAP_INGEST=on` and
-give scrap an `ANTHROPIC_API_KEY` (the Helm chart's `ingest.enabled`, with an existing Secret
-holding the key) as in [](../explanations/ingest.md) and the deploy guides.
-Without ingest photos are still stored and queued, and each shows *Waiting: Claude ingest is off*.
+Claude reads photos only with ingest on. It is **off by default**: set `SCRAP_INGEST=on` and give
+scrap an `ANTHROPIC_API_KEY` (the Helm chart's `ingest.enabled` with an existing Secret holding
+the key), as in [](../explanations/ingest.md) and the deploy guides. Without ingest, photos are
+stored and queued, and each shows *Waiting: Claude ingest is off*.
 
-Everything Claude makes is shown in a brown card of its own, titled by what it holds, so it
-never reads as your text: **What's in the photo** under each photo, and one **About this
-page** after the page's text (its summary, a board's write-up and related pages). Each card's action is at the end of
-its title line: **Generate** the first time, **Regenerate** after (**Retry** if it failed). Its
-parts are folds: tap a heading (its arrow) to open or close it, and the phone remembers that.
+Everything Claude makes is in a brown card of its own, so it never reads as your text: **What's in
+the photo** under each photo, and one **About this page** after the page's text (summary, a
+board's write-up, related pages). A card's action is at the end of its title line: **Generate**
+first, **Regenerate** after (**Retry** if it failed). Its parts are folds; the phone remembers
+which are open.
 
-With Claude ingest on, each photo on a page has, under it, **What's in the photo**:
+Under each photo, **What's in the photo** has:
 
-- Its state, only while Claude has it: *Waiting for Claude* (or *Waiting: Claude ingest is
-  off*), *Claude is reading it…*, *Failed* with the reason and **Retry**, or *Paused* with the
-  reason and **Resume** (nothing is lost while paused). The page checks again every 10 seconds
-  while a photo waits. **Regenerate**, a quiet text button at the end of the title line, sends
-  it to Claude again; if you have edited its drawing, it asks first: **Replace mine**, or
-  **Keep mine** (Claude's new drawing goes into History).
-- **Description** and **Text in the photo**, folded until you open them. The text can be
-  selected and copied.
-- **The drawing** of a whiteboard or diagram, beside the photo when the screen is wide enough
-  (a tablet, or a phone on its side), else under a **Photo** / **Drawing** switch. It is a
-  picture: it scrolls with the page and takes no gestures. It lines up with the photo, since
-  the drawing is made in the photo's own pixels.
+- **State**, only while Claude has it: *Waiting for Claude*, *Claude is reading it…*, *Failed*
+  with reason and **Retry**, or *Paused* with reason and **Resume** (nothing is lost). The page
+  checks every 10 seconds while a photo waits. **Regenerate** sends it again; if you edited its
+  drawing it asks: **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
+- **Description** and **Text in the photo**, folded until opened; the text can be selected.
+- **The drawing** of a whiteboard or diagram, beside the photo on a wide screen or under a
+  **Photo** / **Drawing** switch. It is a picture (scrolls with the page, no gestures) lined up
+  with the photo.
 
-Tap the drawing to open it full screen:
+### The drawing viewer
 
-- Pinch and drag to zoom and pan; **Fit** shows all of it again. **Photo** shows the photo
-  beside the drawing (on its side) or over it (upright), to compare. The phone's Back button
-  closes it.
-- **Edit** turns on Excalidraw's tools (draw, shapes, arrows, text, the eraser; not images).
-  **Undo** is in the top bar, **Cancel** puts the drawing back, **Save** stores it as a new
-  version. Zoom, scroll and the edit are kept when switching between viewing and editing.
-- Nothing drawn is lost: the edit is kept as a draft on the phone as you draw, so after Back, a
-  failed save, a reload or a closed app, **Edit** (with a dot, and a line under the bar
-  saying so) brings it back
-  (**Discard it** drops it). If the drawing was changed elsewhere meanwhile, saving says so:
-  **Save mine** adds yours as a newer version (theirs stays in History), or **Discard mine,
-  show theirs**.
-- **More**, **History** lists every version (Claude's, yours, restored ones) with **Restore**,
-  which makes an old version current again as a new copy: nothing is ever overwritten.
-- **More**, **Export** saves the drawing as `.excalidraw` (opens in excalidraw.com or the
-  Excalidraw app), PNG or SVG. The page's **Download** zip has it too, beside the photo, with
-  the description and text in the Markdown.
-- The drawing follows the phone's light or dark theme. Viewing a drawing needs the server: the
-  app shell works offline, but a page and its drawing are not cached.
-- Excalidraw is loaded only when a drawing is first shown (about 430 kB compressed over the
-  network; then cached by the browser), never for capture or the search screen. Mermaid is
-  loaded the same way, for a page with a diagram. `npm --prefix web run size` prints the
-  current figures. Excalidraw's fonts are served by scrap itself, never
-  from a CDN; Chinese, Japanese and Korean handwriting falls back to a system font.
+Tap the drawing to open it full screen.
+
+- Pinch and drag to zoom and pan; **Fit** resets. **Photo** shows the photo beside (landscape) or
+  over (upright) the drawing. Back closes.
+- **Edit** turns on Excalidraw's tools (draw, shapes, arrows, text, eraser; not images). **Undo**
+  is in the top bar, **Cancel** puts the drawing back, **Save** stores a new version.
+- **Drafts.** The edit is kept on the phone as you draw; after Back, a failed save, a reload or a
+  closed app, **Edit** (with a dot and a line saying so) brings it back (**Discard it** drops it).
+  If the drawing changed elsewhere meanwhile, saving says so: **Save mine** adds yours as a newer
+  version (theirs stays in History), or **Discard mine, show theirs**.
+- **More, History** lists every version (Claude's, yours, restored) with **Restore**, which makes
+  an old version current again as a new copy. Nothing is overwritten.
+- **More, Export** saves `.excalidraw`, PNG or SVG. The page's **Download** zip includes it beside
+  the photo, with the description and text in the Markdown.
+- It follows the phone's light or dark theme and needs the server.
+- Excalidraw is loaded only when a drawing is first shown (about 430 kB compressed; then cached
+  by the browser), never for capture or search. Mermaid loads the same way, for a page with a
+  diagram. Excalidraw's fonts come from scrap itself, never a CDN; Chinese, Japanese and Korean
+  handwriting falls back to a system font. `npm --prefix web run size` prints current figures.
 
 ## What Claude makes of a note or link
 
-With ingest on and `SCRAP_ENRICH` not set to `off` (see [](../explanations/ingest.md)), a text
-or link page gets an **About this page** card on its page view, under its text. Enrichment is on by
-default once `SCRAP_INGEST=on`; without ingest the panel is not shown unless the page already
-has a summary or related pages. The panel has:
+With ingest on and `SCRAP_ENRICH` not `off` (on by default once `SCRAP_INGEST=on`; see
+[](../explanations/ingest.md)), a text or link page gets an **About this page** card under its
+text. Without ingest the card is hidden unless the page already has a summary or related pages.
 
-- **Regenerate** at the end of its title line, to have Claude read the page again (a saved
-  link is fetched again; on a board it writes the write-up and finds related pages again too). While it works the line says *Waiting for Claude* (or *Waiting:
-  Claude is off*) or *Claude is reading it…*; *Paused* with the reason and **Resume** (the
-  queue is shared with photos; nothing is lost while paused); *Claude couldn't read it* with
-  the reason, and **Retry**. Before Claude has read the page, the card says what it would do
-  (summarise it, suggest tags, find related pages), with **Generate**.
-- **Summary**: Claude's one-line summary of the page, which search also looks in. On a board
-  it is the lead of Claude's write-up.
-- **Related**: pages Claude picked, merged with the pages that link here (marked *· links
-  here*), and the topics whose synthesis cites the page (marked *· in a topic*).
-- **Topics**: on a page that is a source of any of Claude's topic pages, a line at the top of
-  the card names them (*Topics: ibek · RTEMS IOCs*), each a link to its topic.
-- Summary and Related are open until you close them. The tags Claude added are marked with a
-  dashed outline in the tag line.
+- **Regenerate** at the end of the title line has Claude read the page again (a saved link is
+  fetched again; a board's write-up and related pages are written again). Status: *Waiting for
+  Claude* (or *Waiting: Claude is off*), *Claude is reading it…*, *Paused* with **Resume** (the
+  queue is shared with photos), *Claude couldn't read it* with **Retry**. Before the first read
+  the card says what it would do, with **Generate**.
+- **Summary** is Claude's one-line summary, which search also covers (on a board, the lead of the
+  write-up).
+- **Related** has pages Claude picked, plus pages that link here (*· links here*) and topics whose
+  synthesis cites the page (*· in a topic*).
+- **Topics**: on a page that is a source of topic pages, a line names them (*Topics: ibek ·
+  RTEMS IOCs*), each a link.
+- Summary and Related are open until closed. Tags Claude added have a dashed outline.
 
-Reading a page needs the server, like opening it; the page checks again while Claude has it
-queued or is reading it.
+Reading needs the server; the page rechecks while Claude has it queued or is reading it.
 
-## Claude's write-up of a board
+### A board's write-up
 
-A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets
-Claude's write-up: a detailed description of the board, in its **About this page** card under
-the page's text, as the fold **In detail** (closed until you open it, and remembered). Its lead
-is the card's **Summary**. It is Claude's, not yours, so it is never part of the text you edit.
-The card's **Regenerate** has Claude read the board again, writing it up and finding its
-related pages afresh. It has:
+A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a checklist) gets a
+write-up in **About this page** as the fold **In detail** (closed until opened). Its lead is the
+card's Summary. It is Claude's, never part of the text you edit.
 
-- Who wrote it and when: the model, the date and its version (and *restored from version N*
-  after a restore).
-- A one or two sentence lead, the page's summary (shown as the card's Summary), then the
-  write-up itself:
-  overview, structure, decisions, open questions and related pages, as fits the board. Its links
-  open those pages, and the pages it links show in **Related** (marked *· in a write-up*) on both
-  pages. Search finds words in it.
-- **Regenerate** (while Claude is on): have Claude write it again (**Generate** before there is
-  one). While it works the card says *Waiting for Claude* or *Claude is writing it…*. A
-  **Regenerate** of a board photo, or a new board photo, writes it again anyway.
-- *The page (or Claude's prompt) has changed since this write-up.*: a quiet line under the
-  card's title once you have edited the page's text, title or tags since it was written, or
-  Claude's write-up prompt has changed (not for a version you restored). Nothing writes it
-  again on its own: **Regenerate** when you want it to catch up. `is:outdated` lists such pages.
-- **Guidance for Claude**: a note for the next write-up, such as "focus on the data flow; 'Enc'
-  means encoder". **Save** keeps it (apart from the page's text) without writing anything;
-  **Regenerate** then uses it, and the new version keeps a copy.
-- **Versions** (once there are two): every write-up, newest first, with **Restore** to make an
-  older one current again (as a new version: nothing is lost).
+- **Provenance.** Model, date and version (and *restored from version N*).
+- **Content.** A one or two sentence lead, then overview, structure, decisions, open questions and
+  related pages as fits. Links in it open those pages and show in **Related** (*· in a write-up*)
+  on both pages. Search finds its words.
+- **Regenerate** (**Generate** before there is one) writes it again and finds related pages
+  afresh. A new board photo, or a Regenerate of a board photo, writes it again anyway. While
+  working the card says *Waiting for Claude* or *Claude is writing it…*.
+- **Stale line.** *The page (or Claude's prompt) has changed since this write-up.* appears once you
+  edit the text, title or tags, or Claude's prompt changed (not for a restored version). Nothing
+  rewrites on its own; `is:outdated` lists such pages.
+- **Guidance for Claude** is a note for the next write-up (such as "focus on the data flow; 'Enc'
+  means encoder"). **Save** keeps it without writing; **Regenerate** uses it and the new version
+  keeps a copy.
+- **Versions** (once there are two) lists every write-up, newest first, with **Restore** (as a new
+  version).
 
-The first write-up comes once Claude has read all of the board's photos; its related pages are
-picked after it. Write-ups for boards read before this feature come from `scrap enrich
---writeups` (see [](../reference/api.md)).
+The first write-up comes once Claude has read all of the board's photos; related pages follow.
+Boards read before the feature get theirs from `scrap enrich --writeups` ([](../reference/api.md)).
 
 ## Claude's topic pages
 
-Each week (with Claude on; see {ref}`ingest-topics`) Claude looks across your pages for
-things they keep coming back to, such as a tool or a family of systems, and makes a topic page
-for each: what those pages say about it, citing them. The topic pages are Claude's, kept apart
-from your own pages.
+Each week (with Claude on; see {ref}`ingest-topics`) Claude looks across your pages for things
+they keep coming back to, such as a tool or a family of systems, and makes a topic page for each,
+citing its sources. They are Claude's, kept apart from your pages.
 
-- **The Topics tab** (`/topics`) lists them, grouped by area (the top-level tag most common
-  among a topic's sources, the biggest group first; *Other* for topics whose sources have no
-  tags). Each row has the topic's title, its one-line summary, how many sources it has and
-  when it last changed. A dot at the end of a row marks a topic that is new or has changed
-  since you last opened the tab or that topic on this device (kept on the phone, never sent anywhere; the
-  very first time, there are no dots). The filter box at the top narrows the list as you type,
-  matching the title, summary and area. With no topics yet, the tab says what they are and
+- **The Topics tab** (`/topics`) lists them grouped by area (the top-level tag most common among a
+  topic's sources, biggest group first; *Other* if the sources have no tags). Each row has title,
+  one-line summary, source count and last change. A dot marks a topic new or changed since you
+  last opened the tab or that topic on this device (kept on the phone; none the first time). The
+  filter box narrows by title, summary and area. With no topics, the tab says what they are and
   that they come from the weekly pass.
-- **A topic page** says *Topic by Claude* in the line under its title (tap it for the Topics
-  tab). Its text is yours: notes on the topic, empty at first (the page says so), edited as any
-  page's text is. Claude never writes there. Claude's synthesis is in the **About this page**
-  card under it, as for a board's write-up: its lead is the **Summary**, and the rest is
-  **In detail** (open until you close it): an overview, key facts with links to the pages they
-  come from, how the sources relate, and contradictions and open questions. **Regenerate**,
-  **Guidance for Claude** and **Versions** work as for a board's write-up (above).
-- **Sources** in the same card lists the pages the topic is made from, each with its title (a
-  link) and kind. Its **✕** takes a page out: Claude's next synthesis leaves it out, and the
-  weekly pass never adds it again. A page taken out stays in the list, struck through and
-  marked *taken out*, with **Put back** (the toast's **Undo** does the same). Offline they
-  are off: changing the sources needs the server. Either way the
-  synthesis is written again. The topic's Related leaves out its sources, which Sources lists.
-- **Search** puts a matching topic page first, with a small *Topic* label after its date and
-  an open book for its icon; `is:topic` lists them all.
-- To get rid of a topic, delete it: it goes to the trash, and the weekly pass does not make it
-  again.
-
-## Licences of the Markdown libraries
-
-Page text is rendered by [markdown-it](https://github.com/markdown-it/markdown-it) and its
-[footnote plugin](https://github.com/markdown-it/markdown-it-footnote) (MIT), and diagrams by
-[Mermaid](https://github.com/mermaid-js/mermaid) (MIT), all bundled with scrap and served by
-it, never from a CDN.
-
-## Licences of the drawing fonts
-
-The drawing viewer is [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT). scrap serves
-the drawing fonts that come with it: Excalifont, Virgil, Nunito, Lilita One, Cascadia Code and
-Liberation Sans under the SIL Open Font License 1.1, and Comic Shanns under the MIT licence;
-Excalidraw's interface font, Assistant, is OFL 1.1 too. The CJK font (Xiaolai, 14 MB) is left
-out. The font files are served as they come from Excalidraw's package, without licence texts
-beside them; the licences are in the fonts' own projects (the OFL is at
-<https://openfontlicense.org>).
-
-## Troubleshooting the screen layout
-
-Tapping the build id at the bottom of the search screen five times turns on a small debug panel of
-viewport numbers (and five more taps turn it off). It helps to report how a phone's keyboard
-resizes the page.
-
-## Updates
-
-The app's files are cached on the phone so it opens instantly and offline, the composer and
-editor included; API answers and files are never cached (see What works offline, above).
-Some parts load only when first used and are not cached ahead: the Todos screen, a
-page's pager and list swipes, Claude's summary and related pages, what Claude made of a photo,
-Mermaid and the drawing viewer. After a new scrap is deployed, the app shows **Update available,
-Reload**. Until you tap it the old version keeps running; it is also replaced the next time the
-app is opened after being closed. The app looks for a new build each time it comes to the front,
-not only when it starts. The build id at the bottom of the search screen (`scrap-` and the
-build) says which build a phone is running, so after a deploy you can tell whether it has
-updated.
+- **A topic page** says *Topic by Claude* under its title (tap for the Topics tab). Its text is
+  yours: notes on the topic, empty at first, edited like any page. Claude never writes there.
+  Claude's synthesis is in **About this page**: lead as **Summary**, the rest as **In detail**
+  (open until closed): overview, key facts linking to their pages, how sources relate,
+  contradictions and open questions. **Regenerate**, **Guidance for Claude** and **Versions** work
+  as for a board's write-up.
+- **Sources** in the same card lists the pages the topic is made from (title link and kind).
+  **✕** takes a page out: the next synthesis leaves it out and the weekly pass never re-adds it.
+  It stays listed, struck through and marked *taken out*, with **Put back** (the toast's **Undo**
+  does the same). Either way the synthesis is written again. Needs the server. The topic's Related
+  leaves out its sources.
+- **Search** puts a matching topic page first, with a *Topic* label and an open-book icon;
+  `is:topic` lists them all.
+- To get rid of a topic, delete it: it goes to the trash and the weekly pass does not re-make it.
 
 ## iPhone and iPad
 
-Safari can add scrap to the home screen and capture, view, search and the offline queue work, with
+Safari can add scrap to the home screen; capture, view, search and the offline queue work, with
 these limits:
 
-- **No share target**: scrap does not appear in the iOS share sheet. A Shortcut that posts to
-  `POST /api/captures` (see [](../reference/api.md)) can stand in.
-- iOS may evict a home-screen app's storage after weeks of non-use, which would drop anything
-  still queued; open it once a connection is back.
-- The app follows the iPhone's text size (**Text Size** in Settings, and **Larger Text** in
-  Accessibility), keeping its own font and line spacing, and never goes below its
-  usual 17 px. At the largest sizes the kind rows wrap rather than clip and the nav grows with
-  its labels; a page's toolbar may wrap **Delete** onto a second row.
+- **No share target.** scrap is not in the iOS share sheet. A Shortcut posting to
+  `POST /api/captures` ([](../reference/api.md)) can stand in.
+- **Storage eviction.** iOS may evict a home-screen app's storage after weeks of non-use, dropping
+  anything queued; open it once a connection is back.
+- **Text size.** The app follows the iPhone's **Text Size** and **Larger Text**, keeping its own
+  font and line spacing and never going below its usual 17 px. At the largest sizes kind rows wrap
+  and the nav grows; a page's toolbar may wrap **Delete** onto a second row.
+
+## Updates
+
+The app's files are cached so it opens instantly and offline; API answers and files never are.
+Some parts load only when first used: the Todos screen, a page's pager and swipes, Claude's
+summary and related pages, what Claude made of a photo, Mermaid and the drawing viewer.
+
+After a deploy the app shows **Update available, Reload**. Until you tap it the old version keeps
+running; it is replaced anyway the next time the app opens after being closed. The app checks for
+a new build each time it comes to the front. The build id at the bottom of the search screen
+(`scrap-` and the build) says which build a phone runs.
+
+Tapping that build id five times turns on a small debug panel of viewport numbers (five more turn
+it off); it helps report how a phone's keyboard resizes the page.
 
 ## Build it (developers)
 
-The PWA's source is in `web/` (TypeScript, Vite, no UI framework; the drawing viewer in
-`web/src/board/` uses Excalidraw and React, in a chunk of its own). The container image builds
-it; for `scrap serve` from a checkout, build it once with Node 22:
+The source is in `web/` (TypeScript, Vite, no UI framework; the drawing viewer in `web/src/board/`
+uses Excalidraw and React in a chunk of its own). The container image builds it; for
+`scrap serve` from a checkout, build once with Node 22:
 
 ```sh
 npm --prefix web ci
@@ -755,13 +622,27 @@ npm --prefix web run build   # writes src/scrap/static/, which scrap serve picks
 ```
 
 Without it `scrap serve` still serves the API, and `/` says how to build the app. To try a build
-from another folder without restarting, point `SCRAP_WEB_DIR` at it. For working on
-the app, run `scrap serve` (it listens on 127.0.0.1:8000 by default) and
-`npm --prefix web run dev` (Vite proxies `/api` and `/share` to port 8000).
+from another folder without restarting, point `SCRAP_WEB_DIR` at it. To work on the app, run
+`scrap serve` (127.0.0.1:8000 by default) and `npm --prefix web run dev` (Vite proxies `/api` and
+`/share` to port 8000).
 
-Checks: `npm --prefix web run check` (Biome, TypeScript), `npm --prefix web test` (unit tests),
-`npm --prefix web run size` (after a build: the app shell stays within its 16 kB gzipped budget and
-never loads Excalidraw). `npm --prefix web run e2e` runs Playwright against a real
-`uv run scrap serve` on a throwaway data folder, so it needs `uv`, a built PWA and Playwright's
-browser, installed once with `npx --prefix web playwright install chromium`.
-`npm --prefix web run icons` regenerates the app's icons.
+| Command | Does |
+| --- | --- |
+| `npm --prefix web run check` | Biome and TypeScript |
+| `npm --prefix web test` | Unit tests |
+| `npm --prefix web run size` | After a build: the app shell stays within 16 kB gzipped and never loads Excalidraw |
+| `npm --prefix web run e2e` | Playwright against a real `uv run scrap serve` on a throwaway data folder; needs `uv`, a built PWA and `npx --prefix web playwright install chromium` once |
+| `npm --prefix web run icons` | Regenerates the app's icons |
+
+### Licences of what it bundles
+
+Served by scrap itself, never from a CDN:
+
+- Page text: [markdown-it](https://github.com/markdown-it/markdown-it) and its
+  [footnote plugin](https://github.com/markdown-it/markdown-it-footnote) (MIT); diagrams:
+  [Mermaid](https://github.com/mermaid-js/mermaid) (MIT).
+- Drawing viewer: [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT). Its fonts are
+  served as they come from the package, without licence texts: Excalifont, Virgil, Nunito, Lilita
+  One, Cascadia Code and Liberation Sans (SIL OFL 1.1), Comic Shanns (MIT) and the interface font
+  Assistant (OFL 1.1). The 14 MB CJK font (Xiaolai) is left out. The licences are in the fonts'
+  own projects (OFL: <https://openfontlicense.org>).

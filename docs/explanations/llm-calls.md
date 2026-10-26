@@ -1,6 +1,20 @@
 # What Claude is asked, per page
 
-Six calls, all on the shared pause and daily budget ([](ingest.md)). Photo reading, the
+Six calls, all on the shared pause and daily budget ([](ingest.md)).
+
+```mermaid
+flowchart LR
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef big fill:#fde8e8,stroke:#c0504d
+
+    PH["Photo reading"]:::big --> WU["Write-up"]:::big
+    EN["Enrich"]:::claude --> RE["Related"]:::claude
+    WU --> RE
+    TD["Topic discovery"]:::big --> TS["Topic synthesis"]:::big
+    TS --> RE
+```
+
+Arrows show what queues what; red calls use the vision model, orange the text model. Photo reading, the
 write-up and the two topic calls use `SCRAP_VISION_MODEL` (default `claude-opus-5-5`); enrich and
 related use `SCRAP_TEXT_MODEL` (default `claude-haiku-5-5`). Ask Claude (`POST
 /api/pages/{id}/enrich`) runs enrich, then on a board page the write-up (on a topic page its
@@ -17,7 +31,7 @@ page's: see the end. "Nightly" is the related-pages job and "weekly" the topics 
 | Photos added to a page (the editor's Add photo) | Per image: description, text (OCR), drawing. Never the page's kind, title, tags or task boxes: its first capture decides what the page is ({ref}`ingest-first-capture`) | As the page was before: a typed page keeps enrich on save; a photo page, Ask only | As above, once a board image is read | Queued at once when this is the page's first capture with a job (its first photos), once they are read; otherwise nightly, as a photo is read; Ask. Sees the new images' text |
 | File capture (PDF and the like) | — (PDF summaries: #234) | Skipped (Ask only) | — | Nightly if changed; Ask. Sees title, tags and text only |
 | Whiteboard or document page typed, not photographed | — | Skipped (Ask only) | — | Nightly if changed; Ask |
-| Topic page (Claude's, kind `reference`; its text is the owner's notes) | — | Never: its text is not read, Ask makes its synthesis instead | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
+| Topic page (Claude's, a Doc; its text is the owner's notes) | — | Never: its text is not read, Ask makes its synthesis instead | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
 
 What each call sees. Enrich gets the page's kind, tags, title and text as plain words (at most
 12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched
