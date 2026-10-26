@@ -283,7 +283,7 @@ def test_dangling_is_a_link_to_no_live_page(store):
     assert c not in found(store, "-has:dangling")
 
 
-# ---- outdated: write-ups, topic syntheses and related pages
+# ---- outdated: only write-ups are is:outdated (#291); the passes find the rest
 
 
 def board(store, colour="red"):
@@ -297,49 +297,43 @@ def test_outdated_write_up_by_its_inputs_or_prompt_but_never_a_restore(store):
     page_id = board(store)
     assert found(store, "is:outdated") == set()
     tick()
-    edit(store, page_id, "the board, with a note")  # its text
+    edit(store, page_id, "the board, with a note")  # its text, after the write-up
     assert found(store, "is:outdated") == {page_id}
     run_all(store, Fake())
     enrich.regenerate(store, page_id)
     run_all(store, Fake())  # a new version
-    assert found(store, "is:outdated") == {page_id}  # its related pages: older now
-    enrich.relate(store, Fake(), page_id)
-    assert found(store, "is:outdated") == set()
+    assert found(store, "is:outdated") == set()  # its related picks older: no finding
     tick()
     store.edit_meta([page_id], "me", "web", add=["video/encoders"])  # its tags
     assert found(store, "is:outdated") == {page_id}
     enrich.regenerate(store, page_id)
     run_all(store, Fake())
-    enrich.relate(store, Fake(), page_id)
     store.prompts = {**store.prompts, "writeup": "writeup@another"}  # a new prompt
     assert found(store, "is:outdated") == {page_id}
     enrich.restore(store, page_id, 1, base=3)  # the owner's choice stands
-    enrich.relate(store, Fake(), page_id)
     assert found(store, "is:outdated") == set()
     tick()
     edit(store, page_id, "the board, with another note")  # even for a change
-    enrich.relate(store, Fake(), page_id)
     assert found(store, "is:outdated") == set()
     store.prompts = {}  # no version known: none checked
     enrich.regenerate(store, page_id)
     run_all(store, Fake())
-    enrich.relate(store, Fake(), page_id)
     assert found(store, "is:outdated") == set()
 
 
-def test_outdated_related_pages_but_never_picked_is_only_due(store):
+def test_outdated_related_pages_are_due_to_the_pass_not_is_outdated(store):
     a = note(store, "Alpha")
     b = note(store, "Beta")
     run_all(store, Fake())  # enrich, then each one's first related call
-    assert found(store, "is:outdated") == set()
     older(store, "enrich_run", "started_at", a)
-    edit(store, a, "Alpha, edited")
-    assert found(store, "is:outdated") == {a}
+    edit(store, a, "Alpha, edited")  # its picks older than its text
     sql(store, "UPDATE enrich_run SET status = 'error' WHERE page_id = ?", b)
-    assert b not in found(store, "is:outdated")
-    with closing(connect(store.db)) as conn:  # the pass does both
+    with closing(connect(store.db)) as conn:  # the pass finds both
         due = {r[0] for r in conn.execute(enrich.STALE, {"all": False, "limit": -1})}
-    assert due == {a, b}
+        assert due == {a, b}
+        outdated = f"SELECT {health.OUTDATED_RELATED.format(p='p')} FROM page p"
+        assert conn.execute(f"{outdated} WHERE p.id = ?", (a,)).fetchone()[0] == 1
+    assert found(store, "is:outdated") == set()  # no finding: the nightly pass's
 
 
 def library_and_topic(store):
@@ -355,14 +349,15 @@ def library_and_topic(store):
     return ids, topic
 
 
-def test_outdated_topic_synthesis(store):
+def test_a_topic_due_a_synthesis_is_the_weekly_pass_s_not_is_outdated(store):
     ids, topic = library_and_topic(store)
-    assert topic not in found(store, "is:outdated")
+    with closing(connect(store.db)) as conn:
+        assert enrich.topic_finding.due(conn) == []
     tick()
     edit(store, ids[0], "ibek yaml, changed")
-    assert topic in found(store, "is:outdated")
-    with closing(connect(store.db)) as conn:  # the pass's due list agrees
+    with closing(connect(store.db)) as conn:  # the pass finds it
         assert enrich.topic_finding.due(conn) == [topic]
+    assert found(store, "is:outdated") == set()  # no finding: the weekly pass's
 
 
 def test_health_counts_match_the_searches_and_mcp_takes_the_terms(tmp_path):

@@ -28,7 +28,7 @@ test("Settings opens Store health, and a check lists its pages", async ({ page }
     "Stale todos",
     "Duplicates",
     "Dangling links",
-    "Outdated",
+    "Outdated write-ups",
   ]);
   const row = page.getByRole("link", { name: `Dangling links: ${dangling}` });
   await expect(row).toBeVisible();

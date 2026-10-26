@@ -299,8 +299,8 @@ The chips and panels only write the query, which you can also type:
   with another page, not one in the trash or an Orphaned assets page), `has:dangling` (a
   `[[...]]` in its text, outside code, to no page or to one in the trash: any the server reads
   as a page link, including forms the app shows as plain text, such as `[[Some Title]]`) and `is:outdated` (Claude's
-  write-up of a board, a topic's synthesis or its related pages older than what they were
-  made from, or a write-up or synthesis made with an older prompt).
+  write-up of a board older than the board's photos, text, title, kind or tags, or made with
+  an older prompt; never a version you restored).
 - A todo's `due:today`, `due:<today` (overdue), `due:>today`, `due:2026-11-01` (also `<=`,
   `>=`), `due:none`, and `priority:high` (`medium`, `low`, `none`).
 - `after:1w` or `before:2026-03-01` (last edited; dates are UTC days, both ends included; a time
@@ -317,9 +317,10 @@ Filters alone list their pages, newest first. [](../reference/api.md) has the fu
 **Settings** (the cog) has **Store health**: a screen listing each health check above with how
 many pages it finds, one count each from the server (`GET /api/health`). A tap on a check runs
 its search, and Back comes back to the screen. Nothing is dismissed there: a check that keeps
-finding a page you are happy with is the check to change. Of `is:outdated`, related pages are
-picked again by the nightly pass and topic syntheses by the weekly one
-([](../reference/scheduled-jobs.md)); a board's write-up waits for you (its card says so, below).
+finding a page you are happy with is the check to change. `is:outdated` lists only board
+write-ups, which wait for you (the card says so, below). Related pages and topic syntheses are
+not listed: the nightly and weekly passes refresh them on their own
+([](../reference/scheduled-jobs.md)).
 
 How matching works:
 

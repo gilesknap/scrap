@@ -1,12 +1,12 @@
 """The store's health checks (#262): each an is: or has: search term, as SQL on a page
 p, so a finding is always current and needs no stored report. Search (store.search)
-filters by them, GET /api/health counts them (counts), and what refreshes Claude's
-derived data finds its work by the same definitions of outdated: a board's write-up
-(OUTDATED_WRITEUP, writeups.OUTDATED: only a newly read photo regenerates one on its
-own, otherwise the owner does, or scrap enrich --writeups --outdated), related pages
-(OUTDATED_RELATED: the nightly --related pass, enrich STALE) and a topic's synthesis
-(OUTDATED_TOPIC: the weekly --topics pass, enrich TOPIC_DUE). Nothing here calls a
-model.
+filters by them, GET /api/health counts them (counts). is:outdated is a board's
+write-up outdated (writeups.OUTDATED): the owner's to regenerate (only a newly read
+photo regenerates one on its own), or scrap enrich --writeups --outdated (#291). What
+the scheduled passes refresh on their own is defined here too, but is no finding:
+related pages (OUTDATED_RELATED: the nightly --related pass, enrich STALE) and a
+topic's synthesis (OUTDATED_TOPIC: the weekly --topics pass, enrich TOPIC_DUE).
+Nothing here calls a model.
 
 A fragment is a template: {p} is the page's alias, and the outdated ones' {version} the
 placeholder for the current prompt version (? in a search, :version in a pass). A
@@ -93,7 +93,8 @@ DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
   WHERE NOT EXISTS (SELECT 1 FROM page t WHERE t.slug = l.value
                     AND t.deleted_at IS NULL))"""
 
-# ---- outdated: derived data older than its inputs, or of an older prompt version
+# ---- outdated: derived data older than its inputs, or of an older prompt version. Only
+# a write-up is a finding (is:outdated); the passes find the rest by the same SQL
 
 # The latest change to what a page's related call or a topic's synthesis reads from its
 # images: a current description or text photo ingest read ('' if none)
@@ -136,11 +137,10 @@ OUTDATED_RELATED = f"{PICKED} < {RELATED_INPUTS}"
 
 
 def outdated(p: str = "p", version: str = "?") -> str:
-    """is:outdated as SQL on a page p: a board write-up, a topic synthesis or related
-    pages outdated. Two placeholders: the write-up's prompt version, the synthesis's."""
-    writeup = OUTDATED_WRITEUP.format(p=p, version=version)
-    topic = OUTDATED_TOPIC.format(p=p, version=version)
-    return f"({writeup} OR {topic} OR {OUTDATED_RELATED.format(p=p)})"
+    """is:outdated as SQL on a page p: a board's write-up outdated (OUTDATED_WRITEUP),
+    never a topic's synthesis or related pages, which their passes refresh on their own
+    (#291). One placeholder: the write-up's prompt version."""
+    return OUTDATED_WRITEUP.format(p=p, version=version)
 
 
 # The checks, in the order the health screen lists them: (key, value) as a filter
@@ -158,9 +158,9 @@ def condition(
     key: str, value: str, prompts: dict[str, str], today: date | None = None
 ) -> tuple[str, list[Any]]:
     """A check's SQL on a page p, and its args: prompts are the current prompt versions
-    (writeup, topic; one missing is not checked: an empty prompts, as a Store nobody set
-    them on has, skips is:outdated's version check, logged once at debug level), today
-    the server's day (stale)."""
+    (is:outdated reads writeup's; missing, it is not checked: an empty prompts, as a
+    Store nobody set them on has, skips is:outdated's version check, logged once at
+    debug level), today the server's day (stale)."""
     global _unversioned
     day = today or date.today()
     if key == "is" and value == "outdated" and not prompts and not _unversioned:
@@ -180,7 +180,7 @@ def condition(
         case "has", "dangling":
             return DANGLING.format(p="p"), []
         case "is", "outdated":
-            return outdated(), [prompts.get("writeup"), prompts.get("topic")]
+            return outdated(), [prompts.get("writeup")]
     raise KeyError((key, value))
 
 

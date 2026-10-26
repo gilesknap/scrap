@@ -14,6 +14,7 @@ it("lists the server's health checks, in its order", () => {
 it("names a check, and nothing else", () => {
   expect(checkName("is:orphan")).toBe("Orphans");
   expect(checkName("has:dangling")).toBe("Dangling links");
+  expect(checkName("is:outdated")).toBe("Outdated write-ups");
   expect(checkName("is:done")).toBeUndefined();
   expect(new Set(CHECKS.map(([, name]) => name)).size).toBe(CHECKS.length);
 });
