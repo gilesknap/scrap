@@ -1,0 +1,17 @@
+# One monthly backup run: like scrap-backup.service, but into a new timestamped
+# directory under SCRAP_BACKUPS/monthly, keeping only the newest
+# SCRAP_BACKUP_MONTHLY_KEEP (default 12) there (see scrap-backup), as the Helm
+# chart's backup.monthly CronJob does. It takes the same lock as the daily
+# backup and gc, so it never runs during either. Started by
+# scrap-backup-monthly.timer.
+[Unit]
+Description=scrap monthly backup
+RequiresMountsFor=%t/containers
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/scrap/env
+# As scrap-backup.service: a full copy can take a while, but a hung run must not
+# hold the lock forever.
+TimeoutStartSec=1h
+ExecStart=%h/.local/lib/scrap/scrap-backup monthly

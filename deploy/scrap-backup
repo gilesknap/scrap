@@ -2,21 +2,42 @@
 # Back up scrap, then keep only the newest SCRAP_BACKUP_KEEP runs.
 #   scrap-backup          one backup run (what scrap-backup.service runs)
 #   scrap-backup prune    retention only
+#   scrap-backup monthly  one run in SCRAP_BACKUPS/monthly, keeping the newest
+#                         SCRAP_BACKUP_MONTHLY_KEEP (default 12) there (what
+#                         scrap-backup-monthly.service runs; the Helm chart's
+#                         backup.monthly CronJob does the same)
 # Settings come from the environment (~/.config/scrap/env via systemd).
 # Installed by install.sh to ~/.local/lib/scrap/.
 set -eu
 
 : "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
-case "${SCRAP_BACKUP_KEEP:-}" in
+# runs: the folder the runs go in; keep_name/keep_value: its count setting.
+case ${1:-} in
+'' | prune)
+    runs=$SCRAP_BACKUPS name=scrap-backup
+    keep_name=SCRAP_BACKUP_KEEP keep_value=${SCRAP_BACKUP_KEEP:-}
+    ;;
+monthly)
+    # The daily runs, their prune and scrap-gc's recent-backup check only look
+    # directly in SCRAP_BACKUPS, so none of them sees these.
+    runs=$SCRAP_BACKUPS/monthly name=scrap-backup-monthly
+    keep_name=SCRAP_BACKUP_MONTHLY_KEEP keep_value=${SCRAP_BACKUP_MONTHLY_KEEP:-12}
+    ;;
+*)
+    echo "usage: scrap-backup [prune | monthly]" >&2
+    exit 2
+    ;;
+esac
+case $keep_value in
 '' | *[!0-9]*)
-    echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '${SCRAP_BACKUP_KEEP:-}'" >&2
+    echo "$keep_name must be a whole number >= 1, got '$keep_value'" >&2
     exit 1
     ;;
 esac
 # Strip leading zeros so 07 is plain decimal 7 (never octal) for head -n.
-keep=${SCRAP_BACKUP_KEEP#"${SCRAP_BACKUP_KEEP%%[!0]*}"}
+keep=${keep_value#"${keep_value%%[!0]*}"}
 if [ -z "$keep" ]; then
-    echo "SCRAP_BACKUP_KEEP must be a whole number >= 1, got '$SCRAP_BACKUP_KEEP'" >&2
+    echo "$keep_name must be a whole number >= 1, got '$keep_value'" >&2
     exit 1
 fi
 if [ ! -d "$SCRAP_BACKUPS" ]; then
@@ -40,12 +61,13 @@ esac
 # a script run by hand does what the unit does. PODMAN is a test hook, not a setting.
 podman=${PODMAN:-/usr/bin/podman}
 
-# Delete all but the newest SCRAP_BACKUP_KEEP backup runs. Only real
-# directories directly in SCRAP_BACKUPS named like a run (20261019T033000Z)
-# are candidates: symlinks and anything else are never touched. SCRAP_BACKUPS
-# itself may be a symlink (e.g. to another disk): -H follows only that one.
+# Delete all but the newest $keep backup runs in $runs. Only real
+# directories directly in it named like a run (20261019T033000Z) are
+# candidates: symlinks and anything else (the monthly/ folder) are never
+# touched. It may itself be a symlink (e.g. to another disk): -H follows only
+# that one.
 prune() {
-    find -H "$SCRAP_BACKUPS" -mindepth 1 -maxdepth 1 -type d \
+    find -H "$runs" -mindepth 1 -maxdepth 1 -type d \
         -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' \
         -print0 |
         sort -z | head -z -n -"$keep" | xargs -0r rm -rf --
@@ -62,17 +84,20 @@ fi
 # the backup's database still names.
 exec 9>"$SCRAP_BACKUPS/.lock"
 flock 9
-dest=$(date -u +%Y%m%dT%H%M%SZ)
+[ "$runs" = "$SCRAP_BACKUPS" ] || mkdir -p "$runs"
+# The run's path inside the container, where SCRAP_BACKUPS is /backups.
+dest=/backups${runs#"$SCRAP_BACKUPS"}/$(date -u +%Y%m%dT%H%M%SZ)
+host=$SCRAP_BACKUPS${dest#/backups}
 # No -p: a run that already exists (two runs in one second) must fail here,
 # before the cleanup below could delete the other run's backup.
-mkdir "$SCRAP_BACKUPS/$dest"
-if ! "$podman" run --rm --replace --name scrap-backup \
+mkdir "$host"
+if ! "$podman" run --rm --replace --name "$name" \
     --userns=keep-id:uid=10001,gid=10001 --network=none \
     --volume "$SCRAP_DATA:/data$volume_opts" \
     --volume "$SCRAP_BACKUPS:/backups$volume_opts" \
     --env SCRAP_DATA_DIR=/data \
-    "$SCRAP_IMAGE" backup "/backups/$dest"; then
-    rm -rf -- "${SCRAP_BACKUPS:?}/$dest"
+    "$SCRAP_IMAGE" backup "$dest"; then
+    rm -rf -- "${host:?}"
     echo "Backup failed; kept the existing backups untouched." >&2
     exit 1
 fi

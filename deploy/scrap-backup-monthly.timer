@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly scrap backup, kept longer than the daily ones
+
+[Timer]
+# 03:50 on the 1st, as the chart's backup.monthly schedule (50 3 1 * *).
+OnCalendar=*-*-01 03:50:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -67,6 +67,8 @@ SCRAP_DATA=$data/data
 # Host directory for backups, and how many backup runs to keep (at least 1).
 SCRAP_BACKUPS=$data/backups
 SCRAP_BACKUP_KEEP=14
+# How many monthly backups (1st of the month, in SCRAP_BACKUPS/monthly) to keep.
+SCRAP_BACKUP_MONTHLY_KEEP=12
 
 # Memory ceiling for the container (podman --memory syntax).
 SCRAP_MEMORY_MAX=1g
@@ -161,6 +163,7 @@ cmp -s "$here/scrap.service" "$units/scrap.service" || : >"$pending"
 cmp -s "$here/scrap-run" "$lib/scrap-run" || : >"$pending"
 cp "$here/scrap-backup" "$here/scrap-gc" "$here/scrap-run" "$lib/"
 cp "$here/scrap.service" "$here/scrap-backup.service" "$here/scrap-backup.timer" \
+    "$here/scrap-backup-monthly.service" "$here/scrap-backup-monthly.timer" \
     "$here/scrap-gc.service" "$here/scrap-gc.timer" \
     "$here/scrap-enrich-related.service" "$here/scrap-enrich-related.timer" \
     "$here/scrap-enrich-topics.service" "$here/scrap-enrich-topics.timer" "$units/"
@@ -227,13 +230,13 @@ else
     echo "scrap did not start: journalctl --user -u scrap -n 50, and check" >&2
     echo "$conf/ingest.env and the image." >&2
 fi
-# The backup timer needs an image with the `scrap backup` command.
+# The backup timers need an image with the `scrap backup` command.
 if "$podman" run --rm "$image" backup --help >/dev/null 2>&1; then
-    systemctl --user enable --now scrap-backup.timer
+    systemctl --user enable --now scrap-backup.timer scrap-backup-monthly.timer
 else
-    systemctl --user disable --now scrap-backup.timer 2>/dev/null || true
-    echo "Note: $image has no 'scrap backup' command, so the daily backup" >&2
-    echo "timer is NOT enabled. Re-run this script after updating the image." >&2
+    systemctl --user disable --now scrap-backup.timer scrap-backup-monthly.timer 2>/dev/null || true
+    echo "Note: $image has no 'scrap backup' command, so the daily and monthly" >&2
+    echo "backup timers are NOT enabled. Re-run this script after updating the image." >&2
 fi
 # The gc timer needs an image with the `scrap gc` command.
 if "$podman" run --rm "$image" gc --help >/dev/null 2>&1; then
