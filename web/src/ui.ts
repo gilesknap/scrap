@@ -174,7 +174,7 @@ export function share(
   what: () => { title: string; text?: string; file?: string[] },
   link?: string,
   content: [Icon, string] = ["note", "Text"],
-  more?: HTMLElement,
+  more?: HTMLElement[],
 ) {
   if (!navigator.share) return null;
   const b = h("button", { type: "button" }, icon("share"), "Share");

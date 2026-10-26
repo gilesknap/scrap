@@ -18,10 +18,17 @@ import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
 const add = document.getElementById("new") as HTMLButtonElement;
 // The Todos screen's New todo: the composer (a chunk of its own) with Todo chosen; saved, it
-// closes back onto the list
+// closes back onto the list. On a search with a tag or a kind (search.ts sets them), New:
+// the composer with those filled in
 add.onclick = () =>
   import("./composer").then(
-    (m) => m.compose([], "todo"),
+    (m) =>
+      m.compose(
+        [],
+        add.dataset.kind || undefined,
+        false,
+        add.dataset.tags ? add.dataset.tags.split("\n") : [],
+      ),
     () => toast("Can't open the composer: reload scrap and try again"),
   );
 document.getElementById("settings")?.addEventListener("click", () =>
@@ -154,7 +161,7 @@ async function render() {
   logo.hidden = arrow;
   up.hidden = !arrow;
   document.body.classList.toggle("paged", arrow); // its toolbar is the bottom bar: no nav
-  if (path !== "/todos") add.hidden = true; // shown with the Todos list, once it is drawn
+  if (path !== "/todos") add.hidden = true; // shown with the Todos list once drawn, or by a search
   for (const [re, fn] of routes) {
     const m = path.match(re);
     if (!m) continue;
@@ -199,7 +206,14 @@ async function render() {
     if (!arrow && LISTS[location.pathname]) remember(LISTS[location.pathname]);
     if (arrow) nameBack(); // a page opened cold: its kind is known now
     restoreScroll(c.signal); // Back or Forward: where it was left (scroll.ts)
-    add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
+    // New todo, on the Todos screen (not on a problem); a search's New is search.ts's
+    if (el instanceof Element && el.classList.contains("todos")) {
+      add.hidden = false;
+      add.dataset.kind = "todo";
+      delete add.dataset.tags;
+      add.ariaLabel = "New todo";
+      add.title = "";
+    } else if (!(el instanceof Element && el.classList.contains("search"))) add.hidden = true;
     placeToasts(); // e.g. one placed for the view before
     return;
   }

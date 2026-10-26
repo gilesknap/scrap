@@ -12,6 +12,7 @@ import { api } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
+import { actions, fitActs } from "./searchacts";
 import { MEDIA, removing, withGroup } from "./termedit";
 import {
   adding,
@@ -167,7 +168,9 @@ export async function refine(
   // The filters on, as chips on a row of their own that scrolls sideways, the count at its
   // start, so the two cost one line (none: no row, and the count is over the list): each says
   // what it is ("#home", "past month") and a tap takes it off
-  const count = q && h("span", { className: "count" }, shown(q, f.total));
+  // ...and its own actions after it, with results: Pin and Copy link (searchacts.ts)
+  const count =
+    q && h("span", { className: "count" }, shown(q, f.total), f.total > 0 && actions(q));
   const chips = on.map((a) => {
     const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
@@ -180,13 +183,11 @@ export async function refine(
     b.dataset.k = "off:group";
     chips.push(b);
   }
-  const bar = h(
-    "div",
-    { className: "refine" },
+  const fon =
     chips.length > 0 &&
-      h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, count, ...chips),
-    panel,
-  );
+    h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, count, ...chips);
+  if (fon && count && f.total > 0) fitActs(fon);
+  const bar = h("div", { className: "refine" }, fon, panel);
   // Each row scrolled so what is chosen in it shows (an order off to the right, say)
   requestAnimationFrame(() => {
     for (const b of panel.querySelectorAll<HTMLElement>('.opts [aria-pressed="true"]')) {

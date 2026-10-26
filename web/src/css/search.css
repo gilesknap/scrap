@@ -32,6 +32,17 @@
 .recents-top button.link {
   margin: 0 calc(-1 * var(--s-3)) 0 0;
 }
+/* Edit pins: a link to the Pinned page, drawn as Clear all is */
+.recents-top a.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-inline-end: calc(-1 * var(--s-3));
+  padding: 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  text-decoration-color: var(--line-strong);
+}
 .list.recents li {
   display: flex;
   align-items: center;
@@ -64,6 +75,24 @@
   padding: 0;
   color: var(--ink-2);
 }
+/* A Recent row's pin, beside its ✕: once pinned, in the accent's ink */
+.list.recents .pin {
+  margin-inline-end: calc(-1 * var(--s-3)); /* pin and ✕ read as a pair */
+}
+.list.recents .pin[aria-pressed="true"] {
+  color: var(--accent-ink);
+}
+/* Pinned, above Recent: the Pinned page's links, drawn as Recent's rows */
+.list.recents a.again {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  color: var(--ink);
+  text-decoration: none;
+}
+
 /* The box's ✕ (the search screen's: one tap back to every page); the browser's own is hidden */
 .field-search .clear {
   position: absolute;
@@ -235,6 +264,58 @@
   flex: none;
   align-self: center;
   white-space: nowrap;
+}
+/* A search's actions after its count: Pin and Copy link, quiet links as Todos' Refine; on a
+   crowded line (.tight: the filters on no longer fit beside them), a ⋯ with a small menu */
+.count .act {
+  position: relative;
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--accent-ink);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.count .act::after {
+  content: "";
+  position: absolute;
+  inset: -14px -6px; /* a 48 px target round a line of small text */
+}
+.count .act:active {
+  transform: none;
+  background: none;
+  opacity: 0.7;
+}
+.count .act[aria-pressed="true"] {
+  color: var(--ink-2);
+  text-decoration-color: var(--line-strong);
+}
+.count .act.more {
+  display: none;
+  width: 28px;
+  justify-content: center;
+  vertical-align: middle;
+  top: -0.3em; /* the dots on the words' middle, not their baseline */
+  margin-inline-start: var(--s-1);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.count .act.more .i {
+  width: 20px;
+  height: 20px;
+}
+.fon.tight .acts .inline {
+  display: none;
+}
+.fon.tight .acts .more {
+  display: inline-flex;
+}
+.acts-menu {
+  bottom: auto;
 }
 .facet {
   flex: none;

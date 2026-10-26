@@ -63,8 +63,13 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   // signal: this view's, taken before any wait (even the chunk's): Back may come meanwhile
   const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
-  const [p] = await Promise.all([
+  // and Share's Pin to Search (pins.ts, a chunk of its own; none offline before it was kept)
+  const [p, pinRow] = await Promise.all([
     api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
+    import("./pins").then(
+      (m) => ({ slug: m.SLUG, make: (p: Page) => m.pinPageButton(p.slug, p.title) }),
+      () => null,
+    ),
     renderer(),
   ]);
   signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
@@ -248,7 +253,14 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
             { className: "notes" },
             "Your notes on this topic go here: Edit to add them. Claude never writes in them.",
           )
-        : "",
+        : // The Pinned page (pins.ts): what it is for, said once
+          p.slug === pinRow?.slug
+          ? h(
+              "p",
+              { className: "notes" },
+              "Shown under the empty search box. Edit to rename, reorder or take out a pin.",
+            )
+          : "",
       // One Claude card for the page, at its end: its summary, a board's write-up, related pages
       enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
       h("div", { className: "originals" }, ...files),
@@ -276,7 +288,10 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           () => ({ title: p.title, text: unembedded(p.body) }),
           pageLink(p.slug),
           undefined,
-          menus ? saved : undefined,
+          // (and Pin to Search, from the pins chunk: not on the Pinned page itself)
+          menus
+            ? [saved, ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : [])]
+            : undefined,
         ) ?? saved,
         !menus && "share" in navigator && saved,
         h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
