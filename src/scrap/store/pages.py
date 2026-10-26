@@ -7,7 +7,6 @@ from typing import Any
 
 from ..markdown import tasks
 from .constants import (
-    ALL_KINDS,
     BARE_URL,
     ENQUEUE,
     HEADING,
@@ -238,8 +237,8 @@ class PagesMixin(Core):
 
     def recent(self, limit: int, kind: str | None = None) -> list[dict[str, Any]]:
         """Pages, newest change first; only those of one kind, if given."""
-        if kind not in (None, *ALL_KINDS):
-            raise InvalidError(f"kind must be one of {ALL_KINDS}")
+        if kind not in (None, *KINDS):
+            raise InvalidError(f"kind must be one of {KINDS}")
         with self.connect() as conn:
             rows = _rows(
                 conn,

@@ -1,6 +1,7 @@
 """Data fixes that run after a numbered schema migration."""
 
 import json
+import re
 import sqlite3
 
 from ..markdown import tasks
@@ -309,6 +310,72 @@ def add_topics(conn: sqlite3.Connection) -> None:
     for statement in TOPIC_TABLES.split(";"):
         if statement.strip():
             conn.execute(statement)
+
+
+# Migration 14 (#298): kinds memory and reference become document, each page keeping
+# a tag to say what it was
+OLD_KINDS = {"memory": "memory", "reference": "entity"}  # old kind -> tag
+
+
+def collapse_kinds(conn: sqlite3.Connection) -> None:
+    """Migration 14: pages of kind memory get the tag memory, and those of kind
+    reference (but for topic pages, which the topic table names) the tag entity; then
+    all become document, kind_fixed kept, and the pages tagged are indexed again (the
+    index holds tags). page's kind CHECK then drops the two kinds. That is done by
+    editing the CHECK in sqlite_master (SQLite's documented way to change a CHECK
+    without touching the data, https://sqlite.org/lang_altertable.html#otheralter),
+    not by a rebuild: dropping page would delete its children (every foreign key to
+    it is ON DELETE CASCADE) and PRAGMA foreign_keys can't change inside the
+    transaction. Revisions of kinds and tags (page_meta_rev) have no CHECK on a kind:
+    their old kinds are mapped to document, so a revert never asks for a dead kind.
+    Safe to run again."""
+    touched: list[str] = []
+    for kind, tag in OLD_KINDS.items():
+        rows = conn.execute(
+            "SELECT id FROM page WHERE kind = ?"
+            " AND id NOT IN (SELECT page_id FROM topic)",
+            (kind,),
+        ).fetchall()
+        for (page_id,) in rows:
+            conn.execute("INSERT OR IGNORE INTO tag VALUES (?, ?)", (page_id, tag))
+            touched.append(page_id)
+    marks = ", ".join("?" for _ in OLD_KINDS)
+    conn.execute(
+        f"UPDATE page SET kind = 'document' WHERE kind IN ({marks})", tuple(OLD_KINDS)
+    )
+    for column in ("kind_before", "kind_after"):
+        conn.execute(
+            f"UPDATE page_meta_rev SET {column} = 'document'"
+            f" WHERE {column} IN ({marks})",
+            tuple(OLD_KINDS),
+        )
+    for page_id in touched:
+        index_page(conn, page_id)
+    (sql,) = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'page'"
+    ).fetchone()
+    new, n = re.subn(r"'memory',\s*'reference',\s*", "", sql)
+    if not n and ("'memory'" in sql or "'reference'" in sql):
+        raise RuntimeError(
+            "migration 14: page's kind CHECK still lists memory or reference but is"
+            " not in the shape expected; refusing to guess"
+        )
+    if n:
+        version = conn.execute("PRAGMA schema_version").fetchone()[0]
+        conn.execute("PRAGMA writable_schema = ON")
+        conn.execute(
+            "UPDATE sqlite_master SET sql = ? WHERE type = 'table' AND name = 'page'",
+            (new,),
+        )
+        conn.execute(f"PRAGMA schema_version = {version + 1}")
+        conn.execute("PRAGMA writable_schema = OFF")
+        (after,) = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'page'"
+        ).fetchone()
+        if "'memory'" in after or "'reference'" in after:
+            raise RuntimeError("migration 14: page's kind CHECK was not relaxed")
+        if (check := conn.execute("PRAGMA integrity_check").fetchone()[0]) != "ok":
+            raise RuntimeError(f"migration 14: integrity_check says {check}")
 
 
 def fix_tag_paths(conn: sqlite3.Connection) -> None:

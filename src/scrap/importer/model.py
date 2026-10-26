@@ -6,18 +6,20 @@ from typing import Any
 
 KINDS = {  # Thoth type -> scrap kind
     "note": "note",
-    "entity": "reference",
-    "memory": "memory",
+    "entity": "document",
+    "memory": "document",
     "action": "todo",
     "media": "consume",
 }
 FOLDERS = {  # a page with no type: its folder's
     "notes": "note",
-    "entities": "reference",
-    "memories": "memory",
+    "entities": "document",
+    "memories": "document",
     "actions": "todo",
     "media": "consume",
 }
+KIND_TAGS = {"entity": "entity", "memory": "memory"}  # Thoth type -> the tag it keeps
+FOLDER_TAGS = {"entities": "entity", "memories": "memory"}  # a page with no type
 DROPPED = {"raw", "inbox"}  # with every folder starting "." or "_"
 NOT_PAGES = {"index.md", "log.md", "SCHEMA.md"}  # at the top
 FIELDS = {  # front matter -> scrap field

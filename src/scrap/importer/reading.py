@@ -13,7 +13,9 @@ from ..store import CROCKFORD, DEFAULT_FIELDS, MAX_INT, MAX_PAGE, lines
 from .model import (
     DROPPED,
     FIELDS,
+    FOLDER_TAGS,
     FOLDERS,
+    KIND_TAGS,
     KINDS,
     MAX_ALIASES,
     MAX_FIELDS,
@@ -161,6 +163,9 @@ def _read(plan: Plan, rel: str, path: Path) -> Page | None:
             plan.note("tag changed", rel, f"{tag!r} -> {new!r}")
         if new and new not in tags:
             tags.append(new)
+    keep = KIND_TAGS.get(thoth) if thoth else FOLDER_TAGS.get(folder)
+    if keep and keep not in tags:  # what the page was in Thoth: memory, entity
+        tags.append(keep)
     stamps = {}
     for key in ("created", "updated", "memory_date"):
         if fm.get(key) is not None:

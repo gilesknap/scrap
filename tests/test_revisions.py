@@ -77,7 +77,7 @@ def test_edit_meta_refuses_bad_requests(store):
     ref = human(store)
     for args, error in [
         ({"kind": "memo"}, "kind must be one of"),
-        ({"kind": "memory"}, "kind must be one of"),
+        ({"kind": "bogus"}, "kind must be one of"),
         ({}, "nothing to change"),
         ({"add_tags": ["a"], "set_tags": ["b"]}, "replace them all"),
         ({"add_tags": ["a"], "remove_tags": ["A"]}, "both added and removed"),

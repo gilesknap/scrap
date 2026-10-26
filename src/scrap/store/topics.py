@@ -1,7 +1,7 @@
 """Claude's topic pages (#261), as stored: which pages are topics, their sources, and
 the index of them all.
 
-A topic is a real page (kind reference) marked by a row in topic; its body is the
+A topic is a real page (kind document) marked by a row in topic; its body is the
 owner's notes, and Claude's synthesis is its write-up (store.writeups). Its sources
 (topic_source) are the synthesis's inputs; one the owner excluded stays, excluded, so
 discovery never adds it again. A topic in the trash keeps its key, so discovery never
@@ -56,14 +56,14 @@ def key_of(conn: sqlite3.Connection, page_id: str) -> str | None:
 def create(
     conn: sqlite3.Connection, title: str, key: str, slug: str, author: str, stamp: str
 ) -> str | None:
-    """A new topic page (kind reference, chosen; an empty body: the owner's notes) and
+    """A new topic page (kind document, chosen; an empty body: the owner's notes) and
     its topic row; its id. None if a topic has that key already (in the trash too)."""
     if conn.execute("SELECT 1 FROM topic WHERE key = ?", (key,)).fetchone():
         return None
     page_id = new_ulid()
     conn.execute(
         "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields, created_at,"
-        " updated_at) VALUES (?, ?, ?, '', 'reference', 1, '{}', ?, ?)",
+        " updated_at) VALUES (?, ?, ?, '', 'document', 1, '{}', ?, ?)",
         (page_id, slug, title, stamp, stamp),
     )
     conn.execute(

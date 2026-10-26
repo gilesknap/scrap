@@ -16,15 +16,14 @@ WIKI_LINK = re.compile(r"\[\[([^\[\]|\n]+)(?:\|([^\[\]\n]+))?\]\]")
 # A file's address in a page's text (see body_refs). Linear: no backtracking.
 BLOB_ADDRESS = re.compile(r"/api/blobs/([0-9a-f]{64})")
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
-# The kinds a user can choose (memory and reference are in the schema, not offered yet),
-# and the fields a page gets when it becomes that kind
+# The kinds a page can have (the schema allows only these), and the fields a page gets
+# when it becomes that kind
 KINDS = ("note", "todo", "consume", "whiteboard", "document")
 DEFAULT_FIELDS = {
     "todo": {"status": "open"},
     "consume": {"subtype": "read", "status": "open"},
 }
 HINTS = ("todo", "consume")  # the older capture field, still accepted
-ALL_KINDS = (*KINDS, "memory", "reference")  # in the schema, so a filter may ask
 # kind: in a search also takes the PWA's names for kinds
 # A page p's thumbnail: the SHA-256 of its first image, if any (SQL, for a column)
 THUMB = (

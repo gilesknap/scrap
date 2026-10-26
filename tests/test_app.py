@@ -224,7 +224,7 @@ def test_capture_kind(client, note):
     assert (board.json()["kind"], board.json()["kind_fixed"]) == ("whiteboard", 1)
     plain = client.get(f"/api/pages/{note('plain')['page_id']}").json()
     assert (plain["kind"], plain["kind_fixed"], plain["fields"]) == ("note", 0, {})
-    bad = {"id": new_ulid(), "text": "x", "kind": "memory"}  # not offered yet
+    bad = {"id": new_ulid(), "text": "x", "kind": "bogus"}  # not a kind
     assert client.post("/api/captures", json=bad).status_code == 422
 
 
@@ -272,7 +272,7 @@ def test_a_kind_change_keeps_every_field(client, note):
 @pytest.mark.parametrize(
     "edit",
     [
-        {"kind": "memory"},
+        {"kind": "bogus"},
         {"body": "no base_rev"},
         {"fields": {"a": [1]}},
         {"fields": {"a": {"b": "c"}}},

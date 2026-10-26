@@ -108,7 +108,7 @@ def test_write_kinds_take_the_pwa_names(store):
     assert store.page(write(store, kind="board")["id"])["kind"] == "whiteboard"
     assert store.page(write(store)["id"])["kind"] == "note"
     assert "kind must be" in refused(
-        store, "write", title="T", body="", origin="", kind="memory"
+        store, "write", title="T", body="", origin="", kind="bogus"
     )
     assert "status is for" in refused(
         store, "write", title="T", body="", origin="", status="open"
