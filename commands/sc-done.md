@@ -19,8 +19,9 @@ with `text editing is off`, say so and stop.
      every open box, since "done" means the whole todo.
    - With no boxes: scrap has no MCP tool that sets a todo's status. Say so, and ask the user to
      mark it done in the app. Do not add a box, and do not change the text to fake it.
-3. `edit_page` with `old`/`new` per box (or one `body` edit with `rev` for several), always
-   `dry_run` first, show the diff in a line or two and apply once they agree (unless they said
+3. One `edit_page` for one box (`old`/`new`, with enough surrounding text that `old` is unique;
+   already-ticked boxes are left alone). For several boxes use ONE whole-`body` edit with `rev`,
+   since each applied edit changes `rev`. Always `dry_run` first, show the diff in a line or two and apply once they agree (unless they said
    "just do it"). Pass `rev`.
 4. Report the todo's link and its new `status` (`read` it again to check: `done` when every box
    is ticked). `/sc-undo` reverts it.

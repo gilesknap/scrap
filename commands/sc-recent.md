@@ -16,9 +16,9 @@ Use ONLY `mcp__scrap__search` and `mcp__scrap__revisions`. If they are missing, 
    (`created_at`).
 2. `search` with `query` `after:<period> sort:updated` and `limit` 50 for the pages updated in the
    period, including changes (such as a todo ticked off) that the feed does not show as text.
-3. Group by page. One line each, newest first: link as `[[slug|title]]` (from the row's `slug`
-   and `title`; search results have both), what changed (new, text edited, kind or tags
-   changed, ticked off), and who: **you** (`web`, the user's own) or **Claude** (`mcp`). End with a
+3. Group by page. One line each, newest first: link as `[[slug|title]]` (search results have `slug` and
+   `title`; `meta` feed rows have only `slug`, so `read` the page for its title), what changed (new, text edited, kind or tags
+   changed), and who: **you** (`web`, the user's own) or **Claude** (`mcp`). For a page seen only in the `search` results, the actor is unknown: say so. End with a
    one-line count. If the feed is full, say there may be more and offer a shorter period.
 4. Enrichment (summaries, model tags, related pages) is not in revisions; do not report it as a
    change by anyone.

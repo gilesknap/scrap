@@ -22,13 +22,16 @@ compaction, while the whole transcript is still there.
   summarised) in `$XDG_STATE_HOME/scrap/precompact.json` (`~/.local/state/scrap/precompact.json`).
   Delete the file, or a session's entry, to make the next compaction start a new page.
 - Never blocks compaction: on any error (no network, scrap down, `claude` missing, a timeout) it
-  logs to stderr and exits 0. `SCRAP_PRECOMPACT_TIMEOUT` (seconds, default 180) bounds the model
-  call.
+  logs to stderr and exits 0. `SCRAP_PRECOMPACT_TIMEOUT` (seconds, default 180, at most 190) bounds the model
+  call. Compaction waits for the hook, so a slow model delays it by up to that long; keep the
+  hook's own `timeout` in `settings.json` above it.
 - The prompt follows `/sc-summarise all` (timeline, findings, decisions, changes made, open
   questions) and tells the model to leave out secrets, tokens, credentials and raw tool output.
   Check the page rather than trusting that: the model does the redaction.
 
-It costs one extra model call per compaction.
+It costs one extra model call per compaction. If the dialogue exceeds 150,000 characters, the
+oldest part is left out and the model is told so. If the model writes the page but does not
+report its slug, the next compaction starts a second page.
 
 ## Install
 
@@ -77,5 +80,5 @@ Run it twice with more conversation in between to see the second run append. Rem
 ## Turn it off
 
 Remove the `PreCompact` entry from `settings.json`, or set `SCRAP_PRECOMPACT_RUNNING=1` in the
-environment of the session. Pages already posted stay; they carry the `auto-compact` tag
+environment before Claude Code starts (or in the `env` block of `settings.json`). Pages already posted stay; they carry the `auto-compact` tag
 (`tag:auto-compact`), so `/sc-tidy` can retag or you can delete them in the app.

@@ -57,11 +57,21 @@ def test_dialogue_keeps_prose_drops_tool_output() -> None:
     assert hook.dialogue(lines, 1) == "Claude: hi"
 
 
+def test_dialogue_skips_summaries_reminders_sidechains() -> None:
+    lines = [
+        _entry("user", "This session is being continued", isCompactSummary=True),
+        _entry("user", "<system-reminder>x</system-reminder>"),
+        _entry("assistant", "sub", isSidechain=True),
+        _entry("user", "real"),
+    ]
+    assert hook.dialogue(lines) == "User: real"
+
+
 def test_dialogue_cuts_long_turns_and_total() -> None:
     long = _entry("user", "z" * (hook.MAX_TURN_CHARS + 50))
     assert hook.dialogue([long]).endswith("[cut]")
     many = [_entry("user", "a" * 3000)] * 100
-    assert len(hook.dialogue(many)) == hook.MAX_CHARS
+    assert "was cut" in hook.dialogue(many)
 
 
 def test_build_prompt_new_and_append() -> None:
@@ -77,6 +87,7 @@ def test_parse_slug_and_title() -> None:
     assert hook.parse_slug(out) == "my-page-2"
     assert hook.parse_title(out) == "[auto-compact] Hello"
     assert hook.parse_slug("no slug here") is None
+    assert hook.parse_slug("**SLUG:** `my-page`") == "my-page"
 
 
 def test_session_maps_to_one_page_and_appends(tmp_path: Path) -> None:
