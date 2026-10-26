@@ -29,8 +29,8 @@ You orchestrate; subagents do the work. How a tag publishes is in
 
 - Fast-forward the main clone to `origin/main`.
 - Do not wait for main's CI on the merge commit: the tag's CI runs the same
-  checks and is the gate (step 3). Only check that no finished **CI** or
-  **Chart** run on main has failed
+  checks and is the gate (step 3). Only check that the latest finished **CI**
+  and **Chart** runs on main did not fail
   (`gh run list -R gilesknap/scrap --branch main --limit 5`).
 - Note migrations since the last tag:
   `git diff --name-only <last-tag>..HEAD -- src/scrap/migrations`.
@@ -91,11 +91,16 @@ You orchestrate; subagents do the work. How a tag publishes is in
 - Squash-merge and delete the branch.
 - Merging to main deploys through ArgoCD: a `Recreate` rollout, with a short
   outage.
-- ArgoCD only polls the repo every few minutes, so refresh the app straight
-  after the merge:
+- ArgoCD only polls git every few minutes, so refresh straight after the
+  merge. The `scrap` Application's `targetRevision` is rendered by the parent
+  app `all-cluster-services` from tpi-k3s-ansible's main, so refresh that one;
+  refreshing `scrap` alone re-reads the old version:
   ```
-  kubectl -n argo-cd annotate application scrap argocd.argoproj.io/refresh=hard --overwrite
+  kubectl -n argo-cd annotate application all-cluster-services argocd.argoproj.io/refresh=hard --overwrite
   ```
+  Within a minute, `kubectl -n argo-cd get application scrap -o jsonpath='{.spec.source.targetRevision}'`
+  shows the new version and the rollout starts. If the pod has not been
+  replaced a minute after that, refresh `scrap` the same way.
 
 ## 7. Verify
 

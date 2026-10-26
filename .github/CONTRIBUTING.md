@@ -193,8 +193,9 @@ Releases are cut by pushing a tag. The tag is the version, with no `v` prefix
 
 1. On `main`, tag the merge commit and push the tag (the tag, not a branch,
    starts the release). There is no need to wait for `main`'s CI first: the
-   tag's CI runs the same checks and nothing is published unless they pass. The chart version needs no edit: CI sets
-   it from the tag.
+   tag's CI runs the same checks, and no image is published unless they pass
+   (the chart and docs still are). The chart version needs no edit: CI sets it
+   from the tag.
 
    ```sh
    git tag X.Y.Z
