@@ -541,7 +541,7 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   before this change or while enrich was off. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
   newer than its `updated_at`, than the newest current description or text photo ingest read
-  from one of its images, or than its current write-up: `is:outdated` finds those picked before;
+  from one of its images, or than its current write-up: `store.health.OUTDATED_RELATED` finds those picked before;
   `--all`: every page). Its schedule is in [](../reference/scheduled-jobs.md). It runs in the command's process (in the
   container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and the
   day's budget before each call, and stops at either (an outage, credit or auth error pauses the

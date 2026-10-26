@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate &#8212; scrap 0.9.1.dev5+g40c059e4f documentation</title>
+    <title>29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate &#8212; scrap 0.10.1.dev1+g58b33227f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=efb1da66"></script>
+    <script src="../../_static/documentation_options.js?v=5838c726"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -562,13 +562,18 @@ function <code class="docutils literal notranslate"><span class="pre">wiki_links
 <li><p><strong>A Store health screen, counts only.</strong> Settings has <strong>Store health</strong>: each check with its
 count (<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code>, one <code class="docutils literal notranslate"><span class="pre">count(*)</span></code> a check), a tap running its search. Nothing is
 dismissed: a check that keeps finding a page the owner is happy with is the check to change.</p></li>
-<li><p><strong>One definition of outdated per kind of derived data</strong>, shared by <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> and what
-refreshes it: a board write-up (<code class="docutils literal notranslate"><span class="pre">writeups.OUTDATED</span></code>, beside the worker’s <code class="docutils literal notranslate"><span class="pre">DUE</span></code>: a board image
-read, or the page’s text, title, kind or tags changed, after it, or another prompt version;
-never a version the owner restored), a topic synthesis (the weekly pass’s <code class="docutils literal notranslate"><span class="pre">TOPIC_DUE</span></code>) and
-related pages (the nightly pass’s <code class="docutils literal notranslate"><span class="pre">STALE</span></code>). The current prompt versions are given to the store
-by whoever makes it (<code class="docutils literal notranslate"><span class="pre">Store.prompts</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich.prompt_versions()</span></code>), since the store sits below
-the prompts.</p></li>
+<li><p><strong>One definition of outdated per kind of derived data</strong>, in <code class="docutils literal notranslate"><span class="pre">store/health.py</span></code>, shared with
+what refreshes it: a board write-up (<code class="docutils literal notranslate"><span class="pre">writeups.OUTDATED</span></code>, beside the worker’s <code class="docutils literal notranslate"><span class="pre">DUE</span></code>: a board
+image read, or the page’s text, title, kind or tags changed, after it, or another prompt
+version; never a version the owner restored), a topic synthesis (the weekly pass’s
+<code class="docutils literal notranslate"><span class="pre">TOPIC_DUE</span></code>) and related pages (the nightly pass’s <code class="docutils literal notranslate"><span class="pre">STALE</span></code>).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> lists only outdated write-ups</strong> (#291): what the owner acts on, with
+Regenerate or <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code>. The current write-up prompt version is
+given to the store by whoever makes it (<code class="docutils literal notranslate"><span class="pre">Store.prompts</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich.prompt_versions()</span></code>), since
+the store sits below the prompts. Related pages and topic syntheses keep their definitions
+for the passes but are no finding: they clear on their own overnight or within the week, and
+as findings they buried the write-ups (right after a write-up is regenerated, its page’s
+related picks are older than it).</p></li>
 <li><p><strong>An outdated write-up is the owner’s to regenerate.</strong> Only a newly read board photo writes one
 again on its own (as before). An edit to the page, or a new prompt, does not: an edit may be
 small, a write-up is an Opus call, and the owner may prefer the old one. The page’s write-up
@@ -587,9 +592,9 @@ separate lint call would repeat them.</p></li>
 <li><p>The checks cost no stored state and no Claude spend; the counts are cheap queries.</p></li>
 <li><p>A new check is a fragment and a line in <code class="docutils literal notranslate"><span class="pre">CHECKS</span></code> (and its name in the PWA’s <code class="docutils literal notranslate"><span class="pre">checks.ts</span></code>), and
 is documented with the other filters and in the MCP <code class="docutils literal notranslate"><span class="pre">search</span></code> description.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> mixes work that waits for a pass (related pages, topic syntheses) with write-ups
-that wait for the owner; a write-up prompt change lists every board until it is rolled out
-with <code class="docutils literal notranslate"><span class="pre">--writeups</span> <span class="pre">--outdated</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> is only work that waits for the owner. A related pass or topics pass that keeps
+failing does not show in Store health; the passes’ own logs and exit status say so. A
+write-up prompt change lists every board until it is rolled out with <code class="docutils literal notranslate"><span class="pre">--writeups</span> <span class="pre">--outdated</span></code>.</p></li>
 <li><p>No timer, CronJob or chart value changes: the scheduled jobs are as before
 (<a class="reference internal" href="../../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>).</p></li>
 <li><p>The checks are word- and link-based. If they prove too weak, semantic search (#53) is the next

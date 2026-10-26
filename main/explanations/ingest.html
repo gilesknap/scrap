@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.9.1.dev5+g40c059e4f documentation</title>
+    <title>Claude ingest &#8212; scrap 0.10.1.dev1+g58b33227f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=efb1da66"></script>
+    <script src="../_static/documentation_options.js?v=5838c726"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1145,7 +1145,7 @@ itself). Saves and edits queue none. It is queued once per page, ever: a later R
 of the first photo capture queues one only for a page that never had one, such as a page read
 before this change or while enrich was off. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code> run
 newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, than the newest current description or text photo ingest read
-from one of its images, or than its current write-up: <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> finds those picked before;
+from one of its images, or than its current write-up: <code class="docutils literal notranslate"><span class="pre">store.health.OUTDATED_RELATED</span></code> finds those picked before;
 <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). Its schedule is in <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>. It runs in the command’s process (in the
 container: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>), checks the shared queue pause and the
 day’s budget before each call, and stops at either (an outage, credit or auth error pauses the
