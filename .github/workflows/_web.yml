@@ -64,8 +64,11 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # Not --with-deps: the runner has Chrome's libraries already, and that apt step only added
+      # CJK and other fonts no spec uses. Ubuntu's mirror there now and then crawled at 30 kB/s,
+      # 10-12 min for one shard, while its tests took about a minute (#286)
       - name: Install
-        run: npm ci --no-audit --no-fund && npx playwright install --with-deps --only-shell chromium
+        run: npm ci --no-audit --no-fund && npx playwright install --only-shell chromium
 
       - name: Build
         run: npm run build
