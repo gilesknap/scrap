@@ -7,7 +7,7 @@ file a ticket before making a pull request! We want to make sure you don't spend
 your time coding something that might not fit the scope of the project.
 
 To judge the scope, read the
-[Goals and Non-goals](https://github.com/gilesknap/scrap#goals) in the README
+[Goals](https://gilesknap.github.io/scrap/main/#goals) in the README
 (tiny, one service, no login code, not multi-user) and the
 [design](https://github.com/gilesknap/scrap/blob/main/docs/explanations/design.md). For a UI change see the
 [design system](https://github.com/gilesknap/scrap/blob/main/docs/explanations/design-system.md). Record a
