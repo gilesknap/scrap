@@ -109,6 +109,26 @@ async function queued(page: Page): Promise<Queued[]> {
   );
 }
 
+/** Wait until the service worker has the downscale chunk, so going offline cannot beat it. */
+async function ready(page: Page) {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() =>
+      page.evaluate(async () =>
+        (
+          await Promise.all(
+            (
+              await caches.keys()
+            ).map(async (k) => (await (await caches.open(k)).keys()).map((r) => r.url)),
+          )
+        )
+          .flat()
+          .some((u) => /\/assets\/downscale-[^/]+\.js$/.test(u)),
+      ),
+    )
+    .toBe(true);
+}
+
 async function save(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
@@ -124,6 +144,7 @@ test("a big photo is queued at 2560 px, upright and smaller, with its name", asy
 }) => {
   await page.goto("/");
   const original = await bigJpeg(page);
+  await ready(page);
   await context.setOffline(true); // so that the queue still holds it to be read
   await save(page, { name: "IMG_0001.jpg", mimeType: "image/jpeg", buffer: original });
   await expect(page.locator("#queue")).toHaveText("1 waiting");
@@ -146,6 +167,7 @@ test("turned off in Settings, the photo is queued as it was", async ({ page, con
   await expect(group.getByLabel("Smaller")).toBeChecked(); // on by default
   await group.getByText("Full size").click();
   await page.getByRole("button", { name: "Done" }).click();
+  await ready(page);
   await context.setOffline(true);
   await save(page, { name: "IMG_0002.jpg", mimeType: "image/jpeg", buffer: original });
   await expect(page.locator("#queue")).toHaveText("1 waiting");
@@ -154,14 +176,17 @@ test("turned off in Settings, the photo is queued as it was", async ({ page, con
 });
 
 test("a file the browser cannot decode uploads unchanged", async ({ page }) => {
-  const bytes = Buffer.from("not really a HEIC photo, but a browser cannot decode it either");
+  const unique = `${Date.now()}-${Math.random()}`;
+  const bytes = Buffer.from(
+    `not really a HEIC photo, but a browser cannot decode it either ${unique}`,
+  );
   await page.goto("/");
-  await save(page, { name: "IMG_0003.heic", mimeType: "image/heic", buffer: bytes });
+  await save(page, { name: `IMG_${unique}.heic`, mimeType: "image/heic", buffer: bytes });
   // The server stored the very bytes: its blob is addressed by their SHA-256
   const sha = createHash("sha256").update(bytes).digest("hex");
   const find = async () => {
     const list = (await (await page.request.get("/api/pages")).json()) as { id: string }[];
-    for (const { id } of list.slice(0, 5)) {
+    for (const { id } of list) {
       const got = (await (await page.request.get(`/api/pages/${id}`)).json()) as {
         captures: { blobs: { sha256: string; name: string }[] }[];
       };

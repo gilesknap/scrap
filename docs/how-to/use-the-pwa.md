@@ -154,9 +154,18 @@ is dropped). A big photo then holds the connection for less time, and the queue 
 Claude reads a 2048 px version anyway, so little is lost, and 2560 px leaves room to zoom into a
 whiteboard.
 
-A photo is sent as it is when it is at or under 2560 px already, when the browser cannot decode it
-(HEIC on some phones, PDFs and other files), when making it smaller fails, or when the result would
-not be smaller. The name and the capture time are kept.
+Only JPEG, HEIC, HEIF and WebP photos are made smaller. A photo is sent as it is when it is at or
+under 2560 px already, when the browser cannot decode it (HEIC on some phones), when making it
+smaller fails, or when the result would not be smaller; PNG, GIF, PDFs and other files are never
+touched. The name is kept, and so is the capture time; a `.heic` photo becomes a `.jpg` (its name's
+extension changes, since the bytes are now a JPEG).
+
+Known limits:
+
+- The upload limit is checked on the size the photo has when you pick it, before it is made
+  smaller. A photo over the server's limit is refused even if it would fit once smaller.
+- A photo shared into scrap from another app (**Share**) is queued as it came: the share target
+  runs in the service worker, which does not make photos smaller.
 
 The full-size original stays in the phone's own gallery, not in scrap. Colours are redrawn in
 sRGB, so a wide-gamut colour profile may be lost. **Settings**, **Photos**, **Full size** turns

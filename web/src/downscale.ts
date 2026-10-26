@@ -6,6 +6,8 @@ import type { Capture } from "./queue";
 
 export const MAX_EDGE = 2560;
 const QUALITY = 0.85;
+/** The types that are made smaller: photos, not PNG (screenshots, drawings), GIF or the rest. */
+const SHRUNK = new Set(["image/jpeg", "image/heic", "image/heif", "image/webp"]);
 export const SHRINK_KEY = "scrap.shrink_photos";
 
 /** Whether photos are made smaller (Settings; on unless turned off). */
@@ -51,11 +53,11 @@ async function encode(bitmap: ImageBitmap, w: number, h: number): Promise<Blob |
   return new Promise((done) => canvas.toBlob(done, "image/jpeg", QUALITY));
 }
 
-/** The file made smaller, or the file itself: when it is not an image the browser can
+/** The file made smaller, or the file itself: when it is not a photo type the browser can
  * decode, is within the limit already, would not get smaller, or anything throws. Keeps the
  * name and the last-modified time (the capture time). */
 export async function shrink(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || typeof createImageBitmap === "undefined") return file;
+  if (!SHRUNK.has(file.type) || typeof createImageBitmap === "undefined") return file;
   let bitmap: ImageBitmap | undefined;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -74,17 +76,16 @@ export async function shrink(file: File): Promise<File> {
   }
 }
 
-/** The captures with their photos made smaller (if the setting is on). */
+/** The captures with their photos made smaller (if the setting is on). One photo at a time:
+ * a decoded bitmap is big, and is closed before the next is decoded. */
 export async function shrinkAll(cs: Capture[]): Promise<Capture[]> {
   if (!getShrink()) return cs;
-  return Promise.all(
-    cs.map(async (c) => ({
-      ...c,
-      files: await Promise.all(
-        c.files.map(async (f) =>
-          f.blob instanceof File ? { ...f, blob: await shrink(f.blob) } : f,
-        ),
-      ),
-    })),
-  );
+  const out: Capture[] = [];
+  for (const c of cs) {
+    const files: Capture["files"] = [];
+    for (const f of c.files)
+      files.push(f.blob instanceof File ? { ...f, blob: await shrink(f.blob) } : f);
+    out.push({ ...c, files });
+  }
+  return out;
 }

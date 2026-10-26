@@ -87,6 +87,17 @@ describe("shrink", () => {
     expect(await shrink(f)).toBe(f);
   });
 
+  it("keeps PNG, GIF and other types, without decoding them", async () => {
+    browser(4000, 3000, 10);
+    for (const type of ["image/png", "image/gif", "image/svg+xml"]) {
+      const f = photo(5000, type);
+      expect(await shrink(f)).toBe(f);
+    }
+    expect(createImageBitmap).not.toHaveBeenCalled();
+    for (const type of ["image/jpeg", "image/heic", "image/heif", "image/webp"])
+      expect((await shrink(photo(5000, type))).size).toBe(10);
+  });
+
   it("keeps a file that is not an image, without decoding it", async () => {
     browser(4000, 3000, 10);
     const f = photo(5000, "application/pdf");
@@ -135,6 +146,41 @@ describe("shrinkAll and the setting", () => {
     store("off");
     const cs = [capture(new File([new Uint8Array(9)], "a.jpg", { type: "image/jpeg" }))];
     expect(await shrinkAll(cs)).toBe(cs);
+  });
+
+  it("decodes one photo at a time, closing each bitmap before the next", async () => {
+    store(null);
+    let open = 0;
+    let most = 0;
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => {
+        open++;
+        most = Math.max(most, open);
+        await new Promise((r) => setTimeout(r, 5));
+        return { width: 4000, height: 3000, close: () => void open-- };
+      }),
+    );
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext = () => ({ drawImage() {}, fillRect() {}, fillStyle: "" });
+        convertToBlob = async () => new Blob([new Uint8Array(10)]);
+      },
+    );
+    const f = () => new File([new Uint8Array(5000)], "a.jpg", { type: "image/jpeg" });
+    const out = await shrinkAll([
+      {
+        source: "pwa",
+        files: [
+          { name: "a", blob: f() },
+          { name: "b", blob: f() },
+        ],
+      },
+      { source: "pwa", files: [{ name: "c", blob: f() }] },
+    ]);
+    expect(most).toBe(1);
+    expect(out.flatMap((c) => c.files.map((x) => x.blob.size))).toEqual([10, 10, 10]);
   });
 
   it("passes on what is not a File, and text-only captures", async () => {
