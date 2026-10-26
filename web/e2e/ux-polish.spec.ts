@@ -70,7 +70,7 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   await expect(back(page)).toBeHidden();
   await expect(page.locator("nav")).toBeVisible();
 
-  // Tapped while the page still loads, Back still knows it for a todo's
+  // Tapped while the page still loads, Back goes where its label says: Capture (#141)
   let first = true;
   await page.route(`**/api/pages/${todo.slug}`, async (r) => {
     if (!first) return r.continue();
@@ -80,8 +80,9 @@ test("Back on a page opened cold goes to its parent; from a list, back to it", a
   });
   await page.goto(`/p/${todo.slug}`);
   await expect(page.getByRole("status")).toHaveText("Loading…", { timeout: 3000 });
+  await expect(page.locator("#backto")).toHaveText("Capture");
   await back(page).click();
-  await expect(page).toHaveURL(/\/todos$/);
+  await expect(page).toHaveURL(/\/$/);
   await page.unroute(`**/api/pages/${todo.slug}`);
 
   // Any other page's parent is Capture

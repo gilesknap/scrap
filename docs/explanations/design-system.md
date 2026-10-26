@@ -44,11 +44,13 @@ and back.
   page you followed a link from, else to the list you opened it from (past the pages the pager
   stepped through). When Back doesn't go to the list, the list's name follows it as a second
   target, ‹ A · Search, which jumps straight back to the list. A page opened cold goes up to
-  its parent list (Todos for a todo, Topics for a topic, Capture for any other page). Every
-  link to a page, `[[slug]]` or its full address on any address the server is reached at (the
-  one the app was opened at, and each in `SCRAP_PUBLIC_URL`, which the server writes into
-  `index.html`'s `scrap-origins` meta tag), opens in place, so the phone's own Back walks back
-  through them one step at a time, as the top bar's Back does after a link.
+  its parent list (Todos for a todo, Topics for a topic, Capture for any other page): Back goes
+  where its label says, with no request, so while the page is still loading that is Capture
+  and on a stalled link it is never a dead button. Every link to a page, `[[slug]]` or its full
+  address on any address the server is reached at (the one the app was opened at, and each in
+  `SCRAP_PUBLIC_URL`, which the server writes into `index.html`'s `scrap-origins` meta tag),
+  opens in place, so the phone's own Back walks back through them one step at a time, as the
+  top bar's Back does after a link.
   Delete is one step back (the list, or the page whose link opened it) with **Undo**; opened
   cold, it goes where Back names.
   Whichever Back (the top bar's, the jump, the phone's) or Forward, a screen comes back

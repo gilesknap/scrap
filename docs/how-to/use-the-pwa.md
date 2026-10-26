@@ -183,7 +183,8 @@ The app opens without a connection. Anything that reads from or writes to the se
   (**‹ Search**, **‹ Todos**, **‹ Topics**, **‹ Capture**), as you left it. After a page, the
   list's name follows (**‹ Its title · Search**): tap it to jump to the list. The phone's own Back
   goes back one step at a time. A page opened cold (a link or share) goes up instead: Todos for a
-  todo, Topics for a topic page, Capture otherwise. A screen returns scrolled where you left it.
+  todo, Topics for a topic page, Capture otherwise. Back always goes where its label says: while
+  the page is still loading, that is Capture. A screen returns scrolled where you left it.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
   wide screen the app is one centred column about 720 px wide. With a mouse the tabs move to the
   top bar, Camera, Gallery and Note sit over the list, a page's buttons (Mark done, Edit, Share,

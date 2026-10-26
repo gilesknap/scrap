@@ -7,9 +7,11 @@ import { defineConfig } from "vitest/config";
 // (and pageedit, a page's in the editor), the Markdown renderer, what Share and Download do
 // (sharing, loaded on the first tap of either), the search screen's Filters (refine) and its
 // recent searches (searches; without it, after a cold start offline, search works but shows
-// no Recent). They are not loaded until used, so they are not part of the shell's size
-// budget. (Mermaid, for diagrams, is not kept: it is big.)
+// no Recent), and the top bar's Back on a page opened cold (back; a stalled fetch of it would
+// leave Back dead, its time limit being in it). They are not loaded until used, so they are
+// not part of the shell's size budget. (Mermaid, for diagrams, is not kept: it is big.)
 export const OFFLINE = [
+  "back",
   "composer",
   "editor",
   "page",
