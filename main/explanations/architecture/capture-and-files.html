@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture, files and import &#8212; scrap 0.11.1.dev9+g174eb76ee documentation</title>
+    <title>Capture, files and import &#8212; scrap 0.11.1.dev10+gfdf675a10 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=2c2b9d83"></script>
+    <script src="../../_static/documentation_options.js?v=a215faf5"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1031,6 +1031,12 @@ are never changed.</p></li>
 <li><p><strong>In the PWA.</strong> An embed on a line of its own becomes a figure (tap for the viewer, caption with
 Download and <em>Ask Claude</em>); an embed inside a link, heading, list, quote or beside text stays a
 plain image. Files a page does not embed (PDFs) are listed below the text.</p></li>
+<li><p><strong>Deleted embeds.</strong> Deleting a file’s last embed from a page’s text does not detach it: the
+capture keeps it, so <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> still finds and gathers it as an orphan. The page stops showing
+it: its thumbnail, <code class="docutils literal notranslate"><span class="pre">read</span></code>, the search <code class="docutils literal notranslate"><span class="pre">image_count</span></code> and <code class="docutils literal notranslate"><span class="pre">has:image</span></code>, and <code class="docutils literal notranslate"><span class="pre">is:duplicate</span></code> leave out a
+file whose address an earlier revision of the text had and the current one has not (<code class="docutils literal notranslate"><span class="pre">GONE</span></code> in
+<code class="docutils literal notranslate"><span class="pre">store/constants.py</span></code>, as <code class="docutils literal notranslate"><span class="pre">Store.removed</span></code>). A file the text never mentioned stays listed. Restoring
+the text (a revert) shows the file again (#303).</p></li>
 <li><p><strong>Add photo</strong> to an existing page is <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{key}/captures</span></code> (<code class="docutils literal notranslate"><span class="pre">photos_api.py</span></code>).</p></li>
 <li><p><strong>Download and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code></strong> rewrite embeds and links to the files beside the Markdown, never
 inside code.</p></li>

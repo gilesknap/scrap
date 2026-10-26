@@ -104,6 +104,12 @@ flowchart LR
 - **In the PWA.** An embed on a line of its own becomes a figure (tap for the viewer, caption with
   Download and *Ask Claude*); an embed inside a link, heading, list, quote or beside text stays a
   plain image. Files a page does not embed (PDFs) are listed below the text.
+- **Deleted embeds.** Deleting a file's last embed from a page's text does not detach it: the
+  capture keeps it, so `scrap gc` still finds and gathers it as an orphan. The page stops showing
+  it: its thumbnail, `read`, the search `image_count` and `has:image`, and `is:duplicate` leave out a
+  file whose address an earlier revision of the text had and the current one has not (`GONE` in
+  `store/constants.py`, as `Store.removed`). A file the text never mentioned stays listed. Restoring
+  the text (a revert) shows the file again (#303).
 - **Add photo** to an existing page is `POST /api/pages/{key}/captures` (`photos_api.py`).
 - **Download and `scrap export`** rewrite embeds and links to the files beside the Markdown, never
   inside code.
