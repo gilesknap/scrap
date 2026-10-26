@@ -4,11 +4,12 @@
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.todos section + section,
-.todos section + .donefold {
+/* A list in sections (sections.ts): the Todos screen's Now, and the search screen's groups */
+.groups section + section,
+.groups section + .donefold {
   margin-top: var(--s-4);
 }
-.todos h2.label {
+.groups h2.label {
   margin-top: var(--s-2);
 }
 /* A todo's row: what to do and when, not when it was last edited (two lines, not three). Its

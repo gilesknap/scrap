@@ -91,6 +91,11 @@
 }
 /* A todo's priority, due date and tasks: a line of their own under the date, on every row
    alike (beside it, they fitted on some rows and not others) */
+/* A Later's medium after its date: "26 Oct · Book" */
+.sub small.media::before {
+  content: "·";
+  margin-inline-end: var(--s-2);
+}
 .sub small.due {
   flex-basis: 100%;
 }
