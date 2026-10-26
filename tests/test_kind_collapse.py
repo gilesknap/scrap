@@ -108,7 +108,7 @@ def test_pages_become_documents_with_tags(migrated):
         "LOOSE": ["memory"],
     }  # the topic, the note and the document have none
     with migrated.connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert not conn.execute("PRAGMA foreign_key_check").fetchall()
         assert conn.execute("SELECT page_id FROM topic").fetchall()[0][0] == "TOP"
@@ -148,7 +148,7 @@ def test_migrating_again_changes_nothing(migrated):
     migrated.migrate()
     assert (kinds(migrated), tags(migrated)) == before
     with migrated.connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
 
 
 def test_check_takes_only_the_five_kinds(migrated, tmp_path):
@@ -168,7 +168,7 @@ def test_a_new_store_has_the_same_check(tmp_path):
     store = Store(tmp_path / "new")
     store.migrate()
     with store.connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
         (sql,) = conn.execute(
             "SELECT sql FROM sqlite_master WHERE name = 'page'"
         ).fetchone()

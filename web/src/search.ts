@@ -218,7 +218,7 @@ export async function search(): Promise<Node> {
     const ul = h("ul", { className: "list hits" });
     try {
       // limit hits (Show more adds PAGE), fetched PAGE at a time: the API's most per request.
-      // The server never sees group: (terms.ts served)
+      // The server gets the group in force (terms.ts served)
       const hits: Hit[] = [];
       for (let offset = 0; offset < limit; offset += PAGE) {
         const q = `q=${encodeURIComponent(served(query))}&limit=${PAGE}&offset=${offset}`;

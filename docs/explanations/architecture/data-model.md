@@ -274,7 +274,7 @@ stateDiagram-v2
 
 Script *N* sets `PRAGMA user_version = N`. `migrate()` takes an exclusive `flock` on `db.lock`,
 turns on WAL and applies each missing script in one transaction, with an optional Python step from
-`store.AFTER` in the same transaction.
+`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)).
 
 | Migration | Adds or changes |
 | --- | --- |

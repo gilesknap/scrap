@@ -75,9 +75,9 @@ class Fake:
         )
 
 
-def answer(tags=(), summary="", title="", related=()):
+def answer(tags=(), summary="", title="", related=(), media=""):
     return {"tags": list(tags), "summary": summary, "title": title,
-            "related": list(related)}  # fmt: skip
+            "related": list(related), "media_type": media}  # fmt: skip
 
 
 def worker(store, fake, fetcher=None):
@@ -698,6 +698,29 @@ def page_fetch(url):
     return fetch.Fetched(
         url + "?final", "The Shed Book | Example", "All about sheds", "Sheds. " * 50
     )
+
+
+@pytest.mark.parametrize(
+    ("url", "said", "media", "subtype"),
+    [
+        ("https://example.com/shed", "book", "book", "read"),
+        ("https://example.com/shed", "", None, "read"),
+        ("https://example.com/shed", "nonsense", None, "read"),
+        ("https://www.youtube.com/watch?v=1", "article", "video", "watch"),
+        ("https://open.spotify.com/episode/9", "music", "podcast", "listen"),
+        ("https://open.spotify.com/track/9", "", "music", "listen"),
+        ("https://www.imdb.com/title/tt1/", "tv", "film", "watch"),
+    ],
+)
+def test_a_link_gets_its_type_from_the_site_then_the_model(
+    store, url, said, media, subtype
+):
+    ref = capture(store, url=url)
+    fake = Fake(answer(["x"], "S.", "T", media=said))
+    run_all(worker(store, fake, page_fetch))
+    fields = store.page(ref["page_id"])["fields"]
+    assert fields.get("media_type") == media
+    assert fields["subtype"] == subtype
 
 
 def test_a_link_is_fetched_titled_summarised_and_filed_as_later(store):

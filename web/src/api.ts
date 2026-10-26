@@ -125,6 +125,7 @@ export interface Hit
   > {
   snippet: string;
   topic?: boolean; // a topic page (#261): labelled in the results
+  tags: string[]; // for group:tag
 }
 
 /** An error's detail as text: a string as is; a validation list's first "field: msg". */

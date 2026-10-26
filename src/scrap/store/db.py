@@ -14,8 +14,10 @@ from typing import Any
 
 from ..markdown import wiki_targets
 from ..public import public_origins
+from . import grouping
 from .fixes import (
     add_enrich,
+    add_fields_was,
     add_meta_revs,
     add_related_reason,
     add_snooze,
@@ -84,6 +86,8 @@ def connect(db: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(db, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.create_function("wiki_links", 1, wiki_links, deterministic=True)
+    for name, (args, fn) in grouping.FUNCTIONS.items():
+        conn.create_function(name, args, fn, deterministic=True)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 5000")
     return conn
@@ -148,4 +152,5 @@ AFTER = {
     12: add_writeups,
     13: add_topics,
     14: collapse_kinds,
+    15: add_fields_was,
 }  # fmt: skip

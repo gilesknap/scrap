@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from .. import actions, claude
-from ..query import CONTROL
+from ..query import CONTROL, MEDIA
 from ..store import MAX_TAG, WIKI_LINK, now, topics
 from ..store.constants import MD_LINK
 from .constants import (
@@ -73,12 +73,14 @@ def checked(
     summary = " ".join(CONTROL.sub(" ", summary).split())[:MAX_SUMMARY]
     title = out["title"] if isinstance(out["title"], str) else ""
     title = " ".join(CONTROL.sub(" ", title).split())[:MAX_TITLE] if link else ""
+    media = out.get("media_type")
     intent, confidence = actions.clean_intent(out)
     items = actions.clean_items(out.get("items")) if intent == actions.INTENT else []
     return {
         "tags": tags[: MAX_NEW_TAGS * 2],
         "summary": summary if want_summary else "",
         "title": title,
+        "media_type": media if link and media in MEDIA else "",
         "intent": intent,
         "confidence": confidence,
         "items": [{"text": t, "done": d} for t, d in items],

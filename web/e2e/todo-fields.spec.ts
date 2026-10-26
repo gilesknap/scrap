@@ -25,7 +25,7 @@ const api = async (page: Page, id: string) =>
     due: string | null;
     priority: string | null;
   };
-const hits = (page: Page) => page.locator(".hits li a strong");
+const hits = (page: Page) => page.locator(".list li a strong");
 const rowOf = (page: Page, title: string) => page.locator(".list li").filter({ hasText: title });
 
 const made: Record<string, { page_id: string; slug: string }> = {};
@@ -75,10 +75,10 @@ test("a todo search: its orders in Filters, and due: typed (no due views there)"
   await expect(box).toHaveValue("numbat kind:todo sort:due");
   await expect(hits(page)).toHaveText([
     "Numbat late",
-    "Numbat done",
     "Numbat today",
     "Numbat soon",
     "Numbat none",
+    "Numbat done", // done and cancelled last, in a fold (a todo search is grouped by Now)
   ]);
   // Typed, the views' filters still work
   await page.goto("/search?q=numbat+kind%3Atodo+due%3A%3Ctoday+-is%3Adone");
@@ -196,6 +196,7 @@ test("the todo views meet AA contrast, in both themes", async ({ page }) => {
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} rows`).toEqual([]);
     await filters(page);
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} filters`).toEqual([]);
+    await page.locator(".donefold > summary").click(); // done todos are folded away
     await expect(rowOf(page, "Numbat done").locator(".due.closed")).toBeVisible();
     await page.goto(`/p/${made.late.slug}`);
     await expect(page.locator(".todoline .late")).toBeVisible();

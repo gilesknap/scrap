@@ -429,7 +429,18 @@ def test_due_values():
     assert due(">=2026-11-01", today) == (">=", "2026-11-01")
     assert due("=2026-11-01", today) == ("=", "2026-11-01")
     assert due("none", today) == ("none", None)
-    for bad in ("soon", "<", "<=", "2026-02-30", "2026-1-1", "<none", "1w", "=<today"):
+    for bad in (
+        "soon",
+        "<",
+        "<=",
+        "2026-02-30",
+        "2026-1-1",
+        "<none",
+        "1x",
+        "0d",
+        "101d",
+        "=<today",
+    ):
         assert due(bad, today) is None, bad
     assert parse("due:<Today").filters == [Filter("due", "<today", False, "due:<Today")]
 

@@ -423,7 +423,9 @@ def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
     assert risky == {"trash", "undelete"}
     for name, args in names.items():
         if name not in ("write", "edit_page"):
-            assert not args & {"body", "title", "text", "fields", "status"}, name
+            assert not args & {"body", "title", "text", "status"}, name
+            # fields only as edit_meta's metadata revision (#309), which revert undoes
+            assert ("fields" in args) == (name == "edit_meta"), name
     ref = human(store, TEXT)
     assert "needs rev" in refused(store, "edit_page", page=ref["slug"], body="x")
     ok(store, "edit_page", page=ref["slug"], old="milk", new="tea")

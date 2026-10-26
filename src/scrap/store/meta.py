@@ -4,6 +4,7 @@ import json
 import sqlite3
 from typing import Any
 
+from ..query import MEDIA, subtype_of
 from .constants import (
     FIRST_CAPTURE,
     KIND_NAMES,
@@ -19,8 +20,16 @@ from .constants import (
 from .core import Core
 from .db import transaction
 from .errors import InvalidError
-from .helpers import clean_tags, fields_for, meta_of, new_ulid, now, seconds_between
-from .types import Meta
+from .helpers import (
+    check_value,
+    clean_tags,
+    fields_for,
+    meta_of,
+    new_ulid,
+    now,
+    seconds_between,
+)
+from .types import FieldEdit, Meta
 
 
 class MetaMixin(Core):
@@ -65,18 +74,20 @@ class MetaMixin(Core):
         added: dict[str, Value] | None = None,
         reverts: int | None = None,
         batch: str | None = None,
+        was: dict[str, Value] | None = None,
     ) -> int | None:
-        """Record a change to a page's kind and tags (and the default fields a new
-        kind added), returning its revision's id; none, no revision (a revert always
-        is one). Coalesced: a change by the same author and source within
+        """Record a change to a page's kind and tags (and the fields it set: the default
+        fields a new kind added, or edit_meta's fields; was: their values before, or
+        those it took off), returning its revision's id; none, no revision (a revert
+        always is one). Coalesced: a change by the same author and source within
         self.window seconds of the page's latest revision being made folds into it
         (its after becomes this one's), as long as nothing else changed them between
         (that revision's after is this one's before); a fold that leaves it changing
         nothing drops it. A revert, or a change in a batch, never folds into another
         nor is folded into. Kinds that follow a page's text (task boxes file a note as
         a todo) and what ingest sets are not revisions: they are derived."""
-        added = added or {}
-        if reverts is None and before == after and not added:
+        added, was = added or {}, was or {}
+        if reverts is None and before == after and not added and not was:
             return None
         if source not in META_SOURCES:
             raise InvalidError(f"source must be one of {META_SOURCES}")
@@ -95,24 +106,27 @@ class MetaMixin(Core):
             and 0 <= seconds_between(last["created_at"], stamp) < self.window
         ):
             merged = {**json.loads(last["fields_added"]), **added}
-            if meta_of(last, "before") == after and not merged:  # nothing, in all
+            merged_was = {**was, **json.loads(last["fields_was"])}  # the first's wins
+            if meta_of(last, "before") == after and not merged and not merged_was:
+                # nothing, in all
                 conn.execute("DELETE FROM page_meta_rev WHERE id = ?", (last["id"],))
                 return None
             conn.execute(
                 "UPDATE page_meta_rev SET kind_after = ?, fixed_after = ?,"
-                " tags_after = ?, fields_added = ?, updated_at = ? WHERE id = ?",
+                " tags_after = ?, fields_added = ?, fields_was = ?, updated_at = ?"
+                " WHERE id = ?",
                 (after.kind, after.fixed, json.dumps(after.tags), json.dumps(merged),
-                 stamp, last["id"]),
+                 json.dumps(merged_was), stamp, last["id"]),
             )  # fmt: skip
             return last["id"]
         cur = conn.execute(
             "INSERT INTO page_meta_rev (page_id, author, source, kind_before,"
             " kind_after, fixed_before, fixed_after, tags_before, tags_after,"
-            " fields_added, reverts, batch_id, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " fields_added, fields_was, reverts, batch_id, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (page_id, author, source, before.kind, after.kind, before.fixed,
              after.fixed, json.dumps(before.tags), json.dumps(after.tags),
-             json.dumps(added), reverts, batch, stamp, stamp),
+             json.dumps(added), json.dumps(was), reverts, batch, stamp, stamp),
         )  # fmt: skip
         return cur.lastrowid
 
@@ -122,24 +136,42 @@ class MetaMixin(Core):
         page_id: str,
         before: Meta,
         after: Meta,
-        drop: dict[str, Any] | None = None,
-    ) -> tuple[dict[str, Any], dict[str, Value], dict[str, Any]]:
-        """A page's fields once given after's kind: with the defaults a new kind adds
-        (as the PWA's kind picker), and without those of drop that still hold the
-        value it gives (a revert takes off what the change it undoes added, unless
-        changed since). Returns the fields, those added and those removed."""
+        edit: FieldEdit | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Value], dict[str, Any], dict[str, Value]]:
+        """A page's fields once given after's kind (as the PWA's kind picker: that
+        kind's defaults it lacks) and edit: its put set (None takes one off), and, for
+        a revert, its drop and was undone: what the change it undoes set is taken off
+        or changed back to what it was, unless changed since. Returns the fields, those
+        added (set, or given back), those dropped (taken off or changed back: their
+        values now) and the values the fields changed had before (was)."""
+        edit = edit or FieldEdit()
         row = conn.execute("SELECT fields FROM page WHERE id = ?", (page_id,))
         fields = json.loads(row.fetchone()[0])
         added = {}
         if after.kind != before.kind:
             added = self._defaults(conn, page_id, after.kind, fields)
-        dropped = {
-            k: v for k, v in (drop or {}).items() if fields.get(k) == v
-        }  # fmt: skip
-        fields = {k: v for k, v in {**fields, **added}.items() if k not in dropped}
+        fields = {**fields, **added}
+        undone = {  # key -> what to give back (None: take it off)
+            k: edit.was.get(k)
+            for k in edit.drop.keys() | edit.was.keys()
+            if fields.get(k) == edit.drop.get(k)
+        }
+        dropped = {k: fields[k] for k in undone if k in fields}
+        gave = {k: v for k, v in undone.items() if v is not None}
+        was: dict[str, Value] = dict(dropped)
+        fields = {k: v for k, v in fields.items() if k not in undone} | gave
+        for k, v in edit.put.items():
+            if fields.get(k) == v:
+                continue
+            if k in fields:
+                was[k] = fields[k]
+            fields.pop(k, None)
+            if v is not None:
+                fields[k], added[k] = v, v
+        added |= gave
         if len(fields) > MAX_FIELDS:
             raise InvalidError(f"a page has at most {MAX_FIELDS} fields")
-        return fields, added, dropped
+        return fields, added, dropped, was
 
     def _put_meta(
         self,
@@ -151,12 +183,12 @@ class MetaMixin(Core):
         source: str,
         reverts: int | None = None,
         batch: str | None = None,
-        drop: dict[str, Any] | None = None,
-    ) -> tuple[int | None, dict[str, Value], dict[str, Any]]:
+        edit: FieldEdit | None = None,
+    ) -> tuple[int | None, dict[str, Value], dict[str, Any], dict[str, Value]]:
         """Give a page after's kind (with its fields: _plan), fixed or not, and tags,
-        as a revision; its search chunk again. Returns the revision's id and the
-        fields added and removed."""
-        fields, added, dropped = self._plan(conn, page_id, before, after, drop)
+        as a revision; its search chunk again. Returns the revision's id, the fields
+        added and removed, and the values of those changed before."""
+        fields, added, dropped, was = self._plan(conn, page_id, before, after, edit)
         conn.execute(
             "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
             (after.kind, after.fixed, json.dumps(fields), page_id),
@@ -167,11 +199,12 @@ class MetaMixin(Core):
                 "INSERT INTO tag VALUES (?, ?)", [(page_id, t) for t in after.tags]
             )
             self._model_tags(conn, page_id, after.tags)  # as a PWA tag save
-            self.reindex(conn, page_id)
+        if after.tags != before.tags or added or dropped or was:
+            self.reindex(conn, page_id)  # (its summary is a field)
         revision = self._record_meta(
-            conn, page_id, author, source, before, after, added, reverts, batch
+            conn, page_id, author, source, before, after, added, reverts, batch, was
         )
-        return revision, added, dropped
+        return revision, added, dropped, was
 
     @staticmethod
     def _change(
@@ -181,11 +214,12 @@ class MetaMixin(Core):
         revision: int | None,
         added: dict[str, Any],
         dropped: dict[str, Any] | None = None,
+        was: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """What a metadata edit did (or, in a dry run, would do) to a page."""
         return {
             "id": page["id"], "slug": page["slug"], "title": page["title"],
-            "changed": before != after or bool(added or dropped),
+            "changed": before != after or bool(added or dropped or was),
             "revision": revision,
             "kind_before": before.kind, "kind_after": after.kind,
             "fixed_before": bool(before.fixed), "fixed_after": bool(after.fixed),
@@ -193,6 +227,7 @@ class MetaMixin(Core):
             "tags_added": [t for t in after.tags if t not in before.tags],
             "tags_removed": [t for t in before.tags if t not in after.tags],
             "fields_added": added, "fields_removed": dropped or {},
+            "fields_was": was or {},
         }  # fmt: skip
 
     def _apply(
@@ -206,17 +241,41 @@ class MetaMixin(Core):
         dry_run: bool,
         batch: str | None,
         reverts: int | None = None,
-        drop: dict[str, Any] | None = None,
+        edit: FieldEdit | None = None,
     ) -> dict[str, Any]:
         """One page's metadata change, or with dry_run what it would be."""
         if dry_run:
-            _, added, dropped = self._plan(conn, page["id"], before, after, drop)
-            return self._change(page, before, after, None, added, dropped)
-        revision, added, dropped = self._put_meta(
-            conn, page["id"], before, after, author, source, reverts, batch, drop
+            _, added, dropped, was = self._plan(conn, page["id"], before, after, edit)
+            return self._change(page, before, after, None, added, dropped, was)
+        revision, added, dropped, was = self._put_meta(
+            conn, page["id"], before, after, author, source, reverts, batch, edit
         )
-        out = self._change(page, before, after, revision, added, dropped)
+        out = self._change(page, before, after, revision, added, dropped, was)
         return {**out, "batch": batch if revision else None}
+
+    @staticmethod
+    def _field_puts(fields: dict[str, Value | None] | None) -> dict[str, Any]:
+        """The fields edit_meta is to set, checked: a name and value the PWA could
+        show, a media_type one of the known media, and no subtype of its own."""
+        put = dict(fields or {})
+        for name, value in put.items():
+            if not name or len(name) > MAX_TAG or name.startswith("_"):
+                raise InvalidError(f"a field name must be 1 to {MAX_TAG} characters")
+            if value is not None:
+                check_value(name, value)
+        if "subtype" in put:
+            raise InvalidError("subtype follows media_type: set media_type instead")
+        if put.get("media_type") not in (None, *MEDIA):
+            raise InvalidError(f"media_type must be one of {tuple(MEDIA)}")
+        return put
+
+    @staticmethod
+    def _subtyped(put: dict[str, Any], kind: str) -> dict[str, Any]:
+        """put, and for a Later with a media_type in it the subtype it gives (read
+        for none)."""
+        if "media_type" not in put or kind != "consume":
+            return put
+        return {**put, "subtype": subtype_of(put["media_type"])}
 
     def edit_meta(
         self,
@@ -229,6 +288,7 @@ class MetaMixin(Core):
         tags: list[str] | None = None,
         dry_run: bool = False,
         batch: bool = False,
+        fields: dict[str, Value | None] | None = None,
     ) -> dict[str, Any]:
         """Set the kind of these pages (ids or slugs; fixed, as the PWA's picker
         does, even if it is theirs already) and/or change their tags: add and remove
@@ -238,7 +298,11 @@ class MetaMixin(Core):
         returned, which revert_batch undoes at once. updated_at stays as it was, as
         for the PWA's tag and kind edits. All or nothing: an unknown page or a
         refused change saves none. dry_run: say what would change, save nothing.
-        Never the title, the text or other fields."""
+        fields sets (None takes off) these fields of every page, as part of the same
+        revision (fields_added, and their values before: fields_was): a Later's
+        media_type also sets its subtype, which it never has on its own. Never the
+        title or the text."""
+        put = self._field_puts(fields)
         kind = KIND_NAMES.get(kind, kind) if kind is not None else None
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
@@ -267,7 +331,8 @@ class MetaMixin(Core):
                 if len(after.tags) > MAX_TAGS:
                     raise InvalidError(f"{page['slug']}: over {MAX_TAGS} tags")
                 out.append(self._apply(
-                    conn, page, before, after, author, source, dry_run, batch_id
+                    conn, page, before, after, author, source, dry_run, batch_id,
+                    edit=FieldEdit(put=self._subtyped(put, after.kind)),
                 ))  # fmt: skip
         changed = any(c["revision"] for c in out)
         return {"batch": batch_id if changed else None, "pages": out}

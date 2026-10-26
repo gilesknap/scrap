@@ -275,6 +275,7 @@ def meta_row(row: sqlite3.Row) -> dict[str, Any]:
         "fixed_before": bool(row["fixed_before"]),
         "fixed_after": bool(row["fixed_after"]),
         "fields_added": json.loads(row["fields_added"]),
+        "fields_was": json.loads(row["fields_was"]),
         "tags_added": [t for t in after if t not in before],
         "tags_removed": [t for t in before if t not in after],
     }  # fmt: skip

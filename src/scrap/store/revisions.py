@@ -21,6 +21,7 @@ from .helpers import (
     seconds_between,
 )
 from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .types import FieldEdit
 
 
 class RevisionsMixin(Core):
@@ -52,12 +53,14 @@ class RevisionsMixin(Core):
         batch: str | None,
     ) -> dict[str, Any]:
         before, after = self._meta(conn, page["id"]), meta_of(row, "before")
-        drop = json.loads(row["fields_added"])
-        _, added, dropped = self._plan(conn, page["id"], before, after, drop)
+        undo = FieldEdit(
+            drop=json.loads(row["fields_added"]), was=json.loads(row["fields_was"])
+        )
+        _, added, dropped, was = self._plan(conn, page["id"], before, after, undo)
         if dry_run or (before == after and not added and not dropped):
-            return self._change(page, before, after, None, added, dropped)
+            return self._change(page, before, after, None, added, dropped, was)
         return self._apply(
-            conn, page, before, after, author, source, False, batch, row["id"], drop
+            conn, page, before, after, author, source, False, batch, row["id"], undo
         )
 
     def revert_batch(

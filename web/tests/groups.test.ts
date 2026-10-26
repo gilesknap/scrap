@@ -43,11 +43,15 @@ describe("group: in the query", () => {
     expect(withGroup("tag:person group:tag", "letter")).toBe("tag:person group:letter");
     expect(withGroup("tag:person group:letter", "none")).toBe("tag:person");
   });
-  it("never sends group: to the server, and sorts A–Z groups A–Z", () => {
+  it("sends the server the group in force, once", () => {
     expect(ungrouped("tag:person group:tag x")).toBe("tag:person x");
-    expect(served("tag:person group:letter")).toBe("tag:person sort:title");
-    expect(served("tag:person group:letter sort:created")).toBe("tag:person sort:created");
-    expect(served("kind:later")).toBe("kind:later");
+    expect(served("tag:person group:letter")).toBe("tag:person group:letter");
+    expect(served("tag:person group:letter sort:created")).toBe(
+      "tag:person sort:created group:letter",
+    );
+    expect(served("kind:later")).toBe("kind:later group:type");
+    expect(served("kind:later group:none")).toBe("kind:later");
+    expect(served("group:tag x")).toBe("x");
   });
 });
 

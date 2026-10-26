@@ -24,7 +24,6 @@ import {
   listing,
   MEDIA,
   removing,
-  served,
   tagsIn,
   token,
   ungrouped,
@@ -57,7 +56,7 @@ const NONE: Facets = {
   personal: { work: 0, personal: 0 },
   active: [],
 };
-// (without its group: words, which are the app's: terms.ts served)
+// (without its group: words: terms.ts ungrouped)
 const facets = (q: string, signal?: AbortSignal) =>
   ungrouped(q)
     ? api<Facets>(`search/facets?q=${encodeURIComponent(ungrouped(q))}`, { signal })
@@ -336,10 +335,10 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   // Order: one tap each; the default (best match, or last edited) has its own chip
   const todos = kindsIn(q).length === 1 && kindsIn(q)[0][1] === "todo";
   const last = f.active.filter((a) => a.key === "sort").at(-1);
-  // (grouped A–Z with no order chosen: A–Z, as served)
+  // (grouped A–Z with no order chosen: A–Z, as the server does)
   const now = last
     ? `${last.neg ? "-" : ""}sort:${last.value}`
-    : served(q) !== ungrouped(q)
+    : groupBy(q) === "letter"
       ? "sort:title"
       : "";
   const words = q.split(/\s+/).some((w) => w && !"-!".includes(w[0]) && !w.includes(":"));

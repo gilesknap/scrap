@@ -133,7 +133,7 @@ export function listing(q: string): string | null {
 
 // ---- grouping the results (group:letter, group:tag, group:type, group:now, group:due,
 // group:none): read
-// by the app, never sent to the server (served())
+// asked in the query; the server gets the one in force (served()) and orders by it
 
 /** How a list can be grouped (groups.ts makes the sections). */
 export type Group = "letter" | "tag" | "type" | "now" | "due";
@@ -189,11 +189,13 @@ export function withGroup(q: string, g: Group | "none"): string {
   return g === (groupDefault(rest) ?? "none") ? rest : adding(rest, `group:${g}`);
 }
 
-/** The query as the server gets it: no group: words, and A–Z groups sorted A–Z unless an
- * order is chosen. */
+/** The query as the server gets it: its group: words replaced by the one in force (the
+ * server orders by section, so a page never splits one; A–Z groups sort A–Z there unless an
+ * order is chosen), or none. */
 export function served(q: string): string {
   const rest = ungrouped(q);
-  return groupBy(q) === "letter" && !keyed(rest, "sort").length ? adding(rest, "sort:title") : rest;
+  const g = groupBy(q);
+  return g ? adding(rest, `group:${g}`) : rest;
 }
 
 // ---- Later's own: media:book (its medium) and later:watch (what it is for: read, watch,

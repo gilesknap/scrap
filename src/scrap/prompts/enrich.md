@@ -14,5 +14,8 @@ Return, via the structured output:
   scanning a list. Say what it is, not "this page". Leave it empty ("") if the request says no
   summary is wanted, or if there is nothing to summarise (the fetch failed and nothing else is
   known).
+- `media_type`: only for a saved link, what it is: book (a book, or a book's page), article (a
+  written article, post or paper), film, tv (a series or episode), video (a clip, talk or lecture),
+  podcast, music, or game. Otherwise "". Choose the nearest one; "" only if none fits.
 - `title`: only for a saved link: a short title for the linked page (at most 10 words), usually
   its own title tidied up (no site name or clutter). Otherwise "".

@@ -20,6 +20,7 @@ import {
   todoStart,
   toSend,
 } from "./editor";
+import { laterField, mediaFields, mediaNow, mediaSays } from "./lateredit";
 import { tooLong } from "./pagecap";
 import { textPart } from "./textpart";
 import { h, toast } from "./ui";
@@ -32,6 +33,7 @@ interface Draft {
   tags?: string[];
   tagsFrom?: string[]; // the page's tags when it was made: changed elsewhere since, they stay
   todo?: { due: string | null; priority: string | null }; // a todo's, if changed
+  media?: string; // a Later page's type, if changed
   base: number; // the revision it was made on
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
@@ -76,10 +78,18 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
     const t = todoNow();
     return !!t && (t.due !== (p.due ?? null) || t.priority !== (p.priority ?? null));
   };
+  // A Later page's type (Book, Film ...): shown while the kind is Later, sent if changed
+  const mediaWas = mediaNow(p.fields);
+  const later = laterField(kept?.media ?? mediaWas);
+  const retyped = () => kind.value() === "consume" && later.value() !== mediaWas;
   // Folded into a line each, under the title: the text stays the hero
   const tagLine = fold("Tags", tags.el, () => tagsSay(tags.value()), "tag");
   const todoLine = fold("Due", todo.el, () => todoSays(todo.value()), "due");
-  const showTodo = () => (todoLine.el.hidden = kind.value() !== "todo");
+  const laterLine = fold("Type", later.el, () => mediaSays(later.value()), "later");
+  const showTodo = () => {
+    todoLine.el.hidden = kind.value() !== "todo";
+    laterLine.el.hidden = kind.value() !== "consume";
+  };
   kind.el.addEventListener("change", showTodo);
   showTodo();
   const conflict = h("div");
@@ -101,6 +111,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
           kind: toSend(kind.value(), kind.picked(), p.kind),
           ...(retagged() && { tags: tags.value() }),
           ...(redated() && todoNow()),
+          ...(retyped() && { fields: mediaFields(later.value()) }),
         }),
       });
       closed = true;
@@ -161,7 +172,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   const ed = editor({
     text,
     read: body,
-    before: [kind.el, title, tagLine.el, todoLine.el],
+    before: [kind.el, title, tagLine.el, todoLine.el, laterLine.el],
     after: [...(takesPhotos(p) ? [photoAdder(p)] : []), conflict],
     foot: embeds.chips,
     key,
@@ -173,6 +184,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
       tags: tags.value(),
       tagsFrom,
       ...(redated() && { todo: todo.value() }),
+      ...(retyped() && { media: later.value() }),
       base,
     }),
     dirty: () =>
@@ -180,7 +192,8 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
       body() !== at.body ||
       kind.value() !== was ||
       retagged() ||
-      redated(),
+      redated() ||
+      retyped(),
     restored: !!kept,
     ondiscard: () => {
       title.value = p.title;
@@ -189,9 +202,11 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
       tags.reset(p.tags);
       tagsFrom = p.tags;
       todo.reset(p.due ?? null, p.priority ?? null);
+      later.reset(mediaWas);
       showTodo();
       tagLine.refresh();
       todoLine.refresh();
+      laterLine.refresh();
       base = at.rev;
       over = at.body;
     },

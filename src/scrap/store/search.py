@@ -10,6 +10,8 @@ from typing import Any
 from ..markdown import plain
 from ..query import (
     CONTROL,
+    MEDIA,
+    SUBTYPES,
     Query,
     bound,
     due,
@@ -30,9 +32,21 @@ from .constants import (
 )
 from .core import Core
 from .db import _rows
+from .grouping import order as group_order
 from .health import CHECKS, condition
 from .helpers import checked_query, tag_counts, todo_only, unlink
 from .topics import IS_TOPIC
+
+# media:M and later:T filter by a Later's medium and what it is for: the column of
+# its fields, and the values it takes. A Later with no subtype is to read.
+LATER = {
+    "media": ("json_extract(p.fields, '$.media_type')", MEDIA),
+    "later": (
+        "CASE WHEN p.kind = 'consume' THEN"
+        " coalesce(json_extract(p.fields, '$.subtype'), 'read') END",
+        SUBTYPES,
+    ),
+}
 
 
 class SearchMixin(Core):
@@ -113,7 +127,8 @@ class SearchMixin(Core):
         topic page (#261: is:topic lists them) first within the title tier and the
         title, tags and summary tier; a query
         of filters alone lists its pages newest first; sort: orders either its own
-        way. offset: skip that many hits (the next page of results)."""
+        way, and group: puts the pages in their sections first (grouping.py), each page
+        with its tags. offset: skip that many hits (the next page of results)."""
         q = checked_query(query)
         if not q.terms and not q.filters:
             return []
@@ -121,10 +136,13 @@ class SearchMixin(Core):
         # sort: first, then the default order (a page's chunks share its sort key, so
         # its best chunk still comes first). Pages with no due date or priority last.
         order = ""
-        if q.sort:
-            key, desc = q.sort
+        sort = q.sort or (("title", False) if q.group == "letter" else None)  # A-Z
+        if sort:
+            key, desc = sort
             way = "DESC" if desc else "ASC"
             order = f"{SORT_SQL[key]} {way} NULLS LAST, p.id {way}, "
+        sections, section_args = group_order(q)  # group: first of all
+        order = sections + order
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
@@ -146,7 +164,7 @@ class SearchMixin(Core):
                     f" ORDER BY {order}({topic} AND {tier}) DESC, {tier} DESC,"
                     f" ({topic} AND {tier}) DESC, {tier} DESC,"
                     f" bm25(chunk_fts, {WEIGHTS}), c.id",
-                    (" OR ".join(q.fts(t) for t in q.positive), *args,
+                    (" OR ".join(q.fts(t) for t in q.positive), *args, *section_args,
                      f"title : ({every})", f"title : ({every})",
                      f"{{title tags summary}} : ({every})",
                      f"{{title tags summary}} : ({every})"),
@@ -157,7 +175,7 @@ class SearchMixin(Core):
                     " p.snoozed_until, p.task_done, p.task_total, p.body AS snippet"
                     f" FROM page p WHERE {where}"
                     f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
-                    (*args, limit, offset),
+                    (*args, *section_args, limit, offset),
                 )
                 offset = 0  # done by SQL
             for row in rows:
@@ -172,6 +190,8 @@ class SearchMixin(Core):
                 (json.dumps(list(hits)),),
             ):
                 hits[row["id"]] |= {"updated_at": row[1], "thumb": row[2]}
+        for page_id, tags in self.tags_of(list(hits)).items():  # for group:tag
+            hits[page_id]["tags"] = tags
         for hit in hits.values():  # HTML-safe, with matches in <mark>
             hit["fields"] = json.loads(hit["fields"])
             todo_only(hit)
@@ -263,6 +283,11 @@ class SearchMixin(Core):
         if priorities:  # one each, as kinds: priority:high priority:medium is either
             sql.append(f"{TODO_SQL}{RANK} IN (SELECT value FROM json_each(?))")
             args.append(json.dumps([PRIORITY_NAMES.get(v, v) for v in priorities]))
+        for key, (column, values) in LATER.items():  # a Later's: either of the positive
+            asked = [f.value for f in q.filters if f.key == key and not f.neg]
+            if asked:  # (a value that is none of the known ones finds nothing)
+                sql.append(f"coalesce({column} IN (SELECT value FROM json_each(?)), 0)")
+                args.append(json.dumps([v for v in asked if v in values]))
         dated = "created_at" if ("date", "created") in [
             (f.key, f.value) for f in q.filters if not f.neg
         ] else "updated_at"  # fmt: skip
@@ -321,8 +346,13 @@ class SearchMixin(Core):
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")
-            elif f.key == "sort":  # an order, not a condition: see search()
+            elif f.key in ("sort", "group"):  # an order, not a condition: see search()
                 continue
+            elif f.key in LATER and not f.neg:
+                continue  # see above: either of them
+            elif f.key in LATER:  # -media:book: a page of another medium (or none)
+                sql.append(f"coalesce({LATER[f.key][0]} <> ?, 1)")
+                args.append(f.value)
             elif f.key == "due":  # a todo's: due:<today, due:2026-11-01, due:none
                 asked = due(f.value)
                 if asked is None:  # not a day: nothing (and with -, everything)

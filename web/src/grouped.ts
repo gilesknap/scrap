@@ -8,12 +8,9 @@ import { today } from "./status";
 import { adding, type Group, tagsIn, words } from "./terms";
 import { h } from "./ui";
 
-// The tags each hit has, for group:tag (the mock's server sends them with each hit)
-type Tagged = Hit & { tags?: string[] };
-
 /** The hits in sections, by how; row draws a hit's row; label: the pager's list. */
 export function grouped(
-  hits: Tagged[],
+  hits: Hit[],
   how: Group,
   query: string,
   row: (hit: Hit) => Element,
