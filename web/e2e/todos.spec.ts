@@ -23,6 +23,8 @@ const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
 };
+/** A word of this run only: every spec, and every repeat of this one, shares one store. */
+const word = () => ulid().slice(-5).toLowerCase();
 async function todo(page: Page, text: string, extra: Record<string, string> = {}) {
   const id = ulid();
   const r = await page.request.post("/api/captures", {
@@ -33,24 +35,26 @@ async function todo(page: Page, text: string, extra: Record<string, string> = {}
 }
 
 const made: Record<string, { page_id: string; slug: string }> = {};
+let Q = "Quoll"; // these todos' first words: "Quoll" and a word of their own
 test.beforeAll(async ({ request }) => {
   const page = { request } as Page;
+  Q = `Quoll ${word()}`;
   // Made in an order unlike the ranking, so last-edited order can't pass for it
-  made.rest = await todo(page, "Quoll later none");
-  made.soonMedium = await todo(page, "Quoll later medium", { due: day(3), priority: "medium" });
-  made.lateNew = await todo(page, "Quoll late new", { due: day(-1), priority: "high" });
-  made.todayLow = await todo(page, "Quoll today low", { due: day(0), priority: "low" });
-  made.high = await todo(page, "Quoll high no date", { priority: "high" });
-  made.lateOld = await todo(page, "Quoll late old", { due: day(-5), priority: "low" });
-  made.todayHigh = await todo(page, "Quoll today high", { due: day(0), priority: "high" });
-  made.farHigh = await todo(page, "Quoll later high", { due: day(10), priority: "high" });
-  made.done = await todo(page, "Quoll done", { due: day(-3) });
+  made.rest = await todo(page, `${Q} later none`);
+  made.soonMedium = await todo(page, `${Q} later medium`, { due: day(3), priority: "medium" });
+  made.lateNew = await todo(page, `${Q} late new`, { due: day(-1), priority: "high" });
+  made.todayLow = await todo(page, `${Q} today low`, { due: day(0), priority: "low" });
+  made.high = await todo(page, `${Q} high no date`, { priority: "high" });
+  made.lateOld = await todo(page, `${Q} late old`, { due: day(-5), priority: "low" });
+  made.todayHigh = await todo(page, `${Q} today high`, { due: day(0), priority: "high" });
+  made.farHigh = await todo(page, `${Q} later high`, { due: day(10), priority: "high" });
+  made.done = await todo(page, `${Q} done`, { due: day(-3) });
   await request.patch(`/api/pages/${made.done.page_id}`, { data: { fields: { status: "done" } } });
 });
 
-/** The Quoll rows shown, in order (others' todos share the store). */
+/** This run's Quoll rows shown, in order (others' todos share the store). */
 const quolls = async (page: Page, scope = ".todos > div > :is(section, ul) li") =>
-  (await page.locator(`${scope} a strong`).allTextContents()).filter((t) => t.startsWith("Quoll"));
+  (await page.locator(`${scope} a strong`).allTextContents()).filter((t) => t.startsWith(`${Q} `));
 
 test("Now ranks open todos: overdue, today, high priority, then the rest", async ({ page }) => {
   await page.goto("/todos");
@@ -64,32 +68,32 @@ test("Now ranks open todos: overdue, today, high priority, then the rest", async
   await expect
     .poll(() => quolls(page))
     .toEqual([
-      "Quoll late old",
-      "Quoll late new",
-      "Quoll today high",
-      "Quoll today low",
-      "Quoll high no date",
-      "Quoll later high",
-      "Quoll later medium",
-      "Quoll later none",
+      `${Q} late old`,
+      `${Q} late new`,
+      `${Q} today high`,
+      `${Q} today low`,
+      `${Q} high no date`,
+      `${Q} later high`,
+      `${Q} later medium`,
+      `${Q} later none`,
     ]);
   const section = (name: string) => page.getByRole("region", { name: new RegExp(`^${name}`) });
-  await expect(section("Overdue").getByText("Quoll late old")).toBeVisible();
-  await expect(section("Today").getByText("Quoll today high")).toBeVisible();
+  await expect(section("Overdue").getByText(`${Q} late old`)).toBeVisible();
+  await expect(section("Today").getByText(`${Q} today high`)).toBeVisible();
   // Each row says its priority and due date first; overdue in words (and red)
-  const late = page.locator(".list li", { hasText: "Quoll late old" }).locator(".due");
+  const late = page.locator(".list li", { hasText: `${Q} late old` }).locator(".due");
   await expect(late).toHaveText(/^low · overdue /);
   await expect(late).toHaveClass("due late");
   // Done: folded away at the end
   const fold = page.locator(".donefold");
-  await expect(fold.getByText("Quoll done")).toBeHidden();
+  await expect(fold.getByText(`${Q} done`)).toBeHidden();
   await fold.locator("summary").click();
-  await expect(fold.getByText("Quoll done")).toBeVisible();
+  await expect(fold.getByText(`${Q} done`)).toBeVisible();
   // The rows tick like the search screen's
-  const row = page.locator(".list li", { hasText: "Quoll today low" });
-  await row.getByRole("button", { name: "Done: Quoll today low" }).click();
+  const row = page.locator(".list li", { hasText: `${Q} today low` });
+  await row.getByRole("button", { name: `Done: ${Q} today low` }).click();
   await expect(row.locator("em")).toHaveText("done");
-  await row.getByRole("button", { name: "Done: Quoll today low" }).click();
+  await row.getByRole("button", { name: `Done: ${Q} today low` }).click();
   await expect(row.locator("em")).toHaveCount(0); // open: no chip, its icon says todo
 });
 
@@ -103,14 +107,14 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await expect(show.locator("label > svg.i")).toHaveCount(3);
   await page.getByText("Upcoming", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=upcoming$/);
-  // Due from tomorrow to a week away: not "Quoll later high", due in 10 days
-  await expect.poll(() => quolls(page)).toEqual(["Quoll later medium"]);
+  // Due from tomorrow to a week away: not "later high", due in 10 days
+  await expect.poll(() => quolls(page)).toEqual([`${Q} later medium`]);
   await expect(page.locator(".todos .count")).toHaveText(/ due in the next 7 days$/);
   await expect(page.getByRole("combobox", { name: "Sort" })).toHaveCount(0); // the view's order
   await page.getByText("All", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=all$/);
   const all = await quolls(page, ".todos ul li");
-  expect(all[0]).toBe("Quoll done"); // last edited first, done ones too
+  expect(all[0]).toBe(`${Q} done`); // last edited first, done ones too
   expect(all).toHaveLength(9);
   // Two lines on every tab: what to do and when, never when it was last edited
   const edited = page.locator(".todos .list li .sub > small:not([class])");
@@ -120,7 +124,7 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await expect(page.getByRole("radio", { name: "All" })).toBeChecked();
   // A page opened from the list steps through it, and Back comes back to the same view
   await page.getByText("Upcoming", { exact: true }).click();
-  await page.locator(".list a", { hasText: "Quoll later medium" }).click();
+  await page.locator(".list a", { hasText: `${Q} later medium` }).click();
   await expect(page.locator("header .pager")).toHaveAttribute("aria-label", "In Todos · Upcoming");
   await expect(page.locator("#backto")).toHaveText("Todos");
   await page.goBack();
@@ -157,26 +161,41 @@ test("the Todos screen meets AA contrast, in both themes", async ({ page }) => {
 test("the Todos tab: one tap to Now, with a count of the todos due", async ({ page }) => {
   const tab = page.locator('nav a[href="/todos"]');
   const badge = tab.locator(".due-n");
-  const q = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled");
-  const due = async () =>
-    (await (await page.request.get(`/api/search/facets?q=${q}`)).json()).total as number;
-  await page.goto("/");
+  // The count is the whole store's, other runs' todos too: each step is checked against the
+  // server's answer to the badge's own request, asked after that step
+  const isDue = (url: URL) =>
+    url.pathname === "/api/search/facets" && !!url.searchParams.get("q")?.includes("due:<=");
+  const counted = async (step: () => Promise<unknown>) => {
+    const asked = page.waitForRequest((r) => isDue(new URL(r.url())));
+    await step();
+    const answer = await (await asked).response();
+    if (!answer) throw new Error("the badge's count went unanswered");
+    const { total } = (await answer.json()) as { total: number };
+    await expect(badge).toHaveText(String(total));
+    await expect(tab).toHaveAccessibleName(`Todos, ${total} due`);
+    return total;
+  };
+  // Whether this run's "today high" is one of those counted
+  const q = encodeURIComponent(`kind:todo due:<=today -is:done -is:cancelled -is:snoozed ${Q}`);
+  const isCounted = async () =>
+    ((await (await page.request.get(`/api/search?q=${q}`)).json()) as { id: string }[])
+      .map((h) => h.id)
+      .includes(made.todayHigh.page_id);
+  const n = await counted(() => page.goto("/"));
   await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search", "Topics"]);
-  const n = await due();
   expect(n).toBeGreaterThanOrEqual(4); // the Quolls: two overdue, two today
-  await expect(badge).toHaveText(String(n));
-  await expect(tab).toHaveAccessibleName(`Todos, ${n} due`);
   expect((await tab.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await tab.click();
   await expect(page).toHaveURL(/\/todos$/);
   await expect(tab).toHaveAttribute("aria-current");
   await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
-  // Ticking one off counts down at once, and back up
-  const tick = page.getByRole("button", { name: "Done: Quoll today high" });
-  await tick.click();
-  await expect(badge).toHaveText(String(n - 1));
-  await tick.click();
-  await expect(badge).toHaveText(String(n));
+  // Ticking one off counts again at once, without it; and back up, with it
+  const tick = page.getByRole("button", { name: `Done: ${Q} today high` });
+  expect(await isCounted()).toBe(true);
+  await counted(() => tick.click());
+  expect(await isCounted()).toBe(false);
+  await counted(() => tick.click());
+  expect(await isCounted()).toBe(true);
   // None due: no badge
   await page.route(
     (url) =>
@@ -209,15 +228,17 @@ test("switching Now, Upcoming and All replaces the entry: Back leaves Todos", as
 test("snooze a todo from its page: out of Now and the count until its day, marked in All", async ({
   page,
 }) => {
-  const t = await todo(page, "Bilby snooze me", { due: day(-1), priority: "high" });
-  const inNow = () => page.locator(".todos .list a strong", { hasText: "Bilby snooze me" });
-  const badgeQ = encodeURIComponent("kind:todo due:<=today -is:done -is:cancelled -is:snoozed");
+  const w = word();
+  const title = `Bilby ${w} snooze me`;
+  const t = await todo(page, title, { due: day(-1), priority: "high" });
+  const inNow = () => page.locator(".todos .list a strong", { hasText: title });
+  const badgeQ = encodeURIComponent(
+    `kind:todo due:<=today -is:done -is:cancelled -is:snoozed ${w}`,
+  );
   const counted = async () =>
     (
-      (await (await page.request.get(`/api/search?q=${badgeQ}&limit=100`)).json()) as {
-        title: string;
-      }[]
-    ).some((h) => h.title === "Bilby snooze me");
+      (await (await page.request.get(`/api/search?q=${badgeQ}`)).json()) as { title: string }[]
+    ).some((h) => h.title === title);
   await page.goto("/todos");
   await expect(inNow()).toBeVisible();
   expect(await counted()).toBe(true);
@@ -243,10 +264,10 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   await expect(inNow()).toHaveCount(0);
   await asleep.click();
   await expect(page).toHaveURL(/\/search\?q=kind%3Atodo(%20|\+)is%3Asnoozed(%20|\+)sort%3Adue$/);
-  await expect(page.locator(".hits li", { hasText: "Bilby snooze me" })).toBeVisible();
+  await expect(page.locator(".hits li", { hasText: title })).toBeVisible();
   await page.goto("/todos");
   await page.getByText("All", { exact: true }).click();
-  const row = page.locator(".list li", { hasText: "Bilby snooze me" });
+  const row = page.locator(".list li", { hasText: title });
   await expect(row.locator(".due")).toHaveText(/^high · overdue .* · snoozed till /);
   // Woken by hand: back in Now
   await row.locator("a").click();
@@ -261,15 +282,17 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
 test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the last box", async ({
   page,
 }) => {
-  const id = "01E2ETASKS01".padEnd(26, "0");
-  const text = "Kowari trip\n\n- [x] tickets\n- [ ] tent\n- [ ] stove";
-  const made = await (await page.request.post("/api/captures", { data: { id, text } })).json();
+  const title = `Kowari ${word()} trip`;
+  const text = `${title}\n\n- [x] tickets\n- [ ] tent\n- [ ] stove`;
+  const made = await (
+    await page.request.post("/api/captures", { data: { id: ulid(), text } })
+  ).json();
   const api = async () => (await page.request.get(`/api/pages/${made.page_id}`)).json();
   expect(await api()).toMatchObject({ kind: "todo", tasks: { done: 1, total: 3 } }); // a note: filed
   await page.goto("/todos?view=all");
-  const row = page.locator(".list li", { hasText: "Kowari trip" });
+  const row = page.locator(".list li", { hasText: title });
   await expect(row.locator(".due")).toHaveText("1 of 3");
-  const tick = row.getByRole("button", { name: /^Done: Kowari trip/ });
+  const tick = row.getByRole("button", { name: `Done: ${title}` });
   await expect(tick).toHaveAttribute("aria-pressed", "mixed");
   // Ticked in place on its page: the last box makes it done; one unticked opens it again
   await row.locator("a").click();
@@ -296,6 +319,7 @@ test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the la
 test("New todo opens the composer on Todo, and the saved todo joins the list", async ({ page }) => {
   // A + in the top bar, on the Todos screen only
   const add = page.locator("header #new");
+  const title = `Quokka ${word()} new todo`;
   const other = await page.request.post("/api/captures", {
     data: { id: "01E2ETNEWT0D0".padEnd(26, "0"), text: "Quokka elsewhere" },
   });
@@ -315,7 +339,7 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   const text = editor.locator("textarea");
   await expect(text).toHaveAttribute("placeholder", "What needs doing?");
   // A link would suggest Later: the kind was chosen, so it stays Todo
-  await text.fill("Quokka new todo https://example.com/x");
+  await text.fill(`${title} https://example.com/x`);
   await expect(editor.getByRole("radio", { name: "Todo" })).toBeChecked();
   // Its due date and priority, as on a todo's page (the same fields), folded until opened
   await expect(editor.getByRole("button", { name: "Tomorrow" })).toBeHidden();
@@ -330,11 +354,11 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   await expect(editor).toBeHidden();
   // Back on the list it was opened from, with the todo in it once uploaded
   await expect(page).toHaveURL(/\/todos\?view=all$/);
-  const row = page.locator(".list li", { hasText: "Quokka new todo" });
+  const row = page.locator(".list li", { hasText: title });
   await expect(row.locator("a strong")).toBeVisible();
-  await expect(row.getByRole("button", { name: /^Done: Quokka new todo/ })).toBeVisible();
+  await expect(row.getByRole("button", { name: new RegExp(`^Done: ${title}`) })).toBeVisible();
   await expect(row.locator(".due")).toHaveText(/^high · due /);
-  const [hit] = await (await page.request.get("/api/search?q=quokka+new+todo")).json();
+  const [hit] = await (await page.request.get(`/api/search?q=${encodeURIComponent(title)}`)).json();
   const made = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(made).toMatchObject({ kind: "todo", due: day(1), priority: "high" });
 });
@@ -370,7 +394,7 @@ test("a todo uploaded while the Todos list is fetched still joins it", async ({ 
   await expect(page.locator("header #new")).toBeVisible();
   await page.locator("header #new").click();
   const editor = page.locator(".editor");
-  const text = `Wombat raced ${ulid().slice(-6)}`;
+  const text = `Wallaroo raced ${word()}`; // words no other spec searches for
   await editor.locator("textarea").fill(text);
   armed = true;
   await editor.getByRole("button", { name: "Save" }).click();
@@ -383,29 +407,33 @@ test("a todo uploaded while the Todos list is fetched still joins it", async ({ 
 test("Mark done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({
   page,
 }) => {
-  // The two oldest overdue: first in Now
-  const a = await todo(page, "Dunnart first", { due: day(-40) });
-  const b = await todo(page, "Dunnart second", { due: day(-39) });
+  // Two overdue, side by side in Now (oldest first): on days no other run of this test has
+  const back = 40 + 3 * test.info().repeatEachIndex;
+  const w = word();
+  const [first, second] = [`Dunnart ${w} first`, `Dunnart ${w} second`];
+  const a = await todo(page, first, { due: day(-back) });
+  const b = await todo(page, second, { due: day(-back + 1) });
   const tools = page.locator(".page .tools");
   await page.goto("/todos");
-  await page.locator(".list a", { hasText: "Dunnart first" }).click();
-  await expect(page.locator(".page h1")).toHaveText("Dunnart first");
+  await page.locator(".list a", { hasText: first }).click();
+  await expect(page.locator(".page h1")).toHaveText(first);
   const where = page.locator("header .pager .at"); // beside Back, which names the list
-  await expect(where).toHaveText(/^1 of \d+$/);
+  await expect(where).toHaveText(/^\d+ of \d+$/);
+  const k = Number((await where.textContent())?.split(" ")[0]);
   await expect(page.locator(".pager")).toHaveAttribute("aria-label", "In Todos · Now");
   await tools.getByRole("button", { name: "Mark done" }).click();
   // On to the next, saying so
   await expect(page).toHaveURL(`/p/${b.slug}`);
-  await expect(page.locator(".page h1")).toHaveText("Dunnart second");
-  await expect(where).toHaveText(/^2 of \d+$/);
-  await expect(page.locator(".toast")).toContainText("Done: Dunnart first. Next todo, 2 of");
+  await expect(page.locator(".page h1")).toHaveText(second);
+  await expect(where).toHaveText(new RegExp(`^${k + 1} of \\d+$`));
+  await expect(page.locator(".toast")).toContainText(`Done: ${first}. Next todo, ${k + 1} of`);
   expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
     "done",
   );
   // Undo: open again, and back on it
   await page.locator(".toast").getByRole("button", { name: "Undo" }).click();
   await expect(page).toHaveURL(`/p/${a.slug}`);
-  await expect(page.locator(".page h1")).toHaveText("Dunnart first");
+  await expect(page.locator(".page h1")).toHaveText(first);
   expect((await (await page.request.get(`/api/pages/${a.page_id}`)).json()).fields.status).toBe(
     "open",
   );
@@ -414,8 +442,8 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   await expect(page).toHaveURL(/\/todos$/);
   await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
   // From elsewhere (a search), Mark done stays on the page
-  await page.goto("/search?q=dunnart+second");
-  await page.locator(".hits a", { hasText: "Dunnart second" }).click();
+  await page.goto(`/search?q=${encodeURIComponent(second)}`);
+  await page.locator(".hits a", { hasText: second }).click();
   await tools.getByRole("button", { name: "Mark done" }).click();
   await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
   await expect(page).toHaveURL(`/p/${b.slug}`);
@@ -469,29 +497,33 @@ test("a todo's row has no thumbnail, every title in line; a photo is a mark on i
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
     "base64",
   );
+  const title = `Quokka ${word()} photo todo`; // the newest: at the top of All
   const r = await page.request.post("/api/captures", {
     multipart: {
-      id: "01E2ETDNWPH0T0".padEnd(26, "0"),
-      text: "Quokka photo todo",
+      id: ulid(),
+      text: title,
       kind: "todo",
       file: { name: "w.png", mimeType: "image/png", buffer: png },
     },
   });
   expect(r.ok()).toBeTruthy();
   await page.goto("/todos?view=all");
-  const row = page.locator(".todos .list li", { hasText: "Quokka photo todo" });
+  const row = page.locator(".todos .list li", { hasText: title });
   await expect(row.locator("a strong")).toBeVisible();
   await expect(row.locator("a > img")).toBeHidden();
   const plain = page.locator(".todos .list li").filter({ hasNotText: "Quokka" }).first();
   const x = async (l: typeof row) => (await l.locator("a strong").boundingBox())?.x;
-  expect(await x(row)).toBe(await x(plain)); // in line with the rest
+  // In line with the rest (both measured as drawn: other runs' todos may draw the list again)
+  const apart = async () => {
+    const [at, by] = [await x(row), await x(plain)];
+    return at === undefined || by === undefined ? "not drawn" : at - by;
+  };
+  await expect.poll(apart).toBe(0);
   const mark = await row
     .locator(".sub")
     .evaluate((el) => getComputedStyle(el, "::after").getPropertyValue("mask-image"));
   expect(mark).toContain("svg");
   // Search still shows it
-  await page.goto(`/search?q=${encodeURIComponent("Quokka photo todo")}`);
-  await expect(
-    page.locator(".list li", { hasText: "Quokka photo todo" }).locator("img"),
-  ).toBeVisible();
+  await page.goto(`/search?q=${encodeURIComponent(title)}`);
+  await expect(page.locator(".list li", { hasText: title }).locator("img")).toBeVisible();
 });

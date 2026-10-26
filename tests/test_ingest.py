@@ -694,20 +694,21 @@ def test_the_worker_survives_an_exception_and_healthz_reports_its_death(
         for colour in ("red", "blue"):
             files = [("file", ("b.jpg", jpeg(colour), "image/jpeg"))]
             client.post("/api/captures", data={"id": new_ulid()}, files=files)
+
+        def states():  # one read of every job: two reads could straddle a claim
+            with closing(connect(store.db)) as conn:
+                return [tuple(r) for r in conn.execute(
+                    "SELECT state, failures, substr(last_error, 1, 8) FROM job"
+                    " ORDER BY id"
+                )]  # fmt: skip
+
+        # The first raised (queued again, its retry 10 min away); the second, after it,
+        # done: waited for as such, however slow the runner
+        want = [("queued", 1, "internal"), ("done", 0, None)]
         deadline = time.monotonic() + 10
-        while (
-            ingest.status(store)["jobs"].get("queued", 0)
-            + ingest.status(store)["jobs"].get("running", 0)
-            > 1
-            and time.monotonic() < deadline
-        ):
+        while states() != want and time.monotonic() < deadline:
             time.sleep(0.05)
-        time.sleep(0.2)
-        with closing(connect(store.db)) as conn:
-            states = [tuple(r) for r in conn.execute(
-                "SELECT state, failures, substr(last_error, 1, 8) FROM job ORDER BY id"
-            )]  # fmt: skip
-        assert states == [("queued", 1, "internal"), ("done", 0, None)]
+        assert states() == want
         assert worker.alive() and client.get("/healthz").status_code == 200
         worker._stop.set()  # the thread ends: as if it had died
         worker.wake()
