@@ -343,6 +343,20 @@ def test_read_lists_images_as_urls(store, monkeypatch):
     assert image["filename"] == "a.png" and image["has_drawing"] is False
 
 
+def test_read_leaves_out_an_image_whose_embed_was_deleted(store):
+    """#303: the capture keeps the file, but the page no longer shows it."""
+    sha = "ef" * 32
+    c = store.prepare({"id": new_ulid()}, ["image/png"])
+    ref = store.capture(c, [(sha, "image/png", 3, "a.png")], "me")[0]
+    page = store.page(ref["page_id"])
+    assert [i["sha256"] for i in ok(store, "read", page=ref["page_id"])["images"]] == [
+        sha
+    ]
+    store.update_page(ref["page_id"], page["rev"], None, "No picture", "me")
+    assert ok(store, "read", page=ref["page_id"])["images"] == []
+    assert ok(store, "search", query="has:image")["results"] == []
+
+
 def test_read_of_a_missing_or_trashed_page(store):
     page = write(store)
     assert "no such page" in refused(store, "read", page="missing")

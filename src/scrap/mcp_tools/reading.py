@@ -96,6 +96,8 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         images, files = [], []
         for c in p["captures"]:
             for b in c["blobs"]:
+                if b["sha256"] in p["removed"]:
+                    continue  # its embed was deleted from the text: not shown (#303)
                 ingest = b.get("ingest") or {}
                 is_image = b["mime"].startswith("image/")
                 (images if is_image else files).append({

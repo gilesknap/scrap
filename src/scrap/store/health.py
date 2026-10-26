@@ -18,6 +18,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
+from .constants import GONE
 from .topics import IS_TOPIC
 from .writeups import OUTDATED
 
@@ -77,17 +78,20 @@ STALE = f"""({{p}}.kind = 'todo' AND NOT {REVIEW}
     WHERE m.page_id = {{p}}.id), '')) < ?)"""
 # Sharing a stored file with another page: one of its captures' files is also one of
 # another's. Pages in the trash and gc's review pages (which gather files on purpose)
-# are left out, on both sides. The files on two or more such pages: once a query.
+# are left out, on both sides, and so is a file whose embed a page's text deleted
+# (GONE, #303). The files on two or more such pages: once a query.
 SHARED = f"""
 SELECT cb.sha256 FROM capture_blob cb JOIN capture c ON c.id = cb.capture_id
 JOIN page q ON q.id = c.page_id
 WHERE q.deleted_at IS NULL AND NOT {REVIEW.format(p="q")}
+AND NOT {GONE.format(p="q", sha="cb.sha256")}
 GROUP BY cb.sha256 HAVING count(DISTINCT q.id) > 1
 """
 DUPLICATE = (
     f"(NOT {REVIEW} AND {{p}}.id IN (SELECT c.page_id FROM capture c"
     " JOIN capture_blob cb ON cb.capture_id = c.id"
-    f" WHERE cb.sha256 IN ({SHARED})))"
+    f" WHERE NOT {GONE.format(p='{p}', sha='cb.sha256')}"
+    f" AND cb.sha256 IN ({SHARED})))"
 )
 # A page link in its text ([[slug]] or its address; not in code, not an embed) to no
 # page, or to one in the trash

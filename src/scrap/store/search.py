@@ -16,6 +16,7 @@ from ..query import (
 )
 from .constants import (
     CLAUDE,
+    GONE,
     HAS,
     IMAGE_KIND,
     KIND_NAMES,
@@ -50,9 +51,10 @@ class SearchMixin(Core):
 
     def images_of(self, ids: list[str]) -> dict[str, dict[str, Any]]:
         """Each page's images, for list rows: how many (distinct image files of its
-        captures, one per SHA-256) and its first one's SHA-256 and what Claude made of
-        it (its current description and kind; None if not read yet). A page with none
-        is left out."""
+        captures, one per SHA-256, not those whose embed was deleted: GONE) and its
+        first one's SHA-256 and what Claude made of it
+        (its current description and kind; None if not read yet). A page with none is
+        left out."""
         out: dict[str, dict[str, Any]] = {}
         with self.connect() as conn:
             for row in conn.execute(
@@ -60,7 +62,9 @@ class SearchMixin(Core):
                 " c.received_at, cb.ord, row_number() OVER (PARTITION BY c.page_id,"
                 "  cb.sha256 ORDER BY c.received_at, cb.ord) AS copy"  # the same file
                 " FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id"  # again
-                " JOIN blob b USING (sha256) WHERE b.mime LIKE 'image/%'"
+                " JOIN blob b USING (sha256) JOIN page p ON p.id = c.page_id"
+                " WHERE b.mime LIKE 'image/%'"
+                f" AND NOT {GONE.format(p='p', sha='cb.sha256')}"  # embed deleted
                 " AND c.page_id IN (SELECT value FROM json_each(?))),"
                 " image AS (SELECT page_id, capture_id, sha256,"
                 " row_number() OVER (PARTITION BY page_id"
