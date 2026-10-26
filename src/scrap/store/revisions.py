@@ -201,7 +201,8 @@ class RevisionsMixin(Core):
         base_rev: int | None = None,
         dry_run: bool = False,
         fold: bool = True,
-        source: str = "web",
+        *,
+        source: str,
     ) -> dict[str, Any]:
         """Change the title and/or body of a page (not one in the trash) as a new
         text revision by author from source (mcp: Claude's; see REV_INSERT):

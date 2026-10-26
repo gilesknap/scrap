@@ -40,14 +40,20 @@ naming `claude` in that header made a web edit look like Claude's.
   is `tagged`. No request header can name MCP's author.
 - Migration 16 adds both columns. `made_by` is backfilled with what `roles` said before
   (`INFERRED_MADE_BY`: a topic, else a `gc` capture, else a first capture from MCP, else
-  `human`); `source` is `mcp` where the author is `claude`, as #153 asked. On the live data the
-  backfill gives `claude` to exactly the pages the old `is:claude` found.
+  `human`); `source` is `mcp` where the author is `claude`, as #153 asked. On the live data
+  (376 pages, 2026-10-26) the backfill gives `claude` to 23 of the 292 pages out of the trash
+  and 26 of the 84 in it: in each, exactly the pages the old `is:claude` found.
+- The Python helpers (`roles.made_by`, `edited_by_claude`, so `Store.page`) still answer on a
+  database not yet migrated, as before. The SQL fragments read the columns, so `scrap gc`, which
+  uses `REVIEW`, expects the database the service has already migrated (the service migrates at
+  start, before the nightly gc runs).
 
 ## Consequences
 
 - Who made a page is one column read, and no longer depends on the captures a page has later.
 - The task boxes Claude adds for ingest and enrich are `mcp` too, so the backfill and new
-  revisions agree; telling them apart from MCP's own edits would need a third source.
+  revisions agree, and `is:claude-edited` finds both: every text change Claude made, over MCP or
+  not. That is the owner's decision; telling them apart would need a third source.
 - Behind an authenticating proxy the identity header must still be set (`identityHeader`,
   `SCRAP_IDENTITY_HEADER`), or every web change is `tagged`.
 - An older scrap cannot run on a migrated database even with `user_version` set back: it writes

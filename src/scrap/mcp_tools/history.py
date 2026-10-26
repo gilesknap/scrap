@@ -149,5 +149,7 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
             emptied(p["body"], target["body"], allow_empty)
             return target["title"] if restore_title else p["title"], target["body"]
 
-        found = checked(store.edit_text, key, AUTHOR, change, rev, dry_run, False, MCP)
+        found = checked(
+            store.edit_text, key, AUTHOR, change, rev, dry_run, False, source=MCP
+        )
         return edited(found, dry_run, restores=to_rev)

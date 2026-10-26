@@ -212,7 +212,9 @@ def test_an_edit_while_the_photo_was_read_is_not_clobbered(store):
     ref = photo_page(store)
 
     def edit_meanwhile(messages):
-        store.edit_text(ref["page_id"], "me", lambda c, p: (p["title"], "mine\n"))
+        store.edit_text(
+            ref["page_id"], "me", lambda c, p: (p["title"], "mine\n"), source="web"
+        )
         return picture(**listing([("a", False)]))
 
     read_photo(store, Fake(edit_meanwhile))
@@ -299,7 +301,9 @@ def test_a_user_edit_during_the_call_is_not_clobbered(store):
     ref = note(store, "call the dentist\nbook MOT")
 
     def edit_meanwhile(messages):
-        store.edit_text(ref["page_id"], "me", lambda c, p: (p["title"], "changed\n"))
+        store.edit_text(
+            ref["page_id"], "me", lambda c, p: (p["title"], "changed\n"), source="web"
+        )
         return text_answer(**listing([("call the dentist", False)]))
 
     read_text(store, Fake(edit_meanwhile))
@@ -440,7 +444,10 @@ def test_a_user_todo_claude_touched_twice_stays_a_todo(store):
 def test_a_todo_with_boxes_in_its_own_text_stays_after_ingest_and_claude(store):
     ref = photo_page(store)
     store.edit_text(  # the user adds their own boxes under the image
-        ref["page_id"], "me", lambda c, p: (p["title"], p["body"] + "\n- [ ] x\n")
+        ref["page_id"],
+        "me",
+        lambda c, p: (p["title"], p["body"] + "\n- [ ] x\n"),
+        source="web",
     )
     read_photo(store, Fake(picture()))
     assert store.page(ref["page_id"])["kind"] == "todo"

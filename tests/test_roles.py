@@ -182,7 +182,8 @@ def test_what_automation_may_change(store, pages):
     untouched = sql(roles.TITLE_UNTOUCHED.replace("{page}", "{p}.id"))
     assert each(store, pages, lambda c, p: bool(untouched(c, p))) == retitle
     page = store.page(pages["note"])
-    store.edit_text(page["id"], "me", lambda c, p: ("Food", p["body"]), page["rev"])
+    change = lambda c, p: ("Food", p["body"])  # noqa: E731
+    store.edit_text(page["id"], "me", change, page["rev"], source="web")
     assert not each(store, pages, untouched)["note"]
     # Kind: a note nobody filed. An import's and a topic's kind is chosen; a todo's
     # and a whiteboard's is not a note

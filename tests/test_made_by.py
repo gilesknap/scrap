@@ -128,8 +128,9 @@ def test_migration_16_can_run_again(tmp_path):
 
 
 def test_an_older_schema_reads_who_made_a_page_as_before(tmp_path):
-    """Before migration 16, made_by and edited_by_claude are worked out as they were
-    (gc can run on a database the service has not migrated yet)."""
+    """Before migration 16, the Python helpers work made_by and edited_by_claude out
+    as they were (Store.page on a database not yet migrated). The SQL fragments read
+    the columns: scrap gc expects the database the service has already migrated."""
     store = Store(v15(tmp_path / "data"))
     with closing(connect(store.db)) as conn:
         assert {p: roles.made_by(conn, p) for p in V15} == {

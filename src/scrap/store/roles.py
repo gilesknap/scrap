@@ -77,8 +77,8 @@ BY_CLAUDE = "{p}.made_by = 'claude'"
 # A later text revision by Claude (is:claude-edited): one after the first from source
 # mcp, which only Claude writes: over MCP (an edit_page, a revert, an append) or the
 # task boxes Claude added from a list of actions (actions.append, for photo ingest and
-# enrich). Never the PWA's, whatever author its request names (#153).
-# TODO(#280) owner: should is:claude-edited be MCP-only?
+# enrich). Never the PWA's, whatever author its request names (#153). Both on purpose
+# (the owner's decision, #280): is:claude-edited is every text change Claude made.
 CLAUDE_EDITED = (
     "EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = {p}.id AND r.rev > 1"
     " AND r.source = '" + MCP + "')"
@@ -116,6 +116,12 @@ def made_by_source(source: str) -> MadeBy:
     return _BY_SOURCE.get(source, "human")
 
 
+def _older_schema(error: sqlite3.OperationalError) -> bool:
+    """Whether an error is an older schema's: no such column (made_by, page_rev's
+    source: before migration 16) or table (topic: before migration 13)."""
+    return str(error).startswith(("no such column", "no such table"))
+
+
 def _one(conn: sqlite3.Connection, fragment: str, page_id: str) -> bool:
     row = conn.execute(
         f"SELECT {fragment.format(p='p')} FROM page p WHERE p.id = ?", (page_id,)
@@ -139,11 +145,13 @@ def by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
 
 def edited_by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether a page has a later text revision by Claude: MCP edits, or task boxes
-    Claude added (CLAUDE_EDITED; see its TODO). On an older schema, with no
+    Claude added (CLAUDE_EDITED). On an older schema, with no
     page_rev.source, a revision by author claude (as before migration 16)."""
     try:
         return _one(conn, CLAUDE_EDITED, page_id)
-    except sqlite3.OperationalError:  # no such column: an older schema
+    except sqlite3.OperationalError as error:
+        if not _older_schema(error):
+            raise
         old = CLAUDE_EDITED.replace("r.source = '" + MCP, "r.author = '" + CLAUDE)
         return _one(conn, old, page_id)
 
@@ -157,8 +165,9 @@ def made_by(conn: sqlite3.Connection, page_id: str) -> MadeBy:
         try:
             found = conn.execute(sql.format(fragment.format(p="p")), (page_id,))
             return found.fetchone()[0]
-        except sqlite3.OperationalError:  # no such column or table: an older schema
-            continue
+        except sqlite3.OperationalError as error:
+            if not _older_schema(error):
+                raise
     fragment = "CASE " + _NOT_TOPIC
     return conn.execute(sql.format(fragment.format(p="p")), (page_id,)).fetchone()[0]
 

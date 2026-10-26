@@ -85,9 +85,10 @@ PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
 # The author of what Claude writes: its MCP captures, and its text revisions (page_rev)
-# over MCP or of the task boxes it adds (actions.append). The PWA's author is the
-# identity header's login (an address, with an @), or "tagged": never CLAUDE
-# (uploads.author ignores a header that says it, #153).
+# over MCP or of the task boxes it adds (actions.append). The PWA's author is whatever
+# the identity header says (a Tailscale login, an address; behind oauth2-proxy, as on
+# the cluster, the GitHub username), or "tagged": never CLAUDE (uploads.author ignores
+# a header that says it, #153). Whether a revision is Claude's is its source, not this.
 CLAUDE = "claude"
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
