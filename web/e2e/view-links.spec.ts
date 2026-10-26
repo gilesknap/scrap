@@ -48,8 +48,9 @@ for (const how of ["by slug", "by address"]) {
     await page.goBack(); // the phone's Back gesture
     await expect(page).toHaveURL(`/p/${a.slug}`);
     await expect(title(page)).toHaveText(`Linking A ${tag}`);
-    // The top bar's Back still goes straight to the list A was opened from
+    // A's own Back goes to the list A was opened from, with no jump beside it
     await expect(page.locator("#backto")).toHaveText("Search");
+    await expect(page.locator("#jump")).toBeHidden();
   });
 }
 

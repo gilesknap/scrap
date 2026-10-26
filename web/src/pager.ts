@@ -1,8 +1,8 @@
 // A page opened from a list (Recent, search results): where it is in it, and the previous
 // and next by its ‹ ›, a swipe or the arrow keys. A chunk of its own, loaded only for such a
 // page. Between them, where it is ("3 of 8 · Todos · Now"), a label. Each step replaces the
-// page's history entry, so the top bar's Back still goes back to the list. Mark done on a todo
-// opened from the Todos screen moves on to the next one in that list.
+// page's history entry (keeping go()'s marks), so the top bar's Back still goes back to the
+// list. Mark done on a todo opened from the Todos screen moves on to the next one in that list.
 import { type Page, setStatus } from "./api";
 import { go, plain } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";

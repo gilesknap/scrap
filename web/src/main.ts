@@ -1,5 +1,5 @@
-// The app shell: a tiny router, the top bar (Back, the queue badge, New todo, Settings) and service
-// worker updates.
+// The app shell: a tiny router, the top bar (Back and the jump to the list, the queue badge,
+// New todo, Settings) and service worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
 import { address, view as current, go, markNav, plain, queue } from "./app";
@@ -75,27 +75,50 @@ const view = document.getElementById("view") as HTMLElement;
 const logo = document.querySelector(".logo") as HTMLElement;
 const up = document.getElementById("back") as HTMLButtonElement;
 const backTo = document.getElementById("backto") as HTMLElement;
+const jump = document.getElementById("jump") as HTMLElement; // · Search, beside Back
+const toList = document.getElementById("tolist") as HTMLButtonElement;
 const pos = document.getElementById("pos") as HTMLElement; // a page's place in its list
-// Back, named for where it goes: straight to the list the page was opened from (past the
-// pages stepped through or followed meanwhile; the phone's own Back goes one at a time), else
-// up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's Capture
-up.onclick = () => {
+/** go()'s marks on this entry, where they are behind it: the page a link was followed from
+ * (prev) and the list the page was opened from. */
+const marks = () => {
   const s = history.state;
-  if (s?.back && s.at > s.back.at) return history.go(s.back.at - s.at);
+  const at: number = s?.at ?? 0;
+  const behind = (m?: { name: string; at: number }) => (m && at > m.at ? m : undefined);
+  return { at, prev: behind(s?.up), list: behind(s?.back) };
+};
+// Back, named for where it goes, goes up one level: to the page a link was followed from,
+// else to the list the page was opened from (past the pages stepped through by the pager),
+// else up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's
+// Capture. When it doesn't go to the list, the jump beside it does (· Search).
+up.onclick = () => {
+  const { at, prev, list } = marks();
+  const to = prev ?? list;
+  if (to) return history.go(to.at - at);
   void import("./back").then(
     (m) => m.up(go),
     () => go("/", true), // the chunk is not here (offline): Capture
   );
 };
-/** The top bar's Back says where it goes: the list, else the parent (for a page, once its
- * kind is known). */
+toList.onclick = () => {
+  const { at, list } = marks();
+  if (list) history.go(list.at - at);
+};
+/** The top bar's Back says where it goes: the linking page, the list, else the parent (for a
+ * page, once its kind is known); the jump to the list shows when Back goes elsewhere. */
 const nameBack = () => {
   const kind = document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind;
+  const { prev, list } = marks();
   const to =
-    history.state?.back?.name ??
+    prev?.name ??
+    list?.name ??
     (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : "Capture");
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
+  jump.hidden = !(prev && list);
+  if (prev && list) {
+    toList.textContent = list.name;
+    toList.ariaLabel = `Back to ${list.name}`;
+  }
 };
 const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
@@ -115,6 +138,7 @@ async function render() {
   const arrow = path.startsWith("/p/");
   pos.replaceChildren(); // a page puts its pager here
   if (arrow) nameBack();
+  else jump.hidden = true;
   logo.hidden = arrow;
   up.hidden = !arrow;
   document.body.classList.toggle("paged", arrow); // its toolbar is the bottom bar: no nav

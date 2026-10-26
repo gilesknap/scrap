@@ -65,17 +65,41 @@ header {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Beside Back when it goes up to a linking page, the list's name, a second target that jumps
+   straight back to it (‹ A · Search): never cut, so Back's label gives up the width */
+#jump {
+  display: flex;
+  flex: none;
+  align-items: center;
+  color: var(--ink-2);
+}
+#jump[hidden] {
+  display: none;
+}
+#tolist {
+  padding: 0 var(--s-1); /* a small button's size and padding: Back's label keeps the width */
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
 /* A page's place in its list, at the right as a mail app has it: 2 of 5 ∧ ∨ */
 #pos:empty {
   display: none;
 }
 /* At the right: the queue badge, when up, the Todos screen's New todo, then Settings, always */
 .logo,
-#back {
+#back,
+#jump {
   margin-inline-end: auto;
+}
+#back:has(+ #jump:not([hidden])) {
+  margin-inline-end: 0; /* the jump takes the free width after it */
+  padding-inline-end: var(--s-1); /* the dot as far from Back's … as from the list's name */
 }
 #new,
 #settings {
+  flex: none; /* whole: Back's label is what gives up the width */
   width: var(--tap);
   padding: 0;
 }
@@ -107,6 +131,7 @@ header {
 }
 .badge {
   position: relative;
+  flex: none;
   min-height: 36px;
   padding: 0 var(--s-3);
   border: none;

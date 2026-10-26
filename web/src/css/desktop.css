@@ -15,6 +15,10 @@
   body:not(.paged) header {
     padding-inline: max(var(--s-4), calc((100% - 960px) / 2));
   }
+  /* A page's jump to its list (‹ A · Search): Back still goes up one level */
+  #jump {
+    display: none;
+  }
   /* A development version can be long (0.9.1.dev12+g1a2b3c4d): cut with …, so it never runs
      under the tabs */
   .logo small {

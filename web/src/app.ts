@@ -11,8 +11,6 @@ export const queue = new Queue(
   () => navigator.onLine,
 );
 
-/** Navigate inside the app; main.ts renders on popstate. The state rides in the history
- * entry (e.g. the list a page was opened from). */
 /** The screens a page is opened from: the name the top bar's Back gives each. */
 export const LISTS: Record<string, string> = {
   "/": "Capture",
@@ -21,23 +19,34 @@ export const LISTS: Record<string, string> = {
   "/topics": "Topics",
 };
 
+/** Navigate inside the app; main.ts renders on popstate. The state rides in the history
+ * entry (e.g. the list a page was opened from). */
 export function go(path: string, replace = false, state: object | null = null) {
-  // Each entry the app pushes says how deep it is (at) and which list it was opened from
-  // (back: that list's name and depth; a page opened from a page keeps its list), so the top
-  // bar's Back goes straight to the list (main.ts); a replace keeps both
+  // Each entry the app pushes says how deep it is (at), which list it was opened from (back:
+  // that list's name and depth; a page opened from a page keeps its list) and, opened from a
+  // page, that page (up: its title as shown and its depth), so the top bar's Back goes up one
+  // level and the jump beside it straight to the list (main.ts); a replace keeps all three
   const now = history.state ?? {};
   const list = LISTS[location.pathname];
   const at = replace ? now.at : (now.at ?? 0) + 1;
   const back = replace ? now.back : list ? { name: list, at: now.at ?? 0 } : now.back;
-  history[replace ? "replaceState" : "pushState"]({ ...state, at, back }, "", path);
+  const paged = (p: string) => p.startsWith("/p/");
+  const title = document.querySelector("#view .page h1")?.textContent || "Previous page";
+  const up = replace
+    ? now.up
+    : paged(location.pathname) && paged(path)
+      ? { name: title, at: now.at ?? 0 }
+      : undefined;
+  history[replace ? "replaceState" : "pushState"]({ ...state, at, back, up }, "", path);
   window.scrollTo(0, 0);
   rerender();
 }
 
-/** Write the current entry's address (a new query, say), keeping go()'s mark on it (the top
- * bar's Back reads it). */
+/** Write the current entry's address (a new query, say), keeping go()'s marks on it (the top
+ * bar's Back reads them). */
 export function address(path: string) {
-  history.replaceState({ at: history.state?.at, back: history.state?.back }, "", path);
+  const { at, back, up } = history.state ?? {};
+  history.replaceState({ at, back, up }, "", path);
 }
 
 /** A plain click (or tap) the app may route itself: not one meant for a new tab or window
