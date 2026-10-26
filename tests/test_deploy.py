@@ -155,11 +155,56 @@ def test_monthly_backup_keeps_12_unless_set(tmp_path):
     assert result.returncode == 0, result.stderr
     runs = _runs(backups / "monthly")
     assert len(runs) == 12 and "20250101T035000Z" not in runs
-    result, args = _backup_run(
-        tmp_path / "bad", "monthly", SCRAP_BACKUP_MONTHLY_KEEP="0"
+    for value in ("", "x", "-1"):  # set but empty is refused, like the daily count
+        result, args = _backup_run(
+            tmp_path / f"bad{value}", "monthly", SCRAP_BACKUP_MONTHLY_KEEP=value
+        )
+        assert result.returncode == 1 and args == [], value
+        assert "SCRAP_BACKUP_MONTHLY_KEEP must be a whole number" in result.stderr
+
+
+def test_monthly_keep_0_turns_monthly_backups_off(tmp_path):
+    for value in ("0", "00"):
+        result, args = _backup_run(
+            tmp_path / value, "monthly", SCRAP_BACKUP_MONTHLY_KEEP=value
+        )
+        assert result.returncode == 0, result.stderr
+        assert "monthly backups are off" in result.stdout
+        assert args == []  # no container
+        assert not (tmp_path / value / "backups" / "monthly").exists()
+    result, _ = _backup_run(tmp_path / "daily", SCRAP_BACKUP_KEEP="0")
+    assert result.returncode == 1  # the daily count has no off switch
+
+
+def test_failed_monthly_run_removes_only_its_own_directory(tmp_path):
+    backups = tmp_path / "backups"
+    monthly = [f"20260{m}01T035000Z" for m in range(1, 4)]
+    for name in monthly:
+        (backups / "monthly" / name).mkdir(parents=True)
+    (backups / "20261001T033000Z").mkdir()
+    _fake(tmp_path / "bin", "podman", f'echo "$@" > {tmp_path}/args; exit 1')
+    env = {
+        **{k: v for k, v in os.environ.items() if not k.startswith("SCRAP_")},
+        "PODMAN": str(tmp_path / "bin" / "podman"),
+        "SCRAP_BACKUPS": str(backups),
+        "SCRAP_BACKUP_MONTHLY_KEEP": "1",
+        "SCRAP_DATA": str(tmp_path / "data"),
+        "SCRAP_IMAGE": "localhost/scrap:test",
+    }
+    result = subprocess.run(
+        [DEPLOY / "scrap-backup", "monthly"], env=env, capture_output=True, text=True
     )
-    assert result.returncode == 1 and args == []
-    assert "SCRAP_BACKUP_MONTHLY_KEEP must be a whole number" in result.stderr
+    assert result.returncode == 1
+    assert "Backup failed; kept the existing backups untouched." in result.stderr
+    assert (tmp_path / "args").exists()  # it did try
+    assert _runs(backups / "monthly") == monthly  # nothing pruned, new run gone
+    assert _runs(backups) == ["20261001T033000Z"]
+
+
+def test_unknown_argument_is_refused(tmp_path):
+    result, args = _backup_run(tmp_path, "weekly")
+    assert result.returncode == 2 and args == []
+    assert "usage: scrap-backup [prune | monthly]" in result.stderr
 
 
 def test_daily_backup_and_prune_leave_the_monthly_folder_alone(tmp_path):
@@ -193,15 +238,21 @@ def test_install_copies_and_gates_the_monthly_backup_timer(tmp_path):
     units = tmp_path / "home" / ".config" / "systemd" / "user"
     for name in ("scrap-backup-monthly.service", "scrap-backup-monthly.timer"):
         assert (units / name).read_text() == (DEPLOY / name).read_text()
-    # With an image that has `scrap backup`, both backup timers are enabled.
-    home, bin_dir = tmp_path / "with-image", tmp_path / "with-image-bin"
-    calls = tmp_path / "calls"
+
+
+def _install_with_image(tmp_path, has_backup=True, env_file=None):
+    """deploy/install.sh with an image present; returns its systemctl calls."""
+    home, bin_dir, calls = tmp_path / "home", tmp_path / "bin", tmp_path / "calls"
+    if env_file is not None:
+        (home / ".config" / "scrap").mkdir(parents=True)
+        (home / ".config" / "scrap" / "env").write_text(env_file)
     _fake(bin_dir, "systemctl", f'echo "$@" >> {calls}')
     _fake(bin_dir, "loginctl", "echo yes")
+    backup = '|*" backup --help"' if has_backup else ""
     _fake(
         bin_dir,
         "podman",
-        'case "$*" in "image exists "*|*" backup --help") exit 0 ;; esac; exit 1',
+        f'case "$*" in "image exists "*{backup}) exit 0 ;; esac; exit 1',
     )
     result = subprocess.run(
         [DEPLOY / "install.sh"],
@@ -215,9 +266,29 @@ def test_install_copies_and_gates_the_monthly_backup_timer(tmp_path):
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    lines = calls.read_text().splitlines()
-    assert "--user enable --now scrap-backup.timer scrap-backup-monthly.timer" in lines
-    assert "--user disable --now scrap-gc.timer" in lines  # no `scrap gc` here
+    return result, calls.read_text().splitlines()
+
+
+def test_install_enables_both_backup_timers_with_a_backup_image(tmp_path):
+    _, calls = _install_with_image(tmp_path)
+    assert "--user enable --now scrap-backup.timer scrap-backup-monthly.timer" in calls
+    assert "--user disable --now scrap-gc.timer" in calls  # no `scrap gc` here
+
+
+def test_install_disables_both_backup_timers_without_scrap_backup(tmp_path):
+    result, calls = _install_with_image(tmp_path, has_backup=False)
+    assert "--user disable --now scrap-backup.timer scrap-backup-monthly.timer" in calls
+    assert not any("enable --now scrap-backup" in c for c in calls)
+    assert "daily and monthly" in result.stderr
+
+
+def test_install_keeps_monthly_off_when_its_keep_is_0(tmp_path):
+    env = "SCRAP_IMAGE=x\nSCRAP_LISTEN=socket\nSCRAP_BACKUP_MONTHLY_KEEP=0\n"
+    result, calls = _install_with_image(tmp_path, env_file=env)
+    assert "--user enable --now scrap-backup.timer" in calls
+    assert "--user disable --now scrap-backup-monthly.timer" in calls
+    assert not any("enable --now scrap-backup-monthly" in c for c in calls)
+    assert "monthly backup timer is off" in result.stderr
 
 
 def _fake(bin_dir, name, script):

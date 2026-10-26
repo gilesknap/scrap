@@ -3,7 +3,8 @@
 #   scrap-backup          one backup run (what scrap-backup.service runs)
 #   scrap-backup prune    retention only
 #   scrap-backup monthly  one run in SCRAP_BACKUPS/monthly, keeping the newest
-#                         SCRAP_BACKUP_MONTHLY_KEEP (default 12) there (what
+#                         SCRAP_BACKUP_MONTHLY_KEEP (12 when unset; 0 turns
+#                         monthly backups off) there (what
 #                         scrap-backup-monthly.service runs; the Helm chart's
 #                         backup.monthly CronJob does the same)
 # Settings come from the environment (~/.config/scrap/env via systemd).
@@ -21,7 +22,8 @@ monthly)
     # The daily runs, their prune and scrap-gc's recent-backup check only look
     # directly in SCRAP_BACKUPS, so none of them sees these.
     runs=$SCRAP_BACKUPS/monthly name=scrap-backup-monthly
-    keep_name=SCRAP_BACKUP_MONTHLY_KEEP keep_value=${SCRAP_BACKUP_MONTHLY_KEEP:-12}
+    # Unset means 12; set but empty is refused below, as for the daily count.
+    keep_name=SCRAP_BACKUP_MONTHLY_KEEP keep_value=${SCRAP_BACKUP_MONTHLY_KEEP-12}
     ;;
 *)
     echo "usage: scrap-backup [prune | monthly]" >&2
@@ -36,6 +38,12 @@ case $keep_value in
 esac
 # Strip leading zeros so 07 is plain decimal 7 (never octal) for head -n.
 keep=${keep_value#"${keep_value%%[!0]*}"}
+if [ -z "$keep" ] && [ "${1:-}" = monthly ]; then
+    # 0 is the switch that turns monthly backups off (install.sh then disables
+    # the timer too): nothing to do, and not a failure.
+    echo "SCRAP_BACKUP_MONTHLY_KEEP is 0: monthly backups are off; nothing done."
+    exit 0
+fi
 if [ -z "$keep" ]; then
     echo "$keep_name must be a whole number >= 1, got '$keep_value'" >&2
     exit 1

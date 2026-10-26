@@ -44,7 +44,7 @@ mkdir -p "$units" "$conf" "$lib" "$data/data" "$data/backups"
 
 if [ ! -e "$conf/env" ]; then
     cat >"$conf/env" <<ENV
-# scrap settings, read by scrap.service and scrap-backup.service.
+# scrap settings, read by scrap.service and the backup, monthly backup and gc services.
 # Plain KEY=value lines: systemd reads this file, not a shell. After editing:
 #   systemctl --user restart scrap
 
@@ -67,7 +67,8 @@ SCRAP_DATA=$data/data
 # Host directory for backups, and how many backup runs to keep (at least 1).
 SCRAP_BACKUPS=$data/backups
 SCRAP_BACKUP_KEEP=14
-# How many monthly backups (1st of the month, in SCRAP_BACKUPS/monthly) to keep.
+# How many monthly backups (1st of the month, in SCRAP_BACKUPS/monthly) to keep;
+# 0 turns them off (re-run install.sh after changing it to or from 0).
 SCRAP_BACKUP_MONTHLY_KEEP=12
 
 # Memory ceiling for the container (podman --memory syntax).
@@ -230,9 +231,21 @@ else
     echo "scrap did not start: journalctl --user -u scrap -n 50, and check" >&2
     echo "$conf/ingest.env and the image." >&2
 fi
-# The backup timers need an image with the `scrap backup` command.
+# The backup timers need an image with the `scrap backup` command. The monthly
+# one is off while SCRAP_BACKUP_MONTHLY_KEEP is 0 (or 00...): an opt-out that,
+# unlike a bare systemctl disable, survives re-running this script.
+monthly_keep=$(setting SCRAP_BACKUP_MONTHLY_KEEP)
 if "$podman" run --rm "$image" backup --help >/dev/null 2>&1; then
-    systemctl --user enable --now scrap-backup.timer scrap-backup-monthly.timer
+    case $monthly_keep in
+    '' | *[!0]*)
+        systemctl --user enable --now scrap-backup.timer scrap-backup-monthly.timer
+        ;;
+    *)
+        systemctl --user enable --now scrap-backup.timer
+        systemctl --user disable --now scrap-backup-monthly.timer 2>/dev/null || true
+        echo "Note: SCRAP_BACKUP_MONTHLY_KEEP is 0, so the monthly backup timer is off." >&2
+        ;;
+    esac
 else
     systemctl --user disable --now scrap-backup.timer scrap-backup-monthly.timer 2>/dev/null || true
     echo "Note: $image has no 'scrap backup' command, so the daily and monthly" >&2

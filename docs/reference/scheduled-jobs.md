@@ -33,7 +33,9 @@ Each chart value, its default, and what does the same on a single server. A time
 `systemctl --user edit <timer>` with `[Timer]`, an empty `OnCalendar=`, then the new one; a
 service drop-in is `systemctl --user edit <service>` with `[Service]`, an empty `ExecStart=`,
 then the new command (both in {ref}`scrap-backup-restore`, *Changing the schedule* and *Changing
-what a job does*).
+what a job does*). Re-running `install.sh` enables again every timer whose command the image
+has, so a timer turned off only with `systemctl --user disable` must be disabled again after
+it; `SCRAP_BACKUP_MONTHLY_KEEP=0` is an opt-out that `install.sh` keeps.
 
 | Chart value | Default | Single server |
 | --- | --- | --- |
@@ -42,10 +44,10 @@ what a job does*).
 | `backup.timeZone` | `""` | none: the machine's local time |
 | `backup.keep` | `7` | `SCRAP_BACKUP_KEEP` in `~/.config/scrap/env` (`install.sh` writes 14) |
 | `backup.persistence.*` | a 20Gi claim | `SCRAP_BACKUPS` in `~/.config/scrap/env`: the folder (or disk) the runs go to |
-| `backup.monthly.enabled` | `true` | `systemctl --user disable --now scrap-backup-monthly.timer` |
+| `backup.monthly.enabled` | `true` | `SCRAP_BACKUP_MONTHLY_KEEP=0` in `~/.config/scrap/env`, then re-run `install.sh` (it disables `scrap-backup-monthly.timer`) |
 | `backup.monthly.schedule` | `50 3 1 * *` | timer drop-in on `scrap-backup-monthly.timer` (`OnCalendar=*-*-01 03:50:00`) |
 | `backup.monthly.timeZone` | `""` | none: the machine's local time |
-| `backup.monthly.keep` | `12` | `SCRAP_BACKUP_MONTHLY_KEEP` in `~/.config/scrap/env` (unset means 12) |
+| `backup.monthly.keep` | `12` | `SCRAP_BACKUP_MONTHLY_KEEP` in `~/.config/scrap/env` (unset means 12; 0 is off) |
 | `gc.enabled` | unset: follows `backup.enabled` | `systemctl --user disable --now scrap-gc.timer` |
 | `gc.schedule` | `30 4 * * *` | timer drop-in on `scrap-gc.timer` (`OnCalendar=*-*-* 04:30:00`) |
 | `gc.timeZone` | `""` | none: the machine's local time |
