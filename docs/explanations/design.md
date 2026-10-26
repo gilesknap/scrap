@@ -76,7 +76,7 @@ Only `store/` opens the database. Everything else calls it.
 ```mermaid
 flowchart TD
     subgraph entry["Entry points"]
-        app["app.py, public.py"]
+        app["app.py, *_api.py, api_models.py, middleware.py, uploads.py, pwa.py, public.py"]
         mcpt["mcp_server.py, mcp_tools/"]
         imp["importer/"]
     end
@@ -86,7 +86,7 @@ flowchart TD
         cl["claude.py, claude_cli.py"]
     end
     subgraph st["store/"]
-        core["core, pages, photos, topics"]
+        core["core, capture, pages, edits, photos, topics"]
         sea["search, indexing"]
         rev["revisions, trash"]
         dbm["db.py, migrations/"]

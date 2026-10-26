@@ -1,5 +1,6 @@
 """What the routes that take uploads share: who sent a request, and storing its files.
-Below app.py and photos_api.py, which both import it."""
+Below pages_api, photos_api, drawing_api, writeup_api and middleware, which import
+it."""
 
 import mimetypes
 import os

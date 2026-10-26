@@ -47,7 +47,7 @@ jobs:
       - name: Test the image carries the built PWA
         run: >
           docker run --rm --entrypoint python tag_for_testing -c
-          "import scrap.app as a; assert (a.STATIC / 'index.html').is_file()"
+          "import scrap.pwa as a; assert (a.STATIC / 'index.html').is_file()"
 
       - name: Test the image can verify HTTPS certificates
         run: >

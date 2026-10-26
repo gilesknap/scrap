@@ -546,7 +546,7 @@ def shell(tmp_path, monkeypatch):
     (static / "index.html").write_text("<title>scrap</title>")
     (static / "sw.js").write_text("// sw")
     (static / "assets" / "main-abc.js").write_text("// app")
-    monkeypatch.setattr("scrap.app.STATIC", static)
+    monkeypatch.setattr("scrap.pwa.STATIC", static)
     return TestClient(create_app(tmp_path / "data"))
 
 
@@ -579,7 +579,7 @@ def test_text_is_gzipped_and_files_are_not(tmp_path, monkeypatch):
     (static / "index.html").write_text("<title>scrap</title>")
     (static / "assets" / "big-abc.js").write_text("let x = 1;\n" * 2000)
     (static / "excalidraw" / "fonts" / "f.woff2").write_bytes(b"w" * 5000)
-    monkeypatch.setattr("scrap.app.STATIC", static)
+    monkeypatch.setattr("scrap.pwa.STATIC", static)
     client = TestClient(create_app(tmp_path / "data"))
     gz = {"Accept-Encoding": "gzip"}
 
@@ -620,7 +620,7 @@ def test_web_dir_overrides_the_packaged_pwa(tmp_path, monkeypatch):
 
 
 def test_unbuilt_pwa_says_how_to_build(tmp_path, monkeypatch):
-    monkeypatch.setattr("scrap.app.STATIC", tmp_path / "missing")
+    monkeypatch.setattr("scrap.pwa.STATIC", tmp_path / "missing")
     client = TestClient(create_app(tmp_path / "data"))
     response = client.get("/")
     assert response.status_code == 503
@@ -848,7 +848,7 @@ def test_the_shell_shows_the_server_version_in_the_title_bar(tmp_path, monkeypat
     static = tmp_path / "static"
     static.mkdir()
     (static / "index.html").write_text(f"<header>scrap{VERSION_SLOT}</header>")
-    monkeypatch.setattr("scrap.app.STATIC", static)
+    monkeypatch.setattr("scrap.pwa.STATIC", static)
     client = TestClient(create_app(tmp_path / "data"))
     page = client.get("/")
     assert (
@@ -872,7 +872,7 @@ def test_the_shell_lists_the_public_origins_for_the_pwa(tmp_path, monkeypatch):
     static = tmp_path / "static"
     static.mkdir()
     (static / "index.html").write_text(f"<head>{ORIGINS_SLOT}</head>")
-    monkeypatch.setattr("scrap.app.STATIC", static)
+    monkeypatch.setattr("scrap.pwa.STATIC", static)
     monkeypatch.setenv(
         "SCRAP_PUBLIC_URL",
         "https://Scrap.example.ts.net:443/, http://192.168.1.10:8000",

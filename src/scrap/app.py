@@ -1,75 +1,50 @@
-"""The scrap web application: a JSON API over the store."""
+"""The scrap web application: a JSON API over the store. create_app wires it up; the
+routes are in the *_api modules, the PWA in pwa."""
 
-import json
 import logging
 import os
-import re
-import tempfile
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Any
-from urllib.parse import quote
-from xml.sax.saxutils import quoteattr
+from typing import Any
 
-import anyio
-from fastapi import FastAPI, Query, Request, Response
-from fastapi.concurrency import run_in_threadpool
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import (
-    FileResponse,
-    HTMLResponse,
-    JSONResponse,
-    PlainTextResponse,
-    RedirectResponse,
-    StreamingResponse,
-)
-from fastapi.staticfiles import StaticFiles
-from pydantic import (
-    AfterValidator,
-    BaseModel,
-    BeforeValidator,
-    Field,
-    StrictBool,
-    StrictInt,
-)
-from starlette.datastructures import UploadFile
-from starlette.middleware.gzip import GZipMiddleware
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from fastapi.responses import JSONResponse
 
 from . import (
     __version__,
-    backup,
+    blobs_api,
     drawing,
+    drawing_api,
     enrich,
     health_api,
     ingest,
+    ingest_api,
     mcp_server,
+    pages_api,
     photos_api,
-    preview,
+    pwa,
+    search_api,
+    topic_api,
+    writeup_api,
 )
-from .public import public_origins
+from .api_models import SURROGATE_MSG, EnrichOffError
+from .blobs_api import attachment
+from .middleware import BodyLimit, TextGzip
+from .pwa import ORIGINS_SLOT, VERSION_SLOT
 from .store import (
-    MAX_FIELDS,
-    MAX_TAGS,
-    SURROGATE,
     ConflictError,
     InvalidError,
     NotFoundError,
     Store,
     TooLargeError,
-    enrich_on,
-    new_ulid,
     now,
     upload_limit,
 )
-from .uploads import author, mimes, put_files, too_large
 
-__all__ = ["create_app"]
-
-
-class EnrichOffError(Exception):
-    """Claude enrichment is off (it needs SCRAP_INGEST=on, and SCRAP_ENRICH not off)."""
+# attachment and the slots: re-exported, where they were before the routes moved out
+__all__ = ["create_app", "attachment", "ORIGINS_SLOT", "VERSION_SLOT"]
 
 
 ERRORS = {
@@ -79,196 +54,6 @@ ERRORS = {
     TooLargeError: 413,
     InvalidError: 422,
 }
-BLOB_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "sandbox",  # an uploaded HTML file cannot run scripts
-    "Cache-Control": "private, max-age=31536000, immutable",
-}
-SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
-STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
-SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
-# Served index.html
-APP_ROUTES = (
-    "/",
-    "/recent",
-    "/search",
-    "/tags",
-    "/todos",
-    "/topics",
-    "/health",
-    "/p/{key}",
-)
-NOT_BUILT = (
-    "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
-    "\n(the API under /api works without it)\n"
-)
-
-
-SURROGATE_MSG = "a lone surrogate"
-
-
-def _encodable(value: str) -> str:
-    """Refuse a lone surrogate: JSON can escape one, but the database cannot store it
-    (a 500). The error does not carry the text, as invalid_request omits the input."""
-    if value.isascii() or SURROGATE.search(value) is None:
-        return value
-    raise ValueError(f"must be valid Unicode ({SURROGATE_MSG})")
-
-
-# Every request string that can reach the database goes through this
-Text = Annotated[str, AfterValidator(_encodable)]
-
-
-class Reprocess(BaseModel):
-    photo: Text | None = None  # one photo's sha256; default all of the capture's
-    replace_human: bool = False  # the user confirmed replacing their own drawing
-
-
-VERSION_NUMBER = Annotated[StrictInt, Field(ge=1, le=2**31)]
-
-
-WARNED: set[int] = set()  # the unencodable rows already logged
-
-
-class Drawing(JSONResponse):
-    """A drawing as JSON. A stored row that cannot be encoded (rows made before the
-    sanitiser refused lone surrogates) is served with them replaced, and logged once,
-    rather than failing every request for it."""
-
-    def render(self, content: Any) -> bytes:
-        try:
-            return super().render(content)
-        except UnicodeEncodeError:
-            text = json.dumps(content, ensure_ascii=False, separators=(",", ":"))
-            seen = hash(text)
-            if seen not in WARNED:  # once per row, not on every request for it
-                if len(WARNED) >= 1000:
-                    WARNED.clear()
-                WARNED.add(seen)
-                logging.getLogger(__name__).warning(
-                    "drawing with unencodable text served"
-                )
-            return SURROGATE.sub("\ufffd", text).encode()
-
-
-class Restore(BaseModel):
-    version: VERSION_NUMBER  # the version to make current again
-    base_version: VERSION_NUMBER  # the current one as the client saw it, else 409
-
-
-FIELD_NAME = Annotated[Text, Field(min_length=1, max_length=40)]
-# A field's value: flat, as the importer stores them too (None in a PATCH drops it)
-# Numbers a browser holds exactly: whole within +-2**53, others finite (1e400 is not)
-FIELD_INT = Annotated[StrictInt, Field(ge=-(2**53), le=2**53)]
-
-
-def _only_float(value: Any) -> Any:
-    """Not an int: pydantic would take one past FIELD_INT's range as a float."""
-    if not isinstance(value, float):
-        raise ValueError("not a decimal number")
-    return value
-
-
-FIELD_FLOAT = Annotated[
-    float, BeforeValidator(_only_float), Field(strict=True, allow_inf_nan=False)
-]
-
-FIELD = Annotated[Text, Field(max_length=200)] | StrictBool | FIELD_INT | FIELD_FLOAT
-
-
-class PageEdit(BaseModel):
-    base_rev: int | None = None  # needed with a title or body
-    title: Text | None = None
-    body: Text | None = None
-    kind: Text | None = None  # one the user chose: fixed, ingest keeps it
-    fields: (
-        Annotated[dict[FIELD_NAME, FIELD | None], Field(max_length=MAX_FIELDS)] | None
-    ) = None
-    tags: Annotated[list[Text], Field(max_length=MAX_TAGS)] | None = None  # all of them
-    # The tags the editor started from: Claude's added since are kept, not retired
-    tags_shown: Annotated[list[Text], Field(max_length=MAX_TAGS)] | None = None
-    # A todo's (null clears one): sent or not tells apart, see todo()
-    due: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
-    priority: Annotated[Text, Field(max_length=10)] | None = None  # high, medium, low
-    snoozed_until: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
-
-    def todo(self) -> dict[str, str | None]:
-        """The due date and priority sent, null too (it clears one)."""
-        return {
-            k: getattr(self, k)
-            for k in ("due", "priority", "snoozed_until")
-            if k in self.model_fields_set
-        }
-
-
-def attachment(name: str) -> str:
-    """Content-Disposition saving a file as name: ASCII fallback, then RFC 5987."""
-    plain = name.encode("ascii", "replace").decode().replace("?", "_")
-    plain = re.sub(r'["\\\x00-\x1f\x7f]', "_", plain)
-    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
-
-
-class BodyLimit:
-    """Raise TooLargeError while a request body is read, once it passes limit bytes.
-
-    Covers chunked bodies with no Content-Length; the route turns it into a 413.
-    """
-
-    def __init__(self, app: ASGIApp, limit: int):
-        self.app, self.limit = app, limit
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        seen = 0
-
-        async def counted() -> Message:
-            nonlocal seen
-            message = await receive()
-            seen += len(message.get("body", b""))
-            if seen > self.limit:
-                raise TooLargeError(too_large(self.limit))
-            return message
-
-        await self.app(scope, counted, send)
-
-
-class TextGzip:
-    """Gzip what compresses: the PWA's scripts, styles and pages, and the API's JSON
-    (a drawing is up to 5 MB of it). Not files (blobs, previews, downloads: photos and
-    zips are compressed already, and they take range requests), nor fonts or images
-    (excluded by type), nor any range request."""
-
-    def __init__(self, app: ASGIApp):
-        self.app = app
-        self.gzip = GZipMiddleware(app, minimum_size=1024, compresslevel=6)
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        path = scope.get("path", "")
-        files = path.startswith("/api/blobs/") or path.endswith("/download")
-        ranged = any(k == b"range" for k, _ in scope.get("headers", ()))
-        if scope["type"] != "http" or files or ranged:
-            await self.app(scope, receive, send)
-        else:
-            await self.gzip(scope, receive, send)
-
-
-VERSION_SLOT = '<small id="ver" aria-hidden="true"></small>'  # in the PWA's index.html
-# Also there: the origins of $SCRAP_PUBLIC_URL, so the PWA opens a page's full address
-# on any of them in place (render.ts own). In the shell the service worker keeps, so
-# offline too; a changed setting reaches an installed PWA with its next update.
-ORIGINS_SLOT = '<meta name="scrap-origins" content="" />'
-
-
-class Shell(StaticFiles):
-    """The built PWA. Hashed assets are cached for good; the rest is revalidated, so
-    a new build's service worker and manifest are noticed."""
-
-    def file_response(self, full_path, *args, **kwargs):
-        response = super().file_response(full_path, *args, **kwargs)
-        immutable = "/assets/" in str(full_path)
-        response.headers["Cache-Control"] = (
-            "public, max-age=31536000, immutable" if immutable else "no-cache"
-        )
-        return response
 
 
 def create_app(data_dir: Path | str | None = None) -> FastAPI:
@@ -357,109 +142,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
                 "paused": paused}  # fmt: skip
         return JSONResponse(body, code)
 
-    def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
-        types = mimes(uploads)
-        capture = store.prepare(data, types)  # before writing any file
-        saved = store.capture(capture, put_files(store, uploads, types), who)
-        if app.state.worker:
-            app.state.worker.wake()
-        return saved
-
-    @app.post("/api/captures", status_code=201)
-    async def capture(request: Request, response: Response) -> dict[str, str]:
-        """Save a note, link, photo or file; a retry with the same id returns 200."""
-        if int(request.headers.get("content-length") or 0) > limit:
-            raise TooLargeError(too_large(limit))
-        who = author(request)
-        if request.headers.get("content-type", "").startswith("multipart/form-data"):
-            async with request.form() as form:  # closes the spooled uploads
-                data: dict[str, Any] = {
-                    k: v for k, v in form.items() if isinstance(v, str)
-                }
-                data["tags"] = form.getlist("tags")  # one field per tag
-                files = [f for f in form.getlist("file") if isinstance(f, UploadFile)]
-                ref, created = await run_in_threadpool(save, data, files, who)
-        else:
-            try:
-                data = await request.json()
-            except ValueError:
-                raise InvalidError("expected JSON or multipart/form-data") from None
-            if not isinstance(data, dict):
-                raise InvalidError("expected a JSON object")
-            ref, created = await run_in_threadpool(save, data, [], who)
-        response.status_code = 201 if created else 200
-        return ref
-
-    @app.post("/share", include_in_schema=False)
-    async def share(request: Request) -> RedirectResponse:
-        """The manifest share target, if the service worker did not catch the POST
-        (it normally queues the share itself): save it as a capture now."""
-        who = author(request)
-        async with request.form() as form:
-            fields = {k: v.strip() for k, v in form.items() if isinstance(v, str)}
-            title, text, url = (fields.get(k, "") for k in ("title", "text", "url"))
-            # As the service worker does: Android sends a link as text after the title
-            if not url and (link := SHARED_LINK.search(text)):
-                url, text = link[1], text[: link.start()].strip()
-            if title and title not in text:
-                text = f"{title}\n\n{text}".strip()
-            data = {"id": new_ulid(), "text": text, "url": url, "source": "share"}
-            files = [
-                f for f in form.getlist("files") if isinstance(f, UploadFile) and f.size
-            ]
-            if text or url or files:
-                await run_in_threadpool(save, data, files, who)
-        return RedirectResponse("/", 303)
-
-    @app.get("/api/pages")
-    def recent(
-        limit: int = Query(50, ge=1, le=500),
-        kind: str | None = None,
-    ) -> list[dict[str, Any]]:
-        """Pages, most recently changed first; the trash is left out. Only those of
-        one kind, if given (empty: all)."""
-        return store.recent(limit, kind or None)
-
-    @app.get("/api/pages/{key}")
-    def page(key: str) -> dict[str, Any]:
-        """A page by id or slug, with its captures and their files."""
-        return store.page(key)
-
-    @app.patch("/api/pages/{key}")
-    def edit(key: str, edit: PageEdit, request: Request) -> dict[str, Any]:
-        """Change title and/or body (409 if base_rev is not the current revision),
-        and/or the kind, fields, tags, and a todo's due date and priority."""
-        if edit.base_rev is None and (edit.title, edit.body) != (None, None):
-            raise InvalidError("base_rev is needed to change the title or body")
-        who = author(request)
-        return store.update_page(
-            key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
-            edit.tags, edit.todo(), tags_shown=edit.tags_shown,
-        )  # fmt: skip
-
-    @app.delete("/api/pages/{key}", status_code=204)
-    def delete(key: str) -> None:
-        """Move a page to the trash."""
-        store.delete_page(key)
-
-    @app.post("/api/pages/{key}/undelete")
-    def undelete(key: str) -> dict[str, Any]:
-        """Bring a page back from the trash."""
-        store.delete_page(key, undo=True)
-        return store.page(key)
-
-    @app.post("/api/pages/{key}/enrich")
-    def enrich_page(key: str) -> dict[str, Any]:
-        """Ask Claude to read a page now (tags, summary, related pages; a link is
-        fetched): queued, and the page returned as it is; 409 while Claude is off."""
-        if not enrich_on():
-            raise EnrichOffError
-        page = enrich.ask(store, key)
-        if app.state.worker:
-            app.state.worker.wake()
-        return page
-
-    from . import topic_api, writeup_api  # they build on this module
+    pages_api.add_routes(app, store, limit)
 
     def wake() -> None:
         if app.state.worker:
@@ -469,183 +152,12 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     topic_api.add_routes(app, store, wake)
     photos_api.add_routes(app, store, wake, limit)
     health_api.add_routes(app, store)
-
-    @app.post("/api/captures/{cid}/reprocess")
-    def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:
-        """Send a capture's photos (or one) to Claude again, or retry a failed one."""
-        added = ingest.reprocess(store, cid.upper(), ask.photo, ask.replace_human)
-        if app.state.worker:
-            app.state.worker.wake()
-        return added
-
-    def photo(cid: str, sha: str) -> tuple[str, str]:
-        return cid.upper(), sha.lower()
-
-    # The drawing endpoints answer with Drawing (a JSONResponse): a scene is JSON from
-    # the editor, passed through as stored, not a model for FastAPI to check again.
-    @app.get("/api/captures/{cid}/photos/{sha}/drawing")
-    def drawing_current(cid: str, sha: str) -> Drawing:
-        """A photo's current drawing, with its data; 404 if it has none."""
-        return Drawing(drawing.current(store, *photo(cid, sha)))
-
-    @app.get("/api/captures/{cid}/photos/{sha}/drawing/versions")
-    def drawing_versions(cid: str, sha: str) -> Drawing:
-        """Every version of a photo's drawing, newest first, without their data."""
-        return Drawing(drawing.versions(store, *photo(cid, sha)))
-
-    @app.put("/api/captures/{cid}/photos/{sha}/drawing")
-    async def drawing_save(cid: str, sha: str, request: Request) -> Drawing:
-        """Save a scene from the editor as a new human version: {base_version, scene}.
-        409 if the current version is no longer base_version, 422 if the scene breaks
-        a rule, 413 if the request is over SCENE_REQUEST bytes."""
-        body = bytearray()
-        async for chunk in request.stream():
-            body += chunk
-            if len(body) > SCENE_REQUEST:
-                raise TooLargeError(too_large(SCENE_REQUEST))
-        try:
-            ask = json.loads(body)
-        except (ValueError, RecursionError):  # also nesting or digits past the parser's
-            raise InvalidError("expected JSON") from None
-        if not isinstance(ask, dict) or not (
-            ask.get("base_version") is None or type(ask["base_version"]) is int
-        ):
-            raise InvalidError("expected {base_version, scene}")
-        who = author(request)
-        saved = await run_in_threadpool(
-            drawing.save, store, *photo(cid, sha), ask["base_version"],
-            ask.get("scene"), who,
-        )  # fmt: skip
-        return Drawing(saved)
-
-    @app.post("/api/captures/{cid}/photos/{sha}/drawing/restore")
-    def drawing_restore(cid: str, sha: str, ask: Restore, request: Request) -> Drawing:
-        """Make an old version of the drawing current again, as a new copy; 409 if
-        base_version is no longer current, 404 if there is no such version."""
-        who = author(request)
-        restored = drawing.restore(
-            store, *photo(cid, sha), ask.version, ask.base_version, who
-        )
-        return Drawing(restored)
-
-    @app.get("/api/ingest")
-    def ingest_status() -> dict[str, Any]:
-        """The ingest queue: paused or not (and why), jobs by state, spend today."""
-        return ingest.status(store)
-
-    @app.post("/api/ingest/resume")
-    def resume() -> dict[str, Any]:
-        """End a pause of the ingest queue."""
-        ingest.resume_queue(store)
-        if app.state.worker:
-            app.state.worker.wake()
-        return ingest.status(store)
-
-    @app.get("/api/search")
-    def search(
-        q: str,
-        limit: int = Query(20, ge=1, le=100),
-        offset: int = Query(0, ge=0, le=10_000),  # the next page of results
-    ) -> list[dict[str, Any]]:
-        """Full-text search over titles, tags, summaries and bodies, with -word,
-        "phrase", kind:, tag:, is:, has:, image:, dates and sort:; snippets mark hits
-        with <mark>; each hit says whether it is a topic page (topic)."""
-        return topic_api.marked(store, store.search(q, limit, offset))
-
-    @app.get("/api/search/facets")
-    def facets(q: str, top: int = Query(12, ge=1, le=1000)) -> dict[str, Any]:
-        """The kinds and top tags of a search's pages, with counts, to narrow it."""
-        return store.facets(q, top)
-
-    @app.get("/api/tags")
-    def tags() -> list[list[Any]]:
-        """Every tag in use, with how many pages have it."""
-        return store.tags()
-
-    @app.get("/api/pages/{key}/download")
-    def page_download(key: str) -> StreamingResponse:
-        """A page as <slug>.md, or with its files a <slug>.zip."""
-        out = tempfile.SpooledTemporaryFile(max_size=8 * 2**20)
-        try:
-            name, mime = backup.download(store, key, out)
-        except BaseException:
-            out.close()
-            raise
-        out.seek(0)
-
-        def chunks() -> Iterator[bytes]:
-            with out:
-                while chunk := out.read(1 << 16):
-                    yield chunk
-
-        headers = {"Content-Disposition": attachment(name), "Cache-Control": "no-store"}
-        return StreamingResponse(chunks(), media_type=mime, headers=headers)
-
-    decoding = anyio.Lock()  # requests wait for the decoder here, not in worker threads
-
-    @app.get("/api/blobs/{sha}/preview")
-    async def blob_preview(sha: str, size: int = 2048) -> Response:
-        """A JPEG preview of a stored photo (HEIC too), turned upright, at most size
-        (480 or 2048) pixels a side; made on first request, then cached. 503 while
-        the decoder is busy for long."""
-        busy = JSONResponse(
-            {"detail": preview.BusyError.__doc__}, 503, {"Retry-After": "5"}
-        )
-        path = await run_in_threadpool(preview.cached, store, sha, size)
-        if path is None:
-            try:
-                with anyio.fail_after(preview.WAIT):
-                    await decoding.acquire()
-            except TimeoutError:
-                return busy
-            try:
-                path = await run_in_threadpool(preview.preview, store, sha, size)
-            except preview.BusyError:  # another caller of preview() has the decoder
-                return busy
-            finally:
-                decoding.release()
-        return FileResponse(path, media_type="image/jpeg", headers=BLOB_HEADERS)
-
-    @app.get("/api/blobs/{sha}/uses")
-    def blob_uses(sha: str, page: str) -> dict[str, int]:
-        """How many other pages show a stored file (the trash left out), for the
-        editor's warning when its embed is deleted from page (an id)."""
-        return {"pages": store.blob_uses(sha.lower(), page)}
-
-    @app.get("/api/blobs/{sha}")
-    def blob(sha: str, download: bool = False) -> FileResponse:
-        """A stored original, byte for byte; ?download=1 saves it under its name."""
-        path, mime = store.blob(sha)
-        headers = dict(BLOB_HEADERS)
-        if download:
-            name = backup.file_name(store.blob_name(sha), sha, mime)
-            headers["Content-Disposition"] = attachment(name)
-        return FileResponse(path, media_type=mime, headers=headers)
+    ingest_api.add_routes(app, store)
+    drawing_api.add_routes(app, store)
+    search_api.add_routes(app, store)
+    blobs_api.add_routes(app, store)
 
     app.router.routes.extend(mcp_routes)  # before the PWA's catch-all mount
-
-    # $SCRAP_WEB_DIR serves a PWA build from elsewhere, e.g. one being tried out live
-    static = Path(os.environ.get("SCRAP_WEB_DIR") or STATIC)
-    index = static / "index.html"
-    if not index.is_file():
-        logging.getLogger(__name__).warning(NOT_BUILT.splitlines()[0])
-
-    def shell() -> Response:
-        """The PWA: every app route loads index.html and routes in the browser."""
-        if not index.is_file():
-            return PlainTextResponse(NOT_BUILT, 503)
-        slot = VERSION_SLOT.replace("></", f">v{__version__.split('+')[0]}</")
-        origins = ORIGINS_SLOT.replace('""', quoteattr(" ".join(public_origins())))
-        html = (
-            index.read_text(encoding="utf-8")
-            .replace(VERSION_SLOT, slot)
-            .replace(ORIGINS_SLOT, origins)
-        )
-        return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
-
-    for route in APP_ROUTES:
-        app.get(route, include_in_schema=False)(shell)
-    if static.is_dir():
-        app.mount("/", Shell(directory=static), name="static")
+    pwa.add_routes(app)
 
     return app
