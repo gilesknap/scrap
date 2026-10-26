@@ -15,7 +15,7 @@ there for `SCRAP_TRASH_DAYS` days (30 by default; see The trash below); enrichme
 revision history. Unless content editing is off they also say `edit_page` and `revert` (with
 `to_rev`) change a page's text as revisions, only on a page the user asked to change (see Page
 text below). The `sc` commands (`/sc-post`, `/sc-summarise`, `/sc-find`, `/sc-todos`, `/sc-tidy`,
-`/sc-undo`; `commands/` in the repository, installed as in
+`/sc-undo`, `/sc-write`, `/sc-answer`, `/sc-edit`, `/sc-done`, `/sc-recent`; `commands/` in the repository, installed as in
 [](../how-to/connect-claude-code.md)) wrap these tools as short commands.
 
 The tools by purpose (a tool in a dashed box is listed only while `SCRAP_MCP_CONTENT_EDIT` is not

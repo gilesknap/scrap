@@ -177,6 +177,11 @@ line.
 | `/sc-todos` | What to do now, overdue first. |
 | `/sc-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
 | `/sc-undo` | Lists recent `revisions` and `revert`s the one you name. |
+| `/sc-write <what>` | Writes one new page from your instructions, picking out only what you ask for from the conversation ("the URLs we discussed and why"). Uses only the conversation, lists anything uncertain under *Unsure*, and reuses existing tags. Always creates a page. |
+| `/sc-answer <question>` | Answers from scrap alone: searches, reads the pages, and cites them as `[[slug\|title]]`; says "not in scrap" rather than using general knowledge. Read-only. |
+| `/sc-edit <page> <change>` | Changes the text of an existing page with `edit_page`: a `dry_run` diff first, then the edit once you agree. `/sc-undo` reverts it. |
+| `/sc-done <todo>` | Ticks off a todo's task boxes with `edit_page` (the todo becomes `done` when all are ticked). A todo with no task boxes cannot be closed over MCP: mark it in the app. |
+| `/sc-recent [period]` | What changed lately (default `1d`), by you and by Claude, from the `revisions` feed and `search`. Read-only. |
 | `/sc <words>` | An index: searches like `/sc-find`, or lists the commands above. |
 
 Install them for all your projects with one command:
@@ -237,6 +242,9 @@ reaches Claude Code through the clipboard:
 A drawing saved this way is a new version, "drawn by claude", in the drawing's History in the PWA;
 nothing is overwritten, and if you edited the drawing in the meantime Claude's save is refused.
 You can restore any earlier version there.
+
+To have a session summary posted automatically before each compaction, install the `PreCompact`
+hook described in [](auto-summary-on-compact.md).
 
 ## Permissions and security
 
