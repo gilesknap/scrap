@@ -233,11 +233,14 @@ test("the viewer's More menu leads with Share a PNG, only where the phone can sh
   page,
 }) => {
   const b = board();
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true }),
+  );
   await page.goto(`/p/${b.slug}`);
   await open(page);
   await dialog(page).getByText("More").click();
+  await expect(tool(page, "History")).toBeVisible();
   await expect(tool(page, "Share")).toHaveCount(0);
-  await page.keyboard.press("Escape");
   await page.reload();
   await page.evaluate(() => {
     const w = window as unknown as { shared: { title: string; files: File[] }[] };
@@ -260,6 +263,19 @@ test("the viewer's More menu leads with Share a PNG, only where the phone can sh
     return [d.files[0].name, d.files[0].type, d.files[0].size > 0];
   });
   expect(f).toEqual([`${b.slug}-drawing-v1.png`, "image/png", true]);
+});
+
+test("Share says so, and exports nothing, where the phone can't share files", async ({ page }) => {
+  const b = board();
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "canShare", { value: () => false, configurable: true });
+    Object.defineProperty(navigator, "share", { value: async () => {}, configurable: true });
+  });
+  await page.goto(`/p/${b.slug}`);
+  await open(page);
+  await dialog(page).getByText("More").click();
+  await tool(page, "Share").click();
+  await expect(page.getByText("Sharing files is not supported here")).toBeVisible();
 });
 
 test("the inline drawing card follows the drawings theme, not the app's", async ({ page }) => {

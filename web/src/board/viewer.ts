@@ -66,7 +66,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
     h(
       "div",
       { className: "menu" },
-      "share" in navigator
+      typeof navigator.share === "function"
         ? tool("Share", (e) => void shareDrawing(e.currentTarget as HTMLElement))
         : null,
       tool("History", () => void showHistory()),
@@ -319,15 +319,20 @@ export function openDrawing(t: Target, onSaved: () => void) {
   }
 
   function shareDrawing(row: HTMLElement) {
-    more.open = false;
-    if (!board) return;
     const png = board;
+    if (!png) {
+      more.open = false;
+      return;
+    }
+    // The menu stays open meanwhile: its row says Preparing…
     return shareMade(
       row,
       t.name || "Drawing",
       `${t.slug}-drawing-v${current?.version ?? 0}.png`,
       () => png.export("png"),
-    );
+    ).finally(() => {
+      more.open = false;
+    });
   }
 
   // ---- open and close: Back closes, keeping an unsaved edit as a draft
