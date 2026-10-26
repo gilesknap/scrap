@@ -172,11 +172,6 @@ def prune_jobs(
     return len(jobs), len(texts)
 
 
-def _cutoff_stamp(run_days: float) -> str:
-    when = datetime.now(UTC) - timedelta(days=run_days)
-    return when.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
 def prune_runs(
     conn: sqlite3.Connection, run_days: float = RUN_DAYS, delete: bool = False
 ) -> tuple[int, int]:
@@ -191,12 +186,12 @@ def prune_runs(
     (``parent_id``). Returns the
     counts (model_run, enrich_run). Call inside the write transaction when deleting.
     """
-    stamp = _cutoff_stamp(run_days)
+    cutoff = stamp(run_days)
     models = conn.execute(
         "SELECT id, parent_id, capture_id, source_sha256, started_at, status"
         " FROM model_run"
     ).fetchall()
-    keep = {r[0] for r in models if r[5] == "running" or r[4] >= stamp}
+    keep = {r[0] for r in models if r[5] == "running" or r[4] >= cutoff}
     keep |= {
         row[0]
         for row in conn.execute("SELECT run_id FROM derived WHERE run_id IS NOT NULL")
@@ -215,7 +210,7 @@ def prune_runs(
     enrich = conn.execute(
         "SELECT id, page_id, started_at, status FROM enrich_run"
     ).fetchall()
-    keep_e = {r[0] for r in enrich if r[3] == "running" or r[2] >= stamp}
+    keep_e = {r[0] for r in enrich if r[3] == "running" or r[2] >= cutoff}
     keep_e |= {
         row[0]
         for row in conn.execute(
