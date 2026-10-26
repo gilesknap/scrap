@@ -1,8 +1,7 @@
 """The HTTP routes for Claude's topic pages (#261): the index, a topic's sources,
 taking one out, and the topic mark on search hits (marked). A topic's synthesis is
 its write-up, so Regenerate, guidance, versions and Restore are writeup_api's.
-Registered by app.create_app (add_routes), which this module builds on, so it is
-imported there, not at the top of app.py."""
+Registered by app.create_app (add_routes)."""
 
 from collections.abc import Callable
 from typing import Any

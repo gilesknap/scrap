@@ -1,6 +1,5 @@
 """The HTTP routes for a board page's write-up (#256): Regenerate, the owner's
-guidance, its versions and Restore. Registered by app.create_app (add_routes), which
-this module builds on, so it is imported there, not at the top of app.py."""
+guidance, its versions and Restore. Registered by app.create_app (add_routes)."""
 
 from collections.abc import Callable
 from typing import Annotated, Any
@@ -9,8 +8,9 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 
 from . import enrich
-from .app import EnrichOffError, Restore, Text, author
+from .api_models import EnrichOffError, Restore, Text
 from .store import Store, enrich_on
+from .uploads import author
 
 
 class Guidance(BaseModel):
