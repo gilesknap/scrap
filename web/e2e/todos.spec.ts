@@ -156,7 +156,7 @@ test("the Todos tab: one tap to Now, with a count of the todos due", async ({ pa
   const due = async () =>
     (await (await page.request.get(`/api/search/facets?q=${q}`)).json()).total as number;
   await page.goto("/");
-  await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search"]);
+  await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search", "Topics"]);
   const n = await due();
   expect(n).toBeGreaterThanOrEqual(4); // the Quolls: two overdue, two today
   await expect(badge).toHaveText(String(n));

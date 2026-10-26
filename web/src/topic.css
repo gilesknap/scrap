@@ -1,0 +1,43 @@
+/* Claude's topic pages (topic.ts), in the page's one Claude card, About this page: a source's
+   line naming its topics, and a topic's Sources, a fold with a ✕ (or Put back) per source. */
+.enrich .topicsline {
+  margin: 0 0 var(--s-2);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.enrich .topicsline a {
+  font-weight: 600;
+}
+.enrich .sources ul {
+  margin: 0 0 var(--s-2);
+  padding: 0;
+  list-style: none;
+}
+.enrich .sources li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+}
+.enrich .sources li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* The ✕: a 48 px ghost, its icon in --ink-2 as the recent searches' */
+.enrich .sources .drop {
+  flex: none;
+  width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
+/* Taken out: kept in the list, its title struck in --ink-2, Put back at its end */
+.enrich .sources li.out a {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.enrich .sources li.out > button {
+  flex: none;
+  margin: 0;
+}

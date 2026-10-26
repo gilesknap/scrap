@@ -42,6 +42,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
     },
   ],
   [/^\/todos$/, () => todos()],
+  [/^\/topics$/, () => import("./topics").then((m) => m.topics())], // a lazy chunk
   [
     /^\/p\/([^/]+)$/,
     (m) => {
@@ -87,11 +88,10 @@ up.onclick = () => {
 /** The top bar's Back says where it goes: the list, else the parent (for a page, once its
  * kind is known). */
 const nameBack = () => {
+  const kind = document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind;
   const to =
     history.state?.back?.name ??
-    (document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind === "todo"
-      ? "Todos"
-      : "Capture");
+    (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : "Capture");
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
 };

@@ -5,9 +5,23 @@
    actions as a row under what it is, toasts at the foot; and hover says what can be clicked.
    (ui.ts has the same query, DESK, for placing toasts.) */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
-  /* The nav: tabs in the middle of the top bar, not a bar at the window's foot */
+  /* The nav: tabs in the middle of the top bar, not a bar at the window's foot. Four tabs and
+     the wordmark (with a long development version) are wider than the 720 px column, so a
+     list screen's top bar has a column of its own, 960 px (the screen under it keeps 720). A
+     page has no nav: its Back and pager stay on the page's 720 px column */
   main {
     padding-bottom: var(--s-6);
+  }
+  body:not(.paged) header {
+    padding-inline: max(var(--s-4), calc((100% - 960px) / 2));
+  }
+  /* A development version can be long (0.9.1.dev12+g1a2b3c4d): cut with …, so it never runs
+     under the tabs */
+  .logo small {
+    max-width: 6.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   nav {
     top: env(safe-area-inset-top);

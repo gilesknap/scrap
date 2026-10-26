@@ -73,9 +73,10 @@ text.
 - A topic is as good as the model's judgement of what recurs. The owner vetoes a topic by
   trashing it, and a source by taking it out; the synthesis is labelled Claude's, versioned, and
   can be steered, regenerated or restored.
-- The PWA does not show topics yet: the Topics tab, the topic page and the Topics line on a
-  source come next (#261, PR 2). Until then they are read over MCP and the API, and judged
-  there.
+- The PWA shows them (#261, its second pull request): a Topics tab with the index, the topic
+  page (a Topic by Claude badge, the owner's notes, then the synthesis and its Sources in About
+  this page, each source with a ✕), a Topics line on a source, and a Topic label in search
+  (each search hit says whether it is a topic). See [](../../how-to/use-the-pwa.md).
 - The pass runs weekly, Sundays at 04:11, clear of the nightly related pass (03:41) and gc
   (04:30): a systemd timer on the single server (`scrap-enrich-topics.timer`) and a CronJob in
   the chart (`enrichTopics.*`, only with ingest on).

@@ -2,9 +2,12 @@
 // wrote (a board's is its write-up's lead), a board's write-up (In detail, writeup.ts), the
 // pages it found related (merged with pages linking here), its state while it works, and one
 // action: Ask, which reads the page again (a saved link is fetched again) and, on a board,
-// writes it up and finds its related pages again too. Claude's tags are marked in the tag line
-// (page.ts). A chunk of its own: the page view loads it when the page has any of it.
+// writes it up and finds its related pages again too. On a topic (#261) its synthesis is the
+// write-up, and its Sources a fold (topic.ts); a source names its topics first. Claude's tags
+// are marked in the tag line (page.ts). A chunk of its own: the page view loads it when the
+// page has any of it.
 import { ApiError, api, kept, type Page } from "./api";
+import { sourcesFold, topicsLine } from "./topic";
 import { h, toast } from "./ui";
 import type { writeupParts } from "./writeup";
 
@@ -34,8 +37,12 @@ export function stateText(e: Enrich): string | null {
 export const reading = (p: Page) =>
   !!p.enrich?.on && ["queued", "processing", "paused"].includes(p.enrich.state ?? "");
 
-/** The related pages to list, Claude's picks first, each once (the server merged them). */
-export const relatedOf = (p: Page) => (p.related ?? []).slice(0, 8);
+/** The related pages to list, Claude's picks first, each once (the server merged them); on a
+ * topic, not its sources, which its Sources fold lists. */
+export const relatedOf = (p: Page) => {
+  const sources = new Set(p.topic?.sources.map((s) => s.id));
+  return (p.related ?? []).filter((r) => !sources.has(r.id)).slice(0, 8);
+};
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
@@ -65,7 +72,9 @@ export function enrichPanel(
 ): HTMLElement | null {
   const e = p.enrich;
   const related = relatedOf(p);
-  if (!wp && !e?.on && !e?.summary && !related.length) return null;
+  const topics = topicsLine(p); // a source's topics
+  const sources = sourcesFold(p, show); // a topic's sources
+  if (!wp && !e?.on && !e?.summary && !related.length && !topics && !sources) return null;
   const read = !!e?.summary || e?.state === "done";
   // Waiting, reading or paused: nothing to ask for meanwhile (paused offers Resume instead)
   const busy = ["queued", "processing", "paused"].includes(e?.state ?? "");
@@ -135,14 +144,18 @@ export function enrichPanel(
       // (the write-up's own when the page's reading is off; never beside a busy Ask)
       resume || ask || (!e?.on && wp?.action) || "",
     ),
+    // The topics it is a source of, first, as a line: "Topics: ibek · RTEMS IOCs"
+    topics,
     // Never read (or, a board, never written): what asking would do. Then its parts as folds:
-    // Summary, In detail (a board's write-up, or its guidance before there is one) and Related
+    // Summary, In detail (a board's write-up or a topic's synthesis, or its guidance before
+    // there is one), a topic's Sources and Related
     wp ? (wp.unwritten ?? "") : !busy && e?.on && !read ? h("p", { className: "did" }, ASK) : "",
-    !wp && read && !summary && !related.length
+    !wp && read && !summary && !related.length && !topics
       ? h("p", { className: "did" }, "Claude found nothing to add.")
       : "",
     summary ? fold("Summary", h("p", { className: "summary", dir: "auto" }, summary)) : "",
     wp?.detail ?? wp?.guidance ?? "",
+    sources,
     related.length > 0 &&
       Object.assign(
         fold(
@@ -157,6 +170,7 @@ export function enrichPanel(
                 h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
                 r.via === "link" && h("small", {}, " · links here"),
                 r.via === "writeup" && h("small", {}, " · in a write-up"),
+                r.via === "topic" && h("small", {}, " · in a topic"),
               ),
             ),
           ),

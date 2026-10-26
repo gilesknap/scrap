@@ -59,6 +59,7 @@ export interface WriteupVersion {
 /** A board page's write-up: Claude's explanation, apart from the text (#256). */
 export interface Writeup {
   board: boolean; // a whiteboard or diagram page: one can be written
+  topic?: boolean; // a topic page: its synthesis (#261)
   on: boolean; // Claude is on
   guidance: string | null; // the owner's, for the next one
   state: "queued" | "processing" | "done" | "failed" | "paused" | null;
@@ -82,8 +83,29 @@ export interface Page extends Summary {
     reason?: string | null; // why the queue is paused (state "paused")
     summary: string | null;
   } | null;
-  writeup?: Writeup | null; // a board page's (writeup.ts)
-  topic?: { key: string } | null; // set on a topic page
+  writeup?: Writeup | null; // a board page's, or a topic's synthesis (writeup.ts)
+  topics?: PageRef[]; // the topics it is a source of (#261)
+  topic?: { key: string; sources: Source[] } | null; // set on a topic page
+}
+/** A link to a page. */
+export interface PageRef {
+  id: string;
+  slug: string;
+  title: string;
+}
+/** One of a topic's sources (topic.ts): excluded 1 when the owner took it out. */
+export interface Source extends PageRef {
+  kind: string;
+  added_by: string;
+  added_at: string;
+  excluded: number;
+}
+/** A row of the topics index (GET /api/topics), grouped by area, the biggest first. */
+export interface TopicRow extends PageRef {
+  summary: string; // its synthesis's lead ("" before one)
+  sources: number; // how many are in
+  updated_at: string; // its synthesis's time, else the page's
+  area: string | null; // the top-level tag most common among its sources
 }
 export interface Hit
   extends Pick<
@@ -101,6 +123,7 @@ export interface Hit
     | "tasks"
   > {
   snippet: string;
+  topic?: boolean; // a topic page (#261): labelled in the results
 }
 
 /** An error's detail as text: a string as is; a validation list's first "field: msg". */

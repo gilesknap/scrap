@@ -77,6 +77,12 @@
   text-decoration: none;
   white-space: nowrap;
 }
+/* A topic's notes (#261), still empty: where they go, said quietly */
+.page > .notes {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
 .body {
   overflow-wrap: anywhere;
   line-height: 1.6;

@@ -1,7 +1,8 @@
-"""The HTTP routes for Claude's topic pages (#261): the index, a topic's sources, and
-taking one out. A topic's synthesis is its write-up, so Regenerate, guidance, versions
-and Restore are writeup_api's. Registered by app.create_app (add_routes), which this
-module builds on, so it is imported there, not at the top of app.py."""
+"""The HTTP routes for Claude's topic pages (#261): the index, a topic's sources,
+taking one out, and the topic mark on search hits (marked). A topic's synthesis is
+its write-up, so Regenerate, guidance, versions and Restore are writeup_api's.
+Registered by app.create_app (add_routes), which this module builds on, so it is
+imported there, not at the top of app.py."""
 
 from collections.abc import Callable
 from typing import Any
@@ -9,7 +10,16 @@ from typing import Any
 from fastapi import FastAPI
 
 from . import enrich
-from .store import Store
+from .store import Store, topics
+
+
+def marked(store: Store, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Search hits, each with topic: whether it is a topic page (the PWA labels
+    those)."""
+    with store.connect() as conn:
+        for hit in hits:
+            hit["topic"] = topics.is_topic(conn, hit["id"])
+    return hits
 
 
 def add_routes(app: FastAPI, store: Store, wake: Callable[[], None]) -> None:

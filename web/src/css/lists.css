@@ -214,6 +214,17 @@
   font-weight: 600;
   line-height: 1.6;
 }
+/* A search hit that is a topic page (#261): "Topic", a hairline pill as the Written by Claude
+   badge, after its date */
+.list .sub .topic {
+  flex: none;
+  padding: 0 var(--s-2);
+  border: 1px solid currentColor;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+}
 .pending {
   border-style: dashed;
   border-color: var(--line-strong);
