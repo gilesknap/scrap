@@ -21,11 +21,12 @@ rename puts it back, one after it finds no file and writes its own. A run that s
 between the rename and putting a file back leaves it aside: each run first puts back
 any file left aside whose name is free. If the references cannot be read, nothing is
 deleted. Old page revisions are not references: only each page's current text is read.
-Model runs are pruned too (see :func:`prune_runs`): ``model_run`` and ``enrich_run``
-rows hold the stored prompts and responses and would otherwise grow for ever. A run is
-kept while anything refers to it, while it is the latest for its page (or photo), and
-while it is younger than ``RUN_DAYS``. Deleting a ``model_run`` frees the JPEG it sent,
-which the same run then finds unused. ``topic_run`` rows (one a week) are not pruned.
+Model runs are pruned too (see :func:`scrap.retention.prune_runs`): ``model_run`` and
+``enrich_run`` rows hold the stored prompts and responses and would otherwise grow for
+ever. A run is kept while anything refers to it, while it is the latest for its page
+(or photo), and while it is younger than ``RUN_DAYS``. Deleting a ``model_run`` frees
+the JPEG it sent, which the same run then finds unused. ``topic_run`` rows (one a
+week) are not pruned.
 
 Files of captures are not deleted while their page lasts: one no page shows any more (an
 orphan) is gathered onto the month's review page instead, with --delete (see
@@ -50,10 +51,11 @@ import sqlite3
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import orphans, retention
+from .retention import RUN_DAYS, prune_runs
 from .store import (
     SHA256,
     ConflictError,
@@ -80,7 +82,6 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 GRACE_HOURS = 24.0
-RUN_DAYS = 30.0  # model_run / enrich_run rows younger than this are kept
 TRASH_DAYS = retention.TRASH_DAYS
 JOB_DAYS = retention.JOB_DAYS
 TEMP = ".up-"  # put_blob's temporary files: one left over is a crashed upload
@@ -164,83 +165,6 @@ class Report:
                 else ""
             )
         )
-
-
-def _cutoff_stamp(run_days: float) -> str:
-    when = datetime.now(UTC) - timedelta(days=run_days)
-    return when.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
-def prune_runs(
-    conn: sqlite3.Connection, run_days: float = RUN_DAYS, delete: bool = False
-) -> tuple[int, int]:
-    """Count (and with delete, delete) the model_run and enrich_run rows past retention.
-
-    A row is kept while it is still running; or younger than run_days; or the newest
-    for its page (``enrich_run``) or for its photo (``model_run``); or the newest ok
-    ``related`` enrich_run of a page (``enrich --related`` reads it as "up to date",
-    see ``enrich.STALE``); or something
-    refers to it: ``enrichment.run_id``, ``writeup.run_id`` and ``derived.run_id`` (a
-    superseded version too), or a kept ``model_run`` that continues it
-    (``parent_id``). Returns the
-    counts (model_run, enrich_run). Call inside the write transaction when deleting.
-    """
-    stamp = _cutoff_stamp(run_days)
-    models = conn.execute(
-        "SELECT id, parent_id, capture_id, source_sha256, started_at, status"
-        " FROM model_run"
-    ).fetchall()
-    keep = {r[0] for r in models if r[5] == "running" or r[4] >= stamp}
-    keep |= {
-        row[0]
-        for row in conn.execute("SELECT run_id FROM derived WHERE run_id IS NOT NULL")
-    }
-    newest: dict[tuple[str, str], int] = {}
-    for row in models:
-        key = (row[2], row[3])
-        newest[key] = max(newest.get(key, 0), row[0])
-    keep |= set(newest.values())
-    parent = {r[0]: r[1] for r in models}
-    for run in list(keep):  # a kept turn needs the turns before it
-        while (run := parent.get(run)) is not None and run not in keep:
-            keep.add(run)
-    gone_models = sorted(r[0] for r in models if r[0] not in keep)
-
-    enrich = conn.execute(
-        "SELECT id, page_id, started_at, status FROM enrich_run"
-    ).fetchall()
-    keep_e = {r[0] for r in enrich if r[3] == "running" or r[2] >= stamp}
-    keep_e |= {
-        row[0]
-        for row in conn.execute(
-            "SELECT run_id FROM enrichment WHERE run_id IS NOT NULL"
-            " UNION SELECT run_id FROM writeup WHERE run_id IS NOT NULL"
-        )
-    }
-    latest: dict[str, int] = {}
-    for row in enrich:
-        latest[row[1]] = max(latest.get(row[1], 0), row[0])
-    keep_e |= set(latest.values())
-    # enrich --related treats a page as up to date by its newest ok related run
-    # (enrich.STALE), so pruning that one would cost an extra Claude call.
-    keep_e |= {
-        row[0]
-        for row in conn.execute(
-            "SELECT MAX(id) FROM enrich_run WHERE status = 'ok'"
-            " AND json_extract(request, '$.purpose') = 'related' GROUP BY page_id"
-        )
-    }
-    gone_enrich = sorted(r[0] for r in enrich if r[0] not in keep_e)
-
-    if delete:
-        # Newest first: a turn is deleted before the one it continues.
-        conn.executemany(
-            "DELETE FROM model_run WHERE id = ?", [(i,) for i in reversed(gone_models)]
-        )
-        conn.executemany(
-            "DELETE FROM enrich_run WHERE id = ?", [(i,) for i in gone_enrich]
-        )
-    return len(gone_models), len(gone_enrich)
 
 
 def _files(store: Store) -> tuple[dict[str, Path], list[Path]]:
