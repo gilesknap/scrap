@@ -7,7 +7,7 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { rendered, renderer, unembedded } from "./md";
-import { chipRow, metaLine } from "./pagehead";
+import { chipRow, datesLine, metaLine } from "./pagehead";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { seenTopic } from "./topicseen";
@@ -160,10 +160,10 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
       h("h1", { dir: "auto" }, p.title),
-      // What it is and when, one quiet line; then one row of chips for what is edited in
-      // place: its tags (each opens the tag editor, as the + at the end does) and a todo's due
-      // chip (opens the due editor, drawn under the row in the chip's place)
+      // What it is, one quiet line, and when, another; then one row of chips: its tags (each a
+      // search; + changes them) and a todo's due chip (opens the due editor, under the row)
       metaLine(p),
+      datesLine(p),
       tagForm ?? chipRow(p, { tags: tagEdit, due: (e) => void todoEdit(e), dueOpen: !!todoForm }),
       todoForm ?? "",
       body,
@@ -240,7 +240,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const close = (to: Page) => {
       tagForm = null;
       show(to);
-      root.querySelector<HTMLElement>(".tags > .add")?.focus();
+      root.querySelector<HTMLElement>(".tags .add")?.focus();
     };
     const form = h(
       "form",

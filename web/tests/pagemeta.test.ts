@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { metaParts } from "../src/pagemeta";
+import { edited, metaParts } from "../src/pagemeta";
 import { dueChip } from "../src/status";
 
 const now = "2026-10-26";
@@ -12,46 +12,39 @@ const page = (kind: string, more: object = {}) => ({
   ...more,
 });
 /** A day as this machine's locale says it ("26 Oct" in en-GB, "Oct 26" in en-US). */
-const d = (day: string, year = false) =>
-  new Date(`${day}T12:00`).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    ...(year && { year: "numeric" }),
-  });
-const said = (parts: [string, boolean][]) => parts.map(([s]) => s).join(" · ");
+const d = (day: string) =>
+  new Date(`${day}T12:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 
-it("says a Later's kind, medium and what it is for, then its day", () => {
+it("says a Later's kind, medium and what it is for, and a status only when not open", () => {
   const later = page("consume", { fields: { media_type: "tv", subtype: "watch", status: "open" } });
-  expect(said(metaParts(later, "Later", now))).toBe(`Later · TV · to watch · ${d(now)}`);
+  expect(metaParts(later, "Later", now)).toEqual(["Later", "TV", "to watch"]);
   const done = page("consume", { fields: { media_type: "book", subtype: "read", status: "done" } });
-  expect(said(metaParts(done, "Later", now))).toBe(`Later · Book · to read · done · ${d(now)}`);
+  expect(metaParts(done, "Later", now)).toEqual(["Later", "Book", "to read", "done"]);
+  expect(metaParts(page("note"), "Note", now)).toEqual(["Note"]);
+  expect(metaParts(page("topic"), undefined, now)).toEqual([]);
 });
 
-it("says a todo's priority and due day, only the overdue part marked", () => {
+it("leaves a todo's due day and priority to its chip, keeping its snooze and tasks", () => {
   const late = page("todo", { due: "2026-10-24", priority: "high", fields: { status: "open" } });
-  const parts = metaParts(late, "Todo", now);
-  expect(said(parts)).toBe(`Todo · high · overdue ${d("2026-10-24")} · ${d(now)}`);
-  expect(parts.filter(([, l]) => l)).toEqual([[`overdue ${d("2026-10-24")}`, true]]);
-  const soon = page("todo", { due: "2026-10-30", fields: { status: "in_progress" } });
-  expect(said(metaParts(soon, "Todo", now))).toBe(
-    `Todo · due ${d("2026-10-30")} · in progress · ${d(now)}`,
-  );
+  expect(metaParts(late, "Todo", now)).toEqual(["Todo"]);
+  const busy = page("todo", {
+    due: "2026-10-30",
+    snoozed_until: "2026-10-28",
+    tasks: { done: 1, total: 3 },
+    fields: { status: "in_progress" },
+  });
+  expect(metaParts(busy, "Todo", now)).toEqual([
+    "Todo",
+    "in progress",
+    `snoozed till ${d("2026-10-28")}`,
+    "1 of 3",
+  ]);
 });
 
-it("gives both dates only when they fall on different days, with no times", () => {
-  const edited = page("note", {
-    created_at: "2026-10-12T09:00:00",
-    updated_at: "2026-10-26T18:00:00",
-  });
-  expect(said(metaParts(edited, "Note", now))).toBe(
-    `Note · added ${d("2026-10-12")} · edited ${d(now)}`,
-  );
-  const old = page("note", {
-    created_at: "2025-03-02T09:00:00",
-    updated_at: "2025-03-02T10:00:00",
-  });
-  expect(said(metaParts(old, "Note", now))).toBe(`Note · ${d("2025-03-02", true)}`);
-  expect(said(metaParts(page("topic"), undefined, now))).toBe(d(now));
+it("counts a page as edited only a minute or more after it was made", () => {
+  expect(edited(page("note"))).toBe(false);
+  expect(edited(page("note", { updated_at: "2026-10-26T12:00:40" }))).toBe(false);
+  expect(edited(page("note", { updated_at: "2026-10-26T12:05:00" }))).toBe(true);
 });
 
 it("chips a todo's due day and priority, with whether it is overdue", () => {
