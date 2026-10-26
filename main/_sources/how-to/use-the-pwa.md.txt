@@ -114,7 +114,8 @@ stateDiagram-v2
 
 - **Idempotent.** Every capture gets a ULID on the phone before it is queued, so a retry after a
   lost answer saves it once.
-- **Storage.** The queue is in IndexedDB (photos as they are) and survives closing the app and
+- **Storage.** The queue is in IndexedDB (photos made smaller, see
+  {ref}`smaller-photos`) and survives closing the app and
   restarting the phone.
 - **Badge.** The header badge shows what is on the phone (**2 waiting · 1 failed**); tap it to
   retry now. Waiting items are listed oldest first at the top of the capture and search screens:
@@ -143,6 +144,32 @@ stateDiagram-v2
   cannot be stored goes straight to the server (`POST /share`, see [](../reference/api.md)), or
   shows a page saying it was not saved if there is no connection either.
 - **Tabs.** Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.
+
+(smaller-photos)=
+### Smaller photos
+
+Before a photo goes into the queue, the phone makes it smaller: at most **2560 px** on its long
+edge, as a JPEG at quality 85, turned upright (the camera's rotation is applied and the EXIF data
+is dropped). A big photo then holds the connection for less time, and the queue takes less room.
+Claude reads a 2048 px version anyway, so little is lost, and 2560 px leaves room to zoom into a
+whiteboard.
+
+Only JPEG, HEIC, HEIF and WebP photos are made smaller. A photo is sent as it is when it is at or
+under 2560 px already, when the browser cannot decode it (HEIC on some phones), when making it
+smaller fails, or when the result would not be smaller; PNG, GIF, PDFs and other files are never
+touched. The name is kept, and so is the capture time; a `.heic` photo becomes a `.jpg` (its name's
+extension changes, since the bytes are now a JPEG).
+
+Known limits:
+
+- The upload limit is checked on the size the photo has when you pick it, before it is made
+  smaller. A photo over the server's limit is refused even if it would fit once smaller.
+- A photo shared into scrap from another app (**Share**) is queued as it came: the share target
+  runs in the service worker, which does not make photos smaller.
+
+The full-size original stays in the phone's own gallery, not in scrap. Colours are redrawn in
+sRGB, so a wide-gamut colour profile may be lost. **Settings**, **Photos**, **Full size** turns
+this off for every photo (**Smaller** is the default); there is no choice per shot.
 
 ## What scrap stores on the phone
 

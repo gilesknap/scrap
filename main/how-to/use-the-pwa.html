@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.13.1.dev3+gf35d58844 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.13.1.dev4+gdeb87cc7a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=7a1fd1db"></script>
+    <script src="../_static/documentation_options.js?v=31d1234a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -991,7 +991,8 @@ the page), unless the text already contains the title.</p></li>
     </pre><ul class="simple">
 <li><p><strong>Idempotent.</strong> Every capture gets a ULID on the phone before it is queued, so a retry after a
 lost answer saves it once.</p></li>
-<li><p><strong>Storage.</strong> The queue is in IndexedDB (photos as they are) and survives closing the app and
+<li><p><strong>Storage.</strong> The queue is in IndexedDB (photos made smaller, see
+<a class="reference internal" href="#smaller-photos"><span class="std std-ref">Smaller photos</span></a>) and survives closing the app and
 restarting the phone.</p></li>
 <li><p><strong>Badge.</strong> The header badge shows what is on the phone (<strong>2 waiting · 1 failed</strong>); tap it to
 retry now. Waiting items are listed oldest first at the top of the capture and search screens:
@@ -1021,6 +1022,29 @@ cannot be stored goes straight to the server (<code class="docutils literal notr
 shows a page saying it was not saved if there is no connection either.</p></li>
 <li><p><strong>Tabs.</strong> Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.</p></li>
 </ul>
+<section id="smaller-photos">
+<span id="id1"></span><h3>Smaller photos<a class="headerlink" href="#smaller-photos" title="Link to this heading">#</a></h3>
+<p>Before a photo goes into the queue, the phone makes it smaller: at most <strong>2560 px</strong> on its long
+edge, as a JPEG at quality 85, turned upright (the camera’s rotation is applied and the EXIF data
+is dropped). A big photo then holds the connection for less time, and the queue takes less room.
+Claude reads a 2048 px version anyway, so little is lost, and 2560 px leaves room to zoom into a
+whiteboard.</p>
+<p>Only JPEG, HEIC, HEIF and WebP photos are made smaller. A photo is sent as it is when it is at or
+under 2560 px already, when the browser cannot decode it (HEIC on some phones), when making it
+smaller fails, or when the result would not be smaller; PNG, GIF, PDFs and other files are never
+touched. The name is kept, and so is the capture time; a <code class="docutils literal notranslate"><span class="pre">.heic</span></code> photo becomes a <code class="docutils literal notranslate"><span class="pre">.jpg</span></code> (its name’s
+extension changes, since the bytes are now a JPEG).</p>
+<p>Known limits:</p>
+<ul class="simple">
+<li><p>The upload limit is checked on the size the photo has when you pick it, before it is made
+smaller. A photo over the server’s limit is refused even if it would fit once smaller.</p></li>
+<li><p>A photo shared into scrap from another app (<strong>Share</strong>) is queued as it came: the share target
+runs in the service worker, which does not make photos smaller.</p></li>
+</ul>
+<p>The full-size original stays in the phone’s own gallery, not in scrap. Colours are redrawn in
+sRGB, so a wide-gamut colour profile may be lost. <strong>Settings</strong>, <strong>Photos</strong>, <strong>Full size</strong> turns
+this off for every photo (<strong>Smaller</strong> is the default); there is no choice per shot.</p>
+</section>
 </section>
 <section id="what-scrap-stores-on-the-phone">
 <h2>What scrap stores on the phone<a class="headerlink" href="#what-scrap-stores-on-the-phone" title="Link to this heading">#</a></h2>
@@ -1505,7 +1529,7 @@ After Undo is gone, the page waits in the <strong>Trash</strong> (below) for 30 
 good.</p></li>
 </ul>
 <section id="the-trash">
-<span id="id1"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
+<span id="id2"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
 <p>A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
 (the server’s <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code>, set as the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is: see
 <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>). Then the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> purges it for good, with its
@@ -1782,7 +1806,10 @@ own projects (OFL: <a class="reference external" href="https://openfontlicense.o
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#share-into-scrap">Share into scrap</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#smaller-photos">Smaller photos</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-scrap-stores-on-the-phone">What scrap stores on the phone</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-works-offline">What works offline</a></li>
 </ul>
