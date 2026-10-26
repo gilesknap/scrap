@@ -634,7 +634,7 @@ from your own pages.
   among a topic's sources, the biggest group first; *Other* for topics whose sources have no
   tags). Each row has the topic's title, its one-line summary, how many sources it has and
   when it last changed. A dot at the end of a row marks a topic that is new or has changed
-  since you last opened the tab on this device (kept on the phone, never sent anywhere; the
+  since you last opened the tab or that topic on this device (kept on the phone, never sent anywhere; the
   very first time, there are no dots). The filter box at the top narrows the list as you type,
   matching the title, summary and area. With no topics yet, the tab says what they are and
   that they come from the weekly pass.
@@ -648,7 +648,8 @@ from your own pages.
 - **Sources** in the same card lists the pages the topic is made from, each with its title (a
   link) and kind. Its **✕** takes a page out: Claude's next synthesis leaves it out, and the
   weekly pass never adds it again. A page taken out stays in the list, struck through and
-  marked *taken out*, with **Put back** (the toast's **Undo** does the same). Either way the
+  marked *taken out*, with **Put back** (the toast's **Undo** does the same). Offline they
+  are off: changing the sources needs the server. Either way the
   synthesis is written again. The topic's Related leaves out its sources, which Sources lists.
 - **Search** puts a matching topic page first, with a small *Topic* label after its date and
   an open book for its icon; `is:topic` lists them all.

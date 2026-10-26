@@ -1,7 +1,8 @@
 import { afterEach, expect, it } from "vitest";
 import type { Source, TopicRow } from "../src/api";
 import { kindWord, ordered } from "../src/topic";
-import { changed, groups, look, matches, said, seen } from "../src/topics";
+import { groups, matches, said } from "../src/topics";
+import { changed, dots, look, seen, seenTopic } from "../src/topicseen";
 
 /** A localStorage that keeps what is set, as a phone's would. */
 function storage() {
@@ -75,9 +76,30 @@ it("dots the topics new or changed since this device last looked, none the first
   expect(seen()).toBeNull();
 });
 
+it("a look with no topics is a baseline: the first ones made after it have a dot", () => {
+  storage();
+  look([]);
+  expect(seen()).toEqual({});
+  expect(changed([row("a")], seen())).toEqual(new Set(["a"]));
+  expect(changed([row("a")], {})).toEqual(new Set(["a"]));
+});
+
+it("a topic's page shown clears its dot, now and next time", () => {
+  const m = storage();
+  seenTopic("a", "2026-10-26T10:00:00Z"); // never looked: nothing kept
+  expect(m.has("scrap.topics.seen")).toBe(false);
+  look([row("a"), row("b")]);
+  dots.add("a");
+  seenTopic("a", "2026-10-26T10:00:00Z");
+  expect(dots.has("a")).toBe(false);
+  const after = [row("a", { updated_at: "2026-10-26T10:00:00Z" }), row("b")];
+  expect(changed(after, seen())).toEqual(new Set());
+});
+
 it("keeps nothing and never throws without storage", () => {
   expect(seen()).toBeNull();
   expect(() => look([row("a")])).not.toThrow();
+  expect(() => seenTopic("a", "x")).not.toThrow();
 });
 
 it("lists a topic's sources in, then those taken out, each kind in a word", () => {

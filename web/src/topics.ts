@@ -4,38 +4,15 @@
 // synthesis's lead, how many sources and when it last changed; a dot on one new or changed
 // since this device last looked (kept on the device, as recent searches are). A filter box
 // narrows the list as typed. A lazy chunk.
-import { api, kept, type TopicRow } from "./api";
+import { api, type TopicRow } from "./api";
 import { view } from "./app";
 import { icon } from "./icons";
 import { trail } from "./swipe";
+import { changed, dots, look, seen } from "./topicseen";
 import { empty, h, problem, whenShort } from "./ui";
 import "./topics.css";
 
-const SEEN = "scrap.topics.seen"; // {id: updated_at} as last shown, on this device
 const OTHER = "Other"; // the group of topics whose sources have no tags
-/** The topics with a dot while the app is open: new or changed since the last time. */
-const dots = new Set<string>();
-
-/** What this device saw last time: {id: updated_at}, or null if it never looked (or has no
- * storage, or holds something else). */
-export function seen(): Record<string, string> | null {
-  try {
-    const got = JSON.parse(kept(SEEN) ?? "null");
-    return got && typeof got === "object" && !Array.isArray(got) ? got : null;
-  } catch {
-    return null;
-  }
-}
-
-/** The topics new or changed since then: none the first time (all would be). */
-export function changed(rows: TopicRow[], was: Record<string, string> | null): Set<string> {
-  if (!was) return new Set();
-  return new Set(rows.filter((r) => was[r.id] !== r.updated_at).map((r) => r.id));
-}
-
-/** Remember the topics as shown now, for the next look. */
-export const look = (rows: TopicRow[]) =>
-  kept(SEEN, JSON.stringify(Object.fromEntries(rows.map((r) => [r.id, r.updated_at]))));
 
 /** Whether a topic matches what is typed in the filter: every word, in its title, summary or
  * area, case aside. */
@@ -114,7 +91,8 @@ export async function topics(): Promise<Node> {
       ),
     );
   }
-  // Looked: the dots stay while the app is open (Back from a topic keeps them, bar that one's),
+  // Looked: the dots stay while the app is open (Back from a topic keeps them, but for that
+  // one's: page.ts clears it),
   // and next time only what changed after now has one
   for (const id of changed(rows, seen())) dots.add(id);
   look(rows);
@@ -160,11 +138,6 @@ export async function topics(): Promise<Node> {
     },
     { signal },
   );
-  // A topic opened: its dot has done its job
-  list.addEventListener("click", (e) => {
-    const li = (e.target as Element).closest<HTMLElement>("li[data-id]");
-    if (li?.dataset.id) dots.delete(li.dataset.id);
-  });
   draw();
   return h(
     "section",

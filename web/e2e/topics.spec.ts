@@ -67,6 +67,12 @@ test("the Topics tab lists topics by area, filters them, and dots what changed",
   await expect(row(page, u.title).locator(".new")).toHaveAccessibleName("new or changed");
   await expect(row(page, t.title).locator(".new")).toHaveCount(0);
   await page.screenshot({ path: "test-results/topics.png", fullPage: true });
+  // Every text on the screen (the dot is no text) meets AA, in both themes
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.waitForTimeout(400); // the colour transitions done
+    expect(await page.evaluate(lowContrast, ""), colorScheme).toEqual([]);
+  }
 });
 
 test("with no topics, the screen says what topics are and when they come", async ({ page }) => {
@@ -128,11 +134,53 @@ test("a topic page: the badge, the owner's notes first, the synthesis, its sourc
   await expect(sources.locator("> summary")).toHaveText("Sources · 3");
   expect((await api()).sources.every((x: { excluded: number }) => !x.excluded)).toBe(true);
 
+  // The whole page bar its toolbar and the toast (their own specs check them): the card, the
+  // notes line and the meta line with its badge are all checked
+  await expect(page.locator(".enrich .sources li")).toHaveCount(3);
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     await page.waitForTimeout(400); // the controls' colour transitions done
     expect(await page.evaluate(lowContrast, ".page > .tools, .toast"), colorScheme).toEqual([]);
   }
+});
+
+test("a ✕ that fails says so and can be pressed again; offline, the ✕ is off", async ({ page }) => {
+  const t = topic();
+  await page.goto(`/p/${t.slug}`);
+  const x = card(page).getByRole("button", { name: `Take out ${t.sources[0].title}` });
+  await page.route("**/topic/sources/**", (route) =>
+    route.fulfill({ status: 500, json: { detail: "boom" } }),
+  );
+  await x.click();
+  await expect(page.locator(".toast")).toContainText("Not taken out");
+  await expect(x).toBeEnabled();
+  await expect(card(page).locator("details.sources > summary")).toHaveText("Sources · 3");
+  await page.unroute("**/topic/sources/**");
+  // Offline: off, with a tooltip saying why; back online, on again
+  await page.context().setOffline(true);
+  await expect(x).toBeDisabled();
+  await expect(x).toHaveAttribute("title", /Offline/);
+  await page.context().setOffline(false);
+  await expect(x).toBeEnabled();
+  // Done: focus back on that source's button, now Put back
+  await x.click();
+  await expect(
+    card(page).getByRole("button", { name: `Put back ${t.sources[0].title}` }),
+  ).toBeFocused();
+});
+
+test("a topic shown from search loses its dot on the Topics screen", async ({ page }) => {
+  await page.goto("/topics"); // a first look: what is seen is kept from now
+  await expect(page.locator("nav a[aria-current]")).toHaveText("Topics");
+  const t = topic(); // made since: a dot
+  await page.goto("/topics");
+  await expect(row(page, t.title).locator(".new")).toHaveCount(1);
+  await page.goto(`/search?q=${t.word}`);
+  await page.locator(".list.hits li a", { hasText: t.title }).click();
+  await expect(page.getByRole("heading", { level: 1, name: t.title })).toBeVisible();
+  await page.goto("/topics");
+  await expect(row(page, t.title)).toBeVisible();
+  await expect(row(page, t.title).locator(".new")).toHaveCount(0);
 });
 
 test("a source names its topics; search labels a topic page", async ({ page }) => {
@@ -158,6 +206,27 @@ test("a source names its topics; search labels a topic page", async ({ page }) =
 
 test.describe("on a computer (a mouse, a wide window)", () => {
   test.use({ viewport: { width: 1000, height: 800 }, isMobile: false, hasTouch: false });
+
+  test("at 900 px, with a long development version, the tabs clear the wordmark", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await page.goto("/topics");
+    await page.locator("#ver").evaluate((v) => (v.textContent = "v0.9.1.dev123+g1a2b3c4d"));
+    const logo = await page.locator(".logo").boundingBox();
+    const first = await page.locator("nav a").first().boundingBox();
+    const last = await page.locator("nav a").last().boundingBox();
+    const cog = await page.locator("#settings").boundingBox();
+    expect(first && logo && first.x > logo.x + logo.width).toBe(true);
+    expect(last && cog && last.x + last.width < cog.x).toBe(true);
+    await page.screenshot({ path: "test-results/topics-900.png" });
+    // A page (no nav) keeps its top bar on the page's 720 px column: Back over the title
+    const t = topic();
+    await page.goto(`/p/${t.slug}`);
+    const back = await page.locator("#back").boundingBox();
+    const h1 = await page.locator(".page h1").boundingBox();
+    expect(back && h1 && Math.abs(back.x - h1.x) < 24).toBe(true);
+  });
 
   test("the four tabs fit the top bar, clear of the wordmark and Settings", async ({ page }) => {
     await page.goto("/topics");

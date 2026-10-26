@@ -8,6 +8,18 @@ import { KINDS } from "./kinds";
 import { h, toast } from "./ui";
 import "./topic.css";
 
+const OFFLINE = "Offline: changing a topic's sources needs the server";
+/** The ✕ and Put back buttons on screen: off while offline, with a tooltip saying why (as a
+ * page's task boxes are). */
+function online() {
+  for (const b of document.querySelectorAll<HTMLButtonElement>(".enrich .sources li > button")) {
+    b.disabled = !navigator.onLine;
+    b.title = navigator.onLine ? (b.dataset.title ?? "") : OFFLINE;
+  }
+}
+globalThis.addEventListener?.("online", online); // (none in the unit tests)
+globalThis.addEventListener?.("offline", online);
+
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 const href = (slug: string) => `/p/${encodeURIComponent(slug)}`;
 
@@ -42,6 +54,8 @@ async function change(p: Page, s: Source, back: boolean, show: (p: Page) => void
   } catch (err) {
     return toast(`${back ? "Not put back" : "Not taken out"}: ${why(err)}`);
   }
+  // Drawn again: focus back on that source's button (now Put back, or the ✕ again)
+  document.querySelector<HTMLElement>(`.enrich .sources li[data-id="${s.id}"] > button`)?.focus();
   if (!back) toast(`Taken out: ${s.title}`, "Undo", () => void change(p, s, true, show), 6000);
   else toast(`Put back: ${s.title}`);
 }
@@ -61,17 +75,19 @@ export function sourcesFold(p: Page, show: (p: Page) => void): HTMLElement | nul
         type: "button",
         className: out ? "link" : "ghost drop",
         "aria-label": out ? `Put back ${s.title}` : `Take out ${s.title}`,
-        title: out ? "Put it back into this topic" : "Take it out of this topic",
+        "data-title": out ? "Put it back into this topic" : "Take it out of this topic",
+        disabled: !navigator.onLine,
       },
       out ? "Put back" : icon("close"),
     );
+    b.title = navigator.onLine ? (b.dataset.title ?? "") : OFFLINE;
     b.onclick = () => {
       b.disabled = true;
-      void change(p, s, out, show).finally(() => (b.disabled = false));
+      void change(p, s, out, show).finally(() => (b.disabled = !navigator.onLine));
     };
     return h(
       "li",
-      { className: out ? "out" : "" },
+      { className: out ? "out" : "", "data-id": s.id },
       h(
         "span",
         {},

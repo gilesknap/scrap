@@ -10,6 +10,7 @@ import { rendered, renderer, unembedded } from "./md";
 import { closed, dueOf, pageChip, statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { token } from "./terms";
+import { seenTopic } from "./topicseen";
 import { bodyView, download, h, pageLink, share, toast, whenShort } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
@@ -140,6 +141,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     drawn++;
     // For the top bar's Back: a todo's parent is the Todos screen, a topic's the Topics screen
     root.dataset.kind = p.topic ? "topic" : p.kind;
+    // A topic shown, however it was reached: its dot on the Topics screen has done its job
+    if (p.topic) seenTopic(p.id, p.writeup?.current?.created_at ?? p.updated_at);
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);
     if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card
