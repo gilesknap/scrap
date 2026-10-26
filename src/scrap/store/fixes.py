@@ -355,6 +355,11 @@ def collapse_kinds(conn: sqlite3.Connection) -> None:
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'page'"
     ).fetchone()
     new, n = re.subn(r"'memory',\s*'reference',\s*", "", sql)
+    if not n and ("'memory'" in sql or "'reference'" in sql):
+        raise RuntimeError(
+            "migration 14: page's kind CHECK still lists memory or reference but is"
+            " not in the shape expected; refusing to guess"
+        )
     if n:
         version = conn.execute("PRAGMA schema_version").fetchone()[0]
         conn.execute("PRAGMA writable_schema = ON")
@@ -364,6 +369,13 @@ def collapse_kinds(conn: sqlite3.Connection) -> None:
         )
         conn.execute(f"PRAGMA schema_version = {version + 1}")
         conn.execute("PRAGMA writable_schema = OFF")
+        (after,) = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'page'"
+        ).fetchone()
+        if "'memory'" in after or "'reference'" in after:
+            raise RuntimeError("migration 14: page's kind CHECK was not relaxed")
+        if (check := conn.execute("PRAGMA integrity_check").fetchone()[0]) != "ok":
+            raise RuntimeError(f"migration 14: integrity_check says {check}")
 
 
 def fix_tag_paths(conn: sqlite3.Connection) -> None:

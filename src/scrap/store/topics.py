@@ -1,7 +1,7 @@
 """Claude's topic pages (#261), as stored: which pages are topics, their sources, and
 the index of them all.
 
-A topic is a real page (kind reference) marked by a row in topic; its body is the
+A topic is a real page (kind document) marked by a row in topic; its body is the
 owner's notes, and Claude's synthesis is its write-up (store.writeups). Its sources
 (topic_source) are the synthesis's inputs; one the owner excluded stays, excluded, so
 discovery never adds it again. A topic in the trash keeps its key, so discovery never

@@ -23,7 +23,7 @@ globalThis.addEventListener?.("offline", online);
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 const href = (slug: string) => `/p/${encodeURIComponent(slug)}`;
 
-/** A source's kind in a word, as the kind chips say it: "Note", "Later", "Reference". */
+/** A source's kind in a word, as the kind chips say it: "Note", "Later", "Board". */
 export function kindWord(kind: string): string {
   const named = KINDS.find(([k]) => k === kind)?.[1];
   return named ?? kind.charAt(0).toUpperCase() + kind.slice(1);
