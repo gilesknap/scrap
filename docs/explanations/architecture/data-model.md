@@ -16,6 +16,7 @@ Pages and their history on the left, what arrived and what Claude made of it on 
 erDiagram
     page ||--o{ page_rev : "text history"
     page ||--o{ page_meta_rev : "kind and tag history"
+    page ||--o{ page_trash_rev : "trash history"
     page ||--o{ tag : has
     page ||--o{ capture : "arrived as"
     page ||--o| enrichment : "summary"
@@ -66,6 +67,12 @@ erDiagram
         text tags_before
         text batch_id
     }
+    page_trash_rev {
+        int id PK
+        text action "trash restore"
+        text source "web mcp"
+        text batch_id
+    }
 ```
 
 | Table | Holds |
@@ -75,6 +82,7 @@ erDiagram
 | `capture`, `capture_blob` | What arrived, with a client-minted ULID as the retry key; ordered blobs per capture |
 | `derived` | Versioned Claude (or human) results: `ocr`, `description`, `excalidraw` are written; `summary` and `fetched` are allowed by the `CHECK` but reserved |
 | `page_rev`, `page_meta_rev` | Text history and kind/tag history (see [Revisions](#revisions-and-conflicts)) |
+| `page_trash_rev` | Each move of a page into or out of the trash (see [Trash](#trash)) |
 | `tag` | Lower-case tags per page, 1 to 64 characters, `/` allowed |
 
 IDs are ULIDs, so the phone can mint them offline. Times are ISO 8601 UTC. Foreign keys are on for
@@ -255,8 +263,8 @@ Deleting sets `deleted_at`. Nothing deletes a page until it has been in the tras
 stateDiagram-v2
     [*] --> Live: create
     Live --> Live: edit, new revision
-    Live --> Trashed: delete
-    Trashed --> Live: undelete
+    Live --> Trashed: delete, MCP trash_pages
+    Trashed --> Live: undelete (a page or a batch)
     Trashed --> [*]: purge, N days on (not a topic)
     note right of Trashed
         Read-only over MCP
@@ -266,10 +274,18 @@ stateDiagram-v2
 ```
 
 - Trashed pages keep their slug (never reused), revisions and captures. MCP `trash` lists them,
-  `read` and `revisions` show them read-only (`trashed: true`) and `undelete` restores one; every
-  other tool treats them as absent
-  ([ADR 25](../decisions/0025-trash-and-recent-changes-over-mcp.md)). Undelete also makes the page's
-  topics due again.
+  `read` and `revisions` show them read-only (`trashed: true`), `trash_pages` moves pages the user
+  named there (up to 50 a call, as one batch) and `undelete` restores one, or a batch; every other
+  tool treats them as absent
+  ([ADR 25](../decisions/0025-trash-and-recent-changes-over-mcp.md),
+  [ADR 34](../decisions/0034-claude-can-move-pages-to-the-trash.md)). Nothing over MCP purges a
+  page or empties the trash. Undelete also makes the page's topics due again.
+- `page_trash_rev` records every move into or out of the trash (the PWA's delete and undo, and
+  MCP's): `action` (`trash` or `restore`), `author`, `source` (`web` or `mcp`), `batch_id` (shared
+  by the pages one `trash_pages` call moved; a batch undelete's restores carry it too) and
+  `created_at`. MCP `revisions` lists them (`trash`) for a page, a batch, or in the
+  recent-changes feed. It is not backfilled: a page already in the trash before migration 17 has
+  no row, so it is in no batch.
 - The purge (`retention.py`) deletes the page row in one transaction, committed before gc reads
   what is in use; the cascades take its revisions, captures and file records, Claude's results,
   runs and jobs, tags, search chunks, write-ups and topic memberships. Its files are then unused,
@@ -287,7 +303,7 @@ stateDiagram-v2
 
 Script *N* sets `PRAGMA user_version = N`. `migrate()` takes an exclusive `flock` on `db.lock`,
 turns on WAL and applies each missing script in one transaction, with an optional Python step from
-`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)). Script 16 adds `page.made_by` and `page_rev.source` the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps `made_by` as made ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)).
+`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)). Script 16 adds `page.made_by` and `page_rev.source` the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps `made_by` as made ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)). Script 17 creates `page_trash_rev` the same way, only if missing ([ADR 34](../decisions/0034-claude-can-move-pages-to-the-trash.md)).
 
 | Migration | Adds or changes |
 | --- | --- |
@@ -303,8 +319,9 @@ turns on WAL and applies each missing script in one transaction, with an optiona
 | 0014 | Kinds `memory` and `reference` become `document` |
 | 0015 | `page_meta_rev.fields_was` |
 | 0016 | `page.made_by` (backfilled, then fixed by a trigger) and `page_rev.source` |
+| 0017 | `page_trash_rev` |
 
-- Migrations 6 to 9 and 15 are additive, so an older scrap still runs on a newer database if
+- Migrations 6 to 9, 15 and 17 are additive, so an older scrap still runs on a newer database if
   `user_version` is set back. Migration 16 is not: an older scrap writes text revisions without
   naming their columns, which the new `page_rev.source` refuses, so going back past it needs the
   pre-upgrade backup.

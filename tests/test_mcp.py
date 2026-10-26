@@ -73,8 +73,8 @@ def test_tools_are_listed(store):
     tools = anyio.run(main)
     assert sorted(tools) == [
         "drawing", "edit_drawing", "edit_meta", "edit_page", "read", "rename_tag",
-        "revert", "revisions", "search", "tags", "topics", "trash", "undelete",
-        "write",
+        "revert", "revisions", "search", "tags", "topics", "trash", "trash_pages",
+        "undelete", "write",
     ]  # fmt: skip
 
 
@@ -426,7 +426,7 @@ def test_mcp_over_http(tmp_path, monkeypatch):
         assert r.status_code == 200, r.text
         assert r.json()["result"]["serverInfo"]["name"] == "scrap"
         tools = rpc(client, "tools/list", headers=good).json()["result"]["tools"]
-        assert len(tools) == 14
+        assert len(tools) == 15
         args = {"title": "Over HTTP", "body": "via /mcp", "origin": "test"}
         r = rpc(client, "tools/call", {"name": "write", "arguments": args}, good)
         written = r.json()["result"]["structuredContent"]
@@ -1191,11 +1191,11 @@ def test_undelete_follows_the_content_edit_switch(store, monkeypatch):
     assert "undelete" not in names and "trash" in names  # listing stays
     assert "undelete" in refused(store, "undelete", page=page["id"])
     assert ok(store, "trash")["results"][0]["id"] == page["id"]
-    assert "nothing here brings one back" in (
+    assert "nothing here moves a page to it or brings one back" in (
         mcp_server.server(store).instructions or ""
     )
     monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "1")
-    assert "undelete brings one page back" in (
+    assert "undelete brings a page, or a trash_pages batch, back" in (
         mcp_server.server(store).instructions or ""
     )
 

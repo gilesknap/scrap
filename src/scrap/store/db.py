@@ -30,6 +30,7 @@ from .fixes import (
     move_todo_fields,
 )
 from .indexing import index_all
+from .trash_revs import add_trash_revs
 
 
 def migrations() -> list[str]:
@@ -155,4 +156,5 @@ AFTER = {
     14: collapse_kinds,
     15: add_fields_was,
     16: add_made_by,
+    17: add_trash_revs,
 }  # fmt: skip

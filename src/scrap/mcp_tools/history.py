@@ -39,7 +39,8 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         or both (that page's in that batch); or, with neither page nor batch, the
         recent changes of every page not in the trash (did anything change
         overnight?): the latest meta and text revisions, each with its page's id and
-        slug, newest first, at most limit of each. Enrichment (summary, model tags,
+        slug, and the latest moves into and out of the trash (of any page), newest
+        first, at most limit of each. Enrichment (summary, model tags,
         related pages) is not in revisions. meta: each change to kind and tags (id,
         slug, author: claude or the user's login, source: mcp or web, kind, fixed and
         tags before and after, tags added and removed, fields_added: a new kind's
@@ -49,13 +50,15 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         title, author: claude for one made over MCP, source: mcp for Claude's or web,
         when, bytes), which
         revert(page, to_rev) restores; text_rev returns one's text, the user's data.
-        more:
+        trash: each move into or out of the trash, newest first, at most limit (id,
+        page_id, slug, action: trash or restore, author, source, batch_id, created_at);
+        a trash_pages batch's are here, and undelete(batch=id) brings it back. more:
         there are more meta revisions than limit (up to 200, a whole batch)."""
         key = text(page_key(page), "page") if page is not None else None
         if key is None and text_rev is not None:
             raise ToolError("text_rev needs a page")
         found = checked(store.revisions, key, limit, batch, True)
-        for row in found["meta"]:
+        for row in found["meta"] + found["trash"]:
             row["url"] = link(row["slug"]) if row["slug"] else None
         if key is None:
             for row in found["text"]:  # the recent-changes feed's
@@ -121,8 +124,13 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         if to_rev is not None:
             return revert_text(page, to_rev, rev, restore_title, allow_empty, dry_run)
         if batch is not None:
-            found = checked(store.revert_batch, text(batch, "batch"), AUTHOR, MCP,
-                            dry_run)  # fmt: skip
+            batch = text(batch, "batch")
+            if store.revisions(None, 1, batch)["trash"]:  # trash_pages', not a change
+                raise ToolError(
+                    f"batch {batch} moved pages to the trash: undelete(batch=...)"
+                    " brings them back"
+                )
+            found = checked(store.revert_batch, batch, AUTHOR, MCP, dry_run)
             pages = [{**c, "url": link(c["slug"])} for c in found["pages"]]
             return {**found, "pages": pages, "dry_run": dry_run}
         found = checked(store.revert_meta, revision, AUTHOR, MCP, dry_run)

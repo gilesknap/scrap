@@ -291,7 +291,8 @@ def test_revisions_list_text_revisions_and_return_one(store):
 
 
 def test_no_mcp_tool_can_delete_or_overwrite_text(store):
-    """Every tool, and every argument it takes: none deletes a page, and none but write
+    """Every tool, and every argument it takes: none deletes a page for good (only
+    trash_pages moves one to the trash: test_mcp_trash), and none but write
     (adds, and appends only to Claude's) and edit_page (a revision: see
     test_content_edit) writes the text of one the user made."""
 
@@ -300,9 +301,9 @@ def test_no_mcp_tool_can_delete_or_overwrite_text(store):
             return (await client.list_tools()).tools
 
     tools = {t.name: set(t.input_schema["properties"]) for t in anyio.run(main)}
-    # the trash can be listed and a page brought back, never emptied or deleted
+    # the trash can be listed, filled and a page brought back, never emptied or purged
     risky = {n for n in tools if re.search("delete|trash|purge|remove|empty", n)}
-    assert risky == {"trash", "undelete"}
+    assert risky == {"trash", "trash_pages", "undelete"}
     for name, args in tools.items():
         if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "status"}, name
