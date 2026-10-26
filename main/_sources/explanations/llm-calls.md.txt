@@ -65,3 +65,43 @@ what was read from its images and its text (at most 6,000 characters a source an
 in numbered `<source>` blocks, the owner's notes in a `<notes>` block and guidance in a
 `<guidance>` block; it cites sources by number, made `[[slug]]` links as a write-up's are
 ({ref}`ingest-topics`). Neither writes into any page's text.
+
+(page-roles)=
+## Page roles
+
+What a page is decides what automation may do to it. Every test of it is in one module,
+`store/roles.py`, and this table matches it row for row. The page's first capture decides; later
+captures (photos added to it) only add content ({ref}`ingest-first-capture`). The owner can always
+change the kind, title and tags by hand.
+
+| Question | Role | How it is decided (`store/roles.py`) | What automation does to it |
+|---|---|---|---|
+| First capture | the page's first | The earliest received; at the same moment (an import), a file capture last, then one with no files first, then the lowest id (`FIRST_CAPTURE`, `IS_FIRST`, `first_capture`) | It decides how ingest classifies the page (maintainer) and which capture may set its title, kind and tags; later captures only add content, though an added photo read as a whiteboard or diagram can still make the page a board (`HAS_BOARD` reads every capture) |
+| Made by | `human` | None of the three below (`MADE_BY`, `made_by`: one query, topic first, then gc, then claude) | Enrich or ingest, as below |
+| Made by | `claude` | Its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude` and MCP `read`'s `written_by_claude` ask whether any capture did (`HAS_MCP_CAPTURE`, `has_mcp_capture`), which finds the same pages | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
+| Made by | `topic` | A row in `topic` (`IS_TOPIC`, `is_topic`) | Never read as text: Ask and the weekly pass make its synthesis; never purged from the trash; not a topic source; not untagged |
+| Made by | `gc` | A capture with source `gc` (`GC`; `REVIEW`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
+| Claude-edited | a later text revision by Claude | A text revision by Claude after the first: MCP edits, or task boxes Claude added (`CLAUDE_EDITED`, `edited_by_claude`) | Found by `is:claude-edited`; MCP `read` says `edited_by_claude` |
+| Maintainer | ingest | Its first capture is a photo or file (`INGEST_CAPTURES`) | Photo ingest reads its images; enrich on Ask only |
+| Pinned | the Pinned page | Its slug is `pinned` (`NOT_PINNED`): an owner's page, made on the first pin | Never read by enrich (on a save or backfill) or the related pass |
+| Maintainer | enrich | Its first capture is not a photo or file (`NOT_BY_INGEST`; `by_ingest` for a capture not yet stored), its kind is a note, todo or read, and it is not the Pinned page (`ENRICHED`, `should_enrich`) | Enrich on capture, each save and backfill |
+| Write-up | board | A current photo reading says whiteboard or diagram, not a list of actions (`HAS_BOARD`, `has_board`, `writeup_type`) | A write-up when its photos are read, and on Regenerate |
+| Write-up | topic | A topic page (`IS_TOPIC`, `writeup_type`) | Its synthesis is its write-up |
+| Write-up | none | Neither (`SHOWN` is false) | No write-up; old versions are kept unseen |
+| May retitle | while untouched | Its title is still revision 1's and there is no later text revision (`TITLE_UNTOUCHED`) | Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link's title as captured |
+| May re-kind | an unfiled note | Its kind nobody chose (`kind_fixed` 0) and a note (`UNFILED`, `may_rekind`) | Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo |
+| May re-kind | an unfiled note or whiteboard | `may_rekind(..., ("note", "whiteboard"))` | Task boxes from a photo's list of actions file it a todo |
+| May re-kind | an unfiled todo | `may_rekind(..., ("todo",))` | Claude's own boxes taken off by Claude's revert file it back as it was (a note, or ingest's kind) |
+| May re-tag | first capture | Photo ingest: only the page's first capture counts (`IS_FIRST`, `first_capture`) | Photo ingest adds tags from the first capture's first photo; enrich adds tags, never from a save. A tag the owner took off stays off |
+| Takes photos | not a topic | `takes_photos` | Add photo is refused on a topic page |
+
+Open questions, marked TODO in `store/roles.py` for the owner (none changes what scrap does today):
+
+- **Any capture or the first:** `is:claude` and `written_by_claude` test any capture, `by_claude`
+  the first. They find the same pages, since only an MCP write makes an mcp capture and
+  `Store.append` adds one only to such a page.
+- **Board or topic first:** a page that is both is a board in `writeup_type` and the write-up view,
+  but a topic for `is:outdated`, a related page's `via` and Regenerate. No page can be both: a
+  topic takes no photos and has no captures.
+- **A topic passes `NOT_BY_INGEST`:** it has no capture, so only its kind (document) keeps it from
+  enrich. Re-kinded as a note, each save queues an enrich job that finishes with no call.

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.12.1.dev3+g0a7a500ce documentation</title>
+    <title>Claude ingest &#8212; scrap 0.12.1.dev4+g4a743b340 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bb08de5b"></script>
+    <script src="../_static/documentation_options.js?v=1cca6709"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1221,9 +1221,10 @@ added to a page are read (description, OCR, drawing), searched, and fed to the w
 related pages, but what Claude infers from them never changes the page’s kind, title or tags,
 or whether enrich or ingest maintains it. The owner can still change kind, title and tags by
 hand at any time. One SQL test says which capture is the page’s first
-(<code class="docutils literal notranslate"><span class="pre">store.constants.FIRST_CAPTURE</span></code>: the earliest received; among captures received at the same moment, as an import’s are, a file capture last, then one with no files before one with files, then the lowest id, so an import’s main capture (its text, with its images) is first), used by
-<code class="docutils literal notranslate"><span class="pre">TITLE_CAS</span></code>, the photo worker’s page fields and task boxes, <code class="docutils literal notranslate"><span class="pre">NOT_BY_INGEST</span></code> and
-<code class="docutils literal notranslate"><span class="pre">by_claude</span></code> (a page written over MCP).</p>
+(<code class="docutils literal notranslate"><span class="pre">store.roles.FIRST_CAPTURE</span></code>: the earliest received; among captures received at the same moment, as an import’s are, a file capture last, then one with no files before one with files, then the lowest id, so an import’s main capture (its text, with its images) is first). It and
+every other test of what a page is (who made it, whether enrich or ingest maintains it, its
+write-up, what automation may change, whether it takes photos) are in <code class="docutils literal notranslate"><span class="pre">store/roles.py</span></code>: see
+<a class="reference internal" href="llm-calls.html#page-roles"><span class="std std-ref">Page roles</span></a> for the table of them.</p>
 <p><strong>Photos added to a page.</strong> The page editor’s <strong>Add photo</strong> (camera or gallery) adds photos to a
 page that exists (not a topic page: its synthesis is its write-up, which a board photo would
 replace), as a photo capture of its own (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/captures</span></code>, images only,
@@ -1546,7 +1547,7 @@ related pages. <code class="docutils literal notranslate"><span class="pre">scra
 that Claude has not read, once, by hand (never automatic). Some things queue nothing:</p>
 <ul>
 <li><p>A page whose first capture is a photo or file, even with a typed note (<code class="docutils literal notranslate"><span class="pre">should_enrich</span></code> in
-<code class="docutils literal notranslate"><span class="pre">store/indexing.py</span></code>, #155): photo ingest reads the photo, and the page’s first text reading
+<code class="docutils literal notranslate"><span class="pre">store/roles.py</span></code>, #155): photo ingest reads the photo, and the page’s first text reading
 comes with a later save of its title or text (or Ask Claude). Photos added to a text page
 later leave it enrich’s (<a class="reference internal" href="#ingest-first-capture"><span class="std std-ref">Added photos: the first capture decides</span></a>).</p></li>
 <li><p>A whiteboard or document page: it is not read as text (#155).</p></li>

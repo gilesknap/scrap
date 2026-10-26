@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 0.12.1.dev3+g0a7a500ce documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 0.12.1.dev4+g4a743b340 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bb08de5b"></script>
+    <script src="../_static/documentation_options.js?v=1cca6709"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -533,6 +533,9 @@ build is noticed.</p>
 <code class="docutils literal notranslate"><span class="pre">removed</span></code>, <code class="docutils literal notranslate"><span class="pre">tasks</span></code> (<code class="docutils literal notranslate"><span class="pre">{done,</span> <span class="pre">total}</span></code>), <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> (<code class="docutils literal notranslate"><span class="pre">null</span></code> unless a
 todo), and:</p>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">made_by</span></code>: who made the page, <code class="docutils literal notranslate"><span class="pre">human</span></code>, <code class="docutils literal notranslate"><span class="pre">claude</span></code> (written over MCP), <code class="docutils literal notranslate"><span class="pre">topic</span></code> (Claude’s topic page)
+or <code class="docutils literal notranslate"><span class="pre">gc</span></code> (a <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> review page); see <a class="reference internal" href="../explanations/llm-calls.html#page-roles"><span class="std std-ref">Page roles</span></a>. Not <code class="docutils literal notranslate"><span class="pre">fields.origin</span></code>, the
+provenance Claude gives a page it writes over MCP.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">captures</span></code>: each with <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">kind</span></code> (<code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code>, <code class="docutils literal notranslate"><span class="pre">photo</span></code> or <code class="docutils literal notranslate"><span class="pre">file</span></code>), <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code>, <code class="docutils literal notranslate"><span class="pre">source</span></code>,
 <code class="docutils literal notranslate"><span class="pre">author</span></code>, <code class="docutils literal notranslate"><span class="pre">created_at</span></code>, <code class="docutils literal notranslate"><span class="pre">received_at</span></code> and <code class="docutils literal notranslate"><span class="pre">blobs</span></code>: one <code class="docutils literal notranslate"><span class="pre">{sha256,</span> <span class="pre">mime,</span> <span class="pre">size,</span> <span class="pre">filename,</span> <span class="pre">ingest}</span></code>
 per file, where <code class="docutils literal notranslate"><span class="pre">ingest</span></code> is as described for the route below.</p></li>
