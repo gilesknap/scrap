@@ -90,9 +90,10 @@ HAS_MCP_CAPTURE = (
 # Who made a page (SQL): a topic, else gc's, else Claude's, else the owner's
 _NOT_TOPIC = f"WHEN {REVIEW} THEN 'gc' WHEN {BY_CLAUDE} THEN 'claude' ELSE 'human' END"
 MADE_BY = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
-# Claude changed its text over MCP after it was made (is:claude-edited): a text
-# revision by Claude after the first (an edit_page, a revert, an append). Only MCP
-# writes as CLAUDE, so this is never the photo worker's or the PWA's.
+# A later text revision by Claude (is:claude-edited): one by CLAUDE after the first,
+# from MCP (an edit_page, a revert, an append) or the task boxes Claude added from a
+# list of actions (actions.append, for photo ingest and enrich). Never the PWA's.
+# TODO(#280) owner: should is:claude-edited be MCP-only?
 CLAUDE_EDITED = (
     "EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = {p}.id AND r.rev > 1"
     " AND r.author = '" + CLAUDE + "')"
@@ -131,8 +132,8 @@ def has_mcp_capture(captures: Iterable[Mapping[str, Any]]) -> bool:
 
 
 def edited_by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether Claude changed a page's text over MCP after it was made
-    (CLAUDE_EDITED)."""
+    """Whether a page has a later text revision by Claude: MCP edits, or task boxes
+    Claude added (CLAUDE_EDITED; see its TODO)."""
     return _one(conn, CLAUDE_EDITED, page_id)
 
 

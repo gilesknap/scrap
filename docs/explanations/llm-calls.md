@@ -76,12 +76,12 @@ change the kind, title and tags by hand.
 
 | Question | Role | How it is decided (`store/roles.py`) | What automation does to it |
 |---|---|---|---|
-| First capture | the page's first | The earliest received; at the same moment (an import), a file capture last, then one with no files first, then the lowest id (`FIRST_CAPTURE`, `IS_FIRST`, `first_capture`) | It alone decides the rows below; later captures only add content |
+| First capture | the page's first | The earliest received; at the same moment (an import), a file capture last, then one with no files first, then the lowest id (`FIRST_CAPTURE`, `IS_FIRST`, `first_capture`) | It decides how ingest classifies the page (maintainer) and which capture may set its title, kind and tags; later captures only add content, though an added photo read as a whiteboard or diagram can still make the page a board (`HAS_BOARD` reads every capture) |
 | Made by | `human` | None of the three below (`MADE_BY`, `made_by`: one query, topic first, then gc, then claude) | Enrich or ingest, as below |
 | Made by | `claude` | Its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude` and MCP `read`'s `written_by_claude` ask whether any capture did (`HAS_MCP_CAPTURE`, `has_mcp_capture`), which finds the same pages | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
 | Made by | `topic` | A row in `topic` (`IS_TOPIC`, `is_topic`) | Never read as text: Ask and the weekly pass make its synthesis; never purged from the trash; not a topic source; not untagged |
 | Made by | `gc` | A capture with source `gc` (`GC`; `REVIEW`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
-| Claude-edited | text changed over MCP | A text revision by Claude after the first (`CLAUDE_EDITED`, `edited_by_claude`) | Found by `is:claude-edited`; MCP `read` says `edited_by_claude` |
+| Claude-edited | a later text revision by Claude | A text revision by Claude after the first: MCP edits, or task boxes Claude added (`CLAUDE_EDITED`, `edited_by_claude`) | Found by `is:claude-edited`; MCP `read` says `edited_by_claude` |
 | Maintainer | ingest | Its first capture is a photo or file (`INGEST_CAPTURES`) | Photo ingest reads its images; enrich on Ask only |
 | Pinned | the Pinned page | Its slug is `pinned` (`NOT_PINNED`): an owner's page, made on the first pin | Never read by enrich (on a save or backfill) or the related pass |
 | Maintainer | enrich | Its first capture is not a photo or file (`NOT_BY_INGEST`; `by_ingest` for a capture not yet stored), its kind is a note, todo or read, and it is not the Pinned page (`ENRICHED`, `should_enrich`) | Enrich on capture, each save and backfill |

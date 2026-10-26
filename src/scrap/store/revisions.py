@@ -322,8 +322,8 @@ class RevisionsMixin(Core):
         conn.execute("UPDATE page SET kind = ? WHERE id = ?", (kind, page["id"]))
 
     def edited_by_claude(self, page_id: str) -> bool:
-        """Whether Claude changed a page's text over MCP after it was made
-        (roles.edited_by_claude, is:claude-edited)."""
+        """Whether a page has a later text revision by Claude: MCP edits, or task
+        boxes Claude added (roles.edited_by_claude, is:claude-edited)."""
         with self.connect() as conn:
             return roles.edited_by_claude(conn, page_id)
 

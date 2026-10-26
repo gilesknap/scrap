@@ -84,9 +84,10 @@ RANK = "coalesce(p.priority, 'none')"  # priority:none finds a todo with none
 PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
-# The author of what Claude writes over MCP: of its captures, and of its text revisions
-# (page_rev). Only MCP writes as it: the PWA's author is a Tailscale login (an address,
-# with an @) or "tagged", so a text revision by CLAUDE is one made over MCP.
+# The author of what Claude writes: its MCP captures, and its text revisions (page_rev)
+# over MCP or of the task boxes it adds (actions.append). The PWA's author is a
+# Tailscale login (an address, with an @) or "tagged", so a text revision by CLAUDE is
+# a later text revision by Claude: an MCP edit, or task boxes Claude added.
 CLAUDE = "claude"
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
