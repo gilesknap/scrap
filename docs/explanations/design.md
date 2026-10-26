@@ -1,8 +1,7 @@
 # Architecture
 
 scrap is one Python process, one SQLite file and one folder of files. This page is the map; the
-pages under it go deep on each part. Where a [decision record](decisions.md) disagrees with a
-page, the record wins.
+pages under it go deep on each part.
 
 ## Principles
 
