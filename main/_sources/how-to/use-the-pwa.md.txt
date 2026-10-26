@@ -188,12 +188,17 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
   photo (**Show more** at the end for older ones). The keyboard only comes up when you tap the
   box. There is no separate Recent screen: the empty box is it.
 - A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
-  bottom. In the top bar, in place of the wordmark, Back names where it goes: **‹ Search**,
-  **‹ Todos**, **‹ Topics** or **‹ Capture**, the list you opened the page from. It goes straight back to
-  that list as you left it, even after you have stepped through its pages or followed links
-  from page to page; the phone's or the browser's own Back still goes back one step at a time. A page opened from a link or a share
+  bottom. In the top bar, in place of the wordmark, Back names where it goes and goes up one
+  level: to the page you followed a link from (**‹ Its title**), else to the list you opened
+  the page from (**‹ Search**, **‹ Todos**, **‹ Topics** or **‹ Capture**), as you left it, even
+  after stepping through its pages. When Back goes to a page, the list's name follows it, as in
+  **‹ Its title · Search**: tap the list's name to jump straight back to the list. The phone's
+  or the browser's own Back goes back one step at a time. A page opened from a link or a share
   has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Topics for
   a topic page, to Capture for any other page.
+- Going back, by any Back or Forward, a screen comes back scrolled where you left it.
+- On a narrow phone, a page's top bar shortens the upload badge to its dot and count (● 2) when
+  it shares the bar with the jump to the list or the pager.
 - On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
   wide. On a computer (with a mouse) the layout suits the mouse rather than the
   thumb: Capture, Todos, Search and Topics are tabs in the top bar, Camera, Gallery and Note sit over
