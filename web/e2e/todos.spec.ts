@@ -17,9 +17,14 @@ const day = (n: number) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 
-let n = 0;
+// Random ids: a worker started again after a failure runs this file's beforeAll again, and a
+// counted id would then be one already used, so the capture would return another test's page
+const ulid = () => {
+  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
+};
 async function todo(page: Page, text: string, extra: Record<string, string> = {}) {
-  const id = `01E2ETDNW${String(++n).padStart(2, "0")}`.padEnd(26, "0");
+  const id = ulid();
   const r = await page.request.post("/api/captures", {
     data: { id, text, kind: "todo", ...extra },
   });
@@ -332,6 +337,29 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   const [hit] = await (await page.request.get("/api/search?q=quokka+new+todo")).json();
   const made = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(made).toMatchObject({ kind: "todo", due: day(1), priority: "high" });
+});
+
+test("a todo uploaded while the Todos list is fetched still joins it", async ({ page }) => {
+  await page.goto("/todos?view=all");
+  await expect(page.locator("header #new")).toBeVisible();
+  // The list answers as it was before the upload, but only after the upload is done
+  await page.route("**/api/captures", async (r) => {
+    await new Promise((ok) => setTimeout(ok, 300));
+    await r.continue();
+  });
+  await page.route(/\/api\/(search|pages)\?/, async (r) => {
+    const answer = await r.fetch();
+    await new Promise((ok) => setTimeout(ok, 1500));
+    await r.fulfill({ response: answer });
+  });
+  await page.locator("header #new").click();
+  const editor = page.locator(".editor");
+  await editor.locator("textarea").fill("Wombat raced todo");
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.locator(".list li", { hasText: "Wombat raced todo" })).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test("Mark done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({
