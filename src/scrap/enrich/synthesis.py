@@ -12,7 +12,15 @@ import json
 from typing import Any
 
 from .. import claude
-from ..store import Store, model_summary, now, topics, transaction, writeups
+from ..store import (
+    Store,
+    model_summary,
+    now,
+    roles,
+    topics,
+    transaction,
+    writeups,
+)
 from .checking import checked_writeup, record
 from .constants import MAX_TOPIC_SOURCES, TOPIC_INPUT, TOPIC_SCHEMA, TOPIC_SOURCE
 from .prompts import page_images
@@ -44,7 +52,7 @@ def inputs(
         page = conn.execute(
             "SELECT * FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
         ).fetchone()
-        if page is None or not topics.is_topic(conn, page_id):
+        if page is None or not roles.is_topic(conn, page_id):
             return None
         found = topics.sources(conn, page_id)[:MAX_TOPIC_SOURCES]
         if not found:

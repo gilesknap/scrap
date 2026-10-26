@@ -233,8 +233,9 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           : kindChip(p),
         h("span", {}, `Created ${whenShort(p.created_at)}`),
         p.updated_at !== p.created_at && h("span", {}, `Edited ${whenShort(p.updated_at)}`),
-        // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
-        p.captures[0]?.source === "mcp" &&
+        // Written over MCP (made_by, store/roles.py): a badge, the origin Claude
+        // gave as the tooltip; tapped, finds them all
+        p.made_by === "claude" &&
           h(
             "a",
             {

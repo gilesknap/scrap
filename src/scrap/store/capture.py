@@ -33,7 +33,8 @@ from .helpers import (
     todo_columns,
     too_big,
 )
-from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .indexing import debounce, enrich_on, queue_enrich
+from .roles import by_claude, by_ingest, should_enrich
 
 
 class CaptureMixin(Core):
@@ -147,7 +148,7 @@ class CaptureMixin(Core):
                                    "now": stamp})  # fmt: skip
             if (
                 enrich_on()
-                and c["kind"] in ("note", "url")  # a photo has ingest
+                and not by_ingest(c["kind"])  # a photo or file has ingest
                 and should_enrich(conn, page_id)
             ):
                 # A link is fetched at once; a note waits, in case it is edited now
@@ -243,7 +244,7 @@ class CaptureMixin(Core):
             if row:
                 return self._ref(conn, cid, row[0]), False
             page = self._page_row(conn, key)
-            if not self.by_claude(conn, page["id"]):
+            if not by_claude(conn, page["id"]):
                 raise InvalidError("only a page written over MCP can be appended to")
             before = self._meta(conn, page["id"])
             if todo:

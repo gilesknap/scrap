@@ -11,7 +11,8 @@ from .db import _rows
 from .errors import InvalidError, NotFoundError
 from .helpers import body_refs, now, todo_only
 from .indexing import enrich_on
-from .topics import is_topic, key_of, of_page
+from .roles import is_topic, made_by
+from .topics import key_of, of_page
 from .topics import sources as topic_sources
 from .writeups import backlinks as writeup_backlinks
 from .writeups import links as writeup_links
@@ -37,8 +38,9 @@ class PagesMixin(Core):
         return [todo_only({**r, "fields": json.loads(r["fields"])}) for r in rows]
 
     def page(self, key: str, trashed: bool = False) -> dict[str, Any]:
-        """A page with its current revision and its captures and their blobs. With
-        trashed, one in the trash too, with its deleted_at (None for any other)."""
+        """A page with its current revision, who made it (roles.made_by: human, claude,
+        topic or gc) and its captures and their blobs. With trashed, one in the trash
+        too, with its deleted_at (None for any other)."""
         with self.connect() as conn:
             return self.page_in(conn, key, trashed)
 
@@ -74,6 +76,7 @@ class PagesMixin(Core):
         removed = sorted(self.removed(conn, page["id"], page["body"]))
         extra = self._enriched(conn, page["id"], page["slug"])
         return todo_only({**page, "fields": fields, "tags": tags, "captures": captures,
+                          "made_by": made_by(conn, page["id"]),  # the PWA's badge
                           "removed": removed, **extra})  # fmt: skip
 
     def _enriched(
@@ -109,6 +112,7 @@ class PagesMixin(Core):
                 related[b["id"]]["via"] = "both"
             else:
                 related[b["id"]] = {**b, "via": "link"}
+        # A topic first here, a board first in writeups.view (roles.writeup_type's TODO)
         topic = is_topic(conn, page_id)
         for w in writeup_links(conn, page_id):
             related.setdefault(w["id"], {**w, "via": "topic" if topic else "writeup"})

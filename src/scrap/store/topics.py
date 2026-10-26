@@ -16,9 +16,8 @@ import unicodedata
 from typing import Any
 
 from .helpers import new_ulid
+from .roles import IS_TOPIC
 
-# A topic page p (SQL)
-IS_TOPIC = "EXISTS (SELECT 1 FROM topic t WHERE t.page_id = {p}.id)"
 NOT_KEY = re.compile(r"[^\w]+|_+")  # what a key keeps: letters and digits, else -
 MAX_KEY = 80
 
@@ -32,15 +31,6 @@ def topic_key(name: str) -> str:
     and digits one -, at most MAX_KEY characters; "RTEMS IOCs" is rtems-iocs."""
     text = unicodedata.normalize("NFKC", name).casefold()
     return NOT_KEY.sub("-", text).strip("-")[:MAX_KEY].strip("-")
-
-
-def is_topic(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether a page is a topic (False before migration 13)."""
-    try:
-        sql = "SELECT 1 FROM topic WHERE page_id = ?"
-        return conn.execute(sql, (page_id,)).fetchone() is not None
-    except sqlite3.OperationalError:  # no such table: an older schema
-        return False
 
 
 def key_of(conn: sqlite3.Connection, page_id: str) -> str | None:

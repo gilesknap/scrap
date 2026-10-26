@@ -5,7 +5,7 @@ from typing import Any
 
 from .. import claude
 from ..query import MEDIA
-from ..store import health, writeups
+from ..store import health, roles, writeups
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -124,12 +124,12 @@ WHERE id = (
 RETURNING id, page_id, reason, failures
 """
 # A saved link's title, while it is still the link as captured (no edit since)
-TITLE_CAS = """
+# (roles.TITLE_UNTOUCHED)
+TITLE_CAS = f"""
 UPDATE page SET title = :title
 WHERE id = :page AND deleted_at IS NULL
-  AND title = (SELECT title FROM page_rev WHERE page_id = :page AND rev = 1)
+  AND {roles.TITLE_UNTOUCHED.format(page=":page")}
   AND title = :url
-  AND NOT EXISTS (SELECT 1 FROM page_rev WHERE page_id = :page AND rev > 1)
 """
 
 
@@ -162,17 +162,17 @@ FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
 # older than their last change, than what photo ingest last read from one of their
 # images, or than their current write-up), or every one with :all; oldest first
 STALE = f"""
-SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND p.slug != 'pinned'
+SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND {roles.NOT_PINNED.format(p="p")}
   AND (:all OR {health.PICKED.format(p="p")} IS NULL
     OR {health.OUTDATED_RELATED.format(p="p")})
 ORDER BY p.created_at LIMIT :limit
 """
-# Board pages (writeups.HAS_BOARD) with no write-up; with :outdated, those with an
+# Board pages (roles.HAS_BOARD) with no write-up; with :outdated, those with an
 # outdated one instead (writeups.OUTDATED, :version the write-up prompt's: never one the
 # owner restored); with :all, every one. Oldest first.
 BOARDS = f"""
 SELECT p.id FROM page p WHERE p.deleted_at IS NULL
-  AND {writeups.HAS_BOARD.format(p="p")}
+  AND {roles.HAS_BOARD.format(p="p")}
   AND CASE WHEN :all THEN 1
     WHEN :outdated THEN {writeups.OUTDATED.format(p="p", version=":version")}
     ELSE NOT EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = p.id) END

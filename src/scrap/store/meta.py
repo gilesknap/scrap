@@ -6,13 +6,11 @@ from typing import Any
 
 from ..query import MEDIA, subtype_of
 from .constants import (
-    FIRST_CAPTURE,
     KIND_NAMES,
     KINDS,
     MAX_FIELDS,
     MAX_TAG,
     MAX_TAGS,
-    MCP,
     META_REV,
     META_SOURCES,
     Value,
@@ -40,14 +38,6 @@ MAX_FIELD_TEXT = 200  # characters, as the PWA's field has it (pages_api.FIELD)
 
 
 class MetaMixin(Core):
-    def by_claude(self, conn: sqlite3.Connection, page_id: str) -> bool:
-        """Whether a page was written over MCP (its first capture's source)."""
-        row = conn.execute(
-            "SELECT source FROM capture WHERE id = " + FIRST_CAPTURE.format(page="?"),
-            (page_id,),
-        ).fetchone()
-        return bool(row) and row[0] == MCP
-
     def _meta(self, conn: sqlite3.Connection, page_id: str) -> Meta:
         """A page's kind, whether it is fixed, and tags, as page_meta_rev has them."""
         row = conn.execute(

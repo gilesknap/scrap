@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from . import enrich
-from .store import Store, topics
+from .store import Store, roles, topics
 
 
 def marked(store: Store, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -17,7 +17,7 @@ def marked(store: Store, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     those); a topic's also has its area, as /api/topics has it (group:area)."""
     with store.connect() as conn:
         for hit in hits:
-            hit["topic"] = topics.is_topic(conn, hit["id"])
+            hit["topic"] = roles.is_topic(conn, hit["id"])
         if any(hit["topic"] for hit in hits):
             areas = topics.areas(conn)
             for hit in hits:

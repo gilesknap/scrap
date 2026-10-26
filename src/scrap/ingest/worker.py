@@ -19,7 +19,7 @@ from ..store import (
     queue_after_read,
     transaction,
 )
-from ..store.constants import FIRST_CAPTURE
+from ..store.roles import IS_FIRST, UNFILED, first_capture
 from .constants import PAUSES, POLL, REV, TITLE_CAS
 from .jobs import (
     charge,
@@ -311,7 +311,7 @@ class Worker:
             page = conn.execute(
                 f"SELECT p.id, {REV} AS rev, (SELECT sha256 FROM capture_blob WHERE"
                 " capture_id = c.id ORDER BY ord LIMIT 1) AS first,"
-                f" c.id = {FIRST_CAPTURE.format(page='c.page_id')} AS original"
+                f" {IS_FIRST.format(c='c')} AS original"
                 " FROM capture c"
                 " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
             ).fetchone()  # fmt: skip
@@ -340,11 +340,7 @@ class Worker:
         (tagging a photo in the composer keeps both); a later reading (Reprocess) adds
         them only to a page with none, so a tag the user took off since does not come
         back. The page keeps at most MAX_TAGS: Claude's fill what the user's leave."""
-        page_id, original = conn.execute(
-            f"SELECT c.page_id, c.id = {FIRST_CAPTURE.format(page='c.page_id')}"
-            " FROM capture c WHERE c.id = ?",
-            (cid,),
-        ).fetchone()
+        page_id, original = first_capture(conn, cid)
         first = conn.execute(
             "SELECT sha256 FROM capture_blob WHERE capture_id = ? ORDER BY ord LIMIT 1",
             (cid,),
@@ -386,7 +382,6 @@ class Worker:
             self.store.reindex(conn, page_id)
         if out["kind"] in PAGE_KINDS:
             conn.execute(
-                "UPDATE page SET kind = ? WHERE id = ? AND kind = 'note'"
-                " AND kind_fixed = 0",
+                f"UPDATE page SET kind = ? WHERE id = ? AND {UNFILED.format(p='page')}",
                 (PAGE_KINDS[out["kind"]], page_id),
             )

@@ -19,15 +19,12 @@ from datetime import date, timedelta
 from typing import Any
 
 from .constants import GONE
-from .topics import IS_TOPIC
+from .roles import IS_TOPIC, REVIEW
 from .writeups import OUTDATED
 
 log = logging.getLogger(__name__)
 _unversioned = False  # is:outdated has run with no prompt versions (logged once)
 STALE_DAYS = 60  # an open todo not edited for this long is stale
-# A review page: one scrap gc made, gathering capture files no page shows (its capture's
-# source is gc), whatever it is titled now (orphans.py)
-REVIEW = "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = 'gc')"
 # Every page (not in the trash) linked one way or another to another such page: by a
 # page link (SQL wiki_links: [[slug]], or /p/<slug> as a path or full address) in its
 # text or its current write-up (either end), a related pick (either end), or a topic

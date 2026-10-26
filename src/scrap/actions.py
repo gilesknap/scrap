@@ -20,6 +20,7 @@ from typing import Any
 from .markdown import tasks
 from .query import CONTROL
 from .store import CLAUDE, ConflictError, InvalidError, Store
+from .store.roles import may_rekind
 
 __all__ = ["MAX_ITEMS", "MAX_ITEM", "accepted", "append", "clean_items", "clean_intent"]
 
@@ -97,7 +98,10 @@ def append(
 
     def change(conn: sqlite3.Connection, page: sqlite3.Row) -> tuple[str, str]:
         kinds = ("note", "whiteboard") if whiteboard else ("note",)
-        if page["kind_fixed"] or page["kind"] not in kinds or tasks(page["body"])[1]:
+        if (
+            not may_rekind(page["kind"], page["kind_fixed"], kinds)
+            or tasks(page["body"])[1]
+        ):
             return page["title"], page["body"]
         if page["kind"] == "whiteboard":  # ingest's guess, now a list: filed by boxes
             conn.execute("UPDATE page SET kind = 'note' WHERE id = ?", (page["id"],))

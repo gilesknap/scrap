@@ -1,6 +1,6 @@
 """The ingest queue's limits and SQL."""
 
-from ..store.constants import FIRST_CAPTURE
+from ..store.roles import FIRST_CAPTURE, TITLE_UNTOUCHED
 
 FAR = "9999-12-31T00:00:00.000Z"  # paused until Resume
 MAX_FAILURES = 3
@@ -20,17 +20,22 @@ WHERE id = (
   AND NOT EXISTS (SELECT 1 FROM queue_state WHERE paused_until > :now)
 RETURNING id, capture_id, source_sha256, failures, options
 """
+# A page's title from its first capture's first photo (roles: the first capture
+# decides), while the title is as made (roles.TITLE_UNTOUCHED) and that capture has no
+# text
 TITLE_CAS = """
 UPDATE page SET title = :title, updated_at = :now
 WHERE id = :page AND deleted_at IS NULL
-  AND title = (SELECT title FROM page_rev WHERE page_id = :page AND rev = 1)
-  AND NOT EXISTS (SELECT 1 FROM page_rev WHERE page_id = :page AND rev > 1)
+  AND {untouched}
   AND EXISTS (SELECT 1 FROM capture c WHERE c.id = :capture AND c.page_id = :page
               AND c.text IS NULL
               AND c.id = {first}
               AND :photo = (SELECT sha256 FROM capture_blob
                             WHERE capture_id = c.id ORDER BY ord LIMIT 1))
-""".format(first=FIRST_CAPTURE.format(page=":page"))
+""".format(
+    untouched=TITLE_UNTOUCHED.format(page=":page"),
+    first=FIRST_CAPTURE.format(page=":page"),
+)
 INSERT_DERIVED = """
 INSERT INTO derived (capture_id, source_sha256, kind, version, producer, run_id, author,
                      text, data, superseded_at, created_at)

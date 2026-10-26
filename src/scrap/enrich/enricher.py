@@ -24,7 +24,7 @@ from ..store import (
     fields_for,
     now,
     queue_related,
-    topics,
+    roles,
     transaction,
 )
 from .checking import checked, record
@@ -198,7 +198,7 @@ class Enricher:
                 queue_related(conn, page_id)  # its first related call sees the write-up
             return
         with self.store.connect() as conn:
-            topic = topics.is_topic(conn, page_id)
+            topic = roles.is_topic(conn, page_id)
         if topic:  # a topic page (#261): its text is the owner's, never read as
             # text. Ask is its synthesis (once a job), then its related pages; a
             # save (a topic whose kind was changed) makes no call
@@ -410,7 +410,7 @@ class Enricher:
                             TITLE_CAS, {"title": title[:MAX_TITLE], "page": page_id,
                                         "url": link},
                         )  # fmt: skip
-                    if alive["kind"] == "note" and not alive["kind_fixed"]:
+                    if roles.may_rekind(alive["kind"], alive["kind_fixed"]):
                         medium = site_media(link) or out["media_type"]
                         kept = json.loads(alive["fields"])
                         fields = {**fields_for("consume", link),

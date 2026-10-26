@@ -10,7 +10,8 @@ from .core import Core
 from .db import _rows
 from .errors import NoSuchPage
 from .helpers import now
-from .topics import IS_TOPIC, touch
+from .roles import IS_TOPIC
+from .topics import touch
 
 TRASH_DAYS = 30.0  # a page stays in the trash this long before gc purges it
 MAX_DAYS = 36500  # the longest retention: a hundred years

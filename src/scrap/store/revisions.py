@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from ..markdown import tasks
+from . import roles
 from .constants import CLAUDE, META_REV, PAGE_KINDS
 from .core import Core
 from .db import _rows, transaction
@@ -20,7 +21,8 @@ from .helpers import (
     now,
     seconds_between,
 )
-from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .indexing import debounce, enrich_on, queue_enrich
+from .roles import may_rekind, should_enrich
 from .types import FieldEdit
 
 
@@ -304,7 +306,8 @@ class RevisionsMixin(Core):
             (page["id"], CLAUDE),
         ).fetchall()
         if (
-            now_["kind"] != "todo" or now_["kind_fixed"] or tasks(now_["body"])[1]
+            not may_rekind(now_["kind"], now_["kind_fixed"], ("todo",))
+            or tasks(now_["body"])[1]
             or not tasks(page["body"])[1] or any(tasks(r[0])[1] for r in theirs)
             or json.loads(now_["fields"]).get("status", "open") != "open"
         ):  # fmt: skip
@@ -319,13 +322,10 @@ class RevisionsMixin(Core):
         conn.execute("UPDATE page SET kind = ? WHERE id = ?", (kind, page["id"]))
 
     def edited_by_claude(self, page_id: str) -> bool:
-        """Whether Claude changed a page's text over MCP after it was made (is:
-        claude-edited): a text revision of its, after the first."""
+        """Whether a page has a later text revision by Claude: MCP edits, or task
+        boxes Claude added (roles.edited_by_claude, is:claude-edited)."""
         with self.connect() as conn:
-            return bool(conn.execute(
-                "SELECT 1 FROM page_rev WHERE page_id = ? AND rev > 1 AND author = ?",
-                (page_id, CLAUDE),
-            ).fetchone())  # fmt: skip
+            return roles.edited_by_claude(conn, page_id)
 
     def text_at(self, conn: sqlite3.Connection, page_id: str, rev: int) -> sqlite3.Row:
         """A page's text revision rev (title, body), or NotFoundError."""

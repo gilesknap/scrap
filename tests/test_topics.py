@@ -25,6 +25,7 @@ from scrap.store import (
     model_summary,
     new_ulid,
     now,
+    roles,
     topics,
     writeups,
 )
@@ -175,9 +176,7 @@ def test_migration_13_on_a_v12_database_keeps_jobs_and_runs(store):
     with closing(connect(store.db)) as conn:  # an older schema reads as no topics
         page_id = conn.execute("SELECT id FROM page").fetchone()[0]
         assert topics.index(conn) == [] and topics.sources(conn, page_id) == []
-        assert (
-            not topics.is_topic(conn, page_id) and topics.of_page(conn, page_id) == []
-        )
+        assert not roles.is_topic(conn, page_id) and topics.of_page(conn, page_id) == []
         assert ingest.spent_today(conn, now()) > 0  # no topic_run: enrich's only
     assert store.page(page_id)["topics"] == []
     before = jobs(store)

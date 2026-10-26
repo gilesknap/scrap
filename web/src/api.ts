@@ -70,6 +70,7 @@ export interface Writeup {
 }
 export interface Page extends Summary {
   kind_fixed: number; // 1: the user chose the kind
+  made_by?: "human" | "claude" | "topic" | "gc"; // who made it (store/roles.py)
   body: string;
   rev: number;
   tags: string[];

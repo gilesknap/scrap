@@ -14,7 +14,7 @@ from scrap.app import create_app
 from scrap.ingest import put_derived
 from scrap.mcp_page import page_key
 from scrap.mcp_tools import writing
-from scrap.store import Store, new_ulid, now
+from scrap.store import Store, new_ulid, now, roles
 
 ACCEPT = {"Accept": "application/json, text/event-stream"}
 
@@ -96,7 +96,7 @@ def test_write_makes_a_claude_page_with_provenance(store, monkeypatch):
     assert sorted(page["tags"]) == ["claude code", "tech"]
     assert [(c["source"], c["author"]) for c in page["captures"]] == [("mcp", "claude")]
     with store.connect() as conn:
-        assert store.by_claude(conn, out["id"])
+        assert roles.by_claude(conn, out["id"])
         author = conn.execute(
             "SELECT author FROM page_rev WHERE page_id = ?", (out["id"],)
         ).fetchone()[0]

@@ -19,7 +19,8 @@ from .helpers import (
     lines,
     now,
 )
-from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .indexing import debounce, enrich_on, queue_enrich
+from .roles import may_rekind, should_enrich
 
 
 class EditsMixin(Core):
@@ -183,7 +184,7 @@ class EditsMixin(Core):
         if not follow or not total:
             return
         kind, fields = row["kind"], json.loads(row["fields"])
-        if kind == "note" and not row["kind_fixed"]:  # filed by its boxes, not fixed
+        if may_rekind(kind, row["kind_fixed"]):  # filed by its boxes, not fixed
             kind, fields = "todo", {**fields_for("todo", None), **fields}
         if kind != "todo":
             return

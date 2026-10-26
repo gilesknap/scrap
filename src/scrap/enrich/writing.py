@@ -1,7 +1,7 @@
 """Enrich: Claude's write-up of a board page (#256), one call, and the backfill.
 
 A board page is one with a whiteboard or diagram image that is not a list of actions
-(store.writeups.HAS_BOARD). Its write-up explains the board in Markdown sections,
+(store.roles.HAS_BOARD). Its write-up explains the board in Markdown sections,
 from the photos themselves (the JPEGs photo ingest sent, at most MAX_BOARDS), what was
 read from them, the page's title, tags and text, and the owner's guidance. It may link
 to the page's related candidates (CANDIDATES), cited by number and made page links

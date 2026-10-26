@@ -13,7 +13,7 @@ from typing import Any
 
 from ..markdown import wiki_targets
 from ..public import public_origins
-from .topics import IS_TOPIC, is_topic
+from .roles import HAS_BOARD, IS_TOPIC, SHOWN, writeup_type
 
 
 def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]]:
@@ -47,15 +47,6 @@ WHERE o.copy = 1
   AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions'
 ORDER BY o.received_at, o.capture_id, o.ord
 """
-# Whether a page has a board image (BOARD_IMAGES' test, as SQL on a page p)
-HAS_BOARD = """EXISTS (
-    SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
-    LEFT JOIN model_run r ON r.id = d.run_id
-    WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
-      AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
-      AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
-# Whether a page's write-up is on show (SQL on a page p): a board page's or a topic's
-SHOWN = f"({HAS_BOARD} OR {IS_TOPIC})"
 # A board image of a page p read since its last write-up (or it has none)
 READ_SINCE = """EXISTS (
     SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
@@ -104,13 +95,6 @@ def board_images(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]
     return [dict(r) for r in conn.execute(BOARD_IMAGES, {"page": page_id})]
 
 
-def has_board(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether a page has a board image (HAS_BOARD)."""
-    sql = f"SELECT {HAS_BOARD.format(p='p')} FROM page p WHERE p.id = ?"
-    row = conn.execute(sql, (page_id,)).fetchone()
-    return bool(row and row[0])
-
-
 def due(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether a board page's write-up is due (DUE): all its photos read, and a board
     image read since its last one."""
@@ -131,12 +115,12 @@ def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
 
 
 def shown(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
-    """A page's current write-up while it is still a board page (has_board) or a
-    topic (its synthesis), else None: one reprocessed into another kind keeps its
-    versions as history, but they are no longer its summary, its search text, its
+    """A page's current write-up while it is still a board page or a topic (its
+    synthesis: roles.writeup_type), else None: one reprocessed into another kind keeps
+    its versions as history, but they are no longer its summary, its search text, its
     links or on show."""
     up = current(conn, page_id)
-    if up is None or not (has_board(conn, page_id) or is_topic(conn, page_id)):
+    if up is None or writeup_type(conn, page_id) is None:
         return None
     return up
 
@@ -262,10 +246,10 @@ def view(
     prompt's; a topic's synthesis is never said to be, the weekly pass remakes it),
     and the current one, with links: the slugs of the pages (not in the trash) it
     links to."""
-    board = has_board(conn, page_id)
-    topic = not board and is_topic(conn, page_id)
-    if not (board or topic):
+    kind = writeup_type(conn, page_id)
+    if kind is None:
         return None
+    board, topic = kind == "board", kind == "topic"
     up = current(conn, page_id)
     job = conn.execute(
         "SELECT state, reason, last_error,"

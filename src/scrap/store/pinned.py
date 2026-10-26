@@ -3,7 +3,7 @@ Pinned with the slug `pinned`, whose body is a list of links the search screen s
 as a launcher. The slug is reserved: ensure_pinned makes the page at most once, or
 brings it back from the trash, so two first pins at once, or a page the owner already
 called pinned, never leave a second one. Claude does not read it
-(indexing.should_enrich).
+(roles.NOT_PINNED: should_enrich, backfill and the related pass).
 """
 
 from typing import Any

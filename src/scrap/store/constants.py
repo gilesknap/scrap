@@ -84,9 +84,10 @@ RANK = "coalesce(p.priority, 'none')"  # priority:none finds a todo with none
 PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
-# The author of what Claude writes over MCP: of its captures, and of its text revisions
-# (page_rev). Only MCP writes as it: the PWA's author is a Tailscale login (an address,
-# with an @) or "tagged", so a text revision by CLAUDE is one made over MCP.
+# The author of what Claude writes: its MCP captures, and its text revisions (page_rev)
+# over MCP or of the task boxes it adds (actions.append). The PWA's author is a
+# Tailscale login (an address, with an @) or "tagged", so a text revision by CLAUDE is
+# a later text revision by Claude: an MCP edit, or task boxes Claude added.
 CLAUDE = "claude"
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
@@ -136,28 +137,6 @@ PAGE_KINDS = {
     "diagram": "whiteboard",
     "document": "document",
 }
-
-
-# The id of a page's first capture (SQL; page: an expression for the page's id).
-# A page's first capture decides what the page is; later captures only add content
-# (#260): what automation infers from them never changes its kind, title or tags, or
-# whether enrich or ingest maintains it. The one test of it, for TITLE_CAS, the photo
-# worker and NOT_BY_INGEST.
-# Captures received at the same moment (an import's): a file capture last, then one
-# with no files before one with them, then the id, so an import's main capture (its
-# text, with its images) is first whatever its hash-derived id.
-FIRST_CAPTURE = (
-    "(SELECT f.id FROM capture f WHERE f.page_id = {page}"
-    " ORDER BY f.received_at, f.kind = 'file',"
-    " EXISTS (SELECT 1 FROM capture_blob b WHERE b.capture_id = f.id), f.id LIMIT 1)"
-)
-# A page made by a photo or file capture (its first) is read by ingest, not enrich,
-# whatever its kind (a photo page is stored as a note until ingest reclassifies it).
-NOT_BY_INGEST = (
-    "coalesce((SELECT c.kind FROM capture c WHERE c.id = "
-    + FIRST_CAPTURE.format(page="{p}.id")
-    + "), '') NOT IN ('photo', 'file')"
-)
 
 
 # A page's first related call, once it is first read: one job with reason 'related',

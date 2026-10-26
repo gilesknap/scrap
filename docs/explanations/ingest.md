@@ -297,9 +297,10 @@ added to a page are read (description, OCR, drawing), searched, and fed to the w
 related pages, but what Claude infers from them never changes the page's kind, title or tags,
 or whether enrich or ingest maintains it. The owner can still change kind, title and tags by
 hand at any time. One SQL test says which capture is the page's first
-(`store.constants.FIRST_CAPTURE`: the earliest received; among captures received at the same moment, as an import's are, a file capture last, then one with no files before one with files, then the lowest id, so an import's main capture (its text, with its images) is first), used by
-`TITLE_CAS`, the photo worker's page fields and task boxes, `NOT_BY_INGEST` and
-`by_claude` (a page written over MCP).
+(`store.roles.FIRST_CAPTURE`: the earliest received; among captures received at the same moment, as an import's are, a file capture last, then one with no files before one with files, then the lowest id, so an import's main capture (its text, with its images) is first). It and
+every other test of what a page is (who made it, whether enrich or ingest maintains it, its
+write-up, what automation may change, whether it takes photos) are in `store/roles.py`: see
+{ref}`page-roles` for the table of them.
 
 **Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
 page that exists (not a topic page: its synthesis is its write-up, which a board photo would
@@ -534,7 +535,7 @@ flowchart TD
   related pages. `scrap enrich --backfill [--limit N] [--dry-run]` queues every note, todo or read with no tags
   that Claude has not read, once, by hand (never automatic). Some things queue nothing:
   - A page whose first capture is a photo or file, even with a typed note (`should_enrich` in
-    `store/indexing.py`, #155): photo ingest reads the photo, and the page's first text reading
+    `store/roles.py`, #155): photo ingest reads the photo, and the page's first text reading
     comes with a later save of its title or text (or Ask Claude). Photos added to a text page
     later leave it enrich's ({ref}`ingest-first-capture`).
   - A whiteboard or document page: it is not read as text (#155).

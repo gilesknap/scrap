@@ -45,7 +45,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   const kept = await drafts.get<Draft>(key).catch(() => undefined);
   // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Later),
   // as in the composer, until the user picks one; a draft's kind only if the user picked it
-  const unfiled = !p.kind_fixed && p.kind === "note";
+  const unfiled = !p.kind_fixed && p.kind === "note"; // store/roles.py UNFILED
   const was = unfiled ? suggested(p.body) : p.kind;
   const initial = unfiled ? suggested(kept?.text ?? p.body) : p.kind;
   const kind = kindPicker(kept?.picked ? (kept.kind ?? initial) : initial, !!kept?.picked);

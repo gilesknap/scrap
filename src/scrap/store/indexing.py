@@ -11,16 +11,13 @@ from ..query import (
 )
 from .constants import (
     ENRICH_ENQUEUE,
-    ENRICH_KINDS,
     FIRST_READ,
-    NOT_BY_INGEST,
-    PINNED_SLUG,
     RELATED_ENQUEUE,
 )
 from .helpers import now, unlink
+from .roles import has_board
 from .writeups import current as current_writeup
 from .writeups import due as writeup_due
-from .writeups import has_board
 from .writeups import shown as shown_writeup
 
 
@@ -77,18 +74,6 @@ def enrich_on() -> bool:
     on = ("on", "1", "true", "yes")
     ingest = os.environ.get("SCRAP_INGEST", "off").lower() in on
     return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
-
-
-def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether enrich reads this page on a capture, save or backfill: its kind is in
-    ENRICH_KINDS, it was not made with a photo or file capture (NOT_BY_INGEST) and it
-    is not the Pinned page (a list of links: nothing for Claude to read)."""
-    row = conn.execute(
-        "SELECT p.kind FROM page p WHERE p.id = ? AND p.slug != ? AND "
-        + NOT_BY_INGEST.format(p="p"),
-        (page_id, PINNED_SLUG),
-    ).fetchone()
-    return row is not None and row[0] in ENRICH_KINDS
 
 
 def debounce() -> float:

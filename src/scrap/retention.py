@@ -30,8 +30,7 @@ from datetime import UTC, datetime, timedelta
 
 from . import orphans
 from .store import body_refs
-from .store.health import REVIEW
-from .store.topics import IS_TOPIC
+from .store.roles import IS_TOPIC, REVIEW
 from .store.trash import MAX_DAYS, TRASH_DAYS, purge_at, trash_days
 
 __all__ = [
