@@ -21,8 +21,8 @@ is stored apart, labelled and regenerable.
 - Quick capture from a phone that never waits on an LLM.
 - Originals are always kept; what is derived from them can be regenerated (a saved link's article
   only while its source is online).
-- Human and model content kept apart: model output is derived, labelled and regenerable, and you
-  decide when it is refreshed.
+- Human and model content kept apart: model output is derived, labelled and regenerable, and
+  write-ups are refreshed when you choose.
 
 ## What Claude adds
 
@@ -32,8 +32,9 @@ Snap a whiteboard, jot a note or share a link; scrap keeps the original at once,
 - a write-up of each whiteboard and diagram;
 - tags and a summary;
 - related pages;
-- topic pages that draw your pages together, and Store health checks that find orphans, dangling
-  links and outdated write-ups.
+- topic pages that draw your pages together.
+
+Store health checks then find orphans, dangling links and outdated write-ups.
 
 Claude searches, reads and adds pages over MCP; the PWA is for capturing and looking. See
 [what Claude is asked, per page](https://gilesknap.github.io/scrap/main/explanations/llm-calls.html).
