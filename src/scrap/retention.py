@@ -18,6 +18,8 @@
   than ``JOB_DAYS`` ago, are deleted, but the newest of each photo's ingest jobs and of
   each page's enrich jobs of a reason is kept: the PWA shows a page's or a photo's
   state from it, and a page's one first related call is known by it.
+- **Model runs.** ``model_run`` and ``enrich_run`` rows past ``RUN_DAYS`` that nothing
+  needs any more are deleted (see :func:`prune_runs`).
 
 Every function here runs on an open connection; the caller owns the transaction.
 """
@@ -35,11 +37,13 @@ from .store.trash import MAX_DAYS, TRASH_DAYS, purge_at, trash_days
 __all__ = [
     "JOB_DAYS",
     "MAX_DAYS",
+    "RUN_DAYS",
     "TRASH_DAYS",
     "Purged",
     "check_days",
     "due",
     "prune_jobs",
+    "prune_runs",
     "purge",
     "purge_at",
     "stamp",
@@ -47,6 +51,7 @@ __all__ = [
 ]
 
 JOB_DAYS = 30.0  # finished job rows are kept this long
+RUN_DAYS = 30.0  # model_run / enrich_run rows younger than this are kept
 
 # The trashed pages due for a purge (:cutoff a stored timestamp): not topics
 DUE = (
@@ -166,3 +171,80 @@ def prune_jobs(
         conn.executemany("DELETE FROM job WHERE id = ?", [(i,) for i in jobs])
         conn.executemany("DELETE FROM enrich_job WHERE id = ?", [(i,) for i in texts])
     return len(jobs), len(texts)
+
+
+def _cutoff_stamp(run_days: float) -> str:
+    when = datetime.now(UTC) - timedelta(days=run_days)
+    return when.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def prune_runs(
+    conn: sqlite3.Connection, run_days: float = RUN_DAYS, delete: bool = False
+) -> tuple[int, int]:
+    """Count (and with delete, delete) the model_run and enrich_run rows past retention.
+
+    A row is kept while it is still running; or younger than run_days; or the newest
+    for its page (``enrich_run``) or for its photo (``model_run``); or the newest ok
+    ``related`` enrich_run of a page (``enrich --related`` reads it as "up to date",
+    see ``enrich.STALE``); or something
+    refers to it: ``enrichment.run_id``, ``writeup.run_id`` and ``derived.run_id`` (a
+    superseded version too), or a kept ``model_run`` that continues it
+    (``parent_id``). Returns the
+    counts (model_run, enrich_run). Call inside the write transaction when deleting.
+    """
+    stamp = _cutoff_stamp(run_days)
+    models = conn.execute(
+        "SELECT id, parent_id, capture_id, source_sha256, started_at, status"
+        " FROM model_run"
+    ).fetchall()
+    keep = {r[0] for r in models if r[5] == "running" or r[4] >= stamp}
+    keep |= {
+        row[0]
+        for row in conn.execute("SELECT run_id FROM derived WHERE run_id IS NOT NULL")
+    }
+    newest: dict[tuple[str, str], int] = {}
+    for row in models:
+        key = (row[2], row[3])
+        newest[key] = max(newest.get(key, 0), row[0])
+    keep |= set(newest.values())
+    parent = {r[0]: r[1] for r in models}
+    for run in list(keep):  # a kept turn needs the turns before it
+        while (run := parent.get(run)) is not None and run not in keep:
+            keep.add(run)
+    gone_models = sorted(r[0] for r in models if r[0] not in keep)
+
+    enrich = conn.execute(
+        "SELECT id, page_id, started_at, status FROM enrich_run"
+    ).fetchall()
+    keep_e = {r[0] for r in enrich if r[3] == "running" or r[2] >= stamp}
+    keep_e |= {
+        row[0]
+        for row in conn.execute(
+            "SELECT run_id FROM enrichment WHERE run_id IS NOT NULL"
+            " UNION SELECT run_id FROM writeup WHERE run_id IS NOT NULL"
+        )
+    }
+    latest: dict[str, int] = {}
+    for row in enrich:
+        latest[row[1]] = max(latest.get(row[1], 0), row[0])
+    keep_e |= set(latest.values())
+    # enrich --related treats a page as up to date by its newest ok related run
+    # (enrich.STALE), so pruning that one would cost an extra Claude call.
+    keep_e |= {
+        row[0]
+        for row in conn.execute(
+            "SELECT MAX(id) FROM enrich_run WHERE status = 'ok'"
+            " AND json_extract(request, '$.purpose') = 'related' GROUP BY page_id"
+        )
+    }
+    gone_enrich = sorted(r[0] for r in enrich if r[0] not in keep_e)
+
+    if delete:
+        # Newest first: a turn is deleted before the one it continues.
+        conn.executemany(
+            "DELETE FROM model_run WHERE id = ?", [(i,) for i in reversed(gone_models)]
+        )
+        conn.executemany(
+            "DELETE FROM enrich_run WHERE id = ?", [(i,) for i in gone_enrich]
+        )
+    return len(gone_models), len(gone_enrich)
