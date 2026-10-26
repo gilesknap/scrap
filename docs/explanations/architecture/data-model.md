@@ -163,7 +163,8 @@ flowchart LR
 | `consume` | Later | `kind:later` in search; `kind:read` is accepted too |
 | `whiteboard` | Board | Search aliases `board`; offers a write-up |
 | `document` | Doc | Search aliases `doc` |
-| `memory`, `reference` | not offered | Valid in the `CHECK`; web/src/kinds.ts lists the five offered |
+
+These five are the only kinds. A topic page is a `document`, identified by the `topic` table, not by its kind.
 
 - **`fields`** is a flat JSON object: no nulls or nested values, at most 32 keys, numbers within
   +/-2^53. In use: `status` (`open`, `in_progress`, `done`, `cancelled`), `subtype` and `source` on

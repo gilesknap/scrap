@@ -719,7 +719,7 @@ sequenceDiagram
 `enrich.topics_pass` and `enrich.synthesise`, prompts `prompts/topic-discovery.md` and
 `prompts/topic.md` ([](decisions/0028-claude-maintained-topic-pages.md)). A topic page gathers
 what several pages say about one recurring thing (a tool, a project, a concept). It is a real
-page, of kind `reference`, marked as a topic in the `topic` table; its body is the owner's notes
+page, a Doc, marked as a topic in the `topic` table; its body is the owner's notes
 on the topic (empty at first) and Claude never writes there. Claude's synthesis of its sources is
 its write-up ({ref}`ingest-writeup`): versions, guidance, Regenerate and Restore work the same.
 
