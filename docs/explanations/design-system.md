@@ -41,7 +41,10 @@ and back.
   ‹ Todos, ‹ Topics, ‹ Capture), as a mail app's ‹ Inbox: it goes straight
   to the list the page was opened from, past pages stepped through or followed, while the
   phone's own Back goes one step at a time; opened cold from a link, it goes up to a parent
-  (Todos for a todo, Topics for a topic, Capture for any other page).
+  (Todos for a todo, Topics for a topic, Capture for any other page). Every link to a page,
+  `[[slug]]` or its full address, opens in place, so the phone's Back walks back through them.
+  Delete is one step back (the list, or the page whose link opened it) with **Undo**; opened
+  cold, it goes where Back names.
 - **Icons with words.** Icons help find a control; the word says what it does. Icon-only
   buttons (close, previous/next photo, remove a photo) carry an `aria-label`.
 - **Calm states.** Empty, offline and error states are an icon, one plain sentence and at most

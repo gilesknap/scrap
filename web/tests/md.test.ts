@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { unembedded } from "../src/md";
-import { markdown } from "../src/render";
+import { markdown, own } from "../src/render";
 
 const SHA = "a".repeat(64);
 const a = (href: string, text = href) =>
@@ -272,6 +272,36 @@ describe("markdown", () => {
     };
     took(20_000); // warm up
     expect(took(200_000)).toBeLessThan(2000);
+  });
+});
+
+describe("a page here by its full address (#288)", () => {
+  const HERE = "https://scrap.example.org";
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is its path: opened in the app, not a new window", () => {
+    expect(own(`${HERE}/p/a-page`, HERE)).toBe("/p/a-page");
+    expect(own(`${HERE}/p/a-page?x=1#h-top`, HERE)).toBe("/p/a-page?x=1#h-top");
+    expect(own(`HTTPS://SCRAP.example.org/p/a-page`, HERE)).toBe("/p/a-page");
+  });
+
+  it("is not another site's, another path here, or with no origin known", () => {
+    expect(own("https://elsewhere.org/p/a-page", HERE)).toBeNull();
+    expect(own("http://scrap.example.org/p/a-page", HERE)).toBeNull(); // another origin
+    expect(own(`${HERE}/api/blobs/x`, HERE)).toBeNull();
+    expect(own(`${HERE}/p/Not_A_Slug`, HERE)).toBeNull();
+    expect(own("/p/a-page", HERE)).toBeNull(); // already a path
+    expect(own(`${HERE}/p/a-page`, undefined)).toBeNull();
+  });
+
+  it("renders as a link in the app; another site's still opens a new window", () => {
+    vi.stubGlobal("location", { origin: HERE });
+    expect(one(`[A](${HERE}/p/a-page) and ${HERE}/p/b-page`)).toBe(
+      `<p><a href="/p/a-page">A</a> and <a href="/p/b-page">${HERE}/p/b-page</a></p>`,
+    );
+    expect(one("[A](https://elsewhere.org/p/a-page)")).toBe(
+      `<p>${a("https://elsewhere.org/p/a-page", "A")}</p>`,
+    );
   });
 });
 
