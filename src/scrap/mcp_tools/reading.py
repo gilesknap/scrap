@@ -7,9 +7,11 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
+from ..markdown import wiki_targets
 from ..mcp_page import page_key
+from ..public import public_origins
 from ..query import parse
-from ..store import KIND_NAMES, MCP, WIKI_LINK
+from ..store import KIND_NAMES, MCP
 from ..store.constants import ALL_KINDS
 from .context import Ctx, drawing_info, text
 from .limits import WRITE_KINDS, Limit
@@ -77,7 +79,8 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         with their URLs and what Claude read from them, not inlined; other files
         (PDFs and the like) are listed apart, under files; drawing is
         null or a summary of an image's drawing (the drawing tool returns it). links
-        are the pages it links to with [[slug]]; backlinks those linking to it.
+        are the pages it links to, with [[slug]] or a page URL; backlinks those
+        linking to it.
         by_model is what a model (scrap's Claude enrichment), not the user, wrote
         about the page: its summary, which of the page's tags it added, the pages
         it found related (with any picked the other way, and those its write-up
@@ -105,7 +108,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
                     "has_drawing": bool(ingest.get("drawing")),
                     "drawing": drawing_info(ingest.get("drawing")),
                 })  # fmt: skip
-        slugs = dict.fromkeys(m[1].strip() for m in WIKI_LINK.finditer(p["body"]))
+        slugs = wiki_targets(p["body"], public_origins())
         up = (p.get("writeup") or {}).get("current")
         enriched = p.get("enrich") or {}
         topic = p.get("topic")

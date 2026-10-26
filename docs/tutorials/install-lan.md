@@ -67,8 +67,9 @@ pages). Docker takes the same arguments.
 
 `SCRAP_PUBLIC_URL` matters for one thing: `/mcp`, the endpoint Claude uses, answers only the
 loopback addresses and the addresses listed there, and replies `421 Invalid Host header` to any
-other. The web page does not care. Page links that Claude gives you also start with the first
-address in it. Claude Code on this machine needs none of it; on another machine, use
+other. The web page needs none of it to work. Page links that Claude gives you start with the
+first address in it, and the app opens a link to a page on any address listed there in place,
+as it does `[[slug]]`, so Back returns to the page you were on. Claude Code on this machine needs none of it; on another machine, use
 `claude mcp add` from the README with the LAN address, for example
 `http://192.168.1.10:8000/mcp`.
 

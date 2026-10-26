@@ -81,7 +81,8 @@ class SearchMixin(Core):
         return out
 
     def backlinks(self, slug: str) -> list[dict[str, str]]:
-        """The pages (not in the trash) whose text links to slug with [[slug]]."""
+        """The pages (not in the trash) whose text links to slug: [[slug]], or its
+        /p/ address (SQL wiki_links)."""
         with self.connect() as conn:
             return [
                 {k: r[k] for k in ("id", "slug", "title")}
@@ -92,8 +93,9 @@ class SearchMixin(Core):
         return _rows(
             conn,
             "SELECT id, slug, title, kind FROM page WHERE deleted_at IS NULL"
-            " AND slug <> ? AND (instr(body, '[[' || ? || ']]') > 0"
-            " OR instr(body, '[[' || ? || '|') > 0) ORDER BY updated_at DESC",
+            " AND slug <> ? AND instr(body, ?) > 0 AND EXISTS (SELECT 1 FROM"
+            " json_each(wiki_links(body)) l WHERE l.value = ?)"
+            " ORDER BY updated_at DESC",
             slug, slug, slug,
         )  # fmt: skip
 
