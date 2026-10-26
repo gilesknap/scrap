@@ -7,8 +7,8 @@ install of its own: do one of [](install-lan.md), [](install-server.md) or
 [](install-kubernetes.md) first.
 
 ```{important}
-**An API key is the encouraged default.** Use this page only if you have a Claude seat (Pro,
-Max, Team or Enterprise) and no Claude Console account to make a key in. scrap runs the Claude
+**An API key is the encouraged default.** Use this page only if you have a Claude seat (Team or
+Enterprise) and no Claude Console account to make a key in. scrap runs the Claude
 Code CLI (`claude -p`) with a long-lived token from `claude setup-token`
 ([ADR 0021](../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.md)). Use
 your own seat only. Whether your plan or organisation lets a seat be used for unattended work
@@ -34,10 +34,10 @@ on top of a scrap image. It is from the release you run, so fetch it in an empty
 ```
 mkdir -p ~/scrap-claude-build && cd ~/scrap-claude-build
 curl -fsSL -o Dockerfile.claude \
-    https://raw.githubusercontent.com/gilesknap/scrap/0.2.2/Dockerfile.claude
-podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.2.2 \
-    -t localhost/scrap-claude:0.2.2 .
-podman run --rm --entrypoint claude localhost/scrap-claude:0.2.2 --version
+    https://raw.githubusercontent.com/gilesknap/scrap/0.11.0/Dockerfile.claude
+podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.11.0 \
+    -t localhost/scrap-claude:0.11.0 .
+podman run --rm --entrypoint claude localhost/scrap-claude:0.11.0 --version
 ```
 
 The last command should print a Claude Code version. The image is about 240 MB larger than
@@ -63,21 +63,30 @@ Use the one section for your install.
 
 ### Container on a LAN, or single server
 
-Edit the settings file (`~/.config/scrap/env` for the LAN tutorial, `~/.config/scrap/ingest.env`
-as the `scrap` user for the server tutorial). It stays mode 600. Remove `ANTHROPIC_API_KEY` and
-set:
+`SCRAP_LLM_BACKEND` is `api` (the default) or `cli`. Set it with the token and drop
+`ANTHROPIC_API_KEY`:
 
-```
-SCRAP_INGEST=on
-SCRAP_LLM_BACKEND=cli
-CLAUDE_CODE_OAUTH_TOKEN=<your token>
-```
+- LAN: read the token into your shell the way the README reads the key, then remove the container
+  and run it again with the new image (the volume keeps your data):
 
-`SCRAP_LLM_BACKEND` is `api` (the default) or `cli`. Then run the new image:
+  ```
+  printf 'Claude token: '; read -rs CLAUDE_CODE_OAUTH_TOKEN; export CLAUDE_CODE_OAUTH_TOKEN
+  podman rm -f scrap
+  podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data:/data \
+      -e SCRAP_INGEST=on -e SCRAP_LLM_BACKEND=cli -e CLAUDE_CODE_OAUTH_TOKEN \
+      localhost/scrap-claude:0.11.0 serve
+  ```
 
-- LAN: remove the container and run it again with `localhost/scrap-claude:0.2.2` in place of
-  `ghcr.io/gilesknap/scrap:0.2.2`; the volume keeps your data.
-- Server: set `SCRAP_IMAGE=localhost/scrap-claude:0.2.2` in `~/.config/scrap/env`, then re-run
+  Add `--host 0.0.0.0`, `TZ` and `SCRAP_PUBLIC_URL` from [](install-lan.md) if you used them.
+- Server: in `~/.config/scrap/ingest.env` (mode 600) set:
+
+  ```
+  SCRAP_INGEST=on
+  SCRAP_LLM_BACKEND=cli
+  CLAUDE_CODE_OAUTH_TOKEN=<your token>
+  ```
+
+  Set `SCRAP_IMAGE=localhost/scrap-claude:0.11.0` in `~/.config/scrap/env` and re-run
   `./deploy/install.sh`. The CLI takes about 250 MB while it runs, so raise `SCRAP_MEMORY_MAX`
   there too, for example to `1.5g`.
 
@@ -101,7 +110,7 @@ If your registry needs credentials, create an image pull Secret and list it unde
 ```yaml
 image:
   repository: registry.example.com/me/scrap-claude
-  tag: 0.2.2
+  tag: 0.11.0
 ingest:
   enabled: true
   existingSecret: scrap-claude

@@ -1,26 +1,71 @@
 # Claude ingest
 
-Ingest is how scrap uses Claude. Each photo is sent once for its text, a description, a kind, a
-title, tags and, for a whiteboard or diagram, an Excalidraw drawing. Notes, todos, reads and saved
-links get tags, a summary and related pages from a second, cheaper job on the same worker
-(see {ref}`Enrich <ingest-enrich>`). Every result is a version that can be regenerated, edited or restored,
-and every call is stored, so a later conversation can start from what the model saw and said.
-
-This page explains how it works and why. It builds on [the design](design.md). The decisions
-behind it are [](decisions/0009-claude-ingest-via-messages-api.md),
+Ingest is how scrap uses Claude. Every call is stored, and every result is a version that can be
+regenerated, edited or restored, so a later conversation can start from what the model saw and
+said. It builds on [the design](design.md); the decisions behind it are
+[](decisions/0009-claude-ingest-via-messages-api.md),
 [](decisions/0010-job-queue-pauses-instead-of-failing.md) and
-[](decisions/0011-drawings-as-skeletons-excalidraw.md). To switch it on, see
-{ref}`ingest-enabling`. Every setting is in [](../reference/api.md), the HTTP routes and CLI
-commands included.
+[](decisions/0011-drawings-as-skeletons-excalidraw.md). What each call is asked, per kind of
+page, is in [](llm-calls.md). Settings, routes and CLI commands are in
+[](../reference/api.md); to switch it on, see {ref}`ingest-enabling`.
 
-**Settled:** the Messages API only, on Opus; Reprocess always asks before replacing a human
-drawing; a daily budget of $3 by default.
+## The pipeline
 
-**Not built:** a `claude -p` backend with a Read tool (one without tools, for Claude seats, is
-{ref}`below <on-a-claude-seat>`), a cheaper first-pass model, a monthly budget (the Console
-spend limit caps it), a circuit breaker and a rate-limit class (the budget and **Retry** cover
-them). Chat and refine are not part of ingest
-yet; the stored runs are kept so they can start from them.
+Everything runs on one worker thread in the service, with one queue, one pause gate and one daily
+budget. Capture never waits for any of it ([](decisions/0005-capture-never-waits.md)).
+
+Photos and text pages enter the queue from captures and saves; the cron-driven passes run in their
+own process and share the budget and the pause.
+
+```mermaid
+flowchart LR
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+
+    subgraph IN["Triggers"]
+        P["Photo capture"]:::user
+        T["Note, todo, read, link"]:::user
+        A["Ask Claude, Regenerate"]:::user
+        C["Timers: related, topics"]:::user
+    end
+    subgraph SVC["Service"]
+        Q["Job queue"]:::store
+        W["Worker thread"]
+    end
+    CL["Claude"]:::claude
+    subgraph OUT["Results, stored apart from the text"]
+        D["derived: OCR, description, drawing"]:::store
+        E["enrichment: tags, summary, related"]:::store
+        U["writeup: board and topic"]:::store
+    end
+
+    P -->|"ingest job"| Q
+    T -->|"enrich job"| Q
+    A --> Q
+    Q --> W
+    W <-->|"one call per job"| CL
+    W --> D
+    W --> E
+    W --> U
+    C -->|"own process"| CL
+    C --> E
+```
+
+| Job | Trigger | Result | Page |
+| --- | --- | --- | --- |
+| `ingest` | A photo in a capture | Text, description, kind, title, tags, drawing, task boxes | {ref}`ingest-call` |
+| `enrich` (reason `enrich`) | A text capture or save, a link, Ask Claude | Tags, summary, link title, task boxes | {ref}`ingest-enrich` |
+| `enrich` (`related`) | First reading; nightly pass; Ask | Up to 5 related pages | {ref}`ingest-enrich-related` |
+| `enrich` (`writeup`) | A board photo read; Regenerate; Ask | A board's write-up | {ref}`ingest-writeup` |
+| `enrich` (`topic`) | Weekly pass; Regenerate; Ask | A topic page's synthesis | {ref}`ingest-topics` |
+
+**Settled:** the Messages API on Opus, or `claude -p` on a Claude seat; Reprocess always asks
+before replacing a human drawing; a daily budget of $3 by default.
+
+**Not built:** a cheaper first-pass model, a monthly budget (the Console spend limit caps it), a
+circuit breaker and a rate-limit class (the budget and **Retry** cover them), chat and refine
+(the stored runs are kept so they can start from them).
 
 (ingest-enabling)=
 ## Enabling ingest
@@ -28,64 +73,81 @@ yet; the stored runs are kept so they can start from them.
 Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
 lost: it is sent when the worker starts.
 
-The switch is `SCRAP_INGEST=on`, with `ANTHROPIC_API_KEY` set (or, on a Claude seat,
-`SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`, where a missing
-token or `claude` binary pauses the queue at start); the worker does not check the key
-at start, so a missing or wrong key shows up as failed or paused photos. Where the settings go depends on how scrap is
-installed:
+The switch is `SCRAP_INGEST=on` with `ANTHROPIC_API_KEY` set (or, on a Claude seat,
+`SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`). The worker does
+not check the key at start, so a wrong key shows up as failed or paused photos.
 
-- **Single server (podman).** `deploy/install.sh` writes `~/.config/scrap/ingest.env` (mode 600) and
-  never overwrites it. Uncomment or add the lines there and run `systemctl --user restart scrap`.
-  The server tutorial does this: [](../tutorials/install-server.md). Every setting is in
-  {ref}`scrap-ingest-settings`.
+- **Single server (podman).** `deploy/install.sh` writes `~/.config/scrap/ingest.env` (mode 600)
+  and never overwrites it. Add the lines there and run `systemctl --user restart scrap`
+  ([](../tutorials/install-server.md); every setting is in {ref}`scrap-ingest-settings`). It also
+  installs the `scrap-enrich-related` (nightly 03:41) and `scrap-enrich-topics` (Sunday 04:11)
+  timers.
 - **Kubernetes (Helm).** `ingest.enabled`, `ingest.existingSecret` (the chart never takes the key
   itself) and the optional `visionModel`, `budgetDayUSD` and `notifyUrlKey`: {ref}`k8s-ingest`.
+  The `enrichRelated` and `enrichTopics` CronJobs are created while ingest is enabled. The chart
+  has no value of its own for the text model, effort, debounce or `SCRAP_ENRICH`; set them with
+  `extraEnv`.
 
 `SCRAP_ENRICH` (default on) controls the text-page job and needs ingest on; `off` keeps ingest to
-photos. The Helm chart has no value of its own for the text model, effort or debounce, or for
-`SCRAP_ENRICH`; set them with `extraEnv`. Its `enrichRelated` CronJob runs the nightly related-pages
-pass (see {ref}`ingest-enrich-related`) with the same environment, while ingest is on.
-
-`scrap ingest-once IMAGE` tries the Claude call on one image file without a database, and prints
-tokens, cost and counts only; `--save FILE` also writes the full result. It is the quickest way to
-check a key and a model.
+photos. `scrap ingest-once IMAGE` tries the Claude call on one image without a database and prints
+tokens, cost and counts only (`--save FILE` also writes the full result): the quickest check of a
+key and a model.
 
 ## Worker
 
 One daemon thread from the FastAPI lifespan. `Store` is synchronous and SQLite has one writer, so
-there is no asyncio task and no second process. With `SCRAP_INGEST` off the thread is not
-started. The capture transaction enqueues one `ingest` job per distinct image of a photo capture
-(`Store.ENQUEUE`). A unique index, `job_one_active`, allows one queued or running job per
-photo, so a repeated photo or a second *Reprocess* adds nothing.
+there is no asyncio task and no second process. With `SCRAP_INGEST` off the thread is not started.
 
-The thread wakes on an enqueue or every 30 s (`POLL`) and claims the oldest ready job whose page
-is not in the trash, with one `UPDATE ... RETURNING` (`ingest.CLAIM`), unless the queue is paused
-(`queue_state.paused_until`). The claim and pause gate are in one statement, so a pause cannot
-race a claim.
+```mermaid
+sequenceDiagram
+    participant Cap as Capture
+    participant DB as SQLite
+    participant W as Worker
+    participant CL as Claude
 
-One job runs at a time, and a photo job is always taken before a text one (see
-{ref}`Enrich <ingest-enrich>`). It inserts a `model_run` row, calls Claude holding no lock, then in one
-`BEGIN IMMEDIATE` re-reads the job (a purge counts as done), finishes the run, writes the
-versions and page fields, and marks the job `done` or applies the error rules below. The loop
-catches every exception, so the thread cannot die silently, and `/healthz` answers 503 if it
-has. A job found `running` at service start is charged as `crashed` (it may have killed the
-process), so a crashing job cannot loop the service. A clean shutdown (`Worker.stop()`) stops
-claiming and gives the job in flight back to the queue for free; its call is abandoned and its
-run is marked as `service stopped`.
+    Cap->>DB: one ingest job per distinct image
+    Cap-->>W: wake
+    W->>DB: CLAIM oldest ready job (pause gate in the same UPDATE)
+    W->>DB: insert model_run
+    W->>CL: call, holding no lock
+    CL-->>W: structured output
+    W->>DB: BEGIN IMMEDIATE: finish run, write versions and page fields, job done
+```
+
+- **Enqueue.** The capture transaction adds one `ingest` job per distinct image. A unique index,
+  `job_one_active`, allows one queued or running job per photo, so a repeated photo or a second
+  *Reprocess* adds nothing.
+- **Claim.** The thread wakes on an enqueue or every 30 s (`POLL`) and claims the oldest ready job
+  whose page is not in the trash with one `UPDATE ... RETURNING` (`ingest.CLAIM`), unless the queue
+  is paused (`queue_state.paused_until`). Claim and gate are one statement, so a pause cannot race
+  a claim.
+- **Order.** One job at a time. A photo job is always taken before a text one (see
+  {ref}`ingest-enrich`).
+- **Finish.** In one `BEGIN IMMEDIATE` the worker re-reads the job (a purge counts as done),
+  finishes the run, writes versions and page fields, and marks the job `done` or applies the error
+  rules ({ref}`ingest-spend`).
+- **Safety.** The loop catches every exception, so the thread cannot die silently, and `/healthz`
+  answers 503 if it has. A job found `running` at start is charged as `crashed` (it may have
+  killed the process), so a crashing job cannot loop the service. A clean shutdown
+  (`Worker.stop()`) stops claiming and returns the job in flight to the queue for free; its run is
+  marked `service stopped`.
+
+Job states, retries and pauses are drawn on [](architecture/claude-pipeline.md).
 
 The PWA shows each photo's state under it ([](../how-to/use-the-pwa.md)): *queued* ("Waiting for
 Claude", or "Waiting: Claude ingest is off"), *processing*, *done*, *failed* (with the reason and
 **Retry**) or *paused* ("Paused (reason): nothing is lost", with **Resume**). A finished photo has
-a quiet **Reprocess**. There is no banner: the pause shows on every waiting photo, and
-`GET /api/ingest` and `POST /api/ingest/resume` are the queue's status and the resume.
+a quiet **Reprocess**. `GET /api/ingest` and `POST /api/ingest/resume` are the queue's status and
+the resume.
 
+(ingest-call)=
 ## The Claude call
 
 `claude.complete(model, system, messages, schema)` returns the sanitised JSON, the raw content
 blocks, the usage and the served model.
 
-- The `anthropic` SDK, with `ANTHROPIC_API_KEY` from the service user's env file (`ingest.env`, mode 600); no
-  `tools`; SDK debug logging off (it logs request bodies).
+- The `anthropic` SDK, with `ANTHROPIC_API_KEY` from the service user's env file; no `tools`; SDK
+  debug logging off (it logs request bodies).
 - Error text is stored and shown only after redaction: anything shaped like an API key
   (`sk-ant-...`), and the key itself, is removed, in case a server or proxy ever echoes the
   request headers.
@@ -259,46 +321,45 @@ the conflict, as for any change made elsewhere.
 
 ## Excalidraw in the PWA
 
-A Vite dynamic `import()` loads `@excalidraw/excalidraw` and React only when a drawing is shown;
-the base app stays small. `convertToExcalidrawElements` expands skeletons in the browser with two
-workarounds: an arrow bound to free text carries that text's `x`/`y` in `start`/`end`, and the
-scene is converted again after `document.fonts.ready`. The code is in `web/src/board/`.
+The drawing code is a lazy chunk (`web/src/board/`): a dynamic `import()` loads
+`@excalidraw/excalidraw` and React only when a drawing is shown, so the base app stays small.
 
-- *On the page* the drawing is a static SVG from Excalidraw's `exportToSvg`, framed like the
-  photo (its `viewBox` is the frame, so it lines up with the photo whatever the photo's size),
-  rendered when it nears the screen and kept in memory. It behaves like an image: no gestures,
-  so a finger drag scrolls the page. Its aspect ratio comes with the page (`ingest.drawing` has
-  the frame), so nothing shifts when it renders. Wide screens show it beside the photo; narrow ones (a phone held
-  upright) show one at a time, with a Photo / Drawing switch.
-- *Tapping it* opens the full-screen viewer: a layer sized to the visual viewport with a history
-  entry (Back closes it), Excalidraw in view mode fitted to the frame, and **Edit** switching the
-  same scene to edit mode, so zoom, scroll and edits survive the switch. Edits are kept as a
-  draft in IndexedDB as they change. **Photo** shows the photo beside the drawing (landscape) or
-  over it (portrait). **Save** (in edit mode) stores the scene with its base version (409 if stale) as a `human`
-  version whose labels become `text`; **History** has **Restore**; the viewer exports to
-  `.excalidraw`, PNG and SVG; the image tool is hidden.
-- *Fonts.* Excalidraw's drawing fonts, but not Xiaolai (CJK, 14 MB), are copied from the package
-  into the build (`/excalidraw/fonts/`) and fetched only when used. Excalidraw always lists its
-  CDN as a fallback source; the app's CSP, `font-src 'self' data:; connect-src 'self'`, keeps it
-  from ever using it (Chrome logs each blocked fallback). The preview skips Excalidraw's font
-  inlining (the page already has the fonts); exported SVGs inline them.
-- *The second workaround* is done before anything is shown: convert, export the text to a 1 px
-  canvas (which makes Excalidraw load the fonts it uses), wait for `document.fonts.ready`,
-  convert again.
-- *Sizes.* `npm run size` checks them in CI. The app shell's JavaScript is budgeted at 16 kB
-  gzipped (about 15 kB now, plus about 8 kB of CSS); the viewer chunk loaded on demand is about
-  400 kB of JavaScript and 23 kB of CSS gzipped, and the fonts about 350 kB. scrap gzips its
-  scripts, styles, pages and JSON for clients that accept it (not files, previews, downloads,
-  fonts or range requests), so gzipped sizes are what crosses the network.
-- *Offline.* The service worker precaches the shell and a short list of screen chunks (`OFFLINE`
-  in `web/vite.config.ts`: composer, editor, page edit, render, sharing, refine and searches),
-  never the drawing viewer or its fonts. The viewer and fonts are fetched when a drawing is first
-  opened.
-- *Reprocess* shows **Replace mine** / **Keep mine** when the current drawing is a human one, and
+```mermaid
+flowchart LR
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+
+    SK[("Skeleton or scene")]:::store --> CV["Convert to elements"]
+    CV --> PV["Static SVG preview"]
+    PV -->|"tap"| VW["Full-screen viewer"]:::user
+    VW -->|"Edit, Save"| HV[("human version")]:::store
+    VW --> EX["Export: .excalidraw, PNG, SVG"]:::user
+```
+
+- **Conversion.** `convertToExcalidrawElements` expands skeletons in the browser, with two
+  workarounds: an arrow bound to free text carries that text's `x`/`y` in `start`/`end`, and the
+  scene is converted again after `document.fonts.ready` (the first pass exports text to a 1 px
+  canvas so Excalidraw loads the fonts it uses).
+- **On the page** the drawing is a static SVG from `exportToSvg`, framed like the photo (its
+  `viewBox` is the frame, so it lines up whatever the photo's size) and rendered when near the
+  screen. It takes no gestures, so a finger drag scrolls the page. `ingest.drawing` carries the
+  frame, so nothing shifts when it renders. Wide screens show it beside the photo; narrow ones
+  show one at a time, with a Photo / Drawing switch.
+- **The viewer** opens on a tap: a layer with a history entry (Back closes it), Excalidraw in view
+  mode fitted to the frame, **Edit** switching the same scene to edit mode. Edits are kept as a
+  draft in IndexedDB. **Save** stores the scene with its base version (409 if stale) as a `human`
+  version whose labels become `text`; **History** has **Restore**. The image tool is hidden.
+- **Reprocess** shows **Replace mine** / **Keep mine** when the current drawing is a human one;
   `{queued, already}` in the reply says whether the photo was waiting already.
-- *Downloads.* The page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton is
-  converted on the server, approximately (Excalidraw re-measures text when it opens it). The
-  viewer's own exports are made by Excalidraw in the browser.
+- **Fonts.** Excalidraw's drawing fonts, except Xiaolai (CJK, 14 MB), are copied into the build
+  (`/excalidraw/fonts/`) and fetched only when used. The app's CSP (`font-src 'self' data:;
+  connect-src 'self'`) stops Excalidraw using its CDN fallback (Chrome logs each blocked try).
+- **Sizes and offline.** `npm run size` checks them in CI: the shell's JavaScript is budgeted at
+  16 kB gzipped; the viewer chunk is about 400 kB of JavaScript and 23 kB of CSS gzipped, the
+  fonts about 350 kB. The service worker precaches the shell and the `OFFLINE` chunks in
+  `web/vite.config.ts`, never the viewer or its fonts.
+- **Downloads.** The page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton
+  is converted on the server, approximately (Excalidraw re-measures text when it opens it).
 
 (ingest-sanitising)=
 ## Sanitising
@@ -413,35 +474,22 @@ names only the reason, never titles, OCR or API errors.
 (ingest-sent)=
 ## What is sent to Anthropic
 
-Only when ingest is on and only to the Claude API:
+Only when ingest is on, only to the Claude API, and never for a page in the trash. The
+per-call contents are in [](llm-calls.md); in brief:
 
-- **A photo:** the JPEG described above (a resized, re-encoded copy; only its colour profile is kept from the original's metadata) and
-  the fixed prompt. Nothing else about the page is sent.
-- **A note, todo or read:** its kind, tags, title and text as plain words (at most 12,000
-  characters), what photo ingest read from its images, if any (each image's description and
-  text, at most 8,000 characters in all), a list of the tags already in use with their counts
-  (at most 600 tags), and the fixed prompt.
-- **A saved link:** the same, plus the link's readable text (at most 20,000 characters) fetched by
-  scrap. The fetched text is sent, not stored.
-- **Related pages:** the page in brief (its kind, title, tags, summary, the first 2,000
-  characters of its text and the first 3,000 of what was read from its images) and an index of
-  up to 150 candidate pages, each a title, up to 6 tags and a summary cut to 150 characters. For
-  a board page, also the first 2,000 characters of its write-up.
-- **A board's write-up:** the board photos themselves (at most four, the JPEGs photo ingest
-  sent), what was read from them (at most 12,000 characters), the page's kind, title, tags and
-  text as plain words (at most 6,000 characters), the owner's guidance, if any, and the same index
-  of candidate pages as the related call.
-- **Topic discovery:** an index of every page (at most 2,000): each a title, up to 6 tags and a
-  summary cut to 150 characters, and the topics with their sources' numbers.
-- **A topic's synthesis:** for each of its sources (at most 40), its title, kind, tags, summary,
-  Claude's write-up, what was read from its images and its text as plain words (at most 6,000
-  characters a source, 60,000 in all), and the topic page's own text and guidance.
+| Call | Sent |
+| --- | --- |
+| Photo | The JPEG described above (a resized, re-encoded copy; only its colour profile is kept) and the fixed prompt. Nothing else about the page |
+| Enrich | Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored) |
+| Related | The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up |
+| Write-up | Up to 4 board JPEGs, what was read from them, the page's text (at most 6,000), the owner's guidance, and the related index |
+| Topic discovery | An index of up to 2,000 pages (title, 6 tags, summary) and the topics with their sources' numbers |
+| Topic synthesis | Up to 40 sources (title, kind, tags, summary, write-up, image text, text: 6,000 characters each, 60,000 in all), the owner's notes and guidance |
 
-Nothing is sent for a page in the trash. Apart from Claude, the only outbound requests are the
-link fetches above (to the linked site) and `SCRAP_NOTIFY_URL`, which gets a fixed line with the
-pause reason. Everything sent is kept in the
-database in `model_run`, `enrich_run` and `topic_run` (photos as references to the stored JPEG), so it is
-covered by the same backups as the pages.
+Apart from Claude, the only outbound requests are the link fetches (to the linked site) and
+`SCRAP_NOTIFY_URL`, which gets a fixed line with the pause reason. Everything sent is kept in
+`model_run`, `enrich_run` and `topic_run` (photos as references to the stored JPEG), so your
+backups hold it too.
 
 (ingest-enrich)=
 ## Enrich: text pages and links
@@ -453,6 +501,25 @@ and a summary, and for a link a title. Related pages are a call of their own. No
 page's text, except that a confident list of actions gets task boxes appended
 ({ref}`ingest-actions`). The schema is in
 [`0009_enrich.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql).
+
+What queues an enrich job, and what follows it:
+
+```mermaid
+flowchart TD
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+
+    N["Text capture or save"]:::user -->|"after debounce, 60 s"| E["enrich: tags, summary"]:::claude
+    L["Link capture"]:::user -->|"fetch, then at once"| E
+    K["Ask Claude"]:::user --> E
+    PH["Photo ingest done"]:::claude --> WU["writeup (boards)"]:::claude
+    E -->|"first reading"| R["related"]:::claude
+    WU --> R
+    E --> S[("enrichment, model_tag")]:::store
+    WU --> S2[("writeup")]:::store
+    R --> S3[("related")]:::store
+```
 
 - **Model.** `SCRAP_TEXT_MODEL`, default `claude-haiku-5-5`; `SCRAP_TEXT_EFFORT`, default `low`;
   `max_tokens` 4000. `SCRAP_ENRICH=off` turns it off while photo ingest stays on.
@@ -549,7 +616,7 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   stopped. On a single server, `deploy/scrap-enrich-related.{service,timer}` run it nightly
   (03:41) in the service's container, and `install.sh` enables the timer if the image has the
   command. While ingest or enrich is off, or no key (or, with `SCRAP_LLM_BACKEND=cli`, no seat
-  token) is set, the command prints a note and exits 0. The Helm chart has no equivalent yet (see {ref}`ingest-enabling`).
+  token) is set, the command prints a note and exits 0. On Kubernetes the `enrichRelated` CronJob does the same (`41 3 * * *`).
 - **Both ways.** A page's Related merges its picks, pages that picked it, pages linking here
   with `[[slug]]` (marked "links here"), and pages its current write-up links to or whose current
   write-up links here (`via: writeup`, marked "in a write-up"), each once (a page that is both
@@ -571,6 +638,21 @@ knowledge of the tools it names) of about 200 to 700 words (shorter for a simple
 board's text, which the page already shows), and a one or two sentence lead. The
 page text is context that may be wrong (it may be another app's): the photo wins. It is derived data, never
 the page's text.
+
+```mermaid
+sequenceDiagram
+    participant W as Worker
+    participant DB as SQLite
+    participant CL as Claude
+
+    Note over W,DB: all board photos read (or given up on)
+    W->>DB: board image read since last write-up?
+    W->>CL: board photos (at most 4), text, page, guidance, candidate index
+    CL-->>W: summary, text with [[n]] citations
+    W->>W: [[n]] to [[slug]], strip every other link
+    W->>DB: new writeup version, current
+    W->>DB: queue related (sees the write-up)
+```
 
 - **Which pages.** A board page: one with an image whose current reading says `whiteboard` or
   `diagram` (the photo call's image kind, not the page's kind), unless that reading judged it a
@@ -628,10 +710,8 @@ the page's text.
   model summary (before enrich's), so search and the related index use it; its text is indexed
   for search (a chunk of the page's own, made again with it); MCP `read` returns the current one
   as `by_model.writeup`.
-- **Cost.** A board image is at most about 4,800 image tokens (a 4:3 photo about 4,100), the
-  index about 40 tokens a page (up to about 6,000), the prompt and text a few thousand more: about
-  10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens (thinking included), roughly
-  $0.06 to $0.20 a board at Opus prices, counted in the daily budget.
+- **Cost.** About 10,000 to 30,000 input tokens and 1,000 to 4,000 output tokens, roughly $0.06 to
+  $0.20 a board at Opus prices, counted in the daily budget.
 
 (ingest-topics)=
 ### Topic pages
@@ -642,6 +722,23 @@ what several pages say about one recurring thing (a tool, a project, a concept).
 page, of kind `reference`, marked as a topic in the `topic` table; its body is the owner's notes
 on the topic (empty at first) and Claude never writes there. Claude's synthesis of its sources is
 its write-up ({ref}`ingest-writeup`): versions, guidance, Regenerate and Restore work the same.
+
+```mermaid
+sequenceDiagram
+    participant T as Weekly timer
+    participant CL as Claude
+    participant DB as SQLite
+    participant W as Worker
+
+    T->>DB: index of up to 2000 pages, topics, rejected keys
+    T->>CL: discovery call
+    CL-->>T: new topics (at most 5), new sources, by number
+    T->>DB: make topic pages at once
+    T->>DB: queue a synthesis for each topic due
+    W->>CL: synthesis: sources (at most 40), notes, guidance
+    CL-->>W: summary, text with [[n]] citations
+    W->>DB: new writeup version on the topic page
+```
 
 - **Discovery** (`scrap enrich --topics`, weekly, beside the related pass). One call,
   `SCRAP_VISION_MODEL`, effort `medium`, `max_tokens` 16000, structured output (`new`, `add`). The
@@ -734,13 +831,9 @@ the reason is kept only in the run's `request` under `fetch` (read it as in
 | the site's name does not resolve | DNS has no answer, from where scrap runs | Check the address, and DNS in the container or pod |
 | could not fetch the page (ExcName) | A connection or TLS error; the name is that of the Python exception, such as `ConnectionRefusedError` or `SSLCertVerificationError` | Check the address and the site's certificate |
 
-A page that answers 200 but has no text in its HTML, because a script draws it in the browser,
-is not a failure: the readable text is short or empty (the stored `chars` is small), and the
-reading rests on the link, the title and the user's text. A site that shows a login page with a
-200 is read as that page.
-
-Migration 9 is additive (its Python step creates the tables if missing), so an older scrap runs
-on the database with `PRAGMA user_version` set back to 8.
+A page that answers 200 with no text in its HTML (a script draws it) is not a failure: the stored
+`chars` is small and the reading rests on the link, the title and the user's text. A login page
+served with a 200 is read as that page.
 
 (ingest-inspect)=
 ## Inspecting runs
@@ -857,4 +950,3 @@ and pauses at the budget each day.
 
 Thinking: with structured output at effort `medium` the model may not think on a board (raise the
 effort if drawings fall short); Excalidraw API drift (the version is pinned); model drift
-(`prompt_version` traces it).

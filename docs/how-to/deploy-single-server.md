@@ -6,6 +6,35 @@ socket that only its own user (and root) can open;
 [Tailscale Serve](https://tailscale.com/kb/1312/serve) publishes it over HTTPS to your tailnet and
 nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-server-installs.md).
 
+How the pieces fit:
+
+```mermaid
+flowchart LR
+    dev["Your devices<br/>(tailnet)"]:::user
+    cc["Claude Code"]:::claude
+    subgraph host ["Your server"]
+        ts["Tailscale Serve<br/>(root)"]
+        subgraph u ["scrap user (rootless podman)"]
+            sock{{"scrap.sock<br/>mode 600"}}
+            app["scrap container<br/>(systemd service)"]
+            data[("SCRAP_DATA<br/>/data")]:::store
+            bak[("SCRAP_BACKUPS")]:::store
+            tm["systemd timers:<br/>backup, gc,<br/>related, topics"]
+        end
+    end
+    api["api.anthropic.com"]:::claude
+    dev -->|"HTTPS"| ts --> sock --> app
+    cc -->|"/mcp"| ts
+    app --- data
+    tm --> app
+    tm -.-> data
+    tm -.-> bak
+    app -.->|"ingest on"| api
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+```
+
 Podman is the supported path. Docker is possible, but `install.sh` needs podman, so you wire the
 units up by hand: see {ref}`scrap-docker`. To run scrap on a Kubernetes cluster instead, see
 [](deploy-kubernetes.md).
@@ -18,11 +47,12 @@ reverse proxy in front of it. Read {ref}`scrap-access` first.
 
 ```{warning}
 On the server itself, **root, anyone with `sudo`, and anything running as the scrap user** can
-open the socket, read and change all of scrap's data, and send its own identity header (`Tailscale-User-Login`
-by default, see `SCRAP_IDENTITY_HEADER` in [](../reference/api.md)) to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
-connection skips Serve). Other local users cannot. Run scrap as its own user with no `sudo`
-rights, and run nothing else as that user. With `SCRAP_LISTEN=tcp` (below) **every local account
-and process** can do the same through the port: keep that for single-purpose servers.
+open the socket, read and change all of scrap's data, and send its own identity header
+(`Tailscale-User-Login` by default, see `SCRAP_IDENTITY_HEADER` in [](../reference/api.md)) to be
+recorded as any author. Tailscale Serve strips forged headers, but a direct local connection skips
+Serve. Other local users cannot. Run scrap as its own user with no `sudo` rights, and run nothing
+else as that user. With `SCRAP_LISTEN=tcp` (below) **every local account and process** can do the
+same through the port: keep that for single-purpose servers.
 ```
 
 ## Prerequisites
@@ -68,11 +98,11 @@ user's systemd session.
 
 As the `scrap` user (podman images belong to the user who pulled or built them), pull the newest
 release from [scrap's releases](https://github.com/gilesknap/scrap/releases); this page uses
-0.2.2:
+0.11.0:
 
 ```
-podman pull ghcr.io/gilesknap/scrap:0.2.2
-podman run --rm ghcr.io/gilesknap/scrap:0.2.2 --version
+podman pull ghcr.io/gilesknap/scrap:0.11.0
+podman run --rm ghcr.io/gilesknap/scrap:0.11.0 --version
 ```
 
 The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
@@ -123,7 +153,7 @@ On its first run the script writes `~/.config/scrap/env` naming a local build,
 release you pulled and run the script again:
 
 ```
-sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.2.2|' ~/.config/scrap/env
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.11.0|' ~/.config/scrap/env
 ./deploy/install.sh
 ```
 
@@ -167,7 +197,7 @@ only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:0.2.2`, or a local build. |
+| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:0.11.0`, or a local build. |
 | `SCRAP_LISTEN` | `socket` | `socket`: only the Unix socket `$XDG_RUNTIME_DIR/scrap/scrap.sock`. `tcp`: `SCRAP_PORT` on `127.0.0.1`. Unset means `tcp` (see {ref}`scrap-listen`). |
 | `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
@@ -282,11 +312,11 @@ ingest pauses until it resets.
    too):
 
    ```
-   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.2.2 \
-       -t localhost/scrap-claude:0.2.2 .
+   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.11.0 \
+       -t localhost/scrap-claude:0.11.0 .
    ```
 
-   and set `SCRAP_IMAGE=localhost/scrap-claude:0.2.2` in `~/.config/scrap/env`. It is about
+   and set `SCRAP_IMAGE=localhost/scrap-claude:0.11.0` in `~/.config/scrap/env`. It is about
    240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
    image as `BASE`.
 3. In `ingest.env`, instead of `ANTHROPIC_API_KEY`:
@@ -547,11 +577,11 @@ only moves a page to the trash (see {ref}`scrap-gc`).
 - `cache/previews/`: the 480 and 2048 pixel JPEG previews, made again on demand.
 
 ```{warning}
-Do not copy `scrap.db`, or the whole folder, while scrap is running: a plain file copy can miss
-what is still in the `-wal` file, or catch the database and `files/` at different moments, and
-gives a backup that looks fine and is not. Use `scrap backup` (the timer, or below), which takes a
-consistent snapshot of the database with SQLite's online backup and then copies the files, and is
-safe while scrap serves. If you must copy files, stop scrap first and copy the whole folder.
+Do not copy `scrap.db`, or the whole folder, while scrap is running: a plain copy can miss what is
+still in the `-wal` file, or catch the database and `files/` at different moments. Use
+`scrap backup` (the timer, or below): it snapshots the database with SQLite's online backup, then
+copies the files, and is safe while scrap serves. If you must copy files, stop scrap first and
+copy the whole folder.
 ```
 
 A backup leaves out `cache/previews/` (a cache: it needs no backup) and anything whose name starts
@@ -610,8 +640,17 @@ which the journal keeps:
 
 ### Changing the schedule
 
-The four timers and their defaults, each with up to 15 minutes of random delay
-(`RandomizedDelaySec`, so the run is spread over that quarter hour), in the machine's local time:
+The nightly order, in the machine's local time (each timer has up to 15 minutes of random delay,
+`RandomizedDelaySec`, so a run is spread over that quarter hour):
+
+```mermaid
+flowchart LR
+    b["03:30<br/>backup"] --> r["03:41<br/>related pages"] --> g["04:30<br/>gc"]
+    t["Sun 04:11<br/>topics"]
+    b -.->|"gc needs a COMPLETE run<br/>under 26 h old"| g
+```
+
+The four timers and their defaults:
 
 | Timer | Default `OnCalendar` |
 | --- | --- |
@@ -933,11 +972,8 @@ is older than the database: a newer scrap has already migrated it, and migration
 forward. Run the newer image again, or roll back with the old image and `scrap restore --force`
 from a backup taken before the update (see {ref}`scrap-upgrade-db`).
 
-**`scrap-gc` fails with "No backup in the last 26 hours".** There is no run directory in
-`SCRAP_BACKUPS` with a `COMPLETE` file written in the last 26 hours (the last backup failed its
-integrity check or stopped part way, or predates the marker), so gc only counted. Find out why the backup did not
-run (`journalctl --user -u scrap-backup`), then `systemctl --user start scrap-backup` and, once
-that succeeds, `systemctl --user start scrap-gc`. See {ref}`scrap-backup-restore`.
+**`scrap-gc` fails with "No backup in the last 26 hours".** See *Checking the timers* under
+{ref}`scrap-backup-restore`.
 
 **`scrap gc` prints `scrap gc: ...` and exits non-zero.** See the table of messages under
 {ref}`scrap-gc`.

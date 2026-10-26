@@ -1,6 +1,20 @@
 # What Claude is asked, per page
 
-Six calls, all on the shared pause and daily budget ([](ingest.md)). Photo reading, the
+Six calls, all on the shared pause and daily budget ([](ingest.md)).
+
+```mermaid
+flowchart LR
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef big fill:#fde8e8,stroke:#c0504d
+
+    PH["Photo reading"]:::big --> WU["Write-up"]:::big
+    EN["Enrich"]:::claude --> RE["Related"]:::claude
+    WU --> RE
+    TD["Topic discovery"]:::big --> TS["Topic synthesis"]:::big
+    TS --> RE
+```
+
+Arrows show what queues what; red calls use the vision model, orange the text model. Photo reading, the
 write-up and the two topic calls use `SCRAP_VISION_MODEL` (default `claude-opus-5-5`); enrich and
 related use `SCRAP_TEXT_MODEL` (default `claude-haiku-5-5`). Ask Claude (`POST
 /api/pages/{id}/enrich`) runs enrich, then on a board page the write-up (on a topic page its

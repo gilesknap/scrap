@@ -11,6 +11,16 @@ deployed scrap, see {ref}`import-container`. `--data-dir` defaults to `$SCRAP_DA
 
 ## Steps
 
+```mermaid
+flowchart LR
+    A["Copy vault"] --> B["scrap import --dry-run"]
+    B -->|"read the report"| C["Stop scrap"]
+    C --> D["scrap import"]
+    D --> E["Start scrap"]
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    class A,B,C,D,E user
+```
+
 1. Work from a copy of the vault, so nothing can change it underneath you:
 
    ```sh

@@ -1,16 +1,34 @@
 # Connect a Claude Code session
 
 Claude Code sessions can search, read and write scrap through its MCP server (see
-[](../reference/mcp.md)). Nothing is installed on the session's machine: it talks to `/mcp`
-over HTTPS on the tailnet, over plain HTTP on a home network ([](../tutorials/install-lan.md)), or, on the Kubernetes install, through Cloudflare Access with a
-bearer token (see "If `/mcp` needs a token" below, [](../tutorials/install-kubernetes.md) and
-[ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
+[](../reference/mcp.md)). Nothing is installed on the session's machine: it talks to `/mcp`.
 
-If Claude Code runs in claude-sandbox, follow [](connect-claude-sandbox.md) instead: it
-reaches scrap on a port of the host, not over the tailnet.
+How the session reaches `/mcp` depends on where scrap runs:
 
-To try it on your own machine, run scrap as in "Try it" in the README and add
-`http://localhost:8000/mcp` in step 2; step 1 is not needed on loopback.
+```mermaid
+flowchart LR
+    CC["Claude Code"] -->|"http://localhost:8000"| L["scrap, same machine"]
+    CC -->|"HTTPS, tailnet"| T["Tailscale Serve / operator"]
+    CC -->|"HTTP, home network"| N["scrap on LAN"]
+    CC -->|"bearer + service token"| CF["Cloudflare Access"]
+    L --> M["/mcp"]
+    T --> M
+    N --> M
+    CF --> M
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    class CC claude
+    class L,T,N,CF,M store
+```
+
+- Tailnet: HTTPS ([](../tutorials/install-server.md)). Home network: plain HTTP
+  ([](../tutorials/install-lan.md)). Kubernetes: Cloudflare Access with a bearer token (see "If
+  `/mcp` needs a token" below, [](../tutorials/install-kubernetes.md) and
+  [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
+- Claude Code in claude-sandbox: follow [](connect-claude-sandbox.md) instead; it reaches scrap on
+  a port of the host.
+- On your own machine, run scrap as in "Try it" in the README and add
+  `http://localhost:8000/mcp` in step 2; step 1 is not needed on loopback.
 
 Before you start you need:
 
@@ -63,7 +81,7 @@ your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
 
-The server has thirteen tools, which appear as `mcp__scrap__search` (it also lists the recent
+The server has thirteen tools (eleven with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page` and `undelete`), which appear as `mcp__scrap__search` (it also lists the recent
 pages and the todos), `mcp__scrap__read`, `mcp__scrap__drawing`, `mcp__scrap__tags`,
 `mcp__scrap__topics`,
 `mcp__scrap__write`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
@@ -139,7 +157,7 @@ and the `Authorization` header. Keep all of these in an env file and do not comm
   not rewrite it, so register the new one: `claude mcp remove scrap`, then the `claude mcp add`
   of step 2 with the new `<url>/mcp` (and the same `--scope`). A restart of scrap alone needs
   nothing in the session: `/mcp` keeps no session state, so the next call just works.
-- `413`: a request over 2 MB.
+- `413`: a request over 2 MiB.
 - A tool error such as "only a page written over MCP can be appended to", or a title over 200
   characters, a body over 200 kB or more than 20 tags: the call is refused and nothing is saved.
 
