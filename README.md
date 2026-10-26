@@ -2,6 +2,8 @@
 [![Coverage](https://codecov.io/gh/gilesknap/scrap/branch/main/graph/badge.svg)](https://codecov.io/gh/gilesknap/scrap)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
+<!-- docs include start: everything from here to the end marker is also the docs front page -->
+
 # scrap
 
 scrap is a personal knowledge store built as an [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):
@@ -69,6 +71,8 @@ Connect your phone for quick capture. See [use scrap on your phone over Tailscal
 Claude Code in a sandbox? See [connecting Claude Code in claude-sandbox](https://gilesknap.github.io/scrap/main/how-to/connect-claude-sandbox.html).
 
 More: [connect Claude Code and the `sc` commands](https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html), [MCP reference](https://gilesknap.github.io/scrap/main/reference/mcp.html).
+
+<!-- docs include end: the rest is README only -->
 
 ## Install
 

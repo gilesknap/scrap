@@ -2,19 +2,10 @@
 html_theme.sidebar_secondary.remove: true
 ---
 
-# scrap
-
-scrap is a personal knowledge store: a "second brain" you feed from your phone and query
-through Claude. Snap a whiteboard, jot a note or share a link; scrap keeps the original at once and
-can later read, summarise, redraw and index it in the background. Claude reaches it over MCP to
-search, read and add pages; a small PWA is where you capture and look at things, because chat is
-poor at showing images.
-
-What            | Where
-:---:           | :---:
-Source          | <https://github.com/gilesknap/scrap>
-Container image | `ghcr.io/gilesknap/scrap` (arm64 and amd64)
-Releases        | <https://github.com/gilesknap/scrap/releases>
+```{include} ../README.md
+:start-after: <!-- docs include start: everything from here to the end marker is also the docs front page -->
+:end-before: <!-- docs include end
+```
 
 ## What works today
 
@@ -42,6 +33,12 @@ Never expose it on a public address without one of them.
 
 scrap is not published on PyPI (the `scrap` package there is an unrelated project); you run the
 container image. Each tutorial is one short path from nothing to a running scrap.
+
+What            | Where
+:---:           | :---:
+Source          | <https://github.com/gilesknap/scrap>
+Container image | `ghcr.io/gilesknap/scrap` (arm64 and amd64)
+Releases        | <https://github.com/gilesknap/scrap/releases>
 
 ::::{grid} 1 1 3 3
 :gutter: 3
