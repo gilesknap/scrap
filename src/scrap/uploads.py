@@ -1,5 +1,5 @@
 """What the routes that take uploads share: who sent a request, and storing its files.
-Below pages_api, photos_api, drawing_api, writeup_api and middleware, which import
+Below pages_api, photos_api, captures_api, writeup_api and middleware, which import
 it."""
 
 import mimetypes

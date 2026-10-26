@@ -1,6 +1,6 @@
 """What the HTTP route modules share: the error for Claude being off, request text
 checked for lone surrogates (Text), and a version restore. Below app.py, pages_api,
-ingest_api, drawing_api and writeup_api, which import it."""
+captures_api and writeup_api, which import it."""
 
 from typing import Annotated
 

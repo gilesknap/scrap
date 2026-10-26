@@ -15,8 +15,8 @@ from fastapi.responses import JSONResponse
 from . import (
     __version__,
     blobs_api,
+    captures_api,
     drawing,
-    drawing_api,
     enrich,
     health_api,
     ingest,
@@ -152,8 +152,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     topic_api.add_routes(app, store, wake)
     photos_api.add_routes(app, store, wake, limit)
     health_api.add_routes(app, store)
+    captures_api.add_routes(app, store)
     ingest_api.add_routes(app, store)
-    drawing_api.add_routes(app, store)
     search_api.add_routes(app, store)
     blobs_api.add_routes(app, store)
 

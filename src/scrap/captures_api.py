@@ -1,6 +1,6 @@
-"""The HTTP routes for a photo's drawing: the current one, its versions, saving a
-scene from the editor and restoring an old version. Registered by app.create_app
-(add_routes)."""
+"""The HTTP routes for a capture's photos: sending them to Claude again (reprocess),
+and a photo's drawing: the current one, its versions, saving a scene from the editor
+and restoring an old version. Registered by app.create_app (add_routes)."""
 
 import json
 import logging
@@ -9,9 +9,10 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
-from . import drawing
-from .api_models import Restore
+from . import drawing, ingest
+from .api_models import Restore, Text
 from .store import SURROGATE, InvalidError, Store, TooLargeError
 from .uploads import author, too_large
 
@@ -42,7 +43,20 @@ class Drawing(JSONResponse):
             return SURROGATE.sub("\ufffd", text).encode()
 
 
+class Reprocess(BaseModel):
+    photo: Text | None = None  # one photo's sha256; default all of the capture's
+    replace_human: bool = False  # the user confirmed replacing their own drawing
+
+
 def add_routes(app: FastAPI, store: Store) -> None:
+    @app.post("/api/captures/{cid}/reprocess")
+    def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:
+        """Send a capture's photos (or one) to Claude again, or retry a failed one."""
+        added = ingest.reprocess(store, cid.upper(), ask.photo, ask.replace_human)
+        if app.state.worker:
+            app.state.worker.wake()
+        return added
+
     def photo(cid: str, sha: str) -> tuple[str, str]:
         return cid.upper(), sha.lower()
 
