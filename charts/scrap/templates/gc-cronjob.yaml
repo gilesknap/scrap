@@ -71,12 +71,16 @@ spec:
                       mode=--dry-run
                   fi
                   scrap gc "$mode" --grace-hours {{ .Values.gc.graceHours | toString | quote }} \
-                      --run-days {{ .Values.gc.runDays | toString | quote }}
+                      --run-days {{ .Values.gc.runDays | toString | quote }} \
+                      --trash-days {{ .Values.gc.trashDays | toString | quote }} \
+                      --job-days {{ .Values.gc.jobDays | toString | quote }}
                   [ -n "$recent" ] || exit 1
                   {{- else }}
                   # Counting only (gc.delete is off, or gc.graceHours is 0): see values.yaml.
                   scrap gc --dry-run --grace-hours {{ .Values.gc.graceHours | toString | quote }} \
-                      --run-days {{ .Values.gc.runDays | toString | quote }}
+                      --run-days {{ .Values.gc.runDays | toString | quote }} \
+                      --trash-days {{ .Values.gc.trashDays | toString | quote }} \
+                      --job-days {{ .Values.gc.jobDays | toString | quote }}
                   {{- end }}
               env:
                 - name: SCRAP_DATA_DIR

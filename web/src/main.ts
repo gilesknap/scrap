@@ -47,6 +47,8 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   [/^\/topics$/, () => import("./topics").then((m) => m.topics())], // a lazy chunk
   // Store health (Settings): each check's count, a tap its search. A chunk of its own
   [/^\/health$/, () => import("./health").then((m) => m.health(current.signal))],
+  // The trash (Settings): when each page goes for good, and Restore. A chunk of its own
+  [/^\/trash$/, () => import("./trash").then((m) => m.trash(current.signal))],
   [
     /^\/p\/([^/]+)$/,
     (m) => {

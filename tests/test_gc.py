@@ -449,7 +449,7 @@ def test_a_kept_turn_keeps_the_turns_it_continues(client, store):
     assert {first, second, third} <= _ids(store, "model_run")
 
 
-def test_deleted_runs_free_the_jpeg_they_sent_for_the_next_run(client, store):
+def test_deleted_runs_free_the_jpeg_they_sent_in_the_same_run(client, store):
     a, sha = photo(client)
     sent = put(store, b"sent jpeg")
     with store.connect() as conn:
@@ -461,9 +461,9 @@ def test_deleted_runs_free_the_jpeg_they_sent_for_the_next_run(client, store):
         )
         _model_run(conn, a["capture_id"], sha, 80)  # newer: the old one is not latest
     age_all(store)
-    assert gc.collect(store, delete=True).model_runs == 1
-    assert store.blob_path(sent).is_file()  # still referenced when files were counted
-    assert gc.collect(store, delete=True).shas == [sent]
+    report = gc.collect(store, delete=True)  # the runs are pruned before files count
+    assert report.model_runs == 1 and report.shas == [sent]
+    assert not store.blob_path(sent).exists()
 
 
 def test_run_retention_is_a_setting(client, store, capsys):

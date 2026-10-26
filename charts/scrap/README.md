@@ -90,6 +90,12 @@ also turns on Claude enrichment of text pages.
   is a local copy only: copy it off the cluster as well. A monthly CronJob (`backup.monthly.*`,
   `50 3 1 * *`) adds a full copy on the 1st into the claim's `monthly/` folder and keeps the newest
   12, so a destructive change noticed after a week can still be undone.
+- The gc CronJob purges a page that has been in the trash for more than `gc.trashDays` (default
+  30), topic pages aside, with its captures and everything on them; its files then go as unused
+  ones do. Nothing deletes a page before that. It also deletes finished job records older than
+  `gc.jobDays` (default 30). The scrap pod shows each trashed page's purge date from
+  `gc.trashDays` (`SCRAP_TRASH_DAYS`, `off` while gc does not delete). `kubectl -n scrap exec
+  deploy/scrap -- scrap gc --report` prints what the store holds, by size.
 - Database migrations are forward only, so rolling back to an older version also needs a restore
   of the database.
 

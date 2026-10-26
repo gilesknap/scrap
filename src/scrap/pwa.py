@@ -25,6 +25,7 @@ APP_ROUTES = (
     "/todos",
     "/topics",
     "/health",
+    "/trash",
     "/p/{key}",
 )
 NOT_BUILT = (

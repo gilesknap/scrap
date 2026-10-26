@@ -1,7 +1,8 @@
 // Save's warning when an edit deletes the embed of a stored image: the page shows its images
 // only where its text embeds them, so the image goes from the page with its line. Part of the
-// editor's chunk. The file itself (and what Claude made of it) is never deleted: scrap gc
-// gathers one no page shows any more onto the month's review page (#124).
+// editor's chunk. The file itself (and what Claude made of it) is kept: scrap gc gathers one no
+// page shows any more onto the month's review page (#124), and deletes it only once that page
+// has been purged from the trash (#276).
 import { ApiError, api, type Page } from "./api";
 
 // A file's address in text, as the server's store.body_refs reads it: any mention counts

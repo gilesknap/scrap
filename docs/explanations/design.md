@@ -168,7 +168,8 @@ Related: [](design-system.md) (UI), [](ingest.md) (photo ingest in depth), [](ll
 - A `namespace` column for read scoping by less trusted surfaces.
 - Embeddings and hybrid search, if exact words stop being enough
   ([](decisions/0008-search-fts5-only-for-now.md)).
-- Purging trashed pages (there is no empty-trash command).
+- An empty-trash command: pages leave the trash only by the nightly purge, N days on
+  ([](decisions/0030-trash-purged-after-n-days.md)).
 - A page listing dead jobs; queue state shows on each page and in `GET /api/ingest`.
 - Chat and refine on a photo's stored model run.
 - Larger ideas: a work browser route behind Cloudflare Access, a work sandbox over MCP only, a

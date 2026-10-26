@@ -25,10 +25,19 @@ Model runs are pruned too (see :func:`prune_runs`): ``model_run`` and ``enrich_r
 rows hold the stored prompts and responses and would otherwise grow for ever. A run is
 kept while anything refers to it, while it is the latest for its page (or photo), and
 while it is younger than ``RUN_DAYS``. Deleting a ``model_run`` frees the JPEG it sent,
-which the next gc then finds unused.
+which the same run then finds unused. ``topic_run`` rows (one a week) are not pruned.
 
-Files of captures are never deleted: one no page shows any more (an orphan) is gathered
-onto the month's review page instead, with --delete (see :mod:`scrap.orphans`, #124).
+Files of captures are not deleted while their page lasts: one no page shows any more (an
+orphan) is gathered onto the month's review page instead, with --delete (see
+:mod:`scrap.orphans`, #124), and is let go only when that review page is purged.
+
+Retention (:mod:`scrap.retention`, #276): a page in the trash more than ``trash_days``
+(None: never) is purged, with its captures and all that hangs on them, and finished job
+rows past ``job_days`` and runs past ``run_days`` are deleted, in a transaction of their
+own committed before the references are read. So no file is unlinked while that is
+uncommitted, and the purged pages' files go in the same run (old enough, and only after
+a recent backup, as any unused file). A dry run does the same in a transaction it rolls
+back, so it reports them and the files they would free, and changes nothing.
 
 Backups are untouched: each backup run holds its own copy of every file its database
 refers to.
@@ -44,7 +53,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import orphans
+from . import orphans, retention
 from .store import (
     SHA256,
     ConflictError,
@@ -57,7 +66,9 @@ from .store import (
 
 __all__ = [
     "GRACE_HOURS",
+    "JOB_DAYS",
     "RUN_DAYS",
+    "TRASH_DAYS",
     "GcError",
     "Report",
     "body_refs",
@@ -70,6 +81,8 @@ log = logging.getLogger(__name__)
 
 GRACE_HOURS = 24.0
 RUN_DAYS = 30.0  # model_run / enrich_run rows younger than this are kept
+TRASH_DAYS = retention.TRASH_DAYS
+JOB_DAYS = retention.JOB_DAYS
 TEMP = ".up-"  # put_blob's temporary files: one left over is a crashed upload
 LOCK = "gc.lock"  # in the data folder, held by a run that deletes
 ASIDE = ".gc-"  # a file being deleted
@@ -114,6 +127,12 @@ class Report:
     model_runs: int = 0  # model_run rows past retention (deleted, with --delete)
     enrich_runs: int = 0  # enrich_run rows past retention
     orphans: int = 0  # capture files no page shows: gathered (with --delete)
+    purged: int = 0  # pages in the trash past retention: purged (with --delete)
+    let_go: int = 0  # orphaned files a purged review page showed: let go with it
+    jobs: int = 0  # finished ingest job rows past retention
+    enrich_jobs: int = 0  # finished enrich job rows past retention
+    trash_days: float | None = TRASH_DAYS  # None: the trash is never purged
+    job_days: float = JOB_DAYS
     orphan_title: str = ""  # the month's review page they go on
     deleted: bool = False
     shas: list[str] = field(default_factory=list)  # for tests; not printed
@@ -130,6 +149,15 @@ class Report:
             f" older than the retention"
             + f"; {'gathered' if self.deleted else 'would gather'} {self.orphans}"
             f" orphaned files onto {self.orphan_title}"
+            + (
+                f"; {'purged' if self.deleted else 'would purge'} {self.purged} pages"
+                f" in the trash more than {self.trash_days:g} days"
+                if self.trash_days is not None
+                else "; the trash is never purged (--trash-days off)"
+            )
+            + (f" (and {self.let_go} orphaned files)" if self.let_go else "")
+            + f"; {self.jobs} ingest jobs and {self.enrich_jobs} enrich jobs finished"
+            f" more than {self.job_days:g} days ago"
             + (
                 f"; put back {self.restored} files an earlier run left aside"
                 if self.restored
@@ -303,19 +331,28 @@ def collect(
     grace_hours: float = GRACE_HOURS,
     run_days: float = RUN_DAYS,
     _between: Iterable[None] = (),
+    trash_days: float | None = TRASH_DAYS,
+    job_days: float = JOB_DAYS,
 ) -> Report:
-    """Find (and with delete, delete) the files nothing refers to; see the module.
+    """Find (and with delete, delete) the files nothing refers to, and purge the trash
+    and the job records past retention; see the module.
 
     _between is for tests: each item is taken between the dry look and the delete.
     """
     if grace_hours < 0:
         raise GcError("the grace period must not be negative")
-    if run_days < 1:  # today's spend is summed from the runs: keep at least a day
-        raise GcError("the run retention must be at least 1 day")
+    # At least a day each (today's spend is summed from the runs), at most MAX_DAYS
+    for days, what in ((run_days, "run"), (trash_days, "trash"), (job_days, "job")):
+        try:
+            if days is not None:
+                retention.check_days(days, what)
+        except ValueError as error:
+            raise GcError(str(error)) from None
+    report = Report(trash_days=trash_days, job_days=job_days)
     if not store.db.is_file():
         raise GcError(f"no database at {store.db}")
     if not delete:
-        return _collect(store, False, grace_hours, run_days, _between)
+        return _collect(store, False, grace_hours, run_days, _between, report)
     # One deleting run at a time: a run by hand cannot race the nightly one.
     try:
         lock = open(store.dir / LOCK, "w")  # noqa: SIM115 (closed when the run ends)
@@ -329,7 +366,45 @@ def collect(
                 f"another scrap gc is deleting (it holds {store.dir / LOCK});"
                 " try again when it has finished"
             ) from None
-        return _collect(store, True, grace_hours, run_days, _between)
+        return _collect(store, True, grace_hours, run_days, _between, report)
+
+
+def _gather(store: Store, report: Report, stamp: str) -> bool:
+    """Gather the orphans onto the month's review page; whether that was done (not
+    when the page was edited meanwhile: then no review page is purged this run, as
+    what it holds may not be all gathered)."""
+    try:
+        report.orphans = orphans.gather(store, stamp, report.trash_days).count
+    except ConflictError:  # edited meanwhile: the next run gathers them
+        log.warning("scrap gc: the orphan page changed meanwhile; not gathered")
+        return False
+    except (InvalidError, sqlite3.Error) as error:
+        raise GcError(
+            f"cannot gather the orphaned files, so nothing was deleted: {error}"
+        ) from None
+    return True
+
+
+def _retain(
+    conn: sqlite3.Connection,
+    report: Report,
+    run_days: float,
+    grace: str,
+    delete: bool,
+    review: bool,
+) -> None:
+    """Purge the trash (review pages only if review) and prune the job rows past
+    retention, and the runs (counted only, unless delete), recording the counts in
+    report. A dry run calls it too, in a transaction it rolls back."""
+    if report.trash_days is not None:
+        purged = retention.purge(
+            conn, retention.stamp(report.trash_days), grace, review
+        )
+        report.purged, report.let_go = purged.pages, purged.files
+    report.jobs, report.enrich_jobs = retention.prune_jobs(
+        conn, retention.stamp(report.job_days), delete=True
+    )
+    report.model_runs, report.enrich_runs = prune_runs(conn, run_days, delete)
 
 
 def _collect(
@@ -338,11 +413,12 @@ def _collect(
     grace_hours: float,
     run_days: float,
     _between: Iterable[None],
+    report: Report,
 ) -> Report:
     cutoff = time.time() - grace_hours * 3600
     stamp = datetime.fromtimestamp(cutoff, UTC).isoformat(timespec="milliseconds")
     stamp = stamp.replace("+00:00", "Z")
-    report = Report(orphan_title=orphans.TITLE.format(month=f"{orphans.clock():%Y-%m}"))
+    report.orphan_title = orphans.TITLE.format(month=f"{orphans.clock():%Y-%m}")
     try:
         schema_version(store.db)  # refuses a database newer than this scrap
         if not store.files.is_dir():
@@ -355,24 +431,30 @@ def _collect(
                 f" was deleted: {error}"
             ) from None
         if delete:  # first, so a file gathered now is in use below
+            review = _gather(store, report, stamp)
+            # Retention commits on its own, before any file is looked at: a file is
+            # only ever unlinked once what made it unused is committed.
             try:
-                report.orphans = orphans.gather(store, stamp).count
-            except ConflictError:  # edited meanwhile: the next run gathers them
-                log.warning("scrap gc: the orphan page changed meanwhile; not gathered")
-            except (InvalidError, sqlite3.Error) as error:
+                with store.connect() as conn, transaction(conn):
+                    _retain(conn, report, run_days, stamp, True, review)
+            except sqlite3.Error as error:
                 raise GcError(
-                    f"cannot gather the orphaned files, so nothing was deleted: {error}"
+                    f"cannot purge the trash or prune old records, so nothing was"
+                    f" deleted: {error}"
                 ) from None
         with store.connect() as conn:
-            conn.execute("BEGIN")  # one consistent snapshot of every reference
+            # One consistent snapshot of every reference. A dry run sees them as
+            # retention would leave them: purged and pruned here, then rolled back
+            # (a write transaction, so the purge's writes cannot be refused).
+            conn.execute("BEGIN" if delete else "BEGIN IMMEDIATE")
             try:
                 if not delete:
                     report.orphans = len(orphans.find(conn, stamp))
+                    _retain(conn, report, run_days, stamp, False, True)
                 used = in_use(conn)
                 rows = dict(conn.execute("SELECT sha256, created_at FROM blob"))
-                report.model_runs, report.enrich_runs = prune_runs(conn, run_days)
             finally:
-                conn.execute("COMMIT")
+                conn.execute("ROLLBACK")
         files, temps = _files(store)
     except (sqlite3.Error, OSError, RuntimeError) as error:
         raise GcError(
@@ -402,10 +484,7 @@ def _collect(
     with store.connect() as conn:
         try:
             with transaction(conn):  # no capture, edit or ingest commits meanwhile
-                report.model_runs, report.enrich_runs = prune_runs(
-                    conn, run_days, delete=True
-                )
-                used = in_use(conn)  # the runs just deleted no longer count
+                used = in_use(conn)
                 again = set(unused(old))
                 report.kept = len(old) - len(again)
                 gone: list[str] = []

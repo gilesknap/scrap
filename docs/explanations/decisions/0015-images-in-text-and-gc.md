@@ -4,7 +4,8 @@ Date: 2026-10-20 (#48, #57, #78, #103)
 
 ## Status
 
-Accepted
+Accepted; amended by [](0030-trash-purged-after-n-days.md): captures, and their files, are now
+purged with their page once it has been in the trash for N days
 
 ## Context
 

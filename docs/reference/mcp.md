@@ -10,7 +10,8 @@ to `/mcp` with `Accept: application/json, text/event-stream`, as the MCP specifi
 The server sends the model instructions: search before writing and reuse existing tags (the
 `tags` tool); `write` only adds pages or appends to ones written over MCP; `edit_meta` and
 `rename_tag` change only kinds and tags, each change a revision that `revert` undoes; try a bulk
-change with `dry_run` first; deletes go to a trash (see The trash below); enrichment is not in
+change with `dry_run` first; deletes go to a trash, and nothing deletes a page until it has been
+there for `SCRAP_TRASH_DAYS` days (30 by default; see The trash below); enrichment is not in
 revision history. Unless content editing is off they also say `edit_page` and `revert` (with
 `to_rev`) change a page's text as revisions, only on a page the user asked to change (see Page
 text below). The `sc` commands (`/sc-post`, `/sc-summarise`, `/sc-find`, `/sc-todos`, `/sc-tidy`,
@@ -70,15 +71,20 @@ Any argument that names a page (`page`, `pages`, `append_to`) takes a page URL, 
 | `rename_tag` | **`old`**, **`new`** (each at most 200 characters), `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
 | `edit_page` | **`page`**, `old` and `new`, or `old` and `delete` (removes `old`), `replace_all`, or `body` (needs `rev`); `title`; `rev`; `allow_empty`; `dry_run` | `{id, slug, url, dry_run, changed, rev_before, rev, folded, replacements, title_before, title, diff, diff_cut}` (`diff`: unified, of the body; `folded`: the revision this one replaced, a burst's). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
 | `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url` (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
-| `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at}` |
-| `undelete` | **`page`** (id or slug of a page in the trash), `dry_run` | `{id, slug, url, title, kind, deleted_at, dry_run, restored}`: brings the page back as the PWA's undo does (the tool error `no such page in the trash` if it is not there). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
+| `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at, topic, purge_at}`: `purge_at` is when scrap purges the page for good (from then, the nightly `scrap gc` does), `null` for a topic page (`topic` true: never purged) or with purging off |
+| `undelete` | **`page`** (id or slug of a page in the trash), `dry_run` | `{id, slug, url, title, kind, deleted_at, topic, purge_at, dry_run, restored}` (`purge_at` `null` once restored): brings the page back as the PWA's undo does (the tool error `no such page in the trash` if it is not there). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
 | `revert` | exactly one of `revision` (a `meta` id), `batch`, or `page` with `to_rev` (a text revision); `rev` (needed for `to_rev` unless `dry_run`), `restore_title`, `allow_empty`, `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}`; for `to_rev`, as `edit_page`'s with `restores` (`to_rev`) instead of `replacements` (not available with `SCRAP_MCP_CONTENT_EDIT=0`: the tool error `text editing is off`) |
 
 **The trash.** The user's deletes move a page to the trash; nothing over MCP deletes one or
-empties the trash. `trash` lists it, `undelete` brings one page back (reversible, the same trust
+empties the trash. Nothing deletes a page until it has been in the trash for `SCRAP_TRASH_DAYS`
+days (30 by default): then the nightly `scrap gc` purges it for good, but a topic page, which
+stays as the veto on its topic ([](../explanations/decisions/0030-trash-purged-after-n-days.md)).
+The instructions say so, with the number (or, with `SCRAP_TRASH_DAYS=off`, that nothing deletes a
+page). `trash` lists it, with each page's `purge_at`, `undelete` brings one page back (reversible, the same trust
 model as `edit_meta`; listed only while content editing is on, see Page text), and `read` and
 `revisions` with a `page` accept a page in the trash read only: `read`'s `page.trashed` is `true`
-and `page.deleted_at` says when (`false` and `null` otherwise), and `revisions` returns the same
+and `page.deleted_at` says when (`false` and `null` otherwise), `page.purge_at` when it is purged
+(`null` if never, or not in the trash), and `revisions` returns `trashed` and `deleted_at`, the same
 two fields, so its last text and history can be read before it is restored. Every other tool
 treats the trash as absent: `search`, `tags`, the recent-changes feed and
 `read`'s `backlinks` leave it out, and `edit_meta`, `edit_page`, `revert` with a

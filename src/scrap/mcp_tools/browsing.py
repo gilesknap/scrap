@@ -17,9 +17,12 @@ def register_browsing(mcp: MCPServer, ctx: Ctx) -> None:
     @mcp.tool()
     def trash(limit: Annotated[int, Field(ge=1, le=100)] = 20) -> dict[str, Any]:
         """The pages the user deleted, which are in the trash, most recently deleted
-        first: {id, slug, url, title, kind, deleted_at, updated_at}. Every other tool
-        treats them as absent; read and revisions show one read only, and undelete
-        brings it back."""
+        first: {id, slug, url, title, kind, deleted_at, updated_at, topic, purge_at}.
+        purge_at is when scrap purges the page for good (from then on, the nightly gc
+        does); null if it never does (a topic page, whose key stops Claude making the
+        topic again, or purging is off). Every other tool treats them as absent; read
+        and revisions show one read only, and undelete brings it back until it is
+        purged."""
         found = store.trash(limit)
         return {"results": [{**t, "url": link(t["slug"])} for t in found]}
 

@@ -27,6 +27,7 @@ from . import (
     pwa,
     search_api,
     topic_api,
+    trash_api,
     writeup_api,
 )
 from .api_models import SURROGATE_MSG, EnrichOffError
@@ -156,6 +157,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     ingest_api.add_routes(app, store)
     search_api.add_routes(app, store)
     blobs_api.add_routes(app, store)
+    trash_api.add_routes(app, store)
 
     app.router.routes.extend(mcp_routes)  # before the PWA's catch-all mount
     pwa.add_routes(app)

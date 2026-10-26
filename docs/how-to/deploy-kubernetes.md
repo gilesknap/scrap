@@ -569,12 +569,16 @@ starts second stops with `another scrap gc is deleting`; a hand run does not wai
 With `ingest.notifyUrlKey` set, gc pushes to `SCRAP_NOTIFY_URL` when it starts a month's
 Orphaned assets page.
 
-Its deletes are permanent but only of files nothing refers to (no page's text, trashed pages
-included, no capture, no derived result, no job, no model run) and older than `graceHours`, and
-of the stored prompts and raw responses of Claude calls older than `runDays` that nothing refers
-to. It never deletes pages, captures or their files, photos' readings, descriptions or drawings,
-and the trash is not purged (see {ref}`scrap-gc`). Set `gc.delete: false` to have it only count
-until you trust it.
+Its deletes are permanent: files nothing refers to (no page's text, trashed pages included, no
+capture, no derived result, no job, no model run) and older than `graceHours`; the stored prompts
+and raw responses of Claude calls older than `runDays` that nothing refers to; the pages in the
+trash for more than `trashDays` (default 30), topic pages aside, with their captures, history and
+Claude's results, whose files then go as unused ones; and finished job records older than
+`jobDays` (default 30). It never deletes a page, or its captures and files, before then (see
+{ref}`scrap-gc`, and the PWA's Trash: {ref}`the-trash`). The scrap pod shows each trashed page's
+purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not delete). Set
+`gc.delete: false` to have it only count until you trust it. To see what the store holds by size,
+`kubectl -n scrap exec deploy/scrap -- scrap gc --report` (it reads only).
 
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).

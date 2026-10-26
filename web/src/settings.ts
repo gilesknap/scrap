@@ -1,6 +1,6 @@
 // Settings: a sheet from the top bar's cog, over the app like the editor. What it holds is
-// kept on this device and applied at once (theme.ts); and Store health, a screen of its own
-// (health.ts), which the sheet closes to open.
+// kept on this device and applied at once (theme.ts); and Store health and Trash, screens of
+// their own (health.ts, trash.ts), which the sheet closes to open.
 import { kept } from "./api";
 import { go } from "./app";
 import {
@@ -78,13 +78,17 @@ export function settings() {
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];
   const done = h("button", { type: "button", className: "primary" }, "Done");
   let then = ""; // where to go once the sheet has closed
-  // Store health is a screen: the sheet closes (its history entry popped), then it opens
-  const health = h("a", { href: "/health", className: "button" }, "Store health");
-  health.onclick = (e) => {
-    if (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; // a new tab
-    e.preventDefault();
-    then = "/health";
-    history.back();
+  // Store health and Trash are screens: the sheet closes (its history entry popped), then
+  // the one chosen opens
+  const screen = (path: string, name: string) => {
+    const link = h("a", { href: path, className: "button" }, name);
+    link.onclick = (e) => {
+      if (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; // a new tab
+      e.preventDefault();
+      then = path;
+      history.back();
+    };
+    return link;
   };
   const form = h(
     "div",
@@ -129,12 +133,14 @@ export function settings() {
         "Light suits drawings that sit beside a photo of a whiteboard or paper.",
       ),
       h("h3", { className: "label" }, "Store"),
-      health,
+      screen("/health", "Store health"),
       h(
         "p",
         { className: "hint" },
         "Pages with no links or tags, stale todos, duplicates, dangling links and outdated write-ups.",
       ),
+      screen("/trash", "Trash"),
+      h("p", { className: "hint" }, "Deleted pages, when each goes for good, and Restore."),
     ),
   );
   const keys = (e: KeyboardEvent) => {
