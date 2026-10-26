@@ -49,11 +49,15 @@ extensions = [
     "sphinx_design",
     # So we can write markdown files
     "myst_parser",
+    # For ```mermaid fences (rendered in the browser)
+    "sphinxcontrib.mermaid",
 ]
 
 # So we can use the ::: syntax
 myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 3
+# Treat ```mermaid fences as the mermaid directive
+myst_fence_as_directive = ["mermaid"]
 
 # If true, Sphinx will warn about all references where the target cannot
 # be found.
