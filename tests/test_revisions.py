@@ -616,3 +616,41 @@ def test_migration_15_adds_fields_was_and_can_run_again(tmp_path):
         conn.execute("PRAGMA user_version = 14")
     store.migrate()  # an older scrap ran meanwhile: it adds nothing twice
     assert store.revisions(ref["slug"])["meta"][0]["fields_was"] == {}
+
+
+def test_folded_field_edits_revert_to_what_was_never_there(store):
+    ref = later(store, "Fold")
+    for made in meta(store, ref["slug"]):
+        age(store, made["id"])  # the kind change is its own revision
+    ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "book"})
+    two = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "film"})
+    revs = meta(store, ref["slug"])
+    rev = next(r for r in revs if r["id"] == two["pages"][0]["revision"])
+    assert rev["fields_added"]["media_type"] == "film"
+    assert "media_type" not in rev["fields_was"]  # not made up from the first edit
+    assert rev["fields_was"] == {"subtype": "read"}
+    ok(store, "revert", revision=two["pages"][0]["revision"])
+    fields = store.page(ref["slug"])["fields"]
+    assert "media_type" not in fields and fields["subtype"] == "read"
+
+
+def test_edit_meta_refuses_reserved_long_and_unpaired_fields(store):
+    ref = later(store, "A")
+    key = ref["slug"]
+    for name in ("status", "personal", "source", "summary"):
+        assert "meaning of its own" in refused(
+            store, "edit_meta", pages=[key], fields={name: "x"}
+        )
+    assert "at most 200" in refused(
+        store, "edit_meta", pages=[key], fields={"note": "x" * 201}
+    )
+    note = human(store, "Plain")  # not a Later: media_type would pair with read
+    assert "make it one first" in refused(
+        store, "edit_meta", pages=[note["slug"]], fields={"media_type": "film"}
+    )
+    assert "media_type" not in store.page(note["slug"])["fields"]
+    both = ok(  # but with the kind change in the same call it is fine
+        store, "edit_meta", pages=[note["slug"]], kind="read",
+        fields={"media_type": "film"},
+    )  # fmt: skip
+    assert both["pages"][0]["fields_added"]["subtype"] == "watch"

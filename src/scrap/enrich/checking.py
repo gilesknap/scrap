@@ -80,7 +80,9 @@ def checked(
         "tags": tags[: MAX_NEW_TAGS * 2],
         "summary": summary if want_summary else "",
         "title": title,
-        "media_type": media if link and media in MEDIA else "",
+        "media_type": media
+        if link and isinstance(media, str) and media in MEDIA
+        else "",
         "intent": intent,
         "confidence": confidence,
         "items": [{"text": t, "done": d} for t, d in items],

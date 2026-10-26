@@ -16,6 +16,7 @@ from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
 from scrap.ingest import FAR, Worker, spent_today
+from scrap.query import MEDIA
 from scrap.store import (
     Store,
     connect,
@@ -1117,3 +1118,43 @@ def test_ask_and_backfill_on_a_link_page_still_fetch(store):
         conn.commit()
     run_all(worker(store, Fake(answer()), counting(calls)))
     assert len(calls) == 3
+
+
+def test_a_media_type_that_is_not_a_known_string_is_dropped():
+    from scrap.enrich.checking import checked
+
+    base = {"tags": [], "summary": "", "title": ""}
+    for media in (["film"], {"a": 1}, 3, None, "pigeon", ""):
+        out = checked({**base, "media_type": media}, set(), False, True)
+        assert out["media_type"] == ""
+    assert (
+        checked({**base, "media_type": "film"}, set(), False, True)["media_type"]
+        == "film"
+    )
+    assert (
+        checked({**base, "media_type": "film"}, set(), False, False)["media_type"] == ""
+    )  # not a link: no medium
+
+
+@pytest.mark.parametrize(
+    ("url", "medium"),
+    [
+        ("https://www.youtube.com/watch?v=x", "video"),
+        ("https://youtu.be/x", "video"),
+        ("https://open.spotify.com/episode/1", "podcast"),
+        ("https://open.spotify.com/show/1", "podcast"),
+        ("https://open.spotify.com/track/1", "music"),
+        ("https://podcasts.apple.com/gb/podcast/x", "podcast"),
+        ("https://music.apple.com/gb/album/x", "music"),
+        ("https://www.imdb.com/title/tt1/", "film"),
+        ("https://store.steampowered.com/app/1", "game"),
+        ("https://notyoutube.com/x", ""),  # a host that merely ends alike
+        ("https://example.com/", ""),
+        ("not a url [", ""),
+    ],
+)
+def test_site_media_reads_the_medium_from_the_address(url, medium):
+    from scrap.enrich.media import SITES, site_media
+
+    assert site_media(url) == medium
+    assert {m for _, _, m in SITES} <= set(MEDIA)  # every medium is a known one

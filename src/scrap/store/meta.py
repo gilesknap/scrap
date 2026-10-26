@@ -31,6 +31,13 @@ from .helpers import (
 )
 from .types import FieldEdit, Meta
 
+# Fields with a meaning of their own (a status, a Later's link and summary): the pages'
+# own edits set them, not edit_meta's free-form fields
+RESERVED_FIELDS = frozenset(
+    {"status", "personal", "source", "summary", "title", "body"}
+)
+MAX_FIELD_TEXT = 200  # characters, as the PWA's field has it (pages_api.FIELD)
+
 
 class MetaMixin(Core):
     def by_claude(self, conn: sqlite3.Connection, page_id: str) -> bool:
@@ -105,8 +112,13 @@ class MetaMixin(Core):
             and meta_of(last, "after") == before
             and 0 <= seconds_between(last["created_at"], stamp) < self.window
         ):
-            merged = {**json.loads(last["fields_added"]), **added}
-            merged_was = {**was, **json.loads(last["fields_was"])}  # the first's wins
+            prior = json.loads(last["fields_added"])
+            merged = {**prior, **added}
+            first_was = json.loads(last["fields_was"])
+            # the first's wins; and a field it added that was not there before has no
+            # was: a later change must not make one up (a revert takes it off)
+            fresh = {k: v for k, v in was.items() if k not in prior or k in first_was}
+            merged_was = {**fresh, **first_was}
             if meta_of(last, "before") == after and not merged and not merged_was:
                 # nothing, in all
                 conn.execute("DELETE FROM page_meta_rev WHERE id = ?", (last["id"],))
@@ -261,6 +273,12 @@ class MetaMixin(Core):
         for name, value in put.items():
             if not name or len(name) > MAX_TAG or name.startswith("_"):
                 raise InvalidError(f"a field name must be 1 to {MAX_TAG} characters")
+            if name in RESERVED_FIELDS:
+                raise InvalidError(
+                    f"field {name} has a meaning of its own: not set here"
+                )
+            if isinstance(value, str) and len(value) > MAX_FIELD_TEXT:
+                raise InvalidError(f"field {name}: at most {MAX_FIELD_TEXT} characters")
             if value is not None:
                 check_value(name, value)
         if "subtype" in put:
@@ -330,6 +348,10 @@ class MetaMixin(Core):
                 )
                 if len(after.tags) > MAX_TAGS:
                     raise InvalidError(f"{page['slug']}: over {MAX_TAGS} tags")
+                if put.get("media_type") and after.kind != "consume":
+                    raise InvalidError(  # else a later kind change would pair it with
+                        f"{page['slug']}: media_type is a Later's: make it one first"
+                    )  # a subtype of read
                 out.append(self._apply(
                     conn, page, before, after, author, source, dry_run, batch_id,
                     edit=FieldEdit(put=self._subtyped(put, after.kind)),
