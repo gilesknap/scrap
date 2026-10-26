@@ -1,6 +1,8 @@
 """The database: connections, transactions, schema migrations."""
 
 import fcntl
+import hashlib
+import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
@@ -8,6 +10,7 @@ from importlib.resources import files as package_files
 from pathlib import Path
 from typing import Any
 
+from ..markdown import wiki_targets
 from .fixes import (
     add_enrich,
     add_meta_revs,
@@ -29,10 +32,30 @@ def migrations() -> list[str]:
     return [p.read_text() for p in scripts]
 
 
+def wiki_links(text: str | None) -> str:
+    """SQL wiki_links(text): the targets of a text's page links as a JSON array
+    (markdown.wiki_targets), for the store health checks (store.health)."""
+    if not text or "[[" not in text:  # most pages: nothing to parse
+        return "[]"
+    # Kept by digest, not text: a check reads every page's text, and most are as they
+    # were last time; a few thousand short JSON arrays at most
+    key = hashlib.sha256(text.encode()).digest()
+    if (found := _PARSED.get(key)) is None:
+        if len(_PARSED) >= 4096:
+            _PARSED.clear()
+        found = _PARSED[key] = json.dumps(wiki_targets(text))
+    return found
+
+
+_PARSED: dict[bytes, str] = {}
+
+
 def connect(db: Path | str) -> sqlite3.Connection:
-    """Open the database in autocommit mode with the per-connection pragmas."""
+    """Open the database in autocommit mode with the per-connection pragmas, and the
+    SQL function wiki_links."""
     conn = sqlite3.connect(db, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.create_function("wiki_links", 1, wiki_links, deterministic=True)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 5000")
     return conn

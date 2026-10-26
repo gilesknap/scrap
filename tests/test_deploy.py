@@ -14,7 +14,7 @@ def test_backup_retention():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def _gc_run(tmp_path, backups_age_min=None, marker=True, **settings):
+def _gc_run(tmp_path, backups_age_min=None, marker=True, extra=(), **settings):
     """deploy/scrap-gc with a fake podman that records its arguments."""
     tmp_path.mkdir()
     fake = tmp_path / "bin"
@@ -42,7 +42,7 @@ def _gc_run(tmp_path, backups_age_min=None, marker=True, **settings):
         **settings,
     }
     result = subprocess.run(
-        [DEPLOY / "scrap-gc"], env=env, capture_output=True, text=True
+        [DEPLOY / "scrap-gc", *extra], env=env, capture_output=True, text=True
     )
     return result, (tmp_path / "args").read_text()
 
@@ -53,6 +53,14 @@ def test_gc_deletes_only_after_a_recent_backup(tmp_path):
     assert args.split()[-4:] == ["gc", "--delete", "--grace-hours", "24"]
     assert "--network=none" in args.split()
     assert f"{tmp_path / 'a' / 'data'}:/data:z" in args.split()
+
+
+def test_gc_passes_its_arguments_on_after_the_defaults(tmp_path):
+    """A drop-in's ExecStart sets scrap gc's options: the last of each wins."""
+    extra = ["--grace-hours", "48", "--run-days", "60", "--dry-run"]
+    result, args = _gc_run(tmp_path / "a", backups_age_min=60, extra=extra)
+    assert result.returncode == 0, result.stderr
+    assert args.split()[-9:] == ["gc", "--delete", "--grace-hours", "24", *extra]
 
 
 def test_gc_waits_for_a_backup_and_skips_missed_nights():

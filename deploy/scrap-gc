@@ -6,7 +6,10 @@
 # a backup's database names is in that backup, so deleting the live copy never
 # loses the only one. Files younger than 24 hours are kept (uploads in flight).
 # Started by scrap-gc.timer, after the nightly backup.
-# Settings come from the environment (~/.config/scrap/env via systemd).
+# Settings come from the environment (~/.config/scrap/env via systemd). Arguments
+# are passed on to `scrap gc` after its defaults, so the last wins: --grace-hours 48,
+# --run-days 60, or --dry-run to only count (a drop-in on scrap-gc.service that
+# replaces ExecStart; see docs/reference/scheduled-jobs.md).
 # Installed by install.sh to ~/.local/lib/scrap/.
 set -eu
 
@@ -42,5 +45,5 @@ fi
 "$podman" run --rm --replace --name scrap-gc \
     --userns=keep-id:uid=10001,gid=10001 --network=none \
     --volume "$SCRAP_DATA:/data$volume_opts" --env SCRAP_DATA_DIR=/data \
-    "$SCRAP_IMAGE" gc "$mode" --grace-hours 24
+    "$SCRAP_IMAGE" gc "$mode" --grace-hours 24 "$@"
 [ -n "$recent" ] || exit 1

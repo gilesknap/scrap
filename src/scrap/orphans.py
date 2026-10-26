@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from .store import MAX_PAGE, Store, body_refs, new_ulid
+from .store.health import REVIEW  # a review page: one gc made (its capture's source)
 
 __all__ = ["DUE_DAYS", "TITLE", "Gathered", "Orphan", "clock", "find", "gather"]
 
@@ -69,10 +70,6 @@ class Gathered:
     count: int = 0
     pages: list[str] = field(default_factory=list)  # the slugs written to
     created: bool = False  # a new month page was made
-
-
-# A review page: one gc made (its capture's source), whatever it is titled now
-REVIEW = "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = 'gc')"
 
 
 def _orphan_pages(conn: sqlite3.Connection) -> set[str]:

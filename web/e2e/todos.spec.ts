@@ -426,14 +426,14 @@ test("a todo's row has no thumbnail, every title in line; a photo is a mark on i
   const r = await page.request.post("/api/captures", {
     multipart: {
       id: "01E2ETDNWPH0T0".padEnd(26, "0"),
-      text: "Wombat photo todo",
+      text: "Quokka photo todo",
       kind: "todo",
       file: { name: "w.png", mimeType: "image/png", buffer: png },
     },
   });
   expect(r.ok()).toBeTruthy();
   await page.goto("/todos?view=all");
-  const row = page.locator(".todos .list li", { hasText: "Wombat photo todo" });
+  const row = page.locator(".todos .list li", { hasText: "Quokka photo todo" });
   await expect(row.locator("a strong")).toBeVisible();
   await expect(row.locator("a > img")).toBeHidden();
   const plain = page.locator(".todos .list li").filter({ hasNotText: "Wombat" }).first();
@@ -444,8 +444,8 @@ test("a todo's row has no thumbnail, every title in line; a photo is a mark on i
     .evaluate((el) => getComputedStyle(el, "::after").getPropertyValue("mask-image"));
   expect(mark).toContain("svg");
   // Search still shows it
-  await page.goto(`/search?q=${encodeURIComponent("Wombat photo todo")}`);
+  await page.goto(`/search?q=${encodeURIComponent("Quokka photo todo")}`);
   await expect(
-    page.locator(".list li", { hasText: "Wombat photo todo" }).locator("img"),
+    page.locator(".list li", { hasText: "Quokka photo todo" }).locator("img"),
   ).toBeVisible();
 });

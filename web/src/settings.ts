@@ -1,6 +1,8 @@
 // Settings: a sheet from the top bar's cog, over the app like the editor. What it holds is
-// kept on this device and applied at once (theme.ts).
+// kept on this device and applied at once (theme.ts); and Store health, a screen of its own
+// (health.ts), which the sheet closes to open.
 import { kept } from "./api";
+import { go } from "./app";
 import {
   APP_KEY,
   type AppPref,
@@ -75,6 +77,15 @@ export function settings() {
   const opener = document.activeElement as HTMLElement | null;
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];
   const done = h("button", { type: "button", className: "primary" }, "Done");
+  let then = ""; // where to go once the sheet has closed
+  // Store health is a screen: the sheet closes (its history entry popped), then it opens
+  const health = h("a", { href: "/health", className: "button" }, "Store health");
+  health.onclick = (e) => {
+    if (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; // a new tab
+    e.preventDefault();
+    then = "/health";
+    history.back();
+  };
   const form = h(
     "div",
     {
@@ -117,12 +128,19 @@ export function settings() {
         { className: "hint" },
         "Light suits drawings that sit beside a photo of a whiteboard or paper.",
       ),
+      h("h3", { className: "label" }, "Store"),
+      health,
+      h(
+        "p",
+        { className: "hint" },
+        "Pages with no links or tags, stale todos, duplicates, dangling links and outdated write-ups.",
+      ),
     ),
   );
   const keys = (e: KeyboardEvent) => {
     if (e.key === "Escape") return void history.back();
     if (e.key !== "Tab") return;
-    const stops = [...form.querySelectorAll<HTMLElement>("input:checked, button")];
+    const stops = [...form.querySelectorAll<HTMLElement>("input:checked, button, a[href]")];
     const at = stops.indexOf(document.activeElement as HTMLElement);
     const next = e.shiftKey ? at <= 0 : at === stops.length - 1;
     if (next) {
@@ -137,7 +155,8 @@ export function settings() {
     form.remove();
     for (const el of behind) el.inert = false;
     open = false;
-    opener?.focus({ preventScroll: true });
+    if (then) go(then);
+    else opener?.focus({ preventScroll: true });
   };
   done.onclick = () => history.back();
   for (const el of behind) el.inert = true;

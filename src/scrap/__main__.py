@@ -138,6 +138,14 @@ def main(args: Sequence[str] | None = None) -> None:
         " page with none (stops at a queue pause or the day's budget)",
     )
     enr.add_argument(
+        "--outdated",
+        action="store_true",
+        help="With --writeups: instead, write again each write-up that is outdated (a"
+        " board photo read, or the page's text, title, kind or tags changed, since it"
+        " was made, or an older prompt; never one the owner restored), as after a"
+        " prompt change",
+    )
+    enr.add_argument(
         "--topics",
         action="store_true",
         help="Find topics, here and now (one call over every page: new topics are"
@@ -236,6 +244,8 @@ def main(args: Sequence[str] | None = None) -> None:
                 parser.error(
                     "enrich: say --backfill, --related, --writeups or --topics"
                 )
+            if parsed.outdated and not parsed.writeups:
+                parser.error("enrich: --outdated goes with --writeups")
             store.migrate()
             # made here, not queued
             calls = parsed.related or parsed.writeups or parsed.topics
@@ -254,7 +264,8 @@ def main(args: Sequence[str] | None = None) -> None:
             elif parsed.topics:
                 topics_report(store, parsed.all, parsed.limit, parsed.dry_run)
             elif parsed.writeups:
-                c = writeup_pass(store, None, parsed.all, parsed.limit, parsed.dry_run)
+                c = writeup_pass(store, None, parsed.all, parsed.limit, parsed.dry_run,
+                                 parsed.outdated)  # fmt: skip
                 if parsed.dry_run:
                     print(f"would write up {c['pages']} board pages")
                 else:

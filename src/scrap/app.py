@@ -41,6 +41,7 @@ from . import (
     backup,
     drawing,
     enrich,
+    health_api,
     ingest,
     mcp_server,
     photos_api,
@@ -85,7 +86,16 @@ SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
 SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
 # Served index.html
-APP_ROUTES = ("/", "/recent", "/search", "/tags", "/todos", "/topics", "/p/{key}")
+APP_ROUTES = (
+    "/",
+    "/recent",
+    "/search",
+    "/tags",
+    "/todos",
+    "/topics",
+    "/health",
+    "/p/{key}",
+)
 NOT_BUILT = (
     "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
     "\n(the API under /api works without it)\n"
@@ -259,6 +269,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     """Build the app on a data folder (default $SCRAP_DATA_DIR, else ./data)."""
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
     store.migrate()
+    store.prompts = enrich.prompt_versions()  # what is:outdated compares with
     limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
     # MCP at /mcp: stateless (each POST stands alone: a restart drops no session),
@@ -451,6 +462,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     writeup_api.add_routes(app, store, wake)
     topic_api.add_routes(app, store, wake)
     photos_api.add_routes(app, store, wake, limit)
+    health_api.add_routes(app, store)
 
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:

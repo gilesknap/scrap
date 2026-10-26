@@ -1,0 +1,28 @@
+/* ---- Store health (health.ts): a list of checks, each with its count at the row's end ---- */
+.health .hint {
+  margin: 0 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.health .list li > a {
+  min-height: var(--tap); /* a row of words, no thumbnail */
+}
+.health .list strong {
+  white-space: normal;
+}
+.health .list small {
+  line-height: var(--lh-tight);
+}
+.health .n {
+  flex: none;
+  min-width: 2ch;
+  color: var(--ink);
+  font-size: var(--t-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.health .n.none {
+  color: var(--ink-2);
+  font-weight: 500;
+}

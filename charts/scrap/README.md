@@ -81,11 +81,11 @@ also turns on Claude enrichment of text pages.
   `curl http://127.0.0.1:8000/healthz` (the install notes print this too).
 - The data and backup claims are annotated `helm.sh/resource-policy: keep`, so `helm uninstall`
   leaves your data in place.
-- The gc CronJob (`gc.*`, 04:30) deletes unused files and old run records, and gathers photos no
-  page shows any more onto a monthly "Orphaned assets" todo page, only after a recent backup;
-  the related-pages CronJob (`enrichRelated.*`, 03:41) and the topics CronJob
-  (`enrichTopics.*`, Sundays 04:11) exist while ingest is on. All three run beside the scrap
-  pod. See the guide below.
+- The scheduled jobs (backup, monthly backup, gc, and with ingest on related pages and topics):
+  turn one off with its `.enabled`, change it with `.schedule` and `.timeZone`, and check them
+  with `kubectl -n scrap get cronjobs,jobs`. The
+  [scheduled jobs table](https://gilesknap.github.io/scrap/main/reference/scheduled-jobs.html)
+  has each one's schedule, what it does, its Claude budget and its values.
 - The backup CronJob runs at `30 3 * * *` by default, keeps the newest 7 runs on a 20Gi claim and
   is a local copy only: copy it off the cluster as well. A monthly CronJob (`backup.monthly.*`,
   `50 3 1 * *`) adds a full copy on the 1st into the claim's `monthly/` folder and keeps the newest

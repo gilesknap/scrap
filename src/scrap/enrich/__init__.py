@@ -15,7 +15,9 @@ diagram photo) gets Claude's write-up instead (write_up, #256): a versioned expl
 kept apart from the text, steered by the owner's guidance (writeup_ops). Topic pages
 (#261): a weekly discovery call over the whole library makes topics and adds their
 sources (topic_finding, scrap enrich --topics), and each topic's synthesis of its
-sources is its write-up (synthesis, an enrich job of reason topic). Jobs run on
+sources is its write-up (synthesis, an enrich job of reason topic). A write-up older
+than the page or its prompt is outdated (#262, store.writeups.OUTDATED): the owner
+regenerates it, or scrap enrich --writeups --outdated (writeup_pass). Jobs run on
 the ingest worker's thread; everything shares its queue pause and daily budget. See
 docs/explanations/ingest.md.
 """
@@ -130,6 +132,9 @@ from .types import (
     Call,
     Fetch,
 )
+from .versions import (
+    prompt_versions,
+)
 from .writeup_ops import (
     StaleWriteupError,
     regenerate,
@@ -144,6 +149,7 @@ from .writing import (
 
 __all__ = [
     "Enricher",
+    "prompt_versions",
     "DISCOVERY_SCHEMA",
     "MAX_NEW_TOPICS",
     "TOPIC_DUE",

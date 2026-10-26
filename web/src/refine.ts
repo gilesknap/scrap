@@ -9,6 +9,7 @@
 // Back, a reload or a link keep it. In the app chunk of its own (search.ts loads it with the
 // screen; the service worker keeps it offline).
 import { api } from "./api";
+import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
 import { adding, has, KIND_ROW, kindsIn, listing, removing, token } from "./terms";
@@ -88,6 +89,8 @@ function label(a: Facets["active"][number]) {
   }
   if (a.key === "after" && /^\d+[dwmy]$/.test(a.value))
     return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
+  const check = checkName(`${a.key}:${a.value}`); // a store health check: its name
+  if (check) return `${not}${check}`;
   if (a.key === "is") return `${not}${IS[a.value] ?? a.value.replace("_", " ")}`;
   if (a.key === "kind") {
     const k = KIND_ROW.find(([, , names]) => names.includes(a.value.toLowerCase()));

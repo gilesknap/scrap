@@ -73,7 +73,10 @@ the page has (fields added in place; older clients can ignore them):
 
 Search filters (the PWA's search box takes them too): `has:image` (a page with an image),
 `has:drawing` (one with a current drawing), `image:K` (an image Claude took for kind `K`, e.g.
-`image:photo`, `image:whiteboard`); `-` before any of them excludes. A filter alone lists newest
+`image:photo`, `image:whiteboard`); `-` before any of them excludes. The store's health
+checks are filters too (the PWA's Store health screen counts them, `GET /api/health`):
+`is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling` and `is:outdated`
+([](../how-to/use-the-pwa.md) says what each finds). A filter alone lists newest
 first, so **`search` with `has:image` is "my recent photos"**. A word in a photo's description or
 its transcribed text finds the page (Claude's results are indexed as the page's text), so
 `mantis` finds a photo of one.

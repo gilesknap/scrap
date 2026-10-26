@@ -22,9 +22,7 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | Service | `ClusterIP`, port 80. |
 | ServiceAccount | No API token mounted; scrap never talks to the Kubernetes API. |
 | CronJob + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs. |
-| CronJob (on by default) | Nightly `scrap gc` (04:30), after the backup: see {ref}`k8s-gc`. |
-| CronJob (on with ingest) | Nightly `scrap enrich --related` (03:41): see {ref}`k8s-gc`. |
-| CronJob (on with ingest) | Weekly `scrap enrich --topics` (Sundays 04:11): see {ref}`k8s-gc`. |
+| CronJobs (gc on by default, the Claude ones with ingest) | gc, related pages and topics: see {ref}`k8s-gc` and [](../reference/scheduled-jobs.md). |
 | Ingress, NetworkPolicy (off by default) | See below. |
 
 The pod meets the `restricted` [Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/):
@@ -130,7 +128,7 @@ checked, so a typo inside them is silently ignored. The main ones:
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
 | `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
-| `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, the cluster's default | The related-pages CronJob. It exists only while `ingest.enabled` is true. |
+| `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, the cluster's default | The related-pages CronJob. It exists only while `ingest.enabled` is true. Every scheduled job: [](../reference/scheduled-jobs.md). |
 | `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, the cluster's default | The topics CronJob (Sundays). It exists only while `ingest.enabled` is true. |
 | `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + 1` times the data. |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
@@ -511,53 +509,30 @@ if set, and are visible at `GET /api/ingest`. The backup CronJob's failed jobs s
 (k8s-gc)=
 ## Scheduled gc, related pages and topics
 
-Three more CronJobs, `<fullname>-gc`, `<fullname>-enrich-related` and `<fullname>-enrich-topics`
-(shortened with a hash like the
-backup's when the fullname is long), do what the single-server timers do. Like the backup job they
-run beside the scrap pod (pod affinity: the data claim is `ReadWriteOnce`, and SQLite's write-ahead
-log must be shared on one node), never overlap themselves (`concurrencyPolicy: Forbid`), and give up
-after waiting an hour (four for the related pass) for the scrap pod's node. They run the same
-image as the same uid, with the same `securityContext`. If scrap is scaled to zero they stay
-pending until it is back.
+Besides the backup, the chart runs `scrap gc` nightly and, while `ingest.enabled` is true, the
+nightly related-pages pass and the weekly topics pass. [](../reference/scheduled-jobs.md) lists
+each one's CronJob, schedule, what it does, whether it spends from the Claude budget and the
+values that set it. Like the backup job they run beside the scrap pod (pod affinity: the data
+claim is `ReadWriteOnce`, and SQLite's write-ahead log must be shared on one node), never overlap
+themselves (`concurrencyPolicy: Forbid`), run the same image as the same uid with the same
+`securityContext`, and get the Deployment's environment (the Claude key, the budget, `extraEnv`
+and `extraEnvFrom`), so a Secret change needs no restart of them. A failed run shows as a failed
+Job (`backoffLimit: 0`: not retried; the next run carries on). If scrap is scaled to zero they
+stay pending until it is back.
 
-- **`scrap gc`** at `30 4 * * *`, an hour after the backup. It deletes the stored files nothing
-  uses and the model and enrich run records older than `gc.runDays` that nothing refers to, and
-  gathers photos and files no page shows any more onto the month's *Orphaned assets* page (see
-  {ref}`scrap-gc`). With `ingest.notifyUrlKey` set, it pushes to `SCRAP_NOTIFY_URL` when it starts
-  a month's page. As `deploy/scrap-gc` does, it deletes only if the backup claim holds a completed
-  run (one with the `COMPLETE` file written once the backup passed an integrity check) less than
-  26 hours old; otherwise it only counts, and the Job fails so a missing backup shows. Backups from
-  before the marker existed lack it, so gc only counts until the next backup runs. It
-  takes the lock the backup job holds (`/backups/.lock`) so it never runs during a backup. So
-  `gc.enabled` defaults to following `backup.enabled` (so a release with backups off gets no gc
-  Job); setting `gc.enabled: true` with backups off is refused. If you back up another way, set
-  `gc.requireBackup: false` and gc deletes without that check.
-  A deleting `scrap gc` also takes a lock of its own (`gc.lock` in the data folder), so one you
-  run by hand (`kubectl exec`) cannot overlap the CronJob: whichever starts second stops with
-  `another scrap gc is deleting`. It does not wait for a backup; only the CronJob does.
-- **`scrap enrich --related`** at `41 3 * * *`, only while `ingest.enabled` is true. It gets the
-  Deployment's environment (the Claude key, the budget, `extraEnv` and `extraEnvFrom`), so
-  it follows the same `SCRAP_ENRICH` and queue-pause rules and the same daily budget, and exits
-  non-zero only when it stops at a queue pause. That exit shows as a failed Job (`backoffLimit: 0`,
-  so it is not retried; the next night's run carries on). Unlike the single server's timer, which
-  runs it inside the service's container, this runs in its own pod, so a Secret change needs
-  no restart of it.
-- **`scrap enrich --topics`** at `11 4 * * 0` (Sundays), only while `ingest.enabled` is true,
-  with the same environment and rules: one Claude call finds topics, making new topic pages and
-  adding sources, then each topic's synthesis that is due is queued for the scrap pod's worker
-  ({ref}`ingest-topics`). It exits non-zero when it stops at a queue pause (then it queues no
-  syntheses) or the discovery call fails; the next week's run carries on. It is given an hour.
+gc deletes only if the backup claim holds a completed run (one with the `COMPLETE` file written
+once the backup passed an integrity check) less than 26 hours old, and takes the backup's lock
+(`/backups/.lock`), so it never runs during a backup; so `gc.enabled` follows `backup.enabled`
+unless set, and `gc.enabled: true` with backups off is refused. If you back up another way, set
+`gc.requireBackup: false`. Its deletes are permanent but only of files nothing refers to and old
+run records; it never deletes pages, captures or their files (see {ref}`scrap-gc`). Set
+`gc.delete: false` to have it only count until you trust it.
 
-gc's deletes are permanent: it removes only files nothing refers to (no page's text, trashed
-pages included, no capture, no derived result, no job, no model run) and older than
-`graceHours`, and the stored prompts and raw responses of Claude calls older than `runDays` that
-nothing refers to. It never deletes pages, captures or their files, photos' readings,
-descriptions or drawings, and the trash is not purged. A capture's file no page shows any more
-is gathered onto a review page instead (see {ref}`scrap-gc`). Set `gc.delete: false` to have it
-only count until you trust it.
-
-Set `gc.enabled: false`, `enrichRelated.enabled: false` or `enrichTopics.enabled: false` to turn
-one off. Run one now:
+- **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
+  `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).
+- **Change when** with its `.schedule` and `.timeZone`.
+- **Check them** with `kubectl -n scrap get cronjobs,jobs` and a Job's log.
+- **Run one now:**
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-gc scrap-gc-now

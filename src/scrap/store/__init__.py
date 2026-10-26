@@ -1,7 +1,7 @@
 """Storage: one SQLite database and a folder of content-addressed files."""
 
 from ..query import CONTROL
-from . import topics, writeups
+from . import health, topics, writeups
 from .constants import (
     CLAUDE,
     CROCKFORD,
@@ -119,6 +119,7 @@ __all__ = [
     "queue_topic",
     "writeups",
     "topics",
+    "health",
     "fix_tag_paths",
     "Store",
 ]

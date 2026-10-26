@@ -292,6 +292,14 @@ The chips and panels only write the query, which you can also type:
   [](import-a-vault.md)); the app cannot set it.
 - `has:image` (pages with an image file) and `has:drawing` (pages with a drawing made from a
   photo). `image:photo` or `image:whiteboard` (what Claude took the photo for).
+- The store's health checks (the **Store health** screen below counts them): `is:orphan`
+  (no `[[link]]` either way, no related pages and no topic), `is:untagged` (no tags; topic
+  pages and gc's Orphaned assets pages aside), `is:stale` (an open todo not edited, its text,
+  title, kind or tags, for 60 days and not snoozed), `is:duplicate` (a photo or file shared
+  with another page, not one in the trash or an Orphaned assets page), `has:dangling` (a
+  `[[link]]` in its text to no page, or to one in the trash) and `is:outdated` (Claude's
+  write-up of a board, a topic's synthesis or its related pages older than what they were
+  made from, or a write-up or synthesis made with an older prompt).
 - A todo's `due:today`, `due:<today` (overdue), `due:>today`, `due:2026-11-01` (also `<=`,
   `>=`), `due:none`, and `priority:high` (`medium`, `low`, `none`).
 - `after:1w` or `before:2026-03-01` (last edited; dates are UTC days, both ends included; a time
@@ -302,6 +310,15 @@ The chips and panels only write the query, which you can also type:
   for you, and works with nothing typed too.
 
 Filters alone list their pages, newest first. [](../reference/api.md) has the full grammar.
+
+#### Store health
+
+**Settings** (the cog) has **Store health**: a screen listing each health check above with how
+many pages it finds, one count each from the server (`GET /api/health`). A tap on a check runs
+its search, and Back comes back to the screen. Nothing is dismissed there: a check that keeps
+finding a page you are happy with is the check to change. Of `is:outdated`, related pages are
+picked again by the nightly pass and topic syntheses by the weekly one
+([](../reference/scheduled-jobs.md)); a board's write-up waits for you (its card says so, below).
 
 How matching works:
 
@@ -613,6 +630,10 @@ related pages afresh. It has:
 - **Regenerate** (while Claude is on): have Claude write it again (**Generate** before there is
   one). While it works the card says *Waiting for Claude* or *Claude is writing it…*. A
   **Regenerate** of a board photo, or a new board photo, writes it again anyway.
+- *The page (or Claude's prompt) has changed since this write-up.*: a quiet line under the
+  card's title once you have edited the page's text, title or tags since it was written, or
+  Claude's write-up prompt has changed (not for a version you restored). Nothing writes it
+  again on its own: **Regenerate** when you want it to catch up. `is:outdated` lists such pages.
 - **Guidance for Claude**: a note for the next write-up, such as "focus on the data flow; 'Enc'
   means encoder". **Save** keeps it (apart from the page's text) without writing anything;
   **Regenerate** then uses it, and the new version keeps a copy.

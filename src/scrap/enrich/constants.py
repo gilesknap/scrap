@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 from .. import claude
-from ..store import writeups
+from ..store import health, writeups
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -156,35 +156,34 @@ FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
 """
 
 
-# Pages whose related pages are older than their last change, or than what photo ingest
-# last read from one of their images (a current description or text), or than their
-# current write-up, or never picked
-STALE = """
-SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND (:all OR coalesce((
-    SELECT max(r.started_at) FROM enrich_run r WHERE r.page_id = p.id
-      AND r.status = 'ok' AND json_extract(r.request, '$.purpose') = 'related'), '')
-  < max(p.updated_at, coalesce((
-    SELECT max(d.created_at) FROM derived d JOIN capture c ON c.id = d.capture_id
-    WHERE c.page_id = p.id AND d.kind IN ('description', 'ocr')
-      AND d.superseded_at IS NULL), ''), coalesce((
-    SELECT w.created_at FROM writeup w WHERE w.page_id = p.id
-      AND w.superseded_at IS NULL), '')))
+# Pages whose related pages are due: never picked, or outdated (health.OUTDATED_RELATED:
+# older than their last change, than what photo ingest last read from one of their
+# images, or than their current write-up), or every one with :all; oldest first
+STALE = f"""
+SELECT p.id FROM page p WHERE p.deleted_at IS NULL
+  AND (:all OR {health.PICKED.format(p="p")} IS NULL
+    OR {health.OUTDATED_RELATED.format(p="p")})
 ORDER BY p.created_at LIMIT :limit
 """
-# Board pages (writeups.HAS_BOARD) with no write-up (or every one), oldest first
+# Board pages (writeups.HAS_BOARD) with no write-up; with :outdated, those with an
+# outdated one instead (writeups.OUTDATED, :version the write-up prompt's: never one the
+# owner restored); with :all, every one. Oldest first.
 BOARDS = f"""
 SELECT p.id FROM page p WHERE p.deleted_at IS NULL
   AND {writeups.HAS_BOARD.format(p="p")}
-  AND (:all OR NOT EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = p.id))
+  AND CASE WHEN :all THEN 1
+    WHEN :outdated THEN {writeups.OUTDATED.format(p="p", version=":version")}
+    ELSE NOT EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = p.id) END
 ORDER BY p.created_at LIMIT :limit
 """
 # Topic pages (not in the trash, with a source in) whose synthesis is due, none
-# queued or running: every one with :all, else one with none, or of another prompt
-# version (unless the owner restored it: Restore is kept), or older than the latest
-# change to its inputs: the topic page itself (its title or the owner's notes), a
-# source added, excluded or back from the trash, or a source's text, trash, summary,
-# write-up or what photo ingest read from it. Those with none first.
-TOPIC_DUE = """
+# queued or running: every one with :all, else one with none, or outdated
+# (health.OUTDATED_TOPIC: of another prompt version, :version, unless the owner
+# restored it: Restore is kept; or older than the latest change to its inputs: the
+# topic page itself, a source added, excluded or back from the trash, or a source's
+# text, trash, summary, write-up or what photo ingest read from it). Those with none
+# first.
+TOPIC_DUE = f"""
 SELECT p.id FROM topic t JOIN page p ON p.id = t.page_id
 LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL
 WHERE p.deleted_at IS NULL
@@ -193,18 +192,6 @@ WHERE p.deleted_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM enrich_job j WHERE j.page_id = p.id
                   AND j.state IN ('queued', 'running'))
   AND (:all OR w.id IS NULL
-    OR (w.prompt_version <> :version AND w.restored_from IS NULL)
-    OR w.created_at < max(p.updated_at, coalesce((
-      SELECT max(CASE WHEN s.excluded THEN s.changed_at ELSE max(
-        s.changed_at, q.updated_at, coalesce(q.deleted_at, ''),
-        coalesce((SELECT e.updated_at FROM enrichment e WHERE e.page_id = q.id), ''),
-        coalesce((SELECT x.created_at FROM writeup x WHERE x.page_id = q.id
-                  AND x.superseded_at IS NULL), ''),
-        coalesce((SELECT max(d.created_at) FROM derived d
-                  JOIN capture c ON c.id = d.capture_id WHERE c.page_id = q.id
-                  AND d.kind IN ('description', 'ocr')
-                  AND d.superseded_at IS NULL), '')) END)
-      FROM topic_source s JOIN page q ON q.id = s.page_id
-      WHERE s.topic_id = p.id), '')))
+    OR {health.OUTDATED_TOPIC.format(p="p", version=":version")})
 ORDER BY w.created_at IS NOT NULL, w.created_at, p.created_at LIMIT :limit
 """
