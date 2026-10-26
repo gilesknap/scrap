@@ -6,13 +6,12 @@
 // narrows the list as typed. A lazy chunk.
 import { api, type TopicRow } from "./api";
 import { view } from "./app";
+import { byArea } from "./groups";
 import { icon } from "./icons";
-import { trail } from "./swipe";
+import { drawSections } from "./sections";
 import { changed, dots, look, seen } from "./topicseen";
 import { empty, h, problem, whenShort } from "./ui";
 import "./topics.css";
-
-const OTHER = "Other"; // the group of topics whose sources have no tags
 
 /** Whether a topic matches what is typed in the filter: every word, in its title, summary or
  * area, case aside. */
@@ -24,14 +23,10 @@ export function matches(r: TopicRow, typed: string): boolean {
     .every((w) => text.includes(w));
 }
 
-/** The rows by area, in the server's order (the biggest area first, no area last). */
+/** The rows by area (groups.ts byArea, as a search for is:topic has them): the biggest area
+ * first, no area (Other) last. */
 export function groups(rows: TopicRow[]): [string, TopicRow[]][] {
-  const by = new Map<string, TopicRow[]>();
-  for (const r of rows) {
-    const area = r.area ?? OTHER;
-    by.set(area, [...(by.get(area) ?? []), r]);
-  }
-  return [...by];
+  return byArea(rows).map((s) => [s.label, s.items]);
 }
 
 /** "3 sources · 24 Oct, 10:04" */
@@ -105,29 +100,29 @@ export async function topics(): Promise<Node> {
     enterKeyHint: "search",
   });
   const list = h("div", {});
-  const count = h("p", { className: "count", role: "status" });
+  const said = h("span", { role: "status" }); // how many, said as the filter narrows them
+  const count = h("p", { className: "count" });
+  // The topics in Search, grouped by area there too, to narrow or regroup them (as Todos' Refine)
+  const refine = h(
+    "a",
+    {
+      href: `/search?q=${encodeURIComponent("is:topic")}`,
+      "aria-label": "Refine in Search: is:topic",
+    },
+    "Refine",
+  );
   const draw = () => {
     const typed = input.value.trim();
     const shown = rows.filter((r) => matches(r, typed));
-    count.textContent = typed
+    said.textContent = typed
       ? `${shown.length} of ${rows.length} topics`
       : `${rows.length} ${rows.length === 1 ? "topic" : "topics"}`;
+    count.replaceChildren(said, " · ", refine);
     if (!shown.length) return list.replaceChildren(empty("search", "No topics match."));
-    // One trail for the whole screen: a topic opened from it pages on through the others
-    const slugs = shown.map((r) => r.slug);
+    // Drawn as the search screen's sections are (sections.ts): one trail for the whole
+    // screen, so a topic opened from it pages on through the others, in the order shown
     list.replaceChildren(
-      ...groups(shown).map(([area, rs]) =>
-        h(
-          "section",
-          {},
-          h("h2", { className: "label" }, `${area} · ${rs.length}`),
-          trail(
-            h("ul", { className: "list" }, ...rs.map((r) => row(r, dots.has(r.id)))),
-            "Topics",
-            slugs,
-          ),
-        ),
-      ),
+      ...drawSections(byArea(shown), (r) => row(r, dots.has(r.id)), "Topics", "area", false),
     );
   };
   input.addEventListener(

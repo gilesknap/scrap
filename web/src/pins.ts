@@ -100,6 +100,7 @@ const GROUPS: Record<string, string> = {
   type: "grouped by type",
   now: "grouped by Now",
   due: "grouped by due",
+  area: "grouped by area",
   none: "not grouped",
 };
 const SORTS: Record<string, string> = {
@@ -112,7 +113,7 @@ const SORTS: Record<string, string> = {
   priority: "by priority",
 };
 const RANGES: Record<string, string> = { "1w": "past week", "1m": "past month", "1y": "past year" };
-const IS: Record<string, string> = { claude: "by Claude", snoozed: "snoozed" };
+const IS: Record<string, string> = { claude: "by Claude", snoozed: "snoozed", topic: "topics" };
 
 /** One word of a query, said as the Filters on row says it. */
 function say(word: string, key: string): string {

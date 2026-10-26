@@ -129,7 +129,7 @@ export function listing(q: string): string | null {
 // asked in the query; the server gets the one in force (served()) and orders by it
 
 /** How a list can be grouped (groups.ts makes the sections). */
-export type Group = "letter" | "tag" | "type" | "now" | "due";
+export type Group = "letter" | "tag" | "type" | "now" | "due" | "area";
 
 export const keyed = (q: string, key: string) => words(q).filter(([, , k]) => k === key);
 /** A word's value: after its colon, its quotes taken off. */
@@ -156,22 +156,30 @@ export const tagsIn = (q: string) =>
     .filter(([a]) => !"-!".includes(q[a]))
     .map((w) => wordValue(q, w));
 
-/** A list's own grouping when none is asked for: Later alone by type, Todos alone by Now. */
+/** Whether the query asks for topic pages (is:topic, not -is:topic). */
+const topical = (q: string) =>
+  keyed(q, "is").some((w) => !"-!".includes(q[w[0]]) && wordValue(q, w) === "topic");
+
+/** A list's own grouping when none is asked for: Later alone by type, Todos alone by Now,
+ * topics (is:topic) by area, as the Topics screen has them. */
 export function groupDefault(q: string): Group | null {
   const on = kindsIn(q);
+  if (!on.length && topical(q)) return "area";
   if (on.length !== 1) return null;
   return on[0][1] === "later" ? "type" : on[0][1] === "todo" ? "now" : null;
 }
 
 /** How the results are grouped, if at all: as asked, where it applies (by tag needs a tag
- * filter; by type only for Later alone, Now and by due only for Todos alone), else the
+ * filter; by type only for Later alone, Now and by due only for Todos alone, by area only for
+ * topics), else the
  * list's own. */
 export function groupBy(q: string): Group | null {
   const asked = groupAsked(q);
   if (asked === null) return groupDefault(q);
   if (asked === "letter") return "letter";
   if (asked === "tag") return tagsIn(q).length ? "tag" : null;
-  if (asked === "type" || asked === "now") return groupDefault(q) === asked ? asked : null;
+  if (asked === "type" || asked === "now" || asked === "area")
+    return groupDefault(q) === asked ? asked : null;
   if (asked === "due") return groupDefault(q) === "now" ? "due" : null;
   return null; // none, or a word we don't know
 }

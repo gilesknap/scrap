@@ -102,6 +102,7 @@ const GROUPS: [Group | "none", string, string][] = [
   ["none", "None", "not grouped"],
   ["letter", "A–Z", "grouped A–Z"],
   ["tag", "Tag", "grouped by tag"],
+  ["area", "Area", "grouped by area"],
 ];
 /** The group: asked for, as the Filters on row says it ("grouped A–Z"), or null. */
 const grouped = (q: string) => {
@@ -110,7 +111,11 @@ const grouped = (q: string) => {
 };
 
 // is: values in words: the rest are statuses, said as they are ("done", "in progress")
-const IS: Record<string, string> = { claude: "Written by Claude", snoozed: "snoozed" };
+const IS: Record<string, string> = {
+  claude: "Written by Claude",
+  snoozed: "snoozed",
+  topic: "topics",
+};
 
 /** A filter on, as a chip says it: "#home", "past month", "A–Z", "personal". */
 function label(a: Facets["active"][number]) {
@@ -419,7 +424,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   const fits = (k: string) =>
     k === "tag"
       ? tagsIn(q).length > 0
-      : k === "type" || k === "now"
+      : k === "type" || k === "now" || k === "area"
         ? k === own
         : k === "due"
           ? own === "now"
