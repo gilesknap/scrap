@@ -53,7 +53,7 @@ export const partly = (p: Todo) =>
   `${p.tasks.done} of ${p.tasks.total}`;
 
 /** A day as a row says it: "3 Nov", with the year if it is not this one's. */
-const short = (d: string, now: string) =>
+export const short = (d: string, now: string) =>
   new Date(`${d}T12:00`).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
@@ -67,22 +67,41 @@ export const snoozed = (p: Todo, now = today()) =>
 /** Done or cancelled: a todo that is closed. */
 export const closed = (p: Todo) => ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`);
 
-/** What a todo's row and page say of its due date, priority and snooze ("high · due 3 Nov ·
- * snoozed till 1 Nov"), and its line's class: "due late" when overdue (due before today, not
- * done or cancelled), "due closed" once done or cancelled (greyed, its due date said as a date:
- * never today or overdue), else "due"; null if none. */
-export function dueOf(p: Todo, now = today()): [string, string] | null {
+/** A todo's due words as parts, each with whether it is the overdue one: priority, when it is
+ * due ("overdue 24 Oct", "due today", "due 3 Nov"), its snooze and its tasks; null if none.
+ * The page's meta line colours only the overdue part. */
+export function dueParts(p: Todo, now = today()): [string, boolean][] | null {
   const until = snoozed(p, now) && p.snoozed_until;
   const shut = closed(p);
   const part = !shut && partly(p);
   if (p.kind !== "todo" || !(p.due || p.priority || until || part)) return null;
   const late = !!p.due && p.due < now && !shut;
   const day = p.due && (p.due === now && !shut ? "today" : short(p.due, now));
-  const said = [
-    p.priority,
-    day && `${late ? "overdue" : "due"} ${day}`,
-    until && `snoozed till ${short(until, now)}`,
-    part,
+  const said: [string | false | null | undefined, boolean][] = [
+    [p.priority, false],
+    [day && `${late ? "overdue" : "due"} ${day}`, late],
+    [until && `snoozed till ${short(until, now)}`, false],
+    [part, false],
   ];
-  return [said.filter(Boolean).join(" · "), late ? "due late" : shut ? "due closed" : "due"];
+  return said.filter((s): s is [string, boolean] => !!s[0]);
+}
+
+/** What a todo's row and page say of its due date, priority and snooze ("high · due 3 Nov ·
+ * snoozed till 1 Nov"), and its line's class: "due late" when overdue (due before today, not
+ * done or cancelled), "due closed" once done or cancelled (greyed, its due date said as a date:
+ * never today or overdue), else "due"; null if none. */
+export function dueOf(p: Todo, now = today()): [string, string] | null {
+  const parts = dueParts(p, now);
+  if (!parts) return null;
+  const late = parts.some(([, l]) => l);
+  return [parts.map(([s]) => s).join(" · "), late ? "due late" : closed(p) ? "due closed" : "due"];
+}
+
+/** What a todo's due chip on its page says: its day and priority ("30 Oct · high", "today"),
+ * and whether it is overdue; null with neither. */
+export function dueChip(p: Todo, now = today()): [string, boolean] | null {
+  if (p.kind !== "todo" || !(p.due || p.priority)) return null;
+  const shut = closed(p);
+  const day = p.due && (p.due === now && !shut ? "today" : short(p.due, now));
+  return [[day, p.priority].filter(Boolean).join(" · "), !!p.due && p.due < now && !shut];
 }
