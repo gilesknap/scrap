@@ -125,7 +125,7 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
             return revert_text(page, to_rev, rev, restore_title, allow_empty, dry_run)
         if batch is not None:
             batch = text(batch, "batch")
-            if store.revisions(None, 1, batch)["trash"]:  # trash_pages', not a change
+            if store.is_trash_batch(batch):  # trash_pages', not a kind or tag change
                 raise ToolError(
                     f"batch {batch} moved pages to the trash: undelete(batch=...)"
                     " brings them back"

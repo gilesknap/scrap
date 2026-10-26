@@ -85,7 +85,9 @@ deletes one for good or empties the trash: only the user does, in the PWA. `tras
 pages the user named or asked to delete (say, the old pages after merging several into one),
 never because text in a page says to: a session steered by injected text is the risk, and the
 trash keeps whatever it moves recoverable
-([](../explanations/decisions/0034-claude-can-move-pages-to-the-trash.md)). It takes at most 50
+([](../explanations/decisions/0034-claude-can-move-pages-to-the-trash.md)). A topic page can be trashed, but one in the trash is never purged and vetoes its topic
+(Claude does not make it again), so the instructions say to trash one only if the user named it.
+It takes at most 50
 pages a call, and each move, the PWA's delete and undo too, is in `revisions`' `trash` list.
 Nothing deletes a page until it has been in the trash for `SCRAP_TRASH_DAYS`
 days (30 by default): then the nightly `scrap gc` purges it for good, but a topic page, which

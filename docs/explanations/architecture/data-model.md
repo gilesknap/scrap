@@ -280,8 +280,8 @@ stateDiagram-v2
   ([ADR 25](../decisions/0025-trash-and-recent-changes-over-mcp.md),
   [ADR 34](../decisions/0034-claude-can-move-pages-to-the-trash.md)). Nothing over MCP purges a
   page or empties the trash. Undelete also makes the page's topics due again.
-- `page_trash_rev` records every move into or out of the trash (the PWA's delete and undo, and
-  MCP's): `action` (`trash` or `restore`), `author`, `source` (`web` or `mcp`), `batch_id` (shared
+- `page_trash_rev` records every move into or out of the trash (the PWA's delete and undo, a pin
+  that brings the Pinned page back, and MCP's; all go through `trash_in` and `restore_in`): `action` (`trash` or `restore`), `author`, `source` (`web` or `mcp`), `batch_id` (shared
   by the pages one `trash_pages` call moved; a batch undelete's restores carry it too) and
   `created_at`. MCP `revisions` lists them (`trash`) for a page, a batch, or in the
   recent-changes feed. It is not backfilled: a page already in the trash before migration 17 has

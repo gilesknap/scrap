@@ -69,10 +69,35 @@ WEB = "web"  # the source of a change made in the PWA or over the API
 ANONYMOUS = "tagged"  # the author of a web change with no identity (uploads.author)
 
 
-def restore_in(conn: sqlite3.Connection, page_id: str) -> None:
-    """Bring a page back from the trash; its topics are due again (#261)."""
+def trash_in(
+    conn: sqlite3.Connection,
+    page_id: str,
+    author: str,
+    source: str,
+    batch: str | None = None,
+    stamp: str | None = None,
+) -> None:
+    """Move a page to the trash, recorded as by author from source (web or mcp), in
+    batch if one is given. Every way a page goes to the trash comes here."""
+    stamp = stamp or now()
+    conn.execute("UPDATE page SET deleted_at = ? WHERE id = ?", (stamp, page_id))
+    record(conn, page_id, TRASH, author, source, batch, stamp)
+
+
+def restore_in(
+    conn: sqlite3.Connection,
+    page_id: str,
+    author: str,
+    source: str,
+    batch: str | None = None,
+    stamp: str | None = None,
+) -> None:
+    """Bring a page back from the trash, recorded as trash_in records; its topics are
+    due again (#261). Every way a page comes back comes here."""
+    stamp = stamp or now()
     conn.execute("UPDATE page SET deleted_at = NULL WHERE id = ?", (page_id,))
-    touch(conn, page_id, now())
+    touch(conn, page_id, stamp)
+    record(conn, page_id, RESTORE, author, source, batch, stamp)
 
 
 def live_rows(conn: sqlite3.Connection, keys: list[str]) -> list[dict[str, Any]]:
@@ -137,15 +162,7 @@ class TrashMixin(Core):
             ).fetchone()
             if row is None:
                 raise NoSuchPage(key)
-            stamp = now()
-            if undo:
-                restore_in(conn, row[0])
-            else:
-                conn.execute(
-                    "UPDATE page SET deleted_at = ? WHERE id = ?", (stamp, row[0])
-                )
-            record(conn, row[0], RESTORE if undo else TRASH, author, source, None,
-                   stamp)  # fmt: skip
+            (restore_in if undo else trash_in)(conn, row[0], author, source)
 
     def trash_pages(
         self, keys: list[str], author: str, source: str, dry_run: bool = False
@@ -162,11 +179,7 @@ class TrashMixin(Core):
             batch = new_ulid() if len(rows) > 1 and not dry_run else None
             for row in rows:
                 if stamp is not None:
-                    conn.execute(
-                        "UPDATE page SET deleted_at = ? WHERE id = ?",
-                        (stamp, row["id"]),
-                    )
-                    record(conn, row["id"], TRASH, author, source, batch, stamp)
+                    trash_in(conn, row["id"], author, source, batch, stamp)
                 row["deleted_at"] = stamp
                 del row["updated_at"]
         return {"batch": batch, "pages": [with_purge(row) for row in rows]}
@@ -176,8 +189,9 @@ class TrashMixin(Core):
     ) -> dict[str, Any]:
         """Bring back from the trash every page a batch (trash_pages') moved there and
         that is still there from it; the rest (brought back since, or moved there again
-        by a later call) are skipped, by id. Each restore is recorded with the batch.
-        NoSuchRevision if no call moved a page to the trash as that batch. Returns
+        by a later call) are skipped, by id; one purged since is in neither (its
+        records went with it). Each restore is recorded with the batch.
+        NoSuchRevision if no page that call moved is left (or it never was). Returns
         {batch, pages, skipped}: the pages as trashed gives them (before the restore),
         skipped their ids. dry_run: restore nothing."""
         with self.connect() as conn, transaction(conn):
@@ -193,8 +207,17 @@ class TrashMixin(Core):
             if not dry_run:
                 stamp = now()
                 for page_id in there:
-                    restore_in(conn, page_id)
-                    record(conn, page_id, RESTORE, author, source, batch, stamp)
+                    restore_in(conn, page_id, author, source, batch, stamp)
         for page in pages:
             del page["updated_at"]
         return {"batch": batch, "pages": pages, "skipped": skipped}
+
+    def is_trash_batch(self, batch: str) -> bool:
+        """Whether batch is one a call moved pages to the trash as (trash_pages')."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT EXISTS (SELECT 1 FROM page_trash_rev WHERE batch_id = ?"
+                " AND action = ?)",
+                (batch, TRASH),
+            ).fetchone()
+        return row[0] == 1
