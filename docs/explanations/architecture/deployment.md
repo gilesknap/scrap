@@ -20,14 +20,14 @@ flowchart TD
         ts["Tailscale Serve"]
         subgraph units["systemd user units"]
             svc["scrap.service"]
-            tb["backup timer"]
+            tb["backup timers<br/>daily + monthly"]
             tg["gc timer"]
             tr["enrich-related timer"]
             tt["enrich-topics timer"]
         end
         app["scrap container<br/>(serve)"]
         data[("SCRAP_DATA<br/>scrap.db + files/")]:::store
-        bak[("SCRAP_BACKUPS<br/>timestamped runs")]:::store
+        bak[("SCRAP_BACKUPS<br/>timestamped runs + monthly/")]:::store
     end
     me -->|HTTPS, tailnet| ts
     ts -->|"Unix socket<br/>scrap.sock"| app
@@ -51,11 +51,12 @@ flowchart TD
 | Enrichment | `podman exec scrap scrap enrich ...` inside the running container, so it shares the app's API key, settings and daily budget; the units require `scrap.service` |
 | Image | One multi-arch image (amd64 + arm64) from the release workflow |
 
-Four timers, all `Persistent` except gc:
+Five timers, all `Persistent` except gc:
 
 | Timer | When | Runs |
 | --- | --- | --- |
 | `scrap-backup` | daily 03:30 | backup, then retention |
+| `scrap-backup-monthly` | 1st of the month 03:50 | backup into `monthly/`, keeping the newest 12 (`SCRAP_BACKUP_MONTHLY_KEEP`; 0 turns it off) |
 | `scrap-enrich-related` | daily 03:41 | `enrich --related` |
 | `scrap-enrich-topics` | Sundays 04:11 | `enrich --topics` |
 | `scrap-gc` | daily 04:30 | `gc` (a missed night is skipped, not run at boot) |
@@ -144,7 +145,8 @@ flowchart LR
   removed and older runs are untouched.
 - **Retention** (`SCRAP_BACKUP_KEEP` on a single server, `backup.keep` in Helm; install.sh writes 14, the chart defaults to 7)
   deletes only directories named like a run (`20261019T033000Z`); symlinks and other files are
-  never touched. Helm adds a monthly tier (`backup.monthly`, newest 12) for changes noticed late.
+  never touched. Both add a monthly tier in `monthly/` (`backup.monthly` in Helm, `SCRAP_BACKUP_MONTHLY_KEEP` on a
+  single server; newest 12) for changes noticed late.
 - **gc follows backup.** It takes the same lock, so a file removed mid-backup cannot be one the
   backup's database names. Without a recent `COMPLETE` run it only counts and exits non-zero, so a
   missing backup shows up as a failed job.
