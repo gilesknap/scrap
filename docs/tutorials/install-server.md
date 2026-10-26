@@ -74,16 +74,16 @@ Everything from here to the Tailscale step runs **as that user**, in a real logi
 As `scrap`, pull the image. It is public, so no login is needed:
 
 ```
-podman pull ghcr.io/gilesknap/scrap:0.11.0
-podman run --rm ghcr.io/gilesknap/scrap:0.11.0 --version
+podman pull ghcr.io/gilesknap/scrap:{{ release_tag }}
+podman run --rm ghcr.io/gilesknap/scrap:{{ release_tag }} --version
 ```
 
-The last command prints `0.11.0`. The install script and its units come from the repo, so clone it
+The last command prints `{{ release_tag }}`. The install script and its units come from the repo, so clone it
 too:
 
 ```
 cd ~
-git clone --branch 0.11.0 --depth 1 https://github.com/gilesknap/scrap.git
+git clone --branch {{ release_tag }} --depth 1 https://github.com/gilesknap/scrap.git
 cd scrap
 ```
 
@@ -99,7 +99,7 @@ The first run writes `~/.config/scrap/env` naming a local build, `localhost/scra
 the image is not here yet. Point it at the release you pulled and run the script again:
 
 ```
-sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.11.0|' ~/.config/scrap/env
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:{{ release_tag }}|' ~/.config/scrap/env
 ./deploy/install.sh
 ```
 

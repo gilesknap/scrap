@@ -98,11 +98,11 @@ user's systemd session.
 
 As the `scrap` user (podman images belong to the user who pulled or built them), pull the newest
 release from [scrap's releases](https://github.com/gilesknap/scrap/releases); this page uses
-0.11.0:
+{{ release_tag }}:
 
 ```
-podman pull ghcr.io/gilesknap/scrap:0.11.0
-podman run --rm ghcr.io/gilesknap/scrap:0.11.0 --version
+podman pull ghcr.io/gilesknap/scrap:{{ release_tag }}
+podman run --rm ghcr.io/gilesknap/scrap:{{ release_tag }} --version
 ```
 
 The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
@@ -153,7 +153,7 @@ On its first run the script writes `~/.config/scrap/env` naming a local build,
 release you pulled and run the script again:
 
 ```
-sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.11.0|' ~/.config/scrap/env
+sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:{{ release_tag }}|' ~/.config/scrap/env
 ./deploy/install.sh
 ```
 
@@ -197,7 +197,7 @@ only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:0.11.0`, or a local build. |
+| `SCRAP_IMAGE` | `localhost/scrap:dev` | Image to run: a release such as `ghcr.io/gilesknap/scrap:{{ release_tag }}`, or a local build. |
 | `SCRAP_LISTEN` | `socket` | `socket`: only the Unix socket `$XDG_RUNTIME_DIR/scrap/scrap.sock`. `tcp`: `SCRAP_PORT` on `127.0.0.1`. Unset means `tcp` (see {ref}`scrap-listen`). |
 | `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
@@ -312,11 +312,11 @@ ingest pauses until it resets.
    too):
 
    ```
-   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.11.0 \
-       -t localhost/scrap-claude:0.11.0 .
+   podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:{{ release_tag }} \
+       -t localhost/scrap-claude:{{ release_tag }} .
    ```
 
-   and set `SCRAP_IMAGE=localhost/scrap-claude:0.11.0` in `~/.config/scrap/env`. It is about
+   and set `SCRAP_IMAGE=localhost/scrap-claude:{{ release_tag }}` in `~/.config/scrap/env`. It is about
    240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
    image as `BASE`.
 3. In `ingest.env`, instead of `ANTHROPIC_API_KEY`:

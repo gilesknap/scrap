@@ -34,10 +34,10 @@ on top of a scrap image. It is from the release you run, so fetch it in an empty
 ```
 mkdir -p ~/scrap-claude-build && cd ~/scrap-claude-build
 curl -fsSL -o Dockerfile.claude \
-    https://raw.githubusercontent.com/gilesknap/scrap/0.11.0/Dockerfile.claude
-podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:0.11.0 \
-    -t localhost/scrap-claude:0.11.0 .
-podman run --rm --entrypoint claude localhost/scrap-claude:0.11.0 --version
+    https://raw.githubusercontent.com/gilesknap/scrap/{{ release_tag }}/Dockerfile.claude
+podman build -f Dockerfile.claude --build-arg BASE=ghcr.io/gilesknap/scrap:{{ release_tag }} \
+    -t localhost/scrap-claude:{{ release_tag }} .
+podman run --rm --entrypoint claude localhost/scrap-claude:{{ release_tag }} --version
 ```
 
 The last command should print a Claude Code version. The image is about 240 MB larger than
@@ -74,7 +74,7 @@ Use the one section for your install.
   podman rm -f scrap
   podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data:/data \
       -e SCRAP_INGEST=on -e SCRAP_LLM_BACKEND=cli -e CLAUDE_CODE_OAUTH_TOKEN \
-      localhost/scrap-claude:0.11.0 serve
+      localhost/scrap-claude:{{ release_tag }} serve
   ```
 
   Add `--host 0.0.0.0`, `TZ` and `SCRAP_PUBLIC_URL` from [](install-lan.md) if you used them.
@@ -86,7 +86,7 @@ Use the one section for your install.
   CLAUDE_CODE_OAUTH_TOKEN=<your token>
   ```
 
-  Set `SCRAP_IMAGE=localhost/scrap-claude:0.11.0` in `~/.config/scrap/env` and re-run
+  Set `SCRAP_IMAGE=localhost/scrap-claude:{{ release_tag }}` in `~/.config/scrap/env` and re-run
   `./deploy/install.sh`. The CLI takes about 250 MB while it runs, so raise `SCRAP_MEMORY_MAX`
   there too, for example to `1.5g`.
 
@@ -110,7 +110,7 @@ If your registry needs credentials, create an image pull Secret and list it unde
 ```yaml
 image:
   repository: registry.example.com/me/scrap-claude
-  tag: 0.11.0
+  tag: {{ release_tag }}
 ingest:
   enabled: true
   existingSecret: scrap-claude

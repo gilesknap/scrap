@@ -56,7 +56,7 @@ podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data
     -e TZ=Europe/London \
     -e SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000 \
     -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
-    ghcr.io/gilesknap/scrap:0.11.0 serve --host 0.0.0.0
+    ghcr.io/gilesknap/scrap:{{ release_tag }} serve --host 0.0.0.0
 ```
 
 Set `ANTHROPIC_API_KEY` in your shell first as in the README, or leave it empty to skip it. Use
@@ -112,7 +112,7 @@ To copy everything into a second volume while scrap runs:
 
 ```
 podman run --rm -v scrap-data:/data -v scrap-backup:/backup \
-    ghcr.io/gilesknap/scrap:0.11.0 backup /backup
+    ghcr.io/gilesknap/scrap:{{ release_tag }} backup /backup
 ```
 
 That copy is local only; copy it off the machine to survive losing it. To update, pull a new
