@@ -355,6 +355,9 @@ def test_read_leaves_out_an_image_whose_embed_was_deleted(store):
     store.update_page(ref["page_id"], page["rev"], None, "No picture", "me")
     assert ok(store, "read", page=ref["page_id"])["images"] == []
     assert ok(store, "search", query="has:image")["results"] == []
+    [row] = ok(store, "search", query="picture")["results"]  # the count too
+    assert row["id"] == ref["page_id"] and row["image_count"] == 0
+    assert "image_url" not in row
 
 
 def test_read_of_a_missing_or_trashed_page(store):

@@ -87,10 +87,12 @@ WHERE q.deleted_at IS NULL AND NOT {REVIEW.format(p="q")}
 AND NOT {GONE.format(p="q", sha="cb.sha256")}
 GROUP BY cb.sha256 HAVING count(DISTINCT q.id) > 1
 """
+# GONE is filled in for the page's own file now, leaving {p} for the template
+_OWN_GONE = GONE.format(p="{p}", sha="cb.sha256")
 DUPLICATE = (
     f"(NOT {REVIEW} AND {{p}}.id IN (SELECT c.page_id FROM capture c"
     " JOIN capture_blob cb ON cb.capture_id = c.id"
-    f" WHERE NOT {GONE.format(p='{p}', sha='cb.sha256')}"
+    f" WHERE NOT {_OWN_GONE}"
     f" AND cb.sha256 IN ({SHARED})))"
 )
 # A page link in its text ([[slug]] or its address; not in code, not an embed) to no

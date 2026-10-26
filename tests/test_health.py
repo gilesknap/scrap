@@ -353,6 +353,23 @@ def test_a_deleted_embed_leaves_the_file_out_of_duplicate_and_images(store):
     assert store.images_of([a])[a]["count"] == 1
 
 
+def test_a_gone_file_stays_gone_through_the_trash_and_a_new_upload(store):
+    a = photo(store, "red")
+    shown = store.page(a)["body"]
+    tick()
+    edit(store, a, "No picture")
+    store.delete_page(a)
+    store.delete_page(a, undo=True)  # out of the trash and back: still not shown
+    assert a not in found(store, "has:image") and store.images_of([a]) == {}
+    b = photo(store, "red")  # the same bytes sent again, on a new page
+    c = photo(store, "red")
+    assert found(store, "is:duplicate") == {b, c}
+    assert store.images_of([b])[b]["count"] == 1 and a not in store.images_of([a])
+    tick()
+    edit(store, a, shown)
+    assert found(store, "is:duplicate") == {a, b, c}
+
+
 def test_a_file_never_embedded_is_kept_and_one_shown_elsewhere_stays_there(store):
     sha, size = store.put_blob(io.BytesIO(b"%PDF a document"))
 
