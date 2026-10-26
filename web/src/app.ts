@@ -1,5 +1,6 @@
 // Shared by the views: the one capture queue and navigation.
 import { kept, send, stallLimit } from "./api";
+import { nameAt } from "./crumbs";
 import { idb } from "./db";
 import { Queue } from "./queue";
 
@@ -31,11 +32,10 @@ export function go(path: string, replace = false, state: object | null = null) {
   const at = replace ? now.at : (now.at ?? 0) + 1;
   const back = replace ? now.back : list ? { name: list, at: now.at ?? 0 } : now.back;
   const paged = (p: string) => p.startsWith("/p/");
-  const title = document.querySelector("#view .page h1")?.textContent || "Previous page";
   const up = replace
     ? now.up
     : paged(location.pathname) && paged(path)
-      ? { name: title, at: now.at ?? 0 }
+      ? { name: nameAt(now.at ?? 0) ?? "Previous page", at: now.at ?? 0 } // as drawn: crumbs.ts
       : undefined;
   history[replace ? "replaceState" : "pushState"]({ ...state, at, back, up }, "", path);
   window.scrollTo(0, 0);

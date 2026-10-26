@@ -2,8 +2,9 @@
 // New todo, Settings) and service worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
-import { address, view as current, go, markNav, plain, queue } from "./app";
+import { address, view as current, go, LISTS, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
+import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
 import { search } from "./search";
@@ -75,6 +76,7 @@ const view = document.getElementById("view") as HTMLElement;
 const logo = document.querySelector(".logo") as HTMLElement;
 const up = document.getElementById("back") as HTMLButtonElement;
 const backTo = document.getElementById("backto") as HTMLElement;
+const header = document.querySelector("header") as HTMLElement;
 const jump = document.getElementById("jump") as HTMLElement; // · Search, beside Back
 const toList = document.getElementById("tolist") as HTMLButtonElement;
 const pos = document.getElementById("pos") as HTMLElement; // a page's place in its list
@@ -109,16 +111,21 @@ const nameBack = () => {
   const kind = document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind;
   const { prev, list } = marks();
   const to =
-    prev?.name ??
-    list?.name ??
+    (prev && named(prev)) ??
+    (list && named(list)) ??
     (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : "Capture");
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
-  jump.hidden = !(prev && list);
+  crumb(!!(prev && list));
   if (prev && list) {
-    toList.textContent = list.name;
-    toList.ariaLabel = `Back to ${list.name}`;
+    toList.textContent = named(list);
+    toList.ariaLabel = `Back to ${toList.textContent}`;
   }
+};
+/** The jump to the list shown (the header lays Back out beside it) or not. */
+const crumb = (on: boolean) => {
+  jump.hidden = !on;
+  header.classList.toggle("crumb", on);
 };
 const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
@@ -138,7 +145,8 @@ async function render() {
   const arrow = path.startsWith("/p/");
   pos.replaceChildren(); // a page puts its pager here
   if (arrow) nameBack();
-  else jump.hidden = true;
+  else crumb(false);
+  if (LISTS[path]) remember(LISTS[path]); // a list's name: at once, even if left before drawn
   logo.hidden = arrow;
   up.hidden = !arrow;
   document.body.classList.toggle("paged", arrow); // its toolbar is the bottom bar: no nav
@@ -182,6 +190,8 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
+    // A page's name, as drawn, for Back on the entries in front of it (crumbs.ts)
+    if (arrow) remember(view.querySelector(".page h1")?.textContent ?? "");
     if (arrow) nameBack(); // a page opened cold: its kind is known now
     add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
     placeToasts(); // e.g. one placed for the view before
@@ -220,9 +230,10 @@ async function showQueue() {
   const waiting = items.length - failed;
   badge.hidden = !items.length;
   badge.className = failed ? "badge failed" : "badge";
-  badge.textContent = [waiting && `${waiting} waiting`, failed && `${failed} failed`]
-    .filter(Boolean)
-    .join(" · ");
+  const said = [waiting && `${waiting} waiting`, failed && `${failed} failed`].filter(Boolean);
+  badge.textContent = said.join(" · ");
+  badge.ariaLabel = said.join(", ");
+  badge.dataset.n = String(items.length); // on a narrow page, the count alone (topbar.css)
   document.dispatchEvent(new Event("queuechange"));
 }
 badge.onclick = () => void queue.retry();
