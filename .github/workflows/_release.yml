@@ -6,10 +6,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download artifacts
+      # Only the files to attach to the release: CI's other artifacts (image
+      # digests, test traces) are not release assets
+      - name: Download the sdist and wheel
         uses: actions/download-artifact@v8
         with:
-          merge-multiple: true
+          name: dist
+
+      - name: Download the docs
+        uses: actions/download-artifact@v8
+        with:
+          name: docs
 
       - name: Zip up docs
         run: |

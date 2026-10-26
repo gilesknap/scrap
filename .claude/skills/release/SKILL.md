@@ -28,7 +28,9 @@ You orchestrate; subagents do the work. How a tag publishes is in
 ## 1. Check main
 
 - Fast-forward the main clone to `origin/main`.
-- The **CI** and **Chart** runs on main's HEAD are green
+- Do not wait for main's CI on the merge commit: the tag's CI runs the same
+  checks and is the gate (step 3). Only check that no finished **CI** or
+  **Chart** run on main has failed
   (`gh run list -R gilesknap/scrap --branch main --limit 5`).
 - Note migrations since the last tag:
   `git diff --name-only <last-tag>..HEAD -- src/scrap/migrations`.
@@ -41,14 +43,25 @@ You orchestrate; subagents do the work. How a tag publishes is in
 
 ## 3. Tag
 
-- Tag main's HEAD and push the tag over HTTPS.
-- Wait for the tag's **CI** and **Chart** runs to succeed. They publish the
-  image to `ghcr.io/gilesknap/scrap:<tag>` and `:latest`, and the chart to
-  `oci://ghcr.io/gilesknap/charts/scrap` at version `<tag>`. The release job
-  does not wait for the container job, so check that the image job passed.
+- Tag main's HEAD and push the tag over HTTPS, straight after the last merge.
+- Then run steps 4 and 5 while the tag's CI runs; merge (step 6) only once
+  it has published.
+- A deploy needs only two jobs, not the whole run:
+  - **CI** `container-publish / manifest` publishes the image to
+    `ghcr.io/gilesknap/scrap:<tag>` and `:latest`. It runs only after lint, the
+    tests, web and the deploy-script checks pass, so it is the tests' gate too.
+  - **Chart** `publish chart` publishes the chart to
+    `oci://ghcr.io/gilesknap/charts/scrap` at version `<tag>`.
+- Watch those two with `gh run view <run-id> -R gilesknap/scrap --json jobs`.
+  Docs and the GitHub Release (`release / artifacts`) finish later; check
+  them at the end (step 7), but don't hold the deploy for them.
+- If a check fails on the tag, nothing is deployed. Stop and tell the user:
+  fix it on main and release a new patch version. Don't move the tag, because
+  its chart version may already be published.
 
 ## 4. Back up
 
+- Start it straight after tagging; it runs while the tag's CI does.
 - `kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-pre-<x-y-z>`
   (the version with dots as dashes).
 - Wait for it to complete; note the backup directory from its logs.
@@ -57,6 +70,7 @@ You orchestrate; subagents do the work. How a tag publishes is in
 
 ## 5. Deploy PR
 
+- Open it while the tag's CI runs, so its checks run alongside.
 - Clone gilesknap/tpi-k3s-ansible over HTTPS into a temp directory, on a new
   branch.
 - In `kubernetes-services/templates/scrap.yaml`, change ONLY the scrap chart's
@@ -69,11 +83,19 @@ You orchestrate; subagents do the work. How a tag publishes is in
 
 ## 6. Merge
 
-- Merge when the real checks pass: docs, pre-commit, shellcheck. CodeRabbit
-  is advisory: never wait on it.
+- Merge when all of these hold:
+  - the image and chart jobs from step 3 have passed;
+  - the backup has completed (or was skipped);
+  - the deploy PR's real checks pass: docs, pre-commit, shellcheck.
+    CodeRabbit is advisory: never wait on it.
 - Squash-merge and delete the branch.
 - Merging to main deploys through ArgoCD: a `Recreate` rollout, with a short
   outage.
+- ArgoCD only polls the repo every few minutes, so refresh the app straight
+  after the merge:
+  ```
+  kubectl -n argo-cd annotate application scrap argocd.argoproj.io/refresh=hard --overwrite
+  ```
 
 ## 7. Verify
 
@@ -87,6 +109,8 @@ You orchestrate; subagents do the work. How a tag publishes is in
 - `/api/health` responds (port-forward `svc/scrap`, or the exec above with
   `urllib`).
 - Check anything specific to this release.
+- The tag's whole **CI** run has finished green, including docs and
+  `release / artifacts`.
 - Tell the user in a few lines: version, backup, migration, and what to try
   on the phone.
 
