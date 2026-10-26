@@ -56,7 +56,7 @@ sequenceDiagram
 | look up capture id | found: a retry, return `200` |
 | `blob` rows | `ON CONFLICT DO NOTHING`, same bytes stored once |
 | `page`, `page_rev` 1 | page first (foreign key); a chosen kind sets `kind`, `kind_fixed`, `fields` |
-| `capture`, `capture_blob`, `tag` | the capture is the original and is never purged |
+| `capture`, `capture_blob`, `tag` | the capture is the original, kept until its page is purged from the trash |
 | search chunk | via `reindex` |
 | `ingest` job per distinct image | photo captures |
 | `enrich_job` | notes and links, when enrich is on |
@@ -146,11 +146,19 @@ flowchart LR
   the file aside; the next run restores it first. If references cannot be read, nothing is deleted.
 - **Old revisions are not references.** Only each page's current text counts.
 - **Model runs** (`model_run`, `enrich_run`) are pruned too, so their stored prompts do not grow
-  without bound; freeing a run's sent JPEG lets the next gc collect it.
-- **Orphans.** A capture's file that no page shows any more is never deleted. `--delete` gathers
-  it onto the month's open todo *Orphaned assets YYYY-MM* (`orphans.py`, due in 7 days, a user
-  page, capture source `gc`) with the embed, where it last was and Claude's description. Deleting
-  that page is the review; its files stay in the trash, where gc counts them as used. Nothing is
+  without bound; a run's sent JPEG is then unused and goes in the same run. `topic_run` is not
+  pruned.
+- **Retention first.** With `--delete`, the trash purge (pages in it more than `--trash-days`,
+  topics aside), finished job pruning and run pruning commit in a transaction of their own
+  before the references are read, so a file is never unlinked while they could roll back. A dry
+  run does the same and rolls it back. See [](data-model.md) and
+  [ADR 30](../decisions/0030-trash-purged-after-n-days.md).
+- **Orphans.** A capture's file that no page shows any more is not deleted then. `--delete`
+  gathers it onto the month's open todo *Orphaned assets YYYY-MM* (`orphans.py`, due in 7 days, a
+  user page, capture source `gc`) with the embed, where it last was and Claude's description.
+  Deleting that page is the review; its files stay in the trash, where gc counts them as used,
+  until the page is purged: then the files it showed that no page shows are taken off their
+  captures and deleted. Nothing is
   stored for this: it is derived from page text and revisions. The monthly page rolls over once
   done, cancelled, trashed or 1 MB full.
 - **Scheduling.** On a single server a nightly timer runs gc after the backup and deletes only if
@@ -198,8 +206,11 @@ flowchart LR
 
 - A capture is saved with no LLM call and no network beyond the upload itself.
 - A capture id is a client-minted ULID: sending twice stores once.
-- Originals (blobs and captures) are never changed or purged; everything else is derived.
-- A blob is deleted only when no page text, capture, derived row, job or model run refers to it.
+- Originals (blobs and captures) are never changed, and are purged only with their page after N
+  days in the trash (or, for an orphan, with the review page that showed it); everything else is
+  derived.
+- A blob is deleted only when no page text, capture, derived row, job or model run refers to it,
+  and only once what freed it is committed.
 
 ## Decisions and reference
 

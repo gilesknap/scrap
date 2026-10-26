@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data model and storage &#8212; scrap 0.11.1.dev10+gfdf675a10 documentation</title>
+    <title>Data model and storage &#8212; scrap 0.11.1.dev11+gc4a4b647d documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=a215faf5"></script>
+    <script src="../../_static/documentation_options.js?v=3c84aae8"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -811,6 +811,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0030-fewer-mcp-tools.html">30. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -1062,7 +1063,8 @@ losing originals is loss.</p>
     class der,enr claude
     class chunk,fts store
     </pre><ul class="simple">
-<li><p><strong>Originals</strong> (green) are never edited or purged. See
+<li><p><strong>Originals</strong> (green) are never edited, and are purged only with their page, once it has been
+in the trash for N days (<a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html"><span class="std std-doc">ADR 30</span></a>). See
 <a class="reference internal" href="../decisions/0004-originals-kept-everything-else-derived.html"><span class="std std-doc">ADR 4</span></a> and
 <a class="reference internal" href="../decisions/0003-one-process-sqlite-and-a-folder.html"><span class="std std-doc">ADR 3</span></a>.</p></li>
 <li><p><strong>Derived</strong> (orange) rows are immutable versions. A new current version supersedes the old by
@@ -1179,13 +1181,17 @@ replaced by ingest or enrich.</p></li>
 </section>
 <section id="trash">
 <h2>Trash<a class="headerlink" href="#trash" title="Link to this heading">#</a></h2>
-<p>Deleting sets <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>; nothing is purged, so no cascade runs.</p>
+<p>Deleting sets <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>. Nothing deletes a page until it has been in the trash for N days
+(<code class="docutils literal notranslate"><span class="pre">--trash-days</span></code>, 30 by default; <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code> tells the server); then the nightly
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> purges it, and the schema’s <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">DELETE</span> <span class="pre">CASCADE</span></code> takes everything on it
+(<a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html"><span class="std std-doc">ADR 30</span></a>).</p>
 <pre  class="mermaid">
         stateDiagram-v2
     [*] --&gt; Live: create
     Live --&gt; Live: edit, new revision
     Live --&gt; Trashed: delete
     Trashed --&gt; Live: undelete
+    Trashed --&gt; [*]: purge, N days on (not a topic)
     note right of Trashed
         Read-only over MCP
         Keeps slug and history
@@ -1197,7 +1203,18 @@ replaced by ingest or enrich.</p></li>
 other tool treats them as absent
 (<a class="reference internal" href="../decisions/0025-trash-and-recent-changes-over-mcp.html"><span class="std std-doc">ADR 25</span></a>). Undelete also makes the page’s
 topics due again.</p></li>
-<li><p>The cascading foreign keys are a safety net for a future purge.</p></li>
+<li><p>The purge (<code class="docutils literal notranslate"><span class="pre">retention.py</span></code>) deletes the page row in one transaction, committed before gc reads
+what is in use; the cascades take its revisions, captures and file records, Claude’s results,
+runs and jobs, tags, search chunks, write-ups and topic memberships. Its files are then unused,
+and gc’s usual delete takes them in the same run (old enough, after a recent backup).</p></li>
+<li><p>A topic page in the trash is never purged: its <code class="docutils literal notranslate"><span class="pre">topic</span></code> row (the key that stops discovery making
+it again) needs the page. A purged review page (<em>Orphaned assets</em>) lets go of the files it
+showed that would otherwise be orphans again: their <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code> rows, and that photo’s
+<code class="docutils literal notranslate"><span class="pre">derived</span></code>, <code class="docutils literal notranslate"><span class="pre">job</span></code> and <code class="docutils literal notranslate"><span class="pre">model_run</span></code> rows, are deleted.</p></li>
+<li><p>Finished <code class="docutils literal notranslate"><span class="pre">job</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> rows older than <code class="docutils literal notranslate"><span class="pre">--job-days</span></code> (30) go too, but each photo’s and
+each page’s (per reason) newest.</p></li>
+<li><p>The PWA’s Trash screen (Settings), <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/trash</span></code> and MCP <code class="docutils literal notranslate"><span class="pre">trash</span></code> show each page’s
+<code class="docutils literal notranslate"><span class="pre">purge_at</span></code>.</p></li>
 </ul>
 </section>
 <section id="migrations">

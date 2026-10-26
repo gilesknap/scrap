@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture, files and import &#8212; scrap 0.11.1.dev10+gfdf675a10 documentation</title>
+    <title>Capture, files and import &#8212; scrap 0.11.1.dev11+gc4a4b647d documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=a215faf5"></script>
+    <script src="../../_static/documentation_options.js?v=3c84aae8"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -811,6 +811,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0030-fewer-mcp-tools.html">30. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -956,7 +957,7 @@ transaction.</p></li>
 <td><p>page first (foreign key); a chosen kind sets <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>, <code class="docutils literal notranslate"><span class="pre">fields</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, <code class="docutils literal notranslate"><span class="pre">tag</span></code></p></td>
-<td><p>the capture is the original and is never purged</p></td>
+<td><p>the capture is the original, kept until its page is purged from the trash</p></td>
 </tr>
 <tr class="row-even"><td><p>search chunk</p></td>
 <td><p>via <code class="docutils literal notranslate"><span class="pre">reindex</span></code></p></td>
@@ -1087,11 +1088,19 @@ aside and its age checked again, then deleted with its previews. A run that stop
 the file aside; the next run restores it first. If references cannot be read, nothing is deleted.</p></li>
 <li><p><strong>Old revisions are not references.</strong> Only each page’s current text counts.</p></li>
 <li><p><strong>Model runs</strong> (<code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>) are pruned too, so their stored prompts do not grow
-without bound; freeing a run’s sent JPEG lets the next gc collect it.</p></li>
-<li><p><strong>Orphans.</strong> A capture’s file that no page shows any more is never deleted. <code class="docutils literal notranslate"><span class="pre">--delete</span></code> gathers
-it onto the month’s open todo <em>Orphaned assets YYYY-MM</em> (<code class="docutils literal notranslate"><span class="pre">orphans.py</span></code>, due in 7 days, a user
-page, capture source <code class="docutils literal notranslate"><span class="pre">gc</span></code>) with the embed, where it last was and Claude’s description. Deleting
-that page is the review; its files stay in the trash, where gc counts them as used. Nothing is
+without bound; a run’s sent JPEG is then unused and goes in the same run. <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> is not
+pruned.</p></li>
+<li><p><strong>Retention first.</strong> With <code class="docutils literal notranslate"><span class="pre">--delete</span></code>, the trash purge (pages in it more than <code class="docutils literal notranslate"><span class="pre">--trash-days</span></code>,
+topics aside), finished job pruning and run pruning commit in a transaction of their own
+before the references are read, so a file is never unlinked while they could roll back. A dry
+run does the same and rolls it back. See <a class="reference internal" href="data-model.html"><span class="std std-doc">Data model and storage</span></a> and
+<a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html"><span class="std std-doc">ADR 30</span></a>.</p></li>
+<li><p><strong>Orphans.</strong> A capture’s file that no page shows any more is not deleted then. <code class="docutils literal notranslate"><span class="pre">--delete</span></code>
+gathers it onto the month’s open todo <em>Orphaned assets YYYY-MM</em> (<code class="docutils literal notranslate"><span class="pre">orphans.py</span></code>, due in 7 days, a
+user page, capture source <code class="docutils literal notranslate"><span class="pre">gc</span></code>) with the embed, where it last was and Claude’s description.
+Deleting that page is the review; its files stay in the trash, where gc counts them as used,
+until the page is purged: then the files it showed that no page shows are taken off their
+captures and deleted. Nothing is
 stored for this: it is derived from page text and revisions. The monthly page rolls over once
 done, cancelled, trashed or 1 MB full.</p></li>
 <li><p><strong>Scheduling.</strong> On a single server a nightly timer runs gc after the backup and deletes only if
@@ -1139,8 +1148,11 @@ up.</p></li>
 <ul class="simple">
 <li><p>A capture is saved with no LLM call and no network beyond the upload itself.</p></li>
 <li><p>A capture id is a client-minted ULID: sending twice stores once.</p></li>
-<li><p>Originals (blobs and captures) are never changed or purged; everything else is derived.</p></li>
-<li><p>A blob is deleted only when no page text, capture, derived row, job or model run refers to it.</p></li>
+<li><p>Originals (blobs and captures) are never changed, and are purged only with their page after N
+days in the trash (or, for an orphan, with the review page that showed it); everything else is
+derived.</p></li>
+<li><p>A blob is deleted only when no page text, capture, derived row, job or model run refers to it,
+and only once what freed it is committed.</p></li>
 </ul>
 </section>
 <section id="decisions-and-reference">

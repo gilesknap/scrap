@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import a Thoth vault &#8212; scrap 0.11.1.dev10+gfdf675a10 documentation</title>
+    <title>Import a Thoth vault &#8212; scrap 0.11.1.dev11+gc4a4b647d documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a215faf5"></script>
+    <script src="../_static/documentation_options.js?v=3c84aae8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1013,8 +1013,9 @@ against <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_U
 of the page it stopped on were already stored, but the page was not saved, so nothing uses
 them. On the single server the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> removes them once they are over 24 hours
 old; to remove them by hand, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> after a backup (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
-<li><p>A page you import and then trash in scrap keeps its images: <code class="docutils literal notranslate"><span class="pre">gc</span></code> counts the text of trashed
-pages as in use, so that the page can be brought back.</p></li>
+<li><p>A page you import and then trash in scrap keeps its images while it is in the trash: <code class="docutils literal notranslate"><span class="pre">gc</span></code>
+counts the text of trashed pages as in use, so that the page can be brought back. After
+30 days in the trash it is purged with them (<a class="reference internal" href="use-the-pwa.html#the-trash"><span class="std std-ref">The trash</span></a>).</p></li>
 <li><p>The vault must be readable by the user (or container uid) that runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code>.</p></li>
 </ul>
 </section>

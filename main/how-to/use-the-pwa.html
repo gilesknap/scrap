@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.11.1.dev10+gfdf675a10 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.11.1.dev11+gc4a4b647d documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a215faf5"></script>
+    <script src="../_static/documentation_options.js?v=3c84aae8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1233,7 +1233,7 @@ nothing).</p></li>
 <section id="store-health">
 <h3>Store health<a class="headerlink" href="#store-health" title="Link to this heading">#</a></h3>
 <p>The health checks, one count each from <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code>, are listed on <strong>Settings</strong> (the cog),
-<strong>Store health</strong>. A tap runs the check’s search; Back returns to the screen. Nothing is dismissed
+<strong>Store health</strong> (Settings also has <strong>Trash</strong>: <a class="reference internal" href="#the-trash"><span class="std std-ref">The trash</span></a>). A tap runs the check’s search; Back returns to the screen. Nothing is dismissed
 there: a check that keeps finding a page you are happy with is the check to change.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -1471,12 +1471,34 @@ first, naming each photo whose line went: <em>no longer shown on any page</em> o
 other pages</em>. <strong>Cancel</strong> returns to the editor; <strong>OK</strong> saves. The file and what Claude made of
 it are kept: once no page shows it, the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> gathers it onto the month’s <em>Orphaned
 assets</em> todo page, where you cut it into another page to keep it or delete the page (see
-<a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
+<a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>). Once that page is purged from the trash, the files it gathered that no page
+shows go with it.</p></li>
 <li><p><strong>Delete</strong> moves the page to the trash with <strong>Undo</strong> for a few seconds and goes back one step
 (to the list or page you came from; a page opened cold goes where the top bar’s Back names).
-The app has no trash screen: after Undo is gone, bring a page back with
-<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/undelete</span></code> (<a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) or Claude’s <code class="docutils literal notranslate"><span class="pre">undelete</span></code> tool.</p></li>
+After Undo is gone, the page waits in the <strong>Trash</strong> (below) for 30 days, then is deleted for
+good.</p></li>
 </ul>
+<section id="the-trash">
+<span id="id1"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
+<p>A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
+(the server’s <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code>, set as the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is: see
+<a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>). Then the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> purges it for good, with its
+history, Claude’s results and the photos and files no other page uses. A purged page still
+exists in the backups until they are pruned.</p>
+<p>To see what is in the trash or bring a page back:</p>
+<ol class="arabic simple">
+<li><p>Open <strong>Settings</strong> (the cog) and tap <strong>Trash</strong>.</p></li>
+<li><p>Each deleted page shows when it was deleted and when it goes for good (<em>Deleted 3 Oct ·
+deleted for good after 2 Nov</em>; <em>at the next nightly clean-up</em> once the date has passed). The
+newest 100 are listed; a line under them says how many there are in all.</p></li>
+<li><p>Tap <strong>Restore</strong> on a page to bring it back as it was. The toast’s <strong>Open</strong> opens it.</p></li>
+</ol>
+<p>A topic page in the trash is never purged: it stays there so that Claude does not make the topic
+again (<em>kept: Claude won’t make this topic again</em>). Restore it to have the topic back.</p>
+<p>With purging off (<code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS=off</span></code>, or a chart whose gc does not delete), pages stay in the
+trash until restored, and no date is shown. Over MCP, the <code class="docutils literal notranslate"><span class="pre">trash</span></code> tool lists the same pages with
+their <code class="docutils literal notranslate"><span class="pre">purge_at</span></code>, and <code class="docutils literal notranslate"><span class="pre">undelete</span></code> brings one back (<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>).</p>
+</section>
 </section>
 <section id="what-claude-made-of-a-photo">
 <h2>What Claude made of a photo<a class="headerlink" href="#what-claude-made-of-a-photo" title="Link to this heading">#</a></h2>
@@ -1595,7 +1617,9 @@ does the same). Either way the synthesis is written again. Needs the server. The
 leaves out its sources.</p></li>
 <li><p><strong>Search</strong> puts a matching topic page first, with a <em>Topic</em> label and an open-book icon;
 <code class="docutils literal notranslate"><span class="pre">is:topic</span></code> lists them all.</p></li>
-<li><p>To get rid of a topic, delete it: it goes to the trash and the weekly pass does not re-make it.</p></li>
+<li><p>To get rid of a topic, delete it: it goes to the trash and the weekly pass does not re-make it.
+It stays in the trash (never purged) as the record that you did not want it; restore it from
+the Trash to have it back (<a class="reference internal" href="#the-trash"><span class="std std-ref">The trash</span></a>).</p></li>
 </ul>
 </section>
 <section id="iphone-and-ipad">
@@ -1752,7 +1776,10 @@ own projects (OFL: <a class="reference external" href="https://openfontlicense.o
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#photos-and-files">Photos and files</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#editing-and-deleting">Editing and deleting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#editing-and-deleting">Editing and deleting</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#the-trash">The trash</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-made-of-a-photo">What Claude made of a photo</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#the-drawing-viewer">The drawing viewer</a></li>
 </ul>

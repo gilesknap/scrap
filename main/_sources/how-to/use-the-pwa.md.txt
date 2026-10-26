@@ -275,7 +275,7 @@ How matching works:
 ### Store health
 
 The health checks, one count each from `GET /api/health`, are listed on **Settings** (the cog),
-**Store health**. A tap runs the check's search; Back returns to the screen. Nothing is dismissed
+**Store health** (Settings also has **Trash**: {ref}`the-trash`). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
 there: a check that keeps finding a page you are happy with is the check to change.
 
 | Search | Finds |
@@ -459,11 +459,36 @@ scrap and try again*.
   other pages*. **Cancel** returns to the editor; **OK** saves. The file and what Claude made of
   it are kept: once no page shows it, the nightly `scrap gc` gathers it onto the month's *Orphaned
   assets* todo page, where you cut it into another page to keep it or delete the page (see
-  {ref}`scrap-gc`).
+  {ref}`scrap-gc`). Once that page is purged from the trash, the files it gathered that no page
+  shows go with it.
 - **Delete** moves the page to the trash with **Undo** for a few seconds and goes back one step
   (to the list or page you came from; a page opened cold goes where the top bar's Back names).
-  The app has no trash screen: after Undo is gone, bring a page back with
-  `POST /api/pages/{id}/undelete` ([](../reference/api.md)) or Claude's `undelete` tool.
+  After Undo is gone, the page waits in the **Trash** (below) for 30 days, then is deleted for
+  good.
+
+(the-trash)=
+### The trash
+
+A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
+(the server's `SCRAP_TRASH_DAYS`, set as the nightly `scrap gc` is: see
+[](../reference/scheduled-jobs.md)). Then the nightly `scrap gc` purges it for good, with its
+history, Claude's results and the photos and files no other page uses. A purged page still
+exists in the backups until they are pruned.
+
+To see what is in the trash or bring a page back:
+
+1. Open **Settings** (the cog) and tap **Trash**.
+2. Each deleted page shows when it was deleted and when it goes for good (*Deleted 3 Oct ·
+   deleted for good after 2 Nov*; *at the next nightly clean-up* once the date has passed). The
+   newest 100 are listed; a line under them says how many there are in all.
+3. Tap **Restore** on a page to bring it back as it was. The toast's **Open** opens it.
+
+A topic page in the trash is never purged: it stays there so that Claude does not make the topic
+again (*kept: Claude won't make this topic again*). Restore it to have the topic back.
+
+With purging off (`SCRAP_TRASH_DAYS=off`, or a chart whose gc does not delete), pages stay in the
+trash until restored, and no date is shown. Over MCP, the `trash` tool lists the same pages with
+their `purge_at`, and `undelete` brings one back ([](../reference/mcp.md)).
 
 ## What Claude made of a photo
 
@@ -583,6 +608,8 @@ citing its sources. They are Claude's, kept apart from your pages.
 - **Search** puts a matching topic page first, with a *Topic* label and an open-book icon;
   `is:topic` lists them all.
 - To get rid of a topic, delete it: it goes to the trash and the weekly pass does not re-make it.
+  It stays in the trash (never purged) as the record that you did not want it; restore it from
+  the Trash to have it back ({ref}`the-trash`).
 
 ## iPhone and iPad
 
