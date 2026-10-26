@@ -379,9 +379,10 @@ code. The title, tags and summary columns are why ranking can weigh them
 (`store/health.py`): `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`
 and `is:outdated`. `GET /api/health` counts each for the PWA's Store health screen (Settings),
 whose rows run the searches. Nothing is stored, so a finding is always current, and no model
-is called; `is:outdated` uses the same definitions as what refreshes Claude's derived data: a
-board's write-up (the owner's Regenerate, or `scrap enrich --writeups --outdated`), a topic's
-synthesis (the weekly pass) and related pages (the nightly pass) ([](decisions/0029-store-health-checks-as-search-filters.md)).
+is called. `is:outdated` lists only outdated board write-ups, the owner's to regenerate (or
+`scrap enrich --writeups --outdated`), by the same definition. A topic's synthesis (the weekly
+pass) and related pages (the nightly pass) have theirs in the same module but are no finding:
+the passes refresh them ([](decisions/0029-store-health-checks-as-search-filters.md)).
 
 ## Phone quick capture
 

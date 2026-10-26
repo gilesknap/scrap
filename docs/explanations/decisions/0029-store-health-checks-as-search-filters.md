@@ -36,13 +36,18 @@ to catch up without a prompt change making every page due at once.
 - **A Store health screen, counts only.** Settings has **Store health**: each check with its
   count (`GET /api/health`, one `count(*)` a check), a tap running its search. Nothing is
   dismissed: a check that keeps finding a page the owner is happy with is the check to change.
-- **One definition of outdated per kind of derived data**, shared by `is:outdated` and what
-  refreshes it: a board write-up (`writeups.OUTDATED`, beside the worker's `DUE`: a board image
-  read, or the page's text, title, kind or tags changed, after it, or another prompt version;
-  never a version the owner restored), a topic synthesis (the weekly pass's `TOPIC_DUE`) and
-  related pages (the nightly pass's `STALE`). The current prompt versions are given to the store
-  by whoever makes it (`Store.prompts`, `enrich.prompt_versions()`), since the store sits below
-  the prompts.
+- **One definition of outdated per kind of derived data**, in `store/health.py`, shared with
+  what refreshes it: a board write-up (`writeups.OUTDATED`, beside the worker's `DUE`: a board
+  image read, or the page's text, title, kind or tags changed, after it, or another prompt
+  version; never a version the owner restored), a topic synthesis (the weekly pass's
+  `TOPIC_DUE`) and related pages (the nightly pass's `STALE`).
+- **`is:outdated` lists only outdated write-ups** (#291): what the owner acts on, with
+  Regenerate or `scrap enrich --writeups --outdated`. The current write-up prompt version is
+  given to the store by whoever makes it (`Store.prompts`, `enrich.prompt_versions()`), since
+  the store sits below the prompts. Related pages and topic syntheses keep their definitions
+  for the passes but are no finding: they clear on their own overnight or within the week, and
+  as findings they buried the write-ups (right after a write-up is regenerated, its page's
+  related picks are older than it).
 - **An outdated write-up is the owner's to regenerate.** Only a newly read board photo writes one
   again on its own (as before). An edit to the page, or a new prompt, does not: an edit may be
   small, a write-up is an Opus call, and the owner may prefer the old one. The page's write-up
@@ -60,9 +65,9 @@ to catch up without a prompt change making every page due at once.
 - The checks cost no stored state and no Claude spend; the counts are cheap queries.
 - A new check is a fragment and a line in `CHECKS` (and its name in the PWA's `checks.ts`), and
   is documented with the other filters and in the MCP `search` description.
-- `is:outdated` mixes work that waits for a pass (related pages, topic syntheses) with write-ups
-  that wait for the owner; a write-up prompt change lists every board until it is rolled out
-  with `--writeups --outdated`.
+- `is:outdated` is only work that waits for the owner. A related pass or topics pass that keeps
+  failing does not show in Store health; the passes' own logs and exit status say so. A
+  write-up prompt change lists every board until it is rolled out with `--writeups --outdated`.
 - No timer, CronJob or chart value changes: the scheduled jobs are as before
   ([](../../reference/scheduled-jobs.md)).
 - The checks are word- and link-based. If they prove too weak, semantic search (#53) is the next
