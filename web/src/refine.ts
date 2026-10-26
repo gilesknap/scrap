@@ -232,7 +232,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       h("span", { className: "flabel" }, label),
       h("div", { className: "opts" }, ...kids),
     );
-  // Arrange's two lines: a short label, then its chips beside it, wrapping under themselves
+  // Arrange's two parts: a small sub-label over its chips, which wrap from the panel's edge
   const line = (label: string, ...kids: Node[]) =>
     h(
       "div",

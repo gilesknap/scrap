@@ -181,22 +181,19 @@
   flex-wrap: wrap;
   gap: var(--s-2);
 }
-/* Arrange's lines, Order and Group: a short label, then its chips beside it */
+/* Arrange's two parts, Order and Group: a small sub-label over its chips, which start at the
+   same left edge as every other row's and wrap from there */
 .fsub {
   display: flex;
-  align-items: flex-start;
-  gap: var(--s-2);
+  flex-direction: column;
+  gap: var(--s-1); /* a little tighter than a heading to its chips */
 }
-.fsub .opts {
-  flex: 1;
-  min-width: 0;
+.fsub + .fsub {
+  margin-top: var(--s-1);
 }
 .fsublabel {
-  flex: none;
-  width: 3.5em;
   color: var(--ink-2);
   font-size: var(--t-sm);
-  line-height: 44px; /* level with its first line of chips */
 }
 .fpanel .facet[aria-pressed="true"] {
   border-color: transparent;
