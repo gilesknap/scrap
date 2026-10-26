@@ -116,7 +116,10 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3/", None)}
 inheritance_graph_attrs = {"rankdir": "TB"}
 
 # Ignore localhost links for periodic check that links in docs are valid
-linkcheck_ignore = [r"http://localhost:\d+/"]
+linkcheck_ignore = [r"http://localhost:\d+/", r"http://127\.0\.0\.1:\d+/"]
+# The published docs lag the source: a link to a section added in the same change
+# fails its anchor check until it deploys. Check the page exists, skip the anchor.
+linkcheck_anchors_ignore_for_url = [r"https://gilesknap\.github\.io/scrap/"]
 
 # Set copy-button to ignore python and bash prompts
 # https://sphinx-copybutton.readthedocs.io/en/latest/use.html#using-regexp-prompt-identifiers
