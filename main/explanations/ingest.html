@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.9.1.dev2+ge32a44401 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.9.1.dev3+gc11b7a1bb documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4c39738d"></script>
+    <script src="../_static/documentation_options.js?v=dacc768f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -452,6 +452,7 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0027-fewer-mcp-tools.html">27. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">scrap design</a></li>
@@ -1144,7 +1145,8 @@ itself). Saves and edits queue none. It is queued once per page, ever: a later R
 of the first photo capture queues one only for a page that never had one, such as a page read
 before this change or while enrich was off. Otherwise <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code>, the nightly pass, does every page changed since its last picks (no <code class="docutils literal notranslate"><span class="pre">related</span></code> run
 newer than its <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, than the newest current description or text photo ingest read
-from one of its images, or than its current write-up; <code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). It runs in the command’s process (in the
+from one of its images, or than its current write-up: <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> finds those picked before;
+<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every page). Its schedule is in <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>. It runs in the command’s process (in the
 container: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>), checks the shared queue pause and the
 day’s budget before each call, and stops at either (an outage, credit or auth error pauses the
 queue as the worker does); other failures are counted and it goes on. Exit status 1 when
@@ -1184,9 +1186,17 @@ of the page’s photos (or given up on one) and a board image was read since the
 write-up: so on its first reading, after a Reprocess, and after a new board photo. Its first
 related call follows it (<a class="reference internal" href="#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>). <strong>Ask Claude</strong> on a board page writes
 one too, after its tags and summary and before its related pages. <strong>Regenerate</strong> (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup</span></code>) queues one by hand. A queued write-up is not taken over by a save (a
-board is not read as text anyway), only by Ask, which writes one. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> writes them in the command’s process for every board page with
-none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page), with the related pass’s pause, budget and exit rules; run
-<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> after it, so related pages see them.</p></li>
+board is not read as text anyway), only by Ask, which writes one. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span> <span class="pre">[--outdated]</span> <span class="pre">[--limit</span> <span class="pre">N]</span> <span class="pre">[--dry-run]</span></code> writes them in the command’s process for every
+board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page), with the related pass’s pause, budget and
+exit rules; run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> after it, so related pages see them.</p></li>
+<li><p><strong>Outdated</strong> (<code class="docutils literal notranslate"><span class="pre">store.writeups.OUTDATED</span></code>, what <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> finds, #262): a current write-up
+older than a reading of a board image (as above), or than a change to the page’s text, title,
+kind or tags, or made with another version of the prompt; never one the owner restored. Only a
+newly read board photo writes it again on its own (above). An edit or a new prompt does not:
+the write-up’s card says “The page (or Claude’s prompt) has changed since this write-up.”
+beside Regenerate, and the owner chooses. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code> writes again
+every outdated one (with <code class="docutils literal notranslate"><span class="pre">--limit</span></code>, <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>, the budget and the pause, as above): how a new
+prompt is rolled out.</p></li>
 <li><p><strong>The call.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code> (default <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code>), effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>
 16000, structured output (<code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>). The user turn has each board photo (at most 4:
 the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
@@ -1457,8 +1467,8 @@ holds what you sent to Claude, and your backups do too.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span></code></p></td>
 <td><p>Pick related pages now, in the command’s process (the nightly pass)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all]</span></code></p></td>
-<td><p>Write Claude’s write-up now, in the command’s process, for each board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all</span> <span class="pre">|</span> <span class="pre">--outdated]</span></code></p></td>
+<td><p>Write Claude’s write-up now, in the command’s process, for each board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page; <code class="docutils literal notranslate"><span class="pre">--outdated</span></code>: each outdated one instead)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">[--all]</span></code></p></td>
 <td><p>Find topics now, in the command’s process (the weekly pass), then queue each topic’s synthesis that is due (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every topic’s) for the service’s worker</p></td>

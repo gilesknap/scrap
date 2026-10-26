@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.9.1.dev2+ge32a44401 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.9.1.dev3+gc11b7a1bb documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4c39738d"></script>
+    <script src="../_static/documentation_options.js?v=dacc768f"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -751,16 +751,12 @@ above, <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UP
 editing:
 <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p>With ingest on, Claude also tags and summarises notes and links (<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>, on by default).
-Related pages come from a nightly pass, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code> (about 03:41, run in the
-scrap container), which <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> enables. It keeps to the same daily budget and stops (and
-the service fails) at a queue pause; while ingest is off or no key (or seat token) is set it says
-so and succeeds. <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">--dry-run</span></code> says how many pages it
-would do.</p>
-<p>Topic pages come from a weekly pass, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code> (Sundays about 04:11, run in the
-scrap container), which <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> also enables: one Claude call finds topics, making new topic
-pages and adding their sources, then each topic’s synthesis that is due is queued for the
-service’s worker (<a class="reference internal" href="../explanations/ingest.html#ingest-topics"><span class="std std-ref">Topic pages</span></a>). It has the same budget, pause and off rules, and its
-service also fails if the discovery call fails. <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">--dry-run</span></code> prints what it would make, but still makes (and pays for) the discovery call.</p>
+Related pages come from a nightly timer, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>, and topic pages from a
+weekly one, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code>; both run in the scrap container, and <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>
+enables them. <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a> has their schedules, what they do and their
+budget. To check what one would do: <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">--dry-run</span></code> (how many
+pages), or <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">--dry-run</span></code> (what it would make; it still
+makes, and pays for, the discovery call). To turn one off: <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-enrich-topics.timer</span></code> (or <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>).</p>
 <section id="on-a-claude-seat-with-no-api-key">
 <h4>On a Claude seat, with no API key<a class="headerlink" href="#on-a-claude-seat-with-no-api-key" title="Link to this heading">#</a></h4>
 <p>On a Team or Enterprise seat, ingest can run through Claude Code instead
@@ -1043,6 +1039,7 @@ You can instead keep hand backups outside <code class="docutils literal notransl
 </section>
 <section id="checking-the-timers">
 <h3>Checking the timers<a class="headerlink" href="#checking-the-timers" title="Link to this heading">#</a></h3>
+<p><a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a> lists every timer, its schedule and what it does.</p>
 <p>Nothing notifies you when a timer’s service fails: <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> is for ingest pauses only.
 All four services (<code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics</span></code>)
 are one-shot, so a failed run shows only in systemd, and you find out by looking:</p>
@@ -1066,10 +1063,32 @@ on purpose. Usually last night’s backup failed or did not run. Fix the cause, 
 </section>
 <section id="changing-the-schedule">
 <h3>Changing the schedule<a class="headerlink" href="#changing-the-schedule" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code> is set to 03:30 and <code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> to 04:30 (each with up to 15 minutes of
-random delay, <code class="docutils literal notranslate"><span class="pre">RandomizedDelaySec</span></code>, so the run is spread over that quarter hour). Do not edit
-the copies in <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code>: <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> overwrites them on every run. Use a drop-in,
-which survives it:</p>
+<p>The four timers and their defaults, each with up to 15 minutes of random delay
+(<code class="docutils literal notranslate"><span class="pre">RandomizedDelaySec</span></code>, so the run is spread over that quarter hour), in the machine’s local time:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Timer</p></th>
+<th class="head"><p>Default <code class="docutils literal notranslate"><span class="pre">OnCalendar</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">*-*-*</span> <span class="pre">03:30:00</span></code> (daily)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">*-*-*</span> <span class="pre">03:41:00</span></code> (daily)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sun</span> <span class="pre">*-*-*</span> <span class="pre">04:11:00</span></code> (Sundays)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">*-*-*</span> <span class="pre">04:30:00</span></code> (daily)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Do not edit the copies in <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code>: <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> overwrites them on every run.
+Use a drop-in, which survives it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">edit</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">.</span><span class="n">timer</span>
 </pre></div>
 </div>
@@ -1079,7 +1098,48 @@ which survives it:</p>
 <span class="n">OnCalendar</span><span class="o">=*-*-*</span> <span class="mi">02</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
 </pre></div>
 </div>
-<p>Check with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">list-timers</span></code>. The gc timer works the same way.</p>
+<p>Check with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">list-timers</span></code>. The other three timers work the same way
+(<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">edit</span> <span class="pre">scrap-gc.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code> or
+<code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code>). Keep gc after the backup, and the Claude jobs after it too (see
+<a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>).</p>
+</section>
+<section id="changing-what-a-job-does">
+<h3>Changing what a job does<a class="headerlink" href="#changing-what-a-job-does" title="Link to this heading">#</a></h3>
+<p>A job’s options are in its service’s <code class="docutils literal notranslate"><span class="pre">ExecStart</span></code>. Change them with a drop-in on the service
+(<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">edit</span> <span class="pre">scrap-gc.service</span></code>, say) that clears <code class="docutils literal notranslate"><span class="pre">ExecStart</span></code> with an empty line, then
+gives the new one; <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> keeps drop-ins as it does the timers’. The defaults:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Service</p></th>
+<th class="head"><p>Default <code class="docutils literal notranslate"><span class="pre">ExecStart</span></code></p></th>
+<th class="head"><p>Options to add</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">%h/.local/lib/scrap/scrap-gc</span></code></p></td>
+<td><p>passed on to <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> after its own <code class="docutils literal notranslate"><span class="pre">--delete</span> <span class="pre">--grace-hours</span> <span class="pre">24</span></code> (the last wins): <code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">N</span></code>, <code class="docutils literal notranslate"><span class="pre">--run-days</span> <span class="pre">N</span></code> (default 30), <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> (only count)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.service</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--all</span></code> (every page), <code class="docutils literal notranslate"><span class="pre">--limit</span> <span class="pre">N</span></code> (at most N pages)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.service</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--all</span></code> (every topic’s synthesis), <code class="docutils literal notranslate"><span class="pre">--limit</span> <span class="pre">N</span></code> (at most N syntheses queued)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>For example, to keep gc’s files two days and its run records 60:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Service</span><span class="p">]</span>
+<span class="n">ExecStart</span><span class="o">=</span>
+<span class="n">ExecStart</span><span class="o">=%</span><span class="n">h</span><span class="o">/.</span><span class="n">local</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">gc</span> <span class="o">--</span><span class="n">grace</span><span class="o">-</span><span class="n">hours</span> <span class="mi">48</span> <span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="n">days</span> <span class="mi">60</span>
+</pre></div>
+</div>
+<p>The backup’s options are settings in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> instead (<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>). <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a> maps each of the Helm chart’s values to
+these.</p>
 <p>The two are linked: <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> deletes only if a run directory in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> is under 26
 hours old, and otherwise counts, then fails (and it always keeps files younger than 24 hours,
 <code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">24</span></code>). While a backup runs daily, the newest is never much more than a day old, so
@@ -1438,6 +1498,7 @@ that succeeds, <code class="docutils literal notranslate"><span class="pre">syst
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#extra-backups-by-hand">Extra backups by hand</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#checking-the-timers">Checking the timers</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changing-the-schedule">Changing the schedule</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changing-what-a-job-does">Changing what a job does</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#restore">Restore</a></li>
 </ul>
 </li>
