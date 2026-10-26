@@ -1,8 +1,8 @@
 // The Todos screen's lists (todos.ts): what to do now, first. No DOM here, so the unit tests
 // run it. Days are YYYY-MM-DD on this device's calendar (status.ts today()).
 import type { Summary } from "./api";
+import { dueMeets, duesIn } from "./dues";
 import { snoozed, statusOf } from "./status";
-import { dueMeets, duesIn } from "./terms";
 
 type Todo = Pick<Summary, "kind" | "fields" | "due" | "priority" | "updated_at" | "snoozed_until">;
 

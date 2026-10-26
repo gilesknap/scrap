@@ -1,6 +1,6 @@
 // A Later page's type (#309): Book, Article, Film ... in a menu, in the editor's folded
 // "Type" line. Its subtype (To read, To watch ...) follows from it.
-import { MEDIA } from "./terms";
+import { MEDIA } from "./termedit";
 import { h } from "./ui";
 
 /** What each type is for: read, watch, listen or play. */

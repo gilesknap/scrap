@@ -12,6 +12,7 @@ import { api } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
+import { MEDIA, removing, withGroup } from "./termedit";
 import {
   adding,
   type Group,
@@ -22,12 +23,9 @@ import {
   KIND_ROW,
   kindsIn,
   listing,
-  MEDIA,
-  removing,
   tagsIn,
   token,
   ungrouped,
-  withGroup,
 } from "./terms";
 import { h } from "./ui";
 

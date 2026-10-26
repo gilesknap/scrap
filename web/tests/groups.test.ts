@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { dueBound, dueMeets, duesIn } from "../src/dues";
 import { sections } from "../src/groups";
-import { dueBound, dueMeets, duesIn, groupBy, served, ungrouped, withGroup } from "../src/terms";
+import { withGroup } from "../src/termedit";
+import { groupBy, served, ungrouped } from "../src/terms";
 
 const T = "2026-10-21";
 const at = "2026-10-01T00:00:00Z";

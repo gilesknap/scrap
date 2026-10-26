@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { day, sortsIn, unsorted } from "../src/filters";
-import { adding, has, kindsIn, listing, removing, token, unkinded, withKind } from "../src/terms";
+import { removing } from "../src/termedit";
+import { adding, has, kindsIn, listing, token, unkinded, withKind } from "../src/terms";
 
 it("writes a filter, quoting a value with spaces", () => {
   expect(token("tag", "tech/epics")).toBe("tag:tech/epics");
