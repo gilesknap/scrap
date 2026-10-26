@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Contribute to the project &#8212; scrap 0.13.1.dev4+gdeb87cc7a documentation</title>
+    <title>Contribute to the project &#8212; scrap 0.13.1.dev5+g654c7f4ab documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=31d1234a"></script>
+    <script src="../_static/documentation_options.js?v=f0db494c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -672,9 +672,11 @@ package must all build. The image is published on release tags.</p></li>
 <code class="docutils literal notranslate"><span class="pre">setuptools_scm</span></code>, so there is no version to edit in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>
 (<code class="docutils literal notranslate"><span class="pre">src/scrap/_version.py</span></code> is generated).</p>
 <ol class="arabic">
-<li><p>On <code class="docutils literal notranslate"><span class="pre">main</span></code>, with CI green, tag the merge commit and push the tag (the tag,
-not a branch, starts the release). The chart version needs no edit: CI sets
-it from the tag.</p>
+<li><p>On <code class="docutils literal notranslate"><span class="pre">main</span></code>, tag the merge commit and push the tag (the tag, not a branch,
+starts the release). There is no need to wait for <code class="docutils literal notranslate"><span class="pre">main</span></code>’s CI first: the
+tag’s CI runs the same checks, and no image is published unless they pass
+(the chart and docs still are). The chart version needs no edit: CI sets it
+from the tag.</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>tag<span class="w"> </span>X.Y.Z
 git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>X.Y.Z
 </pre></div>
@@ -685,9 +687,12 @@ git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </
 <code class="docutils literal notranslate"><span class="pre">dist</span></code>, <code class="docutils literal notranslate"><span class="pre">test</span></code>, <code class="docutils literal notranslate"><span class="pre">docs</span></code> and <code class="docutils literal notranslate"><span class="pre">web</span></code> jobs have passed. It has generated release
 notes with the sdist, the wheel and <code class="docutils literal notranslate"><span class="pre">docs.zip</span></code> attached. In parallel:</p>
 <ul class="simple">
-<li><p>The multi-arch image (amd64 and arm64) is pushed to
-<code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code> as <code class="docutils literal notranslate"><span class="pre">X.Y.Z</span></code> and <code class="docutils literal notranslate"><span class="pre">latest</span></code>, provided the <code class="docutils literal notranslate"><span class="pre">test</span></code> job
-passed.</p></li>
+<li><p>The image is built natively for amd64 and arm64, each on a runner of that
+architecture, while the tests run, and each is pushed by digest only. Once
+the <code class="docutils literal notranslate"><span class="pre">lint</span></code>, <code class="docutils literal notranslate"><span class="pre">test</span></code>, <code class="docutils literal notranslate"><span class="pre">deploy</span></code> and <code class="docutils literal notranslate"><span class="pre">web</span></code> jobs have passed, the
+<code class="docutils literal notranslate"><span class="pre">container-publish</span></code> job tags them together as one multi-arch image,
+<code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:X.Y.Z</span></code> and <code class="docutils literal notranslate"><span class="pre">latest</span></code>. The image and the chart are
+all a deploy needs; the docs and the GitHub Release may finish later.</p></li>
 <li><p>The docs are published to GitHub Pages as a new version in the version
 switcher.</p></li>
 </ul>
@@ -702,8 +707,8 @@ pre-release on GitHub, but the image is still also tagged <code class="docutils 
 written so the image resolves. A tag in any other form fails the publish
 only; the image and the release are still published. The first time, make the
 <code class="docutils literal notranslate"><span class="pre">charts/scrap</span></code> package public in the GitHub package settings.</p></li>
-<li><p>The release job does not wait for the <code class="docutils literal notranslate"><span class="pre">container</span></code> job, so check that the
-image was pushed.</p></li>
+<li><p>The release job does not wait for the <code class="docutils literal notranslate"><span class="pre">container-publish</span></code> job, so check
+that the image was pushed.</p></li>
 <li><p>Nothing is published to PyPI.</p></li>
 </ul>
 </section>
