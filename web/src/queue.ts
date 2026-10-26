@@ -83,6 +83,12 @@ export class Queue {
 
   /** Store captures (all or none: one transaction) and start sending them. */
   async addAll(cs: Capture[], replacing?: Item): Promise<Item[]> {
+    // Photos made smaller first (a lazy chunk), unless this re-queues what is already stored
+    if (!replacing && cs.some((c) => c.files.length)) {
+      try {
+        cs = await (await import("./downscale")).shrinkAll(cs);
+      } catch {} // the chunk would not load (offline, never cached): queue them as they are
+    }
     const items = cs.map((c, n) => newItem(c, this.now() + n));
     if (replacing) for (const i of items) i.created_at = replacing.created_at;
     await this.store.replace(items, replacing?.id);

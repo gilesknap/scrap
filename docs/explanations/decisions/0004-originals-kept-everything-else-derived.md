@@ -39,6 +39,13 @@ to the user's, marked in `model_tag`, and never add back one the user took off; 
 Deleting a page is a **soft delete** (`deleted_at`, undelete); nothing is purged yet, so every query
 that follows jobs or links must check it.
 
+**Phone photos are the exception (#89).** The PWA makes a photo at most 2560 px on its long edge
+(JPEG, quality 85) before it is queued, so scrap keeps that version as the original; the
+full-size one stays on the phone, in its gallery. Photos that are small already, that the browser
+cannot decode, or that would not get smaller, are kept as they came, and Settings can turn the
+downscale off. Other routes (the API, the importer, a share to the server) keep what they are given. See
+[](../../how-to/use-the-pwa.md).
+
 ## Consequences
 
 - Wrong model output is always recoverable: the worst outcome of an injected or poor result is a
