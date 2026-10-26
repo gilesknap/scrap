@@ -162,7 +162,7 @@ FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
 # older than their last change, than what photo ingest last read from one of their
 # images, or than their current write-up), or every one with :all; oldest first
 STALE = f"""
-SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND p.slug != 'pinned'
+SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND {roles.NOT_PINNED.format(p="p")}
   AND (:all OR {health.PICKED.format(p="p")} IS NULL
     OR {health.OUTDATED_RELATED.format(p="p")})
 ORDER BY p.created_at LIMIT :limit

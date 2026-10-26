@@ -215,3 +215,13 @@ def test_first_capture(store, pages):
 
 def test_photos_may_be_added_except_to_a_topic(store, pages):
     assert each(store, pages, roles.takes_photos) == {n: n != "topic" for n in NAMES}
+
+
+def test_the_pinned_page_is_the_owners_but_never_enriched(store, pages):
+    pinned = store.ensure_pinned("me")["id"]
+    with closing(connect(store.db)) as conn:
+        assert roles.made_by(conn, pinned) == "human"
+        assert not roles.should_enrich(conn, pinned)  # a note, but a list of links
+        assert sql(roles.NOT_BY_INGEST)(conn, pinned)
+        assert not sql(roles.NOT_PINNED)(conn, pinned)
+    assert all(each(store, pages, lambda c, p: sql(roles.NOT_PINNED)(c, p)).values())
