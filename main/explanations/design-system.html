@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.11.1.dev8+gab56333ed documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.11.1.dev9+g174eb76ee documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=ea6c6387"></script>
+    <script src="../_static/documentation_options.js?v=2c2b9d83"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -575,11 +575,13 @@ top bar swaps the wordmark for Back named for where it goes (‹ Search, ‹ Tod
 page you followed a link from, else to the list you opened it from (past the pages the pager
 stepped through). When Back doesn’t go to the list, the list’s name follows it as a second
 target, ‹ A · Search, which jumps straight back to the list. A page opened cold goes up to
-its parent list (Todos for a todo, Topics for a topic, Capture for any other page). Every
-link to a page, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or its full address on any address the server is reached at (the
-one the app was opened at, and each in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, which the server writes into
-<code class="docutils literal notranslate"><span class="pre">index.html</span></code>’s <code class="docutils literal notranslate"><span class="pre">scrap-origins</span></code> meta tag), opens in place, so the phone’s own Back walks back
-through them one step at a time, as the top bar’s Back does after a link.
+its parent list (Todos for a todo, Topics for a topic, Capture for any other page): Back goes
+where its label says, with no request, so while the page is still loading that is Capture
+and on a stalled link it is never a dead button. Every link to a page, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or its full
+address on any address the server is reached at (the one the app was opened at, and each in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, which the server writes into <code class="docutils literal notranslate"><span class="pre">index.html</span></code>’s <code class="docutils literal notranslate"><span class="pre">scrap-origins</span></code> meta tag),
+opens in place, so the phone’s own Back walks back through them one step at a time, as the
+top bar’s Back does after a link.
 Delete is one step back (the list, or the page whose link opened it) with <strong>Undo</strong>; opened
 cold, it goes where Back names.
 Whichever Back (the top bar’s, the jump, the phone’s) or Forward, a screen comes back
