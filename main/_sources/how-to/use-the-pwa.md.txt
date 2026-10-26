@@ -437,7 +437,8 @@ How matching works:
   when they are this server's own photos (an image from another site is not fetched: a web
   address shows as a link to it, named by the image's alt text, and anything else as its alt
   text); links open only to the web (`https`, `http`, `mailto`) or to pages here, and any other
-  link is left as plain text. A line break stays a line break. A wide table scrolls sideways in
+  link is left as plain text. A full web address of a page here (`https://<your scrap>/p/slug`)
+  opens in the app, as `[[slug]]` does, so the phone's Back comes back to the page it was in. A line break stays a line break. A wide table scrolls sideways in
   its own box. On a Later page, a link on a line of its own shows as a card: the site, the
   path in words, and **Open**. The text is always stored as typed, and **Edit** shows it so
   (but for the photo tokens, below).
@@ -527,8 +528,10 @@ How matching works:
   line back); **OK** saves. The file and what Claude made of it are kept: once no page shows it, the
   nightly `scrap gc` gathers it onto the month's *Orphaned assets* todo page, where you cut it into
   another page to keep it or delete the page when you have looked through it (see {ref}`scrap-gc`).
-- **Delete** moves the page to the trash, with **Undo** for a few seconds, and goes back to the
-  list or search it was opened from (else to every page, newest first). The app has no trash
+- **Delete** moves the page to the trash, with **Undo** for a few seconds, and goes back one
+  step, as the phone's Back would: to the list or search it was opened from, or to the page
+  whose link you followed to it. A page opened cold (from a link outside scrap or a share)
+  goes where the top bar's Back names: Todos for a todo, Topics for a topic, else Capture. The app has no trash
   screen: once the Undo has gone, a page can be brought back with
   `POST /api/pages/{id}/undelete` (see [](../reference/api.md)).
 

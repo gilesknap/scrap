@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.9.1.dev3+gc11b7a1bb documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.9.1.dev4+ga2eef46b6 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=dacc768f"></script>
+    <script src="../_static/documentation_options.js?v=28b07d8a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -971,7 +971,8 @@ HTML is shown as typed, never run; images show only
 when they are this server’s own photos (an image from another site is not fetched: a web
 address shows as a link to it, named by the image’s alt text, and anything else as its alt
 text); links open only to the web (<code class="docutils literal notranslate"><span class="pre">https</span></code>, <code class="docutils literal notranslate"><span class="pre">http</span></code>, <code class="docutils literal notranslate"><span class="pre">mailto</span></code>) or to pages here, and any other
-link is left as plain text. A line break stays a line break. A wide table scrolls sideways in
+link is left as plain text. A full web address of a page here (<code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/slug</span></code>)
+opens in the app, as <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> does, so the phone’s Back comes back to the page it was in. A line break stays a line break. A wide table scrolls sideways in
 its own box. On a Later page, a link on a line of its own shows as a card: the site, the
 path in words, and <strong>Open</strong>. The text is always stored as typed, and <strong>Edit</strong> shows it so
 (but for the photo tokens, below).</p></li>
@@ -1063,8 +1064,10 @@ doesn’t delete the stored file. <strong>Cancel</strong> goes back to the edito
 line back); <strong>OK</strong> saves. The file and what Claude made of it are kept: once no page shows it, the
 nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> gathers it onto the month’s <em>Orphaned assets</em> todo page, where you cut it into
 another page to keep it or delete the page when you have looked through it (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
-<li><p><strong>Delete</strong> moves the page to the trash, with <strong>Undo</strong> for a few seconds, and goes back to the
-list or search it was opened from (else to every page, newest first). The app has no trash
+<li><p><strong>Delete</strong> moves the page to the trash, with <strong>Undo</strong> for a few seconds, and goes back one
+step, as the phone’s Back would: to the list or search it was opened from, or to the page
+whose link you followed to it. A page opened cold (from a link outside scrap or a share)
+goes where the top bar’s Back names: Todos for a todo, Topics for a topic, else Capture. The app has no trash
 screen: once the Undo has gone, a page can be brought back with
 <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/undelete</span></code> (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p></li>
 </ul>
