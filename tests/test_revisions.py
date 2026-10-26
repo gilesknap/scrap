@@ -305,7 +305,9 @@ def test_no_mcp_tool_can_delete_or_overwrite_text(store):
     assert risky == {"trash", "undelete"}
     for name, args in tools.items():
         if name not in ("write", "edit_page"):
-            assert not args & {"body", "title", "text", "fields", "status"}, name
+            assert not args & {"body", "title", "text", "status"}, name
+            # fields only as edit_meta's metadata revision (#309), which revert undoes
+            assert ("fields" in args) == (name == "edit_meta"), name
     ref = human(store, "my own words", tags=["t"])
     ok(store, "edit_meta", pages=[ref["slug"]], kind="todo", set_tags=["u"])
     rev = meta(store, ref["slug"])[0]["id"]
@@ -509,3 +511,146 @@ def test_edit_meta_kind_change_on_a_full_page_loses_nothing(store):
     out = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")
     assert out["changed"] == 1
     assert store.page(ref["page_id"])["fields"] == full
+
+
+# ---- edit_meta's fields (#309): a Later's media_type, and its subtype that follows
+
+
+def later(store, title, **fields):
+    ref = human(store, title)
+    ok(store, "edit_meta", pages=[ref["slug"]], kind="read")  # a Later: subtype read
+    if fields:
+        store.update_page(ref["slug"], None, None, None, "me", fields=fields)
+    return ref
+
+
+def test_edit_meta_sets_media_type_and_its_subtype(store):
+    ref = later(store, "Film night")
+    out = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "film"})
+    row = out["pages"][0]
+    assert row["fields_added"] == {"media_type": "film", "subtype": "watch"}
+    assert row["fields_was"] == {"subtype": "read"}  # (media_type was not there)
+    assert row["changed"] and row["revision"]
+    fields = store.page(ref["slug"])["fields"]
+    assert (fields["media_type"], fields["subtype"], fields["status"]) == (
+        "film", "watch", "open",
+    )  # fmt: skip
+    assert [p["slug"] for p in store.search("later:watch", 5)] == [ref["slug"]]
+    assert [p["slug"] for p in store.search("media:film", 5)] == [ref["slug"]]
+
+
+def test_edit_meta_fields_dry_run_saves_nothing(store):
+    ref = later(store, "Podcast")
+    dry = ok(
+        store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "podcast"},
+        dry_run=True,
+    )  # fmt: skip
+    assert dry["dry_run"] and dry["pages"][0]["revision"] is None
+    assert dry["pages"][0]["fields_added"]["subtype"] == "listen"
+    assert "media_type" not in store.page(ref["slug"])["fields"]
+
+
+def test_a_fields_change_in_a_batch_is_reverted_with_its_values(store):
+    a, b = later(store, "A", media_type="book"), later(store, "B")
+    out = ok(
+        store, "edit_meta", pages=[a["slug"], b["slug"]],
+        fields={"media_type": "game", "note": "x"},
+    )  # fmt: skip
+    batch = out["batch"]
+    assert batch and store.page(a["slug"])["fields"]["subtype"] == "play"
+    assert store.page(a["slug"])["fields"]["note"] == "x"
+    undo = ok(store, "revert", batch=batch)
+    assert undo["reverts_batch"] == batch
+    fa, fb = store.page(a["slug"])["fields"], store.page(b["slug"])["fields"]
+    assert (fa["media_type"], fa["subtype"]) == ("book", "read")  # changed back
+    assert "media_type" not in fb and fb["subtype"] == "read"  # taken off / back
+    assert "note" not in fa and "note" not in fb
+    # and the revert is undone in turn
+    ok(store, "revert", batch=undo["batch"])
+    assert store.page(a["slug"])["fields"]["media_type"] == "game"
+    assert store.page(b["slug"])["fields"]["subtype"] == "play"
+
+
+def test_a_field_can_be_taken_off_and_reverted(store):
+    ref = later(store, "A", media_type="tv", subtype="watch", extra="y")
+    out = ok(store, "edit_meta", pages=[ref["slug"]], fields={"extra": None})
+    assert out["pages"][0]["fields_was"] == {"extra": "y"}
+    assert "extra" not in store.page(ref["slug"])["fields"]
+    ok(store, "revert", revision=out["pages"][0]["revision"])
+    assert store.page(ref["slug"])["fields"]["extra"] == "y"
+
+
+def test_a_revert_keeps_a_field_changed_since(store):
+    ref = later(store, "A")
+    rev = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "film"})
+    store.update_page(ref["slug"], None, None, None, "me", fields={"subtype": "listen"})
+    ok(store, "revert", revision=rev["pages"][0]["revision"])
+    fields = store.page(ref["slug"])["fields"]
+    assert "media_type" not in fields and fields["subtype"] == "listen"
+
+
+def test_edit_meta_refuses_bad_fields(store):
+    ref = later(store, "A")
+    key = ref["slug"]
+    assert "subtype follows" in refused(
+        store, "edit_meta", pages=[key], fields={"subtype": "play"}
+    )
+    assert "media_type must be" in refused(
+        store, "edit_meta", pages=[key], fields={"media_type": "pigeon"}
+    )
+    assert "at most +-2**53" in refused(
+        store, "edit_meta", pages=[key], fields={"x": 2**60}
+    )
+    assert "nothing to change" in refused(store, "edit_meta", pages=[key])
+    assert "subtype" in store.page(key)["fields"]  # nothing saved
+
+
+def test_migration_15_adds_fields_was_and_can_run_again(tmp_path):
+    store = Store(tmp_path)
+    store.migrate()
+    ref = human(store, "x")
+    store.edit_meta([ref["slug"]], "claude", "mcp", add=["a"])
+    with closing(connect(store.db)) as conn:
+        columns = [r[1] for r in conn.execute("PRAGMA table_info(page_meta_rev)")]
+        assert "fields_was" in columns
+        conn.execute("PRAGMA user_version = 14")
+    store.migrate()  # an older scrap ran meanwhile: it adds nothing twice
+    assert store.revisions(ref["slug"])["meta"][0]["fields_was"] == {}
+
+
+def test_folded_field_edits_revert_to_what_was_never_there(store):
+    ref = later(store, "Fold")
+    for made in meta(store, ref["slug"]):
+        age(store, made["id"])  # the kind change is its own revision
+    ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "book"})
+    two = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "film"})
+    revs = meta(store, ref["slug"])
+    rev = next(r for r in revs if r["id"] == two["pages"][0]["revision"])
+    assert rev["fields_added"]["media_type"] == "film"
+    assert "media_type" not in rev["fields_was"]  # not made up from the first edit
+    assert rev["fields_was"] == {"subtype": "read"}
+    ok(store, "revert", revision=two["pages"][0]["revision"])
+    fields = store.page(ref["slug"])["fields"]
+    assert "media_type" not in fields and fields["subtype"] == "read"
+
+
+def test_edit_meta_refuses_reserved_long_and_unpaired_fields(store):
+    ref = later(store, "A")
+    key = ref["slug"]
+    for name in ("status", "personal", "source", "summary"):
+        assert "meaning of its own" in refused(
+            store, "edit_meta", pages=[key], fields={name: "x"}
+        )
+    assert "at most 200" in refused(
+        store, "edit_meta", pages=[key], fields={"note": "x" * 201}
+    )
+    note = human(store, "Plain")  # not a Later: media_type would pair with read
+    assert "make it one first" in refused(
+        store, "edit_meta", pages=[note["slug"]], fields={"media_type": "film"}
+    )
+    assert "media_type" not in store.page(note["slug"])["fields"]
+    both = ok(  # but with the kind change in the same call it is fine
+        store, "edit_meta", pages=[note["slug"]], kind="read",
+        fields={"media_type": "film"},
+    )  # fmt: skip
+    assert both["pages"][0]["fields_added"]["subtype"] == "watch"

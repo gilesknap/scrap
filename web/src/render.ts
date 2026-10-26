@@ -1,8 +1,8 @@
 // Page text as HTML: Markdown by markdown-it (a chunk of its own, kept for offline use), with
 // GitHub's tables, task lists, ~~strikethrough~~, bare links and footnotes, plus [[slug]] and
 // [[slug|label]] links to other pages. Raw HTML is shown as text; a line break stays one.
-// Links are http(s), mailto, a page here (a full address of one opens in the app, as [[slug]]
-// does) or a heading of this page; images only this
+// Links are http(s), mailto, a page or screen here (/search?q=..., /todos; a full address of
+// one opens in the app, as [[slug]] does) or a heading of this page; images only this
 // server's own files, each marked with its file's data-sha for the page to make a figure of.
 // A ```mermaid block is drawn as a diagram, by Mermaid, a chunk of its own loaded only then.
 // The server parses text the same way for search (src/scrap/markdown.py). The stored text is
@@ -14,6 +14,10 @@ import { icon } from "./icons";
 const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const EXTERNAL = /^(https?:\/\/|mailto:)/i;
 const PAGE = /^\/p\/[a-z0-9-]+$/;
+// The app's own screens a link may open in place: Capture, Search (with its query), Todos, Topics
+const SCREEN = /^\/(search|todos|topics)?$/;
+/** A path the app opens in place: a page here, or one of its screens. */
+const inApp = (path: string) => PAGE.test(path) || SCREEN.test(path);
 const FOOTNOTE = /^#fn(ref)?\d+(:\d+)?$/;
 const WIKI = /^([a-z0-9-]+)(?:\\?\|(.+))?$/;
 
@@ -72,8 +76,8 @@ export function origins(): string[] {
   return [here, ...listed].filter((o): o is string => !!o && o !== "null");
 }
 
-/** A web address of a page on this server (/p/slug on any of its origins), as the page's own
- * path (with any query or #heading); else null. */
+/** A web address of a page or screen on this server (/p/slug, /search?q=..., /todos, /topics
+ * or / on any of its origins), as its own path (with any query or #heading); else null. */
 export function own(href: string, here: readonly string[] = origins()): string | null {
   if (!here.length || !/^https?:\/\//i.test(href)) return null;
   let url: URL;
@@ -82,7 +86,7 @@ export function own(href: string, here: readonly string[] = origins()): string |
   } catch {
     return null;
   }
-  return here.includes(url.origin) && PAGE.test(url.pathname)
+  return here.includes(url.origin) && inApp(url.pathname)
     ? url.pathname + url.search + url.hash
     : null;
 }
@@ -171,8 +175,9 @@ function inline(children: Token[], state: StateCore): Token[] {
       } else if (href.startsWith("#")) {
         // A heading's id; a footnote's (fn1, fnref1, as markdown-it-footnote makes) as it is
         if (!FOOTNOTE.test(href)) t.attrSet("href", `#${anchor(decoded(href.slice(1)))}`);
-      } else if (!t.meta?.wiki && !PAGE.test(href.replace(/[?#].*/s, ""))) {
-        t.hidden = true; // its text stays (a page's path may have a query or #heading)
+      } else if (!t.meta?.wiki && !inApp(href.replace(/[?#].*/s, ""))) {
+        // its text stays (a page's or a screen's path may have a query or #heading)
+        t.hidden = true;
       }
       opened.push(t);
     } else if (t.type === "link_close") {

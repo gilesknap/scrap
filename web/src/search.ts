@@ -12,7 +12,7 @@ import { icon, kindIcon } from "./icons";
 import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
-import { KIND_ROW, kindsIn, listing, withKind } from "./terms";
+import { groupBy, KIND_ROW, kindsIn, listing, served, withKind } from "./terms";
 import { empty, failed, h } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
@@ -186,7 +186,7 @@ export async function search(): Promise<Node> {
     }
     results.replaceChildren(shown);
     // Not when the screen opens on a query (Back, a reload): only one typed or tapped here
-    if (!first && query && results.querySelector(".hits a"))
+    if (!first && query && results.querySelector(".hits a, .groups a"))
       settle = setTimeout(() => remember(query), 3000); // the query that ran, not what is typed since
     if (scroll) {
       const y = scroll;
@@ -195,11 +195,14 @@ export async function search(): Promise<Node> {
     }
   }
 
-  /** The newest-first list (an empty box, or a kind alone), else the search's hits. */
+  /** The newest-first list (an empty box, or a kind alone), else the search's hits, in
+   * sections when grouped (group: in the query, or Later's and Todos' own: grouped.ts). */
   async function list(query: string, signal: AbortSignal): Promise<Node> {
     const filter = listing(query);
-    if (filter !== null) {
-      const kind = kindsIn(query)[0];
+    const how = groupBy(query);
+    const one = kindsIn(query);
+    if (filter !== null && !how) {
+      const kind = one[0];
       const more = () => {
         limit = Math.min(limit + PAGE, 500);
         keep({ limit });
@@ -214,20 +217,16 @@ export async function search(): Promise<Node> {
     }
     const ul = h("ul", { className: "list hits" });
     try {
-      // limit hits (Show more adds PAGE), fetched PAGE at a time: the API's most per request
+      // limit hits (Show more adds PAGE), fetched PAGE at a time: the API's most per request.
+      // The server gets the group in force (terms.ts served)
       const hits: Hit[] = [];
       for (let offset = 0; offset < limit; offset += PAGE) {
-        const q = `q=${encodeURIComponent(query)}&limit=${PAGE}&offset=${offset}`;
+        const q = `q=${encodeURIComponent(served(query))}&limit=${PAGE}&offset=${offset}`;
         const got = await api<Hit[]>(`search?${q}`, { signal });
         hits.push(...got);
         if (got.length < PAGE) break;
       }
-      trail(
-        ul,
-        "Search results",
-        hits.map((hit) => hit.slug),
-      );
-      const rows = hits.map((hit) => {
+      const rowOf = (hit: Hit) => {
         const li = pageRow(
           hit,
           h(
@@ -242,9 +241,24 @@ export async function search(): Promise<Node> {
           li.querySelector(".sub > small")?.after(h("span", { className: "topic" }, "Topic"));
         }
         return li;
-      });
-      swipeRows(rows.map((li, i) => [li, hits[i]]));
-      ul.append(...rows, ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]));
+      };
+      let shown: Node = ul;
+      if (how && hits.length) {
+        // In sections (a chunk of its own, with the Todos screen's): one pager trail through
+        // them all, in the order shown
+        const label = one.length === 1 ? one[0][0] : "Search results";
+        const m = await import("./grouped");
+        shown = m.grouped(hits, how, query, rowOf, label);
+      } else {
+        trail(
+          ul,
+          "Search results",
+          hits.map((hit) => hit.slug),
+        );
+        const rows = hits.map(rowOf);
+        swipeRows(rows.map((li, i) => [li, hits[i]]));
+        ul.append(...rows, ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]));
+      }
       if (hits.length === limit && limit < MOST) {
         const more = () => {
           limit += PAGE;
@@ -254,10 +268,11 @@ export async function search(): Promise<Node> {
         return h(
           "div",
           {},
-          ul,
+          shown,
           h("button", { type: "button", className: "more", onclick: more }, "Show more"),
         );
       }
+      return shown;
     } catch (e) {
       if ((e as Error).name !== "AbortError")
         ul.append(h("li", {}, failed("Search needs the server.")));

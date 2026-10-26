@@ -45,25 +45,39 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
             list[str] | None,
             Field(max_length=MAX_TAGS, description="Replace all of its tags"),
         ] = None,
+        fields: Annotated[
+            dict[str, str | int | float | bool | None] | None,
+            Field(
+                max_length=MAX_TAGS,
+                description="Fields to set on every page (null takes one off)",
+            ),
+        ] = None,
         dry_run: DryRun = False,
         limit: BulkLimit = 50,
     ) -> dict[str, Any]:
-        """Change the kind and/or tags of pages, any page, the user's own too: the
-        pages named, or every page a search query finds (refused if it finds more than
-        limit). A kind given is fixed (ingest and task boxes no longer change it), as
-        when the user picks one, and adds that kind's default fields it lacks. Tags:
+        """Change the kind, tags and/or fields of pages, any page, the user's own too:
+        the pages named, or every page a search query finds (refused if it finds more
+        than limit). A kind given is fixed (ingest and task boxes no longer change it),
+        as when the user picks one, and adds that kind's default fields it lacks. Tags:
         add_tags and remove_tags (exact: removing a leaves a/b), or set_tags to
-        replace them all. Nothing else changes: not the title, the text or when it
-        was last updated. Each page changed is a revision that revert undoes; quick
-        changes to one named page fold into one. A query or several pages is a batch:
-        its revisions share the returned batch id, and revert(batch=...) undoes them
-        all at once. All or nothing. Try dry_run first for a bulk change."""
+        replace them all. fields: values for the pages' fields, such as a Later's
+        media_type (book, article, film, tv, video, podcast, music or game; its subtype,
+        what it is for, follows and is never set on its own); the response gives the
+        values they had (fields_was). Nothing else changes: not the title, the text or
+        when it was last updated. Each page changed is a revision that revert undoes;
+        quick changes to one named page fold into one. A query or several pages is a
+        batch: its revisions share the returned batch id, and revert(batch=...) undoes
+        them all at once. All or nothing. Try dry_run first for a bulk change."""
         if pages and query is not None:
             raise ToolError("give pages or a query, not both")
         if not pages and query is None:
             raise ToolError("give pages or a query")
-        if kind is None and not (add_tags or remove_tags) and set_tags is None:
-            raise ToolError("nothing to change: give a kind or tags")
+        if (
+            kind is None
+            and not (add_tags or remove_tags or fields)
+            and set_tags is None
+        ):
+            raise ToolError("nothing to change: give a kind, tags or fields")
         if kind is not None and kind not in WRITE_KINDS and kind not in KINDS:
             raise ToolError(f"kind must be one of {WRITE_KINDS} (board is whiteboard)")
         if query is not None:
@@ -81,6 +95,7 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
             tag_list(add_tags, "a tag"), tag_list(remove_tags, "a tag"),
             None if set_tags is None else tag_list(set_tags, "a tag"), dry_run,
             batch=query is not None,  # else several distinct pages: Store decides
+            fields=fields,
         )  # fmt: skip
         return changes(found, dry_run)
 

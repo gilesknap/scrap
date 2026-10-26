@@ -1,6 +1,7 @@
 // The Todos screen's lists (todos.ts): what to do now, first. No DOM here, so the unit tests
 // run it. Days are YYYY-MM-DD on this device's calendar (status.ts today()).
 import type { Summary } from "./api";
+import { dueMeets, duesIn } from "./dues";
 import { snoozed, statusOf } from "./status";
 
 type Todo = Pick<Summary, "kind" | "fields" | "due" | "priority" | "updated_at" | "snoozed_until">;
@@ -56,8 +57,12 @@ export function after(day: string, n: number) {
 
 export const AHEAD = 7; // Upcoming: from tomorrow to this many days away
 
-/** Upcoming: the open todos (not snoozed) due from tomorrow to a week away, soonest first. */
+/** Upcoming as a search: the Todos screen's view, which upcoming() reads its due: from. */
+export const UPCOMING = `kind:todo due:>today due:<=${AHEAD}d sort:due`;
+
+/** Upcoming: the open todos (not snoozed) due from tomorrow to a week away (UPCOMING's due:
+ * terms), soonest first. */
 export const upcoming = <T extends Todo>(list: T[], today: string) =>
   list
-    .filter((t) => toDo(t, today) && !!t.due && t.due > today && t.due <= after(today, AHEAD))
+    .filter((t) => toDo(t, today) && duesIn(UPCOMING).every((v) => dueMeets(v, t.due, today)))
     .sort(by(due, rank, recent));

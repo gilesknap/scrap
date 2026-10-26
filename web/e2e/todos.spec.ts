@@ -109,7 +109,7 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await expect(page).toHaveURL(/\/todos\?view=upcoming$/);
   // Due from tomorrow to a week away: not "later high", due in 10 days
   await expect.poll(() => quolls(page)).toEqual([`${Q} later medium`]);
-  await expect(page.locator(".todos .count")).toHaveText(/ due in the next 7 days$/);
+  await expect(page.locator(".todos .count")).toHaveText(/ due in the next 7 days/);
   await expect(page.getByRole("combobox", { name: "Sort" })).toHaveCount(0); // the view's order
   await page.getByText("All", { exact: true }).click();
   await expect(page).toHaveURL(/\/todos\?view=all$/);
@@ -251,12 +251,12 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   expect(await counted()).toBe(false); // the Todos tab's count leaves it out
   await page.goto("/todos");
   // "1 snoozed" links to a search of them (open ones only: is:snoozed skips done ones)
-  const asleep = page.locator(".todos .count a");
+  const asleep = page.locator(".todos .count a", { hasText: "snoozed" });
   await expect(asleep).toHaveText(/^\d+ snoozed$/);
   await expect(inNow()).toHaveCount(0);
   await asleep.click();
   await expect(page).toHaveURL(/\/search\?q=kind%3Atodo(%20|\+)is%3Asnoozed(%20|\+)sort%3Adue$/);
-  await expect(page.locator(".hits li", { hasText: title })).toBeVisible();
+  await expect(page.locator(".list li", { hasText: title })).toBeVisible();
   await page.goto("/todos");
   await page.getByText("All", { exact: true }).click();
   const row = page.locator(".list li", { hasText: title });

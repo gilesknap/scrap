@@ -23,7 +23,7 @@ test.beforeAll(() => {
 
 type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
-const hits = (page: Page) => page.locator(".hits li a strong");
+const hits = (page: Page) => page.locator(".list li a strong");
 const openTags = (scope: Locator) => openFold(scope, "Tags");
 
 test("refine chips narrow a search and come off again", async ({ page }) => {

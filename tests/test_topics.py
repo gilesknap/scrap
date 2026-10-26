@@ -185,7 +185,7 @@ def test_migration_13_on_a_v12_database_keeps_jobs_and_runs(store):
     assert jobs(store) == before
     with closing(connect(store.db)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert len(migrations()) == 14
+        assert len(migrations()) >= 14
         runs = [tuple(r) for r in conn.execute(
             "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
             " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip

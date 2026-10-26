@@ -300,6 +300,24 @@ describe("a page here by its full address (#288)", () => {
     expect(own(`${HERE}/p/a-page`, [])).toBeNull();
   });
 
+  it("is the path of one of the app's screens too, opened in place", () => {
+    expect(own(`${HERE}/search?q=tag:person%20group:tag`, [HERE])).toBe(
+      "/search?q=tag:person%20group:tag",
+    );
+    expect(own(`${HERE}/todos`, [HERE])).toBe("/todos");
+    expect(own(`${HERE}/topics`, [HERE])).toBe("/topics");
+    expect(own(`${HERE}/`, [HERE])).toBe("/");
+    expect(own(`${HERE}/settings`, [HERE])).toBeNull();
+    // written as a path: a link, opened in place (main.ts routes it), not dropped to text
+    expect(one("[Everyone](/search?q=tag:person%20group:letter)")).toBe(
+      '<p><a href="/search?q=tag:person%20group:letter">Everyone</a></p>',
+    );
+    expect(one("[Todos](/todos) [Home](/)")).toBe(
+      '<p><a href="/todos">Todos</a> <a href="/">Home</a></p>',
+    );
+    expect(one("[x](/api/blobs/x)")).toBe("<p>x</p>");
+  });
+
   it("is on any of the server's addresses (#290)", () => {
     expect(own(`${HERE}/p/a-page`, [HERE, LAN])).toBe("/p/a-page");
     expect(own(`${LAN}/p/b-page#h-x`, [HERE, LAN])).toBe("/p/b-page#h-x");

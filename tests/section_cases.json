@@ -1,0 +1,38 @@
+{
+  "today": "2026-10-21",
+  "note": "Shared by tests/test_section_cases.py (store/grouping.py) and web/tests/sections.test.ts (groups.ts, now.ts): the same pages, the same order out. Pages keep the order given inside a section unless due orders them.",
+  "cases": [
+    {"group": "letter", "pages": [
+      {"title": "zebra", "kind": "note"}, {"title": "Émile", "kind": "note"},
+      {"title": "apple", "kind": "note"}, {"title": "42", "kind": "note"},
+      {"title": "Ant", "kind": "note"}
+    ], "order": ["apple", "Ant", "Émile", "zebra", "42"]},
+    {"group": "type", "pages": [
+      {"title": "g", "kind": "consume", "fields": {"subtype": "play"}},
+      {"title": "done", "kind": "consume", "fields": {"subtype": "read", "status": "done"}},
+      {"title": "r", "kind": "consume", "fields": {"subtype": "read"}},
+      {"title": "odd", "kind": "consume", "fields": {"subtype": "weird"}},
+      {"title": "w", "kind": "consume", "fields": {"subtype": "watch"}},
+      {"title": "none", "kind": "consume"}
+    ], "order": ["r", "odd", "none", "w", "g", "done"]},
+    {"group": "due", "pages": [
+      {"title": "later", "kind": "todo", "due": "2026-12-01"},
+      {"title": "none", "kind": "todo"},
+      {"title": "week", "kind": "todo", "due": "2026-10-25"},
+      {"title": "closed", "kind": "todo", "due": "2026-10-20", "fields": {"status": "done"}},
+      {"title": "tomorrow", "kind": "todo", "due": "2026-10-22"},
+      {"title": "today", "kind": "todo", "due": "2026-10-21"},
+      {"title": "over", "kind": "todo", "due": "2026-10-01"},
+      {"title": "week2", "kind": "todo", "due": "2026-10-24"}
+    ], "order": ["over", "today", "tomorrow", "week2", "week", "later", "none", "closed"]},
+    {"group": "now", "pages": [
+      {"title": "open", "kind": "todo"},
+      {"title": "asleep", "kind": "todo", "snoozed_until": "2026-10-30"},
+      {"title": "high", "kind": "todo", "priority": "high"},
+      {"title": "closed", "kind": "todo", "fields": {"status": "cancelled"}},
+      {"title": "today", "kind": "todo", "due": "2026-10-21"},
+      {"title": "over", "kind": "todo", "due": "2026-10-02"},
+      {"title": "woke", "kind": "todo", "snoozed_until": "2026-10-21"}
+    ], "order": ["over", "today", "high", "open", "woke", "asleep", "closed"]}
+  ]
+}

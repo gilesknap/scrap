@@ -77,7 +77,7 @@ console.log(`viewer chunks:  ${[...viewer].filter((f) => !shell.has(f)).join(" "
 
 let failed = false;
 if (shellJs > BUDGET) {
-  console.error("FAIL: the app shell is over its budget");
+  console.error(`FAIL: the app shell is over its budget (${shellJs} of ${BUDGET} bytes gzipped)`);
   failed = true;
 }
 const inShell = (text) => [...shell].some((f) => readFileSync(join(OUT, f), "utf8").includes(text));

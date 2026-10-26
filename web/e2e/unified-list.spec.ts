@@ -48,7 +48,7 @@ test("Clear resets text, kind and filters to the newest-first list", async ({ pa
   await make(page, `Clear me ${tag}`, "todo");
   await page.goto(`/search?q=${encodeURIComponent(`clear kind:todo after:1w`)}`);
   await expect(page.locator(".kindrow").getByRole("radio", { name: "Todos" })).toBeChecked();
-  await expect(page.locator(".hits li", { hasText: `Clear me ${tag}` })).toBeVisible();
+  await expect(page.locator(".list li", { hasText: `Clear me ${tag}` })).toBeVisible();
   // The box's ✕, inside it at its end, just before the Filters slider; each a 48 px target
   const clear = page.getByRole("button", { name: "Clear search" });
   const filters = filtersButton(page);
@@ -89,7 +89,7 @@ test("deleting an opened page returns to its search, filters kept; Back too", as
   await page.goto("/"); // from elsewhere, so Back has somewhere wrong to go
   await page.goto(url);
   await page.locator(`a[href="/p/${keep}"]`).click();
-  await expect(page.locator("header .pager")).toHaveAttribute("aria-label", "In Search results");
+  await expect(page.locator("header .pager")).toHaveAttribute("aria-label", "In Todos"); // a todo search is in sections, named by its kind
   await expect(page.locator("#backto")).toHaveText("Search");
   await page.goBack();
   await expect(page).toHaveURL(url);

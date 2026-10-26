@@ -12,7 +12,21 @@ import { api } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
-import { adding, has, KIND_ROW, kindsIn, listing, removing, token } from "./terms";
+import { MEDIA, removing, withGroup } from "./termedit";
+import {
+  adding,
+  type Group,
+  groupAsked,
+  groupBy,
+  groupDefault,
+  has,
+  KIND_ROW,
+  kindsIn,
+  listing,
+  tagsIn,
+  token,
+  ungrouped,
+} from "./terms";
 import { h } from "./ui";
 
 interface Facets {
@@ -40,8 +54,11 @@ const NONE: Facets = {
   personal: { work: 0, personal: 0 },
   active: [],
 };
+// (without its group: words: terms.ts ungrouped)
 const facets = (q: string, signal?: AbortSignal) =>
-  q ? api<Facets>(`search/facets?q=${encodeURIComponent(q)}`, { signal }) : Promise.resolve(NONE);
+  ungrouped(q)
+    ? api<Facets>(`search/facets?q=${encodeURIComponent(ungrouped(q))}`, { signal })
+    : Promise.resolve(NONE);
 /** The query's filters, but the kind row's kind (not a "not" one: -kind:todo). */
 const filtersOf = (f: Facets) => f.active.filter((a) => a.key !== "kind" || a.neg);
 const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
@@ -75,6 +92,22 @@ const RANGES = [
   ["1y", "1y", "the past year"],
 ];
 
+// Groupings: [group: value, chip, what the Filters on row says]
+// (in the Group row's order, the list's own first: Now · Due · None · A–Z for todos)
+const GROUPS: [Group | "none", string, string][] = [
+  ["type", "Type", "grouped by type"],
+  ["now", "Now", "grouped by Now"],
+  ["due", "Due", "grouped by due"],
+  ["none", "None", "not grouped"],
+  ["letter", "A–Z", "grouped A–Z"],
+  ["tag", "Tag", "grouped by tag"],
+];
+/** The group: asked for, as the Filters on row says it ("grouped A–Z"), or null. */
+const grouped = (q: string) => {
+  const g = groupAsked(q);
+  return g === null ? null : (GROUPS.find(([k]) => k === g)?.[2] ?? `group:${g}`);
+};
+
 // is: values in words: the rest are statuses, said as they are ("done", "in progress")
 const IS: Record<string, string> = { claude: "Written by Claude", snoozed: "snoozed" };
 
@@ -91,6 +124,8 @@ function label(a: Facets["active"][number]) {
     return RANGES.find(([, v]) => v === a.value)?.[2].replace("the ", "") ?? a.token;
   const check = checkName(`${a.key}:${a.value}`); // a store health check: its name
   if (check) return `${not}${check}`;
+  if (a.key === "media") return `${not}${MEDIA[a.value] ?? a.value}`;
+  if (a.key === "later") return `${not}to ${a.value}`;
   if (a.key === "is") return `${not}${IS[a.value] ?? a.value.replace("_", " ")}`;
   if (a.key === "kind") {
     const k = KIND_ROW.find(([, , names]) => names.includes(a.value.toLowerCase()));
@@ -112,14 +147,16 @@ export async function refine(
   const k = was?.closest(".refine") ? was.dataset.k : null;
   const f = await facets(q, signal);
   const on = filtersOf(f);
+  const group = grouped(q); // a group: asked for: a filter on too, read here (not the server's)
+  const n = on.length + (group ? 1 : 0);
   const panel = h(
     "div",
     { className: "fpanel", id: "fpanel", hidden: !open },
     ...rows(q, f, apply),
   );
   // The box's slider: how many are on, in a dot; tapped, the panel opens under the kinds
-  button.replaceChildren(icon("filter"), on.length > 0 ? h("b", {}, String(on.length)) : "");
-  button.setAttribute("aria-label", on.length ? `Filters, ${on.length} on` : "Filters");
+  button.replaceChildren(icon("filter"), n > 0 ? h("b", {}, String(n)) : "");
+  button.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
   button.setAttribute("aria-controls", "fpanel");
   button.setAttribute("aria-expanded", String(open));
   button.onclick = () => {
@@ -137,6 +174,12 @@ export async function refine(
     b.dataset.k = `off:${a.token}`;
     return b;
   });
+  if (group) {
+    const b = chip(group, null, () => apply(ungrouped), true);
+    b.setAttribute("aria-label", `Remove ${group}`);
+    b.dataset.k = "off:group";
+    chips.push(b);
+  }
   const bar = h(
     "div",
     { className: "refine" },
@@ -290,7 +333,12 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   // Order: one tap each; the default (best match, or last edited) has its own chip
   const todos = kindsIn(q).length === 1 && kindsIn(q)[0][1] === "todo";
   const last = f.active.filter((a) => a.key === "sort").at(-1);
-  const now = last ? `${last.neg ? "-" : ""}sort:${last.value}` : "";
+  // (grouped A–Z with no order chosen: A–Z, as the server does)
+  const now = last
+    ? `${last.neg ? "-" : ""}sort:${last.value}`
+    : groupBy(q) === "letter"
+      ? "sort:title"
+      : "";
   const words = q.split(/\s+/).some((w) => w && !"-!".includes(w[0]) && !w.includes(":"));
   const orders = [
     ["", words ? "Best match" : "Last edited"],
@@ -341,15 +389,39 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   if (ranged.some((a) => a.key === "after" && a.value === "9999-12-31"))
     range.append(h("p", { className: "hint" }, "Dates run to 9999-12-31: nothing is after it."));
 
-  const clear = filtersOf(f).length
-    ? Object.assign(h("button", { type: "button", className: "link" }, "Clear filters"), {
-        onclick: () => {
-          typed = "";
-          apply((q2) => filtersOf(f).reduce((s, a) => removing(s, a.token), q2));
-        },
-      })
-    : null;
+  const clear =
+    filtersOf(f).length || groupAsked(q) !== null
+      ? Object.assign(h("button", { type: "button", className: "link" }, "Clear filters"), {
+          onclick: () => {
+            typed = "";
+            apply((q2) => filtersOf(f).reduce((s, a) => removing(s, a.token), ungrouped(q2)));
+          },
+        })
+      : null;
   clear?.setAttribute("data-k", "clear");
+
+  // Group: the list's own first (Later's Type, Todos' Now, else None), as Order has its
+  // default first; Tag only with a tag filter on, Type only for Later alone, Now and Due only
+  // for Todos alone
+  const own = groupDefault(q) ?? "none";
+  const by = groupBy(q) ?? "none";
+  const fits = (k: string) =>
+    k === "tag"
+      ? tagsIn(q).length > 0
+      : k === "type" || k === "now"
+        ? k === own
+        : k === "due"
+          ? own === "now"
+          : true;
+  const groups = [...GROUPS.filter(([k]) => k === own), ...GROUPS.filter(([k]) => k !== own)]
+    .filter(([k]) => fits(k))
+    .map(([k, label]) => {
+      const b = chip(label, -1, () => apply((q2) => withGroup(q2, k)));
+      b.setAttribute("aria-pressed", String(k === by));
+      b.setAttribute("aria-label", k === "none" ? "Not grouped" : `Group by ${label}`);
+      b.dataset.k = `group:${k}`;
+      return b;
+    });
 
   return [
     tags,
@@ -361,6 +433,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       (ranged.length > 0 || created) && toggle("By created date", "date:created"),
     ),
     range,
+    row("Group", ...groups),
     clear as HTMLElement,
   ].filter(Boolean);
 }

@@ -17,6 +17,7 @@ from ..ingest import (
     spent_today,
 )
 from ..markdown import plain
+from ..query import subtype_of
 from ..store import (
     MAX_TAGS,
     Store,
@@ -36,6 +37,7 @@ from .constants import (
     SHORT,
     TITLE_CAS,
 )
+from .media import site_media
 from .prompts import page_images, page_message, system_prompt, vocabulary
 from .relating import relate
 from .synthesis import synthesise
@@ -409,8 +411,13 @@ class Enricher:
                                         "url": link},
                         )  # fmt: skip
                     if alive["kind"] == "note" and not alive["kind_fixed"]:
+                        medium = site_media(link) or out["media_type"]
+                        kept = json.loads(alive["fields"])
                         fields = {**fields_for("consume", link),
-                                  **json.loads(alive["fields"])}  # fmt: skip
+                                  **({"media_type": medium,
+                                      "subtype": subtype_of(medium)}
+                                     if medium else {}),
+                                  **kept}  # fmt: skip
                         conn.execute(
                             "UPDATE page SET kind = 'consume', fields = ? WHERE id = ?",
                             (json.dumps(fields), page_id),

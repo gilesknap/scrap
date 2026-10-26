@@ -97,8 +97,8 @@ META_SOURCES = ("web", "mcp")  # who changed a page's kind or tags: the PWA, or 
 # Every change to a page's kind and tags, newest first (see page_meta_rev)
 META_REV = (
     "SELECT id, page_id, author, source, kind_before, kind_after, fixed_before,"
-    " fixed_after, tags_before, tags_after, fields_added, reverts, batch_id,"
-    " created_at, updated_at FROM page_meta_rev"
+    " fixed_after, tags_before, tags_after, fields_added, fields_was, reverts,"
+    " batch_id, created_at, updated_at FROM page_meta_rev"
 )
 # One ingest job per distinct image of a photo capture (or the one photo asked for);
 # job_one_active makes a repeat add nothing.

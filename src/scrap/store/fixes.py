@@ -85,6 +85,18 @@ def add_meta_revs(conn: sqlite3.Connection) -> None:
         )
 
 
+def add_fields_was(conn: sqlite3.Connection) -> None:
+    """page_meta_rev.fields_was (migration 15), unless an earlier run added it: the
+    values the fields a change set had before it (a JSON object; a field it took off
+    is in it but not in fields_added), so a revert gives them back."""
+    columns = [r[1] for r in conn.execute("PRAGMA table_info(page_meta_rev)")]
+    if "fields_was" not in columns:
+        conn.execute(
+            "ALTER TABLE page_meta_rev ADD COLUMN fields_was TEXT NOT NULL DEFAULT"
+            " '{}' CHECK (json_type(fields_was) = 'object')"
+        )
+
+
 # The enrich job table (named), and its indexes; reason 'related' since migration 11,
 # 'writeup' since migration 12, 'topic' since migration 13
 ENRICH_JOB = """

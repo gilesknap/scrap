@@ -4,17 +4,19 @@ import re
 from typing import Any
 
 from .. import claude
+from ..query import MEDIA
 from ..store import health, writeups
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["tags", "summary", "title", *claude.INTENT_PROPERTIES],
+    "required": ["tags", "summary", "title", "media_type", *claude.INTENT_PROPERTIES],
     "properties": {
         **claude.INTENT_PROPERTIES,
         "tags": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
         "title": {"type": "string"},
+        "media_type": {"type": "string", "enum": [*MEDIA, ""]},
     },
 }
 # Related pages: a call of its own (the nightly pass, and Ask Claude), not on every save

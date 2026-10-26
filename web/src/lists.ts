@@ -43,7 +43,8 @@ function row(
 }
 
 /** A page's row, however it was found: its thumbnail (else its kind's icon), title, when last
- * edited and its chip; a search's hit also has its snippet. */
+ * edited (a Later's medium after it: "Book") and its chip; a search's hit also has its
+ * snippet. */
 export const pageRow = (
   p: Pick<
     Summary,
@@ -59,8 +60,8 @@ export const pageRow = (
     | "tasks"
   >,
   snippet?: Node,
-) =>
-  row(
+) => {
+  const li = row(
     p.thumb && previewUrl(p.thumb, 480),
     p.title,
     whenShort(p.updated_at),
@@ -70,6 +71,11 @@ export const pageRow = (
     snippet && chipOf(p.kind, p.fields),
     dueOf(p),
   );
+  const media = p.kind === "consume" ? String(p.fields.media_type ?? "") : "";
+  if (media)
+    li.querySelector(".sub > small")?.after(h("small", { className: `media ${media}` }, media));
+  return li;
+};
 
 /** Captures still on the phone, oldest first. */
 export async function pendingList(): Promise<Node> {

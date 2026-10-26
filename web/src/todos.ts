@@ -5,15 +5,22 @@
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
 import { api, type Hit, writeClock } from "./api";
 import { address, view } from "./app";
+import type { Section } from "./groups";
 import { icon } from "./icons";
 import type { pageRow } from "./lists";
-import { isOpen, now, toDo, upcoming } from "./now";
+import { isOpen, now, toDo, UPCOMING, upcoming } from "./now";
+import { drawSections } from "./sections";
 import { today } from "./status";
-import { swipeRows, trail } from "./swipe";
 import { empty, h, problem } from "./ui";
 
 // The snoozed todos, as the search screen has them (the count of them links there)
 const SNOOZED = "kind:todo is:snoozed sort:due";
+// Each view as a search, for Refine at the count line's end (Now is Todos' own grouping there)
+const AS_SEARCH: Record<string, string> = {
+  now: "kind:todo",
+  upcoming: UPCOMING,
+  all: "kind:todo sort:updated group:none",
+};
 
 // Each with its icon, as search's kind row has them: Now a clock, Upcoming the due calendar,
 // All search's All
@@ -92,7 +99,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   };
   document.addEventListener("queuechange", again, { signal });
   if (missed) void again();
-  const body = h("div");
+  const body = h("div", { className: "groups" });
   const count = h("p", { className: "count" });
   const radios = MODES.map(([m, label, glyph]) => {
     const radio = h("input", {
@@ -111,26 +118,18 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     const [m, name] = modeOf();
     for (const l of radios) (l.firstChild as HTMLInputElement).checked = l.textContent === name;
     const day = today();
-    const groups: [string, Todo[]][] =
-      m === "now" ? now(list, day) : [["", m === "all" ? list : upcoming(list, day)]];
-    const shown = groups.flatMap(([, ts]) => ts);
-    const slugs = shown.map((p) => p.slug);
-    const lists = groups.map(([label, ts]) => {
-      const ul = trail(
-        h("ul", { className: "list" }, ...ts.map((p) => row(p))),
-        `Todos · ${name}`,
-        slugs,
-      );
-      swipeRows(ts.map((p, i) => [ul.children[i], p]));
-      if (!label) return ul;
-      const id = `todos-${label.split(" ")[0].toLowerCase()}`;
-      return h(
-        "section",
-        { "aria-labelledby": id },
-        h("h2", { className: "label", id }, `${label} · ${ts.length}`),
-        ul,
-      );
-    });
+    const groups: Section<Todo>[] = (
+      m === "now" ? now(list, day) : [["", m === "all" ? list : upcoming(list, day)] as const]
+    ).map(([label, items]) => ({ label, items }));
+    const shown = groups.flatMap((g) => g.items);
+    // Now: the done and cancelled ones, folded away at the end, last edited first (a trail of
+    // their own: Mark done steps on through the open ones)
+    const done = list.filter((p) => !isOpen(p));
+    const fold: Section<Todo>[] =
+      m === "now" && done.length
+        ? [{ label: "Done", items: done, fold: true, trail: "Todos · Done" }]
+        : [];
+    const lists = drawSections([...groups, ...fold], row, `Todos · ${name}`, "todos");
     const n = shown.length;
     const asleep = list.filter((t) => isOpen(t) && !toDo(t, day)).length;
     count.replaceChildren(
@@ -154,25 +153,24 @@ export async function todos(row: typeof pageRow): Promise<Node> {
           `${asleep} snoozed`,
         ),
       );
+    // The view in Search, its query filled in, to narrow or regroup it there
+    count.append(
+      " · ",
+      h(
+        "a",
+        {
+          href: `/search?q=${encodeURIComponent(AS_SEARCH[m])}`,
+          "aria-label": `Refine in Search: ${AS_SEARCH[m]}`,
+        },
+        "Refine",
+      ),
+    );
     const none = [
       "Nothing to do: every todo is done.",
       "Nothing due in the next 7 days.",
       "No todos yet.",
     ];
-    if (!n) lists.push(empty("tick", none[MODES.findIndex(([k]) => k === m)]));
-    // Now: the done and cancelled ones, folded away at the end, last edited first
-    const done = list.filter((p) => !isOpen(p));
-    if (m === "now" && done.length) {
-      const ul = trail(
-        h("ul", { className: "list" }, ...done.map((p) => row(p))),
-        "Todos · Done",
-        done.map((p) => p.slug),
-      );
-      swipeRows(done.map((p, i) => [ul.children[i], p]));
-      lists.push(
-        h("details", { className: "donefold" }, h("summary", {}, `Done · ${done.length}`), ul),
-      );
-    }
+    if (!n) lists.splice(groups.length, 0, empty("tick", none[MODES.findIndex(([k]) => k === m)]));
     body.replaceChildren(...lists);
   }
   draw();
