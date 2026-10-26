@@ -5,6 +5,20 @@ What runs on a schedule, on both deployments: a Kubernetes CronJob from the Helm
 ([](../how-to/deploy-single-server.md)). `<fullname>` is the release's full name (`scrap` for a
 release named `scrap`), shortened with a hash when it is long.
 
+The default night, in order (times are the chart's; each single-server timer adds up to 15 minutes of
+random delay). Gc looks for the backup before it deletes:
+
+```mermaid
+flowchart LR
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+
+    B["03:30 backup"]:::store --> R["03:41 related pages"]:::claude --> G["04:30 gc"]:::store
+    T["Sundays 04:11 topics"]:::claude
+    M["1st, 03:50 monthly backup"]:::store
+    B -. "backup under 26 h old" .-> G
+```
+
 | Job | Kubernetes CronJob | Single-server units | Default schedule | What it does | Claude budget | Deadline |
 | --- | --- | --- | --- | --- | --- | --- |
 | Backup | `<fullname>-backup` | `scrap-backup.timer`, `scrap-backup.service` | 03:30 daily, `30 3 * * *` | `scrap backup` into a new timestamped run, keeping the newest `keep` runs ({ref}`scrap-backup-restore`) | No | Kubernetes: starts within 1 h, runs at most 1 h; single server: 1 h |
@@ -26,7 +40,7 @@ what a job does*).
 | `backup.enabled` | `true` | `systemctl --user disable --now scrap-backup.timer` (gc then only counts and fails: turn it off too) |
 | `backup.schedule` | `30 3 * * *` | timer drop-in on `scrap-backup.timer` (`OnCalendar=*-*-* 03:30:00`) |
 | `backup.timeZone` | `""` | none: the machine's local time |
-| `backup.keep` | `7` | `SCRAP_BACKUP_KEEP` in `~/.config/scrap/env` (default 7) |
+| `backup.keep` | `7` | `SCRAP_BACKUP_KEEP` in `~/.config/scrap/env` (`install.sh` writes 14) |
 | `backup.persistence.*` | a 20Gi claim | `SCRAP_BACKUPS` in `~/.config/scrap/env`: the folder (or disk) the runs go to |
 | `backup.monthly.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `50 3 1 * *`, `""`, `12` | none (Kubernetes only for now) |
 | `gc.enabled` | unset: follows `backup.enabled` | `systemctl --user disable --now scrap-gc.timer` |

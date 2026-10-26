@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.11.1.dev3+gbb62a44e9 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.11.1.dev4+gf0c9d292e documentation</title>
   
   
   
@@ -40,12 +40,370 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e2f9aae"></script>
+    <script src="../_static/documentation_options.js?v=7279644e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=30646c52"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/deploy-single-server';</script>
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
@@ -497,7 +855,33 @@ cluster would run, under rootless podman, as a systemd user service. scrap liste
 socket that only its own user (and root) can open;
 <a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> publishes it over HTTPS to your tailnet and
 nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.</p>
-<p>Podman is the supported path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
+<p>How the pieces fit:</p>
+<pre  class="mermaid">
+        flowchart LR
+    dev[&quot;Your devices&lt;br/&gt;(tailnet)&quot;]:::user
+    cc[&quot;Claude Code&quot;]:::claude
+    subgraph host [&quot;Your server&quot;]
+        ts[&quot;Tailscale Serve&lt;br/&gt;(root)&quot;]
+        subgraph u [&quot;scrap user (rootless podman)&quot;]
+            sock{{&quot;scrap.sock&lt;br/&gt;mode 600&quot;}}
+            app[&quot;scrap container&lt;br/&gt;(systemd service)&quot;]
+            data[(&quot;SCRAP_DATA&lt;br/&gt;/data&quot;)]:::store
+            bak[(&quot;SCRAP_BACKUPS&quot;)]:::store
+            tm[&quot;systemd timers:&lt;br/&gt;backup, gc,&lt;br/&gt;related, topics&quot;]
+        end
+    end
+    api[&quot;api.anthropic.com&quot;]:::claude
+    dev --&gt;|&quot;HTTPS&quot;| ts --&gt; sock --&gt; app
+    cc --&gt;|&quot;/mcp&quot;| ts
+    app --- data
+    tm --&gt; app
+    tm -.-&gt; data
+    tm -.-&gt; bak
+    app -.-&gt;|&quot;ingest on&quot;| api
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    </pre><p>Podman is the supported path. Docker is possible, but <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> needs podman, so you wire the
 units up by hand: see <a class="reference internal" href="#scrap-docker"><span class="std std-ref">Using Docker instead</span></a>. To run scrap on a Kubernetes cluster instead, see
 <a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 <div class="admonition warning">
@@ -509,11 +893,12 @@ reverse proxy in front of it. Read <a class="reference internal" href="#scrap-ac
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>On the server itself, <strong>root, anyone with <code class="docutils literal notranslate"><span class="pre">sudo</span></code>, and anything running as the scrap user</strong> can
-open the socket, read and change all of scrap’s data, and send its own identity header (<code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code>
-by default, see <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code> in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) to be recorded as any author (Tailscale Serve strips forged headers, but a direct local
-connection skips Serve). Other local users cannot. Run scrap as its own user with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code>
-rights, and run nothing else as that user. With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> (below) <strong>every local account
-and process</strong> can do the same through the port: keep that for single-purpose servers.</p>
+open the socket, read and change all of scrap’s data, and send its own identity header
+(<code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> by default, see <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code> in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) to be
+recorded as any author. Tailscale Serve strips forged headers, but a direct local connection skips
+Serve. Other local users cannot. Run scrap as its own user with no <code class="docutils literal notranslate"><span class="pre">sudo</span></code> rights, and run nothing
+else as that user. With <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=tcp</span></code> (below) <strong>every local account and process</strong> can do the
+same through the port: keep that for single-purpose servers.</p>
 </div>
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">#</a></h2>
@@ -557,9 +942,9 @@ user’s systemd session.</p>
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
 <p>As the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user (podman images belong to the user who pulled or built them), pull the newest
 release from <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a>; this page uses
-0.2.2:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="o">--</span><span class="n">version</span>
+0.11.0:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.11.0</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.11.0</span> <span class="o">--</span><span class="n">version</span>
 </pre></div>
 </div>
 <p>The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
@@ -599,7 +984,7 @@ exists); the <code class="docutils literal notranslate"><span class="pre">scrap<
 <p>On its first run the script writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> naming a local build,
 <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap:dev</span></code>, and stops because that image is not there. Point it at the
 release you pulled and run the script again:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.2.2|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.11.0|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
@@ -648,7 +1033,7 @@ only: <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN<
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code></p></td>
-<td><p>Image to run: a release such as <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.2.2</span></code>, or a local build.</p></td>
+<td><p>Image to run: a release such as <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.11.0</span></code>, or a local build.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">socket</span></code></p></td>
@@ -771,11 +1156,11 @@ your seat until it expires or you revoke it.</p></li>
 <li><p>Build the image with the CLI added on top of the scrap image, from the clone (it uses only
 <code class="docutils literal notranslate"><span class="pre">Dockerfile.claude</span></code>, so an empty folder holding a copy of that file from the release works
 too):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> \
-    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="o">.</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.11.0</span> \
+    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.11.0</span> <span class="o">.</span>
 </pre></div>
 </div>
-<p>and set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.2.2</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is about
+<p>and set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.11.0</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>. It is about
 240 MB larger. Build it again on each new release (or rebuild of the scrap image), with that
 image as <code class="docutils literal notranslate"><span class="pre">BASE</span></code>.</p>
 </li>
@@ -1006,11 +1391,11 @@ only moves a page to the trash (see <a class="reference internal" href="#scrap-g
 </ul>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Do not copy <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, or the whole folder, while scrap is running: a plain file copy can miss
-what is still in the <code class="docutils literal notranslate"><span class="pre">-wal</span></code> file, or catch the database and <code class="docutils literal notranslate"><span class="pre">files/</span></code> at different moments, and
-gives a backup that looks fine and is not. Use <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> (the timer, or below), which takes a
-consistent snapshot of the database with SQLite’s online backup and then copies the files, and is
-safe while scrap serves. If you must copy files, stop scrap first and copy the whole folder.</p>
+<p>Do not copy <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, or the whole folder, while scrap is running: a plain copy can miss what is
+still in the <code class="docutils literal notranslate"><span class="pre">-wal</span></code> file, or catch the database and <code class="docutils literal notranslate"><span class="pre">files/</span></code> at different moments. Use
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> (the timer, or below): it snapshots the database with SQLite’s online backup, then
+copies the files, and is safe while scrap serves. If you must copy files, stop scrap first and
+copy the whole folder.</p>
 </div>
 <p>A backup leaves out <code class="docutils literal notranslate"><span class="pre">cache/previews/</span></code> (a cache: it needs no backup) and anything whose name starts
 with a dot, so <code class="docutils literal notranslate"><span class="pre">.up-*</span></code> leftovers are not backed up. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> deletes <code class="docutils literal notranslate"><span class="pre">.up-*</span></code> files once they are
@@ -1063,8 +1448,14 @@ on purpose. Usually last night’s backup failed or did not run. Fix the cause, 
 </section>
 <section id="changing-the-schedule">
 <h3>Changing the schedule<a class="headerlink" href="#changing-the-schedule" title="Link to this heading">#</a></h3>
-<p>The four timers and their defaults, each with up to 15 minutes of random delay
-(<code class="docutils literal notranslate"><span class="pre">RandomizedDelaySec</span></code>, so the run is spread over that quarter hour), in the machine’s local time:</p>
+<p>The nightly order, in the machine’s local time (each timer has up to 15 minutes of random delay,
+<code class="docutils literal notranslate"><span class="pre">RandomizedDelaySec</span></code>, so a run is spread over that quarter hour):</p>
+<pre  class="mermaid">
+        flowchart LR
+    b[&quot;03:30&lt;br/&gt;backup&quot;] --&gt; r[&quot;03:41&lt;br/&gt;related pages&quot;] --&gt; g[&quot;04:30&lt;br/&gt;gc&quot;]
+    t[&quot;Sun 04:11&lt;br/&gt;topics&quot;]
+    b -.-&gt;|&quot;gc needs a COMPLETE run&lt;br/&gt;under 26 h old&quot;| g
+    </pre><p>The four timers and their defaults:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Timer</p></th>
@@ -1411,11 +1802,8 @@ lines are not outside traffic. On the socket the log shows no client address at 
 is older than the database: a newer scrap has already migrated it, and migrations only go
 forward. Run the newer image again, or roll back with the old image and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code>
 from a backup taken before the update (see <a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>).</p>
-<p><strong><code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> fails with “No backup in the last 26 hours”.</strong> There is no run directory in
-<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> with a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file written in the last 26 hours (the last backup failed its
-integrity check or stopped part way, or predates the marker), so gc only counted. Find out why the backup did not
-run (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap-backup</span></code>), then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code> and, once
-that succeeds, <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-gc</span></code>. See <a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> fails with “No backup in the last 26 hours”.</strong> See <em>Checking the timers</em> under
+<a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p>
 <p><strong><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> prints <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">...</span></code> and exits non-zero.</strong> See the table of messages under
 <a class="reference internal" href="#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>.</p>
 <p><strong>Anything else.</strong> <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code> and <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code>.</p>

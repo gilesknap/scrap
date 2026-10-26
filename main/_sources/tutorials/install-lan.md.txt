@@ -56,22 +56,20 @@ podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data
     -e TZ=Europe/London \
     -e SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000 \
     -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
-    ghcr.io/gilesknap/scrap:0.5.0 serve --host 0.0.0.0
+    ghcr.io/gilesknap/scrap:{{ release_tag }} serve --host 0.0.0.0
 ```
 
-Set `ANTHROPIC_API_KEY` in your shell first as in the README, or leave it unset to skip it. Use
+Set `ANTHROPIC_API_KEY` in your shell first as in the README, or leave it empty to skip it. Use
 your own addresses and time zone; without `TZ` the server runs on UTC and `due:today` follows
 the wrong day around midnight. To stop it, `podman stop scrap`; to run it again with new
 settings, `podman rm -f scrap` and re-run the command (the `scrap-data` volume keeps your
 pages). Docker takes the same arguments.
 
-`SCRAP_PUBLIC_URL` matters for one thing: `/mcp`, the endpoint Claude uses, answers only the
-loopback addresses and the addresses listed there, and replies `421 Invalid Host header` to any
-other. The web page needs none of it to work. Page links that Claude gives you start with the
-first address in it, and the app opens a link to a page on any address listed there in place,
-as it does `[[slug]]`, so Back returns to the page you were on. An installed app picks up a
-changed list on its next update; a link on the address it was opened at always works. Claude Code on this machine needs none of it; on another machine, use
-`claude mcp add` from the README with the LAN address, for example
+`SCRAP_PUBLIC_URL` matters to Claude, not the web page. `/mcp` answers only loopback and the
+addresses listed there, and replies `421 Invalid Host header` to any other. Page links in
+Claude's replies start with the first address, and the app opens a link to any listed address in
+place, so Back returns to the page you were on. Claude Code on this machine needs none of it; on
+another machine, use `claude mcp add` from the README with the LAN address, for example
 `http://192.168.1.10:8000/mcp`.
 
 `--network=host` publishes the port on **every** network interface, which is why the warning
@@ -114,7 +112,7 @@ To copy everything into a second volume while scrap runs:
 
 ```
 podman run --rm -v scrap-data:/data -v scrap-backup:/backup \
-    ghcr.io/gilesknap/scrap:0.5.0 backup /backup
+    ghcr.io/gilesknap/scrap:{{ release_tag }} backup /backup
 ```
 
 That copy is local only; copy it off the machine to survive losing it. To update, pull a new

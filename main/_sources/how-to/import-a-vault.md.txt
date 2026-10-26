@@ -11,6 +11,16 @@ deployed scrap, see {ref}`import-container`. `--data-dir` defaults to `$SCRAP_DA
 
 ## Steps
 
+```mermaid
+flowchart LR
+    A["Copy vault"] --> B["scrap import --dry-run"]
+    B -->|"read the report"| C["Stop scrap"]
+    C --> D["scrap import"]
+    D --> E["Start scrap"]
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    class A,B,C,D,E user
+```
+
 1. Work from a copy of the vault, so nothing can change it underneath you:
 
    ```sh
@@ -91,7 +101,7 @@ stopped, run with `import` arguments, and the vault on a second volume mounted r
 | Vault | scrap |
 | --- | --- |
 | Pages in `notes/`, `entities/`, `memories/`, `actions/`, `media/` and at the top | One page each, with `kind_fixed` set |
-| `type`: `note`, `entity`, `memory`, `action`, `media` (no type: the folder's) | kind `note`, `reference`, `memory`, `todo`, `consume` |
+| `type`: `note`, `entity`, `memory`, `action`, `media` (no type: the folder's) | kind `note`, Doc tagged `entity`, Doc tagged `memory`, `todo`, `consume` |
 | `title` (else the first `# heading`, else the file name) | Title; a first heading equal to it is dropped from the body |
 | File name | Slug: the name without `.md`, lower-cased to ASCII letters and digits (accents are removed, other non-ASCII characters dropped) with runs of anything else as one `-`, cut to 60 characters (`page` if nothing is left). A slug already in use gets `-2`, `-3`... (see `slug collision`) |
 | `created`, `updated` | `created_at` and `updated_at`. No `created`: `memory_date`, else `updated`, else the file's time. No `updated`: the same as `created`, and never earlier than it. A date alone is taken as noon UTC, so it is the same day in any time zone |

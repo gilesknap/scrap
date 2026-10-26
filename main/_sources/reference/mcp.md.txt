@@ -5,16 +5,50 @@ the PWA and its API: Streamable HTTP, stateless (every request stands alone, so 
 no session), JSON replies. A Claude Code session connects with one line and needs nothing
 installed; see [](../how-to/connect-claude-code.md). The server is named `scrap`, so tools show
 in a session as `mcp__scrap__search`, `mcp__scrap__read` and so on. A raw client `POST`s JSON-RPC
-to `/mcp`, sending `Accept: application/json, text/event-stream` as the MCP specification asks
-(the curl check in the how-to shows one). The server also sends the model instructions: search before writing, reuse existing tags
-(the `tags` tool), `write` only adds pages or appends to ones written over MCP, `edit_meta` and
-`rename_tag` change only kinds and tags (each change a revision that `revert` undoes), and try a
-bulk change with `dry_run` first. They also say deletes go to a trash (see The trash below), and
-that enrichment is not in revision history. Unless content editing is off, they also say `edit_page` and
-`revert` (with `to_rev`) change a page's text as revisions, only on a page the user asked to change (see
-Page text below). For short commands in Claude Code (`/sc-post`, `/sc-summarise`, `/sc-find`, `/sc-todos`,
-`/sc-tidy`, `/sc-undo`), see the `sc` commands (`commands/` in the repository, installed as in
-[](../how-to/connect-claude-code.md)).
+to `/mcp` with `Accept: application/json, text/event-stream`, as the MCP specification asks.
+
+The server sends the model instructions: search before writing and reuse existing tags (the
+`tags` tool); `write` only adds pages or appends to ones written over MCP; `edit_meta` and
+`rename_tag` change only kinds and tags, each change a revision that `revert` undoes; try a bulk
+change with `dry_run` first; deletes go to a trash (see The trash below); enrichment is not in
+revision history. Unless content editing is off they also say `edit_page` and `revert` (with
+`to_rev`) change a page's text as revisions, only on a page the user asked to change (see Page
+text below). The `sc` commands (`/sc-post`, `/sc-summarise`, `/sc-find`, `/sc-todos`, `/sc-tidy`,
+`/sc-undo`; `commands/` in the repository, installed as in
+[](../how-to/connect-claude-code.md)) wrap these tools as short commands.
+
+The tools by purpose (a tool in a dashed box is listed only while `SCRAP_MCP_CONTENT_EDIT` is not
+`0`):
+
+```mermaid
+flowchart LR
+    classDef read fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    classDef opt stroke-dasharray: 5 3
+
+    subgraph R["Read"]
+        search:::read
+        read:::read
+        drawing:::read
+        tags:::read
+        topics:::read
+        trash:::read
+    end
+    subgraph W["Write"]
+        write:::claude
+        edit_meta:::claude
+        rename_tag:::claude
+        edit_page:::opt
+        undelete:::opt
+    end
+    subgraph H["History"]
+        revisions:::user
+        revert:::user
+    end
+    W -->|"each change is a revision"| H
+    H -->|"undo"| W
+```
 
 Every tool result is JSON (MCP structured content, also sent as its text). Page text (titles,
 bodies, summaries, snippets, tags, what Claude read from photos) is in fields of that JSON, as
@@ -75,7 +109,7 @@ Search filters (the PWA's search box takes them too): `has:image` (a page with a
 `has:drawing` (one with a current drawing), `image:K` (an image Claude took for kind `K`, e.g.
 `image:photo`, `image:whiteboard`); `-` before any of them excludes. The store's health
 checks are filters too (the PWA's Store health screen counts them, `GET /api/health`):
-`is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling` and `is:outdated` (a
+`is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling` and `is:outdated` (`is:stale` is an open todo untouched for 60 days; `is:outdated` a
 board's write-up older than the page or Claude's prompt; not related pages or topic syntheses)
 ([](../how-to/use-the-pwa.md) says what each finds). A filter alone lists newest
 first, so **`search` with `has:image` is "my recent photos"**. A word in a photo's description or
@@ -317,7 +351,7 @@ with `batch` it lists what a bulk change did. No tool deletes a page or a revisi
 burst of quick edits folds into one revision (see Revisions and Page text).
 
 Pages may hold injected text, so a session holding powerful credentials should treat what it
-reads as data (see the Security posture section of [](../explanations/design.md)).
+reads as data (see [](../explanations/architecture/mcp-and-access.md)).
 
 Not yet: thinning old revisions, a `context` tool returning the stored ingest run of a photo (its
 messages, for discussing it with the model that made it), and an `ingest` tool.

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.11.1.dev3+gbb62a44e9 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.11.1.dev4+gf0c9d292e documentation</title>
   
   
   
@@ -40,12 +40,370 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e2f9aae"></script>
+    <script src="../_static/documentation_options.js?v=7279644e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=30646c52"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/deploy-kubernetes';</script>
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
@@ -496,7 +854,32 @@
 <a class="reference external" href="https://github.com/gilesknap/scrap/tree/main/charts/scrap"><code class="docutils literal notranslate"><span class="pre">charts/scrap</span></code></a>. It runs the same
 container image as the <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">single-server deployment</span></a>: one pod, a persistent
 volume for the data and, by default, a nightly backup job.</p>
-<div class="admonition warning">
+<p>How the pieces fit (one pod; every CronJob runs beside it on the same node):</p>
+<pre  class="mermaid">
+        flowchart LR
+    phone[&quot;Phone and laptops&lt;br/&gt;(tailnet)&quot;]:::user
+    cc[&quot;Claude Code&quot;]:::claude
+    subgraph cluster [&quot;Kubernetes cluster&quot;]
+        ts[&quot;Tailscale operator&lt;br/&gt;proxy&quot;]
+        ing[&quot;Ingress / Service&quot;]
+        subgraph node [&quot;One node&quot;]
+            pod[&quot;scrap pod&lt;br/&gt;(1 replica)&quot;]
+            data[(&quot;data PVC&lt;br/&gt;/data&quot;)]:::store
+            jobs[&quot;CronJobs:&lt;br/&gt;backup, gc,&lt;br/&gt;related, topics&quot;]
+            bak[(&quot;backups PVC&lt;br/&gt;/backups&quot;)]:::store
+        end
+    end
+    api[&quot;api.anthropic.com&quot;]:::claude
+    phone --&gt; ts --&gt; ing --&gt; pod
+    cc --&gt;|&quot;/mcp&quot;| ts
+    pod --- data
+    jobs --- data
+    jobs --&gt; bak
+    pod -.-&gt;|&quot;ingest on&quot;| api
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    </pre><div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>scrap has <strong>no login of its own</strong>. Anyone who can reach its Service can read and change everything.
 Expose it only on your tailnet (see <a class="reference internal" href="#k8s-tailscale"><span class="std std-ref">Tailscale Kubernetes operator (recommended)</span></a>) or behind an authenticating proxy
@@ -525,8 +908,8 @@ on the NetworkPolicy (below) if other workloads share the cluster.</p>
 <tr class="row-odd"><td><p>ServiceAccount</p></td>
 <td><p>No API token mounted; scrap never talks to the Kubernetes API.</p></td>
 </tr>
-<tr class="row-even"><td><p>CronJob + PVC (on by default)</p></td>
-<td><p>Nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> to a second claim, keeping the newest 7 runs.</p></td>
+<tr class="row-even"><td><p>CronJobs + PVC (on by default)</p></td>
+<td><p>Nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> to a second claim, keeping the newest 7 runs, and a monthly copy in its <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> folder, keeping 12.</p></td>
 </tr>
 <tr class="row-odd"><td><p>CronJobs (gc on by default, the Claude ones with ingest)</p></td>
 <td><p>gc, related pages and topics: see <a class="reference internal" href="#k8s-gc"><span class="std std-ref">Scheduled gc, related pages and topics</span></a> and <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>.</p></td>
@@ -558,9 +941,9 @@ recommended one.</p></li>
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
 <p>Releases publish a public, multi-arch (amd64 and arm64) image to <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap</span></code>, and
 the chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> names the release it was made with (set from the git tag when the chart is
-published; a checkout has the placeholder <code class="docutils literal notranslate"><span class="pre">0.0.0</span></code>, so set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> with one). By default the chart runs that
-release, <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:&lt;appVersion&gt;</span></code>, so there is nothing to build: set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code>
-only to run a different release.</p>
+published; a checkout has the placeholder <code class="docutils literal notranslate"><span class="pre">0.0.0</span></code>, so set <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> with one). By default the chart
+runs that release, <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:&lt;appVersion&gt;</span></code>, so there is nothing to build: set
+<code class="docutils literal notranslate"><span class="pre">image.tag</span></code> only to run a different release.</p>
 <p>To run your own build instead, push it to a registry your cluster can pull from, and point the
 chart at it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">--</span><span class="n">platform</span> <span class="n">linux</span><span class="o">/</span><span class="n">amd64</span><span class="p">,</span><span class="n">linux</span><span class="o">/</span><span class="n">arm64</span> <span class="o">--</span><span class="n">manifest</span> <span class="n">registry</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
@@ -616,10 +999,11 @@ the names, and <code class="docutils literal notranslate"><span class="pre">helm
 <h2>Values<a class="headerlink" href="#values" title="Link to this heading">#</a></h2>
 <p>Every value is described in
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml"><code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></a>; unknown
-top-level keys, and unknown keys under <code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest</span></code>, <code class="docutils literal notranslate"><span class="pre">backup</span></code>, <code class="docutils literal notranslate"><span class="pre">persistence</span></code> and <code class="docutils literal notranslate"><span class="pre">ingress</span></code>,
-are refused, so a typo there fails the install instead of being ignored. Other groups
-(<code class="docutils literal notranslate"><span class="pre">service</span></code>, <code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">resources</span></code> and the security contexts) are not
-checked, so a typo inside them is silently ignored. The main ones:</p>
+top-level keys, and unknown keys under <code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest</span></code>, <code class="docutils literal notranslate"><span class="pre">persistence</span></code>, <code class="docutils literal notranslate"><span class="pre">ingress</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code> and <code class="docutils literal notranslate"><span class="pre">enrichTopics</span></code> (and under <code class="docutils literal notranslate"><span class="pre">backup</span></code>, including <code class="docutils literal notranslate"><span class="pre">backup.monthly</span></code>)
+are refused, so a typo there fails the install instead of being ignored. Other groups (<code class="docutils literal notranslate"><span class="pre">service</span></code>,
+<code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">resources</span></code> and the security contexts) are not checked, so a typo
+inside them is silently ignored. The main ones:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Value</p></th>
@@ -668,43 +1052,47 @@ checked, so a typo inside them is silently ignored. The main ones:</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">11</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">0</span></code>, the cluster’s default</p></td>
 <td><p>The topics CronJob (Sundays). It exists only while <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code> is true.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.size</span></code>, <code class="docutils literal notranslate"><span class="pre">.storageClass</span></code>, <code class="docutils literal notranslate"><span class="pre">.existingClaim</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">20Gi</span></code>, default class, none</p></td>
-<td><p>The backups volume. Each run is a full copy: allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the data.</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backup.monthly.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.schedule</span></code>, <code class="docutils literal notranslate"><span class="pre">.timeZone</span></code>, <code class="docutils literal notranslate"><span class="pre">.keep</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">50</span> <span class="pre">3</span> <span class="pre">1</span> <span class="pre">*</span> <span class="pre">*</span></code>, the cluster’s default, <code class="docutils literal notranslate"><span class="pre">12</span></code></p></td>
+<td><p>The monthly copy CronJob (needs <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code>; see Backup and restore).</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.size</span></code>, <code class="docutils literal notranslate"><span class="pre">.storageClass</span></code>, <code class="docutils literal notranslate"><span class="pre">.existingClaim</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">20Gi</span></code>, default class, none</p></td>
+<td><p>The backups volume. Each run is a full copy: allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">monthly.keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the data (or lower <code class="docutils literal notranslate"><span class="pre">keep</span></code> and <code class="docutils literal notranslate"><span class="pre">monthly.keep</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1Gi</span></code></p></td>
 <td><p>scrap’s photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">service.annotations</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">service.annotations</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Exposure, below.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">service.type</span></code>, <code class="docutils literal notranslate"><span class="pre">service.port</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">service.type</span></code>, <code class="docutils literal notranslate"><span class="pre">service.port</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ClusterIP</span></code>, <code class="docutils literal notranslate"><span class="pre">80</span></code></p></td>
 <td><p>The Service.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">networkPolicy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.from</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">networkPolicy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.from</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Who may connect, below.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">.key</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">.key</span></code></p></td>
 <td><p>none, <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code></p></td>
 <td><p>An existing Secret and the key in it holding the bearer token(s) <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> requires (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See <a class="reference internal" href="#k8s-mcp-token"><span class="std std-ref">Bearer token on /mcp</span></a>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Anything else for the container, such as <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (see <a class="reference internal" href="#k8s-mcp"><span class="std std-ref">Claude Code (MCP)</span></a>) or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Scheduling and annotations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
 <td><p>see <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></p></td>
 <td><p>Naming, the ServiceAccount, the stop timeout (<code class="docutils literal notranslate"><span class="pre">30</span></code>) and the backup job’s resources.</p></td>
 </tr>
@@ -915,20 +1303,11 @@ them five minutes.</p>
 <p>Migrations are <strong>forward only</strong>, and an older scrap refuses a database migrated by a newer one.
 So <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">rollback</span></code> alone does not go back: roll back to the old image <em>and</em> restore the
 pre-upgrade backup with <code class="docutils literal notranslate"><span class="pre">--force</span></code> (below). Anything captured since the upgrade is then lost from
-the database; its files stay. The one exception is migration 0004 (Markdown-aware search
-text), which changes no schema. If the database is at version 4 (you upgraded from a scrap that
-stopped at migration 3 and no later migration has run), you can go back past it without
-restoring: stop scrap, then run this in a one-off pod like <code class="docutils literal notranslate"><span class="pre">restore.yaml</span></code> below (in place of its
-<code class="docutils literal notranslate"><span class="pre">args</span></code>), with only the data claim mounted and the old image (the image has no <code class="docutils literal notranslate"><span class="pre">sqlite3</span></code> command,
-but has Python):</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"python"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"-c"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"import</span><span class="nv"> </span><span class="s">sqlite3;</span><span class="nv"> </span><span class="s">c</span><span class="nv"> </span><span class="s">=</span><span class="nv"> </span><span class="s">sqlite3.connect('/data/scrap.db');</span><span class="nv"> </span><span class="s">c.execute('PRAGMA</span><span class="nv"> </span><span class="s">user_version</span><span class="nv"> </span><span class="s">=</span><span class="nv"> </span><span class="s">3');</span><span class="nv"> </span><span class="s">c.close()"</span><span class="p p-Indicator">]</span>
-</pre></div>
-</div>
-<p>Migrations 0005 and later change the schema: once one has run, restore the backup instead.</p>
+the database; its files stay.</p>
 </section>
 <section id="backup-and-restore">
 <h2>Backup and restore<a class="headerlink" href="#backup-and-restore" title="Link to this heading">#</a></h2>
-<p>The CronJob runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> into a new timestamped directory on the backup claim
+<p>The daily CronJob runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> into a new timestamped directory on the backup claim
 (<code class="docutils literal notranslate"><span class="pre">/backups/20261019T033000Z</span></code>), then keeps only the newest <code class="docutils literal notranslate"><span class="pre">backup.keep</span></code> runs, using the same
 rules as the single-server deployment: <code class="docutils literal notranslate"><span class="pre">keep</span></code> must be a whole number of at least 1 (the chart
 refuses anything else), and only real directories named like a run are ever deleted; anything
@@ -939,15 +1318,27 @@ zero, a run waits and gives up after an hour. Runs never overlap, and one that c
 within an hour of its schedule is skipped. A failed run is retried once and then counted as
 failed; the last 3 successful and the last 3 failed Jobs are kept, so <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span></code> still works
 on them.</p>
-<p>The CronJob is called <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup</span></code>, which is <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> for the release used in this
-guide. When the fullname is longer than 45 characters, the chart shortens it and adds a 6-character
-hash, so the name differs: read it from <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">cronjob</span></code> and use it in place of
+<p><strong>Monthly copy.</strong> A second CronJob, <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup-monthly</span></code> (03:50 on the 1st), makes the same
+full backup into the <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> folder of the backup claim and keeps the newest <code class="docutils literal notranslate"><span class="pre">backup.monthly.keep</span></code>
+(12) there. It takes the same lock as the daily backup and gc, so they never overlap. The daily
+prune, gc’s recent-backup check and the restore commands below look only at runs directly in the
+claim, so none of them touches <code class="docutils literal notranslate"><span class="pre">monthly/</span></code>; to restore one, point <code class="docutils literal notranslate"><span class="pre">restore</span></code> at
+<code class="docutils literal notranslate"><span class="pre">/backups/monthly/&lt;run&gt;</span></code>. Switch it off with <code class="docutils literal notranslate"><span class="pre">backup.monthly.enabled:</span> <span class="pre">false</span></code>.</p>
+<pre  class="mermaid">
+        flowchart LR
+    d[&quot;daily CronJob&lt;br/&gt;03:30&quot;] --&gt;|&quot;keep 7&quot;| r[(&quot;/backups/&lt;br/&gt;YYYYMMDDTHHMMSSZ&quot;)]:::store
+    m[&quot;monthly CronJob&lt;br/&gt;03:50 on the 1st&quot;] --&gt;|&quot;keep 12&quot;| mm[(&quot;/backups/monthly/&lt;br/&gt;YYYYMMDDTHHMMSSZ&quot;)]:::store
+    g[&quot;gc CronJob&lt;br/&gt;04:30&quot;] -.-&gt;|&quot;needs a COMPLETE run&lt;br/&gt;under 26 h old&quot;| r
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    </pre><p>The daily CronJob is called <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup</span></code>, which is <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> for the release used in this
+guide. When a CronJob’s name would be longer than 52 characters, the chart shortens the fullname and
+adds a 6-character hash, so the name differs: read it from <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">cronjob</span></code> and use it in place of
 <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> in the commands below and under Upgrades.</p>
 <p>Backups are on by default because the data is personal and irreplaceable; set
 <code class="docutils literal notranslate"><span class="pre">backup.enabled:</span> <span class="pre">false</span></code> if you back up the data volume another way (volume snapshots, Longhorn
 or Velero backups). Either way the backup claim lives in the same cluster: copy it somewhere
 else too.</p>
-<p>Run one now and list the runs:</p>
+<p>Run one now and follow it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">job</span> <span class="o">--</span><span class="n">from</span><span class="o">=</span><span class="n">cronjob</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">now</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">logs</span> <span class="o">-</span><span class="n">f</span> <span class="n">job</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">now</span>
 </pre></div>
@@ -1051,8 +1442,8 @@ once the backup passed an integrity check) less than 26 hours old; otherwise it 
 the Job fails so a missing backup shows. Backups from before the marker existed lack it, so gc
 only counts until the next backup runs. It takes the backup’s lock (<code class="docutils literal notranslate"><span class="pre">/backups/.lock</span></code>), so it
 never runs during a backup; so <code class="docutils literal notranslate"><span class="pre">gc.enabled</span></code> follows <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> unless set, and
-<code class="docutils literal notranslate"><span class="pre">gc.enabled:</span> <span class="pre">true</span></code> with backups off is refused. If you back up another way, set
-<code class="docutils literal notranslate"><span class="pre">gc.requireBackup:</span> <span class="pre">false</span></code>. A deleting <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> also takes a lock of its own (<code class="docutils literal notranslate"><span class="pre">gc.lock</span></code> in the
+<code class="docutils literal notranslate"><span class="pre">gc.enabled:</span> <span class="pre">true</span></code> with backups off is refused (unless <code class="docutils literal notranslate"><span class="pre">gc.requireBackup:</span> <span class="pre">false</span></code>). If you back up
+another way, set <code class="docutils literal notranslate"><span class="pre">gc.requireBackup:</span> <span class="pre">false</span></code>. A deleting <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> also takes a lock of its own (<code class="docutils literal notranslate"><span class="pre">gc.lock</span></code> in the
 data folder), so one you run by hand (<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">exec</span></code>) cannot overlap the CronJob: whichever
 starts second stops with <code class="docutils literal notranslate"><span class="pre">another</span> <span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">is</span> <span class="pre">deleting</span></code>; a hand run does not wait for a backup.
 With <code class="docutils literal notranslate"><span class="pre">ingest.notifyUrlKey</span></code> set, gc pushes to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> when it starts a month’s

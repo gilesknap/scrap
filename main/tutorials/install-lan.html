@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on your LAN &#8212; scrap 0.11.1.dev3+gbb62a44e9 documentation</title>
+    <title>Try scrap on your LAN &#8212; scrap 0.11.1.dev4+gf0c9d292e documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e2f9aae"></script>
+    <script src="../_static/documentation_options.js?v=7279644e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -559,21 +559,19 @@ podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data
     -e TZ=Europe/London \
     -e SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000 \
     -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
-    ghcr.io/gilesknap/scrap:0.5.0 serve --host 0.0.0.0
+    ghcr.io/gilesknap/scrap:0.11.0 serve --host 0.0.0.0
 </pre></div>
 </div>
-<p>Set <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> in your shell first as in the README, or leave it unset to skip it. Use
+<p>Set <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> in your shell first as in the README, or leave it empty to skip it. Use
 your own addresses and time zone; without <code class="docutils literal notranslate"><span class="pre">TZ</span></code> the server runs on UTC and <code class="docutils literal notranslate"><span class="pre">due:today</span></code> follows
 the wrong day around midnight. To stop it, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">stop</span> <span class="pre">scrap</span></code>; to run it again with new
 settings, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">rm</span> <span class="pre">-f</span> <span class="pre">scrap</span></code> and re-run the command (the <code class="docutils literal notranslate"><span class="pre">scrap-data</span></code> volume keeps your
 pages). Docker takes the same arguments.</p>
-<p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> matters for one thing: <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, the endpoint Claude uses, answers only the
-loopback addresses and the addresses listed there, and replies <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> to any
-other. The web page needs none of it to work. Page links that Claude gives you start with the
-first address in it, and the app opens a link to a page on any address listed there in place,
-as it does <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code>, so Back returns to the page you were on. An installed app picks up a
-changed list on its next update; a link on the address it was opened at always works. Claude Code on this machine needs none of it; on another machine, use
-<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code> from the README with the LAN address, for example
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> matters to Claude, not the web page. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only loopback and the
+addresses listed there, and replies <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> to any other. Page links in
+Claude’s replies start with the first address, and the app opens a link to any listed address in
+place, so Back returns to the page you were on. Claude Code on this machine needs none of it; on
+another machine, use <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code> from the README with the LAN address, for example
 <code class="docutils literal notranslate"><span class="pre">http://192.168.1.10:8000/mcp</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">--network=host</span></code> publishes the port on <strong>every</strong> network interface, which is why the warning
 above matters. On a firewalled machine, allow port 8000 from your LAN only (for example <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">ufw</span> <span class="pre">allow</span> <span class="pre">from</span> <span class="pre">192.168.1.0/24</span> <span class="pre">to</span> <span class="pre">any</span> <span class="pre">port</span> <span class="pre">8000</span></code>), and check from your phone rather than trusting the
@@ -610,7 +608,7 @@ denied” on <code class="docutils literal notranslate"><span class="pre">/data<
 volume.</p>
 <p>To copy everything into a second volume while scrap runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="p">:</span><span class="o">/</span><span class="n">backup</span> \
-    <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.5.0</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backup</span>
+    <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.11.0</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backup</span>
 </pre></div>
 </div>
 <p>That copy is local only; copy it off the machine to survive losing it. To update, pull a new

@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Data model and storage &#8212; scrap 0.11.1.dev4+gf0c9d292e documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../_static/documentation_options.js?v=7279644e"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=30646c52"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'explanations/architecture/data-model';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Capture, files and import" href="capture-and-files.html" />
+    <link rel="prev" title="Architecture" href="../design.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="main" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0003-one-process-sqlite-and-a-folder.html">3. One process, one SQLite database, one folder of files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0004-originals-kept-everything-else-derived.html">4. Originals are kept; everything else is derived, versioned or disposable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0005-capture-never-waits.html">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0006-vanilla-typescript-pwa-with-lazy-chunks.html">6. A vanilla TypeScript PWA with a size budget and lazy chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0007-tailscale-serve-for-access-and-identity.html">7. Tailscale Serve is the only way in; no login code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0008-search-fts5-only-for-now.html">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0009-claude-ingest-via-messages-api.html">9. Claude ingest: Messages API, no tools, one structured call per photo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0010-job-queue-pauses-instead-of-failing.html">10. Queue error classes: outages pause, charged failures count, spend is capped</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0011-drawings-as-skeletons-excalidraw.html">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0012-kinds-flat-fields-and-typed-todo-columns.html">12. Page kinds with flat fields; due date and priority as typed columns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0013-mcp-server-inside-the-app.html">13. The MCP server is part of the app: streamable HTTP, add-only writes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0014-markdown-parsed-by-a-library-on-both-sides.html">14. Page text is Markdown, parsed by a library on both sides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0015-images-in-text-and-gc.html">15. Images are embedded in the page text; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is conservative</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0016-deployment-single-server-and-helm.html">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0022-page-text-editable-over-mcp-with-revisions.html">22. Page text editable over MCP, made safe by text revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0030-fewer-mcp-tools.html">30. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="capture-and-files.html">Capture, files and import</a></li>
+<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../explanations.html" class="nav-link">Explanations</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../design.html" class="nav-link">Architecture</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Data model and storage</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="data-model-and-storage">
+<h1>Data model and storage<a class="headerlink" href="#data-model-and-storage" title="Link to this heading">#</a></h1>
+<p>scrap keeps one SQLite database and a folder of content-addressed files. Captures, blobs and pages
+are the truth; derived rows cost an LLM call to remake so they are stored; chunks and the FTS index
+are a disposable cache.</p>
+<p>Back to <a class="reference internal" href="../design.html"><span class="std std-doc">Architecture</span></a>. The schema is the numbered scripts in
+<code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code> (0001 to 0013) plus the Python steps in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/fixes.py</span></code>; the
+code is in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/</span></code>.</p>
+<section id="core-tables">
+<h2>Core tables<a class="headerlink" href="#core-tables" title="Link to this heading">#</a></h2>
+<p>Pages and their history on the left, what arrived and what Claude made of it on the right.</p>
+<pre  class="mermaid">
+        erDiagram
+    page ||--o{ page_rev : &quot;text history&quot;
+    page ||--o{ page_meta_rev : &quot;kind and tag history&quot;
+    page ||--o{ tag : has
+    page ||--o{ capture : &quot;arrived as&quot;
+    page ||--o| enrichment : &quot;summary&quot;
+    page ||--o{ writeup : &quot;board write-ups&quot;
+    page ||--o{ chunk : &quot;search cache&quot;
+    capture ||--o{ capture_blob : holds
+    blob ||--o{ capture_blob : &quot;same bytes once&quot;
+    capture ||--o{ derived : &quot;versions&quot;
+    capture ||--o{ job : &quot;photo jobs&quot;
+    derived ||--o{ chunk : indexes
+    page {
+        text id PK &quot;ULID&quot;
+        text slug UK &quot;fixed at creation&quot;
+        text title
+        text body &quot;Markdown&quot;
+        text kind
+        int kind_fixed
+        json fields &quot;flat&quot;
+        text deleted_at &quot;trash&quot;
+    }
+    blob {
+        text sha256 PK
+        text mime
+        int size
+    }
+    capture {
+        text id PK &quot;client ULID&quot;
+        text kind &quot;photo note url file&quot;
+        text source &quot;pwa share mcp import&quot;
+        text page_id FK
+    }
+    derived {
+        int id PK
+        text kind &quot;ocr description excalidraw&quot;
+        int version
+        text superseded_at &quot;NULL is current&quot;
+    }
+    page_rev {
+        text page_id FK
+        int rev
+        text author
+    }
+    page_meta_rev {
+        int id PK
+        text kind_before
+        text tags_before
+        text batch_id
+    }
+    </pre><div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Table</p></th>
+<th class="head"><p>Holds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">page</span></code></p></td>
+<td><p>Title, Markdown body, <code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>, flat <code class="docutils literal notranslate"><span class="pre">fields</span></code>, <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>, plus typed todo columns <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> and the task counts <code class="docutils literal notranslate"><span class="pre">task_done</span></code>, <code class="docutils literal notranslate"><span class="pre">task_total</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">blob</span></code></p></td>
+<td><p>Bytes of every original and binary derived artifact at <code class="docutils literal notranslate"><span class="pre">files/&lt;sha[0:2]&gt;/&lt;sha&gt;</span></code>, keyed by SHA-256 so a photo shared twice is stored once</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code></p></td>
+<td><p>What arrived, with a client-minted ULID as the retry key; ordered blobs per capture</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">derived</span></code></p></td>
+<td><p>Versioned Claude (or human) results: <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> are written; <code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code> are allowed by the <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> but reserved</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, <code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code></p></td>
+<td><p>Text history and kind/tag history (see <a class="reference internal" href="#revisions-and-conflicts">Revisions</a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span></code></p></td>
+<td><p>Lower-case tags per page, 1 to 64 characters, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>IDs are ULIDs, so the phone can mint them offline. Times are ISO 8601 UTC. Foreign keys are on for
+every connection.</p>
+</section>
+<section id="tables-for-claude-s-work">
+<h2>Tables for Claude’s work<a class="headerlink" href="#tables-for-claude-s-work" title="Link to this heading">#</a></h2>
+<p>The queue, run logs and Claude’s outputs. The mechanics are on
+<a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a>.</p>
+<pre  class="mermaid">
+        erDiagram
+    page ||--o{ enrich_job : &quot;text pages&quot;
+    page ||--o| enrichment : summary
+    page ||--o{ model_tag : &quot;tags Claude added&quot;
+    page ||--o{ related : &quot;related pages&quot;
+    page ||--o{ writeup : &quot;versions&quot;
+    page ||--o| topic : &quot;is a topic&quot;
+    topic ||--o{ topic_source : sources
+    job ||--o{ model_run : &quot;photo calls&quot;
+    enrich_job ||--o{ enrich_run : &quot;text calls&quot;
+    writeup }o--|| enrich_run : &quot;made by&quot;
+    model_run ||--o{ derived : &quot;run_id&quot;
+    </pre><div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Table</p></th>
+<th class="head"><p>Holds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">job</span></code>, <code class="docutils literal notranslate"><span class="pre">queue_state</span></code></p></td>
+<td><p>Photo jobs, kind <code class="docutils literal notranslate"><span class="pre">ingest</span></code> or <code class="docutils literal notranslate"><span class="pre">refine</span></code> (<code class="docutils literal notranslate"><span class="pre">queued</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">dead</span></code>), and the single-row pause state (<code class="docutils literal notranslate"><span class="pre">auth</span></code>, <code class="docutils literal notranslate"><span class="pre">credit</span></code>, <code class="docutils literal notranslate"><span class="pre">outage</span></code>, <code class="docutils literal notranslate"><span class="pre">budget</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>, <code class="docutils literal notranslate"><span class="pre">topic_run</span></code></p></td>
+<td><p>Every call: request, response, usage, <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, error class. <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> covers discovery calls of no one page</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code></p></td>
+<td><p>One queued job per page; reason is <code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">save</span></code>, <code class="docutils literal notranslate"><span class="pre">ask</span></code>, <code class="docutils literal notranslate"><span class="pre">backfill</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup</span></code> or <code class="docutils literal notranslate"><span class="pre">topic</span></code> (migrations 11 to 13 widen its <code class="docutils literal notranslate"><span class="pre">CHECK</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichment</span></code>, <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code></p></td>
+<td><p>Summary and fetched link title; tags Claude added (<code class="docutils literal notranslate"><span class="pre">on</span></code>) or the user removed (<code class="docutils literal notranslate"><span class="pre">off</span></code>, never re-added); related pages in order</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code></p></td>
+<td><p>Versions of a board’s write-up (one current, never changed) and the owner’s guidance for the next</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">topic</span></code>, <code class="docutils literal notranslate"><span class="pre">topic_source</span></code></p></td>
+<td><p>Which pages are topics (with a key never made again) and their sources, with the owner’s exclusions</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="originals-derived-cache">
+<h2>Originals, derived, cache<a class="headerlink" href="#originals-derived-cache" title="Link to this heading">#</a></h2>
+<p>What can be rebuilt from what. Losing the cache costs CPU; losing derived rows costs LLM calls;
+losing originals is loss.</p>
+<pre  class="mermaid">
+        flowchart LR
+    subgraph keep[&quot;Kept forever&quot;]
+        cap[&quot;Captures&quot;]
+        blob[&quot;Blobs on disk&quot;]
+        page[&quot;Pages&quot;]
+    end
+    subgraph derived[&quot;Stored, regenerable&quot;]
+        der[&quot;Derived versions&quot;]
+        enr[&quot;Summaries, write-ups&quot;]
+    end
+    subgraph cache[&quot;Disposable&quot;]
+        chunk[&quot;Chunks&quot;]
+        fts[&quot;FTS index&quot;]
+    end
+    cap --&gt; blob
+    blob -. &quot;Claude call&quot; .-&gt; der
+    page -. &quot;Claude call&quot; .-&gt; enr
+    page ==&gt; chunk
+    der ==&gt; chunk
+    chunk ==&gt; fts
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    class cap,blob,page user
+    class der,enr claude
+    class chunk,fts store
+    </pre><ul class="simple">
+<li><p><strong>Originals</strong> (green) are never edited or purged. See
+<a class="reference internal" href="../decisions/0004-originals-kept-everything-else-derived.html"><span class="std std-doc">ADR 4</span></a> and
+<a class="reference internal" href="../decisions/0003-one-process-sqlite-and-a-folder.html"><span class="std std-doc">ADR 3</span></a>.</p></li>
+<li><p><strong>Derived</strong> (orange) rows are immutable versions. A new current version supersedes the old by
+trigger; a restore inserts a copy. Never <code class="docutils literal notranslate"><span class="pre">INSERT</span> <span class="pre">OR</span> <span class="pre">REPLACE</span></code> into <code class="docutils literal notranslate"><span class="pre">derived</span></code> or <code class="docutils literal notranslate"><span class="pre">chunk</span></code>: REPLACE
+deletes without firing the FTS triggers.</p></li>
+<li><p><strong>The cache</strong> (blue) is rebuilt by <code class="docutils literal notranslate"><span class="pre">index_all</span></code>, which migrations 3 and 4 run. A page has one own
+chunk (title, tags, summary, plain-text body), rebuilt in the same transaction as any capture,
+save, tag change or enrich result, so there is no index job. Each current derived text is a
+further chunk. Chunks are deleted and inserted, never updated.</p></li>
+<li><p><strong>What is indexed</strong> is text only. Pixels, fetched article text and raw Excalidraw JSON are not.
+Search itself is on <a class="reference internal" href="search.html"><span class="std std-doc">Search</span></a>.</p></li>
+</ul>
+</section>
+<section id="kinds-and-fields">
+<h2>Kinds and fields<a class="headerlink" href="#kinds-and-fields" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Internal <code class="docutils literal notranslate"><span class="pre">kind</span></code></p></th>
+<th class="head"><p>PWA label</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">note</span></code></p></td>
+<td><p>Note</p></td>
+<td><p>Default and fallback</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">todo</span></code></p></td>
+<td><p>Todo</p></td>
+<td><p>Typed columns, status, task boxes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">consume</span></code></p></td>
+<td><p>Later</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">kind:later</span></code> in search; <code class="docutils literal notranslate"><span class="pre">kind:read</span></code> is accepted too</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">whiteboard</span></code></p></td>
+<td><p>Board</p></td>
+<td><p>Search aliases <code class="docutils literal notranslate"><span class="pre">board</span></code>; offers a write-up</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">document</span></code></p></td>
+<td><p>Doc</p></td>
+<td><p>Search aliases <code class="docutils literal notranslate"><span class="pre">doc</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>These five are the only kinds. A topic page is a <code class="docutils literal notranslate"><span class="pre">document</span></code>, identified by the <code class="docutils literal notranslate"><span class="pre">topic</span></code> table, not by its kind.</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> is a flat JSON object: no nulls or nested values, at most 32 keys, numbers within
++/-2^53. In use: <code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>), <code class="docutils literal notranslate"><span class="pre">subtype</span></code> and <code class="docutils literal notranslate"><span class="pre">source</span></code> on
+Later, <code class="docutils literal notranslate"><span class="pre">summary</span></code> (an import’s or the user’s, which wins over Claude’s in the index) and <code class="docutils literal notranslate"><span class="pre">origin</span></code>.</p></li>
+<li><p><strong>Typed todo columns</strong> <code class="docutils literal notranslate"><span class="pre">due</span></code> (day, <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code>), <code class="docutils literal notranslate"><span class="pre">priority</span></code> (<code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>) and
+<code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> (day) are columns so <code class="docutils literal notranslate"><span class="pre">due:</span></code>, <code class="docutils literal notranslate"><span class="pre">priority:</span></code>, <code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:</span></code> are plain SQL
+(<a class="reference internal" href="../decisions/0012-kinds-flat-fields-and-typed-todo-columns.html"><span class="std std-doc">ADR 12</span></a>). A snoozed todo is left
+out of Now and the Todos count until its day. They belong to todos: another kind ignores them
+but keeps them. Setting them is not a revision.</p></li>
+<li><p><strong>Task boxes</strong> (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[x]</span></code>) are counted per page into <code class="docutils literal notranslate"><span class="pre">task_done</span></code> and <code class="docutils literal notranslate"><span class="pre">task_total</span></code>. An
+unfixed note with boxes is filed as a todo; on a todo, ticking the last box marks it done and
+unticking reopens it. A <code class="docutils literal notranslate"><span class="pre">cancelled</span></code> todo is left alone and a status set in the same edit wins.</p></li>
+<li><p><strong>The user wins.</strong> A kind chosen at capture or in the editor sets <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code>, and nothing else
+changes it. Photo ingest, enrich (a saved link becomes Later) and task boxes only change an
+unfixed note; an import sets and fixes its kind.</p></li>
+<li><p><strong>Changing kind</strong> keeps every field and adds the new kind’s defaults for missing keys, so
+todo, note, todo round-trips. See <a class="reference internal" href="capture-and-files.html"><span class="std std-doc">Capture, files and import</span></a> for how a
+kind is chosen at capture.</p></li>
+</ul>
+</section>
+<section id="identity-links-and-tags">
+<h2>Identity, links and tags<a class="headerlink" href="#identity-links-and-tags" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Slug</strong> is made from the title at creation (ASCII, lower-case, at most 60 characters, <code class="docutils literal notranslate"><span class="pre">-2</span></code>,
+<code class="docutils literal notranslate"><span class="pre">-3</span></code> on collision) and never changes, so <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links survive renames. Trashed pages keep
+their slug. The API accepts an id or a slug.</p></li>
+<li><p><strong>Links</strong> are <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> in the body, read when needed. There is no link
+table: outgoing links come from scanning the body, backlinks from an <code class="docutils literal notranslate"><span class="pre">instr()</span></code> scan of live
+pages. Dangling links are allowed. Markdown is parsed by a library on both sides
+(<a class="reference internal" href="../decisions/0014-markdown-parsed-by-a-library-on-both-sides.html"><span class="std std-doc">ADR 14</span></a>).</p></li>
+<li><p><strong>Tags</strong> are flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed as a path; empty path segments are normalised
+(migration 10). Claude’s tags are marked in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> and shown dashed; a tag the user removes
+is never added back and Claude never removes one.</p></li>
+<li><p><strong>Related</strong> pages come from enrich, kept apart from the text and shown both ways, merged with
+backlinks and a board’s write-up links.</p></li>
+<li><p><strong>Page size</strong> is capped at 1 MB of UTF-8 (<code class="docutils literal notranslate"><span class="pre">MAX_PAGE</span></code> in <code class="docutils literal notranslate"><span class="pre">store/constants.py</span></code>); the API answers
+422 beyond it.</p></li>
+</ul>
+</section>
+<section id="revisions-and-conflicts">
+<h2>Revisions and conflicts<a class="headerlink" href="#revisions-and-conflicts" title="Link to this heading">#</a></h2>
+<p>Text and metadata have separate histories; neither covers Claude’s enrichment output.</p>
+<pre  class="mermaid">
+        sequenceDiagram
+    participant C as Client
+    participant S as Store
+    C-&gt;&gt;S: PATCH title or body, base_rev N
+    alt page is at rev N
+        S--&gt;&gt;C: saved, new rev
+    else page moved on
+        S--&gt;&gt;C: 409 with current rev
+    end
+    </pre><ul class="simple">
+<li><p><strong>Text</strong> (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>): rev 1 at creation, then one per title or body change. A stale <code class="docutils literal notranslate"><span class="pre">base_rev</span></code>
+saves nothing. A title equal to the one at <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> counts as unchanged, so a client never undoes
+a title Claude set meanwhile.</p></li>
+<li><p><strong>Window.</strong> One author’s edits within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds (default 300; 0 makes every
+change its own revision) fold into one. MCP <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> takes a <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> too
+(<a class="reference internal" href="../decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">ADR 22</span></a>).</p></li>
+<li><p><strong>Metadata</strong> (<code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code>): each kind or tag change, from the PWA or MCP, records before and
+after, with a <code class="docutils literal notranslate"><span class="pre">batch_id</span></code> shared by a bulk change. MCP <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists both histories and
+<code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes one
+(<a class="reference internal" href="../decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">ADR 19</span></a>).</p></li>
+<li><p><strong>Not revisions:</strong> <code class="docutils literal notranslate"><span class="pre">fields</span></code> (status), due, priority, snooze, task counts, and a provisional title
+replaced by ingest or enrich.</p></li>
+</ul>
+</section>
+<section id="trash">
+<h2>Trash<a class="headerlink" href="#trash" title="Link to this heading">#</a></h2>
+<p>Deleting sets <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>; nothing is purged, so no cascade runs.</p>
+<pre  class="mermaid">
+        stateDiagram-v2
+    [*] --&gt; Live: create
+    Live --&gt; Live: edit, new revision
+    Live --&gt; Trashed: delete
+    Trashed --&gt; Live: undelete
+    note right of Trashed
+        Read-only over MCP
+        Keeps slug and history
+        Out of search and backlinks
+    end note
+    </pre><ul class="simple">
+<li><p>Trashed pages keep their slug (never reused), revisions and captures. MCP <code class="docutils literal notranslate"><span class="pre">trash</span></code> lists them,
+<code class="docutils literal notranslate"><span class="pre">read</span></code> and <code class="docutils literal notranslate"><span class="pre">revisions</span></code> show them read-only (<code class="docutils literal notranslate"><span class="pre">trashed:</span> <span class="pre">true</span></code>) and <code class="docutils literal notranslate"><span class="pre">undelete</span></code> restores one; every
+other tool treats them as absent
+(<a class="reference internal" href="../decisions/0025-trash-and-recent-changes-over-mcp.html"><span class="std std-doc">ADR 25</span></a>). Undelete also makes the page’s
+topics due again.</p></li>
+<li><p>The cascading foreign keys are a safety net for a future purge.</p></li>
+</ul>
+</section>
+<section id="migrations">
+<h2>Migrations<a class="headerlink" href="#migrations" title="Link to this heading">#</a></h2>
+<p>Script <em>N</em> sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code>. <code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">db.lock</span></code>,
+turns on WAL and applies each missing script in one transaction, with an optional Python step from
+<code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code> in the same transaction.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Migration</p></th>
+<th class="head"><p>Adds or changes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0001</p></td>
+<td><p>Baseline: <code class="docutils literal notranslate"><span class="pre">page</span></code>, <code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, <code class="docutils literal notranslate"><span class="pre">blob</span></code>, <code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk_fts</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>0002</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">job</span></code>, <code class="docutils literal notranslate"><span class="pre">queue_state</span></code>, <code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">derived</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>0003, 0004</p></td>
+<td><p>Search columns and a full re-index</p></td>
+</tr>
+<tr class="row-odd"><td><p>0005</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>; moves import fields into them</p></td>
+</tr>
+<tr class="row-even"><td><p>0006, 0007</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>; task counts, counted for every page</p></td>
+</tr>
+<tr class="row-odd"><td><p>0008</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>0009</p></td>
+<td><p>Text enrich tables</p></td>
+</tr>
+<tr class="row-odd"><td><p>0010</p></td>
+<td><p>Tag path normalisation</p></td>
+</tr>
+<tr class="row-even"><td><p>0011 to 0013</p></td>
+<td><p>Rebuild <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> for new reasons; write-ups; topics</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul class="simple">
+<li><p>Migrations 6 to 9 are additive, so an older scrap still runs on a newer database if
+<code class="docutils literal notranslate"><span class="pre">user_version</span></code> is set back.</p></li>
+<li><p>A database newer than the code is refused, as is a backup newer than the code on restore.</p></li>
+<li><p>Policy: keep only the baseline for N-1 plus migration N, and drop them all at 1.0. The search index
+is rebuilt by migration rather than patched.</p></li>
+</ul>
+<p>Related pages: <a class="reference internal" href="search.html"><span class="std std-doc">Search</span></a>, <a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a>,
+<a class="reference internal" href="deployment.html"><span class="std std-doc">Deployment and operations</span></a>, and the <a class="reference internal" href="../../reference/api.html"><span class="std std-doc">REST API</span></a>.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../design.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Architecture</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="capture-and-files.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Capture, files and import</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-tables">Core tables</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tables-for-claude-s-work">Tables for Claude’s work</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#originals-derived-cache">Originals, derived, cache</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kinds-and-fields">Kinds and fields</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#identity-links-and-tags">Identity, links and tags</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#revisions-and-conflicts">Revisions and conflicts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trash">Trash</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migrations">Migrations</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/main/docs/explanations/architecture/data-model.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../../_sources/explanations/architecture/data-model.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

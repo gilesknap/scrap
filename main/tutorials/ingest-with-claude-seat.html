@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 0.11.1.dev3+gbb62a44e9 documentation</title>
+    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 0.11.1.dev4+gf0c9d292e documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e2f9aae"></script>
+    <script src="../_static/documentation_options.js?v=7279644e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -494,8 +494,8 @@ install of its own: do one of <a class="reference internal" href="install-lan.ht
 <a class="reference internal" href="install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a> first.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p><strong>An API key is the encouraged default.</strong> Use this page only if you have a Claude seat (Pro,
-Max, Team or Enterprise) and no Claude Console account to make a key in. scrap runs the Claude
+<p><strong>An API key is the encouraged default.</strong> Use this page only if you have a Claude seat (Team or
+Enterprise) and no Claude Console account to make a key in. scrap runs the Claude
 Code CLI (<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code>) with a long-lived token from <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">setup-token</span></code>
 (<a class="reference internal" href="../explanations/decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">ADR 0021</span></a>). Use
 your own seat only. Whether your plan or organisation lets a seat be used for unattended work
@@ -517,10 +517,10 @@ does it, from the release image you already run.</p>
 on top of a scrap image. It is from the release you run, so fetch it in an empty folder:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="o">-</span><span class="n">build</span> <span class="o">&amp;&amp;</span> <span class="n">cd</span> <span class="o">~/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="o">-</span><span class="n">build</span>
 <span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="o">-</span><span class="n">o</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> \
-    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="mf">0.2.2</span><span class="o">/</span><span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span>
-<span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.2.2</span> \
-    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="o">.</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">entrypoint</span> <span class="n">claude</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.2.2</span> <span class="o">--</span><span class="n">version</span>
+    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="mf">0.11.0</span><span class="o">/</span><span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span>
+<span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">.</span><span class="n">claude</span> <span class="o">--</span><span class="n">build</span><span class="o">-</span><span class="n">arg</span> <span class="n">BASE</span><span class="o">=</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.11.0</span> \
+    <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.11.0</span> <span class="o">.</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">entrypoint</span> <span class="n">claude</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.11.0</span> <span class="o">--</span><span class="n">version</span>
 </pre></div>
 </div>
 <p>The last command should print a Claude Code version. The image is about 240 MB larger than
@@ -542,21 +542,30 @@ it out of shell history, notes and anything you commit.</p>
 <p>Use the one section for your install.</p>
 <section id="container-on-a-lan-or-single-server">
 <h3>Container on a LAN, or single server<a class="headerlink" href="#container-on-a-lan-or-single-server" title="Link to this heading">#</a></h3>
-<p>Edit the settings file (<code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> for the LAN tutorial, <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code>
-as the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user for the server tutorial). It stays mode 600. Remove <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> and
-set:</p>
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND</span></code> is <code class="docutils literal notranslate"><span class="pre">api</span></code> (the default) or <code class="docutils literal notranslate"><span class="pre">cli</span></code>. Set it with the token and drop
+<code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>:</p>
+<ul>
+<li><p>LAN: read the token into your shell the way the README reads the key, then remove the container
+and run it again with the new image (the volume keeps your data):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">printf</span> <span class="s1">'Claude token: '</span><span class="p">;</span> <span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="p">;</span> <span class="n">export</span> <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span>
+<span class="n">podman</span> <span class="n">rm</span> <span class="o">-</span><span class="n">f</span> <span class="n">scrap</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">-</span><span class="n">d</span> <span class="o">--</span><span class="n">name</span> <span class="n">scrap</span> <span class="o">--</span><span class="n">restart</span> <span class="n">unless</span><span class="o">-</span><span class="n">stopped</span> <span class="o">--</span><span class="n">network</span><span class="o">=</span><span class="n">host</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> \
+    <span class="o">-</span><span class="n">e</span> <span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span> <span class="o">-</span><span class="n">e</span> <span class="n">SCRAP_LLM_BACKEND</span><span class="o">=</span><span class="n">cli</span> <span class="o">-</span><span class="n">e</span> <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span> \
+    <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.11.0</span> <span class="n">serve</span>
+</pre></div>
+</div>
+<p>Add <code class="docutils literal notranslate"><span class="pre">--host</span> <span class="pre">0.0.0.0</span></code>, <code class="docutils literal notranslate"><span class="pre">TZ</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> from <a class="reference internal" href="install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a> if you used them.</p>
+</li>
+<li><p>Server: in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> (mode 600) set:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
 <span class="n">SCRAP_LLM_BACKEND</span><span class="o">=</span><span class="n">cli</span>
 <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">token</span><span class="o">&gt;</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND</span></code> is <code class="docutils literal notranslate"><span class="pre">api</span></code> (the default) or <code class="docutils literal notranslate"><span class="pre">cli</span></code>. Then run the new image:</p>
-<ul class="simple">
-<li><p>LAN: remove the container and run it again with <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:0.2.2</span></code> in place of
-<code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.2.2</span></code>; the volume keeps your data.</p></li>
-<li><p>Server: set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.2.2</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code>, then re-run
+<p>Set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap-claude:0.11.0</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and re-run
 <code class="docutils literal notranslate"><span class="pre">./deploy/install.sh</span></code>. The CLI takes about 250 MB while it runs, so raise <code class="docutils literal notranslate"><span class="pre">SCRAP_MEMORY_MAX</span></code>
-there too, for example to <code class="docutils literal notranslate"><span class="pre">1.5g</span></code>.</p></li>
+there too, for example to <code class="docutils literal notranslate"><span class="pre">1.5g</span></code>.</p>
+</li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span> <span class="pre">scrap</span></code> shows the container’s environment, token included: do not paste it
 anywhere.</p>
@@ -574,7 +583,7 @@ one in the same Secret:</p>
 <code class="docutils literal notranslate"><span class="pre">imagePullSecrets</span></code> in the values. Add to your values, with your own image from the build section:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">image</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/me/scrap-claude</span>
-<span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2.2</span>
+<span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.11.0</span>
 <span class="nt">ingest</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-claude</span>
