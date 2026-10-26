@@ -16,7 +16,7 @@ stay tiny: no UI framework, icon library or web font.
 
 - Vanilla TypeScript built by Vite into the Python package (`scrap/static`). React exists only
   inside the lazily loaded Excalidraw chunk.
-- The app shell has a gzipped JavaScript **budget** (16 kB, raised from the original 15 kB), enforced
+- The app shell has a gzipped JavaScript **budget** (16.5 kB, raised from the original 15 kB), enforced
   by `npm run size` in CI. The service worker precaches the shell only; the lazy chunks it also
   keeps for offline use are those in `OFFLINE` in `web/vite.config.ts` (the composer, editor,
   page editor, Markdown renderer, sharing, search filters and recent searches), while Excalidraw

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA &#8212; scrap 0.12.1.dev2+g77d3dd778 documentation</title>
+    <title>The PWA &#8212; scrap 0.12.1.dev3+g0a7a500ce documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=095653d0"></script>
+    <script src="../../_static/documentation_options.js?v=bb08de5b"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -813,6 +813,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0030-fewer-mcp-tools.html">30. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0031-search-orders-by-section-on-the-server.html">31. Search orders results by section on the server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -974,7 +975,7 @@ Back in the top bar goes to the linking page, else the list, else a parent (<cod
 <li><p><strong>Not precached</strong>: the Excalidraw board chunk and its fonts (served from <code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>,
 not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.</p></li>
 <li><p><strong>Filters</strong> is an in-place panel (<code class="docutils literal notranslate"><span class="pre">refine.ts</span></code>), not a modal or sheet.</p></li>
-<li><p><strong>Size budget</strong>: the shell’s JavaScript must stay under 16 kB gzipped and must not pull in the
+<li><p><strong>Size budget</strong>: the shell’s JavaScript must stay under 16.5 kB gzipped and must not pull in the
 board chunk. <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">size</span></code> (<code class="docutils literal notranslate"><span class="pre">web/scripts/size.mjs</span></code>) checks both after a build.</p></li>
 <li><p><strong>Upcoming</strong> (Todos) is due tomorrow to 7 days ahead (<code class="docutils literal notranslate"><span class="pre">AHEAD</span></code> in <code class="docutils literal notranslate"><span class="pre">web/src/now.ts</span></code>).</p></li>
 </ul>
@@ -1079,7 +1080,7 @@ save carries its <code class="docutils literal notranslate"><span class="pre">ba
 <section id="invariants">
 <h2>Invariants<a class="headerlink" href="#invariants" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>The shell stays under 16 kB gzipped JS and never imports the board chunk.</p></li>
+<li><p>The shell stays under 16.5 kB gzipped JS and never imports the board chunk.</p></li>
 <li><p>A capture is in IndexedDB before any network call, under an id minted client-side.</p></li>
 <li><p>The service worker never caches API responses.</p></li>
 <li><p>Chunk loads can fail (offline): every dynamic import has a fallback (a toast, Capture, or the

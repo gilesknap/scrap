@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.12.1.dev2+g77d3dd778 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.12.1.dev3+g0a7a500ce documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=095653d0"></script>
+    <script src="../_static/documentation_options.js?v=bb08de5b"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -786,6 +786,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
 <li class="toctree-l1"><a class="reference internal" href="import-a-vault.html">Import a Thoth vault</a></li>
+<li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Capture from your phone (the PWA)</a></li>
 </ul>
@@ -1142,15 +1143,30 @@ go sooner and it slides back. The page has the same Edit and Delete.</p></li>
 (<code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>); a title or tag match ranks first. Results show a snippet unless it only
 repeats the title. Search needs the server.</p>
 <ul class="simple">
+<li><p><strong>Pinned.</strong> Tap the empty box and <strong>Pinned</strong> is listed first, above Recent: your pinned
+searches and pages, in the order of the page called <em>Pinned</em> (slug <code class="docutils literal notranslate"><span class="pre">pinned</span></code>), a Markdown list
+of links. Pin a search with the pin button in the results header or on a Recent row; pin a page
+with <strong>Share</strong>, <strong>Pin to Search</strong> (a browser with no Share menu has no such row; add a
+<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[Name](/p/slug)</span></code> line to the Pinned page instead). The toast says <em>Pinned</em>, with <strong>Undo</strong>.
+<strong>Edit pins</strong> opens the page: rename a pin by its link text, reorder or remove it by its line.
+A page keeps its slug when renamed, so a pin to it survives. <strong>Copy link</strong> in the header copies
+the search’s address. Claude does not read the Pinned page. See
+<a class="reference internal" href="make-your-own-lists.html"><span class="std std-doc">Make your own lists: a contacts directory</span></a>.</p></li>
+<li><p><strong>New from a search.</strong> A search with a tag filter, or a single kind, shows <strong>New</strong> at the right
+end of the top bar. It opens the composer with those tags and that kind filled in (a Note when
+no kind is chosen); cancelling straight away keeps no draft, and the saved page joins the list.</p></li>
+<li><p><strong>Topics.</strong> <code class="docutils literal notranslate"><span class="pre">is:topic</span></code> groups by area as the Topics tab does (<strong>Group</strong>: Area, None, A–Z), and
+the Topics tab has a quiet <strong>Refine</strong> link on its count line that opens it in Search.</p></li>
 <li><p><strong>Recent.</strong> Tap the empty box for your last ten searches, newest first, filters and all. Tap one
 to run it again, <strong>✕</strong> to forget it, or <strong>Clear all</strong>. A search is kept when run (Enter, opening
 a result, or a few seconds with results), only on this phone.</p></li>
 <li><p><strong>Kinds.</strong> A row under the box: <strong>All</strong>, <strong>Notes</strong>, <strong>Todos</strong>, <strong>Later</strong>, <strong>Boards</strong>, <strong>Docs</strong>.
 One tap writes <code class="docutils literal notranslate"><span class="pre">kind:</span></code> into the query; a second tap (or <strong>All</strong>) shows every kind again.</p></li>
 <li><p><strong>Clear.</strong> A <strong>✕</strong> at the end of the box goes back to every page, newest first.</p></li>
-<li><p><strong>Filters.</strong> The slider button shows how many are on. Each active filter is a chip with a ✕ in a
-row under the box (<em>#home</em>, <em>past month</em>, <em>A–Z</em>) with the count of pages found. The panel’s rows
-scroll sideways: <strong>Tags</strong> (type to see matching tags among the results, or tap a top tag),
+<li><p><strong>Filters.</strong> The slider button turns amber while the panel is open (it shows no count). Each
+active filter is a chip with a ✕ in a row of its own under the kinds (<em>#home</em>, <em>past month</em>,
+<em>A–Z</em>), above the results header with the count of pages found. The panel’s headings sit above
+their chips, which wrap: <strong>Tags</strong> (type to see matching tags among the results, or tap a top tag),
 <strong>Order</strong> (<strong>Best match</strong>/<strong>Last edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>A–Z</strong>, and for todos <strong>Due
 soonest</strong> and <strong>Priority</strong>) and <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>, <strong>Dates…</strong>, and <strong>By created
 date</strong> once a range is on). Each tap applies at once; a second tap removes it. <strong>Clear filters</strong>
@@ -1214,8 +1230,8 @@ first; the full grammar is in <a class="reference internal" href="../reference/a
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">later:read</span></code> (<code class="docutils literal notranslate"><span class="pre">watch</span></code>, <code class="docutils literal notranslate"><span class="pre">listen</span></code>, <code class="docutils literal notranslate"><span class="pre">play</span></code>)</p></td>
 <td><p>What a Later page is for</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">group:letter</span></code> (<code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">now</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
-<td><p>Group the results in sections. <strong>Group</strong> writes it; Later’s own is type, Todos’ is Now</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">group:letter</span></code> (<code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">now</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">area</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
+<td><p>Group the results in sections. <strong>Group</strong> writes it; Later’s own is type, Todos’ is Now, topics’ (<code class="docutils literal notranslate"><span class="pre">is:topic</span></code>) is area</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">after:1w</span></code>, <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code></p></td>
 <td><p>Last edited; dates are UTC days, both ends included; a time ago is <code class="docutils literal notranslate"><span class="pre">Nd</span></code>, <code class="docutils literal notranslate"><span class="pre">Nw</span></code>, <code class="docutils literal notranslate"><span class="pre">Nm</span></code>, <code class="docutils literal notranslate"><span class="pre">Ny</span></code>, N up to 100. Add <code class="docutils literal notranslate"><span class="pre">date:created</span></code> to use the creation date (the only <code class="docutils literal notranslate"><span class="pre">date:</span></code> value; others are ignored)</p></td>
@@ -1684,7 +1700,7 @@ from another folder without restarting, point <code class="docutils literal notr
 <td><p>Unit tests</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">size</span></code></p></td>
-<td><p>After a build: the app shell stays within 16 kB gzipped and never loads Excalidraw</p></td>
+<td><p>After a build: the app shell stays within 16.5 kB gzipped and never loads Excalidraw</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">e2e</span></code></p></td>
 <td><p>Playwright against a real <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">scrap</span> <span class="pre">serve</span></code> on a throwaway data folder; needs <code class="docutils literal notranslate"><span class="pre">uv</span></code>, a built PWA and <code class="docutils literal notranslate"><span class="pre">npx</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">playwright</span> <span class="pre">install</span> <span class="pre">chromium</span></code> once</p></td>
