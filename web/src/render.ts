@@ -1,7 +1,8 @@
 // Page text as HTML: Markdown by markdown-it (a chunk of its own, kept for offline use), with
 // GitHub's tables, task lists, ~~strikethrough~~, bare links and footnotes, plus [[slug]] and
 // [[slug|label]] links to other pages. Raw HTML is shown as text; a line break stays one.
-// Links are http(s), mailto, a page here or a heading of this page; images only this
+// Links are http(s), mailto, a page here (a full address of one opens in the app, as [[slug]]
+// does) or a heading of this page; images only this
 // server's own files, each marked with its file's data-sha for the page to make a figure of.
 // A ```mermaid block is drawn as a diagram, by Mermaid, a chunk of its own loaded only then.
 // The server parses text the same way for search (src/scrap/markdown.py). The stored text is
@@ -50,6 +51,21 @@ function wiki(state: StateInline, silent: boolean): boolean {
   }
   state.pos = end + 2;
   return true;
+}
+
+/** A web address of a page on this server (its own origin, /p/slug), as the page's own path
+ * (with any query or #heading); else null. */
+export function own(href: string, origin = globalThis.location?.origin): string | null {
+  if (!origin || !/^https?:\/\//i.test(href)) return null;
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  return url.origin === origin && PAGE.test(url.pathname)
+    ? url.pathname + url.search + url.hash
+    : null;
 }
 
 /** A heading's id: its text, as GitHub makes one, after "h-" (no clash with the app's). */
@@ -123,9 +139,14 @@ function inline(children: Token[], state: StateCore): Token[] {
   for (const t of children) {
     if (t.type === "link_open") {
       const href = String(t.attrGet("href") ?? "");
+      const here = own(href);
       // A link in a link (a bare URL in a link's text): its text only
       if (opened.some((o) => !o.hidden)) t.hidden = true;
-      else if (EXTERNAL.test(href)) {
+      else if (here) {
+        // A page here written as a full address (as a model writes one): opened in the app, as
+        // [[slug]] is, not in a new window (in the phone's app, one with no Back to this page)
+        t.attrSet("href", here);
+      } else if (EXTERNAL.test(href)) {
         t.attrSet("target", "_blank");
         t.attrSet("rel", "noopener noreferrer");
       } else if (href.startsWith("#")) {

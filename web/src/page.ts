@@ -380,18 +380,21 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     return b;
   }
 
-  // Deleted: back to the list it was opened from (its query, filters and scroll: the entry
-  // before this one), else to the newest-first list
+  // Deleted: back one step to what it was opened from (a list with its query, filters and
+  // scroll, or the page that linked to it), as Back goes; opened cold, where Back goes up to
   const remove = (p: Page) =>
     deletePage(
       p.id,
       () =>
-        state?.trail
+        (history.state?.at ?? 0) > 0 // an entry the app pushed: one of the app's is behind it
           ? new Promise<void>((done) => {
               addEventListener("popstate", () => done(), { once: true }); // after main.ts's
               history.back();
             })
-          : go("/search", true),
+          : import("./back").then(
+              (m) => m.up(go),
+              () => go("/", true), // the chunk is not here (offline): Capture
+            ),
       () => go(`/p/${encodeURIComponent(p.slug)}`),
     );
 

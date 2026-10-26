@@ -106,10 +106,11 @@ test("deleting an opened page returns to its search, filters kept; Back too", as
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(page).toHaveURL(`/p/${gone}`);
 
-  // A page opened from no list (a link from outside): delete lands on the newest-first list
+  // A page opened cold (a link from outside): delete lands where Back names, a todo's Todos
   await page.goto(`/p/${keep}`);
+  await expect(page.locator("#backto")).toHaveText("Todos");
   await page.getByRole("button", { name: "Delete" }).click();
-  await expect(page).toHaveURL(/\/search$/);
+  await expect(page).toHaveURL(/\/todos$/);
   await expect(page.getByText("Page deleted")).toBeVisible();
 });
 
