@@ -229,6 +229,55 @@ test("history restores a version, and the drawing exports", async ({ page }) => 
   }
 });
 
+test("the viewer's More menu leads with Share a PNG, only where the phone can share", async ({
+  page,
+}) => {
+  const b = board();
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true }),
+  );
+  await page.goto(`/p/${b.slug}`);
+  await open(page);
+  await dialog(page).getByText("More").click();
+  await expect(tool(page, "History")).toBeVisible();
+  await expect(tool(page, "Share")).toHaveCount(0);
+  await page.reload();
+  await page.evaluate(() => {
+    const w = window as unknown as { shared: { title: string; files: File[] }[] };
+    w.shared = [];
+    Object.defineProperty(navigator, "canShare", { value: () => true, configurable: true });
+    Object.defineProperty(navigator, "share", {
+      value: async (d: { title: string; files: File[] }) => void w.shared.push(d),
+      configurable: true,
+    });
+  });
+  await open(page);
+  await dialog(page).getByText("More").click();
+  await expect(dialog(page).locator(".menu button").first()).toHaveText("Share");
+  await tool(page, "Share").click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { shared: unknown[] }).shared.length))
+    .toBe(1);
+  const f = await page.evaluate(() => {
+    const [d] = (window as unknown as { shared: { files: File[] }[] }).shared;
+    return [d.files[0].name, d.files[0].type, d.files[0].size > 0];
+  });
+  expect(f).toEqual([`${b.slug}-drawing-v1.png`, "image/png", true]);
+});
+
+test("Share says so, and exports nothing, where the phone can't share files", async ({ page }) => {
+  const b = board();
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "canShare", { value: () => false, configurable: true });
+    Object.defineProperty(navigator, "share", { value: async () => {}, configurable: true });
+  });
+  await page.goto(`/p/${b.slug}`);
+  await open(page);
+  await dialog(page).getByText("More").click();
+  await tool(page, "Share").click();
+  await expect(page.getByText("Sharing files is not supported here")).toBeVisible();
+});
+
 test("the inline drawing card follows the drawings theme, not the app's", async ({ page }) => {
   const b = board();
   await page.emulateMedia({ colorScheme: "dark" });

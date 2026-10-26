@@ -7,7 +7,7 @@
 import { ApiError, api } from "../api";
 import { drafts } from "../db";
 import type { Target } from "../drawing";
-import { saveBlob } from "../sharing";
+import { saveBlob, shareMade } from "../sharing";
 import { h, toast, when } from "../ui";
 import { elementsOf, board as mount } from "./board";
 import { type Drawing, madeBy, scenePayload, type Version } from "./frame";
@@ -26,8 +26,11 @@ interface Draft {
 export function openDrawing(t: Target, onSaved: () => void) {
   const opener = document.activeElement as HTMLElement | null;
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];
-  const tool = (label: string, onclick: () => void, extra: Record<string, unknown> = {}) =>
-    h("button", { type: "button", onclick, ...extra }, label);
+  const tool = (
+    label: string,
+    onclick: (e: MouseEvent) => void,
+    extra: Record<string, unknown> = {},
+  ) => h("button", { type: "button", onclick, ...extra }, label);
 
   let board: Awaited<ReturnType<typeof mount>> | null = null;
   let current: Drawing | null = null;
@@ -63,6 +66,9 @@ export function openDrawing(t: Target, onSaved: () => void) {
     h(
       "div",
       { className: "menu" },
+      typeof navigator.share === "function"
+        ? tool("Share", (e) => void shareDrawing(e.currentTarget as HTMLElement))
+        : null,
       tool("History", () => void showHistory()),
       tool("Export .excalidraw", () => void exportAs("excalidraw")),
       tool("Export PNG", () => void exportAs("png")),
@@ -310,6 +316,23 @@ export function openDrawing(t: Target, onSaved: () => void) {
     } catch (err) {
       toast(`Export failed: ${(err as Error).message}`);
     }
+  }
+
+  function shareDrawing(row: HTMLElement) {
+    const png = board;
+    if (!png) {
+      more.open = false;
+      return;
+    }
+    // The menu stays open meanwhile: its row says Preparing…
+    return shareMade(
+      row,
+      t.name || "Drawing",
+      `${t.slug}-drawing-v${current?.version ?? 0}.png`,
+      () => png.export("png"),
+    ).finally(() => {
+      more.open = false;
+    });
   }
 
   // ---- open and close: Back closes, keeping an unsaved edit as a draft

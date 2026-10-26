@@ -79,6 +79,32 @@ function canShareFile(name: string, type: string) {
   }
 }
 
+const send = (data: ShareData) =>
+  navigator.share(data).catch((err: Error) => {
+    if (err.name !== "AbortError") toast(`Share failed: ${err.message}`, "", undefined, 8000);
+  });
+
+/** Share files at once; if the tap's permission ran out meanwhile (a slow download or export,
+ * Chrome allows ~5 s), offer them on a fresh one. */
+async function shareFiles(title: string, files: File[], ready: string) {
+  try {
+    await navigator.share({ title, files });
+  } catch (err) {
+    if (!tapExpired(err)) throw err;
+    toast(ready, "Share", () => void send({ title, files }), 30_000);
+  }
+}
+
+/** Share a file made on the phone (a drawing's PNG), checked shareable before it is made. */
+export function shareMade(el: HTMLElement, title: string, name: string, make: () => Promise<Blob>) {
+  const type = "image/png";
+  return busy(el, "Share", async () => {
+    if (!canShareFile(name, type)) return void toast("Sharing files is not supported here");
+    const files = [new File([await make()], name, { type })];
+    await shareFiles(title, files, "Drawing ready");
+  });
+}
+
 export interface Sharing {
   what: () => { title: string; text?: string; file?: string[] };
   link?: string; // the page's address: Share then asks Link or the content
@@ -90,10 +116,6 @@ export interface Sharing {
  * (and `more`); each choice is a tap of its own, so it calls the share sheet within that tap.
  * Without a link, or a popover, a tap shares the content at once. */
 export function attach(b: HTMLButtonElement, s: Sharing) {
-  const send = (data: ShareData) =>
-    navigator.share(data).catch((err: Error) => {
-      if (err.name !== "AbortError") toast(`Share failed: ${err.message}`, "", undefined, 8000);
-    });
   const shareContent = () =>
     busy(b, "Share", async () => {
       const { title, text, file } = s.what();
@@ -101,13 +123,7 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
       const [href, name, type] = file;
       if (!canShareFile(name, type)) return toast("Sharing files is not supported here");
       const files = [await fetchFile(href, name)];
-      try {
-        await navigator.share({ title, files });
-      } catch (err) {
-        // A slow download outlasts the tap (Chrome allows ~5 s): share it on a fresh one.
-        if (!tapExpired(err)) throw err;
-        toast("Photo ready", "Share", () => void send({ title, files }), 30_000);
-      }
+      await shareFiles(title, files, "Photo ready");
     });
   const menu = h("div", { className: "share-menu", popover: "auto" });
   if (!s.link || !menu.showPopover) {
