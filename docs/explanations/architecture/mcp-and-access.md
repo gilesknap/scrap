@@ -75,7 +75,7 @@ flowchart LR
 
 `/mcp` is served by the official MCP SDK inside the app (Streamable HTTP, stateless, JSON replies),
 so one `claude mcp add --transport http` line connects a client and a restart drops no session
-([ADR 0013](../decisions/0013-mcp-server-inside-the-app.md)). There are thirteen tools;
+([ADR 0013](../decisions/0013-mcp-server-inside-the-app.md)). There are fourteen tools;
 arguments, limits and result shapes are in
 [](../../reference/mcp.md).
 
