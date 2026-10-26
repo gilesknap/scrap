@@ -27,7 +27,7 @@ class Core:
         self.db = self.dir / "scrap.db"
         self.files = self.dir / "files"
         self.window = revision_window()  # seconds: see _record_meta
-        # The current prompt versions (writeup, topic), set by whoever makes the Store
+        # The current prompt versions (writeup), set by whoever makes the Store
         # (app.create_app: enrich.prompt_versions()); is:outdated compares a write-up's
         # with writeup (missing: not checked)
         self.prompts: dict[str, str] = {}

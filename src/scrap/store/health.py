@@ -101,8 +101,6 @@ DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
 READ_AT = """coalesce((SELECT max(d.created_at) FROM derived d
     JOIN capture c ON c.id = d.capture_id WHERE c.page_id = {p}.id
     AND d.kind IN ('description', 'ocr') AND d.superseded_at IS NULL), '')"""
-# A board page's current write-up outdated (writeups.OUTDATED, beside the worker's DUE)
-OUTDATED_WRITEUP = OUTDATED
 # A topic with a source in whose synthesis (its current write-up) is of another prompt
 # version (unless the owner restored it), or older than the latest change to its
 # inputs: the topic page itself (its title or the owner's notes), a source added,
@@ -134,13 +132,6 @@ RELATED_INPUTS = f"""max({{p}}.updated_at, {READ_AT}, coalesce((
 # Related pages picked before the latest change to their inputs (never picked: not
 # outdated, only due)
 OUTDATED_RELATED = f"{PICKED} < {RELATED_INPUTS}"
-
-
-def outdated(p: str = "p", version: str = "?") -> str:
-    """is:outdated as SQL on a page p: a board's write-up outdated (OUTDATED_WRITEUP),
-    never a topic's synthesis or related pages, which their passes refresh on their own
-    (#291). One placeholder: the write-up's prompt version."""
-    return OUTDATED_WRITEUP.format(p=p, version=version)
 
 
 # The checks, in the order the health screen lists them: (key, value) as a filter
@@ -180,7 +171,9 @@ def condition(
         case "has", "dangling":
             return DANGLING.format(p="p"), []
         case "is", "outdated":
-            return outdated(), [prompts.get("writeup")]
+            # a board's write-up (writeups.OUTDATED), never a topic's synthesis or
+            # related pages: their passes refresh them on their own (#291)
+            return OUTDATED.format(p="p", version="?"), [prompts.get("writeup")]
     raise KeyError((key, value))
 
 

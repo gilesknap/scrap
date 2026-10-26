@@ -360,6 +360,17 @@ def test_a_topic_due_a_synthesis_is_the_weekly_pass_s_not_is_outdated(store):
     assert found(store, "is:outdated") == set()  # no finding: the weekly pass's
 
 
+def test_a_topic_due_by_a_new_topic_prompt_is_not_is_outdated(store, monkeypatch):
+    _, topic = library_and_topic(store)
+    monkeypatch.setattr(
+        enrich.topic_finding, "topic_prompt", lambda: ("p", "topic@another")
+    )
+    with closing(connect(store.db)) as conn:  # the pass finds it, by its version
+        assert enrich.topic_finding.due(conn) == [topic]
+    store.prompts = {**store.prompts, "topic": "topic@another"}  # ignored even if set
+    assert found(store, "is:outdated") == set()
+
+
 def test_health_counts_match_the_searches_and_mcp_takes_the_terms(tmp_path):
     client = TestClient(create_app(tmp_path / "data"))
     for text in ("Alpha [[nowhere]]", "Beta", "Gamma [[beta]]"):

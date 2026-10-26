@@ -42,12 +42,12 @@ to catch up without a prompt change making every page due at once.
   version; never a version the owner restored), a topic synthesis (the weekly pass's
   `TOPIC_DUE`) and related pages (the nightly pass's `STALE`).
 - **`is:outdated` lists only outdated write-ups** (#291): what the owner acts on, with
-  Regenerate or `scrap enrich --writeups --outdated`. Related pages and topic syntheses keep
-  their definitions for the passes but are no finding: they clear on their own overnight or
-  within the week, and as findings they buried the write-ups (right after a write-up is
-  regenerated, its page's related picks are older than it). The current prompt versions are given to the store
-  by whoever makes it (`Store.prompts`, `enrich.prompt_versions()`), since the store sits below
-  the prompts.
+  Regenerate or `scrap enrich --writeups --outdated`. The current write-up prompt version is
+  given to the store by whoever makes it (`Store.prompts`, `enrich.prompt_versions()`), since
+  the store sits below the prompts. Related pages and topic syntheses keep their definitions
+  for the passes but are no finding: they clear on their own overnight or within the week, and
+  as findings they buried the write-ups (right after a write-up is regenerated, its page's
+  related picks are older than it).
 - **An outdated write-up is the owner's to regenerate.** Only a newly read board photo writes one
   again on its own (as before). An edit to the page, or a new prompt, does not: an edit may be
   small, a write-up is an Opus call, and the owner may prefer the old one. The page's write-up
