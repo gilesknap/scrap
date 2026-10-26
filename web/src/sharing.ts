@@ -79,6 +79,29 @@ function canShareFile(name: string, type: string) {
   }
 }
 
+/** Share a file made on the phone (a drawing's PNG), checked shareable before it is made. */
+export function shareMade(el: HTMLElement, title: string, name: string, make: () => Promise<Blob>) {
+  const type = "image/png";
+  return busy(el, "Share", async () => {
+    if (!canShareFile(name, type)) return void toast("Sharing files is not supported here");
+    const files = [new File([await make()], name, { type })];
+    try {
+      await navigator.share({ title, files });
+    } catch (err) {
+      if (!tapExpired(err)) throw err;
+      toast(
+        "Drawing ready",
+        "Share",
+        () =>
+          void navigator.share({ title, files }).catch((e: Error) => {
+            if (e.name !== "AbortError") toast(`Share failed: ${e.message}`, "", undefined, 8000);
+          }),
+        30_000,
+      );
+    }
+  });
+}
+
 export interface Sharing {
   what: () => { title: string; text?: string; file?: string[] };
   link?: string; // the page's address: Share then asks Link or the content
