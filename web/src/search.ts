@@ -1,10 +1,9 @@
 // The list screen: with an empty box, every page newest first (what is still waiting to
 // upload above them); with a query, full-text search as you type (snippets become text nodes
-// and <mark>s, never HTML). The box's ✕ clears it. Under it, refine.ts's: the filters on as a
-// row of chips led by the results' count, and the Filters panel, opened by the slider at the
-// box's end; then a fixed row of kinds (one tap sets or clears kind:, Todos too), and with no
-// filters on, the count on a short line over the list. All of it is
-// the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
+// and <mark>s, never HTML). The box's ✕ clears it. Under it the Filters panel (refine.ts),
+// opened by the slider at the box's end; then a fixed row of kinds (one tap sets or clears
+// kind:, Todos too), the filters on as a row of chips, and the results header: the count, with
+// Pin and Copy link at its end. All of it is the query's text, kept in the address (/search?q=...), so Back, a reload and a deleted page
 // come back to the same list, scrolled where it was.
 import { api, type Hit, writeClock } from "./api";
 import { address, go, markNav, view } from "./app";
@@ -66,8 +65,11 @@ export async function search(): Promise<Node> {
   };
   let settle: ReturnType<typeof setTimeout>;
   const results = h("div");
+  // In order down the screen: the box, the Filters panel (opened by the box's slider), the
+  // kinds, the filters on as chips, then the results header (the count, Pin and Copy link)
+  const panel = h("div");
   const chips = h("div");
-  const found = h("div"); // how many were found, no filters on: over the list, under the kinds
+  const found = h("div");
   // Filters: a slider at the box's end (how many are on, in a dot); refine.ts, a chunk of its
   // own, fills it and opens its panel under the kinds
   const filters = h(
@@ -184,8 +186,10 @@ export async function search(): Promise<Node> {
         .then((m) => m.refine(query, signal, apply, filters))
         .then((el) => {
           if (signal.aborted) return;
-          found.replaceChildren(el.querySelector(".found") ?? "");
-          chips.replaceChildren(el); // (refine puts focus back on the control it was on)
+          // (refine puts focus back on the control it was on)
+          panel.replaceChildren(el.querySelector(".fpanel") ?? "");
+          chips.replaceChildren(el.querySelector(".fon") ?? "");
+          found.replaceChildren(el.querySelector(".rhead") ?? "");
         })
         .catch(() => signal.aborted || chips.replaceChildren());
       clearTimeout(settle);
@@ -355,9 +359,10 @@ export async function search(): Promise<Node> {
     { className: "search" },
     h("div", { className: "field-search" }, icon("search"), input, clear, filters),
     recents,
-    chips, // the filters on, and the panel, under the box whose slider opens it
-    kinds, // always here, under any filters
-    found,
+    panel, // under the box whose slider opens it
+    kinds, // always here
+    chips, // the filters on, when any are
+    found, // the results header
     pending,
     results,
     build(),

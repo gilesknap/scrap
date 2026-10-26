@@ -75,12 +75,15 @@
   padding: 0;
   color: var(--ink-2);
 }
-/* A Recent row's pin, beside its ✕: once pinned, in the accent's ink */
+/* A Recent row's pin, beside its ✕: once pinned, filled (no amber: that is for selection) */
 .list.recents .pin {
   margin-inline-end: calc(-1 * var(--s-3)); /* pin and ✕ read as a pair */
 }
-.list.recents .pin[aria-pressed="true"] {
-  color: var(--accent-ink);
+.list.recents .pin.on {
+  color: var(--ink);
+}
+:is(.pin, .act).on .i path {
+  fill: currentColor;
 }
 /* Pinned, above Recent: the Pinned page's links, drawn as Recent's rows */
 .list.recents a.again {
@@ -133,41 +136,25 @@
   background: transparent;
   color: var(--ink-2);
 }
+/* Open: a selected state, so amber-soft under an ink icon (no count on it: the chips say it) */
 .field-search .ffield[aria-expanded="true"] {
-  color: var(--accent-ink);
-  background: var(--sunk);
+  color: var(--ink);
+  background: var(--accent-soft);
 }
-.ffield b {
-  position: absolute;
-  top: 5px;
-  inset-inline-end: 4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 0.7rem;
-  line-height: 18px;
-  text-align: center;
-}
-.refine {
-  margin: 0 0 var(--s-3);
-}
+/* The filters on: a row of their own under the kinds, wrapping (only while any are on) */
 .fon {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s-2);
-  margin-inline: calc(-1 * var(--s-4)); /* the screen's width, scrolling to its edges */
-  padding: 2px var(--s-4);
-  overflow-x: auto;
-  scrollbar-width: none;
+  margin: calc(-1 * var(--s-1)) 0 var(--s-1);
 }
+/* The Filters panel, under the box: each row's heading over its chips, which wrap */
 .fpanel {
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
-  margin-top: var(--s-2);
-  padding: var(--s-1) 0 var(--s-3);
+  gap: var(--s-3);
+  margin: calc(-1 * var(--s-2)) 0 var(--s-4);
+  padding: var(--s-3) 0;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -175,64 +162,58 @@
 .fpanel[hidden] {
   display: none;
 }
-/* A row: its label, then its chips on one line that scrolls sideways (never a wall of chips) */
+/* A row: its heading, then its chips, wrapping */
 .frow {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--s-2);
-  padding-inline-start: var(--s-3);
+  padding-inline: var(--s-3);
 }
 .flabel {
-  flex: none;
-  width: 4.2em;
   color: var(--ink-2);
   font-size: var(--t-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.frow .opts,
-.frow.ftags > .opts {
+.frow .opts {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+/* Arrange's lines, Order and Group: a short label, then its chips beside it */
+.fsub {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+.fsub .opts {
   flex: 1;
   min-width: 0;
-  gap: var(--s-2);
-  padding: 2px var(--s-3) 2px 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+}
+.fsublabel {
+  flex: none;
+  width: 3.5em;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  line-height: 44px; /* level with its first line of chips */
 }
 .fpanel .facet[aria-pressed="true"] {
   border-color: transparent;
   background: var(--accent-soft);
   font-weight: 600;
 }
-/* Tags: those on and the box on one line, what it offers on the next (under the box) */
-.frow.ftags {
-  flex-wrap: wrap;
-  align-items: flex-start;
-  padding-top: var(--s-2);
-}
-.frow.ftags > .flabel {
-  line-height: 44px; /* level with the first line of chips and the box */
-}
-
+/* Tags: the box, then what it offers under it */
 .frow.ftags .tagline {
   display: flex;
-  flex: 1;
-  min-width: 0;
   flex-wrap: wrap;
   gap: var(--s-2);
-  padding-inline-end: var(--s-3);
 }
 .frow.ftags .tagline input {
   flex: 1;
   min-width: min(8rem, 100%); /* never wider than the panel at a large text size */
   min-height: 44px;
   border-radius: var(--r-pill);
-}
-.frow.ftags > .opts {
-  flex-basis: 100%;
-  padding-inline-start: calc(4.2em + var(--s-2));
 }
 /* Nothing to offer: why, in words that wrap */
 .fpanel .opts .none {
@@ -242,81 +223,45 @@
   font-size: var(--t-sm);
 }
 .fpanel .range {
-  margin: 0;
-  padding-inline: calc(4.2em + var(--s-2) + var(--s-3)) var(--s-3);
+  margin: calc(-1 * var(--s-1)) 0 0;
+  padding-inline: var(--s-3);
 }
 .fpanel > button.link {
   align-self: flex-start;
   margin: 0 0 0 var(--s-3);
 }
-/* Above the list, no filters on: how many were found, in a tight line that takes some of the
-   kinds' margin (with filters on, the count leads their row: .fon) */
-.found {
-  margin: calc(-1 * var(--s-1)) 0 var(--s-1);
-  font-size: var(--t-sm);
-  line-height: 1.25; /* the line costs under 20 px */
+/* The results header, over the list: the count, then Pin and Copy link, two 48 px ghost
+   icon buttons at its end; it takes some of the space around it, so it reads as one quiet line */
+.rhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  margin: calc(-1 * var(--s-2)) 0 calc(-1 * var(--s-1));
 }
-:is(.found, .fon) .count {
+.rhead .count {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.fon .count {
+.rhead .acts {
+  display: flex;
   flex: none;
-  align-self: center;
-  white-space: nowrap;
+  margin-inline-end: calc(-1 * var(--s-3)); /* the icons on the cards' edge */
 }
-/* A search's actions after its count: Pin and Copy link, quiet links as Todos' Refine; on a
-   crowded line (.tight: the filters on no longer fit beside them), a ⋯ with a small menu */
-.count .act {
-  position: relative;
-  display: inline;
-  min-height: 0;
+.rhead .act {
+  width: var(--tap);
   padding: 0;
-  border: none;
-  border-radius: 0;
-  background: none;
-  color: var(--accent-ink);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
-}
-.count .act::after {
-  content: "";
-  position: absolute;
-  inset: -14px -6px; /* a 48 px target round a line of small text */
-}
-.count .act:active {
-  transform: none;
-  background: none;
-  opacity: 0.7;
-}
-.count .act[aria-pressed="true"] {
   color: var(--ink-2);
-  text-decoration-color: var(--line-strong);
 }
-.count .act.more {
-  display: none;
-  width: 28px;
-  justify-content: center;
-  vertical-align: middle;
-  top: -0.3em; /* the dots on the words' middle, not their baseline */
-  margin-inline-start: var(--s-1);
-  color: var(--ink-2);
-  text-decoration: none;
+/* Pinned: the pin filled, on a 36 px amber-soft disc drawn inside the 48 px target */
+.rhead .act.on {
+  border: 6px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft) padding-box;
+  color: var(--ink);
 }
-.count .act.more .i {
-  width: 20px;
-  height: 20px;
-}
-.fon.tight .acts .inline {
-  display: none;
-}
-.fon.tight .acts .more {
-  display: inline-flex;
-}
-.acts-menu {
-  bottom: auto;
-}
+
 .facet {
   flex: none;
   gap: 6px;
@@ -453,6 +398,27 @@
   gap: var(--s-2);
 }
 /* More to the right: the row fades out at its end */
-:is(.tags, .refine, .toptags) {
+:is(.tags, .toptags) {
   mask-image: linear-gradient(to left, transparent, #000 var(--s-6));
+}
+
+/* A–Z: one card, each letter a slim divider row inside it, sticky under the top bar while its
+   rows scroll by (clip, not hidden: hidden would make the card the scroller and stop it) */
+.list.az {
+  overflow: clip;
+}
+.list.az li.letter {
+  position: sticky;
+  top: calc(var(--bar-h) + env(safe-area-inset-top));
+  z-index: 1;
+  padding: var(--s-1) var(--s-3);
+  background: var(--bg); /* the screen's own, so it reads as a divider, not a row */
+  border-bottom: 1px solid var(--line);
+}
+.list.az li.letter + li {
+  border-top: 0;
+}
+.list.az li.letter h2.label {
+  margin: 0;
+  color: var(--ink-2);
 }

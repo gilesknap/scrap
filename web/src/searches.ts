@@ -108,9 +108,8 @@ export function attach(
         "button",
         {
           type: "button",
-          className: "ghost forget pin",
+          className: on ? "ghost forget pin on" : "ghost forget pin",
           "aria-label": on ? `Unpin ${q}` : `Pin ${q}`,
-          "aria-pressed": String(on),
           onclick: async () => {
             if (await isPinned(key)) await unpin(key);
             else await pin(nameOf(q), searchHref(q));

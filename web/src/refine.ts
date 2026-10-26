@@ -12,7 +12,7 @@ import { api } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
-import { actions, fitActs } from "./searchacts";
+import { actions } from "./searchacts";
 import { MEDIA, removing, withGroup } from "./termedit";
 import {
   adding,
@@ -145,7 +145,7 @@ export async function refine(
 ): Promise<HTMLElement> {
   // Where focus is now, to put it back on the same control once drawn again
   const was = document.activeElement as HTMLElement | null;
-  const k = was?.closest(".refine") ? was.dataset.k : null;
+  const k = was?.closest(".fpanel, .fon") ? was.dataset.k : null;
   const f = await facets(q, signal);
   const on = filtersOf(f);
   const group = grouped(q); // a group: asked for: a filter on too, read here (not the server's)
@@ -155,8 +155,9 @@ export async function refine(
     { className: "fpanel", id: "fpanel", hidden: !open },
     ...rows(q, f, apply),
   );
-  // The box's slider: how many are on, in a dot; tapped, the panel opens under the kinds
-  button.replaceChildren(icon("filter"), n > 0 ? h("b", {}, String(n)) : "");
+  // The box's slider (no count on it: the chips under the kinds say what is on); tapped, the
+  // panel opens under the box
+  button.replaceChildren(icon("filter"));
   button.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
   button.setAttribute("aria-controls", "fpanel");
   button.setAttribute("aria-expanded", String(open));
@@ -165,12 +166,18 @@ export async function refine(
     panel.hidden = !open;
     button.setAttribute("aria-expanded", String(open));
   };
-  // The filters on, as chips on a row of their own that scrolls sideways, the count at its
-  // start, so the two cost one line (none: no row, and the count is over the list): each says
-  // what it is ("#home", "past month") and a tap takes it off
-  // ...and its own actions after it, with results: Pin and Copy link (searchacts.ts)
-  const count =
-    q && h("span", { className: "count" }, shown(q, f.total), f.total > 0 && actions(q));
+  // The results header: how many were found, and with results the search's own Pin and
+  // Copy link at its end (searchacts.ts), one row that never changes shape
+  const header =
+    q &&
+    h(
+      "div",
+      { className: "rhead" },
+      h("span", { className: "count" }, shown(q, f.total)),
+      f.total > 0 && actions(q),
+    );
+  // The filters on, as chips on a row of their own under the kinds, wrapping (none: no row):
+  // each says what it is ("#home", "past month") and a tap takes it off
   const chips = on.map((a) => {
     const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
@@ -185,29 +192,23 @@ export async function refine(
   }
   const fon =
     chips.length > 0 &&
-    h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, count, ...chips);
-  if (fon && count && f.total > 0) fitActs(fon);
-  const bar = h("div", { className: "refine" }, fon, panel);
-  // Each row scrolled so what is chosen in it shows (an order off to the right, say)
-  requestAnimationFrame(() => {
-    for (const b of panel.querySelectorAll<HTMLElement>('.opts [aria-pressed="true"]')) {
-      const row = b.parentElement as HTMLElement;
-      if (b.offsetLeft + b.offsetWidth > row.scrollLeft + row.clientWidth)
-        row.scrollLeft = b.offsetLeft + b.offsetWidth - row.clientWidth + 16;
-    }
-  });
+    h("div", { className: "fon", role: "group", "aria-label": "Filters on" }, ...chips);
   if (k)
     requestAnimationFrame(() => {
       const el =
-        bar.querySelector<HTMLElement>(`[data-k="${CSS.escape(k)}"]`) ??
-        (k.startsWith("off:") ? (bar.querySelector<HTMLElement>(".fon button") ?? button) : null);
+        document.querySelector<HTMLElement>(`.search [data-k="${CSS.escape(k)}"]`) ??
+        (k.startsWith("off:")
+          ? (document.querySelector<HTMLElement>(".search .fon button") ?? button)
+          : null);
       el?.focus({ preventScroll: true });
       if (el instanceof HTMLInputElement) el.setSelectionRange(el.value.length, el.value.length);
     });
-  return h("div", {}, bar, chips.length === 0 && count && h("p", { className: "found" }, count));
+  // (search.ts puts each in its place: the panel under the box, the chips under the kinds,
+  // then the header over the results)
+  return h("div", {}, panel, fon, header);
 }
 
-/** The panel's rows: Tags, Order, When. */
+/** The panel's rows: Tags, When, then Arrange (Order and Group). */
 function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] {
   const toggle = (label: string, t: string, n = -1, others: string[] = []) => {
     const on = has(q, t);
@@ -218,11 +219,20 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     b.dataset.k = label;
     return b;
   };
+  // A row: its heading above, its chips under it, wrapping (nothing scrolls out of sight)
   const row = (label: string, ...kids: (Node | false | null)[]) =>
     h(
       "div",
       { className: "frow", role: "group", "aria-label": label },
       h("span", { className: "flabel" }, label),
+      h("div", { className: "opts" }, ...kids),
+    );
+  // Arrange's two lines: a short label, then its chips beside it, wrapping under themselves
+  const line = (label: string, ...kids: Node[]) =>
+    h(
+      "div",
+      { className: "fsub", role: "group", "aria-label": label },
+      h("span", { className: "fsublabel", "aria-hidden": "true" }, label),
       h("div", { className: "opts" }, ...kids),
     );
 
@@ -424,9 +434,16 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       return b;
     });
 
+  // Tags and When choose what is found; Arrange, how it is laid out: Order and Group
+  const arrange = h(
+    "div",
+    { className: "frow", role: "group", "aria-label": "Arrange" },
+    h("span", { className: "flabel" }, "Arrange"),
+    line("Order", ...orders),
+    line("Group", ...groups),
+  );
   return [
     tags,
-    row("Order", ...orders),
     row(
       "When",
       ...presets,
@@ -434,7 +451,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       (ranged.length > 0 || created) && toggle("By created date", "date:created"),
     ),
     range,
-    row("Group", ...groups),
+    arrange,
     clear as HTMLElement,
   ].filter(Boolean);
 }
