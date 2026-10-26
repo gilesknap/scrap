@@ -12,6 +12,7 @@ from .constants import PINNED_SLUG
 from .db import transaction
 from .helpers import new_ulid, now
 from .pages import PagesMixin
+from .trash import restore_in
 
 
 class PinnedMixin(PagesMixin):
@@ -40,7 +41,5 @@ class PinnedMixin(PagesMixin):
             else:
                 page_id = row["id"]
                 if row["deleted_at"]:
-                    conn.execute(
-                        "UPDATE page SET deleted_at = NULL WHERE id = ?", (page_id,)
-                    )
+                    restore_in(conn, page_id)
             return self.page_in(conn, page_id)

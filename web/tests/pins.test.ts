@@ -18,7 +18,7 @@ it("reads the links in order, keyed by what they point at", () => {
     },
     { name: "Contacts", href: "/p/contacts", key: "p:contacts" },
   ]);
-  expect(parse("Some words\n- not a link\n- [x](https://example.com)")[0].key).toBe("");
+  expect(parse("Some words\n- not a link\n- [x](https://example.com)")).toEqual([]);
 });
 
 it("writes a search's address readably, safe in a Markdown link", () => {
@@ -111,4 +111,16 @@ it("reads again and retries on a 409, three tries at most", async () => {
       return b;
     }),
   ).rejects.toThrow();
+});
+
+it("a pin that is not a search or a page here is not shown", () => {
+  const body = [
+    "- [Evil](javascript:alert(1))",
+    "- [Away](https://example.com/p/x)",
+    "- [Data](data:text/html,x)",
+    "- [Other](/settings)",
+    "- [Mine](/search?q=tag:a)",
+    "- [Page](/p/x)",
+  ].join("\n");
+  expect(parse(body).map((p) => p.name)).toEqual(["Mine", "Page"]);
 });

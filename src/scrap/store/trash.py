@@ -2,6 +2,7 @@
 #276)."""
 
 import os
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -62,6 +63,12 @@ def with_purge(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
+def restore_in(conn: sqlite3.Connection, page_id: str) -> None:
+    """Bring a page back from the trash; its topics are due again (#261)."""
+    conn.execute("UPDATE page SET deleted_at = NULL WHERE id = ?", (page_id,))
+    touch(conn, page_id, now())
+
+
 class TrashMixin(Core):
     def trash(self, limit: int) -> list[dict[str, Any]]:
         """The pages in the trash, most recently deleted first: id, slug, title, kind,
@@ -94,15 +101,20 @@ class TrashMixin(Core):
     def delete_page(self, key: str, undo: bool = False) -> None:
         """Move a page to the trash (or back); captures and files stay until a purge."""
         with self.connect() as conn:
+            if undo:
+                row = conn.execute(
+                    "SELECT id FROM page WHERE (id = ? OR slug = ?)"
+                    " AND deleted_at IS NOT NULL",
+                    (key, key),
+                ).fetchone()
+                if row is None:
+                    raise NoSuchPage(key)
+                restore_in(conn, row[0])
+                return
             cur = conn.execute(
                 "UPDATE page SET deleted_at = ? WHERE (id = ? OR slug = ?)"
-                f" AND deleted_at IS {'NOT' if undo else ''} NULL",
-                (None if undo else now(), key, key),
+                " AND deleted_at IS NULL",
+                (now(), key, key),
             )
-            if cur.rowcount and undo:  # back: its topics are due again (#261)
-                row = conn.execute(
-                    "SELECT id FROM page WHERE id = ? OR slug = ?", (key, key)
-                ).fetchone()
-                touch(conn, row[0], now())
         if cur.rowcount == 0:
             raise NoSuchPage(key)

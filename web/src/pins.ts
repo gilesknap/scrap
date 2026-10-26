@@ -62,7 +62,10 @@ export function parse(body: string): Pin[] {
   const out: Pin[] = [];
   for (const line of body.split("\n")) {
     const m = LINE.exec(line);
-    if (m) out.push({ name: unslash(m[1]).trim(), href: m[2], key: keyOf(m[2]) });
+    // (only a search or a page here: the page is editable over MCP, so no javascript: or
+    // off-site link is ever shown, keyOf being empty for those)
+    const key = m ? keyOf(m[2]) : "";
+    if (m && key) out.push({ name: unslash(m[1]).trim(), href: m[2], key });
   }
   return out;
 }

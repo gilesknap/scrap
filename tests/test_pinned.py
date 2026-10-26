@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from fastapi.testclient import TestClient
 
+from scrap import enrich
 from scrap.app import create_app
 from scrap.store import Store, new_ulid
 from scrap.store import topics as topic_store
@@ -88,6 +89,29 @@ def test_claude_does_not_read_the_pinned_page(tmp_path, monkeypatch):
     other = client.post("/api/captures", json={"id": new_ulid(), "text": "a note"})
     assert other.status_code == 201
     assert jobs(store) == 1  # the same setup does queue an ordinary page
+
+
+def test_the_backfill_and_the_related_pass_skip_the_pinned_page(tmp_path):
+    client, store = both(tmp_path)
+    client.post("/api/pinned")
+    note = client.post(
+        "/api/captures", json={"id": new_ulid(), "text": "a note"}
+    ).json()
+    assert enrich.backfill(store, dry_run=True) == 1  # the note alone
+    with store.connect() as conn:
+        due = [r[0] for r in conn.execute(enrich.STALE, {"all": 1, "limit": 100})]
+    assert due == [note["page_id"]]
+
+
+def test_the_first_pin_is_by_the_one_who_made_it(tmp_path):
+    client, store = both(tmp_path)
+    client.post("/api/pinned", headers={"Tailscale-User-Login": "me@example.com"})
+    with store.connect() as conn:
+        who = conn.execute(
+            "SELECT author FROM page_rev WHERE page_id = (SELECT id FROM page"
+            " WHERE slug = 'pinned')"
+        ).fetchall()
+    assert [r[0] for r in who] == ["me@example.com"]
 
 
 # ---- topic areas in search

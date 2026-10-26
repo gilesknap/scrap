@@ -112,8 +112,8 @@ def use_areas(conn: sqlite3.Connection) -> None:
     after them all. Per connection, as the areas are read now (group:area)."""
     rank: dict[str, int] = {}
     areas: dict[str | None, int] = {}
-    for row in topics.index(conn):  # already in the order shown
-        rank[row["id"]] = areas.setdefault(row["area"], len(areas))
+    for page_id, area in topics.areas(conn).items():  # already in the order shown
+        rank[page_id] = areas.setdefault(area, len(areas))
     last = len(areas)
     conn.create_function("grp_area", 1, lambda page_id: rank.get(page_id, last))
 

@@ -19,7 +19,7 @@ def marked(store: Store, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for hit in hits:
             hit["topic"] = topics.is_topic(conn, hit["id"])
         if any(hit["topic"] for hit in hits):
-            areas = {r["id"]: r["area"] for r in topics.index(conn)}
+            areas = topics.areas(conn)
             for hit in hits:
                 if hit["topic"]:
                     hit["area"] = areas.get(hit["id"])

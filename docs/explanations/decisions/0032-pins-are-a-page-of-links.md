@@ -21,6 +21,7 @@ back up, edit and export of its own, and a pin kept on one phone would be missin
 - `POST /api/pinned` returns the page, making it once. The slug is the reservation: the page is
   looked up by it inside one write transaction, a trashed one is brought back, and a page the
   owner already called `pinned` is the Pinned page. No migration.
+- A normal page the owner titles "Pinned" gets the slug `pinned` and so becomes the pin list.
 - Pins link by slug, and a slug never changes when a page is retitled, so a pin survives a
   rename. The client edits with `base_rev` and retries a `409` up to three times.
 - Claude does not read the page (`should_enrich`, the backfill and the related pass skip the
