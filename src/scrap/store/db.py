@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ..markdown import wiki_targets
+from ..public import public_origins
 from .fixes import (
     add_enrich,
     add_meta_revs,
@@ -35,34 +36,39 @@ def migrations() -> list[str]:
 
 
 log = logging.getLogger(__name__)
-# wiki_links' parses, by the text's digest, not the text: a check reads every page's
-# text, and most are as they were last time. The least recently used go first.
-_PARSED: OrderedDict[bytes, str] = OrderedDict()
-_MAX_PARSED = 4096  # short JSON arrays
+# wiki_links' parses, by the origins and the text's digest, not the text: a check
+# reads every page's text, and most are as they were last time. The least recently
+# used go first. A check reads every page with links in turn, so a store with more
+# such pages than this re-parses them all each time (LRU in a loop): the cliff sits
+# well above a personal store's size, at little memory (short JSON arrays).
+_PARSED: OrderedDict[tuple[tuple[str, ...], bytes], str] = OrderedDict()
+_MAX_PARSED = 16384
 _failed = False  # a parse has failed (logged once)
 
 
 def wiki_links(text: str | None) -> str:
     """SQL wiki_links(text): the targets of a text's page links as a JSON array
-    (markdown.wiki_targets), for the store health checks (store.health). A text the
-    parser fails on has none ("[]"): a health check must never fail a search; the
-    first such failure is logged."""
+    (markdown.wiki_targets: [[slug]], and /p/<slug> as a path or on any of
+    $SCRAP_PUBLIC_URL's origins), for links, backlinks and the store health checks
+    (store.health). A text the parser fails on has none ("[]"): a health check must
+    never fail a search; the first such failure is logged."""
     global _failed
-    if not text or "[[" not in text:  # most pages: nothing to parse
+    if not text or ("[[" not in text and "/p/" not in text):  # most: nothing to parse
         return "[]"
-    key = hashlib.sha256(text.encode()).digest()
+    origins = public_origins()
+    key = (origins, hashlib.sha256(text.encode()).digest())
     if (found := _PARSED.get(key)) is not None:
         _PARSED.move_to_end(key)
         return found
     try:
-        found = json.dumps(wiki_targets(text))
+        found = json.dumps(wiki_targets(text, origins))
     except Exception:  # noqa: BLE001  any parser failure: no links, logged once
         if not _failed:
             _failed = True
             log.exception(
                 "wiki_links: can't parse a page's text (%d characters, sha256 %s);"
                 " it counts as having no links",
-                len(text), key.hex()[:12],
+                len(text), key[1].hex()[:12],
             )  # fmt: skip
         return "[]"
     _PARSED[key] = found

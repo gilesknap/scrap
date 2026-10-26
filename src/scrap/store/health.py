@@ -1,12 +1,12 @@
 """The store's health checks (#262): each an is: or has: search term, as SQL on a page
 p, so a finding is always current and needs no stored report. Search (store.search)
-filters by them, GET /api/health counts them (counts), and what refreshes Claude's
-derived data finds its work by the same definitions of outdated: a board's write-up
-(OUTDATED_WRITEUP, writeups.OUTDATED: only a newly read photo regenerates one on its
-own, otherwise the owner does, or scrap enrich --writeups --outdated), related pages
-(OUTDATED_RELATED: the nightly --related pass, enrich STALE) and a topic's synthesis
-(OUTDATED_TOPIC: the weekly --topics pass, enrich TOPIC_DUE). Nothing here calls a
-model.
+filters by them, GET /api/health counts them (counts). is:outdated is a board's
+write-up outdated (writeups.OUTDATED): the owner's to regenerate (only a newly read
+photo regenerates one on its own), or scrap enrich --writeups --outdated (#291). What
+the scheduled passes refresh on their own is defined here too, but is no finding:
+related pages (OUTDATED_RELATED: the nightly --related pass, enrich STALE) and a
+topic's synthesis (OUTDATED_TOPIC: the weekly --topics pass, enrich TOPIC_DUE).
+Nothing here calls a model.
 
 A fragment is a template: {p} is the page's alias, and the outdated ones' {version} the
 placeholder for the current prompt version (? in a search, :version in a pass). A
@@ -28,9 +28,10 @@ STALE_DAYS = 60  # an open todo not edited for this long is stale
 # source is gc), whatever it is titled now (orphans.py)
 REVIEW = "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = 'gc')"
 # Every page (not in the trash) linked one way or another to another such page: by a
-# [[link]] in its text or its current write-up (either end), a related pick (either
-# end), or a topic and its sources in (either end). One set for the whole store, made
-# once a query, so is:orphan costs one pass over the pages, not one per page.
+# page link (SQL wiki_links: [[slug]], or /p/<slug> as a path or full address) in its
+# text or its current write-up (either end), a related pick (either end), or a topic
+# and its sources in (either end). One set for the whole store, made once a query, so
+# is:orphan costs one pass over the pages, not one per page.
 LINKED = """
 SELECT s.id FROM page s, json_each(wiki_links(s.body)) l JOIN page t ON t.slug = l.value
 WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL AND t.id <> s.id
@@ -88,20 +89,20 @@ DUPLICATE = (
     " JOIN capture_blob cb ON cb.capture_id = c.id"
     f" WHERE cb.sha256 IN ({SHARED})))"
 )
-# A [[link]] in its text (not in code, not an embed) to no page, or to one in the trash
+# A page link in its text ([[slug]] or its address; not in code, not an embed) to no
+# page, or to one in the trash
 DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
   WHERE NOT EXISTS (SELECT 1 FROM page t WHERE t.slug = l.value
                     AND t.deleted_at IS NULL))"""
 
-# ---- outdated: derived data older than its inputs, or of an older prompt version
+# ---- outdated: derived data older than its inputs, or of an older prompt version. Only
+# a write-up is a finding (is:outdated); the passes find the rest by the same SQL
 
 # The latest change to what a page's related call or a topic's synthesis reads from its
 # images: a current description or text photo ingest read ('' if none)
 READ_AT = """coalesce((SELECT max(d.created_at) FROM derived d
     JOIN capture c ON c.id = d.capture_id WHERE c.page_id = {p}.id
     AND d.kind IN ('description', 'ocr') AND d.superseded_at IS NULL), '')"""
-# A board page's current write-up outdated (writeups.OUTDATED, beside the worker's DUE)
-OUTDATED_WRITEUP = OUTDATED
 # A topic with a source in whose synthesis (its current write-up) is of another prompt
 # version (unless the owner restored it), or older than the latest change to its
 # inputs: the topic page itself (its title or the owner's notes), a source added,
@@ -135,14 +136,6 @@ RELATED_INPUTS = f"""max({{p}}.updated_at, {READ_AT}, coalesce((
 OUTDATED_RELATED = f"{PICKED} < {RELATED_INPUTS}"
 
 
-def outdated(p: str = "p", version: str = "?") -> str:
-    """is:outdated as SQL on a page p: a board write-up, a topic synthesis or related
-    pages outdated. Two placeholders: the write-up's prompt version, the synthesis's."""
-    writeup = OUTDATED_WRITEUP.format(p=p, version=version)
-    topic = OUTDATED_TOPIC.format(p=p, version=version)
-    return f"({writeup} OR {topic} OR {OUTDATED_RELATED.format(p=p)})"
-
-
 # The checks, in the order the health screen lists them: (key, value) as a filter
 CHECKS = [
     ("is", "orphan"),
@@ -158,9 +151,9 @@ def condition(
     key: str, value: str, prompts: dict[str, str], today: date | None = None
 ) -> tuple[str, list[Any]]:
     """A check's SQL on a page p, and its args: prompts are the current prompt versions
-    (writeup, topic; one missing is not checked: an empty prompts, as a Store nobody set
-    them on has, skips is:outdated's version check, logged once at debug level), today
-    the server's day (stale)."""
+    (is:outdated reads writeup's; missing, it is not checked: an empty prompts, as a
+    Store nobody set them on has, skips is:outdated's version check, logged once at
+    debug level), today the server's day (stale)."""
     global _unversioned
     day = today or date.today()
     if key == "is" and value == "outdated" and not prompts and not _unversioned:
@@ -180,7 +173,9 @@ def condition(
         case "has", "dangling":
             return DANGLING.format(p="p"), []
         case "is", "outdated":
-            return outdated(), [prompts.get("writeup"), prompts.get("topic")]
+            # a board's write-up (writeups.OUTDATED), never a topic's synthesis or
+            # related pages: their passes refresh them on their own (#291)
+            return OUTDATED.format(p="p", version="?"), [prompts.get("writeup")]
     raise KeyError((key, value))
 
 

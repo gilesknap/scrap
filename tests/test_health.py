@@ -20,6 +20,7 @@ from PIL import Image
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
+from scrap.public import origin
 from scrap.store import Store, connect, health, new_ulid, now, topics
 
 BOARD = {
@@ -141,6 +142,67 @@ def test_wiki_targets_are_page_links_outside_code():
     )
     assert wiki_targets(text) == ["a", "b"]
     assert wiki_targets("no links") == []
+
+
+HERE = "https://scrap.example.ts.net:8446"
+LAN = "http://192.168.1.10:8000"
+
+
+def test_wiki_targets_count_a_page_s_address_on_any_public_origin():
+    """#290: a Markdown link or autolink to /p/<slug>, as a path or on one of the
+    origins given, is a page link; another site's, an image or one in code is not."""
+    text = (
+        f"[A]({HERE}/p/a?x=1#h) and [B](HTTP://192.168.1.10:8000/p/b) and <{HERE}/p/c>"
+        " and [D](/p/d) and [[e]]\n\n[No](https://elsewhere.org/p/x) and"
+        f" ![img]({HERE}/p/img) and `[c]({HERE}/p/code)` and [up]({HERE}/p/Up)"
+        f" and [deep]({HERE}/p/a/b) and [{HERE}/api/blobs/x]({HERE}/api/blobs/x)"
+    )
+    assert wiki_targets(text, (HERE, LAN)) == ["a", "b", "c", "d", "e"]
+    paths = "[q](/p/q?x=1) and [h](/p/h#h-top) and [n](/p/No#x) and [s](/p/s/)"
+    assert wiki_targets(paths) == ["q", "h"]  # as the PWA opens them in place
+    assert wiki_targets(text) == ["d", "e"]  # no origins: a path only
+    assert wiki_targets(text, (HERE,)) == ["a", "c", "d", "e"]
+
+
+def test_a_non_ascii_host_matches_its_punycode_href():
+    """markdown-it writes a link's host as punycode; the origins are compared so."""
+    assert origin("https://Bücher.example:443/") == "https://xn--bcher-kva.example"
+    assert wiki_targets("[a](https://bücher.example/p/x)") == []  # no origins
+    here = origin("https://bücher.example")
+    assert here is not None
+    assert wiki_targets("[a](https://bücher.example/p/x)", (here,)) == ["x"]
+
+
+def test_backlinks_are_the_links_the_parser_finds(store):
+    """Not one in code or an embed (![[slug]]); one in a table cell, its pipe
+    escaped, is."""
+    t = note(store, "Target")
+    slug = store.page(t)["slug"]
+    note(store, f"Code\n\n`[[{slug}]]` and\n\n```\n[[{slug}]]\n```")
+    note(store, f"Embed\n\n![[{slug}]]")
+    cell = note(store, f"Table\n\n| a | b |\n|---|---|\n| [[{slug}\\|label]] | x |")
+    assert [b["id"] for b in store.backlinks(slug)] == [cell]
+
+
+def test_a_page_s_full_address_links_it(store, monkeypatch):
+    """#290: on any address in $SCRAP_PUBLIC_URL, a full-address link counts as
+    [[slug]] does: backlinks, related (via link), is:orphan and has:dangling."""
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", f"{HERE},{LAN}")
+    a = note(store, "Alpha")
+    b = note(store, "Beta")
+    c = note(store, "Gamma")
+    slug = {"a": store.page(a)["slug"], "b": store.page(b)["slug"]}
+    d = note(store, f"Delta\n\n[it]({HERE}/p/{slug['a']})")
+    e = note(store, f"Epsilon\n\n<{LAN}/p/{slug['b']}> and [x]({HERE}/p/nowhere)")
+    assert found(store, "is:orphan") == {c}
+    assert found(store, "has:dangling") == {e}
+    assert [x["id"] for x in store.backlinks(slug["a"])] == [d]
+    assert [x["id"] for x in store.backlinks(slug["b"])] == [e]
+    related = store.page(a)["related"]
+    assert [(r["id"], r["via"]) for r in related] == [(d, "link")]
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", HERE)  # LAN no longer this server's
+    assert found(store, "is:orphan") == {b, c, e}
+    assert store.backlinks(slug["b"]) == []
 
 
 def test_orphan_is_a_page_with_no_link_pick_or_topic(store):
@@ -283,7 +345,7 @@ def test_dangling_is_a_link_to_no_live_page(store):
     assert c not in found(store, "-has:dangling")
 
 
-# ---- outdated: write-ups, topic syntheses and related pages
+# ---- outdated: only write-ups are is:outdated (#291); the passes find the rest
 
 
 def board(store, colour="red"):
@@ -297,49 +359,43 @@ def test_outdated_write_up_by_its_inputs_or_prompt_but_never_a_restore(store):
     page_id = board(store)
     assert found(store, "is:outdated") == set()
     tick()
-    edit(store, page_id, "the board, with a note")  # its text
+    edit(store, page_id, "the board, with a note")  # its text, after the write-up
     assert found(store, "is:outdated") == {page_id}
     run_all(store, Fake())
     enrich.regenerate(store, page_id)
     run_all(store, Fake())  # a new version
-    assert found(store, "is:outdated") == {page_id}  # its related pages: older now
-    enrich.relate(store, Fake(), page_id)
-    assert found(store, "is:outdated") == set()
+    assert found(store, "is:outdated") == set()  # its related picks older: no finding
     tick()
     store.edit_meta([page_id], "me", "web", add=["video/encoders"])  # its tags
     assert found(store, "is:outdated") == {page_id}
     enrich.regenerate(store, page_id)
     run_all(store, Fake())
-    enrich.relate(store, Fake(), page_id)
     store.prompts = {**store.prompts, "writeup": "writeup@another"}  # a new prompt
     assert found(store, "is:outdated") == {page_id}
     enrich.restore(store, page_id, 1, base=3)  # the owner's choice stands
-    enrich.relate(store, Fake(), page_id)
     assert found(store, "is:outdated") == set()
     tick()
     edit(store, page_id, "the board, with another note")  # even for a change
-    enrich.relate(store, Fake(), page_id)
     assert found(store, "is:outdated") == set()
     store.prompts = {}  # no version known: none checked
     enrich.regenerate(store, page_id)
     run_all(store, Fake())
-    enrich.relate(store, Fake(), page_id)
     assert found(store, "is:outdated") == set()
 
 
-def test_outdated_related_pages_but_never_picked_is_only_due(store):
+def test_outdated_related_pages_are_due_to_the_pass_not_is_outdated(store):
     a = note(store, "Alpha")
     b = note(store, "Beta")
     run_all(store, Fake())  # enrich, then each one's first related call
-    assert found(store, "is:outdated") == set()
     older(store, "enrich_run", "started_at", a)
-    edit(store, a, "Alpha, edited")
-    assert found(store, "is:outdated") == {a}
+    edit(store, a, "Alpha, edited")  # its picks older than its text
     sql(store, "UPDATE enrich_run SET status = 'error' WHERE page_id = ?", b)
-    assert b not in found(store, "is:outdated")
-    with closing(connect(store.db)) as conn:  # the pass does both
+    with closing(connect(store.db)) as conn:  # the pass finds both
         due = {r[0] for r in conn.execute(enrich.STALE, {"all": False, "limit": -1})}
-    assert due == {a, b}
+        assert due == {a, b}
+        outdated = f"SELECT {health.OUTDATED_RELATED.format(p='p')} FROM page p"
+        assert conn.execute(f"{outdated} WHERE p.id = ?", (a,)).fetchone()[0] == 1
+    assert found(store, "is:outdated") == set()  # no finding: the nightly pass's
 
 
 def library_and_topic(store):
@@ -355,14 +411,26 @@ def library_and_topic(store):
     return ids, topic
 
 
-def test_outdated_topic_synthesis(store):
+def test_a_topic_due_a_synthesis_is_the_weekly_pass_s_not_is_outdated(store):
     ids, topic = library_and_topic(store)
-    assert topic not in found(store, "is:outdated")
+    with closing(connect(store.db)) as conn:
+        assert enrich.topic_finding.due(conn) == []
     tick()
     edit(store, ids[0], "ibek yaml, changed")
-    assert topic in found(store, "is:outdated")
-    with closing(connect(store.db)) as conn:  # the pass's due list agrees
+    with closing(connect(store.db)) as conn:  # the pass finds it
         assert enrich.topic_finding.due(conn) == [topic]
+    assert found(store, "is:outdated") == set()  # no finding: the weekly pass's
+
+
+def test_a_topic_due_by_a_new_topic_prompt_is_not_is_outdated(store, monkeypatch):
+    _, topic = library_and_topic(store)
+    monkeypatch.setattr(
+        enrich.topic_finding, "topic_prompt", lambda: ("p", "topic@another")
+    )
+    with closing(connect(store.db)) as conn:  # the pass finds it, by its version
+        assert enrich.topic_finding.due(conn) == [topic]
+    store.prompts = {**store.prompts, "topic": "topic@another"}  # ignored even if set
+    assert found(store, "is:outdated") == set()
 
 
 def test_health_counts_match_the_searches_and_mcp_takes_the_terms(tmp_path):

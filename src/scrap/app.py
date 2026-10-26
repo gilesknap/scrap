@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import quote
+from xml.sax.saxutils import quoteattr
 
 import anyio
 from fastapi import FastAPI, Query, Request, Response
@@ -47,6 +48,7 @@ from . import (
     photos_api,
     preview,
 )
+from .public import public_origins
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
@@ -250,6 +252,10 @@ class TextGzip:
 
 
 VERSION_SLOT = '<small id="ver" aria-hidden="true"></small>'  # in the PWA's index.html
+# Also there: the origins of $SCRAP_PUBLIC_URL, so the PWA opens a page's full address
+# on any of them in place (render.ts own). In the shell the service worker keeps, so
+# offline too; a changed setting reaches an installed PWA with its next update.
+ORIGINS_SLOT = '<meta name="scrap-origins" content="" />'
 
 
 class Shell(StaticFiles):
@@ -629,7 +635,12 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         if not index.is_file():
             return PlainTextResponse(NOT_BUILT, 503)
         slot = VERSION_SLOT.replace("></", f">v{__version__.split('+')[0]}</")
-        html = index.read_text(encoding="utf-8").replace(VERSION_SLOT, slot)
+        origins = ORIGINS_SLOT.replace('""', quoteattr(" ".join(public_origins())))
+        html = (
+            index.read_text(encoding="utf-8")
+            .replace(VERSION_SLOT, slot)
+            .replace(ORIGINS_SLOT, origins)
+        )
         return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
     for route in APP_ROUTES:

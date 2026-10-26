@@ -39,7 +39,7 @@ export async function health(signal: AbortSignal): Promise<Node> {
     h(
       "p",
       { className: "hint" },
-      "Related pages are refreshed each night and topic syntheses each week, while Claude is on. An outdated write-up waits for you to regenerate it.",
+      "An outdated write-up waits for you to regenerate it. Related pages and topic syntheses are not listed: while Claude is on, they are refreshed each night and each week.",
     ),
   );
 }

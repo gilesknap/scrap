@@ -11,7 +11,8 @@ import json
 import sqlite3
 from typing import Any
 
-from .constants import WIKI_LINK
+from ..markdown import wiki_targets
+from ..public import public_origins
 from .topics import IS_TOPIC, is_topic
 
 
@@ -205,7 +206,7 @@ def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
     up = shown(conn, page_id)
     if up is None:
         return []
-    slugs = list(dict.fromkeys(m[1].strip() for m in WIKI_LINK.finditer(up["text"])))
+    slugs = wiki_targets(up["text"], public_origins())
     found = {
         r["slug"]: r
         for r in _rows(
@@ -220,15 +221,18 @@ def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
 
 def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
     """The pages (not in the trash, still board pages or topics) whose current
-    write-up links to slug."""
+    write-up links to slug (SQL wiki_links). Only write-ups holding the slug as typed
+    are parsed (instr): one escaped (`&#97;`, `\\-`) is missed, as in
+    Store.backlinks."""
     try:
         return _rows(
             conn,
             "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
             " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
             f" AND p.deleted_at IS NULL AND {SHOWN.format(p='p')} AND p.slug <> ?"
-            " AND (instr(w.text, '[[' || ? || ']]') > 0"
-            "  OR instr(w.text, '[[' || ? || '|') > 0) ORDER BY w.created_at DESC",
+            " AND instr(w.text, ?) > 0 AND EXISTS (SELECT 1 FROM"
+            " json_each(wiki_links(w.text)) l WHERE l.value = ?)"
+            " ORDER BY w.created_at DESC",
             slug, slug, slug,
         )  # fmt: skip
     except sqlite3.OperationalError:  # no such table: an older schema

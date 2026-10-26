@@ -18,6 +18,10 @@ export default defineConfig({
     command: `uv run --locked scrap serve --port ${port} --data-dir ${data}`,
     cwd: "..",
     url: `http://127.0.0.1:${port}/healthz`,
-    env: { SCRAP_MAX_UPLOAD_MB: "1" }, // so a 2 MB photo is refused
+    env: {
+      SCRAP_MAX_UPLOAD_MB: "1", // so a 2 MB photo is refused
+      // A second address: view-links.spec.ts follows a page's full address on it (#290)
+      SCRAP_PUBLIC_URL: `http://127.0.0.1:${port},http://scrap-lan.example:8000`,
+    },
   },
 });
