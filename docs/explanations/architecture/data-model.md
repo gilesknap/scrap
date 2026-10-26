@@ -141,7 +141,8 @@ flowchart LR
     class chunk,fts store
 ```
 
-- **Originals** (green) are never edited or purged. See
+- **Originals** (green) are never edited, and are purged only with their page, once it has been
+  in the trash for N days ([ADR 30](../decisions/0030-trash-purged-after-n-days.md)). See
   [ADR 4](../decisions/0004-originals-kept-everything-else-derived.md) and
   [ADR 3](../decisions/0003-one-process-sqlite-and-a-folder.md).
 - **Derived** (orange) rows are immutable versions. A new current version supersedes the old by
@@ -232,7 +233,10 @@ sequenceDiagram
 
 ## Trash
 
-Deleting sets `deleted_at`; nothing is purged, so no cascade runs.
+Deleting sets `deleted_at`. Nothing deletes a page until it has been in the trash for N days
+(`--trash-days`, 30 by default; `SCRAP_TRASH_DAYS` tells the server); then the nightly
+`scrap gc --delete` purges it, and the schema's `ON DELETE CASCADE` takes everything on it
+([ADR 30](../decisions/0030-trash-purged-after-n-days.md)).
 
 ```mermaid
 stateDiagram-v2
@@ -240,6 +244,7 @@ stateDiagram-v2
     Live --> Live: edit, new revision
     Live --> Trashed: delete
     Trashed --> Live: undelete
+    Trashed --> [*]: purge, N days on (not a topic)
     note right of Trashed
         Read-only over MCP
         Keeps slug and history
@@ -252,7 +257,18 @@ stateDiagram-v2
   other tool treats them as absent
   ([ADR 25](../decisions/0025-trash-and-recent-changes-over-mcp.md)). Undelete also makes the page's
   topics due again.
-- The cascading foreign keys are a safety net for a future purge.
+- The purge (`retention.py`) deletes the page row in one transaction, committed before gc reads
+  what is in use; the cascades take its revisions, captures and file records, Claude's results,
+  runs and jobs, tags, search chunks, write-ups and topic memberships. Its files are then unused,
+  and gc's usual delete takes them in the same run (old enough, after a recent backup).
+- A topic page in the trash is never purged: its `topic` row (the key that stops discovery making
+  it again) needs the page. A purged review page (*Orphaned assets*) lets go of the files it
+  showed that would otherwise be orphans again: their `capture_blob` rows, and that photo's
+  `derived`, `job` and `model_run` rows, are deleted.
+- Finished `job` and `enrich_job` rows older than `--job-days` (30) go too, but each photo's and
+  each page's (per reason) newest.
+- The PWA's Trash screen (Settings), `GET /api/trash` and MCP `trash` show each page's
+  `purge_at`.
 
 ## Migrations
 
