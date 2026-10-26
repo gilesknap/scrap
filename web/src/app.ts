@@ -18,6 +18,7 @@ export const LISTS: Record<string, string> = {
   "/": "Capture",
   "/search": "Search",
   "/todos": "Todos",
+  "/topics": "Topics",
 };
 
 export function go(path: string, replace = false, state: object | null = null) {

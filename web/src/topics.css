@@ -1,0 +1,31 @@
+/* The Topics screen (topics.ts): a filter box, how many, then the topics grouped by area
+   (h2.label, as the Todos screen's groups), each a .list of text rows: no thumbnail or kind
+   icon (every row is a topic), so every title lines up. */
+.topics .count {
+  margin: calc(-1 * var(--s-2)) 0 var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.topics section + section {
+  margin-top: var(--s-4);
+}
+.topics h2.label {
+  margin-top: var(--s-2);
+}
+/* Its lead: one line, cut with … (the topic's page has the rest) */
+.topics .snip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* New or changed since this device last looked: a 9 px --accent dot at the row's end, by the
+   title, as the draft dot */
+.topics .new {
+  flex: none;
+  align-self: flex-start;
+  width: 9px;
+  height: 9px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}

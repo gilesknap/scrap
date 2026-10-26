@@ -46,3 +46,20 @@ it("lists at most eight related pages", () => {
   expect(relatedOf(page({ related: r }))).toHaveLength(8);
   expect(relatedOf(page({ related: undefined }))).toEqual([]);
 });
+
+it("leaves a topic's sources out of its Related: its Sources fold lists them", () => {
+  const ref = (id: string, via = "topic") => ({ id, slug: id, title: id, kind: "note", via });
+  const source = (id: string, excluded = 0) => ({
+    ...ref(id),
+    added_by: "claude",
+    added_at: "2026-10-25T00:00:00Z",
+    excluded,
+  });
+  const topic = page({
+    related: [ref("a"), ref("b"), ref("c", "claude")],
+    topic: { key: "ibek", sources: [source("a"), source("b", 1)] },
+  });
+  expect(relatedOf(topic).map((r) => r.id)).toEqual(["c"]);
+  // A source page keeps the topic citing it
+  expect(relatedOf(page({ related: [ref("t")] })).map((r) => r.id)).toEqual(["t"]);
+});

@@ -85,7 +85,7 @@ SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run build)
 SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
 # Served index.html
-APP_ROUTES = ("/", "/recent", "/search", "/tags", "/todos", "/p/{key}")
+APP_ROUTES = ("/", "/recent", "/search", "/tags", "/todos", "/topics", "/p/{key}")
 NOT_BUILT = (
     "The scrap PWA is not built. Run: npm --prefix web ci && npm --prefix web run build"
     "\n(the API under /api works without it)\n"
@@ -531,8 +531,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     ) -> list[dict[str, Any]]:
         """Full-text search over titles, tags, summaries and bodies, with -word,
         "phrase", kind:, tag:, is:, has:, image:, dates and sort:; snippets mark hits
-        with <mark>."""
-        return store.search(q, limit, offset)
+        with <mark>; each hit says whether it is a topic page (topic)."""
+        return topic_api.marked(store, store.search(q, limit, offset))
 
     @app.get("/api/search/facets")
     def facets(q: str, top: int = Query(12, ge=1, le=1000)) -> dict[str, Any]:

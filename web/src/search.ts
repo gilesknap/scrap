@@ -227,16 +227,22 @@ export async function search(): Promise<Node> {
         "Search results",
         hits.map((hit) => hit.slug),
       );
-      const rows = hits.map((hit) =>
-        pageRow(
+      const rows = hits.map((hit) => {
+        const li = pageRow(
           hit,
           h(
             "small",
             { className: "snip", dir: "auto" },
             ...snippetParts(hit.snippet).map((p) => (p.mark ? h("mark", {}, p.text) : p.text)),
           ),
-        ),
-      );
+        );
+        // A topic page (#261), Claude's: its icon, and a small Topic label after its date
+        if (hit.topic) {
+          li.querySelector(".noimg")?.replaceChildren(icon("topic"));
+          li.querySelector(".sub > small")?.after(h("span", { className: "topic" }, "Topic"));
+        }
+        return li;
+      });
       swipeRows(rows.map((li, i) => [li, hits[i]]));
       ul.append(...rows, ...(hits.length ? [] : [h("li", {}, empty("search", "No matches"))]));
       if (hits.length === limit && limit < MOST) {

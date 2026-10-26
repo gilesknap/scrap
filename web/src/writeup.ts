@@ -1,4 +1,4 @@
-// Claude's write-up of a board page (#256): its parts for the page's one Claude card, About
+// Claude's write-up of a board page (#256), or a topic's synthesis (#261): its parts for the page's one Claude card, About
 // this page (enrich.ts): where Claude is up to, the lead (the card's Summary) and the write-up
 // itself as a fold, In detail, with who wrote it and when, its Markdown (its [[slug]] links as
 // page links), the owner's guidance for the next one and its versions with Restore. Nobody
@@ -9,6 +9,7 @@ import "./writeup.css";
 
 const JSON_TYPE = { "Content-Type": "application/json" };
 const FOLD = "scrap.fold.writeup";
+const TOPIC_FOLD = "scrap.fold.synthesis";
 /** Guidance being typed, by page: kept, with its fold open, when the page is drawn again. */
 const typing = new Map<string, string>();
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
@@ -73,14 +74,15 @@ function act(label: string, run: () => Promise<void>, className = "") {
  * a fold, In detail. Null when there is none to show and none can be written. */
 export function writeupParts(p: Page, show: (p: Page) => void) {
   const w = p.writeup;
-  if (!w || (!w.current && !(w.board && w.on))) return null;
+  const can = !!w && (w.board || !!w.topic); // one can be written: a board, or a topic
+  if (!w || (!w.current && !(can && w.on))) return null;
   const up = w.current;
   const busy = ["queued", "processing", "paused"].includes(w.state ?? "");
   // Generate the first time, Regenerate after, Retry when it failed: the card's action only when
   // the page's own (Ask, enrich.ts) is not there, Claude being off for it
   const action =
     w.on &&
-    w.board &&
+    can &&
     !busy &&
     act(
       w.state === "failed" ? "Retry" : up ? "Regenerate" : "Generate",
@@ -94,11 +96,15 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
       up && w.state !== "failed" ? "link" : "",
     );
   const head = h("summary", {}, "In detail");
+  // A board's is folded until opened; a topic's synthesis is what the page is for, so it is
+  // open until closed. Each remembered on the phone
+  const key = w.topic ? TOPIC_FOLD : FOLD;
+  const open = w.topic ? kept(key) !== "shut" : kept(key) === "open";
   const detail =
     up &&
     h(
       "details",
-      { className: "claude-text writeup", open: kept(FOLD) === "open" },
+      { className: "claude-text writeup", open },
       head,
       h(
         "div",
@@ -111,7 +117,9 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
     );
   // Remembered as it is tapped, not on toggle (which comes a task later): the page may be
   // drawn again in between, from what was remembered
-  if (detail) head.onclick = () => kept(FOLD, detail.open ? null : "open"); // (about to change)
+  if (detail)
+    head.onclick = () =>
+      w.topic ? kept(key, detail.open ? "shut" : null) : kept(key, detail.open ? null : "open"); // (about to change)
   return {
     said: stateText(w), // where Claude is up to: null when there is nothing to say
     state: w.state ?? "",
@@ -126,11 +134,13 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
         ? h(
             "p",
             { className: "did" },
-            "Claude can describe this board in detail: its parts and how they connect.",
+            w.topic
+              ? "Claude can draw this topic's sources together: an overview, key facts with their sources, and open questions."
+              : "Claude can describe this board in detail: its parts and how they connect.",
           )
         : null,
     guidance:
-      !up && w.board
+      !up && can
         ? Object.assign(guidanceFold(p, w, show), { className: "claude-text sub writeup" })
         : null,
   };

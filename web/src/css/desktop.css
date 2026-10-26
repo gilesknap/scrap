@@ -5,9 +5,14 @@
    actions as a row under what it is, toasts at the foot; and hover says what can be clicked.
    (ui.ts has the same query, DESK, for placing toasts.) */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
-  /* The nav: tabs in the middle of the top bar, not a bar at the window's foot */
+  /* The nav: tabs in the middle of the top bar, not a bar at the window's foot. Four tabs and
+     the wordmark (with a long development version) are wider than the 720 px column, so the
+     top bar's own column is wider, 960 px (the screen under it keeps 720) */
   main {
     padding-bottom: var(--s-6);
+  }
+  header {
+    padding-inline: max(var(--s-4), calc((100% - 960px) / 2));
   }
   nav {
     top: env(safe-area-inset-top);

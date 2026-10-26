@@ -13,9 +13,11 @@ async function kindShown() {
 }
 
 /** Up (main.ts goes Back while an entry of the app's is behind this one; go() marks them): the entry was opened
- * from a link or a share, so up to a parent: a todo's is Todos, any other page's Capture. */
+ * from a link or a share, so up to a parent: a todo's is Todos, a topic's Topics, any other
+ * page's Capture. */
 export async function up(go: (path: string, replace: boolean) => void) {
   const from = location.pathname;
-  const to = (await kindShown()) === "todo" ? "/todos" : "/";
+  const parents: Record<string, string> = { todo: "/todos", topic: "/topics" };
+  const to = parents[await kindShown()] ?? "/";
   if (location.pathname === from) go(to, true); // unless gone elsewhere meanwhile
 }

@@ -21,7 +21,7 @@ test("one Search tab: newest first, no keyboard; /recent is this screen", async 
   const newer = await make(page, `List newer ${tag}`, "todo");
   await page.goto("/recent");
   await expect(page).toHaveURL(/\/search$/);
-  await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search"]); // one tab for it
+  await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search", "Topics"]); // one tab for it
   await expect(tab(page, "Search")).toHaveAttribute("aria-current");
   await expect(page.getByRole("searchbox")).toHaveValue("");
   await expect(page.getByRole("searchbox")).not.toBeFocused(); // the list, not the keyboard

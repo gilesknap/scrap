@@ -121,7 +121,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   let wr: Writeups | null = null;
   const load = async (p: Page) => {
     // offline: none of it
-    if (!enr && (p.enrich || p.related?.length || p.writeup))
+    if (!enr && (p.enrich || p.related?.length || p.writeup || p.topics?.length || p.topic))
       enr = await import("./enrich").catch(() => null);
     if (!wr && p.writeup) wr = await import("./writeup").catch(() => null);
     if (!hasFiles(p) || figs) return;
@@ -138,7 +138,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   const show = (p: Page) => {
     shown = p;
     drawn++;
-    root.dataset.kind = p.kind; // for the top bar's Back: a todo's parent is the Todos screen
+    // For the top bar's Back: a todo's parent is the Todos screen, a topic's the Topics screen
+    root.dataset.kind = p.topic ? "topic" : p.kind;
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false);
     if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card
@@ -206,8 +207,19 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       h(
         "p",
         { className: "meta" },
-        // What it is, first (its row has only the icon): its kind, and its status if it has one
-        kindChip(p),
+        // What it is, first (its row has only the icon): its kind, and its status if it has one;
+        // a topic is Claude's (#261): tapped, the Topics screen
+        p.topic
+          ? h(
+              "a",
+              {
+                className: "written topicby",
+                href: "/topics",
+                title: "Made and kept up by Claude from your pages",
+              },
+              "Topic by Claude",
+            )
+          : kindChip(p),
         h("span", {}, `Created ${whenShort(p.created_at)}`),
         p.updated_at !== p.created_at && h("span", {}, `Edited ${whenShort(p.updated_at)}`),
         // Written over MCP: a badge, its origin as the tooltip; tapped, finds them all
@@ -223,6 +235,14 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           ),
       ),
       body,
+      // A topic's notes are the owner's, empty at first: where they go, said once
+      p.topic && !p.body.trim()
+        ? h(
+            "p",
+            { className: "notes" },
+            "Your notes on this topic go here: Edit to add them. Claude never writes in them.",
+          )
+        : "",
       // One Claude card for the page, at its end: its summary, a board's write-up, related pages
       enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
       h("div", { className: "originals" }, ...files),

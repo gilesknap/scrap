@@ -572,6 +572,21 @@ def test_the_api_lists_topics_and_sources_and_excludes(tmp_path):
     assert client.post(f"/api/pages/{ids['lunch']}/writeup").status_code == 422
 
 
+def test_search_hits_say_which_are_topics(tmp_path):
+    client = TestClient(create_app(tmp_path / "data"))
+    store = Store(tmp_path / "data")
+    ids, topic = made(store)
+    hits = client.get("/api/search", params={"q": "ibek"}).json()
+    marks = {h["id"]: h["topic"] for h in hits}
+    assert marks == {
+        topic: True,
+        ids["ibek yaml"]: False,
+        ids["ibek schema"]: False,
+        ids["ibek runtime"]: False,
+    }
+    assert client.get("/api/search", params={"q": "nothing-matches"}).json() == []
+
+
 def test_mcp_lists_topics_and_read_shows_them(store):
     ids, topic = made(store)
     yaml = store.page(ids["ibek yaml"])["slug"]
