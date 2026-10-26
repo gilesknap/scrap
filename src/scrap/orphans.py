@@ -1,7 +1,8 @@
 """``scrap gc`` gathers orphaned files onto one review page a month (#124).
 
 An orphan is a file of a capture (a photo, a PDF) that no page shows any more: the
-user deleted its last embed or link. gc never deletes one. It appends each to the
+user deleted its last embed or link. gc does not delete one while its page lasts:
+it appends each to the
 month's open todo page, "Orphaned assets YYYY-MM", with Claude's description and where
 it was last shown, and the user reviews that page: cut an item into another page to
 keep it there, or delete the page.
@@ -35,7 +36,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from .store import MAX_PAGE, Store, body_refs, new_ulid
-from .store.health import REVIEW  # a review page: one gc made (its capture's source)
+from .store.health import REVIEW
+from .store.trash import TRASH_DAYS  # a review page: one gc made (its capture's source)
 
 __all__ = ["DUE_DAYS", "TITLE", "Gathered", "Orphan", "clock", "find", "gather"]
 
@@ -176,12 +178,17 @@ def entry(o: Orphan) -> str:
     return "\n\n".join(parts)
 
 
-def _intro(today: str) -> str:
+def _intro(today: str, trash_days: float | None) -> str:
+    gone = (
+        f", and are deleted for good {trash_days:g} days after that"
+        if trash_days is not None
+        else ""
+    )
     return (
         f"Files no page shows any more, gathered by scrap gc (from {today}). Cut one"
         " into another page to keep it there. Delete this page once you have looked"
-        " through it: its files go to the trash with it. Tick it done and later"
-        " orphans start a new page."
+        f" through it: its files go to the trash with it{gone}. Tick it done and"
+        " later orphans start a new page."
     )
 
 
@@ -213,7 +220,9 @@ def _create(store: Store, title: str, body: str, when: datetime) -> str:
     return ref["slug"]
 
 
-def gather(store: Store, cutoff: str) -> Gathered:
+def gather(
+    store: Store, cutoff: str, trash_days: float | None = TRASH_DAYS
+) -> Gathered:
     """Append every orphan (see find) to the month's open orphan page, making one if
     there is none (or when it is full). Raises sqlite3.Error, ConflictError if that
     page was edited meanwhile, or InvalidError for an entry past a page's cap."""
@@ -228,7 +237,7 @@ def gather(store: Store, cutoff: str) -> Gathered:
         finally:
             conn.execute("COMMIT")
     result = Gathered(len(orphans))
-    intro = _intro(when.date().isoformat())
+    intro = _intro(when.date().isoformat(), trash_days)
 
     def write(body: str) -> None:
         if target:

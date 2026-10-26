@@ -16,7 +16,7 @@ def test_backup_retention():
 
 def _gc_run(tmp_path, backups_age_min=None, marker=True, extra=(), **settings):
     """deploy/scrap-gc with a fake podman that records its arguments."""
-    tmp_path.mkdir()
+    tmp_path.mkdir(exist_ok=True)
     fake = tmp_path / "bin"
     fake.mkdir(exist_ok=True)
     (fake / "podman").write_text(f'#!/bin/sh\necho "$@" > {tmp_path}/args\n')
@@ -39,6 +39,7 @@ def _gc_run(tmp_path, backups_age_min=None, marker=True, extra=(), **settings):
         "SCRAP_BACKUPS": str(backups),
         "SCRAP_DATA": str(tmp_path / "data"),
         "SCRAP_IMAGE": "localhost/scrap:test",
+        "HOME": str(tmp_path / "home"),  # no ingest.env unless a test writes one
         **settings,
     }
     result = subprocess.run(
@@ -61,6 +62,27 @@ def test_gc_passes_its_arguments_on_after_the_defaults(tmp_path):
     result, args = _gc_run(tmp_path / "a", backups_age_min=60, extra=extra)
     assert result.returncode == 0, result.stderr
     assert args.split()[-9:] == ["gc", "--delete", "--grace-hours", "24", *extra]
+
+
+def test_gc_takes_the_trash_days_from_scrap_s_own_settings(tmp_path):
+    """SCRAP_TRASH_DAYS in ingest.env (which the server reads too) sets
+    --trash-days, ahead of a drop-in's arguments; the environment overrides it."""
+    conf = tmp_path / "a" / "home" / ".config" / "scrap"
+    conf.mkdir(parents=True)
+    (conf / "ingest.env").write_text(
+        "SCRAP_INGEST=on\nSCRAP_TRASH_DAYS=7\nSCRAP_TRASH_DAYS= 60 \n"
+    )
+    result, args = _gc_run(
+        tmp_path / "a", backups_age_min=60, extra=["--run-days", "9"]
+    )
+    assert result.returncode == 0, result.stderr
+    assert args.split()[-8:] == [
+        "gc", "--delete", "--grace-hours", "24", "--trash-days", "60", "--run-days", "9"
+    ]  # fmt: skip
+    result, args = _gc_run(tmp_path / "b", backups_age_min=60, SCRAP_TRASH_DAYS="off")
+    assert args.split()[-2:] == ["--trash-days", "off"]
+    result, args = _gc_run(tmp_path / "c", backups_age_min=60)  # none set: the default
+    assert "--trash-days" not in args.split()
 
 
 def test_gc_waits_for_a_backup_and_skips_missed_nights():

@@ -49,3 +49,35 @@ test("the Trash opens cold from its address", async ({ page }) => {
   await page.goto("/trash");
   await expect(page.getByRole("heading", { name: "Trash" })).toBeVisible();
 });
+
+test("restoring the last page leaves the empty state with focus on the heading", async ({
+  page,
+}) => {
+  await page.route("**/api/trash", (route) =>
+    route.fulfill({
+      json: {
+        days: 30,
+        total: 1,
+        results: [
+          {
+            id: "01JZZZZZZZZZZZZZZZZZZZZZZZ",
+            slug: "only-one",
+            title: "Only one",
+            kind: "note",
+            deleted_at: "2026-10-20T09:00:00.000Z",
+            topic: false,
+            purge_at: "2020-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    }),
+  );
+  await page.route("**/api/pages/*/undelete", (route) => route.fulfill({ json: {} }));
+  await page.goto("/trash");
+  await expect(page.locator(".trash .list small")).toHaveText(
+    /· deleted for good at the next nightly clean-up$/,
+  );
+  await page.getByRole("button", { name: "Restore Only one" }).click();
+  await expect(page.getByText("The trash is empty.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trash" })).toBeFocused();
+});

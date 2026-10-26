@@ -15,10 +15,14 @@ def add_routes(app: FastAPI, store: Store) -> None:
 
     @app.get("/api/trash")
     def trash(limit: int = Query(100, ge=1, le=500)) -> dict[str, Any]:
-        """The pages in the trash, most recently deleted first: {days, results}.
+        """The pages in the trash, most recently deleted first: {days, total,
+        results}; total is how many are in the trash (results stops at limit).
         days is how long a page stays there (SCRAP_TRASH_DAYS; null: never purged);
         each result is {id, slug, title, kind, deleted_at, updated_at, topic,
         purge_at}: purge_at is when the nightly gc purges it from then on, null for a
         topic (kept: its key stops Claude making the topic again) or with purging
         off."""
-        return {"days": trash_days(), "results": store.trash(limit)}
+        with store.connect() as conn:
+            sql = "SELECT count(*) FROM page WHERE deleted_at IS NOT NULL"
+            total = conn.execute(sql).fetchone()[0]
+        return {"days": trash_days(), "total": total, "results": store.trash(limit)}

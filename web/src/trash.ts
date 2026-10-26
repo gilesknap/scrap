@@ -31,7 +31,8 @@ export function fate(t: Trashed, now = new Date()): string {
   const deleted = `Deleted ${day(t.deleted_at, now)}`;
   if (t.topic) return `${deleted} · kept: Claude won't make this topic again`;
   if (!t.purge_at) return deleted;
-  if (new Date(t.purge_at) <= now) return `${deleted} · deleted for good tonight`;
+  if (new Date(t.purge_at) <= now)
+    return `${deleted} · deleted for good at the next nightly clean-up`;
   return `${deleted} · deleted for good after ${day(t.purge_at, now)}`;
 }
 
@@ -40,6 +41,10 @@ export const stay = (days: number | null) =>
   days === null
     ? "Deleted pages stay here until you restore them."
     : `Deleted pages stay here for ${days} days, then scrap deletes them for good, with the photos and files no other page uses. Restore one to bring it back.`;
+
+/** How many are listed, when the list stops short of the whole trash. */
+export const shown = (listed: number, total: number) =>
+  listed < total ? `Showing the ${listed} most recently deleted of ${total}.` : "";
 
 function row(t: Trashed, list: HTMLUListElement, gone: () => void): HTMLLIElement {
   const restore = h(
@@ -76,19 +81,28 @@ function row(t: Trashed, list: HTMLUListElement, gone: () => void): HTMLLIElemen
 }
 
 export async function trash(signal: AbortSignal): Promise<Node> {
-  const { days, results } = await api<{ days: number | null; results: Trashed[] }>("trash", {
-    signal,
-  });
+  const { days, total, results } = await api<{
+    days: number | null;
+    total: number;
+    results: Trashed[];
+  }>("trash", { signal });
+  const heading = h("h2", { className: "label", tabIndex: -1 }, "Trash");
   const none = () => empty("trash", "The trash is empty.");
   const list = h("ul", { className: "list" });
   const section = h(
     "section",
     { className: "trash" },
-    h("h2", { className: "label" }, "Trash"),
+    heading,
     h("p", { className: "hint" }, stay(days)),
   );
-  const gone = () => list.replaceWith(none());
+  const more = shown(results.length, total);
+  // the last row restored: the empty state, and focus on the heading rather than lost
+  const gone = () => {
+    list.replaceWith(none());
+    heading.focus();
+  };
   list.append(...results.map((t) => row(t, list, gone)));
   section.append(results.length ? list : none());
+  if (more) section.append(h("p", { className: "hint more" }, more));
   return section;
 }

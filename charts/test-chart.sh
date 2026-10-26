@@ -76,6 +76,7 @@ expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
 expect_refused "gc.enabled=true with backups off" --set backup.enabled=false --set gc.enabled=true
 expect_refused "gc.trashDays=0" --set gc.trashDays=0
 expect_refused "gc.jobDays=0.5" --set gc.jobDays=0.5
+expect_refused "gc.trashDays over 36500" --set gc.trashDays=36501
 # An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
 if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"

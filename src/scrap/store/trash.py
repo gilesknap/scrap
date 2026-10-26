@@ -12,6 +12,7 @@ from .helpers import now
 from .topics import IS_TOPIC, touch
 
 TRASH_DAYS = 30.0  # a page stays in the trash this long before gc purges it
+MAX_DAYS = 36500  # the longest retention: a hundred years
 # A page's columns as the trash lists it; topic: never purged (its key is a veto)
 COLUMNS = (
     "id, slug, title, kind, deleted_at, updated_at,"
@@ -32,9 +33,9 @@ def trash_days() -> float | None:
         days = float(value)
     except ValueError:
         days = 0.0
-    if not days >= 1:
+    if not 1 <= days <= MAX_DAYS:
         raise SystemExit(
-            f"SCRAP_TRASH_DAYS must be a number of days (at least 1) or off,"
+            f"SCRAP_TRASH_DAYS must be a number of days (1 to {MAX_DAYS}) or off,"
             f" not {value!r}"
         )
     return days

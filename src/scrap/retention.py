@@ -30,10 +30,11 @@ from . import orphans
 from .store import body_refs
 from .store.health import REVIEW
 from .store.topics import IS_TOPIC
-from .store.trash import TRASH_DAYS, purge_at, trash_days
+from .store.trash import MAX_DAYS, TRASH_DAYS, purge_at, trash_days
 
 __all__ = [
     "JOB_DAYS",
+    "MAX_DAYS",
     "TRASH_DAYS",
     "Purged",
     "check_days",
@@ -52,6 +53,7 @@ DUE = (
     "SELECT id FROM page p WHERE p.deleted_at IS NOT NULL AND p.deleted_at < :cutoff"
     f" AND NOT {IS_TOPIC.format(p='p')} ORDER BY p.deleted_at, p.id"
 )
+IS_REVIEW = REVIEW.format(p="p")
 # The finished jobs past retention, but each photo's newest ingest job and each
 # page's newest enrich job of a reason
 OLD_JOBS = (
@@ -73,9 +75,12 @@ def stamp(days: float) -> str:
 
 def check_days(days: float, what: str) -> None:
     """Refuse a retention under a day (or not a number): a slip must never purge
-    the trash, or the job history, of today."""
+    the trash, or the job history, of today; or over MAX_DAYS (a date that far off
+    cannot be reckoned)."""
     if not days >= 1:
         raise ValueError(f"the {what} retention must be at least 1 day")
+    if days > MAX_DAYS:
+        raise ValueError(f"the {what} retention must be at most {MAX_DAYS} days")
 
 
 @dataclass
@@ -84,25 +89,29 @@ class Purged:
     files: int = 0  # orphaned files their review pages held, let go
 
 
-def due(conn: sqlite3.Connection, cutoff: str) -> list[str]:
+def due(conn: sqlite3.Connection, cutoff: str, review: bool = True) -> list[str]:
     """The ids of the trashed pages due for a purge: trashed before cutoff (a stored
-    timestamp), topics left out (see the module)."""
-    return [row[0] for row in conn.execute(DUE, {"cutoff": cutoff})]
+    timestamp), topics left out (see the module), and review pages unless review."""
+    sql = DUE if review else DUE.replace(" ORDER BY", f" AND NOT {IS_REVIEW} ORDER BY")
+    return [row[0] for row in conn.execute(sql, {"cutoff": cutoff})]
 
 
-def purge(conn: sqlite3.Connection, cutoff: str, grace: str) -> Purged:
+def purge(
+    conn: sqlite3.Connection, cutoff: str, grace: str, review: bool = True
+) -> Purged:
     """Purge the trashed pages due (see due), then let go of the files the review
     pages among them showed that are orphans now (orphans.find, with grace its
-    cutoff). Run it inside a write transaction (a dry run rolls it back)."""
-    ids = due(conn, cutoff)
+    cutoff). Without review, review pages are left for a later run. Run it inside a
+    write transaction (a dry run rolls it back)."""
+    ids = due(conn, cutoff, review)
     if not ids:
         return Purged()
     marks = ",".join("?" * len(ids))
-    review = f"p.id IN ({marks}) AND {REVIEW.format(p='p')}"
+    reviews = f"p.id IN ({marks}) AND {IS_REVIEW}"
     shown: set[str] = set()  # every file a review page among them ever showed
     for (body,) in conn.execute(
-        f"SELECT r.body FROM page_rev r JOIN page p ON p.id = r.page_id WHERE {review}"
-        f" UNION ALL SELECT p.body FROM page p WHERE {review}",
+        f"SELECT r.body FROM page_rev r JOIN page p ON p.id = r.page_id WHERE {reviews}"
+        f" UNION ALL SELECT p.body FROM page p WHERE {reviews}",
         ids + ids,
     ):
         shown |= body_refs(body)

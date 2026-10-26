@@ -11,7 +11,7 @@ import pytest
 from scrap import gc, orphans, retention, sizes
 from scrap.__main__ import main
 from scrap.app import create_app
-from scrap.store import Store, new_ulid, now, topics
+from scrap.store import ConflictError, Store, new_ulid, now, topics
 from test_mcp import ok
 from test_orphans import OCT, age, describe, edit, orphan_pages, unembed
 
@@ -404,7 +404,8 @@ def test_the_trash_shows_when_each_page_is_purged(client, store, note, monkeypat
     ref = note("Going")
     assert client.delete(f"/api/pages/{ref['page_id']}").status_code == 204
     body = client.get("/api/trash").json()
-    assert body["days"] == 30
+    assert body["days"] == 30 and body["total"] == 1
+    assert client.get("/api/trash?limit=1").json()["total"] == 1
     [row] = body["results"]
     assert row["id"] == ref["page_id"] and row["topic"] is False
     assert row["purge_at"] == retention.purge_at(row["deleted_at"], 30, False)
@@ -446,3 +447,91 @@ def test_mcp_shows_the_purge_date_and_says_so(store, monkeypatch):
     text = mcp_server.server(store).instructions or ""
     assert "Nothing deletes a page: the user's deletes go to a trash." in text
     assert ok(store, "read", page=page)["page"]["purge_at"] is None
+
+
+def test_a_failure_after_the_purge_leaves_its_files_for_the_next_run(client, store):
+    """Retention commits before any file is unlinked: a run that stops between the
+    two has purged the page and deleted nothing; the next run deletes its files."""
+    ref, sha = photo(client)
+    trash(client, store, ref["page_id"])
+    age_files(store)
+
+    def stop():
+        raise RuntimeError("stopped")
+        yield
+
+    with pytest.raises(RuntimeError):
+        gc.collect(store, delete=True, _between=stop())
+    assert store.trash(10) == []  # the purge was committed
+    assert store.blob_path(sha).is_file()  # no file went with it
+    with store.connect() as conn:
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    report = gc.collect(store, delete=True)
+    assert report.purged == 0 and sha in report.shas
+    assert not store.blob_path(sha).exists()
+
+
+def test_a_conflicted_gathering_leaves_review_pages_for_the_next_run(
+    client, store, note, monkeypatch
+):
+    _, sha = unembed(client, store)
+    gc.collect(store, delete=True)
+    [page] = orphan_pages(client)
+    trash(client, store, page["id"])
+    other = note("Plain")
+    trash(client, store, other["page_id"])
+    age(store)
+
+    def conflict(*args):
+        raise ConflictError("edited meanwhile")
+
+    monkeypatch.setattr(orphans, "gather", conflict)
+    report = gc.collect(store, delete=True)
+    assert (report.purged, report.let_go) == (1, 0)
+    assert [r["id"] for r in store.trash(10)] == [page["id"]]
+    assert store.blob_path(sha).is_file()
+    monkeypatch.undo()
+    monkeypatch.setattr(orphans, "clock", lambda: OCT)
+    assert gc.collect(store, delete=True).let_go == 1
+
+
+def test_the_trash_purge_can_be_off(client, store, capsys):
+    ref, _ = photo(client)
+    trash(client, store, ref["page_id"])
+    main(["gc", "--data-dir", str(store.dir), "--delete", "--trash-days", "off"])
+    assert "the trash is never purged (--trash-days off)" in capsys.readouterr().out
+    assert len(store.trash(10)) == 1
+    main(["gc", "--data-dir", str(store.dir), "--report", "--trash-days", "OFF"])
+    assert "never purged (--trash-days off)" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "args", [["--trash-days", "36501"], ["--job-days", "1e400"], ["--run-days", "inf"]]
+)
+def test_retention_has_a_ceiling(store, args):
+    with pytest.raises(SystemExit, match="retention must be at most 36500 days"):
+        main(["gc", "--data-dir", str(store.dir), *args])
+
+
+def test_a_trash_setting_past_the_ceiling_stops_the_start(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_TRASH_DAYS", "36501")
+    with pytest.raises(SystemExit, match=r"1 to 36500"):
+        create_app(tmp_path / "data")
+    monkeypatch.setenv("SCRAP_TRASH_DAYS", "36500")
+    create_app(tmp_path / "data")
+
+
+def test_the_report_counts_files_a_review_page_purge_frees(client, store, capsys):
+    _, sha = unembed(client, store)
+    gc.collect(store, delete=True)
+    [page] = orphan_pages(client)
+    trash(client, store, page["id"], now())
+    r = sizes.measure(store)
+    assert r["files"]["review_only"] == {"files": 1, "bytes": len(b"photo bytes")}
+    assert r["trash"]["oldest_days"] == 0.0
+    tables = {t["table"] for t in r["tables"]}
+    assert tables & {"sqlite_schema", "sqlite_master"}
+    main(["gc", "--data-dir", str(store.dir), "--report"])
+    out = capsys.readouterr().out
+    assert "the oldest 0.0 days" in out and "shown only on Orphaned assets" in out
+    assert "not topic_run" in out

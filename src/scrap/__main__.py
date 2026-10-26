@@ -1,7 +1,7 @@
 """Interface for ``python -m scrap``."""
 
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -105,18 +105,19 @@ def main(args: Sequence[str] | None = None) -> None:
     )
     gc.add_argument(
         "--trash-days",
-        type=float,
+        type=trash_days,
         default=30.0,
-        help="Purge the pages put in the trash more than this many days ago (at least"
-        " 1), with their captures, history and Claude's results; their files then go"
-        " as unused ones do. A topic page in the trash is never purged (default 30)",
+        help="Purge the pages put in the trash more than this many days ago (1 to"
+        " 36500, or off: never), with their captures, history and Claude's results;"
+        " their files then go as unused ones do. A topic page in the trash is never"
+        " purged (default 30)",
     )
     gc.add_argument(
         "--job-days",
         type=float,
         default=30.0,
         help="Delete the finished (done or dead) ingest and enrich job records last"
-        " changed more than this many days ago (at least 1), but the latest of each"
+        " changed more than this many days ago (1 to 36500), but the latest of each"
         " photo and of each page (default 30)",
     )
     gc.add_argument(
@@ -315,6 +316,16 @@ def main(args: Sequence[str] | None = None) -> None:
         parser.print_help()
 
 
+def trash_days(value: str) -> float | None:
+    """--trash-days: a number, or off (None: the trash is never purged)."""
+    if value.strip().lower() == "off":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        raise ArgumentTypeError(f"not a number of days or off: {value!r}") from None
+
+
 def gc_command(store: Any, parsed: Any) -> None:
     """scrap gc: the run (a dry run unless --delete), or with --report the sizes."""
     import sqlite3
@@ -324,10 +335,14 @@ def gc_command(store: Any, parsed: Any) -> None:
     try:
         if parsed.report:
             from . import sizes
+            from .retention import check_days
 
             for days, what in ((parsed.trash_days, "trash"), (parsed.job_days, "job")):
-                if not days >= 1:
-                    raise GcError(f"the {what} retention must be at least 1 day")
+                try:
+                    if days is not None:
+                        check_days(days, what)
+                except ValueError as error:
+                    raise GcError(str(error)) from None
             try:
                 print(sizes.text(sizes.measure(store, parsed.trash_days,
                                                parsed.job_days)))  # fmt: skip

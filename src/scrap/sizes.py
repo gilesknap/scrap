@@ -24,6 +24,7 @@ from typing import Any
 from . import retention
 from .gc import COLUMNS, GcError, _files, in_use
 from .store import Store, body_refs
+from .store.health import REVIEW
 
 __all__ = ["measure", "text"]
 
@@ -112,6 +113,10 @@ def _tables(conn: sqlite3.Connection) -> list[dict[str, Any]]:
                 "estimated": estimated,
             }
         )
+    listed = {t["table"] for t in out}
+    for name in sorted(set(sizes) - listed):  # sqlite_schema, sqlite_stat1...
+        out.append({"table": name, "rows": None, "bytes": sizes[name],
+                    "estimated": estimated})  # fmt: skip
     out.sort(key=lambda t: (-t["bytes"], t["table"]))
     return out
 
@@ -125,9 +130,26 @@ def _live(conn: sqlite3.Connection) -> set[str]:
     return used
 
 
+def _review_only(conn: sqlite3.Connection) -> set[str]:
+    """The files gc's review pages in the trash showed (in any revision) that no page
+    out of the trash shows: a purge of those pages lets them go (scrap.retention),
+    if they are orphans then (roughly: the capture holding them is still counted)."""
+    review = REVIEW.format(p="p")
+    shown: set[str] = set()
+    for (body,) in conn.execute(
+        "SELECT r.body FROM page_rev r JOIN page p ON p.id = r.page_id"
+        f" WHERE p.deleted_at IS NOT NULL AND {review}"
+    ):
+        shown |= body_refs(body)
+    for (body,) in conn.execute("SELECT body FROM page WHERE deleted_at IS NULL"):
+        shown -= body_refs(body)
+    return shown
+
+
 def _files_split(store: Store, conn: sqlite3.Connection) -> dict[str, Any]:
     """The stored files by use: in use (not only by the trash), used only by pages in
-    the trash, and unused: each {files, bytes}."""
+    the trash, held only for review pages in the trash (see _review_only), and
+    unused: each {files, bytes}."""
     try:
         files, _ = _files(store)
     except (GcError, OSError):
@@ -135,15 +157,20 @@ def _files_split(store: Store, conn: sqlite3.Connection) -> dict[str, Any]:
     rows = dict(conn.execute("SELECT sha256, size FROM blob"))
     every = in_use(conn)
     live = _live(conn)
-    out: dict[str, Any] = {
-        k: {"files": 0, "bytes": 0} for k in ("in_use", "trash_only", "unused")
-    }
+    review = _review_only(conn)
+    kinds = ("in_use", "review_only", "trash_only", "unused")
+    out: dict[str, Any] = {k: {"files": 0, "bytes": 0} for k in kinds}
     for sha, path in files.items():
         try:
             size = path.stat().st_size
         except FileNotFoundError:
             continue
-        key = "in_use" if sha in live else "trash_only" if sha in every else "unused"
+        key = (
+            "trash_only" if sha in every and sha not in live
+            else "unused" if sha not in every
+            else "review_only" if sha in review
+            else "in_use"
+        )  # fmt: skip
         out[key]["files"] += 1
         out[key]["bytes"] += size
     out["missing"] = sum(1 for sha in rows if sha not in files)  # rows with no file
@@ -157,7 +184,7 @@ def _age(stamp: str, today: datetime) -> float:
         return 0.0
 
 
-def _trash(conn: sqlite3.Connection, trash_days: float) -> dict[str, Any]:
+def _trash(conn: sqlite3.Connection, trash_days: float | None) -> dict[str, Any]:
     today = datetime.now(UTC)
     rows = conn.execute(
         "SELECT p.deleted_at, EXISTS (SELECT 1 FROM topic t WHERE t.page_id = p.id)"
@@ -168,14 +195,18 @@ def _trash(conn: sqlite3.Connection, trash_days: float) -> dict[str, Any]:
     for age in ages:
         label = next((lab for d, lab in AGES if age < d), "older")
         bands[label] += 1
-    cutoff = retention.stamp(trash_days)
+    due = (
+        0
+        if trash_days is None
+        else len(retention.due(conn, retention.stamp(trash_days)))
+    )
     return {
         "pages": len(rows),
         "topics": sum(1 for r in rows if r[1]),
         "oldest_days": round(max(ages), 1) if ages else None,
         "ages": bands,
         "days": trash_days,
-        "due": len(retention.due(conn, cutoff)),
+        "due": due,
     }
 
 
@@ -214,7 +245,7 @@ def _jobs(conn: sqlite3.Connection, job_days: float) -> dict[str, Any]:
 
 def measure(
     store: Store,
-    trash_days: float = retention.TRASH_DAYS,
+    trash_days: float | None = retention.TRASH_DAYS,
     job_days: float = retention.JOB_DAYS,
 ) -> dict[str, Any]:
     """The report (see the module), as data. Raises GcError if there is no
@@ -245,10 +276,14 @@ def _mb(n: int) -> str:
 
 def text(r: dict[str, Any]) -> str:
     """The report as lines to print."""
-    lines = [f"scrap gc --report: database {_mb(r['database_bytes'])}", ""]
+    lines = [
+        f"scrap gc --report: database {_mb(r['database_bytes'])} (the file, with its"
+        " write-ahead log)",
+        "",
+    ]
     est = any(t["estimated"] for t in r["tables"])
     lines.append(
-        "Tables, with their indexes"
+        "Tables, with their indexes (and SQLite's own, sqlite_schema...)"
         + (" (estimated: this SQLite has no dbstat)" if est else "")
         + ":"
     )
@@ -259,6 +294,10 @@ def text(r: dict[str, Any]) -> str:
     lines += ["", "Stored files:"]
     for key, label in (
         ("in_use", "in use"),
+        (
+            "review_only",
+            "shown only on Orphaned assets pages in the trash (a purge lets them go)",
+        ),
         ("trash_only", "used only by pages in the trash"),
         ("unused", "unused (gc deletes them after the grace period)"),
     ):
@@ -269,11 +308,20 @@ def text(r: dict[str, Any]) -> str:
     lines += [
         "",
         f"Trash: {t['pages']} pages ({t['topics']} topics, never purged)"
-        + (f", the oldest {t['oldest_days']} days" if t["oldest_days"] else ""),
+        + (
+            f", the oldest {t['oldest_days']} days"
+            if t["oldest_days"] is not None
+            else ""
+        ),
         "  by age: " + ", ".join(f"{label} {n}" for label, n in t["ages"].items()),
-        f"  trashed more than {t['days']:g} days ago (a purge's): {t['due']}",
+        (
+            f"  trashed more than {t['days']:g} days ago (a purge's): {t['due']}"
+            if t["days"] is not None
+            else "  never purged (--trash-days off)"
+        ),
         "",
-        "Claude call records (rows, and bytes of request, response and output):",
+        "Claude call records (rows, and bytes of request, response and output;"
+        " --run-days prunes model_run and enrich_run, not topic_run):",
     ]
     for run in r["runs"]:
         lines.append(

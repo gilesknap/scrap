@@ -163,8 +163,6 @@ tolerations:
 {{- end }}
 {{- end }}
 
-{{/* "true" when the gc CronJob is wanted, else empty: gc.enabled, or when that is
-unset (null) whether backup.enabled, so a release with backups off still renders. */}}
 {{/* SCRAP_TRASH_DAYS: gc.trashDays while the gc CronJob deletes (as gc-cronjob.yaml
 decides), else off. */}}
 {{- define "scrap.trashDays" -}}
@@ -175,6 +173,8 @@ off
 {{- end -}}
 {{- end }}
 
+{{/* "true" when the gc CronJob is wanted, else empty: gc.enabled, or when that is
+unset (null) whether backup.enabled, so a release with backups off still renders. */}}
 {{- define "scrap.gcEnabled" -}}
 {{- if kindIs "invalid" .Values.gc.enabled -}}
 {{- if .Values.backup.enabled }}true{{ end -}}

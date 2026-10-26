@@ -807,17 +807,17 @@ gc also prunes the records of Claude calls, which would otherwise grow for ever:
 kept while anything refers to it (a page's enrichment, a derived result, a later turn of the same
 conversation), while it is the newest for its page or photo, while it is still running, and while
 it is younger than `--run-days` (default 30, at least 1). Counts are in the report, and `--delete`
-removes the rest. A deleted model run no longer keeps the JPEG it sent, which the next gc finds
-unused.
+removes the rest. A deleted model run no longer keeps the JPEG it sent, which the same run then
+deletes as unused. `topic_run` records (one a week) are not pruned.
 
-**Files no page shows are gathered, not deleted.** gc never deletes a file of a capture (a photo,
-a PDF). When you delete the last embed or link of one from a page's text, the next `scrap gc
+**Files no page shows are gathered, not deleted.** gc does not delete a file of a capture (a
+photo, a PDF) while its page lasts. When you delete the last embed or link of one from a page's text, the next `scrap gc
 --delete` (once the grace period has passed since that edit) appends it to the month's review
 page, a todo titled *Orphaned assets YYYY-MM*, due 7 days after gc made it. Each item is the
 image (or a link to the file), the page it was last shown on and when, and Claude's description
 if there is one; its drawing and Claude's results stay with the file. To keep an item, cut it into
 another page. Once you have looked through the page, delete it (its files go to the trash with
-it) or tick it done; later orphans that month then start a new page, and an item you cut out and
+it, and are deleted for good when the page is purged, `--trash-days` later) or tick it done; later orphans that month then start a new page, and an item you cut out and
 pasted nowhere is not gathered again. Later orphans are appended to the open page without moving
 its due date. A file still shown by another page, by a page in the trash, or listed below a page
 that never embedded it (an older photo, a PDF) is not an orphan. Nothing records what was
@@ -836,18 +836,19 @@ deleted with it. A purged page is still in the backups until they are pruned. gc
 the finished (done or dead) ingest and enrich job records last changed more than `--job-days`
 ago (default 30), keeping each photo's and each page's latest.
 
-To keep the trash longer, or the job records, give the nightly run other numbers in a drop-in
-(`systemctl --user edit scrap-gc.service`; the arguments after the defaults win):
+To keep the trash longer, set `SCRAP_TRASH_DAYS` in `~/.config/scrap/ingest.env`, for example
+`SCRAP_TRASH_DAYS=60` (1 to 36500 days, or `off` to never purge it), and run
+`systemctl --user restart scrap`. It is the one setting: scrap reads it for the purge dates the
+PWA and Claude show, and `scrap-gc` passes it to the nightly run as `--trash-days`. With the gc
+timer off nothing purges the trash, so set it to `off` then. To keep the job records longer, give
+the nightly run another number in a drop-in (`systemctl --user edit scrap-gc.service`; the
+arguments after the defaults win):
 
 ```
 [Service]
 ExecStart=
-ExecStart=%h/.local/lib/scrap/scrap-gc --trash-days 60 --job-days 14
+ExecStart=%h/.local/lib/scrap/scrap-gc --job-days 60
 ```
-
-and say the same to scrap, so the PWA and Claude show the right purge dates: add
-`SCRAP_TRASH_DAYS=60` to `~/.config/scrap/ingest.env` and `systemctl --user restart scrap`.
-Without a purge (the gc timer off), set `SCRAP_TRASH_DAYS=off`.
 
 To see what the store holds, by size, before choosing (it reads only):
 
@@ -921,8 +922,10 @@ it has no recent backup.
 | `the grace period must not be negative` | `--grace-hours` was below 0. |
 | `the run retention must be at least 1 day` | `--run-days` was below 1. |
 | `the trash retention must be at least 1 day`, `the job retention must be at least 1 day` | `--trash-days` or `--job-days` was below 1. |
+| `the run retention must be at most 36500 days` (or `trash`, `job`) | A retention over 36500 days (a hundred years). |
 | `cannot read what is in use, so nothing was deleted: ...` | The database or files could not be read after the reason given: a damaged or unreadable database, or a permission problem. If the reason is `<db> has schema N; this scrap knows M`, the database is from a newer scrap: run gc with the newer image (see {ref}`scrap-upgrade-db`). |
-| `cannot delete: ...` | The database refused the delete (read-only, disk full). Nothing in the database changed; fix the cause and run again, which removes any file left over. |
+| `cannot purge the trash or prune old records, so nothing was deleted: ...` | The database refused the retention step (read-only, disk full). Nothing in the database changed and no file was deleted; fix the cause and run again. |
+| `cannot delete: ...` | The database refused the delete of unused files' records (read-only, disk full). The trash purge and record pruning before it were already committed (they never wait on a file); the unused files' records were not removed. Fix the cause and run again, which removes any file left over. |
 
 ## Uninstall
 

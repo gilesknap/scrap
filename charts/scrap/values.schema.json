@@ -79,9 +79,9 @@
         "timeZone": {"type": "string"},
         "delete": {"type": "boolean"},
         "graceHours": {"type": "number", "minimum": 0},
-        "runDays": {"type": "number", "minimum": 1},
-        "trashDays": {"type": "number", "minimum": 1},
-        "jobDays": {"type": "number", "minimum": 1},
+        "runDays": {"type": "number", "minimum": 1, "maximum": 36500},
+        "trashDays": {"type": "number", "minimum": 1, "maximum": 36500},
+        "jobDays": {"type": "number", "minimum": 1, "maximum": 36500},
         "requireBackup": {"type": "boolean"},
         "resources": {"type": "object"}
       }

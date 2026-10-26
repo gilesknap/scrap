@@ -24,7 +24,8 @@ more than 7 days ago. The Claude call records were most of the database (`enrich
 Nightly `scrap gc --delete` purges a page that has been in the trash for more than `--trash-days`
 (default 30, at least 1): its row goes, and with it, through the schema's `ON DELETE CASCADE`,
 its revisions, captures and their file records, Claude's results, runs and jobs, tags, search
-index, write-ups and topic memberships, in the one deleting transaction. Its files are then
+index, write-ups and topic memberships, in one transaction, committed (with the job and run
+pruning) before gc reads what is in use: no file is unlinked while it could still roll back. Its files are then
 unused, so gc's usual delete takes them in the same run, under its grace period and only after a
 recent backup (the backup check of `deploy/scrap-gc` and the chart's CronJob, which run a dry run
 without one). A purged page still exists in the backups for the backup retention.
@@ -56,6 +57,10 @@ every month.
 - A page restored within N days comes back whole; after that it is gone, except from backups.
 - A dry run counts the pages it would purge and the files that would free, by purging inside a
   transaction it rolls back. It takes the write lock for that moment.
-- On a single server the purge date shown and the purge itself are set in two places: the
-  `SCRAP_TRASH_DAYS` line in `ingest.env` and `--trash-days` in a drop-in on `scrap-gc.service`.
+- A file let go with a purged review page is gone from every revision that embedded it: an older
+  revision of the page it came from (or of any page) that is restored shows a broken image.
+- In a run whose gathering of orphans was interrupted (the review page edited meanwhile), no review
+  page is purged; the next run purges it.
+- On a single server `SCRAP_TRASH_DAYS` in `ingest.env` is the one setting: the server reads it,
+  and `deploy/scrap-gc` passes it to gc as `--trash-days`. Retentions are 1 to 36500 days.
 - No migration: purging relies on the cascades already in the schema.
