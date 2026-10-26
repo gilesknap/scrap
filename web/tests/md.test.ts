@@ -317,6 +317,12 @@ describe("a page here by its full address (#288)", () => {
     expect(origins()).toEqual([LAN]); // the dev server's index.html: no addresses filled in
   });
 
+  it("a page's path with a query or #heading is a link in the app too, as the server counts it", () => {
+    expect(one("[A](/p/a-page?x=1) and [B](/p/b-page#h-top) and [C](/p/Bad#x)")).toBe(
+      '<p><a href="/p/a-page?x=1">A</a> and <a href="/p/b-page#h-top">B</a> and C</p>',
+    );
+  });
+
   it("renders as a link in the app; another site's still opens a new window", () => {
     vi.stubGlobal("location", { origin: HERE });
     expect(one(`[A](${HERE}/p/a-page) and ${HERE}/p/b-page`)).toBe(

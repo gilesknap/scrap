@@ -30,6 +30,11 @@ def origin(url: str) -> str | None:
         return None
     if ":" in host:  # IPv6
         host = f"[{host}]"
+    else:  # as markdown-it writes a link's host, and URL.origin: punycode
+        try:
+            host = host.encode("idna").decode("ascii")
+        except UnicodeError:
+            return None
     return f"{scheme}://{host}" + (
         f":{port}" if port not in (None, DEFAULT_PORT[scheme]) else ""
     )

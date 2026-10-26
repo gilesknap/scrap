@@ -32,7 +32,7 @@ test("Settings opens Store health, and a check lists its pages", async ({ page }
   ]);
   const row = page.getByRole("link", { name: `Dangling links: ${dangling}` });
   await expect(row).toBeVisible();
-  await expect(row).toHaveAccessibleDescription(/^A \[\[link\]\] to a page/);
+  await expect(row).toHaveAccessibleDescription(/^A link to a page/);
   const box = (await row.boundingBox()) as { height: number };
   expect(box.height).toBeGreaterThanOrEqual(48);
   for (const colorScheme of ["light", "dark"] as const) {

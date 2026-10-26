@@ -36,11 +36,13 @@ def migrations() -> list[str]:
 
 
 log = logging.getLogger(__name__)
-# wiki_links' parses, by the digest of the text and the origins, not the text: a check
+# wiki_links' parses, by the origins and the text's digest, not the text: a check
 # reads every page's text, and most are as they were last time. The least recently
-# used go first.
-_PARSED: OrderedDict[bytes, str] = OrderedDict()
-_MAX_PARSED = 4096  # short JSON arrays
+# used go first. A check reads every page with links in turn, so a store with more
+# such pages than this re-parses them all each time (LRU in a loop): the cliff sits
+# well above a personal store's size, at little memory (short JSON arrays).
+_PARSED: OrderedDict[tuple[tuple[str, ...], bytes], str] = OrderedDict()
+_MAX_PARSED = 16384
 _failed = False  # a parse has failed (logged once)
 
 
@@ -54,7 +56,7 @@ def wiki_links(text: str | None) -> str:
     if not text or ("[[" not in text and "/p/" not in text):  # most: nothing to parse
         return "[]"
     origins = public_origins()
-    key = hashlib.sha256("\n".join((*origins, text)).encode()).digest()
+    key = (origins, hashlib.sha256(text.encode()).digest())
     if (found := _PARSED.get(key)) is not None:
         _PARSED.move_to_end(key)
         return found
@@ -66,7 +68,7 @@ def wiki_links(text: str | None) -> str:
             log.exception(
                 "wiki_links: can't parse a page's text (%d characters, sha256 %s);"
                 " it counts as having no links",
-                len(text), key.hex()[:12],
+                len(text), key[1].hex()[:12],
             )  # fmt: skip
         return "[]"
     _PARSED[key] = found

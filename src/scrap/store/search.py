@@ -82,7 +82,9 @@ class SearchMixin(Core):
 
     def backlinks(self, slug: str) -> list[dict[str, str]]:
         """The pages (not in the trash) whose text links to slug: [[slug]], or its
-        /p/ address (SQL wiki_links)."""
+        /p/ address (SQL wiki_links). Only texts holding the slug as typed are parsed
+        (instr), so a link whose slug is written escaped (`&#97;`, `\\-`) is missed,
+        though has:dangling and is:orphan, which parse every text, count it."""
         with self.connect() as conn:
             return [
                 {k: r[k] for k in ("id", "slug", "title")}

@@ -171,7 +171,9 @@ function inline(children: Token[], state: StateCore): Token[] {
       } else if (href.startsWith("#")) {
         // A heading's id; a footnote's (fn1, fnref1, as markdown-it-footnote makes) as it is
         if (!FOOTNOTE.test(href)) t.attrSet("href", `#${anchor(decoded(href.slice(1)))}`);
-      } else if (!t.meta?.wiki && !PAGE.test(href)) t.hidden = true; // its text stays
+      } else if (!t.meta?.wiki && !PAGE.test(href.replace(/[?#].*/s, ""))) {
+        t.hidden = true; // its text stays (a page's path may have a query or #heading)
+      }
       opened.push(t);
     } else if (t.type === "link_close") {
       t.hidden = !!opened.pop()?.hidden;

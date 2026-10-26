@@ -69,7 +69,8 @@ pages). Docker takes the same arguments.
 loopback addresses and the addresses listed there, and replies `421 Invalid Host header` to any
 other. The web page needs none of it to work. Page links that Claude gives you start with the
 first address in it, and the app opens a link to a page on any address listed there in place,
-as it does `[[slug]]`, so Back returns to the page you were on. Claude Code on this machine needs none of it; on another machine, use
+as it does `[[slug]]`, so Back returns to the page you were on. An installed app picks up a
+changed list on its next update; a link on the address it was opened at always works. Claude Code on this machine needs none of it; on another machine, use
 `claude mcp add` from the README with the LAN address, for example
 `http://192.168.1.10:8000/mcp`.
 

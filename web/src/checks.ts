@@ -8,7 +8,7 @@ export const CHECKS: [term: string, name: string, about: string][] = [
   ["is:untagged", "Untagged", "No tags"],
   ["is:stale", "Stale todos", "Open, not edited for 60 days, not snoozed or due yet"],
   ["is:duplicate", "Duplicates", "A photo or file shared with another page"],
-  ["has:dangling", "Dangling links", "A [[link]] to a page that isn't there"],
+  ["has:dangling", "Dangling links", "A link to a page that isn't there"],
   ["is:outdated", "Outdated write-ups", "A board's write-up older than the page or the prompt"],
 ];
 

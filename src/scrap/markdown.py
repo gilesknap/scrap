@@ -88,9 +88,11 @@ def wiki_parts(inner: str) -> tuple[str, str]:
 
 
 def page_path(href: str, origins: Iterable[str] = ()) -> str | None:
-    """The slug a link's address names a page here by: /p/<slug>, as a path or on one
-    of origins (a full address, `https://<host>/p/<slug>`, as a model writes one), a
-    query or #heading after it; else None. As the PWA opens in place (render.ts own)."""
+    """The slug a link's address names a page here by, else None: /p/<slug> as a path
+    (`/p/<slug>`) or on one of origins (a full address, `https://<host>/p/<slug>`, as
+    a model writes one), either with any query or #heading after it. These are the
+    links the PWA opens in place (render.ts: inline() for a path, own() for a full
+    address)."""
     if href.startswith("/p/"):
         path = urlsplit(href).path
     elif (here := origin(href)) is not None and here in origins:

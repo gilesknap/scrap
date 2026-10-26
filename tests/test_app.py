@@ -2,6 +2,7 @@ import json
 import sqlite3
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -855,6 +856,15 @@ def test_the_shell_shows_the_server_version_in_the_title_bar(tmp_path, monkeypat
         in page.text
     )
     assert page.headers["cache-control"] == "no-cache"
+
+
+def test_the_shipped_index_html_holds_the_slots_the_server_fills():
+    """web/index.html must keep both, character for character: else the version and
+    the origins (#290) are silently never filled in."""
+    index = Path(__file__).parents[1] / "web" / "index.html"
+    html = index.read_text(encoding="utf-8")
+    assert html.count(ORIGINS_SLOT) == 1
+    assert html.count(VERSION_SLOT) == 1
 
 
 def test_the_shell_lists_the_public_origins_for_the_pwa(tmp_path, monkeypatch):

@@ -221,7 +221,9 @@ def links(conn: sqlite3.Connection, page_id: str) -> list[dict[str, str]]:
 
 def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
     """The pages (not in the trash, still board pages or topics) whose current
-    write-up links to slug (SQL wiki_links)."""
+    write-up links to slug (SQL wiki_links). Only write-ups holding the slug as typed
+    are parsed (instr): one escaped (`&#97;`, `\\-`) is missed, as in
+    Store.backlinks."""
     try:
         return _rows(
             conn,

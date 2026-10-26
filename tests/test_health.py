@@ -20,6 +20,7 @@ from PIL import Image
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
+from scrap.public import origin
 from scrap.store import Store, connect, health, new_ulid, now, topics
 
 BOARD = {
@@ -157,8 +158,30 @@ def test_wiki_targets_count_a_page_s_address_on_any_public_origin():
         f" and [deep]({HERE}/p/a/b) and [{HERE}/api/blobs/x]({HERE}/api/blobs/x)"
     )
     assert wiki_targets(text, (HERE, LAN)) == ["a", "b", "c", "d", "e"]
+    paths = "[q](/p/q?x=1) and [h](/p/h#h-top) and [n](/p/No#x) and [s](/p/s/)"
+    assert wiki_targets(paths) == ["q", "h"]  # as the PWA opens them in place
     assert wiki_targets(text) == ["d", "e"]  # no origins: a path only
     assert wiki_targets(text, (HERE,)) == ["a", "c", "d", "e"]
+
+
+def test_a_non_ascii_host_matches_its_punycode_href():
+    """markdown-it writes a link's host as punycode; the origins are compared so."""
+    assert origin("https://Bücher.example:443/") == "https://xn--bcher-kva.example"
+    assert wiki_targets("[a](https://bücher.example/p/x)") == []  # no origins
+    here = origin("https://bücher.example")
+    assert here is not None
+    assert wiki_targets("[a](https://bücher.example/p/x)", (here,)) == ["x"]
+
+
+def test_backlinks_are_the_links_the_parser_finds(store):
+    """Not one in code or an embed (![[slug]]); one in a table cell, its pipe
+    escaped, is."""
+    t = note(store, "Target")
+    slug = store.page(t)["slug"]
+    note(store, f"Code\n\n`[[{slug}]]` and\n\n```\n[[{slug}]]\n```")
+    note(store, f"Embed\n\n![[{slug}]]")
+    cell = note(store, f"Table\n\n| a | b |\n|---|---|\n| [[{slug}\\|label]] | x |")
+    assert [b["id"] for b in store.backlinks(slug)] == [cell]
 
 
 def test_a_page_s_full_address_links_it(store, monkeypatch):
