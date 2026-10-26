@@ -13,7 +13,7 @@ from ..store import (
     now,
     queue_topic,
     queue_writeup,
-    topics,
+    roles,
     transaction,
     writeups,
 )
@@ -30,9 +30,10 @@ def regenerate(store: Store, key: str) -> dict[str, Any]:
     it is neither a topic nor has a board image."""
     with store.connect() as conn, transaction(conn):
         page = store._page_row(conn, key)  # noqa: SLF001  one transaction
-        if topics.is_topic(conn, page["id"]):
+        # A topic first here, a board first in roles.writeup_type (see its TODO)
+        if roles.is_topic(conn, page["id"]):
             queue_topic(conn, page["id"])
-        elif writeups.has_board(conn, page["id"]):
+        elif roles.has_board(conn, page["id"]):
             queue_writeup(conn, page["id"])
         else:
             raise InvalidError(

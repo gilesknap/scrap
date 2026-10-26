@@ -17,7 +17,7 @@ from typing import Any
 
 from .. import claude
 from ..ingest import resume
-from ..store import Store, now, queue_topic, topics, transaction, writeups
+from ..store import Store, now, queue_topic, roles, topics, transaction
 from .checking import checked_topics, record
 from .constants import DISCOVERY_SCHEMA, TOPIC_DUE, TOPIC_INDEX
 from .relating import run_pass
@@ -36,8 +36,8 @@ def page_index(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         " (SELECT group_concat(tag, '\x1f') FROM tag WHERE page_id = p.id) AS tags"
         " FROM page p LEFT JOIN enrichment e ON e.page_id = p.id"
         " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
-        f" AND {writeups.HAS_BOARD.format(p='p')}"
-        f" WHERE p.deleted_at IS NULL AND NOT {topics.IS_TOPIC.format(p='p')}"
+        f" AND {roles.HAS_BOARD.format(p='p')}"
+        f" WHERE p.deleted_at IS NULL AND NOT {roles.IS_TOPIC.format(p='p')}"
         " ORDER BY p.updated_at DESC, p.id LIMIT ?) ORDER BY created_at, id",
         (TOPIC_INDEX,),
     ).fetchall()

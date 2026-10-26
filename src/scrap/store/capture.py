@@ -33,7 +33,8 @@ from .helpers import (
     todo_columns,
     too_big,
 )
-from .indexing import debounce, enrich_on, queue_enrich, should_enrich
+from .indexing import debounce, enrich_on, queue_enrich
+from .roles import by_claude, should_enrich
 
 
 class CaptureMixin(Core):
@@ -243,7 +244,7 @@ class CaptureMixin(Core):
             if row:
                 return self._ref(conn, cid, row[0]), False
             page = self._page_row(conn, key)
-            if not self.by_claude(conn, page["id"]):
+            if not by_claude(conn, page["id"]):
                 raise InvalidError("only a page written over MCP can be appended to")
             before = self._meta(conn, page["id"])
             if todo:

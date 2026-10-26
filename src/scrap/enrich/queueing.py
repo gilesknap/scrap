@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from ..store import ENRICH_KINDS, NOT_BY_INGEST, Store, queue_enrich, transaction
+from ..store import ENRICH_KINDS, Store, queue_enrich, transaction
+from ..store.roles import NOT_BY_INGEST
 
 
 def ask(store: Store, key: str) -> dict[str, Any]:

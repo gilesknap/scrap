@@ -138,28 +138,6 @@ PAGE_KINDS = {
 }
 
 
-# The id of a page's first capture (SQL; page: an expression for the page's id).
-# A page's first capture decides what the page is; later captures only add content
-# (#260): what automation infers from them never changes its kind, title or tags, or
-# whether enrich or ingest maintains it. The one test of it, for TITLE_CAS, the photo
-# worker and NOT_BY_INGEST.
-# Captures received at the same moment (an import's): a file capture last, then one
-# with no files before one with them, then the id, so an import's main capture (its
-# text, with its images) is first whatever its hash-derived id.
-FIRST_CAPTURE = (
-    "(SELECT f.id FROM capture f WHERE f.page_id = {page}"
-    " ORDER BY f.received_at, f.kind = 'file',"
-    " EXISTS (SELECT 1 FROM capture_blob b WHERE b.capture_id = f.id), f.id LIMIT 1)"
-)
-# A page made by a photo or file capture (its first) is read by ingest, not enrich,
-# whatever its kind (a photo page is stored as a note until ingest reclassifies it).
-NOT_BY_INGEST = (
-    "coalesce((SELECT c.kind FROM capture c WHERE c.id = "
-    + FIRST_CAPTURE.format(page="{p}.id")
-    + "), '') NOT IN ('photo', 'file')"
-)
-
-
 # A page's first related call, once it is first read: one job with reason 'related',
 # ever. Never in place of a queued job (a save meanwhile: the nightly pass sees the
 # change); a later save or Ask takes this one over (Ask picks related pages too).

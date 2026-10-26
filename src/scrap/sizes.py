@@ -24,7 +24,7 @@ from typing import Any
 from . import retention
 from .gc import COLUMNS, GcError, _files, in_use
 from .store import Store, body_refs
-from .store.health import REVIEW
+from .store.roles import REVIEW
 
 __all__ = ["measure", "text"]
 

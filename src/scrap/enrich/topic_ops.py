@@ -12,6 +12,7 @@ from ..store import (
     Store,
     now,
     queue_topic,
+    roles,
     topics,
     transaction,
 )
@@ -28,7 +29,7 @@ def sources(store: Store, key: str) -> list[dict[str, Any]]:
     added first. InvalidError if the page is not a topic."""
     with store.connect() as conn:
         page = store._page_row(conn, key)  # noqa: SLF001
-        if not topics.is_topic(conn, page["id"]):
+        if not roles.is_topic(conn, page["id"]):
             raise InvalidError("only a topic page has sources")
         return topics.sources(conn, page["id"], excluded=True)
 
@@ -42,7 +43,7 @@ def exclude(store: Store, key: str, source: str, back: bool = False) -> dict[str
     excluded)."""
     with store.connect() as conn, transaction(conn):
         page = store._page_row(conn, key)  # noqa: SLF001  one transaction
-        if not topics.is_topic(conn, page["id"]):
+        if not roles.is_topic(conn, page["id"]):
             raise InvalidError("only a topic page has sources")
         other = store._page_row(conn, source, True)  # noqa: SLF001
         change = topics.include if back else topics.exclude

@@ -1,7 +1,7 @@
 """Storage: one SQLite database and a folder of content-addressed files."""
 
 from ..query import CONTROL
-from . import health, topics, writeups
+from . import health, roles, topics, writeups
 from .constants import (
     CLAUDE,
     CROCKFORD,
@@ -16,7 +16,6 @@ from .constants import (
     MAX_TAG,
     MAX_TAGS,
     MCP,
-    NOT_BY_INGEST,
     PAGE_KINDS,
     SHA256,
     SORT_SQL,
@@ -83,7 +82,6 @@ __all__ = [
     "ENQUEUE",
     "PAGE_KINDS",
     "ENRICH_KINDS",
-    "NOT_BY_INGEST",
     "CROCKFORD",
     "DEFAULT_FIELDS",
     "KIND_NAMES",
@@ -120,6 +118,7 @@ __all__ = [
     "writeups",
     "topics",
     "health",
+    "roles",
     "fix_tag_paths",
     "Store",
 ]

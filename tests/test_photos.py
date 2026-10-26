@@ -11,7 +11,7 @@ from PIL import Image
 from scrap import claude, ingest
 from scrap.app import create_app
 from scrap.store import Store, connect, new_ulid, now, topics, transaction
-from scrap.store.indexing import should_enrich
+from scrap.store.roles import should_enrich
 
 BOARD = {
     "kind": "whiteboard", "title": "Queue design", "tags": ["design", "queues"],

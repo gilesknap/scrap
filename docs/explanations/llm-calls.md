@@ -65,3 +65,27 @@ what was read from its images and its text (at most 6,000 characters a source an
 in numbered `<source>` blocks, the owner's notes in a `<notes>` block and guidance in a
 `<guidance>` block; it cites sources by number, made `[[slug]]` links as a write-up's are
 ({ref}`ingest-topics`). Neither writes into any page's text.
+
+(page-roles)=
+## Page roles
+
+What a page is decides what automation may do to it. Every test of it is in one module,
+`store/roles.py`, and this table matches it row for row. The page's first capture decides; later
+captures (photos added to it) only add content ({ref}`ingest-first-capture`). The owner can always
+change the kind, title and tags by hand.
+
+| Question | Role | How it is decided (`store/roles.py`) | What automation does to it |
+|---|---|---|---|
+| Origin | `human` | Any other page (`ORIGIN`, `origin`) | Enrich or ingest, as below |
+| Origin | `claude` | Its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude` and MCP `read`'s `written_by_claude` ask whether any capture did (`HAS_MCP_CAPTURE`), which finds the same pages | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
+| Origin | `topic` | A row in `topic` (`IS_TOPIC`, `is_topic`) | Never read as text: Ask and the weekly pass make its synthesis; never purged from the trash; not a topic source; not untagged |
+| Origin | `gc` | A capture with source `gc` (`REVIEW`, `is_review`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
+| Maintainer | enrich | Its first capture is not a photo or file (`NOT_BY_INGEST`, `maintainer`); enrich reads it while its kind is a note, todo or read (`should_enrich`) | Enrich on capture, each save and backfill |
+| Maintainer | ingest | Its first capture is a photo or file | Photo ingest reads its images; enrich on Ask only |
+| Write-up | board | A current photo reading says whiteboard or diagram, not a list of actions (`HAS_BOARD`, `writeup_type`) | A write-up when its photos are read, and on Regenerate |
+| Write-up | topic | A topic page (`IS_TOPIC`) | Its synthesis is its write-up |
+| Write-up | none | Neither (`SHOWN` is false) | No write-up; old versions are kept unseen |
+| May retitle | while untouched | Its title is still revision 1's and there is no later text revision (`TITLE_UNTOUCHED`, `may_retitle`) | Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link's title as captured |
+| May re-kind | while unfiled | A note whose kind nobody chose (`UNFILED`, `may_rekind`) | Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo |
+| May re-tag | first capture | Photo ingest: only the page's first capture counts (`IS_FIRST`, `first_capture`) | Photo ingest adds tags from the first capture's first photo; enrich adds tags, never from a save. A tag the owner took off stays off |
+| Takes photos | not a topic | `takes_photos` | Add photo is refused on a topic page |

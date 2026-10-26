@@ -17,12 +17,10 @@ from ..query import (
     due,
 )
 from .constants import (
-    CLAUDE,
     GONE,
     HAS,
     IMAGE_KIND,
     KIND_NAMES,
-    MCP,
     PRIORITY_NAMES,
     RANK,
     SORT_SQL,
@@ -36,7 +34,7 @@ from .grouping import order as group_order
 from .grouping import use_areas
 from .health import CHECKS, condition
 from .helpers import checked_query, tag_counts, todo_only, unlink
-from .topics import IS_TOPIC
+from .roles import CLAUDE_EDITED, HAS_MCP_CAPTURE, IS_TOPIC
 
 # media:M and later:T filter by a Later's medium and what it is for: the column of
 # its fields, and the values it takes. A Later with no subtype is to read.
@@ -323,19 +321,9 @@ class SearchMixin(Core):
                 sql.append(f"{no}{IMAGE_KIND}")
                 args.append(f.value)
             elif f.key == "is" and f.value == "claude":  # written over MCP
-                sql.append(
-                    f"{no}EXISTS (SELECT 1 FROM capture c WHERE c.page_id = p.id"
-                    " AND c.source = ?)"
-                )
-                args.append(MCP)
+                sql.append(f"{no}{HAS_MCP_CAPTURE.format(p='p')}")  # see its TODO
             elif f.key == "is" and f.value == "claude-edited":  # text changed by MCP
-                # a text revision by Claude after the first: an edit_page, a
-                # revert to a text revision, or an append to a page Claude wrote
-                sql.append(
-                    f"{no}EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = p.id"
-                    " AND r.rev > 1 AND r.author = ?)"
-                )
-                args.append(CLAUDE)
+                sql.append(f"{no}{CLAUDE_EDITED.format(p='p')}")
             elif f.key == "is" and f.value == "topic":  # Claude's topic pages (#261)
                 sql.append(f"{no}{IS_TOPIC.format(p='p')}")
             elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
