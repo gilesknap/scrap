@@ -131,13 +131,13 @@ def test_kinds_fields_tags_and_dates(tmp_path, vault):
         rows = {r["slug"]: dict(r) for r in conn.execute("SELECT * FROM page")}
     assert {s: r["kind"] for s, r in rows.items()} == {
         "alpha": "note",
-        "alpha-2": "memory",
+        "alpha-2": "document",
         "alpha-copy": "todo",
-        "beta": "reference",
-        "gamma": "reference",
+        "beta": "document",
+        "gamma": "document",
         "do-it": "todo",
         "a-show": "consume",
-        "day-out": "memory",
+        "day-out": "document",
         "loose-page": "note",
     }
     assert all(r["kind_fixed"] == 1 for r in rows.values())
@@ -166,7 +166,10 @@ def test_kinds_fields_tags_and_dates(tmp_path, vault):
     with store.connect() as conn:
         rev = conn.execute("SELECT * FROM page_rev WHERE page_id = ?", (page["id"],))
         assert dict(rev.fetchone())["created_at"] == "2025-03-04T12:00:00.000Z"
-    assert store.page("day-out")["tags"] == ["a" * 64]
+    assert store.page("day-out")["tags"] == ["memory", "a" * 64]  # what it was in Thoth
+    assert store.page("beta")["tags"] == ["entity"]
+    assert store.page("alpha-2")["tags"] == ["memory"]
+    assert store.page("do-it")["tags"] == []
 
 
 def test_links_images_and_files(tmp_path, vault):
@@ -227,7 +230,7 @@ def test_report_lists_problems(tmp_path, vault):
         "raw/: 5 files",
     ]
     text = importer.report(plan, details=False)
-    assert text.startswith("9 pages (9 new): 1 consume, 2 memory, 2 note,")
+    assert text.startswith("9 pages (9 new): 1 consume, 4 document, 2 note,")
     assert "broken link: 1" in text and "notes/nowhere.md" not in text
     assert "notes/nowhere.md" in importer.report(plan, details=True)
 

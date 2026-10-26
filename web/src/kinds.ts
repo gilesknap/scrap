@@ -3,7 +3,7 @@
 import type { Icon } from "./icons";
 import type { Kind } from "./queue";
 
-/** The kinds offered, in the order shown (memory and reference are not offered yet):
+/** The kinds offered, in the order shown:
  * [kind, short label (five fit one row on a 320 px phone), full name, icon]. */
 export const KINDS: [Kind, string, string, Icon][] = [
   ["note", "Note", "Note", "note"],

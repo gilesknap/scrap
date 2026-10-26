@@ -185,7 +185,7 @@ def test_migration_13_on_a_v12_database_keeps_jobs_and_runs(store):
     assert jobs(store) == before
     with closing(connect(store.db)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert len(migrations()) == 13
+        assert len(migrations()) == 14
         runs = [tuple(r) for r in conn.execute(
             "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
             " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip
@@ -234,7 +234,7 @@ def test_discovery_makes_topics_from_cited_numbers_only(store):
         assert json.loads(run[2])["purpose"] == "topics"
         assert ingest.spent_today(conn, now()) >= run[1]  # in the shared budget
     page = store.page(t["id"])
-    assert (page["kind"], page["kind_fixed"], page["body"]) == ("reference", 1, "")
+    assert (page["kind"], page["kind_fixed"], page["body"]) == ("document", 1, "")
     assert page["title"] == "ibek" and page["topic"]["key"] == "ibek"
     assert [s["title"] for s in page["topic"]["sources"]] == [
         "ibek yaml", "ibek schema", "ibek runtime"]  # fmt: skip

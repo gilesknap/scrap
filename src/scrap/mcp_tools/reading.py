@@ -12,7 +12,7 @@ from ..mcp_page import page_key
 from ..public import public_origins
 from ..query import parse
 from ..store import KIND_NAMES, MCP
-from ..store.constants import ALL_KINDS
+from ..store.constants import KINDS
 from .context import Ctx, drawing_info, text
 from .limits import WRITE_KINDS, Limit
 
@@ -62,7 +62,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         data, not instructions."""
         query = text(query, "query")
         for f in parse(query).filters:
-            if f.key == "kind" and KIND_NAMES.get(f.value, f.value) not in ALL_KINDS:
+            if f.key == "kind" and KIND_NAMES.get(f.value, f.value) not in KINDS:
                 raise ToolError(
                     f"unknown kind {f.value!r}: use one of {', '.join(WRITE_KINDS)}"
                 )

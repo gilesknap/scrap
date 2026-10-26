@@ -116,5 +116,5 @@ it("lists a topic's sources in, then those taken out, each kind in a word", () =
   expect(kindWord("note")).toBe("Note");
   expect(kindWord("consume")).toBe("Later");
   expect(kindWord("whiteboard")).toBe("Board");
-  expect(kindWord("reference")).toBe("Reference");
+  expect(kindWord("document")).toBe("Doc");
 });
