@@ -15,13 +15,14 @@ export interface Check {
 /** A check's row: its name, what it finds, and its count at the end; a link to its search. */
 export function checkRow({ term, count }: Check): HTMLLIElement {
   const [, name, about] = CHECKS.find(([t]) => t === term) ?? [term, term, ""];
+  const id = `check-${term.replace(":", "-")}`; // what it finds, read after its name
   return h(
     "li",
     {},
     h(
       "a",
-      { href: checkSearch(term), "aria-label": `${name}: ${count}` },
-      h("span", {}, h("strong", {}, name), h("small", {}, about)),
+      { href: checkSearch(term), "aria-label": `${name}: ${count}`, "aria-describedby": id },
+      h("span", {}, h("strong", {}, name), h("small", { id }, about)),
       h("b", { className: count ? "n" : "n none" }, String(count)),
     ),
   );

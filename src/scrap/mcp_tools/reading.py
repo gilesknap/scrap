@@ -39,7 +39,8 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         changed over MCP after it was made), is:topic (Claude's topic pages, which
         rank first when they match), has:image, has:drawing; the store's health
         checks: is:orphan (no links either way, related pages or topic),
-        is:untagged, is:stale (an open todo not edited for 60 days, not snoozed),
+        is:untagged, is:stale (an open todo not edited for 60 days, not snoozed or
+        due from today),
         is:duplicate (a file shared with another page), has:dangling (a [[link]] to
         no page), is:outdated (Claude's write-up, synthesis or related pages older
         than their inputs or prompt); image:K (the

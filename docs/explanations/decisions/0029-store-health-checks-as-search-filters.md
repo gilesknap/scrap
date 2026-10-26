@@ -26,9 +26,12 @@ to catch up without a prompt change making every page due at once.
   tool. `-` before one excludes, as for any filter.
 - **Machine-made pages are left out where a finding would be noise.** Topic pages (Claude's, with
   no tags and an empty body) are never untagged, and a topic with a source in and its sources are
-  never orphans. gc's Orphaned assets pages (a capture of source `gc`) are never untagged, stale
-  or duplicates, and a file shared with one, or with a page in the trash, is no duplicate.
-  `[[links]]` are found as the PWA draws them (a parse, outside code, not embeds), through a SQL
+  never orphans. gc's Orphaned assets pages (a capture of source `gc`) are never untagged, stale,
+  orphans or duplicates, and a file shared with one, or with a page in the trash, is no
+  duplicate. An open todo due today or later is not stale: its due date brings it up.
+  A `[[link]]` is any `[[...]]` the server parses as a page link, outside code and not an
+  embed; this includes forms the PWA draws as plain text (`[[Some Title]]`), so
+  `has:dangling` finds links that don't work. They are found through a SQL
   function `wiki_links` registered on each connection, so a check is one pass over the pages.
 - **A Store health screen, counts only.** Settings has **Store health**: each check with its
   count (`GET /api/health`, one `count(*)` a check), a tap running its search. Nothing is

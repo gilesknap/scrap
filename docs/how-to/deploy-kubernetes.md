@@ -517,16 +517,30 @@ claim is `ReadWriteOnce`, and SQLite's write-ahead log must be shared on one nod
 themselves (`concurrencyPolicy: Forbid`), run the same image as the same uid with the same
 `securityContext`, and get the Deployment's environment (the Claude key, the budget, `extraEnv`
 and `extraEnvFrom`), so a Secret change needs no restart of them. A failed run shows as a failed
-Job (`backoffLimit: 0`: not retried; the next run carries on). If scrap is scaled to zero they
-stay pending until it is back.
+Job (`backoffLimit: 0`: not retried; the next run carries on). Each gives up if it cannot start
+within an hour of its time (`startingDeadlineSeconds`), for example while waiting for the scrap
+pod's node, and is stopped after an hour's run (`activeDeadlineSeconds`; four hours for the
+related pass, which makes a call per changed page). If scrap is scaled to zero they stay pending
+until it is back.
 
 gc deletes only if the backup claim holds a completed run (one with the `COMPLETE` file written
-once the backup passed an integrity check) less than 26 hours old, and takes the backup's lock
-(`/backups/.lock`), so it never runs during a backup; so `gc.enabled` follows `backup.enabled`
-unless set, and `gc.enabled: true` with backups off is refused. If you back up another way, set
-`gc.requireBackup: false`. Its deletes are permanent but only of files nothing refers to and old
-run records; it never deletes pages, captures or their files (see {ref}`scrap-gc`). Set
-`gc.delete: false` to have it only count until you trust it.
+once the backup passed an integrity check) less than 26 hours old; otherwise it only counts, and
+the Job fails so a missing backup shows. Backups from before the marker existed lack it, so gc
+only counts until the next backup runs. It takes the backup's lock (`/backups/.lock`), so it
+never runs during a backup; so `gc.enabled` follows `backup.enabled` unless set, and
+`gc.enabled: true` with backups off is refused. If you back up another way, set
+`gc.requireBackup: false`. A deleting `scrap gc` also takes a lock of its own (`gc.lock` in the
+data folder), so one you run by hand (`kubectl exec`) cannot overlap the CronJob: whichever
+starts second stops with `another scrap gc is deleting`; a hand run does not wait for a backup.
+With `ingest.notifyUrlKey` set, gc pushes to `SCRAP_NOTIFY_URL` when it starts a month's
+Orphaned assets page.
+
+Its deletes are permanent but only of files nothing refers to (no page's text, trashed pages
+included, no capture, no derived result, no job, no model run) and older than `graceHours`, and
+of the stored prompts and raw responses of Claude calls older than `runDays` that nothing refers
+to. It never deletes pages, captures or their files, photos' readings, descriptions or drawings,
+and the trash is not purged (see {ref}`scrap-gc`). Set `gc.delete: false` to have it only count
+until you trust it.
 
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).

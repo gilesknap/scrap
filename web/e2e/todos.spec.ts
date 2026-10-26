@@ -436,7 +436,7 @@ test("a todo's row has no thumbnail, every title in line; a photo is a mark on i
   const row = page.locator(".todos .list li", { hasText: "Quokka photo todo" });
   await expect(row.locator("a strong")).toBeVisible();
   await expect(row.locator("a > img")).toBeHidden();
-  const plain = page.locator(".todos .list li").filter({ hasNotText: "Wombat" }).first();
+  const plain = page.locator(".todos .list li").filter({ hasNotText: "Quokka" }).first();
   const x = async (l: typeof row) => (await l.locator("a strong").boundingBox())?.x;
   expect(await x(row)).toBe(await x(plain)); // in line with the rest
   const mark = await row

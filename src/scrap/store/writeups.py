@@ -72,7 +72,8 @@ SELECT 1 FROM page p WHERE p.id = :page AND p.deleted_at IS NULL
   AND {READ_SINCE.format(p="p")}
 """
 # A board page p (not a topic) whose current write-up is outdated (#262: is:outdated,
-# and the nightly pass makes it again): a board image read since it (as DUE), or the
+# the write-up view's outdated flag, scrap enrich --writeups --outdated; only a newly
+# read photo regenerates one on its own, DUE): a board image read since it, or the
 # page's text, title, kind or tags changed since, or made with another prompt version
 # than {version} (a placeholder: ? or :version; NULL checks none). Never one the owner
 # restored: their Restore stands until they Regenerate (or a photo is read: DUE).

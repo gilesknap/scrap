@@ -1,7 +1,8 @@
 # pyright: reportOptionalSubscript=false
 """The store's health checks (#262): each is:/has: term in search, GET /api/health,
-and the nightly freshness pass (scrap enrich --fresh) that shares is:outdated's
-definitions (Claude faked)."""
+and outdated write-ups: only a newly read photo regenerates one, otherwise the owner
+does, or scrap enrich --writeups --outdated, by is:outdated's definition (Claude
+faked)."""
 
 import io
 import json
@@ -168,6 +169,46 @@ def review(store, page_id):
     sql(store, "UPDATE capture SET source = 'gc' WHERE page_id = ?", page_id)
 
 
+def test_a_gc_review_page_is_no_orphan(store):
+    a = note(store, "Alpha")
+    gc_page = note(store, "Orphaned assets: October 2026", kind="todo")
+    assert found(store, "is:orphan") == {a, gc_page}
+    review(store, gc_page)
+    assert found(store, "is:orphan") == {a}
+
+
+def test_a_page_the_parser_fails_on_has_no_links_and_is_logged_once(
+    store, monkeypatch, caplog
+):
+    from scrap.store import db
+
+    def broken(text):
+        raise RuntimeError("parser bug")
+
+    monkeypatch.setattr(db, "wiki_targets", broken)
+    monkeypatch.setattr(db, "_failed", False)
+    monkeypatch.setattr(db, "_PARSED", db.OrderedDict())
+    a = note(store, "Alpha\n\nsee [[nowhere]]")
+    note(store, "Beta\n\nsee [[elsewhere]]")
+    with caplog.at_level("ERROR", logger="scrap.store.db"):
+        assert found(store, "has:dangling") == set()  # no links: not dangling
+        assert a in found(store, "is:orphan")
+    assert len([r for r in caplog.records if "can't parse" in r.message]) == 1
+
+
+def test_the_parse_cache_drops_the_least_recently_used(monkeypatch):
+    from scrap.store import db
+
+    monkeypatch.setattr(db, "_PARSED", db.OrderedDict())
+    monkeypatch.setattr(db, "_MAX_PARSED", 2)
+    assert db.wiki_links("[[a]]") == '["a"]'
+    db.wiki_links("[[b]]")
+    db.wiki_links("[[a]]")  # used again: kept
+    db.wiki_links("[[c]]")
+    kept = list(db._PARSED.values())  # noqa: SLF001
+    assert kept == ['["a"]', '["c"]']
+
+
 def test_untagged_leaves_out_topics_and_gc_review_pages(store):
     a = note(store, "Alpha")
     note(store, "Beta", tags=["home"])
@@ -209,6 +250,11 @@ def test_stale_is_an_open_todo_unedited_for_sixty_days(store):
     store.edit_meta([tagged], "me", "web", add=["garden"])  # a change of tags
     assert found(store, "is:stale") == {old}
     assert fresh not in found(store, "is:stale")
+    soon = (date.today() + timedelta(days=0)).isoformat()
+    sql(store, "UPDATE page SET due = ? WHERE id = ?", soon, old)  # due today
+    assert found(store, "is:stale") == set()  # its due date brings it up
+    sql(store, "UPDATE page SET due = '2026-01-15' WHERE id = ?", old)  # overdue
+    assert found(store, "is:stale") == {old}
     sql(store, "UPDATE page SET snoozed_until = '2026-01-02' WHERE id = ?", snoozed)
     assert found(store, "is:stale") == {old, snoozed}  # its snooze is over
 
@@ -237,7 +283,7 @@ def test_dangling_is_a_link_to_no_live_page(store):
     assert c not in found(store, "-has:dangling")
 
 
-# ---- outdated, and the freshness pass
+# ---- outdated: write-ups, topic syntheses and related pages
 
 
 def board(store, colour="red"):

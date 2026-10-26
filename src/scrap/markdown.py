@@ -85,7 +85,9 @@ def wiki_parts(inner: str) -> tuple[str, str]:
 
 def wiki_targets(text: str) -> list[str]:
     """The targets of a text's page links, [[target]] and [[target|label]], each once in
-    order: not an embed (![[...]]), and none in code, as the PWA draws them."""
+    order: not an embed (![[...]]), and none in code. Any [[...]] the parser takes as a
+    page link counts, including forms the PWA draws as plain text ([[Some Title]]), so
+    has:dangling finds links that don't work."""
     if "[[" not in text:  # most pages: no parse
         return []
     found: dict[str, None] = {}

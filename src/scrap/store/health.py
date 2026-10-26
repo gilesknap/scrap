@@ -1,16 +1,19 @@
 """The store's health checks (#262): each an is: or has: search term, as SQL on a page
 p, so a finding is always current and needs no stored report. Search (store.search)
-filters by them, GET /api/health counts them (counts), and the passes that refresh
-what Claude derived find their work by the same definitions of outdated: the nightly
-scrap enrich --related (OUTDATED_WRITEUP, writeups.OUTDATED, for its write-ups first;
-OUTDATED_RELATED for the related pass, enrich STALE) and the weekly --topics
-(OUTDATED_TOPIC, enrich TOPIC_DUE). Nothing here calls a model.
+filters by them, GET /api/health counts them (counts), and what refreshes Claude's
+derived data finds its work by the same definitions of outdated: a board's write-up
+(OUTDATED_WRITEUP, writeups.OUTDATED: only a newly read photo regenerates one on its
+own, otherwise the owner does, or scrap enrich --writeups --outdated), related pages
+(OUTDATED_RELATED: the nightly --related pass, enrich STALE) and a topic's synthesis
+(OUTDATED_TOPIC: the weekly --topics pass, enrich TOPIC_DUE). Nothing here calls a
+model.
 
 A fragment is a template: {p} is the page's alias, and the outdated ones' {version} the
 placeholder for the current prompt version (? in a search, :version in a pass). A
 prompt version of None checks no version (a store whose maker set no prompts).
 """
 
+import logging
 import sqlite3
 from datetime import date, timedelta
 from typing import Any
@@ -18,6 +21,8 @@ from typing import Any
 from .topics import IS_TOPIC
 from .writeups import OUTDATED
 
+log = logging.getLogger(__name__)
+_unversioned = False  # is:outdated has run with no prompt versions (logged once)
 STALE_DAYS = 60  # an open todo not edited for this long is stale
 # A review page: one scrap gc made, gathering capture files no page shows (its capture's
 # source is gc), whatever it is titled now (orphans.py)
@@ -51,20 +56,22 @@ UNION SELECT s.topic_id FROM topic_source s JOIN page t ON t.id = s.topic_id
   JOIN page q ON q.id = s.page_id
 WHERE s.excluded = 0 AND t.deleted_at IS NULL AND q.deleted_at IS NULL
 """
-ORPHAN = f"{{p}}.id NOT IN ({LINKED})"
+# Not a gc review page: it gathers files, and is linked to nothing on purpose
+ORPHAN = f"({{p}}.id NOT IN ({LINKED}) AND NOT {REVIEW})"
 # No tags. Not a topic nor a gc review page: made by a machine with none of their own
 UNTAGGED = (
     "NOT EXISTS (SELECT 1 FROM tag g WHERE g.page_id = {p}.id)"
     f" AND NOT {IS_TOPIC} AND NOT {REVIEW}"
 )
-# An open todo (not done or cancelled), not snoozed now (args: today), whose text,
-# title, kind and tags were last changed before the cut-off (args: that day). A
-# status, due date or snooze change leaves no date to go by. Not a gc review page (a
-# todo its due date already brings up).
+# An open todo (not done or cancelled), not snoozed now and not due today or later
+# (args: today, today: its due date brings it up), whose text, title, kind and tags
+# were last changed before the cut-off (args: that day). A status, due date or snooze
+# change leaves no date to go by. Not a gc review page (a todo its due date brings up).
 STALE = f"""({{p}}.kind = 'todo' AND NOT {REVIEW}
   AND coalesce(json_extract({{p}}.fields, '$.status'), 'open')
     NOT IN ('done', 'cancelled')
   AND NOT coalesce({{p}}.snoozed_until > ?, 0)
+  AND NOT coalesce({{p}}.due >= ?, 0)
   AND max({{p}}.updated_at, coalesce((SELECT max(m.updated_at) FROM page_meta_rev m
     WHERE m.page_id = {{p}}.id), '')) < ?)"""
 # Sharing a stored file with another page: one of its captures' files is also one of
@@ -151,8 +158,14 @@ def condition(
     key: str, value: str, prompts: dict[str, str], today: date | None = None
 ) -> tuple[str, list[Any]]:
     """A check's SQL on a page p, and its args: prompts are the current prompt versions
-    (writeup, topic; one missing is not checked), today the server's day (stale)."""
+    (writeup, topic; one missing is not checked: an empty prompts, as a Store nobody set
+    them on has, skips is:outdated's version check, logged once at debug level), today
+    the server's day (stale)."""
+    global _unversioned
     day = today or date.today()
+    if key == "is" and value == "outdated" and not prompts and not _unversioned:
+        _unversioned = True
+        log.debug("is:outdated: no prompt versions given (Store.prompts): not checked")
     match key, value:
         case "is", "orphan":
             return ORPHAN.format(p="p"), []
@@ -160,7 +173,8 @@ def condition(
             return UNTAGGED.format(p="p"), []
         case "is", "stale":
             cut = day - timedelta(days=STALE_DAYS)
-            return STALE.format(p="p"), [day.isoformat(), cut.isoformat()]
+            today_ = day.isoformat()
+            return STALE.format(p="p"), [today_, today_, cut.isoformat()]
         case "is", "duplicate":
             return DUPLICATE.format(p="p"), []
         case "has", "dangling":

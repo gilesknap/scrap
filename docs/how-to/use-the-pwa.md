@@ -293,11 +293,12 @@ The chips and panels only write the query, which you can also type:
 - `has:image` (pages with an image file) and `has:drawing` (pages with a drawing made from a
   photo). `image:photo` or `image:whiteboard` (what Claude took the photo for).
 - The store's health checks (the **Store health** screen below counts them): `is:orphan`
-  (no `[[link]]` either way, no related pages and no topic), `is:untagged` (no tags; topic
+  (no `[[link]]` either way, no related pages and no topic; not an Orphaned assets page), `is:untagged` (no tags; topic
   pages and gc's Orphaned assets pages aside), `is:stale` (an open todo not edited, its text,
-  title, kind or tags, for 60 days and not snoozed), `is:duplicate` (a photo or file shared
+  title, kind or tags, for 60 days, not snoozed and not due today or later), `is:duplicate` (a photo or file shared
   with another page, not one in the trash or an Orphaned assets page), `has:dangling` (a
-  `[[link]]` in its text to no page, or to one in the trash) and `is:outdated` (Claude's
+  `[[...]]` in its text, outside code, to no page or to one in the trash: any the server reads
+  as a page link, including forms the app shows as plain text, such as `[[Some Title]]`) and `is:outdated` (Claude's
   write-up of a board, a topic's synthesis or its related pages older than what they were
   made from, or a write-up or synthesis made with an older prompt).
 - A todo's `due:today`, `due:<today` (overdue), `due:>today`, `due:2026-11-01` (also `<=`,
