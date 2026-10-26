@@ -49,20 +49,22 @@
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
-/* What it is and when, one quiet line under the title: " · "-separated parts, each never
-   breaking, the line breaking after a · (pagehead.ts) */
-.meta {
-  margin: 0 0 var(--s-1);
+/* What it is, then when (created, edited): two quiet lines under the title, " · "-separated
+   parts that never break inside, a line breaking only after a · (pagehead.ts) */
+.meta,
+.dates {
+  margin: 0;
   color: var(--ink-2);
   font-size: var(--t-sm);
+}
+.meta {
   line-height: 1.7; /* room for the Written by Claude pill on a wrapped line */
 }
-.meta > :is(span, a) {
-  white-space: nowrap;
+.dates {
+  margin-bottom: var(--s-1);
 }
-.meta .late {
-  color: var(--danger);
-  font-weight: 500 /* the word "overdue" carries it; the line stays quiet */;
+:is(.meta, .dates) > :is(span, a) {
+  white-space: nowrap;
 }
 .meta .written {
   padding: 1px var(--s-2);

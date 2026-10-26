@@ -309,21 +309,30 @@
   color: var(--ink-2);
   font-size: var(--t-xs);
 }
-/* A page's chips, what is edited in place: its tags, a todo's due chip, then + (edit tags).
-   One size, --t-sm, all quiet: a --sunk fill (the + a hairline). The row wraps, so the + at
-   its end is always in view. Each is a 32 px pill drawn in a 48 px target (8 px transparent
-   borders above and below), so the rows of targets touch but never overlap */
+/* A page's chips: its tags (each a search), + to change them, a todo's due chip. One size,
+   --t-sm, all quiet: a --sunk fill (the + a hairline). The row wraps; the last tag and + share
+   a box (.last) so + never sits alone on a line. Each is a 32 px pill drawn in a 48 px target
+   (8 px transparent borders above and below), so the rows of targets touch but never overlap */
 .tags {
   display: flex;
   flex-wrap: wrap;
   column-gap: 6px;
   margin: 0 0 var(--s-3);
 }
-.tags > button {
+.tags .last {
+  display: flex;
+  column-gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.tags :is(a, button) {
   flex: none;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
   min-width: 0;
   max-width: 100%;
+  min-height: var(--tap);
   padding: 0 var(--s-3);
   border: 8px solid transparent;
   border-inline-width: 0;
@@ -332,32 +341,45 @@
   color: var(--ink);
   font-size: var(--t-sm);
   font-weight: 400;
+  text-decoration: none;
   white-space: nowrap;
 }
-.tags > button .i {
+.tags :is(a, button) .i {
   width: 16px;
   height: 16px;
   color: var(--ink-2);
 }
-/* + : edits the tags. A 32 px ring drawn in a 48 px square target */
-.tags > .add {
+/* + : changes the tags. A 32 px ring drawn in a 48 px square target; with no tags, "+ Tag" */
+.tags .add {
   position: relative;
   width: var(--tap);
   padding: 0;
   background: transparent;
 }
-.tags > .add::before {
+.tags .add.first {
+  width: auto;
+  gap: var(--s-1);
+  padding: 0 var(--s-3) 0 10px;
+}
+.tags .add::before {
   content: "";
   position: absolute;
   inset: 0 8px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
 }
-.tags > .add .i {
+.tags .add.first::before {
+  inset: 0;
+}
+.tags .add .i {
   width: 18px;
   height: 18px;
 }
-.tags > button:active {
+.tags .add.first .i {
+  width: 16px;
+  height: 16px;
+}
+.tags :is(a, button):active {
   background-color: var(--line);
 }
 /* Editing tags: chips (tap to remove) that wrap, then the box with suggestions */
