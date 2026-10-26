@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.10.1.dev1+g58b33227f documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.10.1.dev2+g7ea4206df documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=5838c726"></script>
+    <script src="../_static/documentation_options.js?v=99f9e473"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -821,12 +821,14 @@ whose text Claude changed over MCP. <code class="docutils literal notranslate"><
 <li><p><code class="docutils literal notranslate"><span class="pre">has:image</span></code> (pages with an image file) and <code class="docutils literal notranslate"><span class="pre">has:drawing</span></code> (pages with a drawing made from a
 photo). <code class="docutils literal notranslate"><span class="pre">image:photo</span></code> or <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code> (what Claude took the photo for).</p></li>
 <li><p>The store’s health checks (the <strong>Store health</strong> screen below counts them): <code class="docutils literal notranslate"><span class="pre">is:orphan</span></code>
-(no <code class="docutils literal notranslate"><span class="pre">[[link]]</span></code> either way, no related pages and no topic; not an Orphaned assets page), <code class="docutils literal notranslate"><span class="pre">is:untagged</span></code> (no tags; topic
+(no page link either way, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or a Markdown link to its address, no related pages
+and no topic; not an Orphaned assets page), <code class="docutils literal notranslate"><span class="pre">is:untagged</span></code> (no tags; topic
 pages and gc’s Orphaned assets pages aside), <code class="docutils literal notranslate"><span class="pre">is:stale</span></code> (an open todo not edited, its text,
 title, kind or tags, for 60 days, not snoozed and not due today or later), <code class="docutils literal notranslate"><span class="pre">is:duplicate</span></code> (a photo or file shared
 with another page, not one in the trash or an Orphaned assets page), <code class="docutils literal notranslate"><span class="pre">has:dangling</span></code> (a
-<code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> in its text, outside code, to no page or to one in the trash: any the server reads
-as a page link, including forms the app shows as plain text, such as <code class="docutils literal notranslate"><span class="pre">[[Some</span> <span class="pre">Title]]</span></code>) and <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> (Claude’s
+<code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> or a Markdown link to a page’s address in its text, outside code, to no page or to
+one in the trash: any the server reads as a page link, including forms the app shows as plain
+text, such as <code class="docutils literal notranslate"><span class="pre">[[Some</span> <span class="pre">Title]]</span></code>) and <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> (Claude’s
 write-up of a board older than the board’s photos, text, title, kind or tags, or made with
 an older prompt; never a version you restored).</p></li>
 <li><p>A todo’s <code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code> (overdue), <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code> (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>,
@@ -972,9 +974,10 @@ HTML is shown as typed, never run; images show only
 when they are this server’s own photos (an image from another site is not fetched: a web
 address shows as a link to it, named by the image’s alt text, and anything else as its alt
 text); links open only to the web (<code class="docutils literal notranslate"><span class="pre">https</span></code>, <code class="docutils literal notranslate"><span class="pre">http</span></code>, <code class="docutils literal notranslate"><span class="pre">mailto</span></code>) or to pages here, and any other
-link is left as plain text. A full web address of a page here (<code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/slug</span></code>)
-opens in the app, as <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> does, so the phone’s Back comes back to the page it was in. A line break stays a line break. A wide table scrolls sideways in
-its own box. On a Later page, a link on a line of its own shows as a card: the site, the
+link is left as plain text. A full web address of a page here (<code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/slug</span></code>,
+on the address you opened the app at or any other listed in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>) opens in the
+app, as <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> does, so the phone’s Back comes back to the page it was in. A line break
+stays a line break. A wide table scrolls sideways in its own box. On a Later page, a link on a line of its own shows as a card: the site, the
 path in words, and <strong>Open</strong>. The text is always stored as typed, and <strong>Edit</strong> shows it so
 (but for the photo tokens, below).</p></li>
 <li><p><strong>Linking pages.</strong> A page is linked by its slug, the last part of its address: <code class="docutils literal notranslate"><span class="pre">[[shopping-list]]</span></code>
@@ -985,9 +988,12 @@ case, hyphens between words, at most 60 characters; <code class="docutils litera
 changed or reused, not when the page is retitled nor when it is trashed, so links survive
 renames. A title with no letter or digit that can be written in ASCII (all Chinese, or only
 emoji) gets the slug <code class="docutils literal notranslate"><span class="pre">page</span></code>, then <code class="docutils literal notranslate"><span class="pre">page-2</span></code> and so on. A page’s backlinks (under <strong>Related</strong>)
-are the pages whose text has exactly <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|</span></code>, so a link written <code class="docutils literal notranslate"><span class="pre">[[slug\|label]]</span></code>
-in a table cell shows as a link but is not counted. <code class="docutils literal notranslate"><span class="pre">![[slug]]</span></code> is not an embed here: it shows
-as <code class="docutils literal notranslate"><span class="pre">!</span></code> and a link.</p></li>
+are the pages whose text links it, outside code: with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, or with
+a Markdown link to its address, <code class="docutils literal notranslate"><span class="pre">[label](https://&lt;your</span> <span class="pre">scrap&gt;/p/slug)</span></code> or
+<code class="docutils literal notranslate"><span class="pre">&lt;https://&lt;your</span> <span class="pre">scrap&gt;/p/slug&gt;</span></code>, on any address in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, or as a path,
+<code class="docutils literal notranslate"><span class="pre">[label](/p/slug)</span></code> (a bare address that the app shows as a link is not counted: write it as
+a Markdown link). <code class="docutils literal notranslate"><span class="pre">![[slug]]</span></code> is not an embed here: it shows as <code class="docutils literal notranslate"><span class="pre">!</span></code> and a link, but is not
+counted.</p></li>
 <li><p><strong>Share</strong> on a page asks <strong>Link</strong>, <strong>Text</strong> or <strong>Download</strong>: <strong>Link</strong> sends the page’s
 address (such as <code class="docutils literal notranslate"><span class="pre">https://&lt;your</span> <span class="pre">scrap&gt;/p/shopping-list</span></code>), which opens the page for anyone who
 can reach your scrap; <strong>Text</strong> sends its title and text, as typed but without the lines that

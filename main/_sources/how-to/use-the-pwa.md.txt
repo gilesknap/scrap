@@ -293,12 +293,14 @@ The chips and panels only write the query, which you can also type:
 - `has:image` (pages with an image file) and `has:drawing` (pages with a drawing made from a
   photo). `image:photo` or `image:whiteboard` (what Claude took the photo for).
 - The store's health checks (the **Store health** screen below counts them): `is:orphan`
-  (no `[[link]]` either way, no related pages and no topic; not an Orphaned assets page), `is:untagged` (no tags; topic
+  (no page link either way, `[[slug]]` or a Markdown link to its address, no related pages
+  and no topic; not an Orphaned assets page), `is:untagged` (no tags; topic
   pages and gc's Orphaned assets pages aside), `is:stale` (an open todo not edited, its text,
   title, kind or tags, for 60 days, not snoozed and not due today or later), `is:duplicate` (a photo or file shared
   with another page, not one in the trash or an Orphaned assets page), `has:dangling` (a
-  `[[...]]` in its text, outside code, to no page or to one in the trash: any the server reads
-  as a page link, including forms the app shows as plain text, such as `[[Some Title]]`) and `is:outdated` (Claude's
+  `[[...]]` or a Markdown link to a page's address in its text, outside code, to no page or to
+  one in the trash: any the server reads as a page link, including forms the app shows as plain
+  text, such as `[[Some Title]]`) and `is:outdated` (Claude's
   write-up of a board older than the board's photos, text, title, kind or tags, or made with
   an older prompt; never a version you restored).
 - A todo's `due:today`, `due:<today` (overdue), `due:>today`, `due:2026-11-01` (also `<=`,
@@ -438,9 +440,10 @@ How matching works:
   when they are this server's own photos (an image from another site is not fetched: a web
   address shows as a link to it, named by the image's alt text, and anything else as its alt
   text); links open only to the web (`https`, `http`, `mailto`) or to pages here, and any other
-  link is left as plain text. A full web address of a page here (`https://<your scrap>/p/slug`)
-  opens in the app, as `[[slug]]` does, so the phone's Back comes back to the page it was in. A line break stays a line break. A wide table scrolls sideways in
-  its own box. On a Later page, a link on a line of its own shows as a card: the site, the
+  link is left as plain text. A full web address of a page here (`https://<your scrap>/p/slug`,
+  on the address you opened the app at or any other listed in `SCRAP_PUBLIC_URL`) opens in the
+  app, as `[[slug]]` does, so the phone's Back comes back to the page it was in. A line break
+  stays a line break. A wide table scrolls sideways in its own box. On a Later page, a link on a line of its own shows as a card: the site, the
   path in words, and **Open**. The text is always stored as typed, and **Edit** shows it so
   (but for the photo tokens, below).
 - **Linking pages.** A page is linked by its slug, the last part of its address: `[[shopping-list]]`
@@ -451,9 +454,12 @@ How matching works:
   changed or reused, not when the page is retitled nor when it is trashed, so links survive
   renames. A title with no letter or digit that can be written in ASCII (all Chinese, or only
   emoji) gets the slug `page`, then `page-2` and so on. A page's backlinks (under **Related**)
-  are the pages whose text has exactly `[[slug]]` or `[[slug|`, so a link written `[[slug\|label]]`
-  in a table cell shows as a link but is not counted. `![[slug]]` is not an embed here: it shows
-  as `!` and a link.
+  are the pages whose text links it, outside code: with `[[slug]]` or `[[slug|label]]`, or with
+  a Markdown link to its address, `[label](https://<your scrap>/p/slug)` or
+  `<https://<your scrap>/p/slug>`, on any address in `SCRAP_PUBLIC_URL`, or as a path,
+  `[label](/p/slug)` (a bare address that the app shows as a link is not counted: write it as
+  a Markdown link). `![[slug]]` is not an embed here: it shows as `!` and a link, but is not
+  counted.
 - **Share** on a page asks **Link**, **Text** or **Download**: **Link** sends the page's
   address (such as `https://<your scrap>/p/shopping-list`), which opens the page for anyone who
   can reach your scrap; **Text** sends its title and text, as typed but without the lines that

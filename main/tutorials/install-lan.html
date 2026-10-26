@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on your LAN &#8212; scrap 0.10.1.dev1+g58b33227f documentation</title>
+    <title>Try scrap on your LAN &#8212; scrap 0.10.1.dev2+g7ea4206df documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=5838c726"></script>
+    <script src="../_static/documentation_options.js?v=99f9e473"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -569,8 +569,10 @@ settings, <code class="docutils literal notranslate"><span class="pre">podman</s
 pages). Docker takes the same arguments.</p>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> matters for one thing: <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, the endpoint Claude uses, answers only the
 loopback addresses and the addresses listed there, and replies <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> to any
-other. The web page does not care. Page links that Claude gives you also start with the first
-address in it. Claude Code on this machine needs none of it; on another machine, use
+other. The web page needs none of it to work. Page links that Claude gives you start with the
+first address in it, and the app opens a link to a page on any address listed there in place,
+as it does <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code>, so Back returns to the page you were on. An installed app picks up a
+changed list on its next update; a link on the address it was opened at always works. Claude Code on this machine needs none of it; on another machine, use
 <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code> from the README with the LAN address, for example
 <code class="docutils literal notranslate"><span class="pre">http://192.168.1.10:8000/mcp</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">--network=host</span></code> publishes the port on <strong>every</strong> network interface, which is why the warning
