@@ -34,7 +34,7 @@ from .helpers import (
     too_big,
 )
 from .indexing import debounce, enrich_on, queue_enrich
-from .roles import by_claude, should_enrich
+from .roles import by_claude, by_ingest, should_enrich
 
 
 class CaptureMixin(Core):
@@ -148,7 +148,7 @@ class CaptureMixin(Core):
                                    "now": stamp})  # fmt: skip
             if (
                 enrich_on()
-                and c["kind"] in ("note", "url")  # a photo has ingest
+                and not by_ingest(c["kind"])  # a photo or file has ingest
                 and should_enrich(conn, page_id)
             ):
                 # A link is fetched at once; a note waits, in case it is edited now

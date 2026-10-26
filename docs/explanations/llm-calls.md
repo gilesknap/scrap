@@ -76,16 +76,31 @@ change the kind, title and tags by hand.
 
 | Question | Role | How it is decided (`store/roles.py`) | What automation does to it |
 |---|---|---|---|
-| Origin | `human` | Any other page (`ORIGIN`, `origin`) | Enrich or ingest, as below |
-| Origin | `claude` | Its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude` and MCP `read`'s `written_by_claude` ask whether any capture did (`HAS_MCP_CAPTURE`), which finds the same pages | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
+| First capture | the page's first | The earliest received; at the same moment (an import), a file capture last, then one with no files first, then the lowest id (`FIRST_CAPTURE`, `IS_FIRST`, `first_capture`) | It alone decides the rows below; later captures only add content |
+| Origin | `human` | None of the three below (`ORIGIN`, `origin`: one query, topic first, then gc, then claude) | Enrich or ingest, as below |
+| Origin | `claude` | Its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude` and MCP `read`'s `written_by_claude` ask whether any capture did (`HAS_MCP_CAPTURE`, `has_mcp_capture`), which finds the same pages | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
 | Origin | `topic` | A row in `topic` (`IS_TOPIC`, `is_topic`) | Never read as text: Ask and the weekly pass make its synthesis; never purged from the trash; not a topic source; not untagged |
-| Origin | `gc` | A capture with source `gc` (`REVIEW`, `is_review`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
-| Maintainer | enrich | Its first capture is not a photo or file (`NOT_BY_INGEST`, `maintainer`); enrich reads it while its kind is a note, todo or read (`should_enrich`) | Enrich on capture, each save and backfill |
-| Maintainer | ingest | Its first capture is a photo or file | Photo ingest reads its images; enrich on Ask only |
-| Write-up | board | A current photo reading says whiteboard or diagram, not a list of actions (`HAS_BOARD`, `writeup_type`) | A write-up when its photos are read, and on Regenerate |
-| Write-up | topic | A topic page (`IS_TOPIC`) | Its synthesis is its write-up |
+| Origin | `gc` | A capture with source `gc` (`GC`; `REVIEW`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
+| Claude-edited | text changed over MCP | A text revision by Claude after the first (`CLAUDE_EDITED`, `edited_by_claude`) | Found by `is:claude-edited`; MCP `read` says `edited_by_claude` |
+| Maintainer | enrich | Its first capture is not a photo or file (`NOT_BY_INGEST`; `by_ingest` for a capture not yet stored), and its kind is a note, todo or read (`ENRICHED`, `should_enrich`) | Enrich on capture, each save and backfill |
+| Maintainer | ingest | Its first capture is a photo or file (`INGEST_CAPTURES`) | Photo ingest reads its images; enrich on Ask only |
+| Write-up | board | A current photo reading says whiteboard or diagram, not a list of actions (`HAS_BOARD`, `has_board`, `writeup_type`) | A write-up when its photos are read, and on Regenerate |
+| Write-up | topic | A topic page (`IS_TOPIC`, `writeup_type`) | Its synthesis is its write-up |
 | Write-up | none | Neither (`SHOWN` is false) | No write-up; old versions are kept unseen |
-| May retitle | while untouched | Its title is still revision 1's and there is no later text revision (`TITLE_UNTOUCHED`, `may_retitle`) | Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link's title as captured |
-| May re-kind | while unfiled | A note whose kind nobody chose (`UNFILED`, `may_rekind`) | Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo |
+| May retitle | while untouched | Its title is still revision 1's and there is no later text revision (`TITLE_UNTOUCHED`) | Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link's title as captured |
+| May re-kind | an unfiled note | Its kind nobody chose (`kind_fixed` 0) and a note (`UNFILED`, `may_rekind`) | Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo |
+| May re-kind | an unfiled note or whiteboard | `may_rekind(..., ("note", "whiteboard"))` | Task boxes from a photo's list of actions file it a todo |
+| May re-kind | an unfiled todo | `may_rekind(..., ("todo",))` | Claude's own boxes taken off by Claude's revert file it back as it was (a note, or ingest's kind) |
 | May re-tag | first capture | Photo ingest: only the page's first capture counts (`IS_FIRST`, `first_capture`) | Photo ingest adds tags from the first capture's first photo; enrich adds tags, never from a save. A tag the owner took off stays off |
 | Takes photos | not a topic | `takes_photos` | Add photo is refused on a topic page |
+
+Open questions, marked TODO in `store/roles.py` for the owner (none changes what scrap does today):
+
+- **Any capture or the first:** `is:claude` and `written_by_claude` test any capture, `by_claude`
+  the first. They find the same pages, since only an MCP write makes an mcp capture and
+  `Store.append` adds one only to such a page.
+- **Board or topic first:** a page that is both is a board in `writeup_type` and the write-up view,
+  but a topic for `is:outdated`, a related page's `via` and Regenerate. No page can be both: a
+  topic takes no photos and has no captures.
+- **A topic passes `NOT_BY_INGEST`:** it has no capture, so only its kind (document) keeps it from
+  enrich. Re-kinded as a note, each save queues an enrich job that finishes with no call.

@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from .store import MAX_PAGE, Store, body_refs, new_ulid
-from .store.roles import REVIEW  # a review page: one gc made (its capture's source)
+from .store.roles import GC, REVIEW  # a review page: one gc made (its capture's source)
 from .store.trash import TRASH_DAYS
 
 __all__ = ["DUE_DAYS", "TITLE", "Gathered", "Orphan", "clock", "find", "gather"]
@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 DUE_DAYS = 7  # an orphan page's due date, after it is made
 TITLE = "Orphaned assets {month}"  # month: YYYY-MM
 AUTHOR = "scrap gc"  # its revisions' author; its capture's source is "gc"
-SOURCE = "gc"
+SOURCE = GC
 ADDRESS = "/api/blobs/"
 
 
@@ -197,7 +197,7 @@ def _current(conn: sqlite3.Connection, month: str) -> tuple[str, int, str] | Non
     is titled: (id, rev, body), the newest if several."""
     row = conn.execute(
         "SELECT p.id, p.body, (SELECT max(rev) FROM page_rev WHERE page_id = p.id)"
-        " FROM page p JOIN capture c ON c.page_id = p.id AND c.source = 'gc'"
+        f" FROM page p JOIN capture c ON c.page_id = p.id AND c.source = '{GC}'"
         " WHERE substr(c.created_at, 1, 7) = ? AND p.kind = 'todo'"
         " AND p.deleted_at IS NULL"
         " AND coalesce(json_extract(p.fields, '$.status'), 'open')"

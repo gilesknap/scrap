@@ -124,7 +124,8 @@ def test_origin(store, pages):
     captures = {n: store.page(pages[n])["captures"] for n in NAMES}
     assert {n: roles.has_mcp_capture(c) for n, c in captures.items()} == claude_only
     assert each(store, pages, roles.is_topic) == {n: n == "topic" for n in NAMES}
-    assert each(store, pages, roles.is_review) == {n: n == "review" for n in NAMES}
+    review = each(store, pages, lambda c, p: bool(sql(roles.REVIEW)(c, p)))
+    assert review == {n: n == "review" for n in NAMES}
     # The page as the PWA reads it says it too (its Written by Claude badge)
     assert {n: store.page(pages[n])["origin"] for n in NAMES} == want
 
@@ -135,6 +136,8 @@ def test_is_topic_is_false_before_the_topic_table(store, pages):
         conn.execute("DROP TABLE topic")
         assert not roles.is_topic(conn, pages["topic"])
         assert roles.origin(conn, pages["note"]) == "human"
+        assert roles.origin(conn, pages["review"]) == "gc"
+        assert roles.origin(conn, pages["topic"]) == "human"
 
 
 def test_edited_by_claude(store, pages):
@@ -153,11 +156,17 @@ def test_maintainer(store, pages):
     # A topic has no capture: enrich's by NOT_BY_INGEST, its kind keeps it out
     want = {"note": "enrich", "photo": "ingest", "mcp": "enrich", "topic": "enrich",
             "review": "ingest", "import": "enrich", "board": "ingest"}  # fmt: skip
-    assert each(store, pages, roles.maintainer) == want
     by_sql = each(store, pages, lambda c, p: bool(sql(roles.NOT_BY_INGEST)(c, p)))
     assert by_sql == {n: m == "enrich" for n, m in want.items()}
     enriched = {n: n in ("note", "mcp", "import") for n in NAMES}
     assert each(store, pages, roles.should_enrich) == enriched
+    assert each(store, pages, lambda c, p: bool(sql(roles.ENRICHED)(c, p))) == (
+        enriched
+    )
+    # A capture not yet stored: the kinds prepare makes
+    assert [roles.by_ingest(k) for k in ("note", "url", "photo", "file")] == [
+        False, False, True, True,
+    ]  # fmt: skip
 
 
 def test_writeup_type(store, pages):
@@ -171,10 +180,11 @@ def test_writeup_type(store, pages):
 def test_what_automation_may_change(store, pages):
     # The board's title is Claude's now, from its photo: not again
     retitle = {n: n != "board" for n in NAMES}
-    assert each(store, pages, roles.may_retitle) == retitle
+    untouched = sql(roles.TITLE_UNTOUCHED.replace("{page}", "{p}.id"))
+    assert each(store, pages, lambda c, p: bool(untouched(c, p))) == retitle
     page = store.page(pages["note"])
     store.edit_text(page["id"], "me", lambda c, p: ("Food", p["body"]), page["rev"])
-    assert not each(store, pages, roles.may_retitle)["note"]
+    assert not each(store, pages, untouched)["note"]
     # Kind: a note nobody filed. An import's and a topic's kind is chosen; a todo's
     # and a whiteboard's is not a note
     unfiled = {n: n in ("note", "photo", "mcp") for n in NAMES}

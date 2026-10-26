@@ -7,8 +7,10 @@ whether enrich or ingest maintains it. The owner can always change kind, title a
 by hand. Each question has one answer here, and the table in
 docs/explanations/llm-calls.md (Page roles) matches it row for row:
 
+- the first capture, which decides the rest;
 - origin: human, claude (written over MCP), topic (Claude's topic page) or gc (a review
-  page scrap gc made), worked out from the page's captures and the topic table;
+  page scrap gc made), worked out from the page's captures and the topic table; and
+  whether Claude has edited its text since;
 - maintainer: enrich (on capture and save) or ingest (photo ingest; enrich on Ask only);
 - write-up: board, topic or none;
 - what automation may change: the title (until the first edit), the kind (while
@@ -26,7 +28,6 @@ from typing import Any, Literal
 from .constants import CLAUDE, ENRICH_KINDS, MCP, PINNED_SLUG
 
 Origin = Literal["human", "claude", "topic", "gc"]
-Maintainer = Literal["enrich", "ingest"]
 WriteupType = Literal["board", "topic"]
 
 GC = "gc"  # the source of the capture scrap gc makes a review page with (orphans.py)
@@ -80,17 +81,15 @@ BY_CLAUDE = (
 # written_by_claude is has_mcp_capture). TODO(#280, for the owner): this is not
 # BY_CLAUDE's first-capture test, though the two find the same pages today: an mcp
 # capture only ever makes a page (MCP write) or is appended to one whose first capture
-# is mcp (Store.import_page refuses any other). Step 3's origin column replaces both.
+# is mcp (Store.append refuses any other). Step 3's origin column replaces both.
 HAS_MCP_CAPTURE = (
     "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = '"
     + MCP
     + "')"
 )
 # A page's origin (SQL): a topic, else gc's, else Claude's, else the owner's
-ORIGIN = (
-    f"CASE WHEN {IS_TOPIC} THEN 'topic' WHEN {REVIEW} THEN 'gc'"
-    f" WHEN {BY_CLAUDE} THEN 'claude' ELSE 'human' END"
-)
+_NOT_TOPIC = f"WHEN {REVIEW} THEN 'gc' WHEN {BY_CLAUDE} THEN 'claude' ELSE 'human' END"
+ORIGIN = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
 # Claude changed its text over MCP after it was made (is:claude-edited): a text
 # revision by Claude after the first (an edit_page, a revert, an append). Only MCP
 # writes as CLAUDE, so this is never the photo worker's or the PWA's.
@@ -116,11 +115,6 @@ def is_topic(conn: sqlite3.Connection, page_id: str) -> bool:
         return False
 
 
-def is_review(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether a page is one of gc's review pages (REVIEW)."""
-    return _one(conn, REVIEW, page_id)
-
-
 def by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether a page was written over MCP (its first capture's source)."""
     row = conn.execute(
@@ -143,17 +137,21 @@ def edited_by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
 
 
 def origin(conn: sqlite3.Connection, page_id: str) -> Origin:
-    """A page's origin, as ORIGIN has it: topic, gc, claude or human (in that
-    order). Before migration 13, never topic."""
-    if is_topic(conn, page_id):
-        return "topic"
-    if is_review(conn, page_id):
-        return "gc"
-    return "claude" if by_claude(conn, page_id) else "human"
+    """A page's origin (ORIGIN, one query): topic, gc, claude or human, in that
+    order. Before migration 13 (no topic table), never topic."""
+    sql = "SELECT {} FROM page p WHERE p.id = ?"
+    try:
+        row = conn.execute(sql.format(ORIGIN.format(p="p")), (page_id,)).fetchone()
+    except sqlite3.OperationalError:  # no such table: an older schema
+        row = conn.execute(
+            sql.format("CASE " + _NOT_TOPIC.format(p="p")), (page_id,)
+        ).fetchone()
+    return row[0]
 
 
 # ---- maintainer: enrich or photo ingest
 
+INGEST_CAPTURES = ("photo", "file")  # a page made by one of these is ingest's
 # A page made by a photo or file capture (its first) is read by ingest, not enrich,
 # whatever its kind (a photo page is stored as a note until ingest reclassifies it).
 # A page with no capture (a topic) is not. gc's review page is a file capture with no
@@ -161,30 +159,37 @@ def origin(conn: sqlite3.Connection, page_id: str) -> Origin:
 NOT_BY_INGEST = (
     "coalesce((SELECT c.kind FROM capture c WHERE c.id = "
     + FIRST_CAPTURE.format(page="{p}.id")
-    + "), '') NOT IN ('photo', 'file')"
+    + "), '') NOT IN ("
+    + ", ".join(f"'{k}'" for k in INGEST_CAPTURES)
+    + ")"
+)
+# Not the Pinned page p (store/pinned.py: a list of links the search screen shows,
+# nothing for Claude to read). An ordinary page otherwise, made by the owner.
+NOT_PINNED = "{p}.slug != '" + PINNED_SLUG + "'"
+# A page p enrich reads on a capture, save or backfill: not the Pinned page, its kind
+# is one enrich reads as text (ENRICH_KINDS) and it is not ingest's (NOT_BY_INGEST).
+# TODO(#280, for the owner): a topic page has no capture, so it passes NOT_BY_INGEST;
+# only its kind (document) keeps it out. One the owner re-kinds as a note queues
+# enrich on each save, which the enricher's topic branch then finishes with no call.
+ENRICHED = (
+    NOT_PINNED
+    + " AND {p}.kind IN ("
+    + ", ".join(f"'{k}'" for k in ENRICH_KINDS)
+    + ") AND "
+    + NOT_BY_INGEST
 )
 
 
-def maintainer(conn: sqlite3.Connection, page_id: str) -> Maintainer:
-    """Who reads a page as it changes: ingest if its first capture is a photo or
-    file (NOT_BY_INGEST), else enrich (should_enrich adds its kind)."""
-    return "enrich" if _one(conn, NOT_BY_INGEST, page_id) else "ingest"
+def by_ingest(capture_kind: str) -> bool:
+    """Whether a page whose first capture is of this kind is ingest's, not enrich's
+    (NOT_BY_INGEST, for a capture not yet stored)."""
+    return capture_kind in INGEST_CAPTURES
 
 
 def should_enrich(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether enrich reads this page on a capture, save or backfill: its kind is in
-    ENRICH_KINDS, it was not made with a photo or file capture (NOT_BY_INGEST) and it
-    is not the Pinned page (a list of links: nothing for Claude to read).
-    TODO(#280, for the owner): a topic page has no capture, so it passes
-    NOT_BY_INGEST; only its kind (document) keeps it out. One the owner re-kinds as a
-    note queues enrich on each save, which the enricher's topic branch then finishes
-    with no call."""
-    row = conn.execute(
-        "SELECT p.kind FROM page p WHERE p.id = ? AND p.slug != ? AND "
-        + NOT_BY_INGEST.format(p="p"),
-        (page_id, PINNED_SLUG),
-    ).fetchone()
-    return row is not None and row[0] in ENRICH_KINDS
+    """Whether enrich reads this page on a capture, save or backfill (ENRICHED; see
+    its TODO)."""
+    return _one(conn, ENRICHED, page_id)
 
 
 # ---- write-up: board, topic or none
@@ -232,16 +237,6 @@ TITLE_UNTOUCHED = (
 # file it (photo ingest: a whiteboard or document; a fetched link: a read; its task
 # boxes: a todo).
 UNFILED = "{p}.kind = 'note' AND {p}.kind_fixed = 0"
-
-
-def may_retitle(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether automation may still set a page's title (TITLE_UNTOUCHED): nobody has
-    edited its text or title since it was made. The photo worker also needs the first
-    capture's first photo, with no text; enrich, a link title as captured."""
-    sql = f"SELECT 1 FROM page WHERE id = :page AND {TITLE_UNTOUCHED}"
-    return (
-        conn.execute(sql.format(page=":page"), {"page": page_id}).fetchone() is not None
-    )
 
 
 def may_rekind(kind: str, fixed: Any, kinds: tuple[str, ...] = ("note",)) -> bool:
