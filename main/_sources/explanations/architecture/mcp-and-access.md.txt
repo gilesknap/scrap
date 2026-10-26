@@ -64,8 +64,10 @@ flowchart LR
   Without it the author is `tagged`: tagged tailnet devices send none.
 - Only the configured header is trusted. A proxy that sets another one (for example
   `X-Auth-Request-User`) is named in that variable.
-- MCP changes are always authored `claude`, whatever the caller; `is:claude` and `is:claude-edited`
-  find them.
+- MCP changes are always authored `claude` from source `mcp`, whatever the caller; `is:claude`
+  (pages `made_by` `claude`) and `is:claude-edited` (text revisions from source `mcp`) find them.
+  A web request is always source `web`, and a header value of `claude` counts as no header, so
+  no request can pass for Claude ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)).
 - The ACL is the gate. Tagged servers, such as any internet-facing box, must not be granted access
   to the scrap device ([ADR 0007](../decisions/0007-tailscale-serve-for-access-and-identity.md)).
 
@@ -130,7 +132,8 @@ write-ups, `by_model`). See [](claude-pipeline.md).
 
 ### One write
 
-An MCP edit is a revision recorded under the author `claude`, so a person can see it and undo it.
+An MCP edit is a revision recorded under the author `claude` and source `mcp`, so a person can see
+it and undo it.
 
 ```mermaid
 sequenceDiagram

@@ -5,7 +5,7 @@ are the truth; derived rows cost an LLM call to remake so they are stored; chunk
 are a disposable cache.
 
 Back to [Architecture](../design.md). The schema is the numbered scripts in
-`src/scrap/migrations/` (0001 to 0013) plus the Python steps in `src/scrap/store/fixes.py`; the
+`src/scrap/migrations/` (0001 to 0016) plus the Python steps in `src/scrap/store/fixes.py`; the
 code is in `src/scrap/store/`.
 
 ## Core tables
@@ -34,6 +34,7 @@ erDiagram
         text kind
         int kind_fixed
         json fields "flat"
+        text made_by "human claude topic gc"
         text deleted_at "trash"
     }
     blob {
@@ -44,7 +45,7 @@ erDiagram
     capture {
         text id PK "client ULID"
         text kind "photo note url file"
-        text source "pwa share mcp import"
+        text source "pwa share mcp import gc"
         text page_id FK
     }
     derived {
@@ -57,6 +58,7 @@ erDiagram
         text page_id FK
         int rev
         text author
+        text source "web mcp"
     }
     page_meta_rev {
         int id PK
@@ -167,6 +169,13 @@ flowchart LR
 
 These five are the only kinds. A topic page is a `document`, identified by the `topic` table, not by its kind.
 
+- **`made_by`** is who made the page: `human`, `claude` (an MCP `write`), `topic` (Claude's topic
+  page) or `gc` (`scrap gc`'s review page). It is set when the page is made and a trigger refuses
+  any change, so it is not the kind: the owner can re-kind a page Claude wrote and it stays
+  Claude's. `is:claude` and the Written by Claude badge read it
+  ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md); the page roles table in
+  [Claude calls](../llm-calls.md)).
+
 - **`fields`** is a flat JSON object: no nulls or nested values, at most 32 keys, numbers within
   +/-2^53. In use: `status` (`open`, `in_progress`, `done`, `cancelled`), `subtype` and `source` on
   Later, `summary` (an import's or the user's, which wins over Claude's in the index) and `origin`.
@@ -221,8 +230,12 @@ sequenceDiagram
 - **Text** (`page_rev`): rev 1 at creation, then one per title or body change. A stale `base_rev`
   saves nothing. A title equal to the one at `base_rev` counts as unchanged, so a client never undoes
   a title Claude set meanwhile.
-- **Window.** One author's edits within `SCRAP_REVISION_WINDOW` seconds (default 300; 0 makes every
-  change its own revision) fold into one. MCP `edit_page` takes a `base_rev` too
+- **Source.** Each text revision records its `author` and its `source`: `mcp` for Claude's text
+  (MCP edits and appends, and the task boxes Claude adds), else `web`. The source, not the
+  author's name, makes a revision Claude's, and no identity header can name `claude`
+  ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)).
+- **Window.** One author's edits from one source within `SCRAP_REVISION_WINDOW` seconds (default
+  300; 0 makes every change its own revision) fold into one. MCP `edit_page` takes a `base_rev` too
   ([ADR 22](../decisions/0022-page-text-editable-over-mcp-with-revisions.md)).
 - **Metadata** (`page_meta_rev`): each kind or tag change, from the PWA or MCP, records before and
   after, with a `batch_id` shared by a bulk change. MCP `revisions` lists both histories and
@@ -274,7 +287,7 @@ stateDiagram-v2
 
 Script *N* sets `PRAGMA user_version = N`. `migrate()` takes an exclusive `flock` on `db.lock`,
 turns on WAL and applies each missing script in one transaction, with an optional Python step from
-`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)).
+`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)). Script 16 adds `page.made_by` and `page_rev.source` the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps `made_by` as made ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)).
 
 | Migration | Adds or changes |
 | --- | --- |
@@ -287,9 +300,14 @@ turns on WAL and applies each missing script in one transaction, with an optiona
 | 0009 | Text enrich tables |
 | 0010 | Tag path normalisation |
 | 0011 to 0013 | Rebuild `enrich_job` for new reasons; write-ups; topics |
+| 0014 | Kinds `memory` and `reference` become `document` |
+| 0015 | `page_meta_rev.fields_was` |
+| 0016 | `page.made_by` (backfilled, then fixed by a trigger) and `page_rev.source` |
 
-- Migrations 6 to 9 are additive, so an older scrap still runs on a newer database if
-  `user_version` is set back.
+- Migrations 6 to 9 and 15 are additive, so an older scrap still runs on a newer database if
+  `user_version` is set back. Migration 16 is not: an older scrap writes text revisions without
+  naming their columns, which the new `page_rev.source` refuses, so going back past it needs the
+  pre-upgrade backup.
 - A database newer than the code is refused, as is a backup newer than the code on restore.
 - Policy: keep only the baseline for N-1 plus migration N, and drop them all at 1.0. The search index
   is rebuilt by migration rather than patched.

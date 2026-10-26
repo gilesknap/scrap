@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server and access &#8212; scrap 0.12.1.dev4+g4a743b340 documentation</title>
+    <title>MCP server and access &#8212; scrap 0.12.1.dev5+g94ffac32f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=1cca6709"></script>
+    <script src="../../_static/documentation_options.js?v=4224904d"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -814,6 +814,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0031-search-orders-by-section-on-the-server.html">31. Search orders results by section on the server</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -987,8 +988,10 @@ its token (<code class="docutils literal notranslate"><span class="pre">automoun
 Without it the author is <code class="docutils literal notranslate"><span class="pre">tagged</span></code>: tagged tailnet devices send none.</p></li>
 <li><p>Only the configured header is trusted. A proxy that sets another one (for example
 <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code>) is named in that variable.</p></li>
-<li><p>MCP changes are always authored <code class="docutils literal notranslate"><span class="pre">claude</span></code>, whatever the caller; <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> and <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code>
-find them.</p></li>
+<li><p>MCP changes are always authored <code class="docutils literal notranslate"><span class="pre">claude</span></code> from source <code class="docutils literal notranslate"><span class="pre">mcp</span></code>, whatever the caller; <code class="docutils literal notranslate"><span class="pre">is:claude</span></code>
+(pages <code class="docutils literal notranslate"><span class="pre">made_by</span></code> <code class="docutils literal notranslate"><span class="pre">claude</span></code>) and <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> (text revisions from source <code class="docutils literal notranslate"><span class="pre">mcp</span></code>) find them.
+A web request is always source <code class="docutils literal notranslate"><span class="pre">web</span></code>, and a header value of <code class="docutils literal notranslate"><span class="pre">claude</span></code> counts as no header, so
+no request can pass for Claude (<a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>).</p></li>
 <li><p>The ACL is the gate. Tagged servers, such as any internet-facing box, must not be granted access
 to the scrap device (<a class="reference internal" href="../decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">ADR 0007</span></a>).</p></li>
 </ul>
@@ -1075,7 +1078,8 @@ arguments, limits and result shapes are in
 write-ups, <code class="docutils literal notranslate"><span class="pre">by_model</span></code>). See <a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a>.</p>
 <section id="one-write">
 <h3>One write<a class="headerlink" href="#one-write" title="Link to this heading">#</a></h3>
-<p>An MCP edit is a revision recorded under the author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, so a person can see it and undo it.</p>
+<p>An MCP edit is a revision recorded under the author <code class="docutils literal notranslate"><span class="pre">claude</span></code> and source <code class="docutils literal notranslate"><span class="pre">mcp</span></code>, so a person can see
+it and undo it.</p>
 <pre  class="mermaid">
         sequenceDiagram
     autonumber

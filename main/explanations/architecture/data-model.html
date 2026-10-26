@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data model and storage &#8212; scrap 0.12.1.dev4+g4a743b340 documentation</title>
+    <title>Data model and storage &#8212; scrap 0.12.1.dev5+g94ffac32f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=1cca6709"></script>
+    <script src="../../_static/documentation_options.js?v=4224904d"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -814,6 +814,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0031-search-orders-by-section-on-the-server.html">31. Search orders results by section on the server</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -899,7 +900,7 @@ window.runMermaid = runMermaid;</script>
 are the truth; derived rows cost an LLM call to remake so they are stored; chunks and the FTS index
 are a disposable cache.</p>
 <p>Back to <a class="reference internal" href="../design.html"><span class="std std-doc">Architecture</span></a>. The schema is the numbered scripts in
-<code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code> (0001 to 0013) plus the Python steps in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/fixes.py</span></code>; the
+<code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code> (0001 to 0016) plus the Python steps in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/fixes.py</span></code>; the
 code is in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/</span></code>.</p>
 <section id="core-tables">
 <h2>Core tables<a class="headerlink" href="#core-tables" title="Link to this heading">#</a></h2>
@@ -926,6 +927,7 @@ code is in <code class="docutils literal notranslate"><span class="pre">src/scra
         text kind
         int kind_fixed
         json fields &quot;flat&quot;
+        text made_by &quot;human claude topic gc&quot;
         text deleted_at &quot;trash&quot;
     }
     blob {
@@ -936,7 +938,7 @@ code is in <code class="docutils literal notranslate"><span class="pre">src/scra
     capture {
         text id PK &quot;client ULID&quot;
         text kind &quot;photo note url file&quot;
-        text source &quot;pwa share mcp import&quot;
+        text source &quot;pwa share mcp import gc&quot;
         text page_id FK
     }
     derived {
@@ -949,6 +951,7 @@ code is in <code class="docutils literal notranslate"><span class="pre">src/scra
         text page_id FK
         int rev
         text author
+        text source &quot;web mcp&quot;
     }
     page_meta_rev {
         int id PK
@@ -1115,6 +1118,12 @@ Search itself is on <a class="reference internal" href="search.html"><span class
 </div>
 <p>These five are the only kinds. A topic page is a <code class="docutils literal notranslate"><span class="pre">document</span></code>, identified by the <code class="docutils literal notranslate"><span class="pre">topic</span></code> table, not by its kind.</p>
 <ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">made_by</span></code></strong> is who made the page: <code class="docutils literal notranslate"><span class="pre">human</span></code>, <code class="docutils literal notranslate"><span class="pre">claude</span></code> (an MCP <code class="docutils literal notranslate"><span class="pre">write</span></code>), <code class="docutils literal notranslate"><span class="pre">topic</span></code> (Claude’s topic
+page) or <code class="docutils literal notranslate"><span class="pre">gc</span></code> (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>’s review page). It is set when the page is made and a trigger refuses
+any change, so it is not the kind: the owner can re-kind a page Claude wrote and it stays
+Claude’s. <code class="docutils literal notranslate"><span class="pre">is:claude</span></code> and the Written by Claude badge read it
+(<a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>; the page roles table in
+<a class="reference internal" href="../llm-calls.html"><span class="std std-doc">Claude calls</span></a>).</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">fields</span></code></strong> is a flat JSON object: no nulls or nested values, at most 32 keys, numbers within
 +/-2^53. In use: <code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>), <code class="docutils literal notranslate"><span class="pre">subtype</span></code> and <code class="docutils literal notranslate"><span class="pre">source</span></code> on
 Later, <code class="docutils literal notranslate"><span class="pre">summary</span></code> (an import’s or the user’s, which wins over Claude’s in the index) and <code class="docutils literal notranslate"><span class="pre">origin</span></code>.</p></li>
@@ -1170,8 +1179,12 @@ backlinks and a board’s write-up links.</p></li>
 <li><p><strong>Text</strong> (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>): rev 1 at creation, then one per title or body change. A stale <code class="docutils literal notranslate"><span class="pre">base_rev</span></code>
 saves nothing. A title equal to the one at <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> counts as unchanged, so a client never undoes
 a title Claude set meanwhile.</p></li>
-<li><p><strong>Window.</strong> One author’s edits within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds (default 300; 0 makes every
-change its own revision) fold into one. MCP <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> takes a <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> too
+<li><p><strong>Source.</strong> Each text revision records its <code class="docutils literal notranslate"><span class="pre">author</span></code> and its <code class="docutils literal notranslate"><span class="pre">source</span></code>: <code class="docutils literal notranslate"><span class="pre">mcp</span></code> for Claude’s text
+(MCP edits and appends, and the task boxes Claude adds), else <code class="docutils literal notranslate"><span class="pre">web</span></code>. The source, not the
+author’s name, makes a revision Claude’s, and no identity header can name <code class="docutils literal notranslate"><span class="pre">claude</span></code>
+(<a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>).</p></li>
+<li><p><strong>Window.</strong> One author’s edits from one source within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds (default
+300; 0 makes every change its own revision) fold into one. MCP <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> takes a <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> too
 (<a class="reference internal" href="../decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">ADR 22</span></a>).</p></li>
 <li><p><strong>Metadata</strong> (<code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code>): each kind or tag change, from the PWA or MCP, records before and
 after, with a <code class="docutils literal notranslate"><span class="pre">batch_id</span></code> shared by a bulk change. MCP <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists both histories and
@@ -1223,7 +1236,7 @@ each page’s (per reason) newest.</p></li>
 <h2>Migrations<a class="headerlink" href="#migrations" title="Link to this heading">#</a></h2>
 <p>Script <em>N</em> sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code>. <code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">db.lock</span></code>,
 turns on WAL and applies each missing script in one transaction, with an optional Python step from
-<code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code> in the same transaction. Script 15 adds <code class="docutils literal notranslate"><span class="pre">page_meta_rev.fields_was</span></code> (a Python step, as SQLite has no <code class="docutils literal notranslate"><span class="pre">ADD</span> <span class="pre">COLUMN</span> <span class="pre">IF</span> <span class="pre">NOT</span> <span class="pre">EXISTS</span></code>): the values a metadata edit replaced, so <code class="docutils literal notranslate"><span class="pre">revert</span></code> can restore a changed field (<a class="reference internal" href="../decisions/0031-search-orders-by-section-on-the-server.html"><span class="std std-doc">ADR 31</span></a>).</p>
+<code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code> in the same transaction. Script 15 adds <code class="docutils literal notranslate"><span class="pre">page_meta_rev.fields_was</span></code> (a Python step, as SQLite has no <code class="docutils literal notranslate"><span class="pre">ADD</span> <span class="pre">COLUMN</span> <span class="pre">IF</span> <span class="pre">NOT</span> <span class="pre">EXISTS</span></code>): the values a metadata edit replaced, so <code class="docutils literal notranslate"><span class="pre">revert</span></code> can restore a changed field (<a class="reference internal" href="../decisions/0031-search-orders-by-section-on-the-server.html"><span class="std std-doc">ADR 31</span></a>). Script 16 adds <code class="docutils literal notranslate"><span class="pre">page.made_by</span></code> and <code class="docutils literal notranslate"><span class="pre">page_rev.source</span></code> the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps <code class="docutils literal notranslate"><span class="pre">made_by</span></code> as made (<a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>).</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Migration</p></th>
@@ -1258,12 +1271,23 @@ turns on WAL and applies each missing script in one transaction, with an optiona
 <tr class="row-even"><td><p>0011 to 0013</p></td>
 <td><p>Rebuild <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> for new reasons; write-ups; topics</p></td>
 </tr>
+<tr class="row-odd"><td><p>0014</p></td>
+<td><p>Kinds <code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code> become <code class="docutils literal notranslate"><span class="pre">document</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>0015</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">page_meta_rev.fields_was</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>0016</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">page.made_by</span></code> (backfilled, then fixed by a trigger) and <code class="docutils literal notranslate"><span class="pre">page_rev.source</span></code></p></td>
+</tr>
 </tbody>
 </table>
 </div>
 <ul class="simple">
-<li><p>Migrations 6 to 9 are additive, so an older scrap still runs on a newer database if
-<code class="docutils literal notranslate"><span class="pre">user_version</span></code> is set back.</p></li>
+<li><p>Migrations 6 to 9 and 15 are additive, so an older scrap still runs on a newer database if
+<code class="docutils literal notranslate"><span class="pre">user_version</span></code> is set back. Migration 16 is not: an older scrap writes text revisions without
+naming their columns, which the new <code class="docutils literal notranslate"><span class="pre">page_rev.source</span></code> refuses, so going back past it needs the
+pre-upgrade backup.</p></li>
 <li><p>A database newer than the code is refused, as is a backup newer than the code on restore.</p></li>
 <li><p>Policy: keep only the baseline for N-1 plus migration N, and drop them all at 1.0. The search index
 is rebuilt by migration rather than patched.</p></li>
