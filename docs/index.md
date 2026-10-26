@@ -102,7 +102,7 @@ Practical step-by-step guides for the more experienced user.
 explanations
 ```
 +++
-Explanations of how it works and why it works that way.
+Architecture in diagrams (data, capture, Claude jobs, search, MCP, PWA, deployment), the stack, UI design system, and the decision records.
 :::
 
 :::{grid-item-card} {material-regular}`menu_book;2em`
