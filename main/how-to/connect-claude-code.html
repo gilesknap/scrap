@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.13.1.dev2+g80c3ec2df documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.13.1.dev3+gf35d58844 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=f6789b11"></script>
+    <script src="../_static/documentation_options.js?v=7a1fd1db"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -417,7 +417,7 @@ window.runMermaid = runMermaid;</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Connect Claude Code in claude-sandbox" href="connect-claude-sandbox.html" />
-    <link rel="prev" title="How-to Guides" href="../how-to.html" />
+    <link rel="prev" title="Post a summary to scrap when Claude Code compacts" href="auto-summary-on-compact.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
@@ -780,6 +780,7 @@ window.runMermaid = runMermaid;</script>
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Connect a Claude Code session</a></li>
 <li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
@@ -1026,7 +1027,22 @@ line.</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-undo</span></code></p></td>
 <td><p>Lists recent <code class="docutils literal notranslate"><span class="pre">revisions</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code>s the one you name.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc</span> <span class="pre">&lt;words&gt;</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-write</span> <span class="pre">&lt;what&gt;</span></code></p></td>
+<td><p>Writes one new page from your instructions, picking out only what you ask for from the conversation (“the URLs we discussed and why”). Uses only the conversation, lists anything uncertain under <em>Unsure</em>, and reuses existing tags. Always creates a page.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-answer</span> <span class="pre">&lt;question&gt;</span></code></p></td>
+<td><p>Answers from scrap alone: searches, reads the pages, and cites them as <code class="docutils literal notranslate"><span class="pre">[[slug|title]]</span></code>; says “not in scrap” rather than using general knowledge. Read-only.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-edit</span> <span class="pre">&lt;page&gt;</span> <span class="pre">&lt;change&gt;</span></code></p></td>
+<td><p>Changes the text of an existing page with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>: a <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> diff first, then the edit once you agree. <code class="docutils literal notranslate"><span class="pre">/sc-undo</span></code> reverts it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-done</span> <span class="pre">&lt;todo&gt;</span></code></p></td>
+<td><p>Ticks off a todo’s task boxes with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> (the todo becomes <code class="docutils literal notranslate"><span class="pre">done</span></code> when all are ticked). A todo with no task boxes cannot be closed over MCP: mark it in the app.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-recent</span> <span class="pre">[period]</span></code></p></td>
+<td><p>What changed lately (default <code class="docutils literal notranslate"><span class="pre">1d</span></code>), by you and by Claude, from the <code class="docutils literal notranslate"><span class="pre">revisions</span></code> feed and <code class="docutils literal notranslate"><span class="pre">search</span></code>. Read-only.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc</span> <span class="pre">&lt;words&gt;</span></code></p></td>
 <td><p>An index: searches like <code class="docutils literal notranslate"><span class="pre">/sc-find</span></code>, or lists the commands above.</p></td>
 </tr>
 </tbody>
@@ -1084,6 +1100,8 @@ answer questions, redraw it elsewhere (Mermaid, say) or save a refined version w
 <p>A drawing saved this way is a new version, “drawn by claude”, in the drawing’s History in the PWA;
 nothing is overwritten, and if you edited the drawing in the meantime Claude’s save is refused.
 You can restore any earlier version there.</p>
+<p>To have a session summary posted automatically before each compaction, install the <code class="docutils literal notranslate"><span class="pre">PreCompact</span></code>
+hook described in <a class="reference internal" href="auto-summary-on-compact.html"><span class="std std-doc">Post a summary to scrap when Claude Code compacts</span></a>.</p>
 </section>
 <section id="permissions-and-security">
 <h2>Permissions and security<a class="headerlink" href="#permissions-and-security" title="Link to this heading">#</a></h2>
@@ -1115,12 +1133,12 @@ them.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../how-to.html"
+       href="auto-summary-on-compact.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">How-to Guides</p>
+        <p class="prev-next-title">Post a summary to scrap when Claude Code compacts</p>
       </div>
     </a>
     <a class="right-next"
