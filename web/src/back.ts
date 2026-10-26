@@ -12,9 +12,10 @@ async function kindShown() {
   );
 }
 
-/** Up (main.ts goes Back while an entry of the app's is behind this one; go() marks them): the entry was opened
- * from a link or a share, so up to a parent: a todo's is Todos, a topic's Topics, any other
- * page's Capture. Delete on such a page goes there too (page.ts). */
+/** Up from a page with nothing of the app's behind it (main.ts's Back goes up one level, to
+ * the linking page or the list, while go()'s marks say one is): the page was opened cold from a
+ * link or a share, so up to a parent: a todo's is Todos, a topic's Topics, any other page's
+ * Capture. Delete on such a page goes there too (page.ts). */
 export async function up(go: (path: string, replace: boolean) => void) {
   const from = location.pathname;
   const parents: Record<string, string> = { todo: "/todos", topic: "/topics" };

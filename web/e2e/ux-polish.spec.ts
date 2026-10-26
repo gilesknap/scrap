@@ -29,7 +29,9 @@ test("every phone and browser: a page's top bar has Back, named for where it goe
   await expect(page.locator("header .logo")).toBeVisible();
 });
 
-test("Back goes straight to the list, past the pages followed from it", async ({ page }) => {
+test("Back goes up one level to the page followed from; the jump beside it to the list", async ({
+  page,
+}) => {
   const tag = ulid().slice(-6);
   const far = await make(page, `Far page ${tag}`);
   const near = await make(page, `Near page ${tag}\n\nSee [the far one](/p/${far.slug}).`);
@@ -38,11 +40,15 @@ test("Back goes straight to the list, past the pages followed from it", async ({
   await expect(page).toHaveURL(`/p/${near.slug}`);
   await page.locator(".page .body a", { hasText: "the far one" }).click();
   await expect(page).toHaveURL(`/p/${far.slug}`);
-  await expect(page.locator("#backto")).toHaveText("Search"); // the list it came from
+  await expect(page.locator("#backto")).toHaveText(`Near page ${tag}`); // the page it came from
+  await expect(page.locator("#tolist")).toHaveText("Search"); // the list, a jump away
+  await back(page).click();
+  await expect(page).toHaveURL(`/p/${near.slug}`);
+  await expect(page.locator("#backto")).toHaveText("Search");
   await back(page).click();
   await expect(page).toHaveURL(/\/search\?q=/);
   await expect(page.getByRole("searchbox")).toHaveValue(`Near page ${tag}`);
-  // The phone's own Back still goes one at a time
+  // The phone's own Back goes one at a time too
   await page.goForward();
   await expect(page).toHaveURL(`/p/${near.slug}`);
 });

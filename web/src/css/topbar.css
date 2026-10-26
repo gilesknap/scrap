@@ -65,14 +65,46 @@ header {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Beside Back when it goes up to a linking page, the list's name, a second target that jumps
+   straight back to it (‹ A · Search): never cut, so Back's label gives up the width */
+#jump {
+  display: flex;
+  flex: none;
+  align-items: center;
+  color: var(--ink-2);
+}
+#jump[hidden] {
+  display: none;
+}
+#tolist {
+  padding: 0 var(--s-1); /* a small button's size and padding: Back's label keeps the width */
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
 /* A page's place in its list, at the right as a mail app has it: 2 of 5 ∧ ∨ */
 #pos:empty {
   display: none;
 }
 /* At the right: the queue badge, when up, the Todos screen's New todo, then Settings, always */
 .logo,
-#back {
+#back,
+#jump {
   margin-inline-end: auto;
+}
+header.crumb #back {
+  margin-inline-end: 0; /* the jump takes the free width after it */
+  padding-inline-end: var(--s-1); /* the dot as far from Back's … as from the list's name */
+}
+/* Beside the jump, Back's label is what gives up the width: the badge and Settings stay
+   whole, and Back keeps its arrow and a few letters of where it goes */
+header.crumb #queue,
+header.crumb #settings {
+  flex: none;
+}
+header.crumb #back {
+  min-width: 6.5rem;
 }
 #new,
 #settings {
@@ -134,4 +166,27 @@ header {
 }
 .badge.failed::before {
   background: var(--danger);
+}
+/* Sharing the top bar with the jump or the pager, under 560 px, the queue badge is its dot
+   and count ("● 2"), so Back keeps its words; its name keeps them too ("2 queued: 1 waiting ·
+   1 failed", main.ts). The 48 px target is its own height, the pill drawn inside a clear
+   border, since ::after shows the count */
+@media (max-width: 559px) {
+  header.crumb #queue,
+  #pos:not(:empty) ~ #queue {
+    gap: 0;
+    min-width: var(--tap);
+    min-height: var(--tap);
+    padding: 0 var(--s-3);
+    border-block: 6px solid transparent;
+    background-clip: padding-box;
+    font-size: 0;
+  }
+  header.crumb #queue::after,
+  #pos:not(:empty) ~ #queue::after {
+    content: attr(data-n);
+    position: static;
+    margin-inline-start: 6px;
+    font-size: var(--t-sm);
+  }
 }

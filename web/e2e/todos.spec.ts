@@ -17,9 +17,14 @@ const day = (n: number) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 
-let n = 0;
+// Random ids: a worker started again after a failure runs this file's beforeAll again, and a
+// counted id would then be one already used, so the capture would return another test's page
+const ulid = () => {
+  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
+};
 async function todo(page: Page, text: string, extra: Record<string, string> = {}) {
-  const id = `01E2ETDNW${String(++n).padStart(2, "0")}`.padEnd(26, "0");
+  const id = ulid();
   const r = await page.request.post("/api/captures", {
     data: { id, text, kind: "todo", ...extra },
   });
@@ -332,6 +337,47 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   const [hit] = await (await page.request.get("/api/search?q=quokka+new+todo")).json();
   const made = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(made).toMatchObject({ kind: "todo", due: day(1), priority: "high" });
+});
+
+test("a todo uploaded while the Todos list is fetched still joins it", async ({ page }) => {
+  // Installed before the screen opens, so no list request escapes them; armed at Save. Then
+  // the upload waits a little, so the list fetched as the composer closes is the one from
+  // before it, and that answer is held until the upload is done and its queue change has
+  // fired: the screen must notice the change it missed. Requests after the upload: as is.
+  let armed = false;
+  let isIn = false; // the upload is done
+  let uploaded = () => {};
+  const done = new Promise<void>((ok) => {
+    uploaded = ok;
+  });
+  await page.route("**/api/captures", async (r) => {
+    if (!armed) return r.continue();
+    await new Promise((ok) => setTimeout(ok, 300));
+    await r.fulfill({ response: await r.fetch() });
+    isIn = true;
+    uploaded();
+  });
+  await page.route(/\/api\/(search|pages)\?/, async (r) => {
+    if (!armed) return r.continue();
+    const answer = await r.fetch(); // as the store is now
+    if (!isIn) {
+      await done; // fetched before the upload: held until it is in
+      await new Promise((ok) => setTimeout(ok, 500)); // and its queue change has been sent
+    }
+    await r.fulfill({ response: answer });
+  });
+  await page.goto("/todos?view=all");
+  await expect(page.locator("header #new")).toBeVisible();
+  await page.locator("header #new").click();
+  const editor = page.locator(".editor");
+  const text = `Wombat raced ${ulid().slice(-6)}`;
+  await editor.locator("textarea").fill(text);
+  armed = true;
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.locator(".list li", { hasText: text })).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test("Mark done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({

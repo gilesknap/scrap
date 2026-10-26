@@ -4,7 +4,7 @@
 // says which (/todos, /todos?view=upcoming, /todos?view=all), so Back and a reload come back
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.
 import { api, type Hit, writeClock } from "./api";
-import { view } from "./app";
+import { address, view } from "./app";
 import { icon } from "./icons";
 import type { pageRow } from "./lists";
 import { isOpen, now, toDo, upcoming } from "./now";
@@ -60,11 +60,20 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       .filter((p) => !seen.has(p.id) && !!seen.add(p.id))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   };
+  // An upload that lands while the list is first fetched (New todo's, saved just before the
+  // composer closed onto this screen) may not be in it: noted here, asked again below
+  let missed = false;
+  const miss = () => {
+    missed = true;
+  };
+  document.addEventListener("queuechange", miss, { signal });
   let list: Todo[];
   try {
     list = await fetchAll();
   } catch (e) {
     return problem(e);
+  } finally {
+    document.removeEventListener("queuechange", miss);
   }
   // A todo saved meanwhile (New todo, in the top bar): the list again once its upload is done.
   // Each change asks again; only the newest answer is drawn (an older one may land last)
@@ -82,7 +91,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     } catch {} // offline, or the server unreachable: the list as it was
   };
   document.addEventListener("queuechange", again, { signal });
-  const keep = () => history.replaceState({ ...history.state, scroll: scrollY }, "");
+  if (missed) void again();
   const body = h("div");
   const count = h("p", { className: "count" });
   const radios = MODES.map(([m, label, glyph]) => {
@@ -91,7 +100,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
       name: "todoview",
       value: m,
       onchange: () => {
-        history.replaceState(null, "", m === "now" ? "/todos" : `/todos?view=${m}`);
+        address(m === "now" ? "/todos" : `/todos?view=${m}`); // keeping Back's marks
         draw();
       },
     });
@@ -167,8 +176,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     body.replaceChildren(...lists);
   }
   draw();
-  const y = history.state?.scroll;
-  if (y) requestAnimationFrame(() => scrollTo(0, y));
   const root = h(
     "section",
     { className: "todos" },
@@ -176,7 +183,5 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     count,
     body,
   );
-  // Leaving by a tap or a swipe: where the list is, for Back
-  root.addEventListener("pointerdown", keep, { capture: true });
   return root;
 }

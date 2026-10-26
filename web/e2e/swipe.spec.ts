@@ -198,6 +198,9 @@ test("a swipe's step never replaces where the nav went meanwhile", async ({ page
   await page.clock.install(); // the slide-off's wait only passes when told to
   await drag(cdp, 500, 330, 100, 4, 8);
   await page.locator("#back").click(); // within the slide-off (a page has no nav)
+  // Back has landed (history.go is async: under load its popstate can come after the clock
+  // would run the step), then the slide-off's step comes due
+  await expect(page).toHaveURL(/\/search/);
   await page.clock.runFor(1000);
   await expect(page).toHaveURL(/\/search/);
   await page.goForward();

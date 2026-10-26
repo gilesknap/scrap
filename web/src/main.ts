@@ -1,11 +1,13 @@
-// The app shell: a tiny router, the top bar (Back, the queue badge, New todo, Settings) and service
-// worker updates.
+// The app shell: a tiny router, the top bar (Back and the jump to the list, the queue badge,
+// New todo, Settings) and service worker updates.
 import "./style.css";
 import { api, kept, learnLimit } from "./api";
-import { address, view as current, go, markNav, plain, queue } from "./app";
+import { address, view as current, go, LISTS, markNav, plain, queue } from "./app";
 import { capture } from "./capture";
+import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
+import { holdScroll, restoreScroll, watchScroll } from "./scroll";
 import { search } from "./search";
 import { whenSlow } from "./slow";
 import { today } from "./status";
@@ -59,9 +61,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
 function recent() {
   const kind = new URLSearchParams(location.search).get("kind");
   const name = KIND_ROW.find(([, , , api]) => api === kind)?.[1];
-  history.replaceState(
-    null,
-    "",
+  address(
     name === "todo"
       ? "/todos"
       : name
@@ -75,27 +75,56 @@ const view = document.getElementById("view") as HTMLElement;
 const logo = document.querySelector(".logo") as HTMLElement;
 const up = document.getElementById("back") as HTMLButtonElement;
 const backTo = document.getElementById("backto") as HTMLElement;
+const header = document.querySelector("header") as HTMLElement;
+const jump = document.getElementById("jump") as HTMLElement; // · Search, beside Back
+const toList = document.getElementById("tolist") as HTMLButtonElement;
 const pos = document.getElementById("pos") as HTMLElement; // a page's place in its list
-// Back, named for where it goes: straight to the list the page was opened from (past the
-// pages stepped through or followed meanwhile; the phone's own Back goes one at a time), else
-// up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's Capture
-up.onclick = () => {
+/** go()'s marks on this entry, where they are behind it: the page a link was followed from
+ * (prev) and the list the page was opened from. */
+const marks = () => {
   const s = history.state;
-  if (s?.back && s.at > s.back.at) return history.go(s.back.at - s.at);
+  const at: number = s?.at ?? 0;
+  const behind = (m?: { name: string; at: number }) => (m && at > m.at ? m : undefined);
+  return { at, prev: behind(s?.up), list: behind(s?.back) };
+};
+// Back, named for where it goes, goes up one level: to the page a link was followed from,
+// else to the list the page was opened from (past the pages stepped through by the pager),
+// else up to a parent (back.ts, a chunk of its own): a todo's is Todos, any other page's
+// Capture. When it doesn't go to the list, the jump beside it does (· Search).
+up.onclick = () => {
+  const { at, prev, list } = marks();
+  const to = prev ?? list;
+  if (to) return history.go(to.at - at);
   void import("./back").then(
     (m) => m.up(go),
     () => go("/", true), // the chunk is not here (offline): Capture
   );
 };
-/** The top bar's Back says where it goes: the list, else the parent (for a page, once its
- * kind is known). */
+toList.onclick = () => {
+  const { at, list } = marks();
+  if (list) history.go(list.at - at);
+};
+/** The top bar's Back says where it goes: the linking page, the list, else the parent (for a
+ * page, once its kind is known); the jump to the list shows when Back goes elsewhere. */
 const nameBack = () => {
   const kind = document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind;
+  const { prev, list } = marks();
   const to =
-    history.state?.back?.name ??
+    (prev && named(prev)) ??
+    (list && named(list)) ??
     (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : "Capture");
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
+  crumb(!!(prev && list));
+  if (prev && list) {
+    toList.textContent = named(list);
+    toList.ariaLabel = `Back to ${toList.textContent}`;
+  }
+};
+/** The jump to the list shown (the header lays Back out beside it) or not. */
+const crumb = (on: boolean) => {
+  jump.hidden = !on;
+  header.classList.toggle("crumb", on);
 };
 const VIEW_MS = 30_000; // a view that has not answered by then has failed
 let rendering = 0;
@@ -108,6 +137,7 @@ async function render() {
   controller = new AbortController();
   current.signal = controller.signal;
   clearToasts();
+  holdScroll(); // until it is drawn and put back where it was
   const path = location.pathname;
   markNav();
   // A page is reached from elsewhere: Back in the top bar instead of the wordmark, on every
@@ -115,6 +145,8 @@ async function render() {
   const arrow = path.startsWith("/p/");
   pos.replaceChildren(); // a page puts its pager here
   if (arrow) nameBack();
+  else crumb(false);
+  if (LISTS[path]) remember(LISTS[path]); // a list's name: at once, even if left before drawn
   logo.hidden = arrow;
   up.hidden = !arrow;
   document.body.classList.toggle("paged", arrow); // its toolbar is the bottom bar: no nav
@@ -158,13 +190,18 @@ async function render() {
     if (path === shown && el instanceof Element) el.classList.add("still");
     shown = path;
     view.replaceChildren(el);
+    // A list's name, for Back on the pages opened from it (crumbs.ts), at its own address
+    // now (/recent is the search screen's); a page records its own as it shows it (page.ts)
+    if (!arrow && LISTS[location.pathname]) remember(LISTS[location.pathname]);
     if (arrow) nameBack(); // a page opened cold: its kind is known now
+    restoreScroll(c.signal); // Back or Forward: where it was left (scroll.ts)
     add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
     placeToasts(); // e.g. one placed for the view before
     return;
   }
   shown = "";
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));
+  restoreScroll(controller.signal);
 }
 
 // Every page, tag and list is a real link (long-press or Ctrl-click opens it in a new tab):
@@ -199,6 +236,9 @@ async function showQueue() {
   badge.textContent = [waiting && `${waiting} waiting`, failed && `${failed} failed`]
     .filter(Boolean)
     .join(" · ");
+  // The count first, as the compact badge shows it, then the words: "2 queued: 1 waiting · …"
+  badge.ariaLabel = `${items.length} queued: ${badge.textContent}`;
+  badge.dataset.n = String(items.length); // on a narrow page, the count alone (topbar.css)
   document.dispatchEvent(new Event("queuechange"));
 }
 badge.onclick = () => void queue.retry();
@@ -269,6 +309,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
+watchScroll();
 if (kept(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();
