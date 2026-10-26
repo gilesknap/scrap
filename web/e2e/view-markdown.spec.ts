@@ -205,7 +205,9 @@ test("a task box ticks in place: that item, saved at once; never over a newer ed
   await expect(page.getByRole("checkbox", { name: "passport" })).toBeChecked();
   // Measured once the view has come in: it rises 6 px as it enters (bottom-nav.css), so a box
   // measured meanwhile is lower than it will be, and a tap 10 px below it lands on the next
-  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState !== "running"),
+  );
   // A tight list, as a bulleted one: one line from box to box
   const at = await boxes.nth(1).boundingBox();
   const below = await boxes.nth(2).boundingBox();

@@ -161,8 +161,9 @@ test("the Todos screen meets AA contrast, in both themes", async ({ page }) => {
 test("the Todos tab: one tap to Now, with a count of the todos due", async ({ page }) => {
   const tab = page.locator('nav a[href="/todos"]');
   const badge = tab.locator(".due-n");
-  // The count is the whole store's, other runs' todos too: each step is checked against the
-  // server's answer to the badge's own request, asked after that step
+  // Each step is checked against the server's answer to the badge's own request, asked after
+  // that step. The steps by one (n - 1, then n) hold only while no other worker changes the
+  // store's todos meanwhile: true in CI (workers: 1), not under --workers above 1
   const isDue = (url: URL) =>
     url.pathname === "/api/search/facets" && !!url.searchParams.get("q")?.includes("due:<=");
   const counted = async (step: () => Promise<unknown>) => {
@@ -175,12 +176,6 @@ test("the Todos tab: one tap to Now, with a count of the todos due", async ({ pa
     await expect(tab).toHaveAccessibleName(`Todos, ${total} due`);
     return total;
   };
-  // Whether this run's "today high" is one of those counted
-  const q = encodeURIComponent(`kind:todo due:<=today -is:done -is:cancelled -is:snoozed ${Q}`);
-  const isCounted = async () =>
-    ((await (await page.request.get(`/api/search?q=${q}`)).json()) as { id: string }[])
-      .map((h) => h.id)
-      .includes(made.todayHigh.page_id);
   const n = await counted(() => page.goto("/"));
   await expect(page.locator("nav a")).toHaveText(["Capture", /Todos$/, "Search", "Topics"]);
   expect(n).toBeGreaterThanOrEqual(4); // the Quolls: two overdue, two today
@@ -189,13 +184,10 @@ test("the Todos tab: one tap to Now, with a count of the todos due", async ({ pa
   await expect(page).toHaveURL(/\/todos$/);
   await expect(tab).toHaveAttribute("aria-current");
   await expect(page.getByRole("radio", { name: "Now" })).toBeChecked();
-  // Ticking one off counts again at once, without it; and back up, with it
+  // Ticking one off counts down at once, and back up
   const tick = page.getByRole("button", { name: `Done: ${Q} today high` });
-  expect(await isCounted()).toBe(true);
-  await counted(() => tick.click());
-  expect(await isCounted()).toBe(false);
-  await counted(() => tick.click());
-  expect(await isCounted()).toBe(true);
+  expect(await counted(() => tick.click())).toBe(n - 1);
+  expect(await counted(() => tick.click())).toBe(n);
   // None due: no badge
   await page.route(
     (url) =>
@@ -407,8 +399,10 @@ test("a todo uploaded while the Todos list is fetched still joins it", async ({ 
 test("Mark done on a todo from the Todos screen moves on to the next, with Undo and a way back", async ({
   page,
 }) => {
-  // Two overdue, side by side in Now (oldest first): on days no other run of this test has
-  const back = 40 + 3 * test.info().repeatEachIndex;
+  // Two overdue, side by side in Now (oldest first): on days no other repeat or retry of
+  // this test has (up to 3 retries)
+  const { repeatEachIndex, retry } = test.info();
+  const back = 40 + 3 * (repeatEachIndex * 4 + retry);
   const w = word();
   const [first, second] = [`Dunnart ${w} first`, `Dunnart ${w} second`];
   const a = await todo(page, first, { due: day(-back) });
