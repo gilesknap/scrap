@@ -111,6 +111,18 @@ def test_an_orphan_goes_on_a_todo_page_once(client, store):
     assert len(orphan_pages(client)) == 1
 
 
+def test_a_file_the_page_stopped_showing_is_hidden_but_still_gathered(client, store):
+    """#303: the capture keeps it, so gc protects it and gathers it as an orphan."""
+    ref, sha = unembed(client, store)
+    [row] = client.get("/api/pages").json()
+    assert row["thumb"] is None and store.images_of([ref["page_id"]]) == {}
+    with store.connect() as conn:
+        assert sha in gc.in_use(conn)
+    report = gc.collect(store, delete=True)
+    assert report.orphans == 1 and sha not in report.shas
+    assert store.blob_path(sha).is_file()
+
+
 def test_a_dry_run_counts_and_writes_nothing(client, store, capsys):
     unembed(client, store)
     report = gc.collect(store)

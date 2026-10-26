@@ -283,7 +283,7 @@ there: a check that keeps finding a page you are happy with is the check to chan
 | `is:orphan` | No page link either way (`[[slug]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
 | `is:untagged` | No tags (topic pages and gc's Orphaned assets pages aside) |
 | `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not snoozed and not due today or later |
-| `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page) |
+| `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
 | `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`) |
 | `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt; never a restored version. Lists only board write-ups, which wait for you |
 

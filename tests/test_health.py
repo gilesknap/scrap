@@ -334,6 +334,62 @@ def test_duplicate_shares_a_file_with_another_live_page(store):
     assert c not in found(store, "is:duplicate")
 
 
+def test_a_deleted_embed_leaves_the_file_out_of_duplicate_and_images(store):
+    """#303: the capture keeps the file (gc needs it); the page no longer shows it."""
+    a = photo(store, "red")
+    b = photo(store, "red")
+    sha = store.page(a)["captures"][0]["blobs"][0]["sha256"]
+    shown = store.page(a)["body"]
+    assert found(store, "is:duplicate") == {a, b}
+    tick()
+    edit(store, a, "No picture now")  # the owner deletes the embed
+    assert found(store, "is:duplicate") == set()
+    assert a not in found(store, "has:image") and b in found(store, "has:image")
+    assert a not in store.images_of([a]) and store.images_of([b])[b]["count"] == 1
+    assert [r[0] for r in sql(store, "SELECT sha256 FROM capture_blob")] == [sha, sha]
+    tick()
+    edit(store, a, shown)  # a revert: the page shows it again
+    assert found(store, "is:duplicate") == {a, b}
+    assert store.images_of([a])[a]["count"] == 1
+
+
+def test_a_gone_file_stays_gone_through_the_trash_and_a_new_upload(store):
+    a = photo(store, "red")
+    shown = store.page(a)["body"]
+    tick()
+    edit(store, a, "No picture")
+    store.delete_page(a)
+    store.delete_page(a, undo=True)  # out of the trash and back: still not shown
+    assert a not in found(store, "has:image") and store.images_of([a]) == {}
+    b = photo(store, "red")  # the same bytes sent again, on a new page
+    c = photo(store, "red")
+    assert found(store, "is:duplicate") == {b, c}
+    assert store.images_of([b])[b]["count"] == 1 and a not in store.images_of([a])
+    tick()
+    edit(store, a, shown)
+    assert found(store, "is:duplicate") == {a, b, c}
+
+
+def test_a_file_never_embedded_is_kept_and_one_shown_elsewhere_stays_there(store):
+    sha, size = store.put_blob(io.BytesIO(b"%PDF a document"))
+
+    def attach(text):
+        c = store.prepare({"id": new_ulid(), "text": text}, ["application/pdf"])
+        files = [(sha, "application/pdf", size, "doc.pdf")]
+        return store.capture(c, files, "me")[0]["page_id"]
+
+    a, b = attach("One"), attach("Two")  # a PDF is listed below a page, never embedded
+    edit(store, a, "One, edited")
+    assert found(store, "is:duplicate") == {a, b}
+    # a photo whose embed was deleted on one page but another page's text still shows
+    p = photo(store, "green")
+    q = photo(store, "green")
+    tick()
+    edit(store, p, "no picture")
+    assert found(store, "is:duplicate") == {a, b}  # q alone holds the photo now
+    assert store.images_of([q])[q]["count"] == 1 and p not in store.images_of([p])
+
+
 def test_dangling_is_a_link_to_no_live_page(store):
     note(store, "Beta")
     a = note(store, "Alpha\n\n[[beta]] and [[nowhere]]")

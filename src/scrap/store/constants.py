@@ -25,15 +25,25 @@ DEFAULT_FIELDS = {
 }
 HINTS = ("todo", "consume")  # the older capture field, still accepted
 # kind: in a search also takes the PWA's names for kinds
+# A file of a page's capture whose embed or link the user deleted from the text (its
+# SQL; mcp_tools/reading.py filters by Store.removed, the same test in Python, so
+# the two are deliberately parallel): a template on the page ({p}) and the file's
+# SHA-256 ({sha}).
+# The capture still holds it (gc and orphans need that), but the page no longer shows
+# it, so listings, counts and is:duplicate leave it out (#303). A file the text never
+# mentioned (an older photo, a PDF) is not gone: it is listed below the text.
+GONE = (
+    "(NOT instr({p}.body, '/api/blobs/' || {sha}) AND EXISTS (SELECT 1"
+    " FROM page_rev r WHERE r.page_id = {p}.id"
+    " AND instr(r.body, '/api/blobs/' || {sha})))"
+)
 # A page p's thumbnail: the SHA-256 of its first image, if any (SQL, for a column)
 THUMB = (
     "(SELECT b.sha256 FROM capture c JOIN capture_blob cb"
     " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
     " WHERE c.page_id = p.id AND b.mime LIKE 'image/%'"
-    # not one whose embed was deleted from the text (see Store.removed)
-    " AND (instr(p.body, '/api/blobs/' || b.sha256) OR NOT EXISTS (SELECT 1"
-    " FROM page_rev r WHERE r.page_id = p.id"
-    " AND instr(r.body, '/api/blobs/' || b.sha256)))"
+    # not one whose embed was deleted from the text
+    f" AND NOT {GONE.format(p='p', sha='b.sha256')}"
     " ORDER BY c.received_at, cb.ord LIMIT 1)"
 )
 # Search filters on a page p's images (SQL): has:image, has:drawing, and image:K (the
@@ -41,7 +51,8 @@ THUMB = (
 HAS = {
     "image": "EXISTS (SELECT 1 FROM capture c JOIN capture_blob cb"
     " ON cb.capture_id = c.id JOIN blob b USING (sha256)"
-    " WHERE c.page_id = p.id AND b.mime LIKE 'image/%')",
+    " WHERE c.page_id = p.id AND b.mime LIKE 'image/%'"
+    f" AND NOT {GONE.format(p='p', sha='cb.sha256')})",
     "drawing": "EXISTS (SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id"
     " WHERE c.page_id = p.id AND d.kind = 'excalidraw' AND d.superseded_at IS NULL)",
 }
