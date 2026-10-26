@@ -42,7 +42,9 @@ and back.
   to the list the page was opened from, past pages stepped through or followed, while the
   phone's own Back goes one step at a time; opened cold from a link, it goes up to a parent
   (Todos for a todo, Topics for a topic, Capture for any other page). Every link to a page,
-  `[[slug]]` or its full address, opens in place, so the phone's Back walks back through them.
+  `[[slug]]` or its full address on any address the server is reached at (the one the app was
+  opened at, and each in `SCRAP_PUBLIC_URL`, which the server writes into `index.html`'s
+  `scrap-origins` meta tag), opens in place, so the phone's Back walks back through them.
   Delete is one step back (the list, or the page whose link opened it) with **Undo**; opened
   cold, it goes where Back names.
 - **Icons with words.** Icons help find a control; the word says what it does. Icon-only

@@ -2,12 +2,13 @@ import json
 import sqlite3
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from scrap import __version__
-from scrap.app import VERSION_SLOT, create_app
+from scrap.app import ORIGINS_SLOT, VERSION_SLOT, create_app
 from scrap.store import Store, connect, migrate, migrations, new_ulid
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
@@ -855,3 +856,32 @@ def test_the_shell_shows_the_server_version_in_the_title_bar(tmp_path, monkeypat
         in page.text
     )
     assert page.headers["cache-control"] == "no-cache"
+
+
+def test_the_shipped_index_html_holds_the_slots_the_server_fills():
+    """web/index.html must keep both, character for character: else the version and
+    the origins (#290) are silently never filled in."""
+    index = Path(__file__).parents[1] / "web" / "index.html"
+    html = index.read_text(encoding="utf-8")
+    assert html.count(ORIGINS_SLOT) == 1
+    assert html.count(VERSION_SLOT) == 1
+
+
+def test_the_shell_lists_the_public_origins_for_the_pwa(tmp_path, monkeypatch):
+    """#290: own() (render.ts) opens a page's full address on any of them in place."""
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text(f"<head>{ORIGINS_SLOT}</head>")
+    monkeypatch.setattr("scrap.app.STATIC", static)
+    monkeypatch.setenv(
+        "SCRAP_PUBLIC_URL",
+        "https://Scrap.example.ts.net:443/, http://192.168.1.10:8000",
+    )
+    client = TestClient(create_app(tmp_path / "data"))
+    assert (
+        '<meta name="scrap-origins"'
+        ' content="https://scrap.example.ts.net http://192.168.1.10:8000" />'
+        in client.get("/p/any-page").text
+    )
+    monkeypatch.delenv("SCRAP_PUBLIC_URL")
+    assert '<meta name="scrap-origins" content="" />' in client.get("/").text

@@ -29,10 +29,13 @@ to catch up without a prompt change making every page due at once.
   never orphans. gc's Orphaned assets pages (a capture of source `gc`) are never untagged, stale,
   orphans or duplicates, and a file shared with one, or with a page in the trash, is no
   duplicate. An open todo due today or later is not stale: its due date brings it up.
-  A `[[link]]` is any `[[...]]` the server parses as a page link, outside code and not an
+  A page link is any `[[...]]` the server parses as one, outside code and not an
   embed; this includes forms the PWA draws as plain text (`[[Some Title]]`), so
-  `has:dangling` finds links that don't work. They are found through a SQL
-  function `wiki_links` registered on each connection, so a check is one pass over the pages.
+  `has:dangling` finds links that don't work. A Markdown link or autolink to a page's
+  address counts too (#290): `/p/<slug>` as a path, or on any origin in `SCRAP_PUBLIC_URL`
+  (models and MCP clients link pages by full address). They are found through a SQL
+  function `wiki_links` registered on each connection, so a check is one pass over the pages;
+  backlinks and MCP `read`'s `links` use the same parser, `markdown.wiki_targets`.
 - **A Store health screen, counts only.** Settings has **Store health**: each check with its
   count (`GET /api/health`, one `count(*)` a check), a tap running its search. Nothing is
   dismissed: a check that keeps finding a page the owner is happy with is the check to change.

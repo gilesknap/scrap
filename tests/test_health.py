@@ -20,6 +20,7 @@ from PIL import Image
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
+from scrap.public import origin
 from scrap.store import Store, connect, health, new_ulid, now, topics
 
 BOARD = {
@@ -141,6 +142,67 @@ def test_wiki_targets_are_page_links_outside_code():
     )
     assert wiki_targets(text) == ["a", "b"]
     assert wiki_targets("no links") == []
+
+
+HERE = "https://scrap.example.ts.net:8446"
+LAN = "http://192.168.1.10:8000"
+
+
+def test_wiki_targets_count_a_page_s_address_on_any_public_origin():
+    """#290: a Markdown link or autolink to /p/<slug>, as a path or on one of the
+    origins given, is a page link; another site's, an image or one in code is not."""
+    text = (
+        f"[A]({HERE}/p/a?x=1#h) and [B](HTTP://192.168.1.10:8000/p/b) and <{HERE}/p/c>"
+        " and [D](/p/d) and [[e]]\n\n[No](https://elsewhere.org/p/x) and"
+        f" ![img]({HERE}/p/img) and `[c]({HERE}/p/code)` and [up]({HERE}/p/Up)"
+        f" and [deep]({HERE}/p/a/b) and [{HERE}/api/blobs/x]({HERE}/api/blobs/x)"
+    )
+    assert wiki_targets(text, (HERE, LAN)) == ["a", "b", "c", "d", "e"]
+    paths = "[q](/p/q?x=1) and [h](/p/h#h-top) and [n](/p/No#x) and [s](/p/s/)"
+    assert wiki_targets(paths) == ["q", "h"]  # as the PWA opens them in place
+    assert wiki_targets(text) == ["d", "e"]  # no origins: a path only
+    assert wiki_targets(text, (HERE,)) == ["a", "c", "d", "e"]
+
+
+def test_a_non_ascii_host_matches_its_punycode_href():
+    """markdown-it writes a link's host as punycode; the origins are compared so."""
+    assert origin("https://Bücher.example:443/") == "https://xn--bcher-kva.example"
+    assert wiki_targets("[a](https://bücher.example/p/x)") == []  # no origins
+    here = origin("https://bücher.example")
+    assert here is not None
+    assert wiki_targets("[a](https://bücher.example/p/x)", (here,)) == ["x"]
+
+
+def test_backlinks_are_the_links_the_parser_finds(store):
+    """Not one in code or an embed (![[slug]]); one in a table cell, its pipe
+    escaped, is."""
+    t = note(store, "Target")
+    slug = store.page(t)["slug"]
+    note(store, f"Code\n\n`[[{slug}]]` and\n\n```\n[[{slug}]]\n```")
+    note(store, f"Embed\n\n![[{slug}]]")
+    cell = note(store, f"Table\n\n| a | b |\n|---|---|\n| [[{slug}\\|label]] | x |")
+    assert [b["id"] for b in store.backlinks(slug)] == [cell]
+
+
+def test_a_page_s_full_address_links_it(store, monkeypatch):
+    """#290: on any address in $SCRAP_PUBLIC_URL, a full-address link counts as
+    [[slug]] does: backlinks, related (via link), is:orphan and has:dangling."""
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", f"{HERE},{LAN}")
+    a = note(store, "Alpha")
+    b = note(store, "Beta")
+    c = note(store, "Gamma")
+    slug = {"a": store.page(a)["slug"], "b": store.page(b)["slug"]}
+    d = note(store, f"Delta\n\n[it]({HERE}/p/{slug['a']})")
+    e = note(store, f"Epsilon\n\n<{LAN}/p/{slug['b']}> and [x]({HERE}/p/nowhere)")
+    assert found(store, "is:orphan") == {c}
+    assert found(store, "has:dangling") == {e}
+    assert [x["id"] for x in store.backlinks(slug["a"])] == [d]
+    assert [x["id"] for x in store.backlinks(slug["b"])] == [e]
+    related = store.page(a)["related"]
+    assert [(r["id"], r["via"]) for r in related] == [(d, "link")]
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", HERE)  # LAN no longer this server's
+    assert found(store, "is:orphan") == {b, c, e}
+    assert store.backlinks(slug["b"]) == []
 
 
 def test_orphan_is_a_page_with_no_link_pick_or_topic(store):

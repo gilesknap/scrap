@@ -53,17 +53,36 @@ function wiki(state: StateInline, silent: boolean): boolean {
   return true;
 }
 
-/** A web address of a page on this server (its own origin, /p/slug), as the page's own path
- * (with any query or #heading); else null. */
-export function own(href: string, origin = globalThis.location?.origin): string | null {
-  if (!origin || !/^https?:\/\//i.test(href)) return null;
+/** A URL's origin, as the browser writes it (lower case, no default port); else null. */
+function originOf(href: string): string | null {
+  try {
+    return new URL(href).origin;
+  } catch {
+    return null;
+  }
+}
+
+/** The origins this server is reached at: the one this app was loaded from, and every address
+ * in $SCRAP_PUBLIC_URL, which the server writes into index.html's scrap-origins meta tag (in
+ * the shell the service worker keeps, so offline too). */
+export function origins(): string[] {
+  const here = globalThis.location?.origin;
+  const meta = globalThis.document?.querySelector<HTMLMetaElement>('meta[name="scrap-origins"]');
+  const listed = (meta?.content ?? "").split(/\s+/).filter(Boolean).map(originOf);
+  return [here, ...listed].filter((o): o is string => !!o && o !== "null");
+}
+
+/** A web address of a page on this server (/p/slug on any of its origins), as the page's own
+ * path (with any query or #heading); else null. */
+export function own(href: string, here: readonly string[] = origins()): string | null {
+  if (!here.length || !/^https?:\/\//i.test(href)) return null;
   let url: URL;
   try {
     url = new URL(href);
   } catch {
     return null;
   }
-  return url.origin === origin && PAGE.test(url.pathname)
+  return here.includes(url.origin) && PAGE.test(url.pathname)
     ? url.pathname + url.search + url.hash
     : null;
 }
@@ -152,7 +171,9 @@ function inline(children: Token[], state: StateCore): Token[] {
       } else if (href.startsWith("#")) {
         // A heading's id; a footnote's (fn1, fnref1, as markdown-it-footnote makes) as it is
         if (!FOOTNOTE.test(href)) t.attrSet("href", `#${anchor(decoded(href.slice(1)))}`);
-      } else if (!t.meta?.wiki && !PAGE.test(href)) t.hidden = true; // its text stays
+      } else if (!t.meta?.wiki && !PAGE.test(href.replace(/[?#].*/s, ""))) {
+        t.hidden = true; // its text stays (a page's path may have a query or #heading)
+      }
       opened.push(t);
     } else if (t.type === "link_close") {
       t.hidden = !!opened.pop()?.hidden;

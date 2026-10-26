@@ -28,9 +28,10 @@ STALE_DAYS = 60  # an open todo not edited for this long is stale
 # source is gc), whatever it is titled now (orphans.py)
 REVIEW = "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = 'gc')"
 # Every page (not in the trash) linked one way or another to another such page: by a
-# [[link]] in its text or its current write-up (either end), a related pick (either
-# end), or a topic and its sources in (either end). One set for the whole store, made
-# once a query, so is:orphan costs one pass over the pages, not one per page.
+# page link (SQL wiki_links: [[slug]], or /p/<slug> as a path or full address) in its
+# text or its current write-up (either end), a related pick (either end), or a topic
+# and its sources in (either end). One set for the whole store, made once a query, so
+# is:orphan costs one pass over the pages, not one per page.
 LINKED = """
 SELECT s.id FROM page s, json_each(wiki_links(s.body)) l JOIN page t ON t.slug = l.value
 WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL AND t.id <> s.id
@@ -88,7 +89,8 @@ DUPLICATE = (
     " JOIN capture_blob cb ON cb.capture_id = c.id"
     f" WHERE cb.sha256 IN ({SHARED})))"
 )
-# A [[link]] in its text (not in code, not an embed) to no page, or to one in the trash
+# A page link in its text ([[slug]] or its address; not in code, not an embed) to no
+# page, or to one in the trash
 DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
   WHERE NOT EXISTS (SELECT 1 FROM page t WHERE t.slug = l.value
                     AND t.deleted_at IS NULL))"""

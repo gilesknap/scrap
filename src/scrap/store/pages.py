@@ -298,9 +298,10 @@ class PagesMixin(Core):
     ) -> dict[str, Any]:
         """What Claude added to a page apart from its text: model_tags (the page's
         tags Claude added), related (Claude's picks, pages that picked this one,
-        pages linking here with [[slug]], and pages its write-up links to or whose
-        write-up links here, each once, with via: claude, link or both, writeup, or
-        topic for a topic's synthesis citing a page, either way), enrich (its job's
+        pages linking here (backlinks: [[slug]] or its address), and pages its
+        write-up links to or whose write-up links here, each once, with via: claude,
+        link or both, writeup, or topic for a topic's synthesis citing a page, either
+        way), enrich (its job's
         state and the summary), None if never asked and off, writeup (a board page's
         write-up or a topic's synthesis, writeups.view), topics (the topics it is a
         source of: id, slug, title) and topic (None, or for a topic page its key and

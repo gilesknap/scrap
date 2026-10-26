@@ -1,6 +1,7 @@
 // Following a link from one page to another (#288): the phone's Back (history back, one step)
 // returns to the linking page, and Delete there goes back to it with Undo. Opened cold, the
-// top bar's Back and Delete go where Back names, staying in the app.
+// top bar's Back and Delete go where Back names, staying in the app. A full address on another
+// of the server's addresses (SCRAP_PUBLIC_URL, playwright.config.ts) opens in place too (#290).
 import { expect, type Page, test } from "@playwright/test";
 
 const ulid = () => {
@@ -14,15 +15,16 @@ async function make(page: Page, text: string, kind = "note") {
 }
 
 const title = (page: Page) => page.locator(".page h1");
+const LAN = "http://scrap-lan.example:8000"; // in SCRAP_PUBLIC_URL (playwright.config.ts)
 
-/** A todo A linking to a note B, by [[slug]] and by its full address (as a model writes it),
- * opened from the search screen. */
+/** A todo A linking to a note B, by [[slug]], by its full address (as a model writes it) and by
+ * its address on another of the server's addresses, opened from the search screen. */
 async function linked(page: Page, baseURL: string) {
   const tag = ulid().slice(-6);
   const b = await make(page, `Linked B ${tag}`);
   const a = await make(
     page,
-    `Linking A ${tag}\n\n- [ ] [[${b.slug}|by slug]]\n- [ ] [by address](${baseURL}/p/${b.slug})`,
+    `Linking A ${tag}\n\n- [ ] [[${b.slug}|by slug]]\n- [ ] [by address](${baseURL}/p/${b.slug})\n- [ ] [by LAN](${LAN}/p/${b.slug})`,
     "todo",
   );
   await page.goto(`/search?q=${encodeURIComponent(`Linking A ${tag}`)}`);
@@ -31,7 +33,7 @@ async function linked(page: Page, baseURL: string) {
   return { a, b, tag };
 }
 
-for (const how of ["by slug", "by address"]) {
+for (const how of ["by slug", "by address", "by LAN"]) {
   test(`a link ${how} from page A to B: the phone's Back returns to A`, async ({
     page,
     baseURL,

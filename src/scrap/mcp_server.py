@@ -39,6 +39,7 @@ from .mcp_tools.textdiff import (  # noqa: F401 (re-exported)
     split_lines,
     unified,
 )
+from .public import public_urls
 from .store import Store
 
 __all__ = ["server", "security", "public_urls"]
@@ -74,13 +75,6 @@ to; try dry_run first.
 NO_TEXT_EDIT = "No tool changes the text of the user's own pages. "
 OFF = ("0", "false", "no", "off")
 ON = ("1", "true", "yes", "on")  # set but empty is neither: refused at start
-
-
-def public_urls() -> list[str]:
-    """$SCRAP_PUBLIC_URL: the address(es) the service is reached at, comma separated
-    (e.g. https://host.tailnet.ts.net:8446). The first makes page links."""
-    urls = os.environ.get("SCRAP_PUBLIC_URL", "")
-    return [u.strip().rstrip("/") for u in urls.split(",") if u.strip()]
 
 
 def security(urls: list[str]) -> TransportSecuritySettings:

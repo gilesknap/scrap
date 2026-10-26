@@ -6,10 +6,11 @@ is never mistaken for a link, and no part of it backtracks on hostile text."""
 
 import re
 from bisect import bisect_left, bisect_right
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from functools import cache
 from typing import Literal
+from urllib.parse import urlsplit
 
 from markdown_it import MarkdownIt
 from markdown_it.rules_inline import StateInline
@@ -18,9 +19,12 @@ from markdown_it.rules_inline import link as link_rule
 from markdown_it.token import Token
 from mdit_py_plugins.footnote import footnote_plugin
 
-__all__ = ["Link", "plain", "rewrite", "wiki_parts", "wiki_targets"]
+from .public import origin
+
+__all__ = ["Link", "page_path", "plain", "rewrite", "wiki_parts", "wiki_targets"]
 
 Rule = Callable[[StateInline, bool], bool]
+PAGE_PATH = re.compile(r"/p/([a-z0-9-]+)")  # a page's path (render.ts PAGE), fullmatch
 
 
 def _wiki(state: StateInline, silent: bool) -> bool:
@@ -83,20 +87,42 @@ def wiki_parts(inner: str) -> tuple[str, str]:
     return target.strip(), label.strip()
 
 
-def wiki_targets(text: str) -> list[str]:
-    """The targets of a text's page links, [[target]] and [[target|label]], each once in
-    order: not an embed (![[...]]), and none in code. Any [[...]] the parser takes as a
-    page link counts, including forms the PWA draws as plain text ([[Some Title]]), so
-    has:dangling finds links that don't work."""
-    if "[[" not in text:  # most pages: no parse
+def page_path(href: str, origins: Iterable[str] = ()) -> str | None:
+    """The slug a link's address names a page here by, else None: /p/<slug> as a path
+    (`/p/<slug>`) or on one of origins (a full address, `https://<host>/p/<slug>`, as
+    a model writes one), either with any query or #heading after it. These are the
+    links the PWA opens in place (render.ts: inline() for a path, own() for a full
+    address)."""
+    if href.startswith("/p/"):
+        path = urlsplit(href).path
+    elif (here := origin(href)) is not None and here in origins:
+        path = urlsplit(href).path
+    else:
+        return None
+    m = PAGE_PATH.fullmatch(path)
+    return m[1] if m else None
+
+
+def wiki_targets(text: str, origins: Iterable[str] = ()) -> list[str]:
+    """The targets of a text's page links, each once in order: [[target]] and
+    [[target|label]], and a Markdown link or <autolink> to /p/<slug>, as a path or on
+    one of origins (page_path); not an embed (![[...]], an image), and none in code.
+    Any [[...]] the parser takes as a page link counts, including forms the PWA draws
+    as plain text ([[Some Title]]), so has:dangling finds links that don't work."""
+    if "[[" not in text and "/p/" not in text:  # most pages: no parse
         return []
+    origins = tuple(origins)
     found: dict[str, None] = {}
     for t in parser().parse(text):
         for c in t.children or []:
             if c.type == "wiki" and not c.markup:
                 target = wiki_parts(c.content)[0]
-                if target:
-                    found[target] = None
+            elif c.type == "link_open":
+                target = page_path(str(c.attrGet("href") or ""), origins)
+            else:
+                continue
+            if target:
+                found[target] = None
     return list(found)
 
 

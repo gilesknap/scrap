@@ -284,6 +284,23 @@ def test_read_returns_the_text_as_data(store):
     )
 
 
+def test_read_counts_a_page_s_full_address_as_a_link(store, monkeypatch):
+    """#290: a link to a page by its URL, on any address of $SCRAP_PUBLIC_URL, is in
+    links and backlinks, as [[slug]] is."""
+    monkeypatch.setenv(
+        "SCRAP_PUBLIC_URL", "https://h.example:8446,http://10.0.0.2:8000"
+    )
+    target = human(store, "Target page")
+    url = f"http://10.0.0.2:8000/p/{target['slug']}"
+    page = write(store, title="Sweep", body=f"Found [the target]({url}).")
+    out = ok(store, "read", page=page["slug"])
+    assert out["links"] == [
+        {"slug": target["slug"], "url": f"https://h.example:8446/p/{target['slug']}"}
+    ]
+    back = ok(store, "read", page=target["slug"])["backlinks"]
+    assert [b["id"] for b in back] == [page["id"]]
+
+
 def test_read_labels_what_a_model_wrote(store, monkeypatch):
     monkeypatch.setenv("SCRAP_INGEST", "off")
     other = human(store, "Larch prices")

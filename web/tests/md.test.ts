@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unembedded } from "../src/md";
-import { markdown, own } from "../src/render";
+import { markdown, origins, own } from "../src/render";
 
 const SHA = "a".repeat(64);
 const a = (href: string, text = href) =>
@@ -277,21 +277,50 @@ describe("markdown", () => {
 
 describe("a page here by its full address (#288)", () => {
   const HERE = "https://scrap.example.org";
+  const LAN = "http://192.168.1.10:8000";
   afterEach(() => vi.unstubAllGlobals());
+  /** A document whose index.html lists these in its scrap-origins meta tag, as served. */
+  const served = (content: string) =>
+    vi.stubGlobal("document", {
+      querySelector: (q: string) => (q === 'meta[name="scrap-origins"]' ? { content } : null),
+    });
 
   it("is its path: opened in the app, not a new window", () => {
-    expect(own(`${HERE}/p/a-page`, HERE)).toBe("/p/a-page");
-    expect(own(`${HERE}/p/a-page?x=1#h-top`, HERE)).toBe("/p/a-page?x=1#h-top");
-    expect(own(`HTTPS://SCRAP.example.org/p/a-page`, HERE)).toBe("/p/a-page");
+    expect(own(`${HERE}/p/a-page`, [HERE])).toBe("/p/a-page");
+    expect(own(`${HERE}/p/a-page?x=1#h-top`, [HERE])).toBe("/p/a-page?x=1#h-top");
+    expect(own(`HTTPS://SCRAP.example.org/p/a-page`, [HERE])).toBe("/p/a-page");
   });
 
   it("is not another site's, another path here, or with no origin known", () => {
-    expect(own("https://elsewhere.org/p/a-page", HERE)).toBeNull();
-    expect(own("http://scrap.example.org/p/a-page", HERE)).toBeNull(); // another origin
-    expect(own(`${HERE}/api/blobs/x`, HERE)).toBeNull();
-    expect(own(`${HERE}/p/Not_A_Slug`, HERE)).toBeNull();
-    expect(own("/p/a-page", HERE)).toBeNull(); // already a path
-    expect(own(`${HERE}/p/a-page`, undefined)).toBeNull();
+    expect(own("https://elsewhere.org/p/a-page", [HERE])).toBeNull();
+    expect(own("http://scrap.example.org/p/a-page", [HERE])).toBeNull(); // another origin
+    expect(own(`${HERE}/api/blobs/x`, [HERE])).toBeNull();
+    expect(own(`${HERE}/p/Not_A_Slug`, [HERE])).toBeNull();
+    expect(own("/p/a-page", [HERE])).toBeNull(); // already a path
+    expect(own(`${HERE}/p/a-page`, [])).toBeNull();
+  });
+
+  it("is on any of the server's addresses (#290)", () => {
+    expect(own(`${HERE}/p/a-page`, [HERE, LAN])).toBe("/p/a-page");
+    expect(own(`${LAN}/p/b-page#h-x`, [HERE, LAN])).toBe("/p/b-page#h-x");
+    expect(own("http://192.168.1.10:8001/p/a-page", [HERE, LAN])).toBeNull(); // another port
+  });
+
+  it("knows the addresses the server lists, and the one it was loaded from (#290)", () => {
+    vi.stubGlobal("location", { origin: LAN });
+    served(`${HERE} https://SCRAP.example.org:443/ not-a-url`);
+    expect(origins()).toEqual([LAN, HERE, HERE]);
+    expect(one(`[A](${HERE}/p/a-page) and [B](${LAN}/p/b-page)`)).toBe(
+      '<p><a href="/p/a-page">A</a> and <a href="/p/b-page">B</a></p>',
+    );
+    served("");
+    expect(origins()).toEqual([LAN]); // the dev server's index.html: no addresses filled in
+  });
+
+  it("a page's path with a query or #heading is a link in the app too, as the server counts it", () => {
+    expect(one("[A](/p/a-page?x=1) and [B](/p/b-page#h-top) and [C](/p/Bad#x)")).toBe(
+      '<p><a href="/p/a-page?x=1">A</a> and <a href="/p/b-page#h-top">B</a> and C</p>',
+    );
   });
 
   it("renders as a link in the app; another site's still opens a new window", () => {
