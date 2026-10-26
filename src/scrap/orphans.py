@@ -36,8 +36,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from .store import MAX_PAGE, Store, body_refs, new_ulid
-from .store.health import REVIEW
-from .store.trash import TRASH_DAYS  # a review page: one gc made (its capture's source)
+from .store.health import REVIEW  # a review page: one gc made (its capture's source)
+from .store.trash import TRASH_DAYS
 
 __all__ = ["DUE_DAYS", "TITLE", "Gathered", "Orphan", "clock", "find", "gather"]
 

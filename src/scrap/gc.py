@@ -341,7 +341,7 @@ def collect(
     """
     if grace_hours < 0:
         raise GcError("the grace period must not be negative")
-    # today's spend is summed from the runs: keep at least a day
+    # At least a day each (today's spend is summed from the runs), at most MAX_DAYS
     for days, what in ((run_days, "run"), (trash_days, "trash"), (job_days, "job")):
         try:
             if days is not None:

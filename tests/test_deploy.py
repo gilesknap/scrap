@@ -66,7 +66,8 @@ def test_gc_passes_its_arguments_on_after_the_defaults(tmp_path):
 
 def test_gc_takes_the_trash_days_from_scrap_s_own_settings(tmp_path):
     """SCRAP_TRASH_DAYS in ingest.env (which the server reads too) sets
-    --trash-days, ahead of a drop-in's arguments; the environment overrides it."""
+    --trash-days, ahead of a drop-in's arguments; the environment (~/.config/scrap/env)
+    never does, so gc and the server cannot disagree."""
     conf = tmp_path / "a" / "home" / ".config" / "scrap"
     conf.mkdir(parents=True)
     (conf / "ingest.env").write_text(
@@ -79,8 +80,8 @@ def test_gc_takes_the_trash_days_from_scrap_s_own_settings(tmp_path):
     assert args.split()[-8:] == [
         "gc", "--delete", "--grace-hours", "24", "--trash-days", "60", "--run-days", "9"
     ]  # fmt: skip
-    result, args = _gc_run(tmp_path / "b", backups_age_min=60, SCRAP_TRASH_DAYS="off")
-    assert args.split()[-2:] == ["--trash-days", "off"]
+    result, args = _gc_run(tmp_path / "b", backups_age_min=60, SCRAP_TRASH_DAYS="5")
+    assert "--trash-days" not in args.split()  # not from the environment
     result, args = _gc_run(tmp_path / "c", backups_age_min=60)  # none set: the default
     assert "--trash-days" not in args.split()
 

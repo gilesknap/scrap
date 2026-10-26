@@ -6,10 +6,10 @@
 # a backup's database names is in that backup, so deleting the live copy never
 # loses the only one. Files younger than 24 hours are kept (uploads in flight).
 # Started by scrap-gc.timer, after the nightly backup.
-# Pages in the trash longer than SCRAP_TRASH_DAYS (default 30; off: never) are purged:
-# the one setting the server reads too, so it is taken from scrap's own
-# ~/.config/scrap/ingest.env (its last SCRAP_TRASH_DAYS= line) unless the environment
-# sets it.
+# Pages in the trash longer than SCRAP_TRASH_DAYS (default 30; off: never) are purged.
+# It is read only from scrap's own ~/.config/scrap/ingest.env (its last
+# SCRAP_TRASH_DAYS= line), the file the server reads, never from this script's
+# environment, so gc and the purge dates the PWA shows cannot disagree.
 # Settings come from the environment (~/.config/scrap/env via systemd). Arguments
 # are passed on to `scrap gc` after its defaults, so the last wins: --grace-hours 48,
 # --run-days 60, --job-days 14, or --dry-run to only count (a drop-in on
@@ -36,8 +36,8 @@ podman=${PODMAN:-/usr/bin/podman}
 : "${SCRAP_BACKUPS:?SCRAP_BACKUPS is not set}"
 : "${SCRAP_DATA:?SCRAP_DATA is not set}"
 : "${SCRAP_IMAGE:?SCRAP_IMAGE is not set}"
-trash_days=${SCRAP_TRASH_DAYS-}
-if [ -z "$trash_days" ] && [ -r "$HOME/.config/scrap/ingest.env" ]; then
+trash_days=
+if [ -r "$HOME/.config/scrap/ingest.env" ]; then
     trash_days=$(sed -n 's/^SCRAP_TRASH_DAYS=[[:space:]]*//p' "$HOME/.config/scrap/ingest.env" |
         tail -n 1 | tr -d '[:space:]')
 fi
