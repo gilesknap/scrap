@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>28. Claude-maintained topic pages &#8212; scrap 0.9.1.dev1+g83a9e1ce3 documentation</title>
+    <title>28. Claude-maintained topic pages &#8212; scrap 0.9.1.dev2+ge32a44401 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=6ea291af"></script>
+    <script src="../../_static/documentation_options.js?v=4c39738d"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -599,9 +599,10 @@ about $0.10 to $0.30. Both come from the shared daily budget.</p></li>
 <li><p>A topic is as good as the model’s judgement of what recurs. The owner vetoes a topic by
 trashing it, and a source by taking it out; the synthesis is labelled Claude’s, versioned, and
 can be steered, regenerated or restored.</p></li>
-<li><p>The PWA does not show topics yet: the Topics tab, the topic page and the Topics line on a
-source come next (#261, PR 2). Until then they are read over MCP and the API, and judged
-there.</p></li>
+<li><p>The PWA shows them (#261, its second pull request): a Topics tab with the index, the topic
+page (a Topic by Claude badge, the owner’s notes, then the synthesis and its Sources in About
+this page, each source with a ✕), a Topics line on a source, and a Topic label in search
+(each search hit says whether it is a topic). See <a class="reference internal" href="../../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>.</p></li>
 <li><p>The pass runs weekly, Sundays at 04:11, clear of the nightly related pass (03:41) and gc
 (04:30): a systemd timer on the single server (<code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code>) and a CronJob in
 the chart (<code class="docutils literal notranslate"><span class="pre">enrichTopics.*</span></code>, only with ingest on).</p></li>

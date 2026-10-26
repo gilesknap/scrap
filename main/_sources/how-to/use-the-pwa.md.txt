@@ -1,15 +1,15 @@
 # Capture from your phone (the PWA)
 
 scrap serves a web app (a PWA) at the root of its address. It is built for one-handed use on a
-phone and has three tabs: **Capture** (the composer, camera and gallery, the share target and
-the offline queue), **Todos** (what to do now, soon, or ever) and **Search** (every page, newest
-first, with kinds, filters and tags). Opening a page gives a page view with an editor, photo and
+phone and has four tabs: **Capture** (the composer, camera and gallery, the share target and
+the offline queue), **Todos** (what to do now, soon, or ever), **Search** (every page, newest
+first, with kinds, filters and tags) and **Topics** (the topic pages Claude keeps). Opening a page gives a page view with an editor, photo and
 drawing viewers and, with Claude on, what Claude made of it.
 
 This page covers, in order: installing it, capturing, sharing into scrap, the offline queue, what
 scrap stores on the phone and what works offline; then viewing, editing and searching (navigating
 and the keyboard, search and its syntax, tags, todos, the page view, editing and deleting); what
-Claude makes of a photo and of a note or link;
+Claude makes of a photo and of a note or link, and its topic pages;
 the iPhone and iPad limits, updates and the screen-layout debug panel; and, for developers, how
 to build the app, with the licences of what it bundles.
 
@@ -179,7 +179,8 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
 
 ### Screens and navigation
 
-- The nav has three tabs, **Capture**, **Todos** and **Search**. **Todos** opens the Todos
+- The nav has four tabs, **Capture**, **Todos**, **Search** and **Topics** (see Claude's topic
+  pages, below). **Todos** opens the Todos
   screen on **Now** (see Todos, below); its badge counts the open todos due today or overdue, by your
   phone's day (none: no badge), and is counted again when the app opens or comes back and
   after a tick or an edit. **Search** opens the list screen for everything else: with
@@ -188,14 +189,14 @@ you can. The cached files are replaced when a new scrap is deployed (see Updates
   box. There is no separate Recent screen: the empty box is it.
 - A page is a step down from a list, so it has no nav: its toolbar is the only bar at the
   bottom. In the top bar, in place of the wordmark, Back names where it goes: **‹ Search**,
-  **‹ Todos** or **‹ Capture**, the list you opened the page from. It goes straight back to
+  **‹ Todos**, **‹ Topics** or **‹ Capture**, the list you opened the page from. It goes straight back to
   that list as you left it, even after you have stepped through its pages or followed links
   from page to page; the phone's or the browser's own Back still goes back one step at a time. A page opened from a link or a share
-  has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Capture
-  for any other page.
+  has no list behind it, so Back goes up instead: to the Todos screen for a todo, to Topics for
+  a topic page, to Capture for any other page.
 - On a wide screen (a laptop, a tablet on its side) the app is one centred column about 720 px
   wide. On a computer (with a mouse) the layout suits the mouse rather than the
-  thumb: Capture, Todos and Search are tabs in the top bar, Camera, Gallery and Note sit over
+  thumb: Capture, Todos, Search and Topics are tabs in the top bar, Camera, Gallery and Note sit over
   the list, a page's buttons (Mark done, Edit, Share, Delete) are a row under its title and
   details, and messages appear at the bottom of the window. Phones and touch tablets keep the
   bars at the bottom.
@@ -584,7 +585,9 @@ has a summary or related pages. The panel has:
 - **Summary**: Claude's one-line summary of the page, which search also looks in. On a board
   it is the lead of Claude's write-up.
 - **Related**: pages Claude picked, merged with the pages that link here (marked *· links
-  here*).
+  here*), and the topics whose synthesis cites the page (marked *· in a topic*).
+- **Topics**: on a page that is a source of any of Claude's topic pages, a line at the top of
+  the card names them (*Topics: ibek · RTEMS IOCs*), each a link to its topic.
 - Summary and Related are open until you close them. The tags Claude added are marked with a
   dashed outline in the tag line.
 
@@ -619,6 +622,39 @@ related pages afresh. It has:
 The first write-up comes once Claude has read all of the board's photos; its related pages are
 picked after it. Write-ups for boards read before this feature come from `scrap enrich
 --writeups` (see [](../reference/api.md)).
+
+## Claude's topic pages
+
+Each week (with Claude on; see {ref}`ingest-topics`) Claude looks across your pages for
+things they keep coming back to, such as a tool or a family of systems, and makes a topic page
+for each: what those pages say about it, citing them. The topic pages are Claude's, kept apart
+from your own pages.
+
+- **The Topics tab** (`/topics`) lists them, grouped by area (the top-level tag most common
+  among a topic's sources, the biggest group first; *Other* for topics whose sources have no
+  tags). Each row has the topic's title, its one-line summary, how many sources it has and
+  when it last changed. A dot at the end of a row marks a topic that is new or has changed
+  since you last opened the tab or that topic on this device (kept on the phone, never sent anywhere; the
+  very first time, there are no dots). The filter box at the top narrows the list as you type,
+  matching the title, summary and area. With no topics yet, the tab says what they are and
+  that they come from the weekly pass.
+- **A topic page** says *Topic by Claude* in the line under its title (tap it for the Topics
+  tab). Its text is yours: notes on the topic, empty at first (the page says so), edited as any
+  page's text is. Claude never writes there. Claude's synthesis is in the **About this page**
+  card under it, as for a board's write-up: its lead is the **Summary**, and the rest is
+  **In detail** (open until you close it): an overview, key facts with links to the pages they
+  come from, how the sources relate, and contradictions and open questions. **Regenerate**,
+  **Guidance for Claude** and **Versions** work as for a board's write-up (above).
+- **Sources** in the same card lists the pages the topic is made from, each with its title (a
+  link) and kind. Its **✕** takes a page out: Claude's next synthesis leaves it out, and the
+  weekly pass never adds it again. A page taken out stays in the list, struck through and
+  marked *taken out*, with **Put back** (the toast's **Undo** does the same). Offline they
+  are off: changing the sources needs the server. Either way the
+  synthesis is written again. The topic's Related leaves out its sources, which Sources lists.
+- **Search** puts a matching topic page first, with a small *Topic* label after its date and
+  an open book for its icon; `is:topic` lists them all.
+- To get rid of a topic, delete it: it goes to the trash, and the weekly pass does not make it
+  again.
 
 ## Licences of the Markdown libraries
 
