@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sections } from "../src/groups";
-import { groupBy, served, ungrouped, withGroup } from "../src/terms";
+import { dueBound, dueMeets, duesIn, groupBy, served, ungrouped, withGroup } from "../src/terms";
 
 const T = "2026-10-21";
 const at = "2026-10-01T00:00:00Z";
@@ -112,5 +112,67 @@ describe("sections", () => {
       "Snoozed: asleep",
       "Done: did",
     ]);
+  });
+});
+
+describe("group:due", () => {
+  const todo = (title: string, due: string | null, status = "open") => ({
+    ...page(title, "todo", { status }),
+    due,
+  });
+  it("applies to Todos alone, beside Now (still their own)", () => {
+    expect(groupBy("kind:todo group:due")).toBe("due");
+    expect(groupBy("kind:todo")).toBe("now");
+    expect(groupBy("kind:later group:due")).toBeNull();
+    expect(groupBy("tag:home group:due")).toBeNull();
+    expect(withGroup("kind:todo", "due")).toBe("kind:todo group:due");
+  });
+  it("sections by when due, soonest first in each, then Done folded", () => {
+    const list = [
+      todo("no date", null),
+      todo("in 2 weeks", "2026-11-04"),
+      todo("in 5 days", "2026-10-26"),
+      todo("in 3 days", "2026-10-24"),
+      todo("tomorrow", "2026-10-22"),
+      todo("today", T),
+      todo("late", "2026-10-20"),
+      todo("later late", "2026-10-01"),
+      todo("did", "2026-10-22", "done"),
+      todo("week's end", "2026-10-28"),
+    ];
+    const s = sections("due", list, { today: T });
+    expect(said(s)).toEqual([
+      "Overdue: later late, late",
+      "Today: today",
+      "Tomorrow: tomorrow",
+      "This week: in 3 days, in 5 days, week's end",
+      "Later: in 2 weeks",
+      "No date: no date",
+      "Done: did",
+    ]);
+    expect(s.at(-1)).toMatchObject({ fold: true, open: false });
+  });
+});
+
+describe("due: from today", () => {
+  it("reads days, weeks and months from today, as after: takes them", () => {
+    expect(dueBound("<=7d", T)).toEqual(["<=", "2026-10-28"]);
+    expect(dueBound("<1w", T)).toEqual(["<", "2026-10-28"]);
+    expect(dueBound(">=2w", T)).toEqual([">=", "2026-11-04"]);
+    expect(dueBound("<=m", T)).toEqual(["<=", "2026-11-20"]);
+    expect(dueBound(">today", T)).toEqual([">", T]);
+    expect(dueBound("tomorrow", T)).toEqual(["=", "2026-10-22"]);
+    expect(dueBound("2026-12-01", T)).toEqual(["=", "2026-12-01"]);
+    expect(dueBound("none", T)).toBe("none");
+    for (const bad of ["<=0d", "<=101d", "<=1000d", "soon", "<none", "<=7x"])
+      expect(dueBound(bad, T)).toBeNull();
+  });
+  it("matches a due day, or none", () => {
+    expect(dueMeets("<=7d", "2026-10-28", T)).toBe(true);
+    expect(dueMeets("<=7d", "2026-10-29", T)).toBe(false);
+    expect(dueMeets(">today", T, T)).toBe(false);
+    expect(dueMeets("none", null, T)).toBe(true);
+    expect(dueMeets("<=7d", null, T)).toBe(false);
+    expect(duesIn("kind:todo due:>today -due:none due:<=7d")).toEqual([">today", "<=7d"]);
   });
 });

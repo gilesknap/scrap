@@ -2,7 +2,7 @@
 // screen (Now) draw it: sections.ts draws them, each an h2.label "To watch · 4" over its rows,
 // a folded one (Done) a .donefold at the end. No DOM here, so the unit tests run it.
 import type { Summary } from "./api";
-import { isOpen, now } from "./now";
+import { after, isOpen, now } from "./now";
 import type { Group } from "./terms";
 
 export interface Section<T> {
@@ -40,7 +40,7 @@ function bucket<T>(items: T[], key: (t: T) => string, order: string[]): Section<
 }
 
 /** The list in sections, by how (terms.ts groupBy). tag: the tag filtered by (group:tag);
- * today: YYYY-MM-DD (group:now); ranked: Now's own order in its sections (no order chosen),
+ * today: YYYY-MM-DD (group:now, group:due); ranked: Now's own order in its sections (no order chosen),
  * else each keeps the list's. */
 export function sections<T extends Item>(
   how: Group,
@@ -85,6 +85,25 @@ export function sections<T extends Item>(
       ),
       ...fold,
     ];
+  }
+  if (how === "due") {
+    // By when due, soonest first in each: Overdue, Today, Tomorrow, This week (the rest of
+    // the next 7 days), Later, No date
+    const when = (t: T) =>
+      !t.due
+        ? "No date"
+        : t.due < today
+          ? "Overdue"
+          : t.due === today
+            ? "Today"
+            : t.due === after(today, 1)
+              ? "Tomorrow"
+              : t.due <= after(today, 7)
+                ? "This week"
+                : "Later";
+    const soonest = [...open].sort((a, b) => (a.due ?? "~").localeCompare(b.due ?? "~"));
+    const order = ["Overdue", "Today", "Tomorrow", "This week", "Later", "No date"];
+    return [...bucket(soonest, when, order), ...fold];
   }
   // Now: the Todos screen's sections (now.ts), then the snoozed ones (out of Now till their
   // day, but still found), then Done

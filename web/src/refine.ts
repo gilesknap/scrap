@@ -95,10 +95,12 @@ const RANGES = [
 ];
 
 // Groupings: [group: value, chip, what the Filters on row says]
+// (in the Group row's order, the list's own first: Now · Due · None · A–Z for todos)
 const GROUPS: [Group | "none", string, string][] = [
-  ["none", "None", "not grouped"],
   ["type", "Type", "grouped by type"],
   ["now", "Now", "grouped by Now"],
+  ["due", "Due", "grouped by due"],
+  ["none", "None", "not grouped"],
   ["letter", "A–Z", "grouped A–Z"],
   ["tag", "Tag", "grouped by tag"],
 ];
@@ -399,13 +401,20 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   clear?.setAttribute("data-k", "clear");
 
   // Group: the list's own first (Later's Type, Todos' Now, else None), as Order has its
-  // default first; Tag only with a tag filter on, Type and Now only for their kind alone
+  // default first; Tag only with a tag filter on, Type only for Later alone, Now and Due only
+  // for Todos alone
   const own = groupDefault(q) ?? "none";
   const by = groupBy(q) ?? "none";
+  const fits = (k: string) =>
+    k === "tag"
+      ? tagsIn(q).length > 0
+      : k === "type" || k === "now"
+        ? k === own
+        : k === "due"
+          ? own === "now"
+          : true;
   const groups = [...GROUPS.filter(([k]) => k === own), ...GROUPS.filter(([k]) => k !== own)]
-    .filter(([k]) =>
-      k === "tag" ? tagsIn(q).length > 0 : k === "type" || k === "now" ? k === own : true,
-    )
+    .filter(([k]) => fits(k))
     .map(([k, label]) => {
       const b = chip(label, -1, () => apply((q2) => withGroup(q2, k)));
       b.setAttribute("aria-pressed", String(k === by));
