@@ -164,14 +164,15 @@ always live under `~/.config`: the units name `%h/.config/scrap/env` and a unit 
 
 - writes the settings files `~/.config/scrap/env` and `~/.config/scrap/ingest.env` if they do not
   exist yet (it never overwrites them);
-- copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`, `scrap-gc.service`,
+- copies `scrap.service`, `scrap-backup.service`, `scrap-backup.timer`,
+  `scrap-backup-monthly.service`, `scrap-backup-monthly.timer`, `scrap-gc.service`,
   `scrap-gc.timer`, `scrap-enrich-related.service`, `scrap-enrich-related.timer`,
   `scrap-enrich-topics.service` and `scrap-enrich-topics.timer` to
   `~/.config/systemd/user/`, and the scripts `scrap-run`, `scrap-backup` and `scrap-gc` to
   `~/.local/lib/scrap/`;
 - enables linger if it can (otherwise it prints the `sudo loginctl enable-linger` command);
 - enables and starts `scrap.service` if the image named in the settings is present, and the daily
-  backup timer only if that image has the `scrap backup` command, the nightly gc timer only if
+  and monthly backup timers only if that image has the `scrap backup` command, the nightly gc timer only if
   it has `scrap gc`, the nightly related-pages timer only if it has `scrap enrich --related`,
   and the weekly topics timer only if it has `scrap enrich --topics` (images built before them do not; re-run the script after updating the image);
 - restarts a running `scrap.service` if the image it runs, the unit or the `scrap-run` launcher
@@ -203,6 +204,7 @@ only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
 | `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each is a full copy: see {ref}`scrap-backup-restore`. |
+| `SCRAP_BACKUP_MONTHLY_KEEP` | `12` | Number of monthly backup runs (in `SCRAP_BACKUPS/monthly`) to keep; `0` turns monthly backups off (re-run `install.sh` after changing it to or from 0). Unset means 12, so an env file from before the monthly backup needs no change; set but empty is refused. |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
 | `SCRAP_VOLUME_OPTS` | `z` | Options after the colon on every container volume. `z` relabels the folders for SELinux and does nothing elsewhere. Set it empty for no option, or e.g. `z,U`. Not in the generated file (commented out); unset means `z`. See [SELinux](scrap-selinux). |
 
@@ -353,7 +355,7 @@ systemctl --user list-timers
 caller's `~/.config/scrap/env`, so run by anyone else it falls back to TCP port 8790 and fails on
 a socket install. Logs:
 `journalctl --user -u scrap`. `list-timers` should show `scrap-backup.timer`,
-`scrap-gc.timer`, `scrap-enrich-related.timer` and `scrap-enrich-topics.timer`; one that is missing was skipped because the
+`scrap-backup-monthly.timer`, `scrap-gc.timer`, `scrap-enrich-related.timer` and `scrap-enrich-topics.timer`; one that is missing was skipped because the
 image lacks its command (see {ref}`scrap-install-script`).
 
 (scrap-publish)=
@@ -537,11 +539,44 @@ systemctl --user start scrap-backup
 ls ~/.local/share/scrap/backups
 ```
 
+**Monthly backups.** The daily runs reach back only `SCRAP_BACKUP_KEEP` days, so a destructive
+change noticed later could be gone from all of them. `scrap-backup-monthly.timer` therefore runs
+`scrap-backup-monthly.service` on the 1st of each month (about 03:50, and at the next start if
+the machine was off), as the Helm chart's `backup.monthly` CronJob does. It runs the same backup,
+`scrap-backup monthly`, into a new timestamped directory in `SCRAP_BACKUPS/monthly/`, then
+deletes all but the newest `SCRAP_BACKUP_MONTHLY_KEEP` (12 when unset) runs there. It takes the same
+lock as the daily backup and gc, so it never overlaps them. The daily backup, its pruning and gc's
+check for a recent backup only look at runs directly in `SCRAP_BACKUPS`, so the `monthly/` folder
+never counts towards `SCRAP_BACKUP_KEEP`, is never pruned by the daily runs, and does not stand
+in for a daily backup. To take a monthly backup now, or to prune the monthly runs after lowering
+the count:
+
+```
+systemctl --user start scrap-backup-monthly
+set -a; . ~/.config/scrap/env; set +a
+SCRAP_BACKUPS="$SCRAP_BACKUPS/monthly" SCRAP_BACKUP_KEEP="${SCRAP_BACKUP_MONTHLY_KEEP:-12}" \
+    ~/.local/lib/scrap/scrap-backup prune
+```
+
+To restore one, use `/backups/monthly/<timestamp>` in place of `/backups/<timestamp>` in
+{ref}`scrap-restore`.
+
+To turn monthly backups off, set `SCRAP_BACKUP_MONTHLY_KEEP=0` in `~/.config/scrap/env` and
+re-run `install.sh`: it then disables `scrap-backup-monthly.timer`, and a monthly run started
+anyway says monthly backups are off and does nothing. The runs already in `monthly/` stay until
+you delete them. Do not rely on `systemctl --user disable --now scrap-backup-monthly.timer`
+alone: the next `install.sh` run enables it again, as it does every timer whose command the
+image has. An empty `SCRAP_BACKUP_MONTHLY_KEEP=` is refused (the run fails) like an empty
+`SCRAP_BACKUP_KEEP`; leave the line out for the default of 12.
+
 **Disk use.** Each run is a full, independent copy (the database and every file, not an
 increment), so `SCRAP_BACKUPS` needs about `SCRAP_BACKUP_KEEP` times the size of `SCRAP_DATA`, plus
-one more while a run is in progress. Check with `du -sh "$SCRAP_DATA" "$SCRAP_BACKUPS"` (after
+one more while a run is in progress, plus `SCRAP_BACKUP_MONTHLY_KEEP` more for the monthly
+runs. Check with `du -sh "$SCRAP_DATA" "$SCRAP_BACKUPS"` (after
 loading the settings, as in {ref}`scrap-restore` below), and if the backups are too big,
-lower `SCRAP_BACKUP_KEEP` or point `SCRAP_BACKUPS` at a bigger disk. `scrap gc` makes later runs
+lower `SCRAP_BACKUP_KEEP` or `SCRAP_BACKUP_MONTHLY_KEEP` (0 turns the monthly runs off), or
+point `SCRAP_BACKUPS` at a bigger disk. Upgrading to a version with the monthly timer adds up to
+12 more full copies over the following year. `scrap gc` makes later runs
 smaller; it never shrinks earlier ones.
 
 **Pruning on demand.** The retention step runs only at the end of a successful backup, so a night
@@ -617,20 +652,21 @@ You can instead keep hand backups outside `SCRAP_BACKUPS`, in a folder you mount
 [](../reference/scheduled-jobs.md) lists every timer, its schedule and what it does.
 
 Nothing notifies you when a timer's service fails: `SCRAP_NOTIFY_URL` is for ingest pauses only.
-All four services (`scrap-backup`, `scrap-gc`, `scrap-enrich-related`, `scrap-enrich-topics`)
-are one-shot, so a failed run shows only in systemd, and you find out by looking:
+All five services (`scrap-backup`, `scrap-backup-monthly`, `scrap-gc`, `scrap-enrich-related`,
+`scrap-enrich-topics`) are one-shot, so a failed run shows only in systemd, and you find out by looking:
 
 ```
 systemctl --user list-timers                        # next and last run of each timer
-systemctl --user status scrap-backup scrap-gc       # the last result of each service
+systemctl --user status scrap-backup scrap-backup-monthly scrap-gc  # the last result of each
 systemctl --user --failed                           # any unit whose last run failed
-journalctl --user -u scrap-backup -u scrap-gc -u scrap-enrich-related -u scrap-enrich-topics
+journalctl --user -u scrap-backup -u scrap-backup-monthly -u scrap-gc \
+    -u scrap-enrich-related -u scrap-enrich-topics
 ```
 
 A failed service stays listed as failed until it next runs. The two scripts report on stderr,
 which the journal keeps:
 
-- `Backup failed; kept the existing backups untouched.` The backup run failed (the container
+- `Backup failed; kept the existing backups untouched.` The backup run (daily or monthly) failed (the container
   could not run, or `scrap backup` failed: the lines above it in the journal say why). Its
   half-written directory was removed and nothing was pruned.
 - `No backup in the last 26 hours: counting only, deleting nothing.` `scrap-gc` found no run
@@ -646,20 +682,25 @@ The nightly order, in the machine's local time (each timer has up to 15 minutes 
 ```mermaid
 flowchart LR
     b["03:30<br/>backup"] --> r["03:41<br/>related pages"] --> g["04:30<br/>gc"]
+    m["1st 03:50<br/>monthly backup"]
     t["Sun 04:11<br/>topics"]
     b -.->|"gc needs a COMPLETE run<br/>under 26 h old"| g
 ```
 
-The four timers and their defaults:
+The five timers and their defaults:
 
 | Timer | Default `OnCalendar` |
 | --- | --- |
 | `scrap-backup.timer` | `*-*-* 03:30:00` (daily) |
+| `scrap-backup-monthly.timer` | `*-*-01 03:50:00` (the 1st of each month) |
 | `scrap-enrich-related.timer` | `*-*-* 03:41:00` (daily) |
 | `scrap-enrich-topics.timer` | `Sun *-*-* 04:11:00` (Sundays) |
 | `scrap-gc.timer` | `*-*-* 04:30:00` (daily) |
 
 Do not edit the copies in `~/.config/systemd/user/`: `install.sh` overwrites them on every run.
+It also enables again every timer whose command the image has, so a timer you turned off only
+with `systemctl --user disable` is back on after the next run: turn monthly backups off with
+`SCRAP_BACKUP_MONTHLY_KEEP=0` instead, and disable any other timer again after re-running it.
 Use a drop-in, which survives it:
 
 ```
@@ -674,9 +715,10 @@ OnCalendar=
 OnCalendar=*-*-* 02:00:00
 ```
 
-Check with `systemctl --user list-timers`. The other three timers work the same way
-(`systemctl --user edit scrap-gc.timer`, `scrap-enrich-related.timer` or
-`scrap-enrich-topics.timer`). Keep gc after the backup, and the Claude jobs after it too (see
+Check with `systemctl --user list-timers`. The other timers work the same way
+(`systemctl --user edit scrap-backup-monthly.timer`, `scrap-gc.timer`,
+`scrap-enrich-related.timer` or `scrap-enrich-topics.timer`). The number of monthly runs kept is
+`SCRAP_BACKUP_MONTHLY_KEEP` in `~/.config/scrap/env` (see {ref}`scrap-backup-restore`). Keep gc after the backup, and the Claude jobs after it too (see
 [](../reference/scheduled-jobs.md)).
 
 ### Changing what a job does
@@ -853,9 +895,10 @@ it has no recent backup.
 As the `scrap` user:
 
 ```
-systemctl --user disable --now scrap.service scrap-backup.timer scrap-gc.timer \
-    scrap-enrich-related.timer scrap-enrich-topics.timer
+systemctl --user disable --now scrap.service scrap-backup.timer scrap-backup-monthly.timer \
+    scrap-gc.timer scrap-enrich-related.timer scrap-enrich-topics.timer
 rm ~/.config/systemd/user/scrap.service ~/.config/systemd/user/scrap-backup.* \
+    ~/.config/systemd/user/scrap-backup-monthly.* \
     ~/.config/systemd/user/scrap-gc.* ~/.config/systemd/user/scrap-enrich-related.* \
     ~/.config/systemd/user/scrap-enrich-topics.*
 rm -r ~/.local/lib/scrap
@@ -876,7 +919,7 @@ backups and the settings in `~/.config/scrap/` stay until you delete them;
 create `~/.config/scrap/env` and `ingest.env` (the templates are in the script), copy the
 units from `deploy/` to `~/.config/systemd/user/` and the scripts to `~/.local/lib/scrap/`,
 then edit the copies as below, `systemctl --user daemon-reload`, and enable `scrap.service` and
-the timers you want (`scrap-backup.timer`, `scrap-gc.timer`, `scrap-enrich-related.timer`,
+the timers you want (`scrap-backup.timer`, `scrap-backup-monthly.timer`, `scrap-gc.timer`, `scrap-enrich-related.timer`,
 `scrap-enrich-topics.timer`)
 with `systemctl --user enable --now`.
 
