@@ -355,7 +355,7 @@ flowchart LR
   (`/excalidraw/fonts/`) and fetched only when used. The app's CSP (`font-src 'self' data:;
   connect-src 'self'`) stops Excalidraw using its CDN fallback (Chrome logs each blocked try).
 - **Sizes and offline.** `npm run size` checks them in CI: the shell's JavaScript is budgeted at
-  16 kB gzipped; the viewer chunk is about 400 kB of JavaScript and 23 kB of CSS gzipped, the
+  16.5 kB gzipped; the viewer chunk is about 400 kB of JavaScript and 23 kB of CSS gzipped, the
   fonts about 350 kB. The service worker precaches the shell and the `OFFLINE` chunks in
   `web/vite.config.ts`, never the viewer or its fonts.
 - **Downloads.** The page's zip carries `<photo>.excalidraw` beside each photo; a model skeleton

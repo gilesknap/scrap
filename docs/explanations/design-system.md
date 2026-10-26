@@ -2,7 +2,7 @@
 
 The phone app is a tool you reach for one-handed, often in a hurry: open, capture, gone. The
 design follows from that, and from keeping the app tiny: the shell (capture, lists, pages,
-search) uses no UI framework, icon library or web font, and its JavaScript is held under 16 kB
+search) uses no UI framework, icon library or web font, and its JavaScript is held under 16.5 kB
 gzipped (`npm run size`, `web/scripts/size.mjs`). The one exception is the drawing viewer for a
 photo's drawing: a separate chunk, fetched only when a drawing is shown, built on React and
 Excalidraw with Excalidraw's own fonts (served by scrap from `/excalidraw/fonts/`), and outside
@@ -308,7 +308,7 @@ paper scrap on amber; the header mark is the same scrap in amber.
 
 - No web font, icon font, CSS framework or component library in the shell. The drawing viewer
   is a separate lazily loaded chunk on React and Excalidraw, with Excalidraw's bundled fonts,
-  and is outside the 16 kB shell budget.
+  and is outside the 16.5 kB shell budget.
 - No colour outside `tokens.css` (the debug panel aside), and no second accent; no gradients
   except the photo viewer's scrim and the fade mask at the end of a sideways-scrolling row
   (`.tags`, `.refine`, `.toptags`: a 32 px `mask-image` fade to transparent, not a colour).

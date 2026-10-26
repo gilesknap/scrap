@@ -676,7 +676,7 @@ from another folder without restarting, point `SCRAP_WEB_DIR` at it. To work on 
 | --- | --- |
 | `npm --prefix web run check` | Biome and TypeScript |
 | `npm --prefix web test` | Unit tests |
-| `npm --prefix web run size` | After a build: the app shell stays within 16 kB gzipped and never loads Excalidraw |
+| `npm --prefix web run size` | After a build: the app shell stays within 16.5 kB gzipped and never loads Excalidraw |
 | `npm --prefix web run e2e` | Playwright against a real `uv run scrap serve` on a throwaway data folder; needs `uv`, a built PWA and `npx --prefix web playwright install chromium` once |
 | `npm --prefix web run icons` | Regenerates the app's icons |
 
