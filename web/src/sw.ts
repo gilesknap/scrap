@@ -32,6 +32,9 @@ const FAILED = [
   '<p style="padding: 0 1rem"><a href="/">Open scrap</a></p>',
 ].join("");
 
+// Shared photos are queued as they came: the downscale (downscale.ts) runs in the page, in
+// Queue.addAll, and this worker does not use it (no decoding here, and the size is kept
+// for the server to scale). See "Smaller photos" in docs/how-to/use-the-pwa.md.
 async function share(request: Request): Promise<Response> {
   const copy = request.clone();
   const capture = fromShare(await request.formData());

@@ -3,6 +3,7 @@
 // their own (health.ts, trash.ts), which the sheet closes to open.
 import { kept } from "./api";
 import { go } from "./app";
+import { getShrink, setShrink } from "./downscale";
 import {
   APP_KEY,
   type AppPref,
@@ -131,6 +132,22 @@ export function settings() {
         "p",
         { className: "hint" },
         "Light suits drawings that sit beside a photo of a whiteboard or paper.",
+      ),
+      h("h3", { className: "label" }, "Photos"),
+      choice(
+        "shrink",
+        "Smaller photos",
+        getShrink() ? "on" : "off",
+        [
+          ["on", "Smaller"],
+          ["off", "Full size"],
+        ],
+        (v) => setShrink(v === "on"),
+      ),
+      h(
+        "p",
+        { className: "hint" },
+        "Smaller makes a photo at most 2560 px on its long edge before it is saved: faster to upload. Full size sends it as the camera took it. The camera roll keeps the full-size original.",
       ),
       h("h3", { className: "label" }, "Store"),
       screen("/health", "Store health"),
