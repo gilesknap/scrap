@@ -3,6 +3,7 @@ import { kept, send, stallLimit } from "./api";
 import { nameAt } from "./crumbs";
 import { idb } from "./db";
 import { Queue } from "./queue";
+import { keepScroll } from "./scroll";
 
 const stall = () => stallLimit(kept("scrap.stall_ms"));
 export const queue = new Queue(
@@ -37,6 +38,7 @@ export function go(path: string, replace = false, state: object | null = null) {
     : paged(location.pathname) && paged(path)
       ? { name: nameAt(now.at ?? 0) ?? "Previous page", at: now.at ?? 0 } // as drawn: crumbs.ts
       : undefined;
+  if (!replace) keepScroll(); // where this screen was, for Back (scroll.ts)
   history[replace ? "replaceState" : "pushState"]({ ...state, at, back, up }, "", path);
   window.scrollTo(0, 0);
   rerender();

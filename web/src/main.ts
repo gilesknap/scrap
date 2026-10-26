@@ -7,6 +7,7 @@ import { capture } from "./capture";
 import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
 import { pageRow } from "./lists";
+import { holdScroll, restoreScroll, watchScroll } from "./scroll";
 import { search } from "./search";
 import { whenSlow } from "./slow";
 import { today } from "./status";
@@ -138,6 +139,7 @@ async function render() {
   controller = new AbortController();
   current.signal = controller.signal;
   clearToasts();
+  holdScroll(); // until it is drawn and put back where it was
   const path = location.pathname;
   markNav();
   // A page is reached from elsewhere: Back in the top bar instead of the wordmark, on every
@@ -193,12 +195,14 @@ async function render() {
     // A page's name, as drawn, for Back on the entries in front of it (crumbs.ts)
     if (arrow) remember(view.querySelector(".page h1")?.textContent ?? "");
     if (arrow) nameBack(); // a page opened cold: its kind is known now
+    restoreScroll(c.signal); // Back or Forward: where it was left (scroll.ts)
     add.hidden = !(el instanceof Element && el.classList.contains("todos")); // not on a problem
     placeToasts(); // e.g. one placed for the view before
     return;
   }
   shown = "";
   view.replaceChildren(h("p", { className: "empty" }, "Not found"));
+  restoreScroll(controller.signal);
 }
 
 // Every page, tag and list is a real link (long-press or Ctrl-click opens it in a new tab):
@@ -304,6 +308,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   });
 }
 
+watchScroll();
 if (kept(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();

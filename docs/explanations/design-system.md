@@ -49,6 +49,9 @@ and back.
   back through them one step at a time, as the top bar's Back does after a link.
   Delete is one step back (the list, or the page whose link opened it) with **Undo**; opened
   cold, it goes where Back names.
+  Whichever Back (the top bar's, the jump, the phone's) or Forward, a screen comes back
+  scrolled where it was left (`scroll.ts`: the position rides in its history entry, put back
+  once the screen is tall enough, never smoothly; the search screen keeps its own).
 - **Icons with words.** Icons help find a control; the word says what it does. Icon-only
   buttons (close, previous/next photo, remove a photo) carry an `aria-label`.
 - **Calm states.** Empty, offline and error states are an icon, one plain sentence and at most

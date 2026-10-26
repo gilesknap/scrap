@@ -82,7 +82,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     } catch {} // offline, or the server unreachable: the list as it was
   };
   document.addEventListener("queuechange", again, { signal });
-  const keep = () => history.replaceState({ ...history.state, scroll: scrollY }, "");
   const body = h("div");
   const count = h("p", { className: "count" });
   const radios = MODES.map(([m, label, glyph]) => {
@@ -167,8 +166,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     body.replaceChildren(...lists);
   }
   draw();
-  const y = history.state?.scroll;
-  if (y) requestAnimationFrame(() => scrollTo(0, y));
   const root = h(
     "section",
     { className: "todos" },
@@ -176,7 +173,5 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     count,
     body,
   );
-  // Leaving by a tap or a swipe: where the list is, for Back
-  root.addEventListener("pointerdown", keep, { capture: true });
   return root;
 }
