@@ -8,7 +8,7 @@ by hand. Each question has one answer here, and the table in
 docs/explanations/llm-calls.md (Page roles) matches it row for row:
 
 - the first capture, which decides the rest;
-- origin: human, claude (written over MCP), topic (Claude's topic page) or gc (a review
+- made by: human, claude (written over MCP), topic (Claude's topic page) or gc (a review
   page scrap gc made), worked out from the page's captures and the topic table; and
   whether Claude has edited its text since;
 - maintainer: enrich (on capture and save) or ingest (photo ingest; enrich on Ask only);
@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 from .constants import CLAUDE, ENRICH_KINDS, MCP, PINNED_SLUG
 
-Origin = Literal["human", "claude", "topic", "gc"]
+MadeBy = Literal["human", "claude", "topic", "gc"]
 WriteupType = Literal["board", "topic"]
 
 GC = "gc"  # the source of the capture scrap gc makes a review page with (orphans.py)
@@ -57,7 +57,7 @@ def first_capture(conn: sqlite3.Connection, cid: str) -> tuple[str, bool]:
     return row[0], bool(row[1])
 
 
-# ---- origin
+# ---- made by (not fields.origin: the provenance Claude gives an MCP page)
 
 # A topic page p: a row in topic (#261). Before migration 13 there is no topic table.
 IS_TOPIC = "EXISTS (SELECT 1 FROM topic t WHERE t.page_id = {p}.id)"
@@ -81,15 +81,15 @@ BY_CLAUDE = (
 # written_by_claude is has_mcp_capture). TODO(#280, for the owner): this is not
 # BY_CLAUDE's first-capture test, though the two find the same pages today: an mcp
 # capture only ever makes a page (MCP write) or is appended to one whose first capture
-# is mcp (Store.append refuses any other). Step 3's origin column replaces both.
+# is mcp (Store.append refuses any other). Step 3's made_by column replaces both.
 HAS_MCP_CAPTURE = (
     "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = '"
     + MCP
     + "')"
 )
-# A page's origin (SQL): a topic, else gc's, else Claude's, else the owner's
+# Who made a page (SQL): a topic, else gc's, else Claude's, else the owner's
 _NOT_TOPIC = f"WHEN {REVIEW} THEN 'gc' WHEN {BY_CLAUDE} THEN 'claude' ELSE 'human' END"
-ORIGIN = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
+MADE_BY = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
 # Claude changed its text over MCP after it was made (is:claude-edited): a text
 # revision by Claude after the first (an edit_page, a revert, an append). Only MCP
 # writes as CLAUDE, so this is never the photo worker's or the PWA's.
@@ -136,12 +136,12 @@ def edited_by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
     return _one(conn, CLAUDE_EDITED, page_id)
 
 
-def origin(conn: sqlite3.Connection, page_id: str) -> Origin:
-    """A page's origin (ORIGIN, one query): topic, gc, claude or human, in that
+def made_by(conn: sqlite3.Connection, page_id: str) -> MadeBy:
+    """Who made a page (MADE_BY, one query): topic, gc, claude or human, in that
     order. Before migration 13 (no topic table), never topic."""
     sql = "SELECT {} FROM page p WHERE p.id = ?"
     try:
-        row = conn.execute(sql.format(ORIGIN.format(p="p")), (page_id,)).fetchone()
+        row = conn.execute(sql.format(MADE_BY.format(p="p")), (page_id,)).fetchone()
     except sqlite3.OperationalError:  # no such table: an older schema
         row = conn.execute(
             sql.format("CASE " + _NOT_TOPIC.format(p="p")), (page_id,)

@@ -11,7 +11,7 @@ from .db import _rows
 from .errors import InvalidError, NotFoundError
 from .helpers import body_refs, now, todo_only
 from .indexing import enrich_on
-from .roles import is_topic, origin
+from .roles import is_topic, made_by
 from .topics import key_of, of_page
 from .topics import sources as topic_sources
 from .writeups import backlinks as writeup_backlinks
@@ -38,7 +38,7 @@ class PagesMixin(Core):
         return [todo_only({**r, "fields": json.loads(r["fields"])}) for r in rows]
 
     def page(self, key: str, trashed: bool = False) -> dict[str, Any]:
-        """A page with its current revision, its origin (roles.origin: human, claude,
+        """A page with its current revision, who made it (roles.made_by: human, claude,
         topic or gc) and its captures and their blobs. With trashed, one in the trash
         too, with its deleted_at (None for any other)."""
         with self.connect() as conn:
@@ -76,7 +76,7 @@ class PagesMixin(Core):
         removed = sorted(self.removed(conn, page["id"], page["body"]))
         extra = self._enriched(conn, page["id"], page["slug"])
         return todo_only({**page, "fields": fields, "tags": tags, "captures": captures,
-                          "origin": origin(conn, page["id"]),  # roles: the PWA's badge
+                          "made_by": made_by(conn, page["id"]),  # the PWA's badge
                           "removed": removed, **extra})  # fmt: skip
 
     def _enriched(

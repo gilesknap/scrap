@@ -48,8 +48,9 @@ build is noticed.
 `removed`, `tasks` (`{done, total}`), `due`, `priority` and `snoozed_until` (`null` unless a
 todo), and:
 
-- `origin`: who made the page, `human`, `claude` (written over MCP), `topic` (Claude's topic page)
-  or `gc` (a `scrap gc` review page); see {ref}`page-roles`.
+- `made_by`: who made the page, `human`, `claude` (written over MCP), `topic` (Claude's topic page)
+  or `gc` (a `scrap gc` review page); see {ref}`page-roles`. Not `fields.origin`, the
+  provenance Claude gives a page it writes over MCP.
 - `captures`: each with `id`, `kind` (`note`, `url`, `photo` or `file`), `text`, `url`, `source`,
   `author`, `created_at`, `received_at` and `blobs`: one `{sha256, mime, size, filename, ingest}`
   per file, where `ingest` is as described for the route below.

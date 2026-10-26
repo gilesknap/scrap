@@ -107,11 +107,11 @@ def sql(fragment: str):
     return ask
 
 
-def test_origin(store, pages):
+def test_made_by(store, pages):
     want = {"note": "human", "photo": "human", "mcp": "claude", "topic": "topic",
             "review": "gc", "import": "human", "board": "human"}  # fmt: skip
-    assert each(store, pages, roles.origin) == want
-    assert each(store, pages, sql(roles.ORIGIN)) == want
+    assert each(store, pages, roles.made_by) == want
+    assert each(store, pages, sql(roles.MADE_BY)) == want
     claude_only = {n: n == "mcp" for n in NAMES}
     assert each(store, pages, roles.by_claude) == claude_only
     assert each(store, pages, lambda c, p: bool(sql(roles.BY_CLAUDE)(c, p))) == (
@@ -127,7 +127,7 @@ def test_origin(store, pages):
     review = each(store, pages, lambda c, p: bool(sql(roles.REVIEW)(c, p)))
     assert review == {n: n == "review" for n in NAMES}
     # The page as the PWA reads it says it too (its Written by Claude badge)
-    assert {n: store.page(pages[n])["origin"] for n in NAMES} == want
+    assert {n: store.page(pages[n])["made_by"] for n in NAMES} == want
 
 
 def test_is_topic_is_false_before_the_topic_table(store, pages):
@@ -135,9 +135,9 @@ def test_is_topic_is_false_before_the_topic_table(store, pages):
         conn.execute("DROP TABLE topic_source")
         conn.execute("DROP TABLE topic")
         assert not roles.is_topic(conn, pages["topic"])
-        assert roles.origin(conn, pages["note"]) == "human"
-        assert roles.origin(conn, pages["review"]) == "gc"
-        assert roles.origin(conn, pages["topic"]) == "human"
+        assert roles.made_by(conn, pages["note"]) == "human"
+        assert roles.made_by(conn, pages["review"]) == "gc"
+        assert roles.made_by(conn, pages["topic"]) == "human"
 
 
 def test_edited_by_claude(store, pages):

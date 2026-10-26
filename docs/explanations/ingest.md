@@ -298,7 +298,7 @@ related pages, but what Claude infers from them never changes the page's kind, t
 or whether enrich or ingest maintains it. The owner can still change kind, title and tags by
 hand at any time. One SQL test says which capture is the page's first
 (`store.roles.FIRST_CAPTURE`: the earliest received; among captures received at the same moment, as an import's are, a file capture last, then one with no files before one with files, then the lowest id, so an import's main capture (its text, with its images) is first). It and
-every other test of what a page is (its origin, whether enrich or ingest maintains it, its
+every other test of what a page is (who made it, whether enrich or ingest maintains it, its
 write-up, what automation may change, whether it takes photos) are in `store/roles.py`: see
 {ref}`page-roles` for the table of them.
 
