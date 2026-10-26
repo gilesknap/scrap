@@ -47,6 +47,7 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
         return {
             **found, "url": link(found["slug"]), "dry_run": dry_run,
             "restored": not dry_run,
+            "purge_at": found["purge_at"] if dry_run else None,
         }  # fmt: skip
 
     @mcp.tool()

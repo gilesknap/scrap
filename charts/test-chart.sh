@@ -74,11 +74,27 @@ expect_refused "an empty tokenSecret key" --set mcp.tokenSecret.name=s --set mcp
 expect_refused "an identityHeader that is not a header name" --set 'identityHeader=a b'
 expect_refused "a negative budget" --set ingest.budgetDayUSD=-1
 expect_refused "gc.enabled=true with backups off" --set backup.enabled=false --set gc.enabled=true
+expect_refused "gc.trashDays=0" --set gc.trashDays=0
+expect_refused "gc.jobDays=0.5" --set gc.jobDays=0.5
 # An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
 if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"
 else ok "backup off renders without a gc CronJob"; fi
 if helm template scrap "$chart" | grep -q -- '-gc$'; then ok "defaults render the gc CronJob"; else bad "defaults lack the gc CronJob"; fi
+# The scrap pod shows the purge date the gc CronJob keeps to, and "off" when it deletes
+# nothing (no gc, or a counting one).
+trash_days() { # helm-args...
+    helm template scrap "$chart" "$@" | grep -A1 'name: SCRAP_TRASH_DAYS$' | sed -n 's/.*value: //p' | sort -u
+}
+if [ "$(trash_days)" = '"30"' ] && [ "$(trash_days -f "$chart/ci/gc-retention-values.yaml")" = '"60"' ] &&
+    helm template scrap "$chart" -f "$chart/ci/gc-retention-values.yaml" |
+    grep -q -- '--trash-days "60" \\$'; then
+    ok "gc.trashDays sets SCRAP_TRASH_DAYS and gc's --trash-days"
+else bad "gc.trashDays does not reach SCRAP_TRASH_DAYS or --trash-days"; fi
+if [ "$(trash_days -f "$chart/ci/gc-dry-run-values.yaml")" = '"off"' ] &&
+    [ "$(trash_days --set backup.enabled=false)" = '"off"' ]; then
+    ok "SCRAP_TRASH_DAYS is off while gc deletes nothing"
+else bad "SCRAP_TRASH_DAYS is not off while gc deletes nothing"; fi
 
 # By default both claims (data and backups) carry the annotations that keep them
 # through helm uninstall and an Argo CD prune.

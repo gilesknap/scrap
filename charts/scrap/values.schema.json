@@ -80,6 +80,8 @@
         "delete": {"type": "boolean"},
         "graceHours": {"type": "number", "minimum": 0},
         "runDays": {"type": "number", "minimum": 1},
+        "trashDays": {"type": "number", "minimum": 1},
+        "jobDays": {"type": "number", "minimum": 1},
         "requireBackup": {"type": "boolean"},
         "resources": {"type": "object"}
       }

@@ -73,8 +73,10 @@ def main(args: Sequence[str] | None = None) -> None:
         "gc",
         parents=[common],
         help="Find the stored files nothing uses any more (no page, trashed ones too,"
-        " capture, Claude result or model run), and gather capture files no page shows"
-        " onto the month's Orphaned assets page; a dry run unless --delete",
+        " capture, Claude result or model run), gather capture files no page shows"
+        " onto the month's Orphaned assets page, and purge the pages in the trash past"
+        " --trash-days and the finished job records past --job-days; a dry run unless"
+        " --delete (--report: the store's sizes)",
     )
     gc.add_argument(
         "--delete",
@@ -100,6 +102,29 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Keep model and enrich run records younger than this many days (at least"
         " 1); older ones are deleted unless something refers to them or they are the"
         " latest for their page (default 30)",
+    )
+    gc.add_argument(
+        "--trash-days",
+        type=float,
+        default=30.0,
+        help="Purge the pages put in the trash more than this many days ago (at least"
+        " 1), with their captures, history and Claude's results; their files then go"
+        " as unused ones do. A topic page in the trash is never purged (default 30)",
+    )
+    gc.add_argument(
+        "--job-days",
+        type=float,
+        default=30.0,
+        help="Delete the finished (done or dead) ingest and enrich job records last"
+        " changed more than this many days ago (at least 1), but the latest of each"
+        " photo and of each page (default 30)",
+    )
+    gc.add_argument(
+        "--report",
+        action="store_true",
+        help="Only print what the store holds, by size: the database by table, the"
+        " stored files by use, the trash by age, the Claude call records by month and"
+        " the job records; reads only, deletes nothing",
     )
     once = subparsers.add_parser(
         "ingest-once",
@@ -212,18 +237,7 @@ def main(args: Sequence[str] | None = None) -> None:
 
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
         if parsed.command == "gc":
-            from .gc import GcError, collect
-
-            try:
-                report = collect(
-                    store,
-                    parsed.delete and not parsed.dry_run,
-                    parsed.grace_hours,
-                    parsed.run_days,
-                )
-            except GcError as error:
-                raise SystemExit(f"scrap gc: {error}") from None
-            print(report.text())
+            gc_command(store, parsed)
         elif parsed.command == "import":
             from . import importer
 
@@ -299,6 +313,38 @@ def main(args: Sequence[str] | None = None) -> None:
             print(f"exported {backup.export(store, parsed.dir)} pages to {parsed.dir}")
     else:
         parser.print_help()
+
+
+def gc_command(store: Any, parsed: Any) -> None:
+    """scrap gc: the run (a dry run unless --delete), or with --report the sizes."""
+    import sqlite3
+
+    from .gc import GcError, collect
+
+    try:
+        if parsed.report:
+            from . import sizes
+
+            for days, what in ((parsed.trash_days, "trash"), (parsed.job_days, "job")):
+                if not days >= 1:
+                    raise GcError(f"the {what} retention must be at least 1 day")
+            try:
+                print(sizes.text(sizes.measure(store, parsed.trash_days,
+                                               parsed.job_days)))  # fmt: skip
+            except sqlite3.Error as error:
+                raise GcError(f"cannot read the database: {error}") from None
+            return
+        report = collect(
+            store,
+            parsed.delete and not parsed.dry_run,
+            parsed.grace_hours,
+            parsed.run_days,
+            trash_days=parsed.trash_days,
+            job_days=parsed.job_days,
+        )
+    except GcError as error:
+        raise SystemExit(f"scrap gc: {error}") from None
+    print(report.text())
 
 
 def topics_report(store: Any, every: bool, limit: int | None, dry_run: bool) -> None:

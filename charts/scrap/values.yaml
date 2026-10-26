@@ -112,8 +112,9 @@ backup:
     limits:
       memory: 512Mi
 
-# A CronJob running `scrap gc`: it deletes the stored files nothing uses and the
-# model/enrich run records past retention, and gathers the files of captures no page
+# A CronJob running `scrap gc`: it deletes the stored files nothing uses, the
+# model/enrich run records past retention, the pages in the trash past trashDays and the
+# finished job records past jobDays, and gathers the files of captures no page
 # shows any more onto the month's "Orphaned assets" todo page for review (never
 # deleting them), as the single-server deploy does nightly.
 # Like deploy/scrap-gc it deletes only when the backup claim holds a completed backup run
@@ -129,14 +130,24 @@ gc:
   timeZone: ""
   # The switch for deleting. Off, or with graceHours 0 (no grace period), the Job only
   # counts what it would delete and gather (a dry run: see its log) and succeeds.
-  # Deletion is permanent: gc removes unreferenced files (never a capture's: those it
-  # gathers) and, past runDays, the stored prompts and raw responses of Claude calls.
+  # Deletion is permanent: gc removes unreferenced files (a capture's only once its page
+  # is purged from the trash: until then it gathers them), past runDays the stored
+  # prompts and raw responses of Claude calls, and past trashDays the trash.
   delete: true
   # Keep files younger than this, used or not: an upload may be on its way.
   graceHours: 24
   # Keep model_run / enrich_run records younger than this many days (at least 1);
   # older ones go unless something refers to them or they are a page's latest.
   runDays: 30
+  # Purge the pages in the trash longer than this many days (at least 1), with their
+  # captures, history and Claude's results; their files then go as unused ones do. A
+  # topic page in the trash is never purged (its key stops Claude making it again).
+  # The scrap pod shows each trashed page's purge date from it (SCRAP_TRASH_DAYS:
+  # "off" while this job does not delete).
+  trashDays: 30
+  # Delete finished (done or dead) ingest and enrich job records last changed more
+  # than this many days ago (at least 1), but the latest of each photo and page.
+  jobDays: 30
   # false: delete without checking for a recent backup (for backups kept outside
   # the chart; then backup.enabled may be false).
   requireBackup: true

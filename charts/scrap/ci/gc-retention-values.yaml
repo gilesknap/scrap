@@ -1,0 +1,4 @@
+# The trash kept 60 days before gc purges it, finished job records 14.
+gc:
+  trashDays: 60
+  jobDays: 14

@@ -100,6 +100,10 @@ scrap command which calls Claude (enrich --related, --topics) needs the same. */
   value: {{ .Values.maxUploadMB | quote }}
 - name: SCRAP_INGEST
   value: {{ ternary "on" "off" .Values.ingest.enabled | quote }}
+# How long a page stays in the trash, as the server shows it: the gc CronJob's
+# trashDays when it deletes, else off (nothing purges the trash)
+- name: SCRAP_TRASH_DAYS
+  value: {{ include "scrap.trashDays" . | quote }}
 {{- with .Values.identityHeader }}
 - name: SCRAP_IDENTITY_HEADER
   value: {{ . | quote }}
@@ -161,6 +165,16 @@ tolerations:
 
 {{/* "true" when the gc CronJob is wanted, else empty: gc.enabled, or when that is
 unset (null) whether backup.enabled, so a release with backups off still renders. */}}
+{{/* SCRAP_TRASH_DAYS: gc.trashDays while the gc CronJob deletes (as gc-cronjob.yaml
+decides), else off. */}}
+{{- define "scrap.trashDays" -}}
+{{- if and (include "scrap.gcEnabled" .) .Values.gc.delete (gt (float64 .Values.gc.graceHours) 0.0) -}}
+{{ .Values.gc.trashDays | toString }}
+{{- else -}}
+off
+{{- end -}}
+{{- end }}
+
 {{- define "scrap.gcEnabled" -}}
 {{- if kindIs "invalid" .Values.gc.enabled -}}
 {{- if .Values.backup.enabled }}true{{ end -}}

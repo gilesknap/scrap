@@ -824,11 +824,42 @@ that never embedded it (an older photo, a PDF) is not an orphan. Nothing records
 gathered beyond the pages' text, so running gc twice adds nothing twice. The dry run counts what
 it would gather.
 
-**Deleting is not erasing.** A trashed page keeps its text, its revisions, its captures, what
-Claude made of its photos and its files, and gc keeps every file it uses. So deleting a page frees
-no disk space and removes none of its content from the data folder or from your backups. There is
-no purge or empty-trash command; a page comes back with `POST /api/pages/{id}/undelete` (see
-[](../reference/api.md)).
+**The trash is purged after 30 days** ([](../explanations/decisions/0030-trash-purged-after-n-days.md)).
+A trashed page keeps its text, its revisions, its captures, what Claude made of its photos and its
+files, and can be restored (the PWA's Trash, under Settings: {ref}`the-trash`). Once it has been in
+the trash for more than `--trash-days` (default 30), `scrap gc --delete` purges it: the page and
+everything on it go, in one transaction, and its files are then unused and deleted in the same
+run (old enough, and only after a recent backup, as above). A topic page in the trash is never
+purged: it stays as the record that stops Claude making the topic again. When an *Orphaned
+assets* page is purged, the files it showed that no page shows are taken off their captures and
+deleted with it. A purged page is still in the backups until they are pruned. gc also deletes
+the finished (done or dead) ingest and enrich job records last changed more than `--job-days`
+ago (default 30), keeping each photo's and each page's latest.
+
+To keep the trash longer, or the job records, give the nightly run other numbers in a drop-in
+(`systemctl --user edit scrap-gc.service`; the arguments after the defaults win):
+
+```
+[Service]
+ExecStart=
+ExecStart=%h/.local/lib/scrap/scrap-gc --trash-days 60 --job-days 14
+```
+
+and say the same to scrap, so the PWA and Claude show the right purge dates: add
+`SCRAP_TRASH_DAYS=60` to `~/.config/scrap/ingest.env` and `systemctl --user restart scrap`.
+Without a purge (the gc timer off), set `SCRAP_TRASH_DAYS=off`.
+
+To see what the store holds, by size, before choosing (it reads only):
+
+```
+set -a; . ~/.config/scrap/env; set +a
+podman run --rm --userns=keep-id:uid=10001,gid=10001 \
+    --network=none -v "$SCRAP_DATA:/data:z" -e SCRAP_DATA_DIR=/data "$SCRAP_IMAGE" gc --report
+```
+
+It lists the database by table, the stored files in use, used only by pages in the trash and
+unused, the trash by age (and how many pages `--trash-days` would purge), the Claude call records
+by month, and the job records by state (and how many `--job-days` would delete).
 
 `scrap-gc.timer` runs `scrap-gc.service` nightly (about 04:30, after the backup) with
 `--delete`, but only if a completed backup run in `SCRAP_BACKUPS` (one holding the `COMPLETE`
@@ -873,6 +904,8 @@ says `deleted` instead (for the files; the run records are deleted too). The par
 | `M leftover uploads` | `files/.up-*` temporaries from uploads cut off by a crash, also deleted once older than the grace period. |
 | `R unused file records` | Database rows for files nothing uses. The row is deleted with its file, or on its own if the file is already gone, so this can be more than the files. |
 | `A model runs and B enrich runs older than the retention` | Records of Claude calls past `--run-days` that nothing refers to and that are not the latest for their page or photo. With `--delete` they were deleted. |
+| `would purge P pages in the trash more than T days` | Pages trashed more than `--trash-days` ago, topics aside: with `--delete`, `purged`, and their files counted in the unused files above. `(and F orphaned files)`: the files purged *Orphaned assets* pages showed that no page shows, let go with them. |
+| `J ingest jobs and E enrich jobs finished more than D days ago` | Done or dead job records past `--job-days`, each photo's and page's latest aside. With `--delete` they were deleted. |
 | `kept Y unused files younger than the grace period` | Unused, but too new to delete: a later run takes them. |
 | `K used again meanwhile` | Only shown when above zero. Unused when gc looked, but referenced, or uploaded again, before it deleted them (it checks again inside the delete), so they were kept. |
 | `put back Z files an earlier run left aside` | Only shown when above zero. A run that stopped mid-delete left `.gc-<sha>` files; this run restored them before it began. |
@@ -887,6 +920,7 @@ it has no recent backup.
 | `no files folder at <path>` | The folder has a database but no `files/`. The wrong folder again, or the files were not restored with the database. |
 | `the grace period must not be negative` | `--grace-hours` was below 0. |
 | `the run retention must be at least 1 day` | `--run-days` was below 1. |
+| `the trash retention must be at least 1 day`, `the job retention must be at least 1 day` | `--trash-days` or `--job-days` was below 1. |
 | `cannot read what is in use, so nothing was deleted: ...` | The database or files could not be read after the reason given: a damaged or unreadable database, or a permission problem. If the reason is `<db> has schema N; this scrap knows M`, the database is from a newer scrap: run gc with the newer image (see {ref}`scrap-upgrade-db`). |
 | `cannot delete: ...` | The database refused the delete (read-only, disk full). Nothing in the database changed; fix the cause and run again, which removes any file left over. |
 
