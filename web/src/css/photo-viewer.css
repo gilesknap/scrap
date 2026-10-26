@@ -268,43 +268,18 @@
   color: var(--ink-2);
   white-space: normal; /* when it is due matters more than one line: never cut */
 }
-/* A page's kind (and status, if it has one) leads its meta line: "Todo · done", "Note" */
-.meta .state {
-  padding: 1px var(--s-2);
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--ink);
-  font-size: var(--t-xs);
-  font-style: normal;
-  font-weight: 600;
-}
-.list .due.late,
-.todoline .late {
+.list .due.late {
   color: var(--danger);
   font-weight: 600;
 }
+/* A page's due chip, overdue: the word in red, the chip still quiet */
+.tags > .duechip .late {
+  color: var(--danger);
+  font-weight: 500 /* the word "overdue" carries it; the line stays quiet */;
+}
 /* Done or cancelled: its due date kept, greyed */
-.list .due.closed,
-.todoline .closed {
+.list .due.closed {
   color: var(--ink-3);
-}
-.todoline {
-  margin: calc(-1 * var(--s-2)) 0 0; /* under the tag line, in its rhythm: 32 px drawn in 48 */
-}
-.todoline > button {
-  gap: 6px;
-  padding: 0 var(--s-3);
-  border: 8px solid transparent; /* like Tags: a 32 px pill drawn in a 48 px target */
-  border-inline-width: 0;
-  border-radius: var(--r-pill);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
-  background: var(--surface) padding-box;
-  font-size: var(--t-sm);
-  white-space: nowrap;
-}
-.todoline .i {
-  width: 16px;
-  height: 16px;
 }
 .todoedit {
   display: flex;
