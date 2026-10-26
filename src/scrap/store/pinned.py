@@ -8,7 +8,7 @@ called pinned, never leave a second one. Claude does not read it
 
 from typing import Any
 
-from .constants import PINNED_SLUG
+from .constants import PINNED_SLUG, REV_INSERT
 from .db import transaction
 from .helpers import new_ulid, now
 from .pages import PagesMixin
@@ -29,13 +29,12 @@ class PinnedMixin(PagesMixin):
                 title, body = "Pinned", "# Pinned\n\n"
                 conn.execute(
                     "INSERT INTO page (id, slug, title, body, kind, kind_fixed,"
-                    " fields, created_at, updated_at)"
-                    " VALUES (?, ?, ?, ?, 'note', 1, '{}', ?, ?)",
+                    " fields, created_at, updated_at, made_by)"
+                    " VALUES (?, ?, ?, ?, 'note', 1, '{}', ?, ?, 'human')",
                     (page_id, PINNED_SLUG, title, body, stamp, stamp),
                 )
                 conn.execute(
-                    "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
-                    (page_id, title, body, author, stamp),
+                    REV_INSERT, (page_id, 1, title, body, author, "web", stamp)
                 )
                 self.reindex(conn, page_id)
             else:

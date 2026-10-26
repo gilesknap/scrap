@@ -18,6 +18,7 @@ from . import grouping
 from .fixes import (
     add_enrich,
     add_fields_was,
+    add_made_by,
     add_meta_revs,
     add_related_reason,
     add_snooze,
@@ -153,4 +154,5 @@ AFTER = {
     13: add_topics,
     14: collapse_kinds,
     15: add_fields_was,
+    16: add_made_by,
 }  # fmt: skip

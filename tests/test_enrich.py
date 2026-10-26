@@ -18,6 +18,8 @@ from scrap.enrich import finding
 from scrap.ingest import FAR, Worker, spent_today
 from scrap.query import MEDIA
 from scrap.store import (
+    CLAUDE,
+    MCP,
     Store,
     connect,
     fixes,
@@ -973,7 +975,9 @@ def test_a_save_on_a_photo_page_queues_nothing(store):
     ref = photo_page(store, "a typed note")
     store.update_page(ref["page_id"], 1, None, "a typed note, edited", "me")
     assert jobs(store) == []
-    store.edit_text(ref["page_id"], "me", lambda conn, p: (p["title"], "mcp edit"))
+    store.edit_text(
+        ref["page_id"], CLAUDE, lambda conn, p: (p["title"], "mcp edit"), source=MCP
+    )
     assert jobs(store) == []
 
 

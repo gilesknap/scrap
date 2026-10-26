@@ -85,9 +85,10 @@ PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp
 MCP = "mcp"  # the source of a page Claude wrote, over MCP
 # The author of what Claude writes: its MCP captures, and its text revisions (page_rev)
-# over MCP or of the task boxes it adds (actions.append). The PWA's author is a
-# Tailscale login (an address, with an @) or "tagged", so a text revision by CLAUDE is
-# a later text revision by Claude: an MCP edit, or task boxes Claude added.
+# over MCP or of the task boxes it adds (actions.append). The PWA's author is whatever
+# the identity header says (a Tailscale login, an address; behind oauth2-proxy, as on
+# the cluster, the GitHub username), or "tagged": never CLAUDE (uploads.author ignores
+# a header that says it, #153). Whether a revision is Claude's is its source, not this.
 CLAUDE = "claude"
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
@@ -95,6 +96,14 @@ MAX_TAG = 64  # characters, as the tag table's CHECK has it
 MAX_PAGE = 1_000_000  # bytes of UTF-8: a page's text, however it is written (#62)
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 META_SOURCES = ("web", "mcp")  # who changed a page's kind or tags: the PWA, or Claude
+# A text revision, with where it came from (page_rev.source, migration 16): mcp for
+# Claude's text (over MCP, or the task boxes it adds: actions.append), else web (the
+# PWA and the API, and scrap's own: import, gc, a topic page made). Folding a burst and
+# is:claude-edited go by it, not by the author's name (#153).
+REV_INSERT = (
+    "INSERT INTO page_rev (page_id, rev, title, body, author, source, created_at)"
+    " VALUES (?, ?, ?, ?, ?, ?, ?)"
+)
 # Every change to a page's kind and tags, newest first (see page_meta_rev)
 META_REV = (
     "SELECT id, page_id, author, source, kind_before, kind_after, fixed_before,"

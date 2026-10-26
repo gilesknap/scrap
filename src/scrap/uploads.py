@@ -8,7 +8,7 @@ import os
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
-from .store import Store
+from .store import CLAUDE, Store
 
 IDENTITY_HEADER = "Tailscale-User-Login"
 
@@ -16,9 +16,12 @@ IDENTITY_HEADER = "Tailscale-User-Login"
 def author(request: Request) -> str:
     # $SCRAP_IDENTITY_HEADER (default Tailscale-User-Login, set by Tailscale Serve);
     # tagged devices, and anything else without it, send none. Only this header is
-    # trusted, so a proxy that sets another (X-Auth-Request-User) names it here.
+    # trusted, so a proxy that sets another (X-Auth-Request-User) names it here. No
+    # header makes a change Claude's: one naming claude (MCP's author) counts as none
+    # (#153), and a web change's revision is source web whatever its author.
     name = os.environ.get("SCRAP_IDENTITY_HEADER", "").strip() or IDENTITY_HEADER
-    return request.headers.get(name) or "tagged"
+    who = request.headers.get(name, "")
+    return "tagged" if who.strip().lower() in ("", CLAUDE) else who
 
 
 def too_large(limit: int) -> str:

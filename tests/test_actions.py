@@ -10,7 +10,7 @@ import pytest
 
 from scrap import actions, claude, enrich, ingest, sanitise
 from scrap.markdown import tasks
-from scrap.store import CLAUDE, Store, connect, new_ulid
+from scrap.store import CLAUDE, MCP, Store, connect, new_ulid
 
 STICKY = [
     "Fix the pump", "Order bearings", "Call Dave", "Update the wiki",
@@ -132,7 +132,7 @@ def test_revert_restores_the_image_only_body(store):
     store.edit_text(  # what a text revert does: the body of text revision 1
         ref["page_id"], CLAUDE,
         lambda c, p: (p["title"], store.text_at(c, p["id"], 1)["body"]),
-        fold=False,
+        fold=False, source=MCP,
     )  # fmt: skip
     page = store.page(ref["page_id"])
     assert (page["body"], page["kind"]) == (before, "whiteboard")  # as ingest filed it
@@ -145,7 +145,7 @@ def test_reverting_a_typed_list_makes_it_a_note_again(store):
     store.edit_text(
         ref["page_id"], CLAUDE,
         lambda c, p: (p["title"], store.text_at(c, p["id"], 1)["body"]),
-        fold=False,
+        fold=False, source=MCP,
     )  # fmt: skip
     assert store.page(ref["page_id"])["kind"] == "note"
 
@@ -154,7 +154,7 @@ def test_a_todo_the_user_filed_stays_when_claude_removes_boxes(store):
     ref = note(store, "- [ ] mine")
     assert store.page(ref["page_id"])["kind"] == "todo"
     change = lambda c, p: (p["title"], "none\n")  # noqa: E731
-    store.edit_text(ref["page_id"], CLAUDE, change, fold=False)
+    store.edit_text(ref["page_id"], CLAUDE, change, fold=False, source=MCP)
     assert store.page(ref["page_id"])["kind"] == "todo"
 
 
@@ -212,7 +212,9 @@ def test_an_edit_while_the_photo_was_read_is_not_clobbered(store):
     ref = photo_page(store)
 
     def edit_meanwhile(messages):
-        store.edit_text(ref["page_id"], "me", lambda c, p: (p["title"], "mine\n"))
+        store.edit_text(
+            ref["page_id"], "me", lambda c, p: (p["title"], "mine\n"), source="web"
+        )
         return picture(**listing([("a", False)]))
 
     read_photo(store, Fake(edit_meanwhile))
@@ -299,7 +301,9 @@ def test_a_user_edit_during_the_call_is_not_clobbered(store):
     ref = note(store, "call the dentist\nbook MOT")
 
     def edit_meanwhile(messages):
-        store.edit_text(ref["page_id"], "me", lambda c, p: (p["title"], "changed\n"))
+        store.edit_text(
+            ref["page_id"], "me", lambda c, p: (p["title"], "changed\n"), source="web"
+        )
         return text_answer(**listing([("call the dentist", False)]))
 
     read_text(store, Fake(edit_meanwhile))
@@ -415,7 +419,9 @@ def box_made(store, ref):
 
 
 def claude_edit(store, page_id, body):
-    store.edit_text(page_id, CLAUDE, lambda c, p: (p["title"], body), fold=False)
+    store.edit_text(
+        page_id, CLAUDE, lambda c, p: (p["title"], body), fold=False, source=MCP
+    )
 
 
 def test_claude_removing_the_boxes_it_added_restores_the_kind_even_after_more_edits(
@@ -438,7 +444,10 @@ def test_a_user_todo_claude_touched_twice_stays_a_todo(store):
 def test_a_todo_with_boxes_in_its_own_text_stays_after_ingest_and_claude(store):
     ref = photo_page(store)
     store.edit_text(  # the user adds their own boxes under the image
-        ref["page_id"], "me", lambda c, p: (p["title"], p["body"] + "\n- [ ] x\n")
+        ref["page_id"],
+        "me",
+        lambda c, p: (p["title"], p["body"] + "\n- [ ] x\n"),
+        source="web",
     )
     read_photo(store, Fake(picture()))
     assert store.page(ref["page_id"])["kind"] == "todo"
@@ -451,6 +460,9 @@ def test_a_folded_claude_revision_still_restores_the_kind(store):
     ref = note(store, "call the dentist")
     box_made(store, ref)
     store.edit_text(  # fold=True, as MCP's edit_page: the last Claude revision folds
-        ref["page_id"], CLAUDE, lambda c, p: (p["title"], "call the dentist\n")
+        ref["page_id"],
+        CLAUDE,
+        lambda c, p: (p["title"], "call the dentist\n"),
+        source=MCP,
     )
     assert store.page(ref["page_id"])["kind"] == "note"

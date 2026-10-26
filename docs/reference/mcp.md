@@ -70,7 +70,7 @@ Any argument that names a page (`page`, `pages`, `append_to`) takes a page URL, 
 | `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `fields` (only `media_type`: `book`, `article`, `film`, `tv`, `video`, `podcast`, `music`, `game`, or `null` to take it off; it also sets `subtype`: `read`, `watch`, `listen`, `play`), `dry_run`, `limit` (1-200, default 50; applies to `query` only) | `{dry_run, batch, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, batch, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, fields_removed, fields_was}` (`fields_was`: what a changed field was; `revert` puts it back) (with `dry_run`, `revision` is `null` and there is no per-page `batch`) |
 | `rename_tag` | **`old`**, **`new`** (each at most 200 characters), `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
 | `edit_page` | **`page`**, `old` and `new`, or `old` and `delete` (removes `old`), `replace_all`, or `body` (needs `rev`); `title`; `rev`; `allow_empty`; `dry_run` | `{id, slug, url, dry_run, changed, rev_before, rev, folded, replacements, title_before, title, diff, diff_cut}` (`diff`: unified, of the body; `folded`: the revision this one replaced, a burst's). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
-| `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url` (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, created_at, bytes}`; with `text_rev`, also `text_revision: {rev, title, body, author, created_at}` |
+| `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url` (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, source, created_at, bytes}` (`source`: `mcp` for Claude's, else `web`); with `text_rev`, also `text_revision: {rev, title, body, author, source, created_at}` |
 | `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at, topic, purge_at}`: `purge_at` is when scrap purges the page for good (from then, the nightly `scrap gc` does), `null` for a topic page (`topic` true: never purged) or with purging off |
 | `undelete` | **`page`** (id or slug of a page in the trash), `dry_run` | `{id, slug, url, title, kind, deleted_at, topic, purge_at, dry_run, restored}` (`purge_at` `null` once restored): brings the page back as the PWA's undo does (the tool error `no such page in the trash` if it is not there). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
 | `revert` | exactly one of `revision` (a `meta` id), `batch`, or `page` with `to_rev` (a text revision); `rev` (needed for `to_rev` unless `dry_run`), `restore_title`, `allow_empty`, `dry_run` | For a revision, as one page of `edit_meta` plus `reverts`; for a batch, `{batch, reverts_batch, pages, skipped, conflicts, dry_run}`; for `to_rev`, as `edit_page`'s with `restores` (`to_rev`) instead of `replacements` (not available with `SCRAP_MCP_CONTENT_EDIT=0`: the tool error `text editing is off`) |
@@ -146,7 +146,8 @@ that way (480 px JPEGs, so a few hundred kB each).
   append, `title`, `origin`, `kind` and `status` are ignored; only `body`, `tags`, `due`,
   `priority`, `snoozed_until` and `key` take effect).
 - **Provenance.** The page's capture has source `mcp` and author `claude` (as has its
-  revision), and `fields.origin` holds `origin` (free text, at most 200 characters: the repo or
+  revision), the page is `made_by` `claude` for good (re-kinding or editing it never changes
+  that), and `fields.origin` holds `origin` (free text, at most 200 characters: the repo or
   directory and the date, say). The PWA shows such a page with a *Written by Claude* badge (its
   origin as the tooltip), and `is:claude` finds them. Clients of `POST /api/captures` cannot send
   source `mcp`.
@@ -277,15 +278,16 @@ only while content editing is on, first).
   `diff_cut`; when very many lines changed, one hunk replacing them all) and the title before
   and after, and saves nothing: use it first.
 - An edit that changes nothing adds no revision. Every other is a text revision (`page_rev`) by
-  author `claude`; only Claude writes as `claude` (over MCP, or the task boxes below; the PWA's
-  author is a Tailscale login or `tagged`). `is:claude-edited` finds a page with a
+  author `claude` from source `mcp`; only Claude writes from `mcp` (over MCP, or the task boxes
+  below). The PWA's revisions are source `web`, their author a login or `tagged`, never `claude`
+  whatever header a request sends. `is:claude-edited` finds a page with a
   text revision by Claude after its first (an `edit_page`, a `revert` with `to_rev`, or an append to a page
   Claude wrote: `is:claude-edited -is:claude` is the user's own pages Claude changed), and `read`
   says `edited_by_claude`. Task boxes follow the new text as they do for the PWA's edits: a
   box added to a note nobody filed makes it a todo, and a text `revert` restores text only, not
   that kind (`edit_meta` sets a kind). With enrichment on, a save queues the page to be read again
   once the edits stop, as a PWA save does, so its summary and related pages follow the new text.
-  The same author, `claude`, is used by scrap's own photo ingest and enrich when they append task
+  The same author and source, `claude` and `mcp`, are used by scrap's own photo ingest and enrich when they append task
   boxes to a confident list of actions ([](../explanations/ingest.md), {ref}`ingest-actions`), so
   `is:claude-edited` finds those pages too.
 - **Coalescing.** An `edit_page` within `SCRAP_REVISION_WINDOW` seconds (default 300) of
@@ -294,7 +296,7 @@ only while content editing is on, first).
   a new number** (rev + 1, never one used before). `rev` is also the PWA's edit token, so an
   editor that loaded the page between two edits of a burst gets a conflict (409) on saving, never
   a silent overwrite; the burst leaves a gap in the numbers. Never folded into: a page's first
-  revision, a revision by anyone else (a PWA edit between ends the burst), and one holding the
+  revision, a revision by anyone else or from another source (a PWA edit between ends the burst), and one holding the
   body of an earlier revision (a text `revert`'s, whatever its title). A text `revert` itself
   never folds. Claude's latest revision may be an append to its own page: an edit then folds
   into it, losing only the snapshot just after the append (its text stays in the page, and in
@@ -352,7 +354,7 @@ request lines (`POST /mcp`, with the status, not the tool) and warnings such as 
 or `Origin`. What Claude did is in the data instead. `search` with `is:claude` finds the pages it
 wrote, and `is:claude-edited` those whose text it changed; `revisions` with `page` lists a
 page's kind and tag changes (`author` `claude`, `source` `mcp`) and its text revisions (`author`
-`claude`, which includes appended sections and `edit_page` edits, whose text `text_rev` reads);
+`claude`, `source` `mcp`, which includes appended sections and `edit_page` edits, whose text `text_rev` reads);
 with `batch` it lists what a bulk change did. No tool deletes a page or a revision, though a
 burst of quick edits folds into one revision (see Revisions and Page text).
 

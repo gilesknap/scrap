@@ -7,6 +7,7 @@ import sqlite3
 from ..markdown import tasks
 from .helpers import tag_path, todo_columns
 from .indexing import index_page
+from .roles import INFERRED_MADE_BY
 
 
 def move_todo_fields(conn: sqlite3.Connection) -> None:
@@ -95,6 +96,43 @@ def add_fields_was(conn: sqlite3.Connection) -> None:
             "ALTER TABLE page_meta_rev ADD COLUMN fields_was TEXT NOT NULL DEFAULT"
             " '{}' CHECK (json_type(fields_was) = 'object')"
         )
+
+
+# Migration 16: page.made_by is never changed once the page is made
+MADE_BY_FIXED = """
+CREATE TRIGGER IF NOT EXISTS page_made_by_fixed BEFORE UPDATE OF made_by ON page
+WHEN new.made_by IS NOT old.made_by BEGIN
+    SELECT RAISE(ABORT, 'made_by is set when a page is made and never changed');
+END
+"""
+
+
+def add_made_by(conn: sqlite3.Connection) -> None:
+    """Migration 16 (#280, #153), each part unless an earlier run did it:
+    page.made_by (human, claude, topic or gc), backfilled with what roles worked out
+    before the column was there (INFERRED_MADE_BY), and a trigger that keeps it as
+    made; and page_rev.source (web or mcp), mcp where the author is claude."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(page)")}
+    if "made_by" not in columns:
+        made = conn.execute(
+            f"SELECT p.id, {INFERRED_MADE_BY.format(p='p')} FROM page p"
+        ).fetchall()  # worked out before the column exists
+        conn.execute(
+            "ALTER TABLE page ADD COLUMN made_by TEXT NOT NULL DEFAULT 'human'"
+            " CHECK (made_by IN ('human', 'claude', 'topic', 'gc'))"
+        )
+        conn.executemany(
+            "UPDATE page SET made_by = ? WHERE id = ?",
+            [(by, page_id) for page_id, by in made if by != "human"],
+        )
+    conn.execute(MADE_BY_FIXED)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(page_rev)")}
+    if "source" not in columns:
+        conn.execute(
+            "ALTER TABLE page_rev ADD COLUMN source TEXT NOT NULL DEFAULT 'web'"
+            " CHECK (source IN ('web', 'mcp'))"
+        )
+        conn.execute("UPDATE page_rev SET source = 'mcp' WHERE author = 'claude'")
 
 
 # The enrich job table (named), and its indexes; reason 'related' since migration 11,

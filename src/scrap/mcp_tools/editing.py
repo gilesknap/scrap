@@ -7,6 +7,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
 from ..mcp_page import page_key
+from ..store import MCP
 from .context import Ctx, text
 from .limits import (
     AUTHOR,
@@ -130,5 +131,5 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
             emptied(p["body"], text_now, allow_empty)
             return p["title"] if title is None else title, text_now
 
-        found = checked(store.edit_text, key, AUTHOR, change, rev, dry_run)
+        found = checked(store.edit_text, key, AUTHOR, change, rev, dry_run, source=MCP)
         return edited(found, dry_run, replacements=count["n"])

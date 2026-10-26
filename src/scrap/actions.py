@@ -19,7 +19,7 @@ from typing import Any
 
 from .markdown import tasks
 from .query import CONTROL
-from .store import CLAUDE, ConflictError, InvalidError, Store
+from .store import CLAUDE, MCP, ConflictError, InvalidError, Store
 from .store.roles import may_rekind
 
 __all__ = ["MAX_ITEMS", "MAX_ITEM", "accepted", "append", "clean_items", "clean_intent"]
@@ -109,7 +109,9 @@ def append(
         return page["title"], (body + "\n\n" if body else "") + boxes(items) + "\n"
 
     try:
-        done = store.edit_text(page_id, CLAUDE, change, base_rev, fold=False)
+        done = store.edit_text(
+            page_id, CLAUDE, change, base_rev, fold=False, source=MCP
+        )
     except ConflictError:
         log.info("task boxes skipped: page %s changed since it was read", page_id)
         return False
