@@ -1,4 +1,4 @@
-# 27. Fewer MCP tools: recent, todos and revert_text folded away
+# 30. Fewer MCP tools: recent, todos and revert_text folded away
 
 Date: 2026-10-25
 
