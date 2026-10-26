@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
+from scrap import drawing as drawings
 from scrap import mcp_server
 from scrap.app import create_app
 from scrap.ingest import put_derived
@@ -71,8 +72,9 @@ def test_tools_are_listed(store):
 
     tools = anyio.run(main)
     assert sorted(tools) == [
-        "drawing", "edit_meta", "edit_page", "read", "rename_tag", "revert",
-        "revisions", "search", "tags", "topics", "trash", "undelete", "write",
+        "drawing", "edit_drawing", "edit_meta", "edit_page", "read", "rename_tag",
+        "revert", "revisions", "search", "tags", "topics", "trash", "undelete",
+        "write",
     ]  # fmt: skip
 
 
@@ -424,7 +426,7 @@ def test_mcp_over_http(tmp_path, monkeypatch):
         assert r.status_code == 200, r.text
         assert r.json()["result"]["serverInfo"]["name"] == "scrap"
         tools = rpc(client, "tools/list", headers=good).json()["result"]["tools"]
-        assert len(tools) == 13
+        assert len(tools) == 14
         args = {"title": "Over HTTP", "body": "via /mcp", "origin": "test"}
         r = rpc(client, "tools/call", {"name": "write", "arguments": args}, good)
         written = r.json()["result"]["structuredContent"]
@@ -929,6 +931,109 @@ def test_drawing_errors(store):
         store, "drawing", page=other["page_id"], image=sha
     )
     assert "no such page" in refused(store, "drawing", page="nope")
+
+
+def drawn(store, **extra):
+    sha = "ab" * 32
+    ref = photo_page(store, sha)
+    with_drawing(store, ref, sha, [BOX], **extra)
+    cid = store.page(ref["page_id"])["captures"][0]["id"]
+    return ref["page_id"], cid, sha
+
+
+def test_edit_drawing_saves_a_claude_version(store):
+    page, cid, sha = drawn(store)
+    text = {"type": "text", "x": 5, "y": 6, "text": "mantis", "fontSize": 20}
+    out = ok(store, "edit_drawing", page=page, base_version=1, elements=[BOX, text])
+    assert out == {
+        "version": 2, "base_version": 1, "producer": "claude", "format": "skeleton",
+        "element_count": 2, "warnings": [], "dry_run": False, "saved": True,
+    }  # fmt: skip
+    now_ = ok(store, "drawing", page=page)
+    assert now_["version"] == 2 and now_["producer"] == "claude"
+    assert now_["width"] == 800 and now_["height"] == 600  # the photo's frame kept
+    versions = drawings.versions(store, cid, sha)
+    assert [v["version"] for v in versions] == [2, 1]
+    assert versions[0]["author"] == "claude" and versions[1]["producer"] == "model"
+    assert versions[1]["current"] is False
+    assert ok(store, "search", query="mantis")["results"][0]["id"] == page
+
+
+def test_edit_drawing_is_refused_when_stale(store):
+    page, cid, sha = drawn(store)
+    drawings.save(store, cid, sha, 1, {"elements": [BOX]}, "me")  # the user edits
+    error = refused(store, "edit_drawing", page=page, base_version=1, elements=[BOX])
+    assert "version 2, not 1" in error and "nothing was saved" in error
+    assert ok(store, "drawing", page=page)["producer"] == "human"
+    ok(store, "edit_drawing", page=page, base_version=2, elements=[BOX])
+    assert ok(store, "drawing", page=page)["version"] == 3
+
+
+def test_edit_drawing_dry_run_saves_nothing_and_warns(store):
+    page, cid, sha = drawn(store)
+    bad = {"type": "rectangle", "x": 1, "y": 1, "width": -1, "height": 1}
+    out = ok(
+        store, "edit_drawing", page=page, base_version=1, elements=[BOX, bad],
+        dry_run=True,
+    )  # fmt: skip
+    assert out["saved"] is False and out["element_count"] == 1
+    assert "element 1 dropped" in out["warnings"][0]
+    assert len(drawings.versions(store, cid, sha)) == 1
+    assert "would clear" in refused(
+        store, "edit_drawing", page=page, base_version=1, elements=[]
+    )
+    noted = ok(
+        store, "edit_drawing", page=page, base_version=1, elements=[BOX],
+        appState={"viewBackgroundColor": "#fff"}, dry_run=True,
+    )  # fmt: skip
+    assert "appState" in noted["warnings"][0]
+    assert "no element was valid" in refused(
+        store, "edit_drawing", page=page, base_version=1, elements=[bad]
+    )
+
+
+def test_edit_drawing_scene_is_checked_like_a_human_save(store):
+    page, cid, sha = drawn(store)
+    rect = {"type": "rectangle", "x": 0, "y": 0, "width": 9, "height": 9}
+    out = ok(
+        store, "edit_drawing", page=page, base_version=1, elements=[rect],
+        format="scene", appState={"viewBackgroundColor": "#ffffff", "x": 1},
+    )  # fmt: skip
+    assert out["format"] == "scene" and out["producer"] == "claude"
+    shown = drawings.current(store, cid, sha)
+    assert shown["data"]["appState"] == {"viewBackgroundColor": "#ffffff"}
+    assert shown["data"]["width"] == 800
+    for bad in (
+        {"type": "image", "x": 0, "y": 0},
+        {"type": "rectangle", "x": float("inf"), "y": 0},
+        {"type": "rectangle", "x": 0, "y": 0, "link": "javascript:alert(1)"},
+        {"type": "rectangle", "x": 0, "y": 0, "strokeColor": "url(x)"},
+    ):
+        error = refused(
+            store, "edit_drawing", page=page, base_version=2, elements=[bad],
+            format="scene",
+        )  # fmt: skip
+        assert "element 0" in error or "finite" in error
+    assert drawings.current(store, cid, sha)["version"] == 2
+
+
+def test_edit_drawing_needs_a_drawing_and_follows_the_edit_switch(store, monkeypatch):
+    page, *_ = drawn(store)
+    plain = photo_page(store, "cd" * 32)
+    assert "no image with a drawing" in refused(
+        store, "edit_drawing", page=plain["page_id"], base_version=1, elements=[]
+    )
+    assert "no such page" in refused(
+        store, "edit_drawing", page="nope", base_version=1, elements=[]
+    )
+    monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
+
+    async def listed():
+        async with Client(mcp_server.server(store)) as client:
+            return [t.name for t in (await client.list_tools()).tools]
+
+    names = anyio.run(listed)
+    assert "edit_drawing" not in names and "drawing" in names
 
 
 def test_drawing_is_cut_at_the_size_cap(store):

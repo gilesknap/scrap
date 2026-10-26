@@ -14,7 +14,7 @@ from .actions import clean_intent, clean_items
 from .claude import ELEMENT_TYPES, KINDS
 from .store import CONTROL, SURROGATE, InvalidError
 
-__all__ = ["model_output", "scene", "scene_text"]
+__all__ = ["model_output", "scene", "scene_text", "skeleton_text", "skeletons"]
 
 ID = re.compile(r"[A-Za-z0-9_-]{1,32}")
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
@@ -120,23 +120,11 @@ def intent_fields(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]:
-    """The model's structured output, checked: page fields cleaned, elements turned
-    into Excalidraw skeletons (bad ones dropped), and the warnings. Raises ValueError
-    if there is no text and no description (the run counts as invalid)."""
-    warnings: list[str] = []
-    kind = raw.get("kind")
-    text, description = _clean(raw.get("text")), _clean(raw.get("description"))
-    if not (text or description):
-        raise ValueError("no text and no description")
-    tags: list[str] = []
-    given_tags = raw.get("tags")
-    for tag in given_tags if isinstance(given_tags, list) else []:
-        tag = " ".join(_clean(tag).lower().split()).replace(" ", "-")[:MAX_TAG]
-        if tag and tag not in tags and len(tags) < MAX_TAGS:
-            tags.append(tag)
-    given = raw.get("elements")
-    given = given if isinstance(given, list) else []
+def skeletons(
+    given: list[Any], width: int, height: int, warnings: list[str]
+) -> list[dict[str, Any]]:
+    """Model elements as skeletons: at most MAX_ELEMENTS, a bad one dropped (and a
+    binding to a missing element removed), each with a line added to warnings."""
     if len(given) > MAX_ELEMENTS:
         warnings.append(f"{len(given) - MAX_ELEMENTS} elements over the limit dropped")
     elements, ids = [], set()
@@ -156,6 +144,37 @@ def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]
             if end in element and element[end]["id"] not in ids:
                 del element[end]
                 warnings.append(f"element {n}: {end} names no element, unbound")
+    return elements
+
+
+def skeleton_text(elements: list[dict[str, Any]]) -> str:
+    """The writing in skeletons (text elements and labels), one a line: what search
+    indexes."""
+    lines = (
+        e["text"] if e["type"] == "text" else (e.get("label") or {}).get("text", "")
+        for e in elements
+    )
+    return "\n".join(line for line in lines if line)
+
+
+def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]:
+    """The model's structured output, checked: page fields cleaned, elements turned
+    into Excalidraw skeletons (bad ones dropped), and the warnings. Raises ValueError
+    if there is no text and no description (the run counts as invalid)."""
+    warnings: list[str] = []
+    kind = raw.get("kind")
+    text, description = _clean(raw.get("text")), _clean(raw.get("description"))
+    if not (text or description):
+        raise ValueError("no text and no description")
+    tags: list[str] = []
+    given_tags = raw.get("tags")
+    for tag in given_tags if isinstance(given_tags, list) else []:
+        tag = " ".join(_clean(tag).lower().split()).replace(" ", "-")[:MAX_TAG]
+        if tag and tag not in tags and len(tags) < MAX_TAGS:
+            tags.append(tag)
+    given = raw.get("elements")
+    given = given if isinstance(given, list) else []
+    elements = skeletons(given, width, height, warnings)
     return {
         "kind": kind if kind in KINDS else "other",
         "title": " ".join(_clean(raw.get("title")).split())[:200],

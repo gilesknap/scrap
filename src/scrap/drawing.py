@@ -9,9 +9,20 @@ from typing import Any
 
 from . import sanitise
 from .ingest import put_derived
-from .store import ConflictError, NotFoundError, Store, now, transaction
+from .store import (
+    CLAUDE,
+    ConflictError,
+    InvalidError,
+    NotFoundError,
+    Store,
+    now,
+    transaction,
+)
 
-__all__ = ["StaleError", "current", "versions", "save", "restore", "excalidraw_file"]
+__all__ = [
+    "StaleError", "current", "versions", "save", "save_claude", "restore",
+    "excalidraw_file",
+]  # fmt: skip
 
 
 class StaleError(ConflictError):
@@ -109,6 +120,48 @@ def save(
             text=sanitise.scene_text(checked), data=checked,
         )  # fmt: skip
         return _shown(conn, cid, sha)  # the version written here, whatever comes next
+
+
+def save_claude(
+    store: Store, cid: str, sha: str, base: int, data: dict[str, Any], dry_run: bool
+) -> dict[str, Any]:
+    """Store elements Claude made over MCP as the new current version (producer and
+    author claude), from `base` as for save; elements are skeletons (the model's input
+    form, bad ones dropped with a warning) or a scene (checked as a human's is).
+    data: {format, elements, appState?}. dry_run checks and saves nothing. Returns
+    {drawing: the version (the current one if dry_run), warnings, element_count}."""
+    with store.connect() as conn, transaction(conn):
+        _photo(conn, cid, sha)
+        old = _check_base(conn, cid, sha, base)
+        if old is None:
+            raise NotFoundError("no drawing")
+        frame = json.loads(old["data"])
+        size = {k: frame[k] for k in ("width", "height") if k in frame}
+        warnings: list[str] = []
+        if not data["elements"]:
+            raise InvalidError("no elements: that would clear the drawing")
+        if data["format"] == "scene":
+            checked = sanitise.scene({**size, **data})
+            text = sanitise.scene_text(checked)
+        else:
+            if len(size) != 2:
+                raise InvalidError("the drawing has no frame to place skeletons in")
+            elements = sanitise.skeletons(
+                data["elements"], size["width"], size["height"], warnings
+            )
+            if not elements and data["elements"]:
+                raise InvalidError("no element was valid: " + "; ".join(warnings[:5]))
+            checked = {"format": "skeleton", **size, "elements": elements}
+            text = sanitise.skeleton_text(elements)
+        if not dry_run:
+            put_derived(
+                conn, cid, sha, KIND, CLAUDE, now(), author=CLAUDE, text=text,
+                data=checked,
+            )  # fmt: skip
+        return {
+            "drawing": _shown(conn, cid, sha), "warnings": warnings,
+            "element_count": len(checked["elements"]),
+        }  # fmt: skip
 
 
 def restore(

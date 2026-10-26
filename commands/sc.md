@@ -12,5 +12,6 @@ argument-hint: <search words>
 - `/sc-tidy <what>`: bulk kind/tag changes
 - `/sc-undo`: revert a recent change (kinds, tags or text)
 
-If the arguments are non-empty, behave as `/sc-find` with them as the query. Otherwise list the
+If the arguments are non-empty, behave as `/sc-find` with them as the query (a page URL is
+read, not searched for). Otherwise list the
 commands above in one short message.
