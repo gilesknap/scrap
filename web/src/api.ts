@@ -65,6 +65,7 @@ export interface Writeup {
   state: "queued" | "processing" | "done" | "failed" | "paused" | null;
   error: string | null;
   versions: number;
+  outdated?: boolean; // the current one is older than the page or the prompt (#262)
   current: WriteupVersion | null;
 }
 export interface Page extends Summary {

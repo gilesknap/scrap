@@ -149,7 +149,11 @@ export function enrichPanel(
     // Never read (or, a board, never written): what asking would do. Then its parts as folds:
     // Summary, In detail (a board's write-up or a topic's synthesis, or its guidance before
     // there is one), a topic's Sources and Related
-    wp ? (wp.unwritten ?? "") : !busy && e?.on && !read ? h("p", { className: "did" }, ASK) : "",
+    wp
+      ? (wp.unwritten ?? wp.stale ?? "")
+      : !busy && e?.on && !read
+        ? h("p", { className: "did" }, ASK)
+        : "",
     !wp && read && !summary && !related.length && !topics
       ? h("p", { className: "did" }, "Claude found nothing to add.")
       : "",

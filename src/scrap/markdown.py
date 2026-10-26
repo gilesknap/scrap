@@ -18,7 +18,7 @@ from markdown_it.rules_inline import link as link_rule
 from markdown_it.token import Token
 from mdit_py_plugins.footnote import footnote_plugin
 
-__all__ = ["Link", "plain", "rewrite", "wiki_parts"]
+__all__ = ["Link", "plain", "rewrite", "wiki_parts", "wiki_targets"]
 
 Rule = Callable[[StateInline, bool], bool]
 
@@ -81,6 +81,23 @@ def wiki_parts(inner: str) -> tuple[str, str]:
     """A wiki link's target and label ("" if none); a table cell escapes its pipe."""
     target, _, label = inner.replace("\\|", "|").partition("|")
     return target.strip(), label.strip()
+
+
+def wiki_targets(text: str) -> list[str]:
+    """The targets of a text's page links, [[target]] and [[target|label]], each once in
+    order: not an embed (![[...]]), and none in code. Any [[...]] the parser takes as a
+    page link counts, including forms the PWA draws as plain text ([[Some Title]]), so
+    has:dangling finds links that don't work."""
+    if "[[" not in text:  # most pages: no parse
+        return []
+    found: dict[str, None] = {}
+    for t in parser().parse(text):
+        for c in t.children or []:
+            if c.type == "wiki" and not c.markup:
+                target = wiki_parts(c.content)[0]
+                if target:
+                    found[target] = None
+    return list(found)
 
 
 def _text(children: list[Token]) -> str:

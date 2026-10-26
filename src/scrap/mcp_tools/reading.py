@@ -37,7 +37,13 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         (note, todo, read, board, doc), tag:T (tag:a finds a/b), is:open, is:done,
         is:personal, is:work, is:claude (written over MCP), is:claude-edited (text
         changed over MCP after it was made), is:topic (Claude's topic pages, which
-        rank first when they match), has:image, has:drawing, image:K (the
+        rank first when they match), has:image, has:drawing; the store's health
+        checks: is:orphan (no links either way, related pages or topic),
+        is:untagged, is:stale (an open todo not edited for 60 days, not snoozed or
+        due from today),
+        is:duplicate (a file shared with another page), has:dangling (a [[link]] to
+        no page), is:outdated (Claude's write-up, synthesis or related pages older
+        than their inputs or prompt); image:K (the
         kind Claude gave a photo: photo, whiteboard, handwriting, diagram,
         screenshot, document, other), after:D and before:D (YYYY-MM-DD, or 1d, 2w,
         1m, 1y ago), date:created, a todo's due:D (due:today, due:<today overdue,

@@ -375,6 +375,14 @@ because `bm25()` and `snippet()` refuse `GROUP BY`, so it is done in Python). On
 code. The title, tags and summary columns are why ranking can weigh them
 ([issue 84](https://github.com/gilesknap/scrap/issues/84)).
 
+**Store health.** The health checks are search filters too, SQL fragments in one module
+(`store/health.py`): `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`
+and `is:outdated`. `GET /api/health` counts each for the PWA's Store health screen (Settings),
+whose rows run the searches. Nothing is stored, so a finding is always current, and no model
+is called; `is:outdated` uses the same definitions as what refreshes Claude's derived data: a
+board's write-up (the owner's Regenerate, or `scrap enrich --writeups --outdated`), a topic's
+synthesis (the weekly pass) and related pages (the nightly pass) ([](decisions/0029-store-health-checks-as-search-filters.md)).
+
 ## Phone quick capture
 
 1. **Tap the icon.** The installed PWA opens from the service worker cache, even offline, on the
@@ -476,7 +484,10 @@ Reprocess and a new board photo all write it again; the page's first related cal
 it sees the write-up. Ask Claude on a board page writes one too, before its related call. Its
 summary is the page's model summary (before enrich's), its text is searched, and a write-up newer
 than the page's last related picks makes it stale for the nightly pass. `scrap enrich --writeups`
-writes them for board pages with none. See
+writes them for board pages with none. A write-up is outdated once the page's text, title, kind
+or tags change after it, or the prompt changes (or a board image is read, which writes it again
+anyway), but never one the owner restored: its card says so quietly, and the owner regenerates it
+(`scrap enrich --writeups --outdated` does them all, as after a prompt change). See
 [](decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md).
 
 **Queue and budget.** One worker thread wakes every 30 seconds or when a job is queued, and runs one

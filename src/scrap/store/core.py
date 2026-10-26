@@ -27,6 +27,10 @@ class Core:
         self.db = self.dir / "scrap.db"
         self.files = self.dir / "files"
         self.window = revision_window()  # seconds: see _record_meta
+        # The current prompt versions (writeup, topic) is:outdated compares with, set
+        # by whoever makes the Store (app.create_app: enrich.prompt_versions()); one
+        # missing is not checked
+        self.prompts: dict[str, str] = {}
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

@@ -5,13 +5,14 @@ write-up and the two topic calls use `SCRAP_VISION_MODEL` (default `claude-opus-
 related use `SCRAP_TEXT_MODEL` (default `claude-haiku-5-5`). Ask Claude (`POST
 /api/pages/{id}/enrich`) runs enrich, then on a board page the write-up (on a topic page its
 synthesis), then related, on any page. Topic discovery is one call over the whole library, not a
-page's: see the end.
+page's: see the end. "Nightly" is the related-pages job and "weekly" the topics job, both in
+[](../reference/scheduled-jobs.md).
 
 | Page | Photo reading | Enrich | Write-up | Related |
 |---|---|---|---|---|
 | Typed note, todo or read (MCP `write` too) | — | On capture and on each save, after the debounce: tags (none from a save), summary; a confident list of actions in an unfixed note gets task boxes | — | Once after its first enrich; nightly if changed; Ask |
 | Saved link | — | On capture, at once: fetches the address, then title, tags, summary. A save reads it again without fetching | — | Once after its first enrich; nightly if changed; Ask |
-| Photo capture of a whiteboard or diagram (filed as a whiteboard) | Per image: kind, description, text (OCR), drawing. From the capture's first image only: title, tags, a to-do list | Skipped (Ask only) | Once all its photos are read, and again when a board image is read later (Reprocess, a new photo); Regenerate; Ask; `scrap enrich --writeups`. Sees the board photos (at most 4), their text and descriptions, title, tags, text and the owner's guidance; links related candidates. Not for a to-do sticky (a list of actions) | Once after its write-up; nightly if changed, a photo is read or the write-up is newer; Ask. Sees the images' text and the write-up |
+| Photo capture of a whiteboard or diagram (filed as a whiteboard) | Per image: kind, description, text (OCR), drawing. From the capture's first image only: title, tags, a to-do list | Skipped (Ask only) | Once all its photos are read, and again when a board image is read later (Reprocess, a new photo); Regenerate (its card says when it is outdated: the page's text, title or tags, or the prompt, changed since); Ask; `scrap enrich --writeups` (`--outdated`: the outdated ones, as after a prompt change). Sees the board photos (at most 4), their text and descriptions, title, tags, text and the owner's guidance; links related candidates. Not for a to-do sticky (a list of actions) | Once after its write-up; nightly if changed, a photo is read or the write-up is newer; Ask. Sees the images' text and the write-up |
 | Photo capture of a document, handwriting, screenshot or photo | The same, with no drawing | Skipped (Ask only) | — | Once when all of its first photo capture is read; nightly if changed or a photo is read; Ask. Sees the images' text |
 | Photos added to a page (the editor's Add photo) | Per image: description, text (OCR), drawing. Never the page's kind, title, tags or task boxes: its first capture decides what the page is ({ref}`ingest-first-capture`) | As the page was before: a typed page keeps enrich on save; a photo page, Ask only | As above, once a board image is read | Queued at once when this is the page's first capture with a job (its first photos), once they are read; otherwise nightly, as a photo is read; Ask. Sees the new images' text |
 | File capture (PDF and the like) | — (PDF summaries: #234) | Skipped (Ask only) | — | Nightly if changed; Ask. Sees title, tags and text only |
@@ -31,10 +32,15 @@ what was read from them (at most 12,000 characters), the page's title, tags and 
 6,000), the owner's guidance in a `<guidance>` block and the related call's index; it cites pages
 by number, and scrap makes those `[[slug]]` links ({ref}`ingest-writeup`).
 
+The store's health checks (`is:orphan`, `is:outdated` and the rest, the PWA's Store health
+screen) are plain SQL and make no call: Claude's views of the library are the topic syntheses
+(contradictions and open questions), topic discovery (topics to make) and the related pass
+(links to suggest) ([](decisions/0029-store-health-checks-as-search-filters.md)).
+
 Imports are not read as text unless `scrap enrich --backfill` queues them (their first enrich then
 queues the related call). Their photos are read only with `scrap import --ingest`.
 
-Topic discovery (`scrap enrich --topics`, weekly) is one call over the whole library: an index of
+Topic discovery (`scrap enrich --topics`, weekly: [](../reference/scheduled-jobs.md)) is one call over the whole library: an index of
 every page not in the trash and not a topic (at most 2,000, the most recently changed: number,
 title, up to 6 tags, a summary cut to 150 characters), the existing topics with their sources'
 numbers, and the keys of the topics in the trash (rejected, never made again). It returns new

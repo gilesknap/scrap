@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Page, Writeup, WriteupVersion } from "../src/api";
-import { byline, stateText, writing } from "../src/writeup";
+import { byline, OUTDATED, outdatedLine, stateText, writing } from "../src/writeup";
 
 const w = (over: Partial<Writeup>): Writeup => ({
   board: true,
@@ -44,4 +44,13 @@ it("says who wrote a version, when, and what it was restored from", () => {
   };
   expect(byline(v)).toMatch(/^claude-opus-5-5 · .+ · version 3 · restored from version 1$/);
   expect(byline({ ...v, restored_from: null })).toMatch(/ · version 3$/);
+});
+
+it("says a current write-up is outdated, only when it is and nothing is under way", () => {
+  const up = { version: 1 } as WriteupVersion;
+  expect(outdatedLine(w({ outdated: true, current: up }))).toBe(OUTDATED);
+  expect(outdatedLine(w({ outdated: false, current: up }))).toBeNull();
+  expect(outdatedLine(w({ outdated: true, current: null }))).toBeNull();
+  expect(outdatedLine(w({ outdated: true, current: up, state: "queued" }))).toBeNull();
+  expect(outdatedLine(w({ current: up }))).toBeNull(); // an older server: no flag
 });

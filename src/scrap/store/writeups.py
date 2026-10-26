@@ -55,6 +55,13 @@ HAS_BOARD = """EXISTS (
       AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
 # Whether a page's write-up is on show (SQL on a page p): a board page's or a topic's
 SHOWN = f"({HAS_BOARD} OR {IS_TOPIC})"
+# A board image of a page p read since its last write-up (or it has none)
+READ_SINCE = """EXISTS (
+    SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
+    WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
+      AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
+      AND d.created_at > coalesce(
+        (SELECT max(w.created_at) FROM writeup w WHERE w.page_id = {p}.id), ''))"""
 # A board page whose write-up is due: none of its photos waits or is being read, and
 # a board image was read since its last write-up (or it has none)
 DUE = f"""
@@ -62,13 +69,21 @@ SELECT 1 FROM page p WHERE p.id = :page AND p.deleted_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM job j JOIN capture c ON c.id = j.capture_id
                   WHERE c.page_id = p.id AND j.state IN ('queued', 'running'))
   AND {HAS_BOARD.format(p="p")}
-  AND EXISTS (
-    SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
-    WHERE c.page_id = p.id AND d.kind = 'description' AND d.superseded_at IS NULL
-      AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
-      AND d.created_at > coalesce(
-        (SELECT max(w.created_at) FROM writeup w WHERE w.page_id = p.id), ''))
+  AND {READ_SINCE.format(p="p")}
 """
+# A board page p (not a topic) whose current write-up is outdated (#262: is:outdated,
+# the write-up view's outdated flag, scrap enrich --writeups --outdated; only a newly
+# read photo regenerates one on its own, DUE): a board image read since it, or the
+# page's text, title, kind or tags changed since, or made with another prompt version
+# than {version} (a placeholder: ? or :version; NULL checks none). Never one the owner
+# restored: their Restore stands until they Regenerate (or a photo is read: DUE).
+OUTDATED = f"""({HAS_BOARD} AND NOT {IS_TOPIC}
+  AND EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = {{p}}.id
+    AND w.superseded_at IS NULL AND w.restored_from IS NULL
+    AND (coalesce(w.prompt_version <> {{version}}, 0)
+      OR w.created_at < max({{p}}.updated_at, coalesce((SELECT max(m.updated_at)
+        FROM page_meta_rev m WHERE m.page_id = {{p}}.id), ''))
+      OR {READ_SINCE})))"""
 COLUMNS = (
     "id, version, producer, run_id, prompt_version, summary, text, guidance,"
     " restored_from, superseded_at, created_at"
@@ -220,15 +235,29 @@ def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
         return []
 
 
+def outdated(conn: sqlite3.Connection, page_id: str, version: str | None) -> bool:
+    """Whether a board page's current write-up is outdated (OUTDATED), version the
+    current prompt's (None: not checked)."""
+    sql = f"SELECT {OUTDATED.format(p='p', version='?')} FROM page p WHERE p.id = ?"
+    row = conn.execute(sql, (version, page_id)).fetchone()
+    return bool(row and row[0])
+
+
 def view(
-    conn: sqlite3.Connection, page_id: str, on: bool, stamp: str
+    conn: sqlite3.Connection,
+    page_id: str,
+    on: bool,
+    stamp: str,
+    version: str | None = None,
 ) -> dict[str, Any] | None:
     """A page's write-up as the page shows it, None unless it is a board page or a
     topic (a page that is no longer a board keeps its versions, unseen): board and
     topic (which it is), enrich on, the owner's guidance, the state of a write-up
     queued or being made (its latest write-up, topic or Ask job's), how many
-    versions, and the current one, with links: the slugs of the pages (not in the
-    trash) it links to."""
+    versions, outdated (a board's current write-up is: OUTDATED, version the current
+    prompt's; a topic's synthesis is never said to be, the weekly pass remakes it),
+    and the current one, with links: the slugs of the pages (not in the trash) it
+    links to."""
     board = has_board(conn, page_id)
     topic = not board and is_topic(conn, page_id)
     if not (board or topic):
@@ -261,6 +290,7 @@ def view(
         "state": state,
         "error": job["last_error"] if job is not None and state == "failed" else None,
         "versions": count,
+        "outdated": board and outdated(conn, page_id, version),
         # with the pages it links that exist: the PWA links no other
         "current": up
         and {

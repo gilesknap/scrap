@@ -258,18 +258,13 @@ editing:
 `systemctl --user restart scrap`.
 
 With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
-Related pages come from a nightly pass, `scrap-enrich-related.timer` (about 03:41, run in the
-scrap container), which `install.sh` enables. It keeps to the same daily budget and stops (and
-the service fails) at a queue pause; while ingest is off or no key (or seat token) is set it says
-so and succeeds. `podman exec scrap scrap enrich --related --dry-run` says how many pages it
-would do.
-
-Topic pages come from a weekly pass, `scrap-enrich-topics.timer` (Sundays about 04:11, run in the
-scrap container), which `install.sh` also enables: one Claude call finds topics, making new topic
-pages and adding their sources, then each topic's synthesis that is due is queued for the
-service's worker ({ref}`ingest-topics`). It has the same budget, pause and off rules, and its
-service also fails if the discovery call fails. `podman exec scrap scrap enrich --topics
---dry-run` prints what it would make, but still makes (and pays for) the discovery call.
+Related pages come from a nightly timer, `scrap-enrich-related.timer`, and topic pages from a
+weekly one, `scrap-enrich-topics.timer`; both run in the scrap container, and `install.sh`
+enables them. [](../reference/scheduled-jobs.md) has their schedules, what they do and their
+budget. To check what one would do: `podman exec scrap scrap enrich --related --dry-run` (how many
+pages), or `podman exec scrap scrap enrich --topics --dry-run` (what it would make; it still
+makes, and pays for, the discovery call). To turn one off: `systemctl --user disable --now
+scrap-enrich-topics.timer` (or `scrap-enrich-related.timer`).
 
 #### On a Claude seat, with no API key
 
@@ -589,6 +584,8 @@ You can instead keep hand backups outside `SCRAP_BACKUPS`, in a folder you mount
 
 ### Checking the timers
 
+[](../reference/scheduled-jobs.md) lists every timer, its schedule and what it does.
+
 Nothing notifies you when a timer's service fails: `SCRAP_NOTIFY_URL` is for ingest pauses only.
 All four services (`scrap-backup`, `scrap-gc`, `scrap-enrich-related`, `scrap-enrich-topics`)
 are one-shot, so a failed run shows only in systemd, and you find out by looking:
@@ -613,10 +610,18 @@ which the journal keeps:
 
 ### Changing the schedule
 
-`scrap-backup.timer` is set to 03:30 and `scrap-gc.timer` to 04:30 (each with up to 15 minutes of
-random delay, `RandomizedDelaySec`, so the run is spread over that quarter hour). Do not edit
-the copies in `~/.config/systemd/user/`: `install.sh` overwrites them on every run. Use a drop-in,
-which survives it:
+The four timers and their defaults, each with up to 15 minutes of random delay
+(`RandomizedDelaySec`, so the run is spread over that quarter hour), in the machine's local time:
+
+| Timer | Default `OnCalendar` |
+| --- | --- |
+| `scrap-backup.timer` | `*-*-* 03:30:00` (daily) |
+| `scrap-enrich-related.timer` | `*-*-* 03:41:00` (daily) |
+| `scrap-enrich-topics.timer` | `Sun *-*-* 04:11:00` (Sundays) |
+| `scrap-gc.timer` | `*-*-* 04:30:00` (daily) |
+
+Do not edit the copies in `~/.config/systemd/user/`: `install.sh` overwrites them on every run.
+Use a drop-in, which survives it:
 
 ```
 systemctl --user edit scrap-backup.timer
@@ -630,7 +635,34 @@ OnCalendar=
 OnCalendar=*-*-* 02:00:00
 ```
 
-Check with `systemctl --user list-timers`. The gc timer works the same way.
+Check with `systemctl --user list-timers`. The other three timers work the same way
+(`systemctl --user edit scrap-gc.timer`, `scrap-enrich-related.timer` or
+`scrap-enrich-topics.timer`). Keep gc after the backup, and the Claude jobs after it too (see
+[](../reference/scheduled-jobs.md)).
+
+### Changing what a job does
+
+A job's options are in its service's `ExecStart`. Change them with a drop-in on the service
+(`systemctl --user edit scrap-gc.service`, say) that clears `ExecStart` with an empty line, then
+gives the new one; `install.sh` keeps drop-ins as it does the timers'. The defaults:
+
+| Service | Default `ExecStart` | Options to add |
+| --- | --- | --- |
+| `scrap-gc.service` | `%h/.local/lib/scrap/scrap-gc` | passed on to `scrap gc` after its own `--delete --grace-hours 24` (the last wins): `--grace-hours N`, `--run-days N` (default 30), `--dry-run` (only count) |
+| `scrap-enrich-related.service` | `/usr/bin/podman exec scrap scrap enrich --related` | `--all` (every page), `--limit N` (at most N pages) |
+| `scrap-enrich-topics.service` | `/usr/bin/podman exec scrap scrap enrich --topics` | `--all` (every topic's synthesis), `--limit N` (at most N syntheses queued) |
+
+For example, to keep gc's files two days and its run records 60:
+
+```
+[Service]
+ExecStart=
+ExecStart=%h/.local/lib/scrap/scrap-gc --grace-hours 48 --run-days 60
+```
+
+The backup's options are settings in `~/.config/scrap/env` instead (`SCRAP_BACKUP_KEEP`,
+`SCRAP_BACKUPS`). [](../reference/scheduled-jobs.md) maps each of the Helm chart's values to
+these.
 
 The two are linked: `scrap-gc` deletes only if a run directory in `SCRAP_BACKUPS` is under 26
 hours old, and otherwise counts, then fails (and it always keeps files younger than 24 hours,

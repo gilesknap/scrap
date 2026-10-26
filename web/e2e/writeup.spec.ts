@@ -208,3 +208,25 @@ test("a page with no board has no write-up in its card", async ({ page }) => {
   await expect(page.locator("h1")).toHaveText("A plain note");
   await expect(page.locator("details.writeup")).toHaveCount(0);
 });
+
+test("an edit since the write-up says so quietly, and nothing regenerates", async ({ page }) => {
+  const b = board();
+  await page.goto(`/p/${b.slug}`);
+  const s = section(page);
+  await expect(s).toBeVisible();
+  await expect(s.locator(".stale")).toHaveCount(0); // up to date
+  const p = await (await page.request.get(`/api/pages/${b.slug}`)).json();
+  const r = await page.request.patch(`/api/pages/${b.slug}`, {
+    data: { base_rev: p.rev, body: `${p.body}\n\nA note added later.` },
+  });
+  expect(r.ok()).toBe(true);
+  await page.reload();
+  const line = s.locator("p.stale");
+  await expect(line).toHaveText("The page (or Claude's prompt) has changed since this write-up.");
+  await expect(s.locator(".by").first()).toContainText("version 2"); // not made again
+  expect((await (await page.request.get(`/api/pages/${b.slug}`)).json()).writeup.versions).toBe(2);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    expect(await page.evaluate(lowContrast, ""), colorScheme).toEqual([]);
+  }
+});

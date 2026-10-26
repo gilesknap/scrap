@@ -541,7 +541,8 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   before this change or while enrich was off. Otherwise `scrap enrich --related [--all] [--limit N]
   [--dry-run]`, the nightly pass, does every page changed since its last picks (no `related` run
   newer than its `updated_at`, than the newest current description or text photo ingest read
-  from one of its images, or than its current write-up; `--all`: every page). It runs in the command's process (in the
+  from one of its images, or than its current write-up: `is:outdated` finds those picked before;
+  `--all`: every page). Its schedule is in [](../reference/scheduled-jobs.md). It runs in the command's process (in the
   container: `podman exec scrap scrap enrich --related`), checks the shared queue pause and the
   day's budget before each call, and stops at either (an outage, credit or auth error pauses the
   queue as the worker does); other failures are counted and it goes on. Exit status 1 when
@@ -583,9 +584,17 @@ the page's text.
   one too, after its tags and summary and before its related pages. **Regenerate** (`POST
   /api/pages/{id}/writeup`) queues one by hand. A queued write-up is not taken over by a save (a
   board is not read as text anyway), only by Ask, which writes one. `scrap enrich --writeups
-  [--all] [--limit N] [--dry-run]` writes them in the command's process for every board page with
-  none (`--all`: every board page), with the related pass's pause, budget and exit rules; run
-  `scrap enrich --related` after it, so related pages see them.
+  [--all] [--outdated] [--limit N] [--dry-run]` writes them in the command's process for every
+  board page with none (`--all`: every board page), with the related pass's pause, budget and
+  exit rules; run `scrap enrich --related` after it, so related pages see them.
+- **Outdated** (`store.writeups.OUTDATED`, what `is:outdated` finds, #262): a current write-up
+  older than a reading of a board image (as above), or than a change to the page's text, title,
+  kind or tags, or made with another version of the prompt; never one the owner restored. Only a
+  newly read board photo writes it again on its own (above). An edit or a new prompt does not:
+  the write-up's card says "The page (or Claude's prompt) has changed since this write-up."
+  beside Regenerate, and the owner chooses. `scrap enrich --writeups --outdated` writes again
+  every outdated one (with `--limit`, `--dry-run`, the budget and the pause, as above): how a new
+  prompt is rolled out.
 - **The call.** `SCRAP_VISION_MODEL` (default `claude-opus-5-5`), effort `medium`, `max_tokens`
   16000, structured output (`summary`, `text`). The user turn has each board photo (at most 4:
   the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
@@ -819,7 +828,7 @@ holds what you sent to Claude, and your backups do too.
 | `scrap ingest-once IMAGE [--save FILE]` | Try one image against Claude with no database; numbers only unless `--save` |
 | `scrap enrich --backfill` | Queue the notes, todos and reads with no tags that Claude has not read; the service's worker runs them |
 | `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
-| `scrap enrich --writeups [--all]` | Write Claude's write-up now, in the command's process, for each board page with none (`--all`: every board page) |
+| `scrap enrich --writeups [--all \| --outdated]` | Write Claude's write-up now, in the command's process, for each board page with none (`--all`: every board page; `--outdated`: each outdated one instead) |
 | `scrap enrich --topics [--all]` | Find topics now, in the command's process (the weekly pass), then queue each topic's synthesis that is due (`--all`: every topic's) for the service's worker |
 | `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
 

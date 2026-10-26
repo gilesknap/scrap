@@ -29,6 +29,7 @@ from .constants import (
 )
 from .core import Core
 from .db import _rows
+from .health import CHECKS, condition
 from .helpers import checked_query, tag_counts, todo_only, unlink
 from .topics import IS_TOPIC
 
@@ -276,6 +277,10 @@ class SearchMixin(Core):
                     " AND instr('/' || t.tag || '/', ?) > 0)"
                 )
                 args.append(f"/{f.value.strip('/')}/")
+            elif (f.key, f.value) in CHECKS:  # the store's health checks (#262)
+                check, more = condition(f.key, f.value, self.prompts)
+                sql.append(f"{no}({check})")
+                args.extend(more)
             elif f.key == "has":  # has:image, has:drawing; any other value: nothing
                 sql.append(f"{no}{HAS[f.value]}" if f.value in HAS else f"{no}0")
             elif f.key == "image":  # image:photo, image:whiteboard...

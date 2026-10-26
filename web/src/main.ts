@@ -43,6 +43,8 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
   ],
   [/^\/todos$/, () => todos()],
   [/^\/topics$/, () => import("./topics").then((m) => m.topics())], // a lazy chunk
+  // Store health (Settings): each check's count, a tap its search. A chunk of its own
+  [/^\/health$/, () => import("./health").then((m) => m.health(current.signal))],
   [
     /^\/p\/([^/]+)$/,
     (m) => {

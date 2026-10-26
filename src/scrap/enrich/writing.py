@@ -133,14 +133,20 @@ def writeup_pass(
     every: bool = False,
     limit: int | None = None,
     dry_run: bool = False,
+    outdated: bool = False,
 ) -> dict[str, Any]:
     """Write-ups here and now (scrap enrich --writeups): one for each board page with
-    none (or every board page), oldest first. It stops at a queue pause (or makes
-    one: outage, credit, auth, the day's budget), as the related pass does; other
-    failures are counted and the next page tried. Returns the counts."""
+    none; with outdated, each with an outdated write-up instead (writeups.OUTDATED, as
+    is:outdated: never one the owner restored; how a new prompt is rolled out); with
+    every, every board page. Oldest first, at most limit. It stops at a queue
+    pause (or makes one: outage, credit, auth, the day's budget), as the related pass
+    does; other failures are counted and the next page tried. Returns the counts."""
     call = call or claude.complete
     budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
     with store.connect() as conn:
         most = -1 if limit is None else limit
-        ids = [r[0] for r in conn.execute(BOARDS, {"all": every, "limit": most})]
+        ids = [r[0] for r in conn.execute(BOARDS, {
+            "all": every, "outdated": outdated, "limit": most,
+            "version": writeup_prompt([])[1],  # outdated: made with another
+        })]  # fmt: skip
     return run_pass(store, ids, lambda p: write_up(store, call, p), budget, dry_run)

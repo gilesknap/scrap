@@ -34,6 +34,15 @@ export function stateText(w: Writeup): string | null {
   }
 }
 
+/** The quiet line under the card's title when the current write-up is outdated (the page's
+ * text, title or tags, a board photo or Claude's prompt changed since): Regenerate, beside it,
+ * makes it again. Nothing regenerates it on its own but a newly read photo. */
+export const OUTDATED = "The page (or Claude's prompt) has changed since this write-up.";
+export const outdatedLine = (w: Writeup) =>
+  w.outdated && w.current && !["queued", "processing", "paused"].includes(w.state ?? "")
+    ? OUTDATED
+    : null;
+
 /** Who wrote a version and when: "claude-opus-5-5 · Oct 25, 10:04 · version 2". */
 export const byline = (v: WriteupVersion) =>
   [
@@ -120,6 +129,7 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
   if (detail)
     head.onclick = () =>
       w.topic ? kept(key, detail.open ? "shut" : null) : kept(key, detail.open ? null : "open"); // (about to change)
+  const stale = outdatedLine(w);
   return {
     said: stateText(w), // where Claude is up to: null when there is nothing to say
     state: w.state ?? "",
@@ -128,6 +138,8 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
     action: action || null,
     lead: up?.summary ?? null, // the board's summary
     detail: detail || null,
+    // Outdated: a quiet line under the title, Regenerate on the title line
+    stale: stale && h("p", { className: "did stale" }, stale),
     // None yet: what Claude would do, and the guidance it would follow (after Summary)
     unwritten:
       !up && !busy

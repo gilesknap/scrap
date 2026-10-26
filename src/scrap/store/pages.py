@@ -364,7 +364,8 @@ class PagesMixin(Core):
             }
         return {"model_tags": model_tags, "related": list(related.values()),
                 "enrich": enrich,
-                "writeup": writeup_view(conn, page_id, enrich_on(), now()),
+                "writeup": writeup_view(conn, page_id, enrich_on(), now(),
+                                        self.prompts.get("writeup")),  # fmt: skip
                 "topics": of_page(conn, page_id),
                 "topic": {
                     "key": key_of(conn, page_id),
