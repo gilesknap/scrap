@@ -7,7 +7,7 @@ from typing import Any
 
 from ..markdown import tasks
 from . import roles
-from .constants import CLAUDE, META_REV, PAGE_KINDS
+from .constants import MCP, META_REV, PAGE_KINDS, REV_INSERT
 from .core import Core
 from .db import _rows, transaction
 from .errors import ConflictError, InvalidError, NoSuchRevision, NotFoundError
@@ -151,12 +151,14 @@ class RevisionsMixin(Core):
             ).fetchall())  # fmt: skip
             text = _rows(
                 conn,
-                "SELECT rev, title, author, created_at, length(CAST(body AS BLOB))"
+                "SELECT rev, title, author, source, created_at,"
+                " length(CAST(body AS BLOB))"
                 " AS bytes FROM page_rev WHERE page_id = ? ORDER BY rev DESC LIMIT ?",
                 page["id"], limit,
             ) if page is not None else _rows(
                 conn,
-                "SELECT r.page_id, p.slug, r.rev, r.title, r.author, r.created_at,"
+                "SELECT r.page_id, p.slug, r.rev, r.title, r.author, r.source,"
+                " r.created_at,"
                 " length(CAST(r.body AS BLOB)) AS bytes FROM page_rev r"
                 " JOIN page p ON p.id = r.page_id WHERE p.deleted_at IS NULL"
                 " ORDER BY r.created_at DESC, r.page_id DESC, r.rev DESC LIMIT ?",
@@ -178,11 +180,12 @@ class RevisionsMixin(Core):
     def text_revision(
         self, key: str, rev: int, trashed: bool = False
     ) -> dict[str, Any]:
-        """One text revision of a page: its title and body then, who wrote it, when."""
+        """One text revision of a page: its title and body then, who wrote it (author,
+        and source: mcp for Claude's, else web), when."""
         with self.connect() as conn:
             page = self._page_row(conn, key, trashed)
             row = conn.execute(
-                "SELECT rev, title, body, author, created_at FROM page_rev"
+                "SELECT rev, title, body, author, source, created_at FROM page_rev"
                 " WHERE page_id = ? AND rev = ?",
                 (page["id"], rev),
             ).fetchone()
@@ -198,9 +201,11 @@ class RevisionsMixin(Core):
         base_rev: int | None = None,
         dry_run: bool = False,
         fold: bool = True,
+        source: str = "web",
     ) -> dict[str, Any]:
         """Change the title and/or body of a page (not one in the trash) as a new
-        text revision by author: change(conn, page) gives its new title and body
+        text revision by author from source (mcp: Claude's; see REV_INSERT):
+        change(conn, page) gives its new title and body
         from the current ones (raising InvalidError to refuse). Refused
         (ConflictError) if base_rev is given and is not the page's current rev.
         Nothing is written if they are what the page has, nor with dry_run. Returns
@@ -218,7 +223,9 @@ class RevisionsMixin(Core):
             changed = (title, body) != (page["title"], page["body"])
             rev, folded = page["rev"], None
             if changed and not dry_run:
-                rev, folded = self._put_text(conn, page, title, body, author, fold)
+                rev, folded = self._put_text(
+                    conn, page, title, body, author, source, fold
+                )
             return {
                 "id": page["id"], "slug": page["slug"], "rev_before": page["rev"],
                 "rev": rev, "changed": changed, "folded": folded,
@@ -233,24 +240,25 @@ class RevisionsMixin(Core):
         title: str,
         body: str,
         author: str,
+        source: str,
         fold: bool,
     ) -> tuple[int, int | None]:
         """Write a page's new title and body as text revision rev + 1, returning it
         and the revision folded into it (else None).
 
-        Coalescing (fold): if the page's latest text revision is by the same author,
-        is not its first, was made within self.window seconds, and does not hold the
-        body of an earlier revision (a revert's, which is never folded into, whatever
-        its title), the
-        burst's text replaces it: that revision goes and this one keeps its
-        created_at. The number still moves on (rev + 1, never a number used before),
+        Coalescing (fold): if the page's latest text revision is by the same author
+        from the same source, is not its first, was made within self.window seconds,
+        and does not hold the body of an earlier revision (a revert's, which is never
+        folded into, whatever its title), the burst's text replaces it: that revision
+        goes and this one keeps its created_at. The number still moves on (rev + 1,
+        never a number used before),
         since rev is the PWA's edit token: an editor holding the folded revision
         gets a conflict (409), never a silent overwrite. A burst leaves a gap in the
         numbers."""
         stamp = now()
         created, folded = stamp, None
         last = conn.execute(
-            "SELECT rev, author, created_at FROM page_rev"
+            "SELECT rev, author, source, created_at FROM page_rev"
             " WHERE page_id = ? AND rev = ?",
             (page["id"], page["rev"]),
         ).fetchone()
@@ -258,7 +266,7 @@ class RevisionsMixin(Core):
             fold
             and last is not None
             and last["rev"] > 1
-            and last["author"] == author
+            and (last["author"], last["source"]) == (author, source)
             and 0 <= seconds_between(last["created_at"], stamp) < self.window
             and not conn.execute(
                 "SELECT 1 FROM page_rev r JOIN page_rev l"
@@ -279,11 +287,10 @@ class RevisionsMixin(Core):
             (title, body, stamp, page["id"]),
         )
         conn.execute(
-            "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
-            (page["id"], rev, title, body, author, created),
+            REV_INSERT, (page["id"], rev, title, body, author, source, created)
         )
         self._body(conn, page["id"], boxes_before(page))
-        if author == CLAUDE:
+        if source == MCP:  # Claude's
             self._unbox(conn, page)
         self.reindex(conn, page["id"])
         if enrich_on() and should_enrich(conn, page["id"]):  # as for the PWA's saves
@@ -302,8 +309,8 @@ class RevisionsMixin(Core):
             (page["id"],),
         ).fetchone()
         theirs = conn.execute(
-            "SELECT body FROM page_rev WHERE page_id = ? AND author <> ?",
-            (page["id"], CLAUDE),
+            "SELECT body FROM page_rev WHERE page_id = ? AND source <> ?",
+            (page["id"], MCP),
         ).fetchall()
         if (
             not may_rekind(now_["kind"], now_["kind_fixed"], ("todo",))

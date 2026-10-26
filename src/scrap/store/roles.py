@@ -9,8 +9,9 @@ docs/explanations/llm-calls.md (Page roles) matches it row for row:
 
 - the first capture, which decides the rest;
 - made by: human, claude (written over MCP), topic (Claude's topic page) or gc (a review
-  page scrap gc made), worked out from the page's captures and the topic table; and
-  whether Claude has edited its text since;
+  page scrap gc made), stored in page.made_by when the page is made (migration 16
+  backfilled it from the page's captures and the topic table); and whether Claude has
+  edited its text since (a text revision from source mcp);
 - maintainer: enrich (on capture and save) or ingest (photo ingest; enrich on Ask only);
 - write-up: board, topic or none;
 - what automation may change: the title (until the first edit), the kind (while
@@ -22,7 +23,6 @@ store module, and the rest of scrap, can use it.
 """
 
 import sqlite3
-from collections.abc import Iterable, Mapping
 from typing import Any, Literal
 
 from .constants import CLAUDE, ENRICH_KINDS, MCP, PINNED_SLUG
@@ -59,45 +59,61 @@ def first_capture(conn: sqlite3.Connection, cid: str) -> tuple[str, bool]:
 
 # ---- made by (not fields.origin: the provenance Claude gives an MCP page)
 
-# A topic page p: a row in topic (#261). Before migration 13 there is no topic table.
+# Who made a page: page.made_by (migration 16), set once when the page is made (by
+# made_by_source, or topic for a topic page) and never changed: a trigger refuses it.
+MADE_BY_VALUES: tuple[MadeBy, ...] = ("human", "claude", "topic", "gc")
+MADE_BY = "{p}.made_by"
+# A topic page p: a row in topic (#261), as made_by 'topic' says too (topics.create
+# writes both, in one transaction, and neither changes). The table stays the test: it
+# holds the topic's key, which keeps Claude from making that topic again, and its
+# sources; and it answers on any schema since migration 13.
 IS_TOPIC = "EXISTS (SELECT 1 FROM topic t WHERE t.page_id = {p}.id)"
-# A review page: one scrap gc made, gathering capture files no page shows (its
-# capture's source is gc), whatever it is titled now (orphans.py). Any capture: gc only
-# ever makes such a page, it never adds a capture to one.
-REVIEW = (
+# A review page: one scrap gc made, gathering capture files no page shows (orphans.py),
+# whatever it is titled now
+REVIEW = "{p}.made_by = 'gc'"
+# Written by Claude over MCP: search's is:claude, MCP read's written_by_claude and the
+# PWA's badge
+BY_CLAUDE = "{p}.made_by = 'claude'"
+# A later text revision by Claude (is:claude-edited): one after the first from source
+# mcp, which only Claude writes: over MCP (an edit_page, a revert, an append) or the
+# task boxes Claude added from a list of actions (actions.append, for photo ingest and
+# enrich). Never the PWA's, whatever author its request names (#153).
+# TODO(#280) owner: should is:claude-edited be MCP-only?
+CLAUDE_EDITED = (
+    "EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = {p}.id AND r.rev > 1"
+    " AND r.source = '" + MCP + "')"
+)
+
+# What made_by was worked out from before migration 16, which backfills it with this:
+# a topic, else gc's (a capture with source gc: gc only ever makes such a page), else
+# Claude's (the first capture came over MCP), else the owner's. Also the answer on an
+# older schema, with no made_by column.
+_REVIEW_CAPTURE = (
     "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = '"
     + GC
     + "')"
 )
-# Written by Claude over MCP: the page's first capture came over MCP
-BY_CLAUDE = (
+_FIRST_MCP = (
     "coalesce((SELECT c.source FROM capture c WHERE c.id = "
     + FIRST_CAPTURE.format(page="{p}.id")
     + "), '') = '"
     + MCP
     + "'"
 )
-# Any capture of the page came over MCP: search's is:claude test (MCP read's
-# written_by_claude is has_mcp_capture). TODO(#280, for the owner): this is not
-# BY_CLAUDE's first-capture test, though the two find the same pages today: an mcp
-# capture only ever makes a page (MCP write) or is appended to one whose first capture
-# is mcp (Store.append refuses any other). Step 3's made_by column replaces both.
-HAS_MCP_CAPTURE = (
-    "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = '"
-    + MCP
-    + "')"
+_NOT_TOPIC = (
+    f"WHEN {_REVIEW_CAPTURE} THEN 'gc' WHEN {_FIRST_MCP} THEN 'claude' ELSE 'human' END"
 )
-# Who made a page (SQL): a topic, else gc's, else Claude's, else the owner's
-_NOT_TOPIC = f"WHEN {REVIEW} THEN 'gc' WHEN {BY_CLAUDE} THEN 'claude' ELSE 'human' END"
-MADE_BY = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
-# A later text revision by Claude (is:claude-edited): one by CLAUDE after the first,
-# from MCP (an edit_page, a revert, an append) or the task boxes Claude added from a
-# list of actions (actions.append, for photo ingest and enrich). Never the PWA's.
-# TODO(#280) owner: should is:claude-edited be MCP-only?
-CLAUDE_EDITED = (
-    "EXISTS (SELECT 1 FROM page_rev r WHERE r.page_id = {p}.id AND r.rev > 1"
-    " AND r.author = '" + CLAUDE + "')"
-)
+INFERRED_MADE_BY = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
+
+
+_BY_SOURCE: dict[str, MadeBy] = {MCP: "claude", GC: "gc"}
+
+
+def made_by_source(source: str) -> MadeBy:
+    """Who made a page its first capture makes, by the capture's source: claude over
+    MCP, gc for scrap gc's review page, else human (the PWA, a share, an import). A
+    topic page has no capture (topics.create sets topic)."""
+    return _BY_SOURCE.get(source, "human")
 
 
 def _one(conn: sqlite3.Connection, fragment: str, page_id: str) -> bool:
@@ -117,37 +133,34 @@ def is_topic(conn: sqlite3.Connection, page_id: str) -> bool:
 
 
 def by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether a page was written over MCP (its first capture's source)."""
-    row = conn.execute(
-        "SELECT source FROM capture WHERE id = " + FIRST_CAPTURE.format(page="?"),
-        (page_id,),
-    ).fetchone()
-    return bool(row) and row[0] == MCP
-
-
-def has_mcp_capture(captures: Iterable[Mapping[str, Any]]) -> bool:
-    """Whether any of a page's captures (as Store.page lists them) came over MCP:
-    HAS_MCP_CAPTURE, in Python (see its TODO)."""
-    return any(c["source"] == MCP for c in captures)
+    """Whether a page was written over MCP (made_by claude)."""
+    return made_by(conn, page_id) == "claude"
 
 
 def edited_by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether a page has a later text revision by Claude: MCP edits, or task boxes
-    Claude added (CLAUDE_EDITED; see its TODO)."""
-    return _one(conn, CLAUDE_EDITED, page_id)
+    Claude added (CLAUDE_EDITED; see its TODO). On an older schema, with no
+    page_rev.source, a revision by author claude (as before migration 16)."""
+    try:
+        return _one(conn, CLAUDE_EDITED, page_id)
+    except sqlite3.OperationalError:  # no such column: an older schema
+        old = CLAUDE_EDITED.replace("r.source = '" + MCP, "r.author = '" + CLAUDE)
+        return _one(conn, old, page_id)
 
 
 def made_by(conn: sqlite3.Connection, page_id: str) -> MadeBy:
-    """Who made a page (MADE_BY, one query): topic, gc, claude or human, in that
-    order. Before migration 13 (no topic table), never topic."""
+    """Who made a page: topic, gc, claude or human (page.made_by). On an older schema,
+    worked out as before migration 16 (INFERRED_MADE_BY; never topic before
+    migration 13)."""
     sql = "SELECT {} FROM page p WHERE p.id = ?"
-    try:
-        row = conn.execute(sql.format(MADE_BY.format(p="p")), (page_id,)).fetchone()
-    except sqlite3.OperationalError:  # no such table: an older schema
-        row = conn.execute(
-            sql.format("CASE " + _NOT_TOPIC.format(p="p")), (page_id,)
-        ).fetchone()
-    return row[0]
+    for fragment in (MADE_BY, INFERRED_MADE_BY):
+        try:
+            found = conn.execute(sql.format(fragment.format(p="p")), (page_id,))
+            return found.fetchone()[0]
+        except sqlite3.OperationalError:  # no such column or table: an older schema
+            continue
+    fragment = "CASE " + _NOT_TOPIC
+    return conn.execute(sql.format(fragment.format(p="p")), (page_id,)).fetchone()[0]
 
 
 # ---- maintainer: enrich or photo ingest

@@ -1,0 +1,11 @@
+-- Who made a page, stored (#280), and where each text revision came from (#153). The
+-- Python step (store.AFTER[16], add_made_by) adds both columns only if missing, so
+-- migrating again is harmless:
+--   page.made_by     human, claude, topic or gc, set when the page is made and never
+--                    changed (a trigger refuses it). Backfilled from what roles worked it
+--                    out from before: the topic table, a gc capture, a first capture
+--                    from MCP, else human.
+--   page_rev.source  web or mcp (mcp: Claude's text, over MCP or the task boxes it adds),
+--                    so no author name makes a revision Claude's. Backfilled mcp where
+--                    the author is claude.
+SELECT 1;

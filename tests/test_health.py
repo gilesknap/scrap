@@ -21,7 +21,7 @@ from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
 from scrap.public import origin
-from scrap.store import Store, connect, health, new_ulid, now, topics
+from scrap.store import Store, connect, fixes, health, new_ulid, now, topics
 
 BOARD = {
     "kind": "whiteboard", "title": "Encoder pipeline", "tags": ["video"],
@@ -227,7 +227,12 @@ def test_orphan_is_a_page_with_no_link_pick_or_topic(store):
 
 
 def review(store, page_id):
-    """Make a page one of gc's review pages (its capture's source)."""
+    """Make a page one of gc's review pages, as if gc had made it: made_by gc (its
+    trigger set aside, since nothing else may change it) and its capture's source."""
+    with closing(connect(store.db)) as conn:
+        conn.execute("DROP TRIGGER page_made_by_fixed")
+        conn.execute("UPDATE page SET made_by = 'gc' WHERE id = ?", (page_id,))
+        conn.execute(fixes.MADE_BY_FIXED)
     sql(store, "UPDATE capture SET source = 'gc' WHERE page_id = ?", page_id)
 
 

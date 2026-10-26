@@ -11,6 +11,7 @@ from .constants import (
     HINTS,
     KINDS,
     MCP,
+    REV_INSERT,
     SOURCES,
     TODO,
     ULID,
@@ -34,7 +35,7 @@ from .helpers import (
     too_big,
 )
 from .indexing import debounce, enrich_on, queue_enrich
-from .roles import by_claude, by_ingest, should_enrich
+from .roles import by_claude, by_ingest, made_by_source, should_enrich
 
 
 class CaptureMixin(Core):
@@ -118,18 +119,20 @@ class CaptureMixin(Core):
                 [(sha, mime, size, stamp) for sha, mime, size, _ in blobs],
             )
             page_id = new_ulid()
-            conn.execute(
+            conn.execute(  # made_by: by its source, once (roles.made_by_source)
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at, due, priority, snoozed_until)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " created_at, updated_at, due, priority, snoozed_until, made_by)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (page_id, self._slug(conn, title), title, body, kind or "note",
                  int(bool(kind)), json.dumps(c["fields"]), stamp, stamp,
-                 c.get("due"), c.get("priority"), c.get("snoozed_until")),
+                 c.get("due"), c.get("priority"), c.get("snoozed_until"),
+                 made_by_source(c["source"])),
             )  # fmt: skip
             conn.execute(
-                "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
-                (page_id, title, body, author, stamp),
-            )
+                REV_INSERT,
+                (page_id, 1, title, body, author,
+                 MCP if c["source"] == MCP else "web", stamp),
+            )  # fmt: skip
             conn.execute(
                 "INSERT INTO capture VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (cid, c["kind"], c["text"], c["url"], c["source"], author,
@@ -187,17 +190,17 @@ class CaptureMixin(Core):
             )
             page_id = new_ulid()
             todo, fields = todo_columns(p["kind"], p["fields"])
-            conn.execute(
+            conn.execute(  # made_by human: the owner's, made elsewhere
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at, due, priority, snoozed_until)"
-                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)",
+                " created_at, updated_at, due, priority, snoozed_until, made_by)"
+                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 'human')",
                 (page_id, p["slug"], p["title"], p["body"], p["kind"],
                  json.dumps(fields), p["created_at"], p["updated_at"], todo["due"],
                  todo["priority"], todo["snoozed_until"]),
             )  # fmt: skip
             conn.execute(
-                "INSERT INTO page_rev VALUES (?, 1, ?, ?, ?, ?)",
-                (page_id, p["title"], p["body"], author, p["updated_at"]),
+                REV_INSERT,
+                (page_id, 1, p["title"], p["body"], author, "web", p["updated_at"]),
             )
             for cid, kind, text, bs in captures:
                 conn.execute(
@@ -258,9 +261,10 @@ class CaptureMixin(Core):
                     (body, stamp, page["id"]),
                 )
                 conn.execute(
-                    "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
-                    (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
-                )
+                    REV_INSERT,
+                    (page["id"], page["rev"] + 1, page["title"], body, author, MCP,
+                     stamp),
+                )  # fmt: skip
                 self._body(conn, page["id"], boxes_before(page))
                 if enrich_on() and should_enrich(conn, page["id"]):  # as for a save
                     queue_enrich(conn, page["id"], "save", debounce())

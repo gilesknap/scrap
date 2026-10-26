@@ -3,7 +3,7 @@
 import sqlite3
 from typing import Any
 
-from .constants import ENQUEUE, ULID
+from .constants import ENQUEUE, REV_INSERT, ULID
 from .core import Core
 from .db import transaction
 from .errors import InvalidError
@@ -83,9 +83,9 @@ class PhotosMixin(Core):
             "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
             (body, stamp, page["id"]),
         )
-        conn.execute(
-            "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
-            (page["id"], page["rev"] + 1, page["title"], body, author, stamp),
+        conn.execute(  # photos come only from the PWA
+            REV_INSERT,
+            (page["id"], page["rev"] + 1, page["title"], body, author, "web", stamp),
         )
         self._body(conn, page["id"], boxes_before(page))
         self.reindex(conn, page["id"])

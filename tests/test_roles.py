@@ -117,12 +117,8 @@ def test_made_by(store, pages):
     assert each(store, pages, lambda c, p: bool(sql(roles.BY_CLAUDE)(c, p))) == (
         claude_only
     )
-    # is:claude's any-capture test finds the same pages (its TODO)
-    assert each(store, pages, lambda c, p: bool(sql(roles.HAS_MCP_CAPTURE)(c, p))) == (
-        claude_only
-    )
-    captures = {n: store.page(pages[n])["captures"] for n in NAMES}
-    assert {n: roles.has_mcp_capture(c) for n, c in captures.items()} == claude_only
+    # What migration 16 backfilled from agrees with what each page was made as
+    assert each(store, pages, sql(roles.INFERRED_MADE_BY)) == want
     assert each(store, pages, roles.is_topic) == {n: n == "topic" for n in NAMES}
     review = each(store, pages, lambda c, p: bool(sql(roles.REVIEW)(c, p)))
     assert review == {n: n == "review" for n in NAMES}
@@ -131,7 +127,9 @@ def test_made_by(store, pages):
 
 
 def test_is_topic_is_false_before_the_topic_table(store, pages):
-    with closing(connect(store.db)) as conn:
+    with closing(connect(store.db)) as conn:  # nor made_by (migration 16)
+        conn.execute("DROP TRIGGER page_made_by_fixed")
+        conn.execute("ALTER TABLE page DROP COLUMN made_by")
         conn.execute("DROP TABLE topic_source")
         conn.execute("DROP TABLE topic")
         assert not roles.is_topic(conn, pages["topic"])
@@ -143,7 +141,8 @@ def test_is_topic_is_false_before_the_topic_table(store, pages):
 def test_edited_by_claude(store, pages):
     assert not any(each(store, pages, roles.edited_by_claude).values())
     page = store.page(pages["note"])
-    store.edit_text(page["id"], CLAUDE, lambda c, p: (p["title"], "x"), page["rev"])
+    change = lambda c, p: (p["title"], "x")  # noqa: E731
+    store.edit_text(page["id"], CLAUDE, change, page["rev"], source=MCP)
     edited = {n: n == "note" for n in NAMES}
     assert each(store, pages, roles.edited_by_claude) == edited
     assert each(store, pages, lambda c, p: bool(sql(roles.CLAUDE_EDITED)(c, p))) == (

@@ -77,11 +77,11 @@ change the kind, title and tags by hand.
 | Question | Role | How it is decided (`store/roles.py`) | What automation does to it |
 |---|---|---|---|
 | First capture | the page's first | The earliest received; at the same moment (an import), a file capture last, then one with no files first, then the lowest id (`FIRST_CAPTURE`, `IS_FIRST`, `first_capture`) | It decides how ingest classifies the page (maintainer) and which capture may set its title, kind and tags; later captures only add content, though an added photo read as a whiteboard or diagram can still make the page a board (`HAS_BOARD` reads every capture) |
-| Made by | `human` | None of the three below (`MADE_BY`, `made_by`: one query, topic first, then gc, then claude) | Enrich or ingest, as below |
-| Made by | `claude` | Its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude` and MCP `read`'s `written_by_claude` ask whether any capture did (`HAS_MCP_CAPTURE`, `has_mcp_capture`), which finds the same pages | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
-| Made by | `topic` | A row in `topic` (`IS_TOPIC`, `is_topic`) | Never read as text: Ask and the weekly pass make its synthesis; never purged from the trash; not a topic source; not untagged |
-| Made by | `gc` | A capture with source `gc` (`GC`; `REVIEW`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
-| Claude-edited | a later text revision by Claude | A text revision by Claude after the first: MCP edits, or task boxes Claude added (`CLAUDE_EDITED`, `edited_by_claude`) | Found by `is:claude-edited`; MCP `read` says `edited_by_claude` |
+| Made by | `human` | `page.made_by`, set once when the page is made and never changed (a trigger refuses it; `MADE_BY`, `made_by`, `made_by_source`): a capture from the PWA or a share, an import, or the Pinned page | Enrich or ingest, as below |
+| Made by | `claude` | `made_by` `claude`: its first capture came over MCP (`BY_CLAUDE`, `by_claude`). `is:claude`, MCP `read`'s `written_by_claude` and the PWA's badge read it | MCP `write` may append to it; the PWA shows Written by Claude; enrich reads it as a typed page |
+| Made by | `topic` | A row in `topic` (`IS_TOPIC`, `is_topic`), and `made_by` `topic`, both written when the topic is made. The table stays the test: it holds the key that keeps Claude from making the topic again | Never read as text: Ask and the weekly pass make its synthesis; never purged from the trash; not a topic source; not untagged |
+| Made by | `gc` | `made_by` `gc`: made by `scrap gc` from a capture with source `gc` (`GC`; `REVIEW`) | `scrap gc` appends orphans to it; not an orphan, untagged, stale or duplicate; its purge lets its files go |
+| Claude-edited | a later text revision by Claude | A text revision after the first with source `mcp`, which only Claude writes: MCP edits, or task boxes Claude added (`CLAUDE_EDITED`, `edited_by_claude`). Never a web request's, whatever author it names | Found by `is:claude-edited`; MCP `read` says `edited_by_claude` |
 | Maintainer | ingest | Its first capture is a photo or file (`INGEST_CAPTURES`) | Photo ingest reads its images; enrich on Ask only |
 | Pinned | the Pinned page | Its slug is `pinned` (`NOT_PINNED`): an owner's page, made on the first pin | Never read by enrich (on a save or backfill) or the related pass |
 | Maintainer | enrich | Its first capture is not a photo or file (`NOT_BY_INGEST`; `by_ingest` for a capture not yet stored), its kind is a note, todo or read, and it is not the Pinned page (`ENRICHED`, `should_enrich`) | Enrich on capture, each save and backfill |
@@ -95,11 +95,12 @@ change the kind, title and tags by hand.
 | May re-tag | first capture | Photo ingest: only the page's first capture counts (`IS_FIRST`, `first_capture`) | Photo ingest adds tags from the first capture's first photo; enrich adds tags, never from a save. A tag the owner took off stays off |
 | Takes photos | not a topic | `takes_photos` | Add photo is refused on a topic page |
 
+Migration 16 filled in `made_by` for the pages made before it from what these rules said then: a
+topic, else a `gc` capture, else a first capture from MCP, else `human` (`INFERRED_MADE_BY`, also
+the answer on an older schema). See [ADR 33](decisions/0033-who-made-a-page-is-stored.md).
+
 Open questions, marked TODO in `store/roles.py` for the owner (none changes what scrap does today):
 
-- **Any capture or the first:** `is:claude` and `written_by_claude` test any capture, `by_claude`
-  the first. They find the same pages, since only an MCP write makes an mcp capture and
-  `Store.append` adds one only to such a page.
 - **Board or topic first:** a page that is both is a board in `writeup_type` and the write-up view,
   but a topic for `is:outdated`, a related page's `via` and Regenerate. No page can be both: a
   topic takes no photos and has no captures.

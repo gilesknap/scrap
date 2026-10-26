@@ -5,7 +5,7 @@ import sqlite3
 from typing import Any
 
 from ..markdown import tasks
-from .constants import KINDS, MAX_FIELDS, MAX_TAGS, TODO, Value
+from .constants import KINDS, MAX_FIELDS, MAX_TAGS, REV_INSERT, TODO, Value
 from .core import Core
 from .db import transaction
 from .errors import ConflictError, InvalidError
@@ -109,9 +109,10 @@ class EditsMixin(Core):
                     (new_title, new_body, stamp, page["id"]),
                 )
                 conn.execute(
-                    "INSERT INTO page_rev VALUES (?, ?, ?, ?, ?, ?)",
-                    (page["id"], page["rev"] + 1, new_title, new_body, author, stamp),
-                )
+                    REV_INSERT,
+                    (page["id"], page["rev"] + 1, new_title, new_body, author,
+                     source, stamp),
+                )  # fmt: skip
                 self._body(
                     conn,
                     page["id"],

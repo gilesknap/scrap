@@ -46,7 +46,8 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         defaults, reverts: the revision a revert undid, batch_id, created_at,
         updated_at: the last change folded in); revert(revision=id) undoes one,
         revert(batch=id) a batch. text: the page's title and body revisions (rev,
-        title, author: claude for one made over MCP, when, bytes), which
+        title, author: claude for one made over MCP, source: mcp for Claude's or web,
+        when, bytes), which
         revert(page, to_rev) restores; text_rev returns one's text, the user's data.
         more:
         there are more meta revisions than limit (up to 200, a whole batch)."""
@@ -148,5 +149,5 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
             emptied(p["body"], target["body"], allow_empty)
             return target["title"] if restore_title else p["title"], target["body"]
 
-        found = checked(store.edit_text, key, AUTHOR, change, rev, dry_run, False)
+        found = checked(store.edit_text, key, AUTHOR, change, rev, dry_run, False, MCP)
         return edited(found, dry_run, restores=to_rev)

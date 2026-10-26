@@ -34,7 +34,7 @@ from .grouping import order as group_order
 from .grouping import use_areas
 from .health import CHECKS, condition
 from .helpers import checked_query, tag_counts, todo_only, unlink
-from .roles import CLAUDE_EDITED, HAS_MCP_CAPTURE, IS_TOPIC
+from .roles import BY_CLAUDE, CLAUDE_EDITED, IS_TOPIC
 
 # media:M and later:T filter by a Later's medium and what it is for: the column of
 # its fields, and the values it takes. A Later with no subtype is to read.
@@ -321,7 +321,7 @@ class SearchMixin(Core):
                 sql.append(f"{no}{IMAGE_KIND}")
                 args.append(f.value)
             elif f.key == "is" and f.value == "claude":  # written over MCP
-                sql.append(f"{no}{HAS_MCP_CAPTURE.format(p='p')}")  # see its TODO
+                sql.append(f"{no}{BY_CLAUDE.format(p='p')}")  # made_by claude
             elif f.key == "is" and f.value == "claude-edited":  # text changed by MCP
                 sql.append(f"{no}{CLAUDE_EDITED.format(p='p')}")
             elif f.key == "is" and f.value == "topic":  # Claude's topic pages (#261)

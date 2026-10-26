@@ -15,6 +15,7 @@ import sqlite3
 import unicodedata
 from typing import Any
 
+from .constants import REV_INSERT
 from .helpers import new_ulid
 from .roles import IS_TOPIC
 
@@ -53,13 +54,11 @@ def create(
     page_id = new_ulid()
     conn.execute(
         "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields, created_at,"
-        " updated_at) VALUES (?, ?, ?, '', 'document', 1, '{}', ?, ?)",
+        " updated_at, made_by)"
+        " VALUES (?, ?, ?, '', 'document', 1, '{}', ?, ?, 'topic')",
         (page_id, slug, title, stamp, stamp),
     )
-    conn.execute(
-        "INSERT INTO page_rev VALUES (?, 1, ?, '', ?, ?)",
-        (page_id, title, author, stamp),
-    )
+    conn.execute(REV_INSERT, (page_id, 1, title, "", author, "web", stamp))
     conn.execute("INSERT INTO topic VALUES (?, ?, ?)", (page_id, key, stamp))
     return page_id
 

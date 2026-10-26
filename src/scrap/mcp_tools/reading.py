@@ -11,7 +11,7 @@ from ..markdown import wiki_targets
 from ..mcp_page import page_key
 from ..public import public_origins
 from ..query import parse
-from ..store import KIND_NAMES, roles
+from ..store import KIND_NAMES
 from ..store.constants import KINDS
 from ..store.trash import purge_at, trash_days
 from .context import Ctx, drawing_info, text
@@ -127,7 +127,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
                 "tasks": p["tasks"],
                 "created_at": p["created_at"], "updated_at": p["updated_at"],
                 "rev": p["rev"],
-                "written_by_claude": roles.has_mcp_capture(p["captures"]),
+                "written_by_claude": p["made_by"] == "claude",
                 "edited_by_claude": store.edited_by_claude(p["id"]),
                 "origin": fields.get("origin"),
                 "fields": {k: v for k, v in fields.items() if k != "summary"},
