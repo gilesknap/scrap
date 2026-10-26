@@ -191,9 +191,11 @@ Releases are cut by pushing a tag. The tag is the version, with no `v` prefix
 `setuptools_scm`, so there is no version to edit in `pyproject.toml`
 (`src/scrap/_version.py` is generated).
 
-1. On `main`, with CI green, tag the merge commit and push the tag (the tag,
-   not a branch, starts the release). The chart version needs no edit: CI sets
-   it from the tag.
+1. On `main`, tag the merge commit and push the tag (the tag, not a branch,
+   starts the release). There is no need to wait for `main`'s CI first: the
+   tag's CI runs the same checks, and no image is published unless they pass
+   (the chart and docs still are). The chart version needs no edit: CI sets it
+   from the tag.
 
    ```sh
    git tag X.Y.Z
@@ -204,9 +206,12 @@ The CI workflow then runs on the tag. The GitHub Release is created once the
 `dist`, `test`, `docs` and `web` jobs have passed. It has generated release
 notes with the sdist, the wheel and `docs.zip` attached. In parallel:
 
-- The multi-arch image (amd64 and arm64) is pushed to
-  `ghcr.io/gilesknap/scrap` as `X.Y.Z` and `latest`, provided the `test` job
-  passed.
+- The image is built natively for amd64 and arm64, each on a runner of that
+  architecture, while the tests run, and each is pushed by digest only. Once
+  the `lint`, `test`, `deploy` and `web` jobs have passed, the
+  `container-publish` job tags them together as one multi-arch image,
+  `ghcr.io/gilesknap/scrap:X.Y.Z` and `latest`. The image and the chart are
+  all a deploy needs; the docs and the GitHub Release may finish later.
 - The docs are published to GitHub Pages as a new version in the version
   switcher.
 
@@ -221,8 +226,8 @@ Things to know:
   written so the image resolves. A tag in any other form fails the publish
   only; the image and the release are still published. The first time, make the
   `charts/scrap` package public in the GitHub package settings.
-- The release job does not wait for the `container` job, so check that the
-  image was pushed.
+- The release job does not wait for the `container-publish` job, so check
+  that the image was pushed.
 - Nothing is published to PyPI.
 
 ## Developer Information

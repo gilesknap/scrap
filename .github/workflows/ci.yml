@@ -42,12 +42,23 @@ jobs:
   web:
     uses: ./.github/workflows/_web.yml
 
+  # The image builds alongside the tests; on a tag, each platform's image is
+  # pushed by digest only, with no tag anything could deploy
   container:
-    needs: test
-    if: always()
     uses: ./.github/workflows/_container.yml
     with:
-      publish: ${{ needs.test.result == 'success' }}
+      push-digests: ${{ github.ref_type == 'tag' }}
+    permissions:
+      contents: read
+      packages: write
+
+  # On a tag, publish the image as <tag> and latest once the checks have passed.
+  # This and the Chart workflow are all a deploy needs: docs and the GitHub
+  # Release can finish later
+  container-publish:
+    needs: [container, lint, test, deploy, web]
+    if: github.ref_type == 'tag'
+    uses: ./.github/workflows/_container_publish.yml
     permissions:
       contents: read
       packages: write
@@ -59,7 +70,7 @@ jobs:
 
   dist:
     uses: ./.github/workflows/_dist.yml
-  
+
   release:
     needs: [dist, test, deploy, docs, web]
     if: github.ref_type == 'tag'

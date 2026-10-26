@@ -1,13 +1,28 @@
 on:
   workflow_call:
     inputs:
-      publish:
+      push-digests:
         type: boolean
-        description: If true, pushes image to container registry
+        description: >
+          If true, pushes each platform's image to the registry by digest only (no
+          tag). _container_publish.yml then tags them together as one multi-arch image.
 
 jobs:
+  # Each platform builds on a runner of its own architecture, so arm64 is native
+  # rather than emulated under QEMU, and both platforms' images are smoke-tested.
+  # This runs alongside the tests: it pushes nothing a user can pull until
+  # _container_publish.yml, which waits for the tests, tags it.
   build:
-    runs-on: ubuntu-latest
+    name: build (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
@@ -16,15 +31,12 @@ jobs:
           # Need this to get version number from last tag
           fetch-depth: 0
 
-      - name: Set up QEMU for arm64 builds
-        uses: docker/setup-qemu-action@v4
-
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Docker Registry
-        if: github.event_name != 'pull_request'
+        if: inputs.push-digests
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -37,6 +49,7 @@ jobs:
           DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
+          platforms: linux/${{ matrix.arch }}
           # Need load and tags so we can test it below
           load: true
           tags: tag_for_testing
@@ -56,25 +69,39 @@ jobs:
           ctx = ssl.create_default_context(cafile='/etc/ssl/certs/ca-certificates.crt');
           assert ctx.cert_store_stats()['x509_ca'] > 100, 'no CA certificates'"
 
-      - name: Create tags for publishing image
+      - name: Create labels for the image
         id: meta
+        if: inputs.push-digests
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=tag
-            type=raw,value=latest
 
-      - name: Push cached image to container registry
-        if: inputs.publish && github.ref_type == 'tag'
+      - name: Push the image by digest
+        id: push
+        if: inputs.push-digests
         uses: docker/build-push-action@v7
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
-        # The amd64 image comes from the Docker cache; arm64 is built here under QEMU
-        # so the published tag is multi-arch (amd64 + arm64)
+        # Same build as above, so it comes from the builder's cache
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Save the digest
+        if: inputs.push-digests
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload the digest
+        if: inputs.push-digests
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 7
