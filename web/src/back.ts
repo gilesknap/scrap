@@ -1,4 +1,5 @@
-// The top bar's Back (iPhone's home-screen app only): a chunk of its own.
+// The top bar's Back on a page opened cold: a chunk of its own, which the service worker keeps
+// (vite.config.ts OFFLINE), so a stalled link cannot hold its import.
 import { api } from "./api";
 
 const ASK_MS = 1500; // a kind not known by then (a stalled link): Capture, not a dead button

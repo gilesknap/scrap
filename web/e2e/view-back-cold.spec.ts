@@ -25,6 +25,7 @@ test("Back on a cold page whose request stalls goes to Capture, quickly", async 
   await page.goto(`/p/${p.slug}`);
   await expect(back(page)).toBeVisible();
   await expect(page.locator("#view")).toContainText("Loading…");
+  await expect(back(page)).toHaveAccessibleName("Back to Capture"); // its kind not known yet
   const t0 = Date.now();
   await back(page).click();
   await expect(page).toHaveURL("/", { timeout: 4_000 });
@@ -49,4 +50,22 @@ test("Back on a cold page that is drawn needs no request", async ({ page }) => {
   await back(page).click();
   await expect(page).toHaveURL("/todos");
   expect(asked).toBe(0);
+});
+
+test("Back works with its chunk's request stalled: the service worker keeps it", async ({
+  page,
+  context,
+}) => {
+  const p = await make(page, `Cold chunk ${ulid().slice(-6)}`, "todo");
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload(); // now the service worker's
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  // Both held at the network: Back's chunk (only the service worker's cache has it) and the page
+  await context.route("**/assets/back-*.js", () => {});
+  await context.route(`**/api/pages/${p.slug}`, () => {});
+  await page.goto(`/p/${p.slug}`);
+  await expect(back(page)).toHaveAccessibleName("Back to Capture");
+  await back(page).click();
+  await expect(page).toHaveURL("/", { timeout: 4_000 });
 });
