@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.14.1.dev9+g324e1808f documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.14.1.dev10+gfb25f29fb documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=eff32fc4"></script>
+    <script src="../_static/documentation_options.js?v=9874e442"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1414,6 +1414,103 @@ arguments runs any <code class="docutils literal notranslate"><span class="pre">
 (which does need the claim writable; pruning only ever deletes directories named like a backup
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without <code class="docutils literal notranslate"><span class="pre">--force</span></code>, and point <code class="docutils literal notranslate"><span class="pre">persistence.existingClaim</span></code> at it.</p>
+<section id="try-a-restore-in-a-scratch-instance">
+<span id="k8s-test-restore"></span><h3>Try a restore in a scratch instance<a class="headerlink" href="#try-a-restore-in-a-scratch-instance" title="Link to this heading">#</a></h3>
+<p>A backup you have never opened is a hope, not a backup. This checks one on any machine, with
+nothing touching the cluster’s data: restore it into a throwaway folder, start scrap on another
+port and compare what it shows with the live store. It was tested on 2026-10-27 with a backup of
+the live store (schema 16, 285 pages, 98 of them in the trash, 244 files, 290 MB) restored by a
+newer scrap (schema 17, a clone of <code class="docutils literal notranslate"><span class="pre">main</span></code> set up with <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code>).</p>
+<ol class="arabic">
+<li><p>Get a run onto the machine. A run directory holds <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, <code class="docutils literal notranslate"><span class="pre">files/</span></code> and a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file;
+copy one off the backup claim into a folder (<code class="docutils literal notranslate"><span class="pre">/tmp/rt/backup/&lt;run&gt;</span></code> below), for example with
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">cp</span></code> from a pod that mounts the claim. Use the scrap version that wrote it or a newer
+one: restore refuses a newer backup. (The test run was made with <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> from a copy of
+the data folder, because nothing mounted the backup claim outside the CronJob pods.)</p></li>
+<li><p>Restore into an empty folder of its own, without <code class="docutils literal notranslate"><span class="pre">--force</span></code>. It prints nothing when it works:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">SCRAP_DATA_DIR</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">scratch</span>
+<span class="n">scrap</span> <span class="n">restore</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">backup</span><span class="o">/&lt;</span><span class="n">run</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>With the image rather than a clone, run the same command with the two folders mounted, as in
+<code class="docutils literal notranslate"><span class="pre">restore.yaml</span></code> above. Running it again says <code class="docutils literal notranslate"><span class="pre">/tmp/rt/scratch</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">empty;</span> <span class="pre">stop</span> <span class="pre">scrap</span> <span class="pre">and</span> <span class="pre">use</span> <span class="pre">--force</span></code> and changes nothing.</p>
+</li>
+<li><p>Start scrap on a spare port. Leave <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code> and the Claude settings unset, so it makes no
+calls. A clone without the PWA build logs <code class="docutils literal notranslate"><span class="pre">The</span> <span class="pre">scrap</span> <span class="pre">PWA</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">built</span></code>; the API checks do not
+need it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">scrap</span> <span class="n">serve</span> <span class="o">--</span><span class="n">port</span> <span class="mi">8793</span>
+<span class="n">curl</span> <span class="o">-</span><span class="n">s</span> <span class="n">localhost</span><span class="p">:</span><span class="mi">8793</span><span class="o">/</span><span class="n">healthz</span>
+</pre></div>
+</div>
+</li>
+<li><p>Compare with the live store, read only. With the live service on a port-forward
+(<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">port-forward</span> <span class="pre">svc/scrap</span> <span class="pre">8794:80</span></code>), the same <code class="docutils literal notranslate"><span class="pre">GET</span></code>s answer from both:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Check</p></th>
+<th class="head"><p>Call</p></th>
+<th class="head"><p>Tested result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pages</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages?limit=500</span></code> (the trash is left out)</p></td>
+<td><p>285 on both, same ids</p></td>
+</tr>
+<tr class="row-odd"><td><p>Pages in full</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/&lt;slug&gt;</span></code> for each</p></td>
+<td><p>same text, tags, kind, fields and tasks</p></td>
+</tr>
+<tr class="row-even"><td><p>Tags, topics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/tags</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/topics</span></code></p></td>
+<td><p>307 and 5, identical</p></td>
+</tr>
+<tr class="row-odd"><td><p>Todos</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search?q=kind:todo</span></code></p></td>
+<td><p>20 pages, identical; 37 pages hold 325 tasks, 93 done</p></td>
+</tr>
+<tr class="row-even"><td><p>Write-ups</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">writeup.current.text</span></code> in <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/&lt;slug&gt;</span></code></p></td>
+<td><p>19 pages, identical</p></td>
+</tr>
+<tr class="row-odd"><td><p>Trash</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/trash</span></code></p></td>
+<td><p>98 pages, identical, <code class="docutils literal notranslate"><span class="pre">purge_at</span></code> from 2026-11-19 to 2026-11-26</p></td>
+</tr>
+<tr class="row-even"><td><p>Files</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/blobs/&lt;sha&gt;</span></code> for every file a page refers to</p></td>
+<td><p>152 files, 189 MB: each one’s SHA-256 matches its name and its bytes equal the live ones</p></td>
+</tr>
+<tr class="row-odd"><td><p>Search</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search?q=watch</span></code>, <code class="docutils literal notranslate"><span class="pre">q=frontier</span></code></p></td>
+<td><p>12 and 2 results, identical to live</p></td>
+</tr>
+<tr class="row-even"><td><p>Health</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code>, <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ok</span></code>, with the same counts as live (see below)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Row counts also match table by table (<code class="docutils literal notranslate"><span class="pre">SELECT</span> <span class="pre">count(*)</span></code> on each, opening the database with
+<code class="docutils literal notranslate"><span class="pre">file:...?mode=ro</span></code>). The search index is a table in the backup (<code class="docutils literal notranslate"><span class="pre">chunk_fts</span></code>, 540 rows), so
+nothing is rebuilt.</p>
+</li>
+<li><p>Stop the server and delete the folders.</p></li>
+</ol>
+<p>What to expect:</p>
+<ul class="simple">
+<li><p>A backup from an older scrap is migrated by <code class="docutils literal notranslate"><span class="pre">restore</span></code>, on the copy, before it is swapped into
+place. Here that took about a second on a 60 MB database: schema 16 became 17 (migration
+<code class="docutils literal notranslate"><span class="pre">0017</span></code>, which adds the empty <code class="docutils literal notranslate"><span class="pre">page_trash_rev</span></code> table), <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">integrity_check</span></code> said <code class="docutils literal notranslate"><span class="pre">ok</span></code>, and
+every other table kept its row count.</p></li>
+<li><p>The backup holds the database and every file in <code class="docutils literal notranslate"><span class="pre">files/</span></code>. It does not hold <code class="docutils literal notranslate"><span class="pre">cache/</span></code>, the page
+previews, which scrap makes again the first time a photo is shown.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">enrich.on</span></code> and <code class="docutils literal notranslate"><span class="pre">writeup.on</span></code> read <code class="docutils literal notranslate"><span class="pre">false</span></code> on the scratch instance only because Claude is off
+there. A newer scrap can also count more: <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code> showed <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> as 2 on the
+restored copy and 0 on the live service, which runs an older version without that check.</p></li>
+</ul>
+</section>
 </section>
 <section id="health-and-monitoring">
 <h2>Health and monitoring<a class="headerlink" href="#health-and-monitoring" title="Link to this heading">#</a></h2>
@@ -1651,7 +1748,10 @@ sessions (<a class="reference internal" href="connect-claude-code.html"><span cl
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrades">Upgrades</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#try-a-restore-in-a-scratch-instance">Try a restore in a scratch instance</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#health-and-monitoring">Health and monitoring</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduled-gc-related-pages-and-topics">Scheduled gc, related pages and topics</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#k3s-and-storage-notes">k3s and storage notes</a></li>
