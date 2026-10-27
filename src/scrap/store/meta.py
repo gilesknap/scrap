@@ -21,7 +21,6 @@ from .db import transaction
 from .errors import InvalidError
 from .helpers import (
     check_todo,
-    check_value,
     clean_tags,
     fields_for,
     meta_of,
@@ -33,12 +32,10 @@ from .todo import read as read_todo
 from .todo import write as write_todo
 from .types import FieldEdit, Meta
 
-# Fields with a meaning of their own (a Later's link and summary): the pages' own edits
-# set them, not edit_meta's free-form fields. status it does set, one of STATUSES, on a
-# todo or a Later
-RESERVED_FIELDS = frozenset({"personal", "source", "summary", "title", "body"})
+# The fields edit_meta sets, and no others (#386): a Later's media_type, a todo's or a
+# Later's status (one of STATUSES), and a todo's own values
+EDIT_FIELDS = ("media_type", "status", *TODO)
 STATUSES = ("open", "in_progress", "done", "cancelled")
-MAX_FIELD_TEXT = 200  # characters, as the PWA's field has it (pages_api.FIELD)
 
 
 def _fits_todo(name: str, value: Value | None) -> bool:
@@ -310,27 +307,22 @@ class MetaMixin(Core):
 
     @staticmethod
     def _field_puts(fields: dict[str, Value | None] | None) -> dict[str, Any]:
-        """The fields edit_meta is to set, checked: a name and value the PWA could
-        show, a media_type one of the known media, no subtype of its own, and a todo's
-        due and snoozed_until dates, its priority one of PRIORITIES."""
+        """The fields edit_meta is to set, checked: only EDIT_FIELDS (a subtype
+        follows media_type), a media_type one of the known media, a status one of
+        STATUSES, and a todo's due and snoozed_until dates, its priority one of
+        PRIORITIES."""
         put = dict(fields or {})
         for name, value in put.items():
-            if not name or len(name) > MAX_TAG or name.startswith("_"):
-                raise InvalidError(f"a field name must be 1 to {MAX_TAG} characters")
-            if name in RESERVED_FIELDS:
+            if name == "subtype":
+                raise InvalidError("subtype follows media_type: set media_type instead")
+            if name not in EDIT_FIELDS:
                 raise InvalidError(
-                    f"field {name} has a meaning of its own: not set here"
+                    f"field {name!r} cannot be set here: only {', '.join(EDIT_FIELDS)}"
                 )
-            if isinstance(value, str) and len(value) > MAX_FIELD_TEXT:
-                raise InvalidError(f"field {name}: at most {MAX_FIELD_TEXT} characters")
             if name in TODO:
                 check_todo(name, value)
-            elif value is not None:
-                check_value(name, value)
         if "status" in put and put["status"] not in STATUSES:
             raise InvalidError(f"status must be one of {STATUSES}")
-        if "subtype" in put:
-            raise InvalidError("subtype follows media_type: set media_type instead")
         if put.get("media_type") not in (None, *MEDIA):
             raise InvalidError(f"media_type must be one of {tuple(MEDIA)}")
         return put
@@ -365,11 +357,12 @@ class MetaMixin(Core):
         for the PWA's tag and kind edits. All or nothing: an unknown page or a
         refused change saves none. dry_run: say what would change, save nothing.
         fields sets (None takes off) these fields of every page, as part of the same
-        revision (fields_added, and their values before: fields_was): a Later's
-        media_type also sets its subtype, which it never has on its own; status (open,
-        in_progress, done or cancelled) is a todo's or a Later's, as the PWA's tick;
-        due, priority and snoozed_until are a todo's (checked as check_todo; kept in
-        page_todo, not fields). Never the title or the text."""
+        revision (fields_added, and their values before: fields_was), only these
+        (EDIT_FIELDS; any other name is refused): a Later's media_type, which also
+        sets its subtype, never set on its own; status (open, in_progress, done or
+        cancelled), a todo's or a Later's, as the PWA's tick; due, priority and
+        snoozed_until, a todo's (checked as check_todo; kept in page_todo, not
+        fields). Never the title or the text."""
         put = self._field_puts(fields)
         # a todo's own values (due, priority, snoozed_until): page_todo's, not fields
         todo_put = set(put) & set(TODO)
