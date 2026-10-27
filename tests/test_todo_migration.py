@@ -227,6 +227,8 @@ def test_writes_and_a_round_trip_still_work_on_the_migrated_database(store, tmp_
     edit("all-three", {"due": day(2), "priority": "high", "snoozed_until": day(1)})
     out = tmp_path / "md"
     main(["export", "--data-dir", str(store.dir), str(out)])
+    (out / "actions").mkdir()  # import reads a todo by its folder, as a vault has it
+    (out / "all-three.md").rename(out / "actions" / "all-three.md")
     other = tmp_path / "other"
     main(["import", "--data-dir", str(other), str(out)])
     with closing(connect(Store(other).db)) as conn:
