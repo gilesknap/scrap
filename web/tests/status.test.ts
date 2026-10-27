@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { chipOf, dueOf, pageChip, partly, snoozed, statusOf, ticks, today } from "../src/status";
+import { chipOf, dueOf, partly, snoozed, statusOf, ticks, today } from "../src/status";
 
 it("gives todos and Laters a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
@@ -26,16 +26,6 @@ it("chips a row only with a status that ends it (its icon says its kind)", () =>
   expect(chipOf("consume", {})).toBe("");
   expect(chipOf("note", { status: "done" })).toBe(""); // kept from a todo it was
   expect(chipOf("whiteboard", undefined)).toBe("");
-});
-
-it("chips a page with its kind, and its status if it has one", () => {
-  expect(pageChip("Todo", "todo", { status: "open" })).toBe("Todo · open");
-  expect(pageChip("Todo", "todo", {})).toBe("Todo · open");
-  expect(pageChip("Todo", "todo", { status: "in_progress" })).toBe("Todo · in progress");
-  expect(pageChip("Later", "consume", { status: "done" })).toBe("Later · done");
-  expect(pageChip("Todo", "todo", { status: "cancelled" })).toBe("Todo · cancelled");
-  expect(pageChip("Note", "note", { status: "done" })).toBe("Note");
-  expect(pageChip("Board", "whiteboard", undefined)).toBe("Board");
 });
 
 it("writes today as a due date is, on the device's calendar", () => {

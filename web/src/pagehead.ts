@@ -9,8 +9,10 @@ import { closed, dueChip } from "./status";
 import { token } from "./terms";
 import { h, whenShort } from "./ui";
 
-/** Parts joined by " · ", each never breaking inside: a line breaks only after a ·. */
-const joined = (parts: HTMLElement[]) => parts.flatMap((el, i) => (i ? [" · ", el] : [el]));
+/** Parts in a row that wraps between them, each never breaking inside. Each part after the
+ * first draws its own leading "·" (CSS); the row is shifted left so a part that starts a line
+ * has it clipped: no line ever ends or starts with a dot. */
+const joined = (parts: HTMLElement[]) => [h("span", { className: "row" }, ...parts)];
 
 /** What it is and when, under the title: "Todo · Created 25 Oct, 11:52 · Edited …" on one
  * line when the kind is all there is to say, else two: "Later · TV · to watch", then the dates.

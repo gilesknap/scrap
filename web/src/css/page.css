@@ -49,8 +49,10 @@
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
-/* What it is, then when (created, edited): two quiet lines under the title, " · "-separated
-   parts that never break inside, a line breaking only after a · (pagehead.ts) */
+/* What it is, then when (created, edited): two quiet lines under the title, in a wrapping
+   row of parts that never break inside. Each part but the first leads with a "·" in a gutter;
+   the row is pulled left by the gutter's width and the line clips it, so a part that starts a
+   line loses its dot and no line ends in one (pagehead.ts). */
 .meta,
 .dates {
   margin: 0;
@@ -63,15 +65,32 @@
 .dates {
   margin-bottom: var(--s-1);
 }
-:is(.meta, .dates) > :is(span, a) {
+:is(.meta, .dates) {
+  overflow: hidden;
+}
+:is(.meta, .dates) > .row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-inline-start: -1.5em;
+}
+.row > * {
+  position: relative;
+  margin-inline-start: 1.5em;
   white-space: nowrap;
 }
+.row > * + *::before {
+  content: "·";
+  position: absolute;
+  inset-inline-start: -1.5em;
+  width: 1.5em;
+  text-align: center;
+}
 /* The kind word leads: semibold ink, the rest quiet */
-.meta > .kind {
+.row > .kind {
   color: var(--ink);
   font-weight: 600;
 }
-.meta > .kind .i {
+.row > .kind .i {
   width: 16px;
   height: 16px;
   margin-inline-end: var(--s-1);
