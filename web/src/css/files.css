@@ -1,0 +1,18 @@
+/* ---- A file below a page's text (filerow.ts): its name over a PDF's page count, and a hint
+   only when its text couldn't be read for search. The card itself is page.css's .file ---- */
+.filerow .words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere; /* a long file name wraps inside the card */
+}
+.filerow .words small {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+}
+.filerow .hint {
+  margin: var(--s-1) 0 0;
+  padding-inline: var(--s-3); /* in line with the name in the card above */
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+}

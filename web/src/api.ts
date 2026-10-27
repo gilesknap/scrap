@@ -16,13 +16,32 @@ export interface Ingest {
     height: number | null;
   } | null;
 }
+/** A PDF's or text file's ingest (#234): its text read locally, for search. The text itself
+ * is not sent; searchable says whether there is any. */
+export interface FileIngest {
+  state: "queued" | "processing" | "done" | "failed"; // never paused
+  failures: number;
+  error: string | null;
+  kind: "pdf" | "text";
+  pages: number | null; // a PDF's, once read
+  pages_read: number | null;
+  truncated: boolean;
+  text_chars: number;
+  searchable: boolean;
+}
 export interface FileRef {
   sha256: string;
   mime: string;
   size: number;
   filename: string | null;
-  ingest?: Ingest | null; // photos: what Claude made of it (null: never queued)
+  // photos: what Claude made of it; PDFs and text files: their text read for search (null:
+  // never queued)
+  ingest?: Ingest | FileIngest | null;
 }
+/** A file's photo ingest (what Claude made of it): an image's only, never a PDF's or a text
+ * file's (a FileIngest has a kind); null if it has none. */
+export const photoIngest = (f: FileRef): Ingest | null =>
+  f.mime.startsWith("image/") && f.ingest && !("kind" in f.ingest) ? f.ingest : null;
 export interface Queue {
   enabled: boolean;
   paused: boolean;

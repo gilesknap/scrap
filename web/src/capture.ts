@@ -15,14 +15,17 @@ const compose = (files: File[], resume?: boolean) =>
     () => toast("Can't open the composer: reload scrap and try again"),
   );
 
+/** A Camera or Gallery button. accept is the file input's: photos, unless the caller takes
+ * more (the editor's Add photo takes PDFs too). */
 export function picker(
   label: string,
   camera: boolean,
   onPick: (files: File[]) => void,
   className = "tile",
+  accept = "image/*",
 ) {
   // A real button (Tab and TalkBack reach it) opening a file input kept out of the page.
-  const input = h("input", { type: "file", accept: "image/*", multiple: !camera });
+  const input = h("input", { type: "file", accept, multiple: !camera });
   if (camera) input.setAttribute("capture", "environment");
   input.onchange = () => {
     if (input.files?.length) onPick([...input.files]);

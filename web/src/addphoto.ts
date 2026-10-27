@@ -1,5 +1,5 @@
 // The page editor's Add photo (#260): photos from the camera or the gallery, added to the end
-// of a page that exists. They go through the capture queue (queue.ts), so they wait on the
+// of a page that exists; the gallery's PDFs too (#234), listed below the page's text. They go through the capture queue (queue.ts), so they wait on the
 // phone while offline, and the server reads them as it reads any capture's photos. Part of
 // the editor's chunk.
 import { overLimit } from "./api";
@@ -23,7 +23,7 @@ export function adopt(text: string, over: string, saved: string): string | null 
  * it alone. */
 export function uploads(files: File[], page: { id: string; title: string }): Capture[] | string {
   if (files.some((f) => overLimit(f.size)))
-    return "That photo is over the server's upload limit, so it can't be added.";
+    return "That file is over the server's upload limit, so it can't be added.";
   const one = (fs: File[]): Capture => ({
     source: "pwa",
     files: fs.map((f) => ({ name: f.name, blob: f })),
@@ -38,6 +38,18 @@ export function uploads(files: File[], page: { id: string; title: string }): Cap
  * (a board photo would queue one over it; the server refuses them too). */
 export const takesPhotos = (page: { topic?: unknown }) => !page.topic;
 
+/** What the editor's Gallery takes: photos and PDFs (the server refuses any other file). */
+export const GALLERY = "image/*,application/pdf";
+
+/** What a toast calls what was added: photos, files (PDFs), or photos and files. */
+export function noun(files: { type: string }[]) {
+  const photos = files.filter((f) => f.type.startsWith("image/")).length;
+  const others = files.length - photos;
+  const say = (n: number, one: string) => (n > 1 ? `${one}s` : n ? one : "");
+  const words = [say(photos, "photo"), say(others, "file")].filter(Boolean).join(" and ");
+  return words[0].toUpperCase() + words.slice(1);
+}
+
 /** Add photo, for the page editor: Camera and Gallery, named as the composer's are (short
  * enough to share a row at large text sizes). */
 export function photoAdder(page: { id: string; title: string }) {
@@ -49,7 +61,7 @@ export function photoAdder(page: { id: string; title: string }) {
     } catch (err) {
       return toast(`Not added: the phone refused to store it (${(err as Error).name}).`);
     }
-    const n = files.length > 1 ? "Photos" : "Photo";
+    const n = noun(files);
     toast(
       navigator.onLine
         ? `${n} added to the end of the page`
@@ -60,6 +72,6 @@ export function photoAdder(page: { id: string; title: string }) {
     "div",
     { className: "bar", role: "group", "aria-label": "Add photo" },
     picker("Camera", true, (f) => void add(f), "add"),
-    picker("Gallery", false, (f) => void add(f), "add"),
+    picker("Gallery", false, (f) => void add(f), "add", GALLERY),
   );
 }
