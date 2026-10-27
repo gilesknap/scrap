@@ -162,6 +162,8 @@ def test_the_child_reports_running_out_of_memory(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pdftext, "limit", lambda memory, cpu: None)
     monkeypatch.setattr(pdftext, "extract", boom)
+    # main() turns logging off for the child: not for this test process (caplog)
+    monkeypatch.setattr(pdftext.logging, "disable", lambda level: None)
     assert pdftext.main(["x.pdf", "1", "1", "1", "1"]) == pdftext.OUT_OF_MEMORY
     monkeypatch.setattr(files, "COMMAND", [sys.executable, "-c", "exit(3)"])
     with pytest.raises(files.FileError, match="memory: reading the PDF needed over"):
