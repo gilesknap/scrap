@@ -48,7 +48,7 @@ owner should be able to steer it.
   indexed for search, its links show in Related both ways (`via: writeup`), and a write-up newer
   than a page's last related picks makes the page stale for the nightly pass. MCP `read` returns
   it as `by_model.writeup`. The PWA shows it in a separate, folding "Claude's write-up" section,
-  dashed as Claude's tags are.
+  marked as Claude's tags are (they carry ✦).
 - **Migration 12** rebuilds `enrich_job` for its reason `CHECK` (as migration 11 did, keeping its
   rows and the runs' `job_id`, and skipping the rebuild if the table takes `writeup` already) and
   adds the two tables if missing.
