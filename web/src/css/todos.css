@@ -116,6 +116,7 @@
   order: 1;
   flex-basis: 100%;
   padding: 0;
+  margin-bottom: var(--s-2); /* the card's gap before what follows (Topics, the folds) */
   background: none;
 }
 /* A question asked in place, with its answers (a photo's Reprocess, a snooze past the due
@@ -220,7 +221,7 @@
   background: var(--surface); /* a step up from the card, as Claude's text read off it */
 }
 .claude .did {
-  margin: var(--s-2) 0 0;
+  margin: var(--s-2) 0; /* and the card's gap before what follows (Topics, the folds) */
   color: var(--ink-2);
 }
 .claude > .did:first-child {
@@ -233,7 +234,7 @@
   margin-inline-start: auto;
 }
 .enrich .did {
-  margin: var(--s-2) 0 0;
+  margin: var(--s-2) 0; /* and the gap before what follows (Topics, the folds) */
   color: var(--ink-2);
 }
 .enrich > .did:first-child {
