@@ -62,9 +62,11 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
         add_tags and remove_tags (exact: removing a leaves a/b), or set_tags to
         replace them all. fields: values for the pages' fields, such as a Later's
         media_type (book, article, film, tv, video, podcast, music or game; its subtype,
-        what it is for, follows and is never set on its own); the response gives the
-        values they had (fields_was). Nothing else changes: not the title, the text or
-        when it was last updated. Each page changed is a revision that revert undoes;
+        what it is for, follows and is never set on its own), or a todo's or Later's
+        status (open, in_progress, done, cancelled: {"status": "done"} ticks a todo
+        off, {"status": "open"} reopens it; refused on other kinds); the response gives
+        the values they had (fields_was). Nothing else changes: not the title, the text
+        or when it was last updated. Each page changed is a revision that revert undoes;
         quick changes to one named page fold into one. A query or several pages is a
         batch: its revisions share the returned batch id, and revert(batch=...) undoes
         them all at once. All or nothing. Try dry_run first for a bulk change."""

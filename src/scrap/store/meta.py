@@ -29,11 +29,11 @@ from .helpers import (
 )
 from .types import FieldEdit, Meta
 
-# Fields with a meaning of their own (a status, a Later's link and summary): the pages'
-# own edits set them, not edit_meta's free-form fields
-RESERVED_FIELDS = frozenset(
-    {"status", "personal", "source", "summary", "title", "body"}
-)
+# Fields with a meaning of their own (a Later's link and summary): the pages' own edits
+# set them, not edit_meta's free-form fields. status it does set, one of STATUSES, on a
+# todo or a Later
+RESERVED_FIELDS = frozenset({"personal", "source", "summary", "title", "body"})
+STATUSES = ("open", "in_progress", "done", "cancelled")
 MAX_FIELD_TEXT = 200  # characters, as the PWA's field has it (pages_api.FIELD)
 
 
@@ -271,6 +271,8 @@ class MetaMixin(Core):
                 raise InvalidError(f"field {name}: at most {MAX_FIELD_TEXT} characters")
             if value is not None:
                 check_value(name, value)
+        if "status" in put and put["status"] not in STATUSES:
+            raise InvalidError(f"status must be one of {STATUSES}")
         if "subtype" in put:
             raise InvalidError("subtype follows media_type: set media_type instead")
         if put.get("media_type") not in (None, *MEDIA):
@@ -308,8 +310,9 @@ class MetaMixin(Core):
         refused change saves none. dry_run: say what would change, save nothing.
         fields sets (None takes off) these fields of every page, as part of the same
         revision (fields_added, and their values before: fields_was): a Later's
-        media_type also sets its subtype, which it never has on its own. Never the
-        title or the text."""
+        media_type also sets its subtype, which it never has on its own; status (open,
+        in_progress, done or cancelled) is a todo's or a Later's, as the PWA's tick.
+        Never the title or the text."""
         put = self._field_puts(fields)
         kind = KIND_NAMES.get(kind, kind) if kind is not None else None
         if kind not in (None, *KINDS):
@@ -338,6 +341,11 @@ class MetaMixin(Core):
                 )
                 if len(after.tags) > MAX_TAGS:
                     raise InvalidError(f"{page['slug']}: over {MAX_TAGS} tags")
+                if "status" in put and after.kind not in ("todo", "consume"):
+                    raise InvalidError(
+                        f"{page['slug']}: status is a todo's or a Later's: make it "
+                        "one first"
+                    )
                 if put.get("media_type") and after.kind != "consume":
                     raise InvalidError(  # else a later kind change would pair it with
                         f"{page['slug']}: media_type is a Later's: make it one first"
