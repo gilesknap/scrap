@@ -248,6 +248,7 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   const line = page.locator(".page .tags .duechip");
   const meta = page.locator(".page > .meta"); // a snooze is said on the meta line
   await line.click();
+  await page.locator(".todoedit .snooze > summary").click(); // folded to one line
   await page.getByLabel("Snooze until").fill(day(1));
   await page.getByRole("button", { name: "Save" }).click();
   // Past its due date (yesterday): asked whether the due date moves too; kept here
@@ -275,7 +276,10 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   // Woken by hand: back in Now
   await row.locator("a").click();
   await line.click();
-  await page.getByRole("button", { name: "No snooze" }).click();
+  const fold = page.locator(".todoedit .snooze > summary");
+  await expect(fold).toContainText("till"); // snoozed: the folded line says till when
+  await fold.click();
+  await page.getByRole("button", { name: "Not snoozed" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(meta).not.toContainText("snoozed");
   await page.goto("/todos");
@@ -456,13 +460,22 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
   await expect(tools.getByRole("button", { name: "Mark done" })).toBeVisible();
 });
 
-test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) => {
+test("Snooze is folded to its own line, with Tomorrow and Next week", async ({ page }) => {
   const t = await todo(page, "Bilby chips", { due: day(0) });
   await page.goto(`/p/${t.slug}`);
   await page.locator(".page .tags .duechip").click();
+  const fold = page.locator(".todoedit .snooze > summary");
+  await expect(fold).toContainText("none");
   const naps = page.getByRole("group", { name: "Snooze for" });
-  await expect(naps.getByRole("button")).toHaveText(["No snooze", "Tomorrow", "Next week"]);
-  await expect(naps.getByRole("button", { name: "No snooze" })).toHaveAttribute(
+  await expect(naps).toBeHidden(); // folded until tapped
+  await fold.click();
+  await expect(naps.getByRole("button")).toHaveText([
+    "Tomorrow",
+    "Next week",
+    "Pick a date…",
+    "Not snoozed",
+  ]);
+  await expect(naps.getByRole("button", { name: "Not snoozed" })).toHaveAttribute(
     "aria-pressed",
     "true",
   ); // none set yet
@@ -474,7 +487,7 @@ test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) =>
   );
   // Below Priority, not beside it
   const pri = await page.getByRole("combobox", { name: "Priority" }).boundingBox();
-  const nap = await page.getByLabel("Snooze until").boundingBox();
+  const nap = await naps.boundingBox();
   expect(nap && pri && nap.y > pri.y + pri.height - 1).toBe(true);
   await page.getByRole("button", { name: "Save" }).click();
   // Snoozed past today's due date: Move due date takes the due date to the snooze's day
@@ -491,6 +504,7 @@ test("a snooze on or before the due date saves without asking", async ({ page })
   const t = await todo(page, "Bilby no ask", { due: day(9) });
   await page.goto(`/p/${t.slug}`);
   await page.locator(".page .tags .duechip").click();
+  await page.locator(".todoedit .snooze > summary").click();
   await page.getByLabel("Snooze until").fill(day(2));
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator(".page > .meta")).toContainText("snoozed till");

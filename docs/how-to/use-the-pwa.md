@@ -69,7 +69,7 @@ flowchart LR
   changes it. You can change it later in the editor and nothing is lost (status, due date and
   summary stay, so changing back restores the page).
 - **Todo.** With kind **Todo** (and no photos) the composer adds **Due** (**Today**,
-  **Tomorrow**, **Next week** or a date) and **Priority**, and asks *What needs doing?*.
+  **Tomorrow**, **Next week** or **Pick a date…**) and **Priority**, and asks *What needs doing?*.
 - **Folded lines.** Due and Tags are each one line above the text (**Due** *24 Oct · high*,
   **Tags** *2 · #home #garden*); tap to open, tap again to fold.
 - **Photos and files.** **Camera** and **Gallery** add more photos (to a note too), and **File**
@@ -372,8 +372,9 @@ their own ([](../reference/scheduled-jobs.md)).
   app shows them.
 - **Due date and priority.** A todo may have a due date and a priority (high, medium, low). A
   page shows them in its first chip, before the tags (*3 Nov · high*, or **Add due date**): tap it to
-  pick a date (**Today**, **Tomorrow**, **Next week**, **No date** clears), and a priority, then
-  **Save**. **Edit** has the same two. Rows show them; a todo due before today and not done says
+  pick a date (**Today**, **Tomorrow**, **Next week**, **Pick a date…** for any other day, **No
+  date** clears), and a priority, then **Save**: while the form is open, **Cancel** and **Save**
+  take the place of the page's buttons at the bottom. **Edit** has the same two. Rows show them; a todo due before today and not done says
   *overdue* in red (that one word, the only red on the page). They belong to todos only: a page made a note keeps them, hidden. Neither is a
   revision nor moves the page. Today is your phone's day on rows and pages, the server's for `due:`
   searches.
@@ -384,8 +385,8 @@ their own ([](../reference/scheduled-jobs.md)).
   5*). Ticking the last box marks it done; while every box is ticked, unticking one or adding an
   unticked one reopens it. A todo marked done by hand stays done. **Mark done** ticks no box; a
   cancelled todo is left as it is.
-- **Snooze.** On a page, tap the line under the tags and pick **Snooze until** a date, **Tomorrow**
-  or **Next week** (**No snooze** wakes it), then **Save**. A snooze later than the due date asks
+- **Snooze.** On a page, tap the line under the tags, then the folded **Snooze** line, and pick
+  **Tomorrow**, **Next week** or **Pick a date…** (**Not snoozed** wakes it), then **Save**. A snooze later than the due date asks
   whether the due date moves too: **Move due date** or **Keep due date**. Until that day it is
   out of **Now**, **Upcoming** and the badge (Now says *1 snoozed* at the end of its count line;
   tap it for `kind:todo is:snoozed sort:due`). **All** shows it as *snoozed till 3 Nov*. It returns by itself
