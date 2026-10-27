@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>27. Claude’s write-ups of boards, apart from the text &#8212; scrap 0.16.1.dev4+gdfcd44d31 documentation</title>
+    <title>27. Claude’s write-ups of boards, apart from the text &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=ca09166f"></script>
+    <script src="../../_static/documentation_options.js?v=b3642992"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -610,6 +610,9 @@ data, and the owner can regenerate it, steer it or restore an earlier one.</p></
 history, but they are no longer shown, searched, linked or its summary (and it cannot be
 regenerated: it has no board).</p></li>
 <li><p>To roll back to 0.6.0 (which refuses schema 12), with scrap stopped, run:</p>
+<blockquote>
+<div><p>Superseded in part by <a class="reference internal" href="0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>: this rollback no longer works. Migrations 0001 to 0018 are folded into the baseline and 1.0 refuses a store below schema 18, so <code class="docutils literal notranslate"><span class="pre">user_version</span></code> cannot be set back to 11. Go back by restoring a backup with a release that accepts it.</p>
+</div></blockquote>
 <div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="n">PRAGMA</span><span class="w"> </span><span class="n">user_version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">11</span><span class="p">;</span>
 <span class="k">DELETE</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">enrich_job</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">reason</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'writeup'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">state</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'queued'</span><span class="p">,</span><span class="w"> </span><span class="s1">'running'</span><span class="p">);</span>
 <span class="k">DROP</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">writeup</span><span class="p">;</span>

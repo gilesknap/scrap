@@ -63,6 +63,8 @@ to get wrong, so letting Claude change them needs a way to see and undo every ch
 
 ## Deploying over a database already at version 8
 
+> Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): migrations 8 and 9 are folded into the baseline and 1.0 refuses a store below schema 18, so this recipe (setting `user_version` back to 7) no longer applies. It is kept as history.
+
 A local build of other work (text enrichment) also numbered its migration 8, and a canary
 database already at `user_version` 8 from it would skip this one: then `page_meta_rev` is
 missing and every tag or kind edit, PWA's too, fails. Both migrations are additive and

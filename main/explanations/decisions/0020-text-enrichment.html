@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.16.1.dev4+gdfcd44d31 documentation</title>
+    <title>20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=ca09166f"></script>
+    <script src="../../_static/documentation_options.js?v=b3642992"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -564,7 +564,7 @@ untrusted.</p>
 </section>
 <section id="decision">
 <h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
-<ul class="simple">
+<ul>
 <li><p>A second job kind, <code class="docutils literal notranslate"><span class="pre">enrich</span></code> (<code class="docutils literal notranslate"><span class="pre">enrich/</span></code>), for notes, todos, reads and saved links. It runs on
 the ingest worker’s thread, whenever there is no photo job to run, so there is still no second
 process. It is on when ingest is on (<code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code>) unless <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code>.</p></li>
@@ -585,7 +585,11 @@ before migration 11 (0.5.1 refuses schema 11), run <code class="docutils literal
 <code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">FROM</span> <span class="pre">enrich_job</span> <span class="pre">WHERE</span> <span class="pre">reason</span> <span class="pre">=</span> <span class="pre">'related'</span> <span class="pre">AND</span> <span class="pre">state</span> <span class="pre">=</span> <span class="pre">'queued';</span></code> (older code would run
 a queued <code class="docutils literal notranslate"><span class="pre">related</span></code> job as a full enrich, adding tags and redoing the summary). Upgrading again
 is safe: migration 11 skips the rebuild when the table already takes <code class="docutils literal notranslate"><span class="pre">'related'</span></code>. Related shows both ways, so an older page learns of a newer one that picked it without a call of
-its own.</p></li>
+its own.</p>
+<blockquote>
+<div><p>Superseded in part by <a class="reference internal" href="0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>: this rollback no longer works. Migrations 0001 to 0018 are folded into the baseline and 1.0 refuses a store below schema 18, so <code class="docutils literal notranslate"><span class="pre">user_version</span></code> cannot be set back to 10.</p>
+</div></blockquote>
+</li>
 <li><p><strong>Triggers.</strong> A note or link capture queues a job (a link at once, a note after
 <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code> seconds, default 60). A save of a page’s title or text moves its one
 queued job that far ahead again, so a burst of edits makes one call. A save only refreshes the

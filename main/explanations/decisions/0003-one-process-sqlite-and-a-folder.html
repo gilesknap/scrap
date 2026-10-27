@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>3. One process, one SQLite database, one folder of files &#8212; scrap 0.16.1.dev4+gdfcd44d31 documentation</title>
+    <title>3. One process, one SQLite database, one folder of files &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=ca09166f"></script>
+    <script src="../../_static/documentation_options.js?v=b3642992"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -556,7 +556,7 @@ writing to it.</p>
 </section>
 <section id="decision">
 <h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
-<ul class="simple">
+<ul>
 <li><p>One Python process (FastAPI) serves the PWA, the JSON API and the MCP server. If a feature needs a
 second service, it waits. A separate ingest worker is deferred.</p></li>
 <li><p>Storage is SQLite in WAL mode plus a <code class="docutils literal notranslate"><span class="pre">files/</span></code> folder of content-addressed blobs
@@ -565,7 +565,11 @@ second service, it waits. A separate ingest worker is deferred.</p></li>
 transaction: the search index stays correct only because deletes cascade.</p></li>
 <li><p>IDs are ULIDs (safe to mint on the phone); times are ISO 8601 UTC. Slugs are made from titles and
 are stable once fixed.</p></li>
-<li><p>Migrations are numbered SQL files (<code class="docutils literal notranslate"><span class="pre">0001_init.sql</span></code> …) run under a lock by the store.</p></li>
+<li><p>Migrations are numbered SQL files (<code class="docutils literal notranslate"><span class="pre">0001_init.sql</span></code> …) run under a lock by the store.</p>
+<blockquote>
+<div><p>Superseded in part by <a class="reference internal" href="0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>: migrations 0001 to 0018 are deleted and folded into one generated <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code>; later scripts start at <code class="docutils literal notranslate"><span class="pre">0019_*.sql</span></code>.</p>
+</div></blockquote>
+</li>
 <li><p>Backup is a SQLite online backup plus a copy of <code class="docutils literal notranslate"><span class="pre">files/</span></code>; restore is a CLI command.</p></li>
 </ul>
 </section>

@@ -24,6 +24,8 @@ writing to it.
 - IDs are ULIDs (safe to mint on the phone); times are ISO 8601 UTC. Slugs are made from titles and
   are stable once fixed.
 - Migrations are numbered SQL files (`0001_init.sql` ...) run under a lock by the store.
+
+  > Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): migrations 0001 to 0018 are deleted and folded into one generated `baseline.sql`; later scripts start at `0019_*.sql`.
 - Backup is a SQLite online backup plus a copy of `files/`; restore is a CLI command.
 
 ## Consequences

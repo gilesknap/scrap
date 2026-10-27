@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>19. Kinds and tags editable over MCP, made safe by metadata revisions &#8212; scrap 0.16.1.dev4+gdfcd44d31 documentation</title>
+    <title>19. Kinds and tags editable over MCP, made safe by metadata revisions &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=ca09166f"></script>
+    <script src="../../_static/documentation_options.js?v=b3642992"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -608,6 +608,9 @@ thinned later without rewriting others. Not built yet.</p></li>
 </section>
 <section id="deploying-over-a-database-already-at-version-8">
 <h2>Deploying over a database already at version 8<a class="headerlink" href="#deploying-over-a-database-already-at-version-8" title="Link to this heading">#</a></h2>
+<blockquote>
+<div><p>Superseded in part by <a class="reference internal" href="0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>: migrations 8 and 9 are folded into the baseline and 1.0 refuses a store below schema 18, so this recipe (setting <code class="docutils literal notranslate"><span class="pre">user_version</span></code> back to 7) no longer applies. It is kept as history.</p>
+</div></blockquote>
 <p>A local build of other work (text enrichment) also numbered its migration 8, and a canary
 database already at <code class="docutils literal notranslate"><span class="pre">user_version</span></code> 8 from it would skip this one: then <code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code> is
 missing and every tag or kind edit, PWA’s too, fails. Both migrations are additive and

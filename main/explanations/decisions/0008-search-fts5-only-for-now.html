@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred &#8212; scrap 0.16.1.dev4+gdfcd44d31 documentation</title>
+    <title>8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=ca09166f"></script>
+    <script src="../../_static/documentation_options.js?v=b3642992"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -557,7 +557,7 @@ dependencies today.)</p>
 </section>
 <section id="decision">
 <h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
-<ul class="simple">
+<ul>
 <li><p>Search is FTS5 with <code class="docutils literal notranslate"><span class="pre">porter</span> <span class="pre">unicode61</span></code>. A page’s own chunk has separate columns for title, tags,
 summary and text (migration 0003) so ranking can weigh them: pages with every word in the title
 first, then title/tags/summary, then bm25 with column weights 10/5/3/1. Every word matches as a
@@ -569,7 +569,11 @@ descriptions are searchable; pixels and raw Excalidraw JSON are not.</p></li>
 Facets and tag browsing come from the same code. The PWA has one Search screen: an empty box lists
 everything newest first.</p></li>
 <li><p>The index is a cache and a numbered migration with an <code class="docutils literal notranslate"><span class="pre">AFTER</span></code> hook (<code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code>) rebuilds it;
-there is no <code class="docutils literal notranslate"><span class="pre">reindex</span></code> command.</p></li>
+there is no <code class="docutils literal notranslate"><span class="pre">reindex</span></code> command.</p>
+<blockquote>
+<div><p>Superseded in part by <a class="reference internal" href="0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>: <code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code> is deleted; the baseline carries the full-text index rebuild.</p>
+</div></blockquote>
+</li>
 </ul>
 </section>
 <section id="consequences">

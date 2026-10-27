@@ -83,6 +83,8 @@ text.
 - `scrap gc` does not prune `topic_run` rows (about one a week).
 - To roll back to 0.7.x (which refuses schema 13), with scrap stopped, run:
 
+  > Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): this rollback no longer works. Migrations 0001 to 0018 are folded into the baseline and 1.0 refuses a store below schema 18, so `user_version` cannot be set back to 12. Go back by restoring a backup with a release that accepts it.
+
   ```sql
   PRAGMA user_version = 12;
   DELETE FROM enrich_job WHERE reason = 'topic' AND state IN ('queued', 'running');
