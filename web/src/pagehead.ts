@@ -1,8 +1,8 @@
-// A page's header under its title: the quiet meta line (what it is), the dates line (when it
-// was created and edited), and one row of chips (its tags, each a search; + to change them; a
+// A page's header under its title: what it is and when (one line, or two when there is more
+// to say than its kind), and one row of chips (its tags, each a search; + to change them; a
 // todo's due chip, which opens the due editor).
 import type { Page } from "./api";
-import { icon } from "./icons";
+import { icon, kindIcon } from "./icons";
 import { KINDS } from "./kinds";
 import { edited, metaParts } from "./pagemeta";
 import { closed, dueChip } from "./status";
@@ -12,14 +12,22 @@ import { h, whenShort } from "./ui";
 /** Parts joined by " · ", each never breaking inside: a line breaks only after a ·. */
 const joined = (parts: HTMLElement[]) => parts.flatMap((el, i) => (i ? [" · ", el] : [el]));
 
-/** The meta line: "Later · TV · to watch", "Todo · in progress", "Note"; a topic's "Topic by
- * Claude" first, a page Claude wrote "Written by Claude" last. One size and colour, no red. */
-export function metaLine(p: Page): HTMLElement {
+/** What it is and when, under the title: "Todo · Created 25 Oct, 11:52 · Edited …" on one
+ * line when the kind is all there is to say, else two: "Later · TV · to watch", then the dates.
+ * The kind word leads in semibold ink; a topic's "Topic by Claude" pill is first, a page
+ * Claude wrote has "Written by Claude" on the first line. One size, no red. */
+export function headLines(p: Page): HTMLElement[] {
   const label = p.topic ? undefined : KINDS.find(([k]) => k === p.kind)?.[1];
-  const parts: HTMLElement[] = metaParts(p, label).map((text) => h("span", {}, text));
+  const said = metaParts(p, label);
+  // The kind word, after its icon (the search kind bar's; decoration: aria-hidden)
+  const meta: HTMLElement[] = said.map((text, i) =>
+    label && !i
+      ? h("span", { className: "kind" }, icon(kindIcon(p.kind)), text)
+      : h("span", {}, text),
+  );
   // A topic is Claude's (#261): tapped, the Topics screen
   if (p.topic)
-    parts.unshift(
+    meta.unshift(
       h(
         "a",
         {
@@ -32,7 +40,7 @@ export function metaLine(p: Page): HTMLElement {
     );
   // Written over MCP (made_by, store/roles.py): its origin as the tooltip; tapped, finds them all
   if (p.made_by === "claude")
-    parts.push(
+    meta.push(
       h(
         "a",
         {
@@ -43,19 +51,18 @@ export function metaLine(p: Page): HTMLElement {
         "Written by Claude",
       ),
     );
-  return h("p", { className: "meta" }, ...joined(parts));
+  // Created, and Edited only if it was
+  const dates = [
+    h("span", {}, `Created ${whenShort(p.created_at)}`),
+    ...(edited(p) ? [h("span", {}, `Edited ${whenShort(p.updated_at)}`)] : []),
+  ];
+  return said.length > (label ? 1 : 0)
+    ? [
+        h("p", { className: "meta" }, ...joined(meta)),
+        h("p", { className: "dates" }, ...joined(dates)),
+      ]
+    : [h("p", { className: "meta dates" }, ...joined([...meta, ...dates]))];
 }
-
-/** The dates line: "Created 24 Oct, 09:12 · Edited 25 Oct, 14:03", Edited only if it was. */
-export const datesLine = (p: Page): HTMLElement =>
-  h(
-    "p",
-    { className: "dates" },
-    ...joined([
-      h("span", {}, `Created ${whenShort(p.created_at)}`),
-      ...(edited(p) ? [h("span", {}, `Edited ${whenShort(p.updated_at)}`)] : []),
-    ]),
-  );
 
 interface Edits {
   tags: (e: Event) => void;
@@ -64,9 +71,8 @@ interface Edits {
   dueOpen: boolean;
 }
 
-/** One row of chips, all one size: its tags (each searches for its tag, with its children:
- * tag:a finds a/b), the + that changes them kept on the last tag's line, then a todo's due
- * chip. With no tags, "+ Tag". A closed todo with no due date or priority has no due chip
+/** One row of chips, all one size: a todo's due chip, then its tags (each searches for its
+ * tag, with its children: tag:a finds a/b), the + that changes them kept on the last tag's line. With no tags, "+ Tag". A closed todo with no due date or priority has no due chip
  * (Reopen it first). */
 export function chipRow(p: Page, on: Edits): HTMLElement {
   const due = p.kind === "todo" && !on.dueOpen ? dueChip(p) : null;
@@ -99,9 +105,7 @@ export function chipRow(p: Page, on: Edits): HTMLElement {
   return h(
     "p",
     { className: "tags" },
-    ...tags,
-    // The last tag and + together, so + never sits alone on a line
-    last ? h("span", { className: "last" }, last, add) : add,
+    // A todo's due chip first: what it is for
     due || offer
       ? h(
           "button",
@@ -111,5 +115,8 @@ export function chipRow(p: Page, on: Edits): HTMLElement {
           due ? due[0] : "Add due date",
         )
       : "",
+    ...tags,
+    // The last tag and + together, so + never sits alone on a line
+    last ? h("span", { className: "last" }, last, add) : add,
   );
 }

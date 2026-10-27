@@ -7,7 +7,7 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { rendered, renderer, unembedded } from "./md";
-import { chipRow, datesLine, metaLine } from "./pagehead";
+import { chipRow, headLines } from "./pagehead";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { seenTopic } from "./topicseen";
@@ -160,10 +160,9 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
       h("h1", { dir: "auto" }, p.title),
-      // What it is, one quiet line, and when, another; then one row of chips: its tags (each a
-      // search; + changes them) and a todo's due chip (opens the due editor, under the row)
-      metaLine(p),
-      datesLine(p),
+      // What it is and when, one quiet line or two; then one row of chips: a todo's due chip
+      // (opens the due editor, under the row) and its tags (each a search; + changes them)
+      ...headLines(p),
       tagForm ?? chipRow(p, { tags: tagEdit, due: (e) => void todoEdit(e), dueOpen: !!todoForm }),
       todoForm ?? "",
       body,
