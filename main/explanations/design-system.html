@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 0.16.1.dev8+g8ee966dd2 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 0.16.1.dev9+g7bd320529 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1d5292e7"></script>
+    <script src="../_static/documentation_options.js?v=ca37c607"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -973,7 +973,7 @@ only while the work or the image is in progress.</p>
 </tr>
 <tr class="row-odd"><td><p>Recent searches</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.recents-top</span></code>, <code class="docutils literal notranslate"><span class="pre">.list.recents</span></code></p></td>
-<td><p>under the search field while it is empty and focused (gone once it has text, or loses focus): an <code class="docutils literal notranslate"><span class="pre">h2.label</span></code> “Recent” with <strong>Clear all</strong> (<code class="docutils literal notranslate"><span class="pre">button.link</span></code>) at its end, then up to 10 past searches as one <code class="docutils literal notranslate"><span class="pre">.list</span></code> group (<code class="docutils literal notranslate"><span class="pre">role=&quot;group&quot;</span></code>, “Recent searches”), newest first: a search icon and the query as typed, start-aligned and cut with … on one line, then its pin (a 48 px ghost icon, “Pin <query>”; once pinned, filled in <code class="docutils literal notranslate"><span class="pre">--ink</span></code>, “Unpin <query>”) and a 48 px ghost ✕ (“Remove <query>”), both <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>. Under the kind row, the newest pages under an <code class="docutils literal notranslate"><span class="pre">h2.label</span></code> “Latest”, as on Capture. A tap on the list keeps the field focused until the choice is made; a choice runs it and the keyboard goes. No history: no block at all. On this device only (<code class="docutils literal notranslate"><span class="pre">scrap.searches</span></code>, through <code class="docutils literal notranslate"><span class="pre">kept()</span></code> in <code class="docutils literal notranslate"><span class="pre">api.ts</span></code>, the one guard every <code class="docutils literal notranslate"><span class="pre">localStorage</span></code> use goes through: with storage blocked it keeps nothing and never throws)</p></td>
+<td><p>under the search field while it is empty and focused (gone once it has text, or loses focus): an <code class="docutils literal notranslate"><span class="pre">h2.label</span></code> “Recent” with <strong>Clear all</strong> (<code class="docutils literal notranslate"><span class="pre">button.link</span></code>) at its end, then up to 10 past searches as one <code class="docutils literal notranslate"><span class="pre">.list</span></code> group (<code class="docutils literal notranslate"><span class="pre">role=&quot;group&quot;</span></code>, “Recent searches”), newest first (a search is kept when run: Enter, a tap on a result, or 3 s with results; run again it moves to the top, kept once, its spaces tidied and its case kept): a search icon and the query as typed, start-aligned and cut with … on one line, then its pin (a 48 px ghost icon, “Pin <query>”; once pinned, filled in <code class="docutils literal notranslate"><span class="pre">--ink</span></code>, “Unpin <query>”) and a 48 px ghost ✕ (“Remove <query>”), both <code class="docutils literal notranslate"><span class="pre">--ink-2</span></code>. Under the kind row, the newest pages under an <code class="docutils literal notranslate"><span class="pre">h2.label</span></code> “Latest”, as on Capture. A tap on the list keeps the field focused until the choice is made; a choice runs it and the keyboard goes. No history: no Recent block (Pinned, if any, still shows alone). There are no saved searches beyond these two: a recent one, and a pinned one (the Pinned page’s link). On this device only (<code class="docutils literal notranslate"><span class="pre">scrap.searches</span></code>, through <code class="docutils literal notranslate"><span class="pre">kept()</span></code> in <code class="docutils literal notranslate"><span class="pre">api.ts</span></code>, the one guard every <code class="docutils literal notranslate"><span class="pre">localStorage</span></code> use goes through: with storage blocked it keeps nothing and never throws)</p></td>
 </tr>
 <tr class="row-even"><td><p>Editor sheet</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.editor</span></code></p></td>
