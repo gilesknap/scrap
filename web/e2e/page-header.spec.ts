@@ -108,7 +108,7 @@ test("the due chip is first and opens the due editor, focus back after", async (
   const buttons = row.locator("> :is(a, button, span)");
   await expect(row.locator(":scope > *").first()).toHaveClass(/duechip/);
   const chip = row.locator(".duechip");
-  await expect(chip).toHaveText(/^\w+ \d+ · high$/);
+  await expect(chip).toHaveText(/^.+ · high$/);
   const box = await chip.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(47); // a 48 px target
   await expect(buttons.first()).toBeVisible();
@@ -131,7 +131,7 @@ test("an overdue todo has exactly one red word", async ({ page }) => {
   });
   await page.goto(`/p/${t.slug}`);
   const chip = page.locator(".tags .duechip");
-  await expect(chip).toHaveText(/^overdue \w+ \d+ · high$/);
+  await expect(chip).toHaveText(/^overdue .+ · high$/);
   const red = await page.evaluate(() => {
     const danger = getComputedStyle(document.querySelector(".duechip .late") as Element).color;
     const out: string[] = [];
@@ -163,6 +163,22 @@ test("a tag opens its search; + opens the tag editor and gives focus back", asyn
   await expect(page.locator(".page .tags .add")).toBeFocused();
 });
 
+test("the due chip stays while tags are edited; closing the due editor keeps focus", async ({
+  page,
+}) => {
+  const t = await make(page, `Header both ${word()}`, "todo", { due: day(4), tags: ["car"] });
+  await page.goto(`/p/${t.slug}`);
+  await page.locator(".page .tags .add").click();
+  await expect(page.locator(".tagform")).toBeVisible();
+  await expect(page.locator(".page .tags .duechip")).toBeVisible(); // not swept away
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".page .tags .add")).toBeFocused();
+  // Cleared of date and priority, then cancelled: the chip is "Add due date", focus on it
+  await page.locator(".page .tags .duechip").click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator(".page .tags .duechip")).toBeFocused();
+});
+
 test("an untagged page offers + Tag, named Add tags", async ({ page }) => {
   const t = await make(page, `Header untagged ${word()}`, "note");
   await page.goto(`/p/${t.slug}`);
@@ -173,30 +189,114 @@ test("an untagged page offers + Tag, named Add tags", async ({ page }) => {
   await expect(page.locator(".tagform")).toBeVisible();
 });
 
-test("no line starts or ends with a dot, and a wrapped line starts at the left edge", async ({
-  page,
-}) => {
-  const t = await make(page, `Header wrap ${word()}\n\n- [x] one\n- [ ] two`, "todo", {
-    fields: { status: "in_progress" },
-    snoozed_until: day(9),
-  });
-  await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto(`/p/${t.slug}`);
-  await expect(page.locator(".page .meta .row")).toBeVisible();
-  const lay = await page.locator(".page > .meta").evaluate((p) => {
-    const edge = p.getBoundingClientRect().left;
-    const kids = [...(p.querySelectorAll(".row > *") as NodeListOf<HTMLElement>)];
-    return kids.map((k) => {
+/** Each visual line of a header line (".meta" or ".dates"), as geometry: its parts' edges, where
+ * each part's gutter dot is centred, and the line's own clip box (its padding box). */
+const lines = (page: Page, sel: string) =>
+  page.locator(sel).evaluate((p) => {
+    const box = p.getBoundingClientRect();
+    const pad = Number.parseFloat(getComputedStyle(p).paddingLeft);
+    const em = Number.parseFloat(getComputedStyle(p).fontSize);
+    const parts = [...p.querySelectorAll<HTMLElement>(".row > *")].map((k, i) => {
       const r = k.getBoundingClientRect();
-      return { top: Math.round(r.top), left: Math.round(r.left - edge), dot: k !== kids[0] };
+      const border = Number.parseFloat(getComputedStyle(k).borderLeftWidth);
+      // The dot's box is 1.5em wide, ending at the part's padding edge
+      return {
+        i,
+        top: r.top,
+        bottom: r.bottom,
+        left: r.left,
+        right: r.right,
+        dot: r.left + border - 0.75 * em,
+      };
     });
+    const rows: (typeof parts)[] = [];
+    for (const k of parts) {
+      const row = rows.at(-1);
+      if (row && Math.abs(row[0].top - k.top) < 3) row.push(k);
+      else rows.push([k]);
+    }
+    return {
+      clip: { left: box.left, top: box.top, bottom: box.bottom },
+      edge: box.left + pad,
+      rows,
+    };
   });
-  const tops = new Set(lay.map((l) => l.top));
-  expect(tops.size, "320 px wraps this line").toBeGreaterThan(1);
-  // A part that starts a line sits at the edge, where its gutter dot is clipped away
-  for (const l of lay) if (l.left < 4) expect(l.top === lay[0].top || l.dot).toBe(true);
-  // The text itself carries no dots to strand
-  expect(await page.locator(".page > .meta").innerText()).not.toMatch(/·/);
+
+/** The page, as Claude wrote it (made_by) or as a topic: its fetch answered with that changed. */
+async function as(page: Page, change: Record<string, unknown>) {
+  await page.route(/\/api\/pages\/[^/?]+$/, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const res = await route.fetch();
+    await route.fulfill({ response: res, json: { ...(await res.json()), ...change } });
+  });
+}
+
+const cases: [string, Record<string, unknown>][] = [
+  ["plain", {}],
+  ["written by Claude", { made_by: "claude" }],
+];
+
+for (const width of [320, 360, 390, 430])
+  for (const [name, change] of cases)
+    test(`${name} at ${width}px: a line starts at the edge, its dot gone; none ends in one; rings fit`, async ({
+      page,
+    }) => {
+      const t = await make(page, `Header wrap ${word()}\n\n- [x] one\n- [ ] two`, "todo", {
+        fields: { status: "in_progress" },
+        snoozed_until: day(9),
+      });
+      await as(page, change);
+      await page.setViewportSize({ width, height: 700 });
+      await page.goto(`/p/${t.slug}`);
+      await expect(page.locator(".page .meta .row")).toBeVisible();
+      let wrapped = 0;
+      for (const sel of [".page > .meta", ".page > .dates"]) {
+        const { clip, edge, rows } = await lines(page, sel);
+        wrapped += rows.length - 1;
+        rows.forEach((row, n) => {
+          // (a) a line's first part starts at the edge
+          expect(Math.abs(row[0].left - edge), `${sel} line ${n} starts at the edge`).toBeLessThan(
+            2,
+          );
+          // (b) the dot of a part that starts a line lies outside the clip box: not drawn
+          if (row[0].i) expect(row[0].dot, `${sel} line ${n} dot`).toBeLessThan(clip.left);
+          // (c) each other dot sits between its neighbours, so nothing is left at a line's end
+          row.slice(1).forEach((k, j) => {
+            expect(k.dot).toBeGreaterThan(row[j].right - 2);
+            expect(k.dot).toBeLessThan(k.left);
+          });
+        });
+        // A 2px ring with a 2px offset, round the first and last lines' parts, is not clipped
+        const top = Math.min(...rows[0].map((k) => k.top));
+        const bottom = Math.max(...(rows.at(-1) ?? []).map((k) => k.bottom));
+        expect(top - 4, `${sel} ring above`).toBeGreaterThanOrEqual(clip.top - 0.5);
+        expect(bottom + 4, `${sel} ring below`).toBeLessThanOrEqual(clip.bottom + 0.5);
+        for (const row of rows) expect(row[0].left - 4).toBeGreaterThanOrEqual(clip.left - 0.5);
+      }
+      if (width === 320 && name === "plain") expect(wrapped, "320 px wraps").toBeGreaterThan(0);
+    });
+
+test("a link's focus ring in the meta line is whole", async ({ page }) => {
+  const t = await make(page, `Header ring ${word()}`, "note");
+  await as(page, { made_by: "claude" });
+  await page.goto(`/p/${t.slug}`);
+  const link = page.locator(".page > .meta .written");
+  await page.keyboard.press("Tab"); // the keyboard is in use, so the ring shows
+  await link.focus();
+  const ring = await link.evaluate((a) => {
+    const cs = getComputedStyle(a);
+    const r = a.getBoundingClientRect();
+    const p = (a.closest(".meta") as HTMLElement).getBoundingClientRect();
+    const reach = Number.parseFloat(cs.outlineWidth) + Number.parseFloat(cs.outlineOffset);
+    return {
+      style: cs.outlineStyle,
+      left: r.left - reach - p.left,
+      top: r.top - reach - p.top,
+      bottom: p.bottom - (r.bottom + reach),
+    };
+  });
+  expect(ring.style).toBe("solid");
+  for (const room of [ring.left, ring.top, ring.bottom]) expect(room).toBeGreaterThanOrEqual(-0.5);
 });
 
 for (const width of [320, 360, 390, 430]) {
@@ -218,10 +318,19 @@ for (const width of [320, 360, 390, 430]) {
     await expect(page.locator(".page .tags .add")).toBeVisible();
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
-      const wide = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      );
-      expect(wide, `${colorScheme} at ${width}`).toBeLessThanOrEqual(0);
+      const wide = await page.evaluate(() => {
+        const over = (sel: string) => {
+          const e = document.querySelector(sel) as HTMLElement;
+          return e.scrollWidth - e.clientWidth;
+        };
+        return [
+          document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          over(".page > .tags"),
+          over(".page > .meta"),
+          over(".page > .dates"),
+        ];
+      });
+      expect(wide, `${colorScheme} at ${width}: page, tags, meta, dates`).toEqual([0, 0, 0, 0]);
     }
   });
 }

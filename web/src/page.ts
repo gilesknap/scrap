@@ -271,7 +271,12 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       ),
     );
     tagForm = form;
-    line.replaceWith(form);
+    // The due chip stays (it is not a tag); the tags and + give way to the form under the row
+    const chip = line.querySelector(".duechip");
+    if (chip) {
+      for (const c of [...line.children]) if (c !== chip) c.remove();
+      line.after(form);
+    } else line.replaceWith(form);
     field.input.focus();
   }
 
@@ -285,7 +290,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const { form, focus } = mod.todoForm(shown, (to) => {
       todoForm = null;
       show(to ?? shown);
-      root.querySelector<HTMLElement>(".tags > .duechip")?.focus();
+      // The chip may be gone (a closed todo saved with no date or priority): then the +
+      root.querySelector<HTMLElement>(".tags > .duechip, .tags .add")?.focus();
     });
     todoForm = form;
     chip.remove(); // under the row, in the chip's place

@@ -272,10 +272,11 @@
   color: var(--danger);
   font-weight: 600;
 }
-/* A page's due chip, overdue: the word in red, the chip still quiet */
+/* A page's due chip, overdue: the word in red, the chip still quiet (500, where a list row's
+   overdue is 600): the word "overdue" carries it */
 .tags > .duechip .late {
   color: var(--danger);
-  font-weight: 500 /* the word "overdue" carries it; the line stays quiet */;
+  font-weight: 500;
 }
 /* Done or cancelled: its due date kept, greyed */
 .list .due.closed {

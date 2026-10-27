@@ -221,7 +221,9 @@ The app opens without a connection. Anything that reads from or writes to the se
   or Ctrl/Cmd-click or middle-click (computer) to open in a new tab. A page opened that way has
   no pager. An unknown address shows *Not found*.
 - **Kind display.** A list row shows the kind by icon (checklist for a todo, bookmark for Later). A
-  page shows it as a chip with its status: *Todo · open*, *Later · done*, *Note*.
+  page shows it under the title as the kind's icon and word in bold (*Todo*, *Later*, *Note*),
+  then the rest of its meta line in grey: a Later's medium and verb (*TV · to watch*), a status
+  other than open (*in progress*, *done*), a snooze and the task count. Its dates come after.
 - **Pager.** A page opened from a list or search shows its place at the right of the top bar
   (*3 of 23*) with **∧** previous and **∨** next. Swipe left for next, right for previous, or use
   the arrows. Swipes start away from the screen edges, and are ignored on sideways-scrolling text,

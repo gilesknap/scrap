@@ -2,7 +2,7 @@
 // " · "-separated parts ("Later · TV · to watch", "Todo · snoozed till 3 Nov", "Note"), and
 // whether it was edited after it was made (the dates line under it says when).
 // No DOM here (the unit tests run it); pagehead.ts draws them.
-import { closed, partly, short, snoozed, statusOf, today } from "./status";
+import { closed, partly, snoozed, snoozeText, statusOf, today } from "./status";
 
 interface Meta {
   kind: string;
@@ -32,8 +32,7 @@ export function metaParts(p: Meta, label: string | undefined, now = today()): st
   const s = statusOf(p.kind, p.fields);
   if (s && s !== "open") parts.push(s.replace("_", " "));
   if (p.kind === "todo") {
-    if (snoozed(p, now) && p.snoozed_until)
-      parts.push(`snoozed till ${short(p.snoozed_until, now)}`);
+    if (snoozed(p, now) && p.snoozed_until) parts.push(snoozeText(p.snoozed_until, now));
     const part = !closed(p) && partly(p);
     if (part) parts.push(part);
   }

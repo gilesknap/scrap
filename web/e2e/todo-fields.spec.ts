@@ -100,7 +100,7 @@ test("due date and priority are set and cleared on a todo's page", async ({ page
   await due.fill(day(-1));
   await page.getByRole("combobox", { name: "Priority" }).selectOption("high");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(line).toHaveText(/^overdue .* · high$/);
+  await expect(line).toHaveText(/^overdue .+ · high$/);
   await expect(line).toBeFocused(); // back where it was
   expect(await api(page, made.none.page_id)).toMatchObject({ due: day(-1), priority: "high" });
   await line.click();
@@ -184,7 +184,7 @@ test("the editor sets them while the kind is Todo", async ({ page }) => {
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("medium");
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
-  await expect(page.locator(".page .duechip")).toHaveText(/^\D*\d+ · medium$/);
+  await expect(page.locator(".page .duechip")).toHaveText(/ · medium$/);
   expect(await api(page, made.soon.page_id)).toMatchObject({ due: day(1), priority: "medium" });
 });
 

@@ -65,8 +65,15 @@
 .dates {
   margin-bottom: var(--s-1);
 }
+/* The line clips the dots in the row's gutter (below); its padding, taken back by margin, leaves
+   room for a link's 2px focus ring and its 2px offset (Written by, Topic by) */
 :is(.meta, .dates) {
   overflow: hidden;
+  padding: 4px;
+  margin: -4px;
+}
+.dates {
+  margin-bottom: calc(var(--s-1) - 4px);
 }
 :is(.meta, .dates) > .row {
   display: flex;

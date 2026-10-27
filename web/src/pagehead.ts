@@ -74,7 +74,8 @@ interface Edits {
 }
 
 /** One row of chips, all one size: a todo's due chip, then its tags (each searches for its
- * tag, with its children: tag:a finds a/b), the + that changes them kept on the last tag's line. With no tags, "+ Tag". A closed todo with no due date or priority has no due chip
+ * tag, with its children: tag:a finds a/b), the + that changes them kept on the last tag's
+ * line. With no tags, "+ Tag". A closed todo with no due date or priority has no due chip
  * (Reopen it first). */
 export function chipRow(p: Page, on: Edits): HTMLElement {
   const due = p.kind === "todo" && !on.dueOpen ? dueChip(p) : null;
