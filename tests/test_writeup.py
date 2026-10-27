@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from PIL import Image
 
+from old_schema import undo_0018
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
@@ -457,6 +458,7 @@ def test_migration_12_on_a_v11_database_keeps_jobs_and_runs(store):
     note(store, "a note")
     run_all(store, Fake())
     with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
+        undo_0018(conn)
         conn.executescript(
             "BEGIN; DROP TABLE writeup; DROP TABLE writeup_guidance;"
             " CREATE TABLE old AS SELECT * FROM enrich_job; DROP TABLE enrich_job;"

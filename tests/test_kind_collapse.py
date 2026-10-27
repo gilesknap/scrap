@@ -5,6 +5,7 @@ from contextlib import closing
 
 import pytest
 
+from old_schema import undo_0018
 from scrap.store import Store, topics
 from scrap.store.db import AFTER, connect, migrations
 from scrap.store.indexing import index_page
@@ -144,6 +145,7 @@ def test_search_finds_pages_and_their_new_tags(migrated):
 def test_migrating_again_changes_nothing(migrated):
     before = (kinds(migrated), tags(migrated))
     with migrated.connect() as conn:  # as if it had stopped at 13
+        undo_0018(conn)
         conn.execute("PRAGMA user_version = 13")
     migrated.migrate()
     assert (kinds(migrated), tags(migrated)) == before
@@ -204,8 +206,10 @@ def test_cascades_still_work_and_only_tagged_pages_are_reindexed(tmp_path):
 
 def test_two_runs_from_13_the_first_on_an_unrelaxed_schema(tmp_path):
     data = v13(tmp_path / "data")
-    for _ in range(2):
+    for run in range(2):
         with closing(connect(data / "scrap.db")) as conn:
+            if run:  # the first run starts from the built v13
+                undo_0018(conn)
             conn.execute("PRAGMA user_version = 13")
         Store(data).migrate()
     store = Store(data)

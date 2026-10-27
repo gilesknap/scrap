@@ -7,6 +7,7 @@ import anyio
 import pytest
 from mcp.client.client import Client
 
+from old_schema import undo_0018
 from scrap import mcp_server, retention
 from scrap.mcp_tools.limits import MAX_TRASH
 from scrap.store import Store, connect, now, topics, transaction
@@ -197,6 +198,7 @@ def test_the_pwa_s_delete_and_undo_are_recorded(client, note, store):
 def test_migration_17_can_run_again(store):
     ok(store, "trash_pages", pages=[human(store, "Gone")["slug"]])
     with closing(connect(store.db)) as conn:
+        undo_0018(conn)
         conn.execute("PRAGMA user_version = 16")
     store.migrate()
     assert len(moves(store)) == 1

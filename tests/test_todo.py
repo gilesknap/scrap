@@ -128,16 +128,19 @@ def test_migration_5_moves_imported_fields_into_columns(tmp_path):
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        rows = conn.execute("SELECT id, due, priority, fields FROM page ORDER BY id")
+        rows = conn.execute(
+            "SELECT id, t.due, t.priority, fields FROM page LEFT JOIN page_todo t"
+            " ON t.page_id = id ORDER BY id"
+        )
         assert [tuple(r) for r in rows] == [
             ("A", "2026-11-01", "low", '{"status": "open"}'),
             ("B", None, "medium", '{"due": "2026-13-01"}'),
             ("C", None, None, '{"due": "2026-11-01"}'),
         ]
         with pytest.raises(Exception, match="CHECK"):  # the schema refuses bad ones
-            conn.execute("UPDATE page SET due = '2026-02-30' WHERE id = 'A'")
+            conn.execute("UPDATE page_todo SET due = '2026-02-30' WHERE page_id = 'A'")
         with pytest.raises(Exception, match="CHECK"):
-            conn.execute("UPDATE page SET priority = 'urgent' WHERE id = 'A'")
+            conn.execute("UPDATE page_todo SET priority = 'urgent' WHERE page_id = 'A'")
 
 
 def test_markdown_carries_due_and_priority_as_front_matter(client, note, tmp_path):

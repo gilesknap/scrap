@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from old_schema import undo_0018
 from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
@@ -253,6 +254,7 @@ def test_migration_11_keeps_enrich_jobs_and_their_runs(store):
     ref = capture(store, "a note")
     run_all(worker(store, Fake(answer())))
     with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
+        undo_0018(conn)
         conn.executescript(
             "BEGIN; DELETE FROM enrich_run WHERE job_id = 2;"
             " DELETE FROM enrich_job WHERE reason = 'related';"

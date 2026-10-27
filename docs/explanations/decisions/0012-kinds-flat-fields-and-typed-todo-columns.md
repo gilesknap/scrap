@@ -4,7 +4,12 @@ Date: 2026-10-19 (design), 2026-10-20 (kind in the editor), 2026-10-21 (todo fie
 
 ## Status
 
-Accepted
+Accepted. Partly superseded by [](0036-todo-values-in-a-side-table.md): a todo's due date,
+priority and snooze are now rows of `page_todo`, not columns of `page`.
+
+Update 2026-10-27: the "typed `page` columns" below are rows of the table `page_todo` since
+migration 0018. Everything else here, including that the values are typed, indexed SQL and
+survive a change of kind, still holds.
 
 ## Context
 

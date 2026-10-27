@@ -1,9 +1,9 @@
 """Where a todo's own values (due, priority, snoozed_until) live: only here.
 
-Every SQL reader builds its fragments from col() or cols(), and everything else reads
-and writes through read() and write(). Today the values are columns of page; keeping
-that knowledge in this module is what lets them move without touching a caller
-(tests/test_todo_gate.py fails on any other mention of them in SQL).
+They are rows of the side table page_todo (ADR 36), one per page with at least one
+set. Every SQL reader builds its fragments from col() or cols(), and everything else
+reads and writes through read() and write(); tests/test_todo_gate.py fails on any other
+mention of them in SQL.
 """
 
 import sqlite3
@@ -15,7 +15,7 @@ def col(name: str, p: str = "p") -> str:
     """A SQL expression for one value of the page aliased p (NULL if it has none)."""
     if name not in NAMES:
         raise ValueError(name)
-    return f"{p}.{name}"
+    return f"(SELECT {name} FROM page_todo WHERE page_id = {p}.id)"
 
 
 def cols(p: str = "p") -> str:
@@ -26,7 +26,8 @@ def cols(p: str = "p") -> str:
 def read(conn: sqlite3.Connection, page_id: str) -> dict[str, str | None]:
     """A page's three values, None for each it has not."""
     row = conn.execute(
-        f"SELECT {cols('p')} FROM page p WHERE p.id = ?", (page_id,)
+        "SELECT due, priority, snoozed_until FROM page_todo WHERE page_id = ?",
+        (page_id,),
     ).fetchone()
     return {n: (row[n] if row else None) for n in NAMES}
 
@@ -36,10 +37,20 @@ def write(
 ) -> None:
     """Set (or clear, with None) the values named in changes; the others are kept.
 
-    A value its CHECK refuses is an sqlite3.IntegrityError."""
+    The row is deleted when no value is left. A value its CHECK refuses is an
+    sqlite3.IntegrityError."""
     if any(n not in NAMES for n in changes):
         raise ValueError(sorted(changes))
     if not changes:
         return
-    sets = ", ".join(f"{n} = ?" for n in changes)  # names from NAMES only
-    conn.execute(f"UPDATE page SET {sets} WHERE id = ?", (*changes.values(), page_id))
+    merged = read(conn, page_id) | changes
+    if all(v is None for v in merged.values()):
+        conn.execute("DELETE FROM page_todo WHERE page_id = ?", (page_id,))
+        return
+    conn.execute(
+        "INSERT INTO page_todo (page_id, due, priority, snoozed_until)"
+        " VALUES (?, ?, ?, ?) ON CONFLICT (page_id) DO UPDATE SET"
+        " due = excluded.due, priority = excluded.priority,"
+        " snoozed_until = excluded.snoozed_until",
+        (page_id, *(merged[n] for n in NAMES)),
+    )
