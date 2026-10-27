@@ -58,6 +58,30 @@ flowchart LR
   peers on the `http` port, or nothing when the list is empty. The ServiceAccount does not mount
   its token (`automountServiceAccountToken: false`).
 
+## Chart defaults leave the cluster open
+
+The chart's defaults favour a first install that works over safe-by-default: `mcp.tokenSecret`
+is empty, so `/mcp` needs no token, and `networkPolicy.enabled` is `false`, so any pod in the
+cluster can reach the whole API and `/mcp` and send any identity header. (The `Host` and
+`Origin` checks stop other web pages, not other pods.) Where other workloads share the cluster,
+set:
+
+```yaml
+mcp:
+  tokenSecret:
+    name: scrap-mcp-token      # an existing Secret; the key holds the bearer token
+    key: SCRAP_MCP_TOKEN
+networkPolicy:
+  enabled: true
+  from:                        # only the proxy that fronts scrap
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: tailscale
+```
+
+and set `SCRAP_PUBLIC_URL` to the address you reach scrap at. The token guards `/mcp` only; the
+NetworkPolicy is what keeps other pods off the API. See [](../../how-to/deploy-kubernetes.md).
+
 ## Identity is attribution, not the gate
 
 - `author` is the request header named by `SCRAP_IDENTITY_HEADER` (default `Tailscale-User-Login`).
@@ -68,6 +92,11 @@ flowchart LR
   (pages `made_by` `claude`) and `is:claude-edited` (text revisions from source `mcp`) find them.
   A web request is always source `web`, and a header value of `claude` counts as no header, so
   no request can pass for Claude ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)).
+- The header is trusted as sent. scrap does not check that the proxy set it, so a client that
+  reaches scrap by any other path (a port-forward, a NodePort, another pod in the cluster, an
+  ingress that does not strip it) chooses its own author name. It can name nobody as Claude, but
+  the attribution is then worthless. Strip the header at every ingress that is not the identity
+  proxy, and make the proxy the only way in.
 - The ACL is the gate. Tagged servers, such as any internet-facing box, must not be granted access
   to the scrap device ([ADR 0007](../decisions/0007-tailscale-serve-for-access-and-identity.md)).
 
@@ -200,6 +229,13 @@ flowchart TD
   change, with `dry_run` available.
 - **Holds.** The database, files and the Claude API key; no cluster or git credentials and no shell
   tools.
+- **The content-edit tradeoff.** `SCRAP_MCP_CONTENT_EDIT` is on by default, so an MCP client
+  holds `edit_page`, `revert`, bulk `edit_meta` and `trash_pages` next to `read`. A page you
+  captured (a web clip, an imported note) may contain text written to talk a model into using
+  them, and the only defence is the instruction not to act on page text, which a model can
+  still fail. The damage is bounded: every edit is a revision, `revert` undoes it, and
+  trashed pages stay recoverable for 30 days. If you read pages you do not trust in a session
+  with these tools, set `SCRAP_MCP_CONTENT_EDIT=0` (the edit tools are then not listed at all).
 - **Reading is not acting.** A session that holds cluster or other powerful credentials should not
   mount the scrap MCP server, since pages may contain injected text.
 

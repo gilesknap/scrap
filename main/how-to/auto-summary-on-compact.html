@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Post a summary to scrap when Claude Code compacts &#8212; scrap 0.14.1.dev12+g5971e11a8 documentation</title>
+    <title>Post a summary to scrap when Claude Code compacts &#8212; scrap 0.14.1.dev13+g9302c9394 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4511822c"></script>
+    <script src="../_static/documentation_options.js?v=3633b618"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -562,9 +562,15 @@ project):</p>
 </div>
 </li>
 </ol>
-<p>The headless call runs with <code class="docutils literal notranslate"><span class="pre">--allowedTools</span></code> limited to the four scrap tools and
-<code class="docutils literal notranslate"><span class="pre">--permission-mode</span> <span class="pre">dontAsk</span></code>, so it asks for nothing and can do nothing else. It does need your
-Claude Code login and the scrap server to be reachable.</p>
+<p>The headless call runs with <code class="docutils literal notranslate"><span class="pre">--permission-mode</span> <span class="pre">dontAsk</span></code>, <code class="docutils literal notranslate"><span class="pre">--allowedTools</span></code> limited to the four scrap
+tools (tags, search, read, write), <code class="docutils literal notranslate"><span class="pre">--tools</span> <span class="pre">&quot;&quot;</span></code> (no built-in tool at all: no Bash, Edit or web
+fetch) and <code class="docutils literal notranslate"><span class="pre">--disallowedTools</span></code> for the scrap tools that edit or trash pages. The last two matter
+because <code class="docutils literal notranslate"><span class="pre">--allowedTools</span></code> only approves tools: an allow rule in your own <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> (say
+<code class="docutils literal notranslate"><span class="pre">Bash(git:*)</span></code>) would still apply in the child, and the dialogue it reads can hold text from web pages
+or files. <code class="docutils literal notranslate"><span class="pre">--tools</span></code> and <code class="docutils literal notranslate"><span class="pre">--disallowedTools</span></code> are not widened by your settings. MCP tools of
+<em>other</em> servers that your settings allow stay available to it; keep broad <code class="docutils literal notranslate"><span class="pre">mcp__*</span></code> allow rules out of
+a setup where you do not trust what you read. It does need your Claude Code login and the scrap server
+to be reachable.</p>
 </section>
 <section id="try-it-without-compacting">
 <h2>Try it without compacting<a class="headerlink" href="#try-it-without-compacting" title="Link to this heading">#</a></h2>
