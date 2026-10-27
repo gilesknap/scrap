@@ -637,3 +637,23 @@ def test_enrichment_gets_a_turn_between_two_file_jobs(store, monkeypatch):
     assert worker.step() and turns == []  # a file
     assert worker.step() and turns == [1]  # enrich's turn, not the second file
     assert worker.step() and turns == [1]  # the second file
+
+
+def test_a_human_edited_reading_is_not_copied_to_another_capture(store, conn):
+    data = pdf("original words")
+    attach(store, data)
+    run(store)
+    conn.execute("UPDATE derived SET superseded_at = '2026-01-01T00:00:00.000Z'")
+    sha = conn.execute("SELECT source_sha256 FROM derived").fetchone()[0]
+    conn.execute(
+        "INSERT INTO derived (capture_id, source_sha256, kind, version, producer,"
+        " author, text, data, created_at) SELECT capture_id, source_sha256, 'ocr', 2,"
+        " producer, 'me', 'edited words', data, created_at FROM derived"
+    )
+    conn.commit()
+    attach(store, data)
+    run(store)
+    texts = [r[0] for r in conn.execute(
+        "SELECT text FROM derived WHERE author IS NULL AND superseded_at IS NULL"
+    )]  # fmt: skip
+    assert sha and texts == ["original words"]

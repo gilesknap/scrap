@@ -103,7 +103,6 @@ class Worker:
                     (now(), job),
                 )
         files.stop_children()  # after the give-back: a killed read then changes nothing
-        files.stop_children()  # after the give-back: a killed read then changes nothing
 
     def run(self) -> None:
         while not self._stop.is_set():

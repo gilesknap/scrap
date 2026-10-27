@@ -173,7 +173,9 @@ over MCP: `read` gives its text.
   memory cap (`memory: ...`). The job is `dead` at once, with that reason: the same file fails the
   same way again, so there are no retries. A failure that may pass (the child not starting, disk
   full: an `OSError`, `internal: ...`; or a `timeout: ...`, as under load) is charged and retried
-  after ten minutes, the third killing the job. Any other failure (its file missing) is final.
+  after ten minutes, the third killing the job (a hostile file that times out costs its
+  timeout three times; the file row then says the text couldn't be read this time, not that the
+  file is bad). Any other failure (its file missing) is final.
   The file stays stored and attached; **Reprocess** (the Retry) queues it
   again. A file attached before scrap read files was never queued: **Reprocess** queues it.
 - **Parsed once.** A file whose current text was read by the same reader (same hash, same

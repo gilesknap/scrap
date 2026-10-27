@@ -183,7 +183,8 @@ def _known(conn: sqlite3.Connection, sha: str, kind: str) -> sqlite3.Row | None:
     """The current reading of this file by this reader, from any capture of it."""
     return conn.execute(
         "SELECT text, data FROM derived WHERE source_sha256 = ? AND kind = 'ocr'"
-        " AND producer = ? AND superseded_at IS NULL AND json_valid(data)"
+        " AND author IS NULL AND run_id IS NULL AND producer = ?"
+        " AND superseded_at IS NULL AND json_valid(data)"
         " AND json_extract(data, '$.kind') = ? ORDER BY id DESC LIMIT 1",
         (sha, producer_of(kind), kind),
     ).fetchone()
