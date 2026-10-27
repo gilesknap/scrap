@@ -11,3 +11,11 @@ Notes for Claude Code working in this repo. See `.github/CONTRIBUTING.md` for se
 - A pure refactor moves code verbatim: no logic edits, no renames. Keep it in its own PR, and check it with an `ast` comparison of the old and new definitions.
 - Patch a name where it is looked up (the submodule that reads it), not on the package re-export.
 - CSS order is the cascade: when splitting `web/src/style.css`, keep the files imported in their original order.
+
+## Migrations
+
+- `src/scrap/migrations/baseline.sql` is the schema at `db.BASELINE` (18). It is generated (`uv run python -m scrap.store.baseline`), never edited by hand.
+- A schema change is a new numbered script after the baseline, `0019_*.sql` onward, numbered by merge order: no gaps, never reserve a number. The file name's number is `BASELINE + 1 + position` (a test enforces it).
+- Then review the schema diff and refreeze the head snapshot: `uv run python -m scrap.store.baseline --snapshot`. `tests/test_baseline.py` fails without it.
+- Plain SQL; avoid rebuilding a table in Python unless a `CHECK` must change. Folding scripts into a new baseline is rare and deliberate (`--fold`).
+- The runner refuses a database below the baseline. See ADR 37.

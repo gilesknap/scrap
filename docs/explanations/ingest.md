@@ -297,7 +297,7 @@ A `model_run` row is one call: the system prompt, messages and parameters in `re
 as blob references, never base64), the content blocks exactly as returned in `response` (thinking
 blocks and signatures included), the sanitised `output` with its warnings, `usage`,
 `cost_microusd`, `status` and `error_class`. A run cannot be deleted while a version uses it.
-The schema is in [`0002_ingest.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0002_ingest.sql).
+The schema is in [`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql).
 
 A conversation (not built yet) would continue run *R* by sending *R*'s system prompt and
 messages, *R*'s `response` unchanged as the assistant turn, and a new user turn, on *R*'s model.
@@ -308,7 +308,7 @@ it, and Claude's own additions (summary, tags, related pages, a board's write-up
 
 ## Derived results and versions
 
-Migration 0002 creates `derived`, which holds results as versions:
+The baseline's `derived` table, which holds results as versions:
 
 - One current row (`superseded_at IS NULL`, a partial unique index) per `(capture, photo, kind)`;
   inserting one supersedes the old (a trigger). Rows never change otherwise (more triggers);
@@ -560,7 +560,7 @@ daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per pag
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page's text, except that a confident list of actions gets task boxes appended
 ({ref}`ingest-actions`). The schema is in
-[`0009_enrich.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/0009_enrich.sql).
+[`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql).
 
 What queues an enrich job, and what follows it:
 

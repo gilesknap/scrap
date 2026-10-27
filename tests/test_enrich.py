@@ -4,7 +4,6 @@
 import io
 import json
 import re
-import sqlite3
 import time
 from contextlib import closing
 from typing import Any
@@ -12,7 +11,6 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from old_schema import undo_0018
 from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
@@ -23,8 +21,6 @@ from scrap.store import (
     MCP,
     Store,
     connect,
-    fixes,
-    migrations,
     new_ulid,
     now,
     queue_related,
@@ -247,38 +243,6 @@ def test_with_enrich_off_no_related_call_is_queued(store, monkeypatch):
         conn.execute("DELETE FROM enrich_job")
         queue_related(conn, ref["page_id"])
         assert conn.execute("SELECT count(*) FROM enrich_job").fetchone()[0] == 0
-
-
-def test_migration_11_keeps_enrich_jobs_and_their_runs(store):
-    """A database from before 'related' jobs: enrich_job rebuilt, nothing lost."""
-    ref = capture(store, "a note")
-    run_all(worker(store, Fake(answer())))
-    with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
-        undo_0018(conn)
-        conn.executescript(
-            "BEGIN; DELETE FROM enrich_run WHERE job_id = 2;"
-            " DELETE FROM enrich_job WHERE reason = 'related';"
-            " CREATE TABLE old AS SELECT * FROM enrich_job;"
-            " DROP TABLE enrich_job;"
-            + fixes.ENRICH_JOB.format(name="enrich_job").replace(
-                ",\n                                                'related'", ""
-            )
-            + "; INSERT INTO enrich_job SELECT * FROM old; DROP TABLE old;"
-            " PRAGMA user_version = 10; COMMIT;"
-        )
-        sql = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'enrich_job'")
-        assert "'related'" not in sql.fetchone()[0]
-    before = jobs(store)
-    store.migrate()
-    assert jobs(store) == before
-    with closing(connect(store.db)) as conn:
-        runs = [tuple(r) for r in conn.execute(
-            "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
-            " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip
-        assert runs == [(1, "capture")]
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        queue_related(conn, ref["page_id"])  # the new reason is taken
-    assert jobs(store) == [*before, ("related", "queued", 0)]
 
 
 def test_a_failed_related_call_on_ask_charges_the_job(store):

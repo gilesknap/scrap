@@ -16,14 +16,11 @@ from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from PIL import Image
 
-from old_schema import undo_0018
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
     Store,
     connect,
-    fixes,
-    migrations,
     model_summary,
     new_ulid,
     now,
@@ -451,43 +448,6 @@ def test_write_up_links_show_in_related_both_ways(store):
 
 
 # ---- the migration
-
-
-def test_migration_12_on_a_v11_database_keeps_jobs_and_runs(store):
-    """A database as 0.6.0 left it: no write-up tables, no 'writeup' reason."""
-    note(store, "a note")
-    run_all(store, Fake())
-    with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
-        undo_0018(conn)
-        conn.executescript(
-            "BEGIN; DROP TABLE writeup; DROP TABLE writeup_guidance;"
-            " CREATE TABLE old AS SELECT * FROM enrich_job; DROP TABLE enrich_job;"
-            + fixes.ENRICH_JOB.format(name="enrich_job").replace(", 'writeup'", "")
-            + "; INSERT INTO enrich_job SELECT * FROM old; DROP TABLE old;"
-            + fixes.ENRICH_JOB_INDEXES
-            + " PRAGMA user_version = 11; COMMIT;"
-        )
-        sql = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'enrich_job'")
-        assert "'writeup'" not in sql.fetchone()[0]
-    before = jobs(store)
-    store.migrate()
-    assert jobs(store) == before
-    with closing(connect(store.db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert len(migrations()) >= 14
-        runs = [tuple(r) for r in conn.execute(
-            "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
-            " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip
-        assert runs == [(1, "capture"), (2, "related")]
-        fixes.add_writeups(conn)  # again: nothing to do
-        page_id = conn.execute("SELECT id FROM page").fetchone()[0]
-        conn.execute("DELETE FROM enrich_job")
-        conn.execute(  # the new reason is taken, and the tables are there
-            "INSERT INTO enrich_job (page_id, reason, run_after, created_at,"
-            " updated_at) VALUES (?, 'writeup', '', '', '')",
-            (page_id,),
-        )
-        assert writeups.versions(conn, page_id) == []
 
 
 # ---- the CLI, the API and MCP

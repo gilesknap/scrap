@@ -88,8 +88,7 @@ flowchart TD
     end
     DER["Photo ingest<br/>derived row"] -->|"trigger derived_index"| CD["chunk with derived_id"]
     CD --> TR
-    MIG["Migration 3, 4"] -->|"AFTER hook: index_all"| IP
-    MIG -->|"3: drop and recreate FTS"| FTS
+    MIG["Baseline / a migration"] -->|"rebuild"| FTS
 
     classDef store fill:#e8f1ff,stroke:#4a7bd0;
     classDef claude fill:#fff3e0,stroke:#e08a00;
@@ -107,11 +106,9 @@ flowchart TD
 - **Photo text.** What ingest read (description, OCR) is its own chunk, made by a trigger when the
   `derived` row is inserted and removed when it is superseded. It fills only the text column. A
   PDF's or text file's text, which scrap reads itself ({ref}`ingest-files`), is such a chunk too.
-- **Disposable.** There is no `reindex` command. A numbered migration whose Python step
-  (`AFTER` in `store/db.py`) calls `index_all` rebuilds every page's own chunk, trash included
-  (undo brings a page back). Migration 3 added the title, tags and summary columns by dropping
-  and recreating `chunk_fts` and its triggers; 4 only re-indexed for markdown-aware text; 10
-  re-indexed pages whose tags it normalised (empty path segments removed).
+- **Disposable.** There is no `reindex` command. `index_all` rebuilds every page's own chunk,
+  trash included (undo brings a page back); a migration that changes what is indexed calls it, as
+  the migrations before the 1.0 baseline did (they are folded into `baseline.sql`, [ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)).
 
 ## Store health as search
 

@@ -19,7 +19,7 @@ from PIL import Image
 from scrap import claude, ingest
 from scrap.app import create_app
 from scrap.ingest import FAR, charge, claim, pause, put_derived, recover, resume
-from scrap.store import ENQUEUE, Store, connect, migrations, new_ulid, transaction
+from scrap.store import ENQUEUE, Store, connect, new_ulid, transaction
 
 T0 = datetime(2099, 1, 1, tzinfo=UTC)  # after the jobs the tests make
 
@@ -91,21 +91,6 @@ def outcome(conn, j, cls, stamp):
 
 
 # ---- migration
-
-
-def test_0002_applies_on_a_version_1_database(tmp_path):
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        conn.executescript(f"BEGIN; {migrations()[0]} PRAGMA user_version = 1; COMMIT;")
-        conn.execute("INSERT INTO page (id, slug, title, created_at, updated_at)"
-                     " VALUES ('P', 'p', 't', 'x', 'x')")  # fmt: skip
-        conn.execute("INSERT INTO chunk (page_id, ord, text) VALUES ('P', 0, 'old')")
-    Store(tmp_path).migrate()
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert conn.execute("SELECT derived_id FROM chunk").fetchone()[0] is None
-        assert conn.execute("SELECT count(*) FROM queue_state").fetchone()[0] == 1
-        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
 
 
 # ---- enqueue

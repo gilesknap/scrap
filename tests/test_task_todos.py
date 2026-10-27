@@ -5,9 +5,8 @@ from contextlib import closing
 
 import pytest
 
-from old_schema import undo_0018
 from scrap.markdown import tasks
-from scrap.store import Store, connect, migrations
+from scrap.store import Store, connect
 from test_mcp import ok
 
 BOXES = "Packing\n\n- [ ] socks\n- [x] passport\n- [ ] charger"
@@ -120,52 +119,6 @@ def test_mcp_read_and_append_count_them(store):
     assert read["tasks"] == {"done": 1, "total": 3}
 
 
-def test_migration_7_counts_again_what_an_older_scrap_left(tmp_path):
-    Store(tmp_path).migrate()
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        conn.execute(
-            "INSERT INTO page (id, slug, title, body, kind, fields, created_at,"
-            " updated_at) VALUES ('A', 'a', 'T', ?, 'note', '{}', 'x', 'x')",
-            (BOXES,),
-        )  # as an older scrap writes it: no counts
-        undo_0018(conn)
-        conn.execute("PRAGMA user_version = 6")
-    Store(tmp_path).migrate()
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        row = conn.execute("SELECT task_done, task_total FROM page WHERE id = 'A'")
-        assert tuple(row.fetchone()) == (1, 3)
-
-
-def test_migration_7_upgrades_a_version_6_scrap(tmp_path, monkeypatch):
-    import scrap.store.db as store_module
-
-    every = migrations()
-    monkeypatch.setattr(store_module, "migrations", lambda: every[:6])
-    Store(tmp_path).migrate()  # a scrap as version 6 made it: no count columns
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 6
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(page)")}
-        assert not {"task_done", "task_total"} & columns
-        conn.execute(
-            "INSERT INTO page (id, slug, title, body, kind, fields, created_at,"
-            " updated_at) VALUES ('A', 'a', 'T', ?, 'note', '{}', 'x', 'x'),"
-            " ('B', 'b', 'U', 'no boxes', 'note', '{}', 'x', 'x')",
-            (BOXES,),
-        )
-    monkeypatch.setattr(store_module, "migrations", lambda: every)
-    Store(tmp_path).migrate()
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(every)
-        rows = conn.execute(
-            "SELECT id, task_done, task_total, kind FROM page ORDER BY id"
-        )
-        # counted, and nothing refiled: migrating changes no page's kind or status
-        assert [tuple(r) for r in rows] == [("A", 1, 3, "note"), ("B", 0, 0, "note")]
-
-
 def test_a_status_set_with_the_body_wins_over_its_boxes(client, note):
     ref = note(BOXES)
     url = f"/api/pages/{ref['page_id']}"
@@ -192,31 +145,27 @@ def test_filed_a_todo_by_hand_with_every_box_ticked_is_done(client, note):
     assert (page["kind"], page["fields"]["status"]) == ("todo", "done")
 
 
-def test_a_migrated_note_with_every_box_ticked_is_filed_done(tmp_path, monkeypatch):
-    """A version 6 note whose boxes are all ticked is counted 3 of 3 by migration 7;
-    its next edit files it as a todo, done, as a new capture of its text would be
-    (not open: its boxes were a note's, not a todo's)."""
-    import scrap.store.db as store_module
-
-    every = migrations()
-    monkeypatch.setattr(store_module, "migrations", lambda: every[:6])
+def test_a_note_with_every_box_ticked_is_filed_done(tmp_path):
+    """A note whose boxes are all ticked is counted 3 of 3; its next edit files it as a
+    todo, done, as a new capture of its text would be (not open: its boxes were a
+    note's, not a todo's)."""
+    ticked = BOXES.replace("[ ]", "[x]")
     data = tmp_path / "data"
     Store(data).migrate()
     with closing(connect(data / "scrap.db")) as conn:
         conn.execute(
-            "INSERT INTO page (id, slug, title, body, kind, fields, created_at,"
-            " updated_at) VALUES ('A', 'a', 'T', ?, 'note', '{}', 'x', 'x')",
-            (BOXES.replace("[ ]", "[x]"),),
+            "INSERT INTO page (id, slug, title, body, kind, fields, task_done,"
+            " task_total, created_at, updated_at)"
+            " VALUES ('A', 'a', 'T', ?, 'note', '{}', 3, 3, 'x', 'x')",
+            (ticked,),
         )
         conn.execute(
-            "INSERT INTO page_rev VALUES ('A', 1, 'T', ?, 'pwa', 'x')",
-            (BOXES.replace("[ ]", "[x]"),),
+            "INSERT INTO page_rev (page_id, rev, title, body, author, source,"
+            " created_at)"
+            " VALUES ('A', 1, 'T', ?, 'me', 'web', 'x')",
+            (ticked,),
         )
-    monkeypatch.setattr(store_module, "migrations", lambda: every)
     store = Store(data)
-    store.migrate()
     assert store.page("A")["tasks"] == {"done": 3, "total": 3}
-    page = store.update_page(
-        "A", 1, None, BOXES.replace("[ ]", "[x]") + "\n\nA typo fixed", "pwa"
-    )
+    page = store.update_page("A", 1, None, ticked + "\n\nA typo fixed", "pwa")
     assert (page["kind"], page["fields"]["status"]) == ("todo", "done")

@@ -512,7 +512,9 @@ scrap does not start (`journalctl --user -u scrap -e` says why).
 
 Migrations are **forward only**, and an older scrap refuses a database that a newer one has
 migrated: it stops with `<db> has schema N; this scrap knows M`. So starting the old image again
-is not a rollback. Take a restore point before you update, and keep the old image to go back to:
+is not a rollback. The reverse is refused too: scrap 1.0 starts from schema 18 and refuses a
+database or a backup below it, saying `upgrade with scrap 0.16.x first (it migrates to schema 18),
+then use 1.0`. Update to 0.16.x, let it migrate, then update to 1.0. Take a restore point before you update, and keep the old image to go back to:
 
 ```
 systemctl --user start scrap-backup                       # returns when the backup is done

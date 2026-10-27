@@ -1,7 +1,6 @@
 """Search (#84): the query syntax, ranking, filters, facets, tags and the reindex."""
 
 import time
-from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -12,9 +11,6 @@ from scrap.query import SORTS, Filter, Term, bound, due, parse
 from scrap.store import (
     SORT_SQL,
     Store,
-    connect,
-    fix_tag_paths,
-    migrations,
     new_ulid,
     slug_base,
 )
@@ -227,30 +223,6 @@ def test_tag_and_summary_changes_reach_the_index(store):
     assert slugs(store, "zebra") == [slug]
     store.update_page(slug, None, None, None, "me", fields={"summary": None})
     assert slugs(store, "zebra") == []
-
-
-def test_migration_3_reindexes_existing_pages(tmp_path):
-    """A database from before 0003: its pages' title, tags and summary are indexed."""
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        script = "".join(migrations()[:2])
-        conn.executescript(f"BEGIN; {script} PRAGMA user_version = 2; COMMIT;")
-        conn.execute(
-            "INSERT INTO page (id, slug, title, body, fields, created_at, updated_at)"
-            " VALUES ('P', 'p', 'Heading', 'Heading\n\nbody',"
-            " '{\"summary\": \"gist\"}', 'x', 'x')"
-        )
-        conn.execute("INSERT INTO tag VALUES ('P', 'tech/epics')")
-        conn.execute("INSERT INTO chunk (page_id, ord, text) VALUES ('P', 0, 'old')")
-    store = Store(tmp_path)
-    store.migrate()
-    for word in ("epics", "gist", "body", "heading"):
-        assert slugs(store, word) == ["p"]
-    assert slugs(store, "old") == []
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        row = conn.execute("SELECT title, tags, summary FROM chunk").fetchone()
-        assert tuple(row) == ("Heading", "tech/epics", "gist")
 
 
 def test_every_word_is_a_prefix_wherever_filters_stand(store):
@@ -530,34 +502,6 @@ def test_empty_tag_segments_are_normalised_on_write(store):
     assert slugs(store, "tag:/") == [] and slugs(store, "tag://") == []
     assert slugs(store, "tag:a/b") == [store.recent(1)[0]["slug"]]
     assert len(slugs(store, "-tag:/")) == 1
-
-
-def test_migration_10_cleans_existing_tags(tmp_path):
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        script = "".join(migrations()[:2])
-        conn.executescript(f"BEGIN; {script} PRAGMA user_version = 2; COMMIT;")
-        for pid in ("P", "Q"):
-            conn.execute(
-                "INSERT INTO page (id, slug, title, body, fields, created_at,"
-                f" updated_at) VALUES ('{pid}', '{pid.lower()}', 'T', 'b', '{{}}',"
-                " 'x', 'x')"
-            )
-        for pid, tag in (("P", "a//b"), ("P", "a/b"), ("P", "trail/"), ("P", "ok"),
-                         ("Q", "/"), ("Q", "/lead")):  # fmt: skip
-            conn.execute("INSERT INTO tag VALUES (?, ?)", (pid, tag))
-    store = Store(tmp_path)
-    store.migrate()
-    with closing(connect(db)) as conn:
-        got = conn.execute("SELECT page_id, tag FROM tag ORDER BY 1, 2").fetchall()
-        assert [tuple(r) for r in got] == [
-            ("P", "a/b"), ("P", "ok"), ("P", "trail"), ("Q", "lead"),
-        ]  # fmt: skip
-        conn.execute("INSERT INTO model_tag VALUES ('P', '/m', 'on', 'x', 'x')")
-        fix_tag_paths(conn)  # the model's tags too
-        assert conn.execute("SELECT tag FROM model_tag").fetchone()[0] == "m"
-    assert [t[0] for t in store.tags()] == ["a", "a/b", "lead", "ok", "trail"]
-    assert slugs(store, "lead") == ["q"]
 
 
 def test_equally_ranked_hits_keep_one_order_for_paging(store):
