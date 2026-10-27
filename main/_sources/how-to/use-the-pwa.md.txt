@@ -221,7 +221,9 @@ The app opens without a connection. Anything that reads from or writes to the se
   or Ctrl/Cmd-click or middle-click (computer) to open in a new tab. A page opened that way has
   no pager. An unknown address shows *Not found*.
 - **Kind display.** A list row shows the kind by icon (checklist for a todo, bookmark for Later). A
-  page shows it as a chip with its status: *Todo · open*, *Later · done*, *Note*.
+  page shows it under the title as the kind's icon and word in bold (*Todo*, *Later*, *Note*),
+  then the rest of its meta line in grey: a Later's medium and verb (*TV · to watch*), a status
+  other than open (*in progress*, *done*), a snooze and the task count. Its dates come after.
 - **Pager.** A page opened from a list or search shows its place at the right of the top bar
   (*3 of 23*) with **∧** previous and **∨** next. Swipe left for next, right for previous, or use
   the arrows. Swipes start away from the screen edges, and are ignored on sideways-scrolling text,
@@ -337,9 +339,9 @@ their own ([](../reference/scheduled-jobs.md)).
 
 ## Tags
 
-- **On a page.** Tags are in one line under the title, most used first (swipe for more). Tap one to
-  search for it; a tag Claude added is marked. **Tags** (or **Add tags**), first in the line, edits
-  in place: tap a tag's ✕ to remove it; type one and press Enter or a comma to add it, or tap one
+- **On a page.** Tags are in a row of chips under the title and its meta lines, wrapping if there
+  are many. Tap one to search for it; a tag Claude added is marked. The **+** after the last tag
+  (**Change tags**; **+ Tag** when the page has none) edits them in place: tap a tag's ✕ to remove it; type one and press Enter or a comma to add it, or tap one
   of the tags offered under the box (the six most used, or those in use that match what you type);
   then **Save**. Text still in the box when you save counts too. Needs the server.
 - **Rules.** Lower case, no leading `#`, at most 64 characters each and 64 per page (the box says
@@ -361,10 +363,10 @@ their own ([](../reference/scheduled-jobs.md)).
   `status`, see [](../reference/api.md)) or by Claude over MCP ([](../reference/mcp.md)), and the
   app shows them.
 - **Due date and priority.** A todo may have a due date and a priority (high, medium, low). A
-  page shows them in a line under its tags (*high · due 3 Nov*, or **Add due date**): tap it to
+  page shows them in its first chip, before the tags (*3 Nov · high*, or **Add due date**): tap it to
   pick a date (**Today**, **Tomorrow**, **Next week**, **No date** clears), and a priority, then
   **Save**. **Edit** has the same two. Rows show them; a todo due before today and not done says
-  *overdue* in red. They belong to todos only: a page made a note keeps them, hidden. Neither is a
+  *overdue* in red (that one word, the only red on the page). They belong to todos only: a page made a note keeps them, hidden. Neither is a
   revision nor moves the page. Today is your phone's day on rows and pages, the server's for `due:`
   searches.
 - **Task lists drive a todo.** A note with task boxes (`- [ ]`) becomes a todo when saved (done if
