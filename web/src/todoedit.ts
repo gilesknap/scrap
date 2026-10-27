@@ -1,6 +1,6 @@
-// A todo's due date and priority (#104): a native date picker (No date empties it, and Today,
-// Tomorrow and Next week set it in one tap) and a menu of priorities; on its page also Snooze
-// until (a date, No snooze empties it). In place on a
+// A todo's due date and priority (#104): one row of chips (No date empties it, Today,
+// Tomorrow and Next week set it in one tap), a native date picker for any other day, and a menu
+// of priorities; on its page also Snooze (No snooze, Tomorrow, Next week, and a date). In place on a
 // todo's page (todoForm: Save sends them, no new revision) and in the editor (todoField, sent
 // with the page). A chunk of its own: the page's due line and the
 // editor load it.
@@ -30,26 +30,24 @@ const SOON: [string, number][] = [
   ["Next week", 7],
 ];
 
-/** Chips that set date in one tap (Today, Tomorrow, Next week: days on), each as if picked;
- * the one matching the date now set is pressed. A group named name. */
-function soon(date: HTMLInputElement, days: [string, number][], name: string) {
-  const chips = days.map(([label, n]) =>
-    h(
-      "button",
-      {
-        type: "button",
-        className: "facet",
-        onclick: () => {
-          date.value = inDays(n);
-          date.dispatchEvent(new Event("input", { bubbles: true }));
-        },
-      },
-      label,
-    ),
-  );
+/** A day's chips, in one row: one that empties it (No date, No snooze), then those that set
+ * it in one tap (Today, Tomorrow, Next week: days on), each as if picked; the one matching
+ * the day now set is pressed (the emptying one while there is none). A group named name. */
+function soon(date: HTMLInputElement, none: string, days: [string, number][], name: string) {
+  const set = (v: string) => {
+    date.value = v;
+    date.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const chip = (label: string, onclick: () => void) =>
+    h("button", { type: "button", className: "facet", onclick }, label);
+  const chips = [
+    chip(none, () => set("")),
+    ...days.map(([label, n]) => chip(label, () => set(inDays(n)))),
+  ];
   const mark = () =>
     chips.forEach((c, i) => {
-      c.setAttribute("aria-pressed", String(!!date.value && date.value === inDays(days[i][1])));
+      const on = i ? !!date.value && date.value === inDays(days[i - 1][1]) : !date.value;
+      c.setAttribute("aria-pressed", String(on));
     });
   date.addEventListener("input", mark);
   return {
@@ -58,35 +56,23 @@ function soon(date: HTMLInputElement, days: [string, number][], name: string) {
   };
 }
 
-/** A day field: a native date picker and a chip that empties it (a chip, as Today and
- * Tomorrow are, so it reads as a button). Each change is an input event (the editor keeps a
- * draft). */
-function dayField(label: string, none: string) {
-  const date = h("input", { type: "date", min: "0001-01-01", max: "9999-12-31" });
-  const clear = h(
-    "button",
-    {
-      type: "button",
-      className: "facet",
-      onclick: () => {
-        date.value = "";
-        date.dispatchEvent(new Event("input", { bubbles: true }));
-      },
-    },
-    none,
-  );
-  return { date, els: [h("label", {}, label, date), clear] };
-}
+/** A day field: a native date picker for any other day (each change an input event: the
+ * editor keeps a draft), named name. */
+const dayField = (name: string) =>
+  h("input", { type: "date", min: "0001-01-01", max: "9999-12-31", "aria-label": name });
 
-/** A todo's due date and priority; with snooze (a day, or null), its snooze too. */
+/** A small uppercase heading over its controls, as the Filters panel's rows have. */
+const heading = (text: string) => h("span", { className: "flabel", "aria-hidden": "true" }, text);
+
+/** A todo's due date and priority; with snooze (a day, or null), its snooze too: that is the
+ * page's own form, which says Due over its chips (in the editor its fold says it already). */
 export function todoField(
   due: string | null = null,
   priority: string | null = null,
   snooze?: string | null,
 ) {
-  const day = dayField("Due", "No date");
-  const date = day.date;
-  const chips = soon(date, SOON, "Due soon");
+  const date = dayField("Due");
+  const chips = soon(date, "No date", SOON, "Due soon");
   const rank = h(
     "select",
     { "aria-label": "Priority" },
@@ -94,23 +80,27 @@ export function todoField(
     ...PRIORITIES.map((p) => h("option", { value: p }, `${p[0].toUpperCase()}${p.slice(1)}`)),
   );
   // Snooze: out of Now (and the Todos tab's count) until that day
-  const nap = snooze === undefined ? null : dayField("Snooze until", "No snooze");
-  const naps = nap && soon(nap.date, SOON.slice(1), "Snooze for");
+  const nap = snooze === undefined ? null : dayField("Snooze until");
+  const naps = nap && soon(nap, "No snooze", SOON.slice(1), "Snooze for");
   const reset = (d: string | null, p: string | null, z: string | null = null) => {
     date.value = d ?? "";
     rank.value = p ?? "";
-    if (nap) nap.date.value = z ?? "";
+    if (nap) nap.value = z ?? "";
     chips.mark();
     naps?.mark();
   };
   reset(due, priority, snooze);
+  // Each part under its heading, every row on one left edge: the chips, then the date
+  // picker for any other day; then Priority; then (on the page) Snooze
   const el = h(
     "div",
     { className: "todoedit" },
-    ...day.els,
+    nap && heading("Due"),
     chips.el,
-    h("label", {}, "Priority", rank),
-    ...(nap && naps ? [h("span", { className: "break" }), ...nap.els, naps.el] : []),
+    date,
+    heading("Priority"),
+    rank,
+    ...(nap && naps ? [heading("Snooze"), naps.el, nap] : []),
   );
   return {
     el,
@@ -119,7 +109,7 @@ export function todoField(
     value: () => ({
       due: date.value || null,
       priority: rank.value || null,
-      ...(nap && { snoozed_until: nap.date.value || null }),
+      ...(nap && { snoozed_until: nap.value || null }),
     }),
     reset,
   };
