@@ -3,10 +3,22 @@
 // device's storage only (scrap.searches), never sent to the server; with no storage there are
 // none, and search works as before. A chunk of its own, loaded with the search screen.
 // Above them, Pinned (pins.ts): the Pinned page's links, a launcher of searches and pages kept
-// on the server. A Recent row has only its ✕: a search is pinned from its results header.
+// on the server; a Recent row's pin adds its search there.
 import { kept } from "./api";
 import { icon } from "./icons";
-import { CHANGED, PINS_PAGE, type Pin, pins } from "./pins";
+import {
+  CHANGED,
+  isPinned,
+  keyOf,
+  nameOf,
+  PINS_PAGE,
+  type Pin,
+  pin,
+  pinIcon,
+  pins,
+  searchHref,
+  unpin,
+} from "./pins";
 import { h } from "./ui";
 
 const KEY = "scrap.searches";
@@ -56,6 +68,7 @@ export function attach(
       slot.replaceChildren();
       return;
     }
+    const keys = new Set(pinned.map((p) => p.key));
     const pick = (q: string) => {
       input.value = q;
       slot.replaceChildren();
@@ -89,6 +102,24 @@ export function attach(
           ),
         ]
       : [];
+    const pinButton = (q: string) => {
+      const key = keyOf(searchHref(q));
+      const on = keys.has(key);
+      return h(
+        "button",
+        {
+          type: "button",
+          className: on ? "ghost forget pin on" : "ghost forget pin",
+          "aria-label": on ? `Unpin ${q}` : `Pin ${q}`,
+          onclick: async () => {
+            if (await isPinned(key)) await unpin(key);
+            else await pin(nameOf(q), searchHref(q));
+            input.focus();
+          },
+        },
+        pinIcon(),
+      );
+    };
     if (!list.length) return slot.replaceChildren(...launcher);
     slot.replaceChildren(
       ...launcher,
@@ -123,6 +154,7 @@ export function attach(
               icon("search"),
               h("span", {}, q),
             ),
+            pinButton(q),
             h(
               "button",
               {

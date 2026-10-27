@@ -41,20 +41,18 @@ const ASK: Record<string, string> = {
   document: "What the document is",
 };
 
-/** Once its upload is over: "Saved", or, refused by the server, "Kept on this phone" (its
- * row says why, with Retry); still going after 10 s, nothing (its waiting row says so). */
-function uploaded(ids: string[]) {
+/** Refused by the server once it tries (within 10 s): a second toast, "Kept on this phone"
+ * (its row says why, with Retry), so a refused capture is never left at "Saved". */
+function refused(ids: string[]) {
   const stop = new AbortController();
   const look = async () => {
     const left = (await queue.items()).filter((i) => ids.includes(i.id));
     if (left.some((i) => i.failed)) toast("Kept on this phone");
-    else if (!left.length) toast("Saved");
-    else return;
-    stop.abort();
+    else if (left.length) return; // still uploading
+    stop.abort(); // refused, or uploaded
   };
   document.addEventListener("queuechange", () => void look(), { signal: stop.signal });
   setTimeout(() => stop.abort(), 10_000);
-  void look();
 }
 
 /** as: a kind chosen before it opens (the Todos screen's New todo, or a search's New for its
@@ -227,8 +225,10 @@ export async function compose(picked: File[], as?: string, resume = false, given
     }
     await close();
     // Offline, Capture's waiting row says it; elsewhere (Todos) only this does
-    if (navigator.onLine) uploaded(ids);
-    else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
+    if (navigator.onLine) {
+      toast("Saved");
+      refused(ids);
+    } else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
   };
   if (!files.length) text.focus();
 }

@@ -75,7 +75,15 @@
   padding: 0;
   color: var(--ink-2);
 }
-.act.on .i path {
+/* A Recent row's pin, beside its ✕: both ghost icons in --ink-2; once pinned, filled in ink
+   (no amber: that is for selection) */
+.list.recents .pin {
+  margin-inline-end: calc(-1 * var(--s-3)); /* pin and ✕ read as a pair */
+}
+.list.recents .pin.on {
+  color: var(--ink);
+}
+:is(.pin, .act).on .i path {
   fill: currentColor;
 }
 /* Pinned, above Recent: the Pinned page's links, drawn as Recent's rows */
