@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.14.1.dev17+gc1b673b0a documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.14.1.dev19+g941911033 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e4379f6"></script>
+    <script src="../_static/documentation_options.js?v=73cc8232"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1132,6 +1132,12 @@ the scheme and, unless it is 443, the port; several addresses can be comma separ
 <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only requests whose <code class="docutils literal notranslate"><span class="pre">Host</span></code> is loopback or one of these, so without it Claude Code
 gets <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> through Tailscale Serve, and the MCP tools return bare paths
 (<code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>) instead of page URLs. See <a class="reference internal" href="connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The web app and API check <code class="docutils literal notranslate"><span class="pre">Host</span></code> too: a <em>name</em> (such as your <code class="docutils literal notranslate"><span class="pre">.ts.net</span></code> address) missing from
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> gets <code class="docutils literal notranslate"><span class="pre">421</span></code> on every page, not just <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Add the address, then restart
+scrap so it reads the setting. <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> answers to any name.</p>
+</div>
 <p>Set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone, for example <code class="docutils literal notranslate"><span class="pre">TZ=Europe/London</span></code>. The server decides what
 “today” means for <code class="docutils literal notranslate"><span class="pre">due:today</span></code> searches (the web UI and the MCP tools alike) from its own clock,
 which is UTC unless <code class="docutils literal notranslate"><span class="pre">TZ</span></code> says otherwise, while the PWA uses the phone’s date, so the two disagree

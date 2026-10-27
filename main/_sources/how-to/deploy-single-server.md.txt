@@ -277,6 +277,12 @@ the scheme and, unless it is 443, the port; several addresses can be comma separ
 gets `421 Invalid Host header` through Tailscale Serve, and the MCP tools return bare paths
 (`/p/<slug>`) instead of page URLs. See [](connect-claude-code.md).
 
+```{warning}
+The web app and API check `Host` too: a *name* (such as your `.ts.net` address) missing from
+`SCRAP_PUBLIC_URL` gets `421` on every page, not just `/mcp`. Add the address, then restart
+scrap so it reads the setting. `/healthz` answers to any name.
+```
+
 Set `TZ` to your own time zone, for example `TZ=Europe/London`. The server decides what
 "today" means for `due:today` searches (the web UI and the MCP tools alike) from its own clock,
 which is UTC unless `TZ` says otherwise, while the PWA uses the phone's date, so the two disagree

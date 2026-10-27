@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.14.1.dev17+gc1b673b0a documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.14.1.dev19+g941911033 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e4379f6"></script>
+    <script src="../_static/documentation_options.js?v=73cc8232"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1478,8 +1478,11 @@ order taken. <strong>Edit</strong> shows each own photo or file as a token (<cod
 stands for; a token you delete or change is no photo any more. Claude reading a photo never
 changes the text.</p></li>
 <li><p>The page shows each photo where its line is, as a server-made preview (HEIC works), with no
-caption. Tap for the viewer. Files it does not show (PDFs) are links with <strong>Download</strong> below the
-text.</p></li>
+caption. Tap for the viewer. Files it does not show (PDFs) are rows below the text: the name
+(tap to open the file), a PDF’s page count once read, and <strong>Download</strong>. scrap reads a PDF’s
+text itself (no model), so search finds it. A scan, a password-protected or unreadable PDF, or
+one over 30 MB is kept and listed but not searchable: its row says <em>Text couldn’t be read; not
+searchable</em>.</p></li>
 <li><p><strong>Viewer.</strong> Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
 drag to pan, swipe (or arrows) for other photos. <strong>Fit</strong>, <strong>100%</strong>, <strong>Download</strong> and <strong>Share</strong>
 are along the bottom; the cross at top right, or Back, closes. <strong>Share</strong> asks <strong>Link</strong> (the
@@ -1499,7 +1502,8 @@ of their own: Claude reads them and search finds what it read, but they never ch
 kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
 their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
 conflict). Offline they wait on the phone (listed as <em>Photo for</em> the page). Photos too big to
-send together go one by one; one over the limit alone is refused.</p></li>
+send together go one by one; one over the limit alone is refused. <strong>Gallery</strong> takes PDFs too:
+they are listed below the text, not put in it, and read for search.</p></li>
 <li><p><strong>Lists.</strong> Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next
 item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
 selection: <strong>Task</strong>, <strong>Bullet</strong>, <strong>Number</strong> (each a plain line again if all are already),

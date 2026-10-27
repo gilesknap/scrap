@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.14.1.dev17+gc1b673b0a documentation</title>
+    <title>Claude ingest &#8212; scrap 0.14.1.dev19+g941911033 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e4379f6"></script>
+    <script src="../_static/documentation_options.js?v=73cc8232"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1277,8 +1277,10 @@ write-up, what automation may change, whether it takes photos) are in <code clas
 <a class="reference internal" href="llm-calls.html#page-roles"><span class="std std-ref">Page roles</span></a> for the table of them.</p>
 <p><strong>Photos added to a page.</strong> The page editor’s <strong>Add photo</strong> (camera or gallery) adds photos to a
 page that exists (not a topic page: its synthesis is its write-up, which a board photo would
-replace), as a photo capture of its own (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/captures</span></code>, images only,
-<code class="docutils literal notranslate"><span class="pre">Store.add_photos</span></code>): its images are stored, each new one’s embed goes to the end of the text as
+replace), as a photo capture of its own (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/captures</span></code>, images and PDFs,
+<code class="docutils literal notranslate"><span class="pre">Store.add_photos</span></code>; the gallery offers PDFs too, which are listed below the text and are read
+for search only: <a class="reference internal" href="#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>; PDFs alone make a file capture, and a batch with an image
+stays a photo capture): its images are stored, each new one’s embed goes to the end of the text as
 it is now, as one text revision (not a save: it queues no enrich, which would run before the
 photos are read), and they are queued and read as any capture’s photos are. No
 revision is checked: appending loses nothing, so a photo that waited on the phone while the page

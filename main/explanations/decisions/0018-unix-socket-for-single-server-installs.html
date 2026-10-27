@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve &#8212; scrap 0.14.1.dev17+gc1b673b0a documentation</title>
+    <title>18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve &#8212; scrap 0.14.1.dev19+g941911033 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=2e4379f6"></script>
+    <script src="../../_static/documentation_options.js?v=73cc8232"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -599,7 +599,10 @@ the tailnet down): captures wait in its offline queue
 <code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">--unix-socket</span></code>. scrap no longer sees a client address at all, so its access log shows
 none (behind pasta it showed the host’s own address anyway).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">/mcp</span></code> keeps its Host and Origin checks: behind Serve, <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> must still be set to
-the Serve address.</p></li>
+the Serve address.
+Update 2026-10-27 (#238, #347): the web app and API now get the same Host and Origin checks
+(not <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>), so a hostname missing from <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> gets <code class="docutils literal notranslate"><span class="pre">421</span></code> everywhere, not only
+on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. See <a class="reference internal" href="../../reference/api.html#host-and-origin"><span class="std std-ref">Host and Origin</span></a>.</p></li>
 </ul>
 </section>
 </section>

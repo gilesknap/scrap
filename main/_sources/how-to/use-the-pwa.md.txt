@@ -464,8 +464,11 @@ scrap and try again*.
   stands for; a token you delete or change is no photo any more. Claude reading a photo never
   changes the text.
 - The page shows each photo where its line is, as a server-made preview (HEIC works), with no
-  caption. Tap for the viewer. Files it does not show (PDFs) are links with **Download** below the
-  text.
+  caption. Tap for the viewer. Files it does not show (PDFs) are rows below the text: the name
+  (tap to open the file), a PDF's page count once read, and **Download**. scrap reads a PDF's
+  text itself (no model), so search finds it. A scan, a password-protected or unreadable PDF, or
+  one over 30 MB is kept and listed but not searchable: its row says *Text couldn't be read; not
+  searchable*.
 - **Viewer.** Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
   drag to pan, swipe (or arrows) for other photos. **Fit**, **100%**, **Download** and **Share**
   are along the bottom; the cross at top right, or Back, closes. **Share** asks **Link** (the
@@ -482,7 +485,8 @@ scrap and try again*.
   kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
   their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
   conflict). Offline they wait on the phone (listed as *Photo for* the page). Photos too big to
-  send together go one by one; one over the limit alone is refused.
+  send together go one by one; one over the limit alone is refused. **Gallery** takes PDFs too:
+  they are listed below the text, not put in it, and read for search.
 - **Lists.** Enter on a bullet (`- `), numbered (`1. `) or task (`- [ ] `) line starts the next
   item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
   selection: **Task**, **Bullet**, **Number** (each a plain line again if all are already),

@@ -347,8 +347,10 @@ write-up, what automation may change, whether it takes photos) are in `store/rol
 
 **Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
 page that exists (not a topic page: its synthesis is its write-up, which a board photo would
-replace), as a photo capture of its own (`POST /api/pages/{id}/captures`, images only,
-`Store.add_photos`): its images are stored, each new one's embed goes to the end of the text as
+replace), as a photo capture of its own (`POST /api/pages/{id}/captures`, images and PDFs,
+`Store.add_photos`; the gallery offers PDFs too, which are listed below the text and are read
+for search only: {ref}`ingest-files`; PDFs alone make a file capture, and a batch with an image
+stays a photo capture): its images are stored, each new one's embed goes to the end of the text as
 it is now, as one text revision (not a save: it queues no enrich, which would run before the
 photos are read), and they are queued and read as any capture's photos are. No
 revision is checked: appending loses nothing, so a photo that waited on the phone while the page

@@ -58,3 +58,6 @@ permissions, which a loopback port is not.
   none (behind pasta it showed the host's own address anyway).
 - `/mcp` keeps its Host and Origin checks: behind Serve, `SCRAP_PUBLIC_URL` must still be set to
   the Serve address.
+  Update 2026-10-27 (#238, #347): the web app and API now get the same Host and Origin checks
+  (not `/healthz`), so a hostname missing from `SCRAP_PUBLIC_URL` gets `421` everywhere, not only
+  on `/mcp`. See [Host and Origin](../../reference/api.md#host-and-origin).

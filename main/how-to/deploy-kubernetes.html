@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.14.1.dev17+gc1b673b0a documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.14.1.dev19+g941911033 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2e4379f6"></script>
+    <script src="../_static/documentation_options.js?v=73cc8232"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1286,6 +1286,12 @@ you reach scrap at:</p>
 </pre></div>
 </div>
 <p>The same address makes the page links the MCP tools return absolute.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The web app and API check <code class="docutils literal notranslate"><span class="pre">Host</span></code> as well: a hostname missing from <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> gets <code class="docutils literal notranslate"><span class="pre">421</span></code>
+on every page, not just <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Set it to the address you reach scrap at (<code class="docutils literal notranslate"><span class="pre">/healthz</span></code>, which the
+probes use, answers to any name), and roll the pod after changing it.</p>
+</div>
 </section>
 <section id="port-forward">
 <h3>Port-forward<a class="headerlink" href="#port-forward" title="Link to this heading">#</a></h3>
