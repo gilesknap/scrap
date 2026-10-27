@@ -7,6 +7,7 @@
 import { ApiError, api } from "../api";
 import { drafts } from "../db";
 import type { Target } from "../drawing";
+import { icon } from "../icons";
 import { saveBlob, shareMade } from "../sharing";
 import { h, toast, when } from "../ui";
 import { elementsOf, board as mount } from "./board";
@@ -50,7 +51,12 @@ export function openDrawing(t: Target, onSaved: () => void) {
     message,
   );
   const notes = h("div", { className: "drawing-notes", "aria-live": "polite" });
-  const close = tool("Close", () => history.back());
+  // A ✕ icon, as the photo viewer's, named for a screen reader
+  const close = tool("", () => history.back(), {
+    className: "close",
+    "aria-label": "Close",
+  });
+  close.append(icon("close"));
   const fit = tool("Fit", () => board?.fit());
   const photoToggle = tool("Photo", () => {
     const on = !layer.classList.contains("photo-on");

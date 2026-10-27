@@ -82,7 +82,7 @@ test("Now ranks open todos: overdue, today, high priority, then the rest", async
   await expect(section("Today").getByText(`${Q} today high`)).toBeVisible();
   // Each row says its priority and due date first; overdue in words (and red)
   const late = page.locator(".list li", { hasText: `${Q} late old` }).locator(".due");
-  await expect(late).toHaveText(/^low · overdue /);
+  await expect(late).toHaveText(/^low\s·\soverdue\s/); // the parts hold their no-break spaces
   await expect(late).toHaveClass("due late");
   // Done: folded away at the end
   const fold = page.locator(".donefold");
@@ -259,7 +259,7 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   expect(await counted()).toBe(false); // the Todos tab's count leaves it out
   await page.goto("/todos");
   // "1 snoozed" links to a search of them (open ones only: is:snoozed skips done ones)
-  const asleep = page.locator(".todos .count a", { hasText: "snoozed" });
+  const asleep = page.locator(".todos .rhead .acts a.snoozed");
   await expect(asleep).toHaveText(/^\d+ snoozed$/);
   await expect(inNow()).toHaveCount(0);
   await asleep.click();
@@ -268,7 +268,7 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   await page.goto("/todos");
   await page.getByText("All", { exact: true }).click();
   const row = page.locator(".list li", { hasText: title });
-  await expect(row.locator(".due")).toHaveText(/^high · overdue .* · snoozed till /);
+  await expect(row.locator(".due")).toHaveText(/^high\s·\soverdue\s.*\s·\ssnoozed\still\s/);
   // Woken by hand: back in Now
   await row.locator("a").click();
   await line.click();
@@ -357,7 +357,7 @@ test("New todo opens the composer on Todo, and the saved todo joins the list", a
   const row = page.locator(".list li", { hasText: title });
   await expect(row.locator("a strong")).toBeVisible();
   await expect(row.getByRole("button", { name: new RegExp(`^Done: ${title}`) })).toBeVisible();
-  await expect(row.locator(".due")).toHaveText(/^high · due /);
+  await expect(row.locator(".due")).toHaveText(/^high\s·\sdue\s/);
   const [hit] = await (await page.request.get(`/api/search?q=${encodeURIComponent(title)}`)).json();
   const made = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(made).toMatchObject({ kind: "todo", due: day(1), priority: "high" });
@@ -458,7 +458,11 @@ test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) =>
   await page.goto(`/p/${t.slug}`);
   await page.locator(".page .tags .duechip").click();
   const naps = page.getByRole("group", { name: "Snooze for" });
-  await expect(naps.getByRole("button")).toHaveText(["Tomorrow", "Next week"]);
+  await expect(naps.getByRole("button")).toHaveText(["No snooze", "Tomorrow", "Next week"]);
+  await expect(naps.getByRole("button", { name: "No snooze" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  ); // none set yet
   await naps.getByRole("button", { name: "Next week" }).click();
   await expect(page.getByLabel("Snooze until")).toHaveValue(day(7));
   await expect(naps.getByRole("button", { name: "Next week" })).toHaveAttribute(

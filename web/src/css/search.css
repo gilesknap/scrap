@@ -327,6 +327,15 @@
   column-gap: 6px;
   margin: 0 0 var(--s-3);
 }
+/* A todo's tags beside its due chip: one box, so when they do not all fit beside it they go
+   together to the next line (the chip alone on its own), never a lone one */
+.tags .tagset {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
 .tags .last {
   display: flex;
   column-gap: 6px;

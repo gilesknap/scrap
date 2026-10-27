@@ -65,10 +65,11 @@
 .dates {
   margin-bottom: var(--s-1);
 }
-/* The line clips the dots in the row's gutter (below); its padding, taken back by margin, leaves
-   room for a link's 2px focus ring and its 2px offset (Written by, Topic by) */
+/* The line clips the dots in the row's gutter (below), sideways only: "by Claude"'s 48 px target
+   and focus ring reach above and below the line. Its padding, taken back by margin, leaves room
+   for a link's 2px focus ring and its 2px offset */
 :is(.meta, .dates) {
-  overflow: hidden;
+  overflow-x: clip;
   padding: 4px;
   margin: -4px;
 }

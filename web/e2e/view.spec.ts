@@ -833,7 +833,7 @@ test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind r
   await page.getByRole("searchbox").fill("kind:todo");
   await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/);
   const rows = page.locator(".list li");
-  await expect(rows.filter({ hasText: "example.com/kinds" })).toContainText("done");
+  await expect(rows.filter({ has: page.locator(`a[href$="${link}"]`) })).toContainText("done"); // as words
   await expect(rows.filter({ hasText: "an unfiled note" })).toHaveCount(0);
   await page.reload(); // the filter stays
   await expect(kinds.getByRole("radio", { name: "Todos" })).toBeChecked();

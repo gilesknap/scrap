@@ -27,7 +27,7 @@ test("Settings opens the Trash, which says when a page goes, and Restore brings 
   await expect(page.getByRole("heading", { name: "Trash" })).toBeVisible();
   await expect(page.locator(".trash .hint")).toContainText("stay here for 30 days");
   const item = page.locator(".trash .list li", { hasText: title });
-  await expect(item.locator("small")).toHaveText(/^Deleted .+ · deleted for good after .+$/);
+  await expect(item.locator("small")).toHaveText(/^Deleted\s.+\s·\sdeleted\sfor\sgood\safter\s.+$/); // parts hold their no-break spaces
   const restore = page.getByRole("button", { name: `Restore ${title}` });
   const box = (await restore.boundingBox()) as { height: number };
   expect(box.height).toBeGreaterThanOrEqual(48);
@@ -75,7 +75,7 @@ test("restoring the last page leaves the empty state with focus on the heading",
   await page.route("**/api/pages/*/undelete", (route) => route.fulfill({ json: {} }));
   await page.goto("/trash");
   await expect(page.locator(".trash .list small")).toHaveText(
-    /· deleted for good at the next nightly clean-up$/,
+    /·\sdeleted\sfor\sgood\sat\sthe\snext\snightly\sclean-up$/,
   );
   await page.getByRole("button", { name: "Restore Only one" }).click();
   await expect(page.getByText("The trash is empty.")).toBeVisible();

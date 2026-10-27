@@ -104,7 +104,7 @@ const addButtons = (page: Page, scope: string) =>
  * their 48 px height. They share the row while they fit, else one a line; never a sideways
  * scroll. Waits for the layout to settle after the font change. */
 async function expectLargeText(page: Page, scope: string, font: number, rows: number) {
-  await page.addStyleTag({ content: `.bar .add { font-size: ${font}px; }` });
+  await page.addStyleTag({ content: `.bar .add { font-size: ${font}px !important; }` });
   await expect
     .poll(async () => {
       const { camera, gallery, overflow } = await addButtons(page, scope);

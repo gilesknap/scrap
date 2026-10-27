@@ -43,16 +43,16 @@ test("rows show priority and due date, overdue until ticked done", async ({ page
   await page.goto("/search?q=numbat+kind%3Atodo");
   await expect(hits(page)).toHaveCount(5);
   const late = rowOf(page, "Numbat late").locator(".due");
-  await expect(late).toHaveText(/^high · overdue /);
+  await expect(late).toHaveText(/^high\s·\soverdue\s/); // the parts hold their no-break spaces
   await expect(late).toHaveClass("due late");
   await expect(rowOf(page, "Numbat today").locator(".due")).toHaveText("low · due today");
-  await expect(rowOf(page, "Numbat none").locator(".due")).toHaveText("medium");
+  await expect(rowOf(page, "Numbat none").locator(".due")).toHaveText("medium priority"); // alone: said in full
   const done = rowOf(page, "Numbat done").locator(".due");
-  await expect(done).toHaveText(/^due \D*\d/); // done: its date kept, no longer overdue
+  await expect(done).toHaveText(/^due\s\D*\d/); // done: its date kept, no longer overdue
   await expect(done).toHaveClass("due closed"); // and greyed
   await rowOf(page, "Numbat late").getByRole("button", { name: "Done: Numbat late" }).click();
   await expect(late).toHaveClass("due closed");
-  await expect(late).toHaveText(/^high · due /);
+  await expect(late).toHaveText(/^high\s·\sdue\s/);
   await rowOf(page, "Numbat late").getByRole("button", { name: "Done: Numbat late" }).click();
   await expect(late).toHaveClass("due late");
 });
@@ -128,7 +128,7 @@ test("Today, Tomorrow and Next week set the due date in one tap", async ({ page 
   const due = page.getByLabel("Due", { exact: true });
   const chips = page.getByRole("group", { name: "Due soon" });
   const pressed = () => chips.locator('[aria-pressed="true"]').allTextContents();
-  await expect(chips.getByRole("button")).toHaveText(["Today", "Tomorrow", "Next week"]);
+  await expect(chips.getByRole("button")).toHaveText(["No date", "Today", "Tomorrow", "Next week"]);
   await expect.poll(pressed).toEqual([]); // due in 5 days: none of them
   await chips.getByRole("button", { name: "Tomorrow" }).click();
   await expect(due).toHaveValue(day(1));
@@ -138,6 +138,9 @@ test("Today, Tomorrow and Next week set the due date in one tap", async ({ page 
   await expect.poll(pressed).toEqual(["Next week"]);
   await due.fill(day(3)); // another day: none pressed
   await expect.poll(pressed).toEqual([]);
+  await chips.getByRole("button", { name: "No date" }).click(); // empties it, and is pressed
+  await expect(due).toHaveValue("");
+  await expect.poll(pressed).toEqual(["No date"]);
   await chips.getByRole("button", { name: "Today" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(line).toHaveText("today");

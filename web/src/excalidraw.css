@@ -136,6 +136,12 @@
   font-size: var(--t-sm);
   white-space: nowrap;
 }
+/* Close: a ✕ icon, one 48 px target at the bar's start, as the photo viewer's */
+.drawing-bar > .close {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+}
 /* Edit with a kept draft: a dot, not words (no room); the words are in the notes below */
 .drawing-bar .dot::after {
   top: 5px;

@@ -569,7 +569,7 @@ Under each photo, **What's in the photo** has:
 
 Tap the drawing to open it full screen.
 
-- Pinch and drag to zoom and pan; **Fit** resets. **Photo** shows the photo beside (landscape) or
+- Pinch and drag to zoom and pan; **Fit** resets. The **✕** (Close) at the top left closes it. **Photo** shows the photo beside (landscape) or
   over (upright) the drawing. Back closes.
 - **Edit** turns on Excalidraw's tools (draw, shapes, arrows, text, eraser; not images). **Undo**
   is in the top bar, **Cancel** puts the drawing back, **Save** stores a new version.

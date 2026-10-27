@@ -73,8 +73,9 @@ interface Edits {
 
 /** One row of chips, all one size: a todo's due chip, then its tags (each searches for its
  * tag, with its children: tag:a finds a/b), the + that changes them kept on the last tag's
- * line. With no tags, "+ Tag". A closed todo with no due date or priority has no due chip
- * (Reopen it first). */
+ * line. With no tags, "+ Tag". Beside the due chip the tags are one group (.tagset): they stay
+ * together on the line after it when they do not all fit beside it, never one alone. A closed
+ * todo with no due date or priority has no due chip (Reopen it first). */
 export function chipRow(p: Page, on: Edits): HTMLElement {
   const due = p.kind === "todo" && !on.dueOpen ? dueChip(p) : null;
   const offer = p.kind === "todo" && !on.dueOpen && !due && !closed(p);
@@ -103,6 +104,7 @@ export function chipRow(p: Page, on: Edits): HTMLElement {
   );
   const tags = p.tags.map(tag);
   const last = tags.pop();
+  const tail = last ? h("span", { className: "last" }, last, add) : add;
   return h(
     "p",
     { className: "tags" },
@@ -116,8 +118,7 @@ export function chipRow(p: Page, on: Edits): HTMLElement {
           due ? due[0] : "Add due date",
         )
       : "",
-    ...tags,
     // The last tag and + together, so + never sits alone on a line
-    last ? h("span", { className: "last" }, last, add) : add,
+    ...(due || offer ? [h("span", { className: "tagset" }, ...tags, tail)] : [...tags, tail]),
   );
 }

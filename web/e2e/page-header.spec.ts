@@ -96,7 +96,8 @@ test("a Later reads Kind · medium · verb, and its status once it is not open",
   expect(await parts(page, ".meta")).toEqual(["Later", "TV", "to watch"]);
   await page.request.patch(`/api/pages/${later.page_id}`, { data: { fields: { status: "done" } } });
   await page.reload();
-  expect(await parts(page, ".meta")).toEqual(["Later", "TV", "to watch", "done"]);
+  // Done, it says what was done, not "to watch · done"
+  expect(await parts(page, ".meta")).toEqual(["Later", "TV", "watched"]);
   await expect(page.locator(".page > .dates:not(.meta)")).toBeVisible();
 });
 
@@ -210,11 +211,14 @@ const lines = (page: Page, sel: string) =>
     const parts = [...p.querySelectorAll<HTMLElement>(".parts > *")].map((k, i) => {
       const r = k.getBoundingClientRect();
       const border = Number.parseFloat(getComputedStyle(k).borderLeftWidth);
+      // The text's own box: a link's padding (its 48 px target) is not text
+      const padTop = Number.parseFloat(getComputedStyle(k).paddingTop);
+      const padBottom = Number.parseFloat(getComputedStyle(k).paddingBottom);
       // The dot's box is 1.5em wide, ending at the part's padding edge
       return {
         i,
-        top: r.top,
-        bottom: r.bottom,
+        top: r.top + padTop,
+        bottom: r.bottom - padBottom,
         left: r.left,
         right: r.right,
         dot: r.left + border - 0.75 * em,
@@ -297,17 +301,21 @@ test("a link's focus ring in the meta line is whole", async ({ page }) => {
   const ring = await link.evaluate((a) => {
     const cs = getComputedStyle(a);
     const r = a.getBoundingClientRect();
-    const p = (a.closest(".meta") as HTMLElement).getBoundingClientRect();
+    const meta = a.closest(".meta") as HTMLElement;
+    const p = meta.getBoundingClientRect();
     const reach = Number.parseFloat(cs.outlineWidth) + Number.parseFloat(cs.outlineOffset);
     return {
       style: cs.outlineStyle,
-      left: r.left - reach - p.left,
-      top: r.top - reach - p.top,
-      bottom: p.bottom - (r.bottom + reach),
+      left: r.left - reach - p.left, // clipped sideways (the dots in the gutter): room needed
+      height: r.height,
+      // Above and below the line nothing is clipped, so the ring and the 48 px target are whole
+      overflowY: getComputedStyle(meta).overflowY,
     };
   });
   expect(ring.style).toBe("solid");
-  for (const room of [ring.left, ring.top, ring.bottom]) expect(room).toBeGreaterThanOrEqual(-0.5);
+  expect(ring.left).toBeGreaterThanOrEqual(-0.5);
+  expect(ring.overflowY).toBe("visible");
+  expect(ring.height).toBeGreaterThanOrEqual(47); // a 48 px target
 });
 
 for (const width of [320, 360, 390, 430]) {

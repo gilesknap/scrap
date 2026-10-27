@@ -45,8 +45,9 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await expect(card).toBeHidden();
   await fold.locator("> summary").click();
   await expect(card).toBeVisible();
-  await expect(s.locator(".by").first()).toContainText("claude-opus-5-5");
-  await expect(s.locator(".by").first()).toContainText("version 2");
+  // "Claude · 27 Oct, 6:59 AM · v2", the model as its tooltip
+  await expect(s.locator(".by").first()).toHaveText(/^Claude\s·\s.+\s·\sv2$/);
+  await expect(s.locator(".by").first()).toHaveAttribute("title", "claude-opus-5-5");
   await expect(s.getByText("The pipeline again, retries first.")).toBeVisible();
   await expect(s.getByRole("heading", { name: "Open questions" })).toBeVisible();
   // Its [[n]] citation is a link to the page, made by the server
@@ -79,7 +80,7 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await expect(rows.first()).toContainText("current");
   await rows.nth(1).getByRole("button", { name: "Restore" }).click();
   await expect(page.getByText("Version 1 restored")).toBeVisible();
-  await expect(s.locator(".by").first()).toContainText("version 3 · restored from version 1");
+  await expect(s.locator(".by").first()).toHaveText(/\sv3\s·\srestored\sfrom\sv1$/);
   await expect(s.getByText("A capture pipeline from phone to model")).toBeVisible();
 
   // Opened, it stays open when the page is opened again; folded again, it stays folded
@@ -225,7 +226,7 @@ test("an edit since the write-up says so quietly, and nothing regenerates", asyn
   await expect(line).toHaveText(
     "The page, a page it links to, or Claude's prompt has changed since this write-up.",
   );
-  await expect(s.locator(".by").first()).toContainText("version 2"); // not made again
+  await expect(s.locator(".by").first()).toHaveText(/\sv2$/); // not made again
   expect((await (await page.request.get(`/api/pages/${b.slug}`)).json()).writeup.versions).toBe(2);
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
