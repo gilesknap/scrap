@@ -91,10 +91,11 @@
     order: 2;
   }
   .page > h1,
+  .page > .meta,
+  .page > .dates,
   .page > .tags,
-  .page > .todoline,
   .page > .tagform,
-  .page > .meta {
+  .page > .todoedit {
     order: 0;
   }
   .page > .tools {
@@ -158,7 +159,7 @@
     background-color: var(--surface);
   }
   .list .tick:hover,
-  .tags a:hover {
+  .tags :is(a, button):hover {
     filter: brightness(0.96);
   }
   button.link:hover,

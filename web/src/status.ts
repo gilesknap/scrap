@@ -23,13 +23,6 @@ export const chipOf = (kind: string, fields: Fields): string => {
   return s === "done" || s === "cancelled" ? s : "";
 };
 
-/** A page's chip (its row has only the icon): its kind's label, and its status if it has one
- * ("Todo · in progress", "Later · done", "Note"). */
-export const pageChip = (label: string, kind: string, fields: Fields): string => {
-  const s = statusOf(kind, fields)?.replace("_", " ");
-  return s ? `${label} · ${s}` : label;
-};
-
 // ---- a todo's due date and priority (#104): columns of its page, a todo's only
 
 /** Today on this device, as a due date is written (YYYY-MM-DD). */
@@ -67,22 +60,41 @@ export const snoozed = (p: Todo, now = today()) =>
 /** Done or cancelled: a todo that is closed. */
 export const closed = (p: Todo) => ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`);
 
+/** A todo's due day as it is said ("today", "3 Nov"; a closed one keeps its date) and whether it
+ * is overdue (due before today, not done or cancelled). */
+const dueDay = (p: Todo, now: string): [string | null | undefined, boolean] => {
+  const shut = closed(p);
+  return [
+    p.due && (p.due === now && !shut ? "today" : short(p.due, now)),
+    !!p.due && p.due < now && !shut,
+  ];
+};
+
+/** A snooze as said: "snoozed till 3 Nov". */
+export const snoozeText = (until: string, now = today()) => `snoozed till ${short(until, now)}`;
+
 /** What a todo's row and page say of its due date, priority and snooze ("high · due 3 Nov ·
  * snoozed till 1 Nov"), and its line's class: "due late" when overdue (due before today, not
  * done or cancelled), "due closed" once done or cancelled (greyed, its due date said as a date:
  * never today or overdue), else "due"; null if none. */
 export function dueOf(p: Todo, now = today()): [string, string] | null {
   const until = snoozed(p, now) && p.snoozed_until;
-  const shut = closed(p);
-  const part = !shut && partly(p);
+  const part = !closed(p) && partly(p);
   if (p.kind !== "todo" || !(p.due || p.priority || until || part)) return null;
-  const late = !!p.due && p.due < now && !shut;
-  const day = p.due && (p.due === now && !shut ? "today" : short(p.due, now));
+  const [day, late] = dueDay(p, now);
   const said = [
     p.priority,
     day && `${late ? "overdue" : "due"} ${day}`,
-    until && `snoozed till ${short(until, now)}`,
+    until && snoozeText(until, now),
     part,
   ];
-  return [said.filter(Boolean).join(" · "), late ? "due late" : shut ? "due closed" : "due"];
+  return [said.filter(Boolean).join(" · "), late ? "due late" : closed(p) ? "due closed" : "due"];
+}
+
+/** What a todo's due chip on its page says: its day and priority ("30 Oct · high", "today"),
+ * and whether it is overdue; null with neither. */
+export function dueChip(p: Todo, now = today()): [string, boolean] | null {
+  if (p.kind !== "todo" || !(p.due || p.priority)) return null;
+  const [day, late] = dueDay(p, now);
+  return [[day, p.priority].filter(Boolean).join(" · "), late];
 }

@@ -242,7 +242,8 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   await expect(inNow()).toBeVisible();
   expect(await counted()).toBe(true);
   await page.goto(`/p/${t.slug}`);
-  const line = page.locator(".todoline > button");
+  const line = page.locator(".page .tags .duechip");
+  const meta = page.locator(".page > .meta"); // a snooze is said on the meta line
   await line.click();
   await page.getByLabel("Snooze until").fill(day(1));
   await page.getByRole("button", { name: "Save" }).click();
@@ -250,7 +251,7 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   const ask = page.getByRole("group", { name: "Due date" });
   await expect(ask).toContainText("Snoozed past its due date");
   await ask.getByRole("button", { name: "Keep due date" }).click();
-  await expect(line).toHaveText(/ · snoozed till /);
+  await expect(meta).toContainText("snoozed till");
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(day(-1));
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).snoozed_until).toBe(
     day(1),
@@ -273,7 +274,7 @@ test("snooze a todo from its page: out of Now and the count until its day, marke
   await line.click();
   await page.getByRole("button", { name: "No snooze" }).click();
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(line).not.toHaveText(/snoozed/);
+  await expect(meta).not.toContainText("snoozed");
   await page.goto("/todos");
   await expect(inNow()).toBeVisible();
 });
@@ -298,7 +299,7 @@ test("task boxes drive a todo: filed as one, 2 of 3 on its row, done with the la
   const boxes = page.locator(".page .md li.task input");
   const tools = page.locator(".page > .tools");
   await boxes.nth(1).click();
-  await expect(page.locator(".todoline > button")).toHaveText(/2 of 3/);
+  await expect(page.locator(".page > .meta")).toContainText("2 of 3");
   await boxes.nth(2).click();
   await expect(tools.getByRole("button", { name: "Reopen" })).toBeVisible();
   expect((await api()).fields.status).toBe("done");
@@ -455,7 +456,7 @@ test("Mark done on a todo from the Todos screen moves on to the next, with Undo 
 test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) => {
   const t = await todo(page, "Bilby chips", { due: day(0) });
   await page.goto(`/p/${t.slug}`);
-  await page.locator(".todoline > button").click();
+  await page.locator(".page .tags .duechip").click();
   const naps = page.getByRole("group", { name: "Snooze for" });
   await expect(naps.getByRole("button")).toHaveText(["Tomorrow", "Next week"]);
   await naps.getByRole("button", { name: "Next week" }).click();
@@ -474,7 +475,7 @@ test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) =>
     .getByRole("group", { name: "Due date" })
     .getByRole("button", { name: "Move due date" })
     .click();
-  await expect(page.locator(".todoline > button")).toHaveText(/ · snoozed till /);
+  await expect(page.locator(".page > .meta")).toContainText("snoozed till");
   const saved = await (await page.request.get(`/api/pages/${t.page_id}`)).json();
   expect([saved.due, saved.snoozed_until]).toEqual([day(7), day(7)]);
 });
@@ -482,10 +483,10 @@ test("Snooze has its own line, with Tomorrow and Next week", async ({ page }) =>
 test("a snooze on or before the due date saves without asking", async ({ page }) => {
   const t = await todo(page, "Bilby no ask", { due: day(9) });
   await page.goto(`/p/${t.slug}`);
-  await page.locator(".todoline > button").click();
+  await page.locator(".page .tags .duechip").click();
   await page.getByLabel("Snooze until").fill(day(2));
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.locator(".todoline > button")).toHaveText(/ · snoozed till /);
+  await expect(page.locator(".page > .meta")).toContainText("snoozed till");
   await expect(page.getByRole("group", { name: "Due date" })).toHaveCount(0);
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(day(9));
 });

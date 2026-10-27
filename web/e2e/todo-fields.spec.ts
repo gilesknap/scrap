@@ -92,7 +92,7 @@ test("a todo search: its orders in Filters, and due: typed (no due views there)"
 
 test("due date and priority are set and cleared on a todo's page", async ({ page }) => {
   await page.goto(`/p/${made.none.slug}`);
-  const line = page.locator(".todoline > button");
+  const line = page.locator(".page .tags .duechip");
   await expect(line).toHaveText("medium");
   await line.click();
   const due = page.getByLabel("Due", { exact: true });
@@ -100,7 +100,7 @@ test("due date and priority are set and cleared on a todo's page", async ({ page
   await due.fill(day(-1));
   await page.getByRole("combobox", { name: "Priority" }).selectOption("high");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(line).toHaveText(/^high · overdue /);
+  await expect(line).toHaveText(/^overdue .+ · high$/);
   await expect(line).toBeFocused(); // back where it was
   expect(await api(page, made.none.page_id)).toMatchObject({ due: day(-1), priority: "high" });
   await line.click();
@@ -112,18 +112,18 @@ test("due date and priority are set and cleared on a todo's page", async ({ page
   await line.click();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(line).toBeFocused();
-  // Not a todo: no line
+  // Not a todo: no due chip
   const note = await page.request.post("/api/captures", {
     data: { id: "01E2ETDNTE".padEnd(26, "0"), text: "Numbat note" },
   });
   await page.goto(`/p/${(await note.json()).slug}`);
   await expect(page.locator(".page h1")).toHaveText("Numbat note");
-  await expect(page.locator(".todoline")).toHaveCount(0);
+  await expect(page.locator(".page .duechip")).toHaveCount(0);
 });
 
 test("Today, Tomorrow and Next week set the due date in one tap", async ({ page }) => {
   await page.goto(`/p/${made.soon.slug}`);
-  const line = page.locator(".todoline > button");
+  const line = page.locator(".page .tags .duechip");
   await line.click();
   const due = page.getByLabel("Due", { exact: true });
   const chips = page.getByRole("group", { name: "Due soon" });
@@ -140,7 +140,7 @@ test("Today, Tomorrow and Next week set the due date in one tap", async ({ page 
   await expect.poll(pressed).toEqual([]);
   await chips.getByRole("button", { name: "Today" }).click();
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(line).toHaveText("due today");
+  await expect(line).toHaveText("today");
   expect(await api(page, made.soon.page_id)).toMatchObject({ due: day(0) });
   // Opened again on today: Today pressed
   await line.click();
@@ -153,13 +153,14 @@ test("a done todo's page keeps its due date greyed, and offers no date when it h
   page,
 }) => {
   await page.goto(`/p/${made.done.slug}`);
-  await expect(page.locator(".todoline > button span")).toHaveClass("due closed");
-  await expect(page.locator(".todoline > button")).toHaveText(/^due \D*\d/);
+  // Done: its due date kept as a date, not overdue (no red word) and never "today"
+  await expect(page.locator(".page .duechip")).toHaveText(/^\D*\d/);
+  await expect(page.locator(".page .duechip .late")).toHaveCount(0);
   const bare = await todo(page, "Numbat bare");
   await page.request.patch(`/api/pages/${bare.page_id}`, { data: { fields: { status: "done" } } });
   await page.goto(`/p/${bare.slug}`);
   await expect(page.locator(".page h1")).toHaveText("Numbat bare");
-  await expect(page.locator(".todoline")).toHaveCount(0); // no "Add due date": Reopen it first
+  await expect(page.locator(".page .duechip")).toHaveCount(0); // no "Add due date": Reopen it first
 });
 
 test("the editor sets them while the kind is Todo", async ({ page }) => {
@@ -183,7 +184,7 @@ test("the editor sets them while the kind is Todo", async ({ page }) => {
   await editor.getByRole("combobox", { name: "Priority" }).selectOption("medium");
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
-  await expect(page.locator(".todoline > button")).toHaveText(/^medium · due /);
+  await expect(page.locator(".page .duechip")).toHaveText(/ · medium$/);
   expect(await api(page, made.soon.page_id)).toMatchObject({ due: day(1), priority: "medium" });
 });
 
@@ -199,9 +200,9 @@ test("the todo views meet AA contrast, in both themes", async ({ page }) => {
     await page.locator(".donefold > summary").click(); // done todos are folded away
     await expect(rowOf(page, "Numbat done").locator(".due.closed")).toBeVisible();
     await page.goto(`/p/${made.late.slug}`);
-    await expect(page.locator(".todoline .late")).toBeVisible();
+    await expect(page.locator(".page .duechip .late")).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page`).toEqual([]);
-    await page.locator(".todoline > button").click();
+    await page.locator(".page .tags .duechip").click();
     await expect(page.getByLabel("Due", { exact: true })).toBeVisible();
     await page
       .getByRole("group", { name: "Due soon" })
@@ -209,7 +210,7 @@ test("the todo views meet AA contrast, in both themes", async ({ page }) => {
       .click();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} form`).toEqual([]);
     await page.goto(`/p/${made.done.slug}`);
-    await expect(page.locator(".todoline .closed")).toBeVisible();
+    await expect(page.locator(".page .duechip")).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} done page`).toEqual([]);
   }
 });

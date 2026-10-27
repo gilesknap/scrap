@@ -6,13 +6,12 @@ import { remember } from "./crumbs";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
-import { KINDS } from "./kinds";
 import { rendered, renderer, unembedded } from "./md";
-import { closed, dueOf, pageChip, statusOf, ticks } from "./status";
+import { chipRow, headLines } from "./pagehead";
+import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
-import { token } from "./terms";
 import { seenTopic } from "./topicseen";
-import { bodyView, download, h, pageLink, share, toast, whenShort } from "./ui";
+import { bodyView, download, h, pageLink, share, toast } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
 
@@ -24,11 +23,6 @@ type Enrich = typeof import("./enrich");
 type Writeups = typeof import("./writeup");
 const hasFiles = (p: Page) =>
   p.captures.some((c) => c.blobs.length) || p.body.includes("](/api/blobs/");
-/** A page's kind and status, as its meta line's chip says them: "Todo · done", "Note". */
-const kindChip = (p: Page) => {
-  const label = KINDS.find(([k]) => k === p.kind)?.[1];
-  return label && h("em", { className: "state" }, pageChip(label, p.kind, p.fields));
-};
 /** Without that chunk (offline): its files as links, the text's images as they are. */
 const links = (p: Page) =>
   p.captures.flatMap((c) =>
@@ -162,90 +156,15 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       );
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
     const typing = !!tagForm?.contains(document.activeElement);
-    const said = dueOf(p);
     const saved = download(`/api/pages/${p.id}/download`); // the page as a file
     const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
       h("h1", { dir: "auto" }, p.title),
-      // Its tags, most used first, in one line that scrolls; each one tapped searches for it
-      // (with its children: tag:a finds a/b). First, Tags: tapped, edits them in place
-      tagForm ??
-        h(
-          "p",
-          { className: "tags" },
-          h(
-            "button",
-            // Not "Edit tags": the toolbar's Edit stays the only button named Edit
-            {
-              type: "button",
-              "aria-label": p.tags.length ? "Change tags" : "Add tags",
-              onclick: (e: Event) => tagEdit(e),
-            },
-            icon("tag"),
-            p.tags.length ? "Tags" : "Add tags",
-          ),
-          ...p.tags.map((t) =>
-            h(
-              "a",
-              {
-                href: `/search?q=${encodeURIComponent(token("tag", t))}`,
-                // Added by Claude: marked, so the user's own stand apart
-                ...(p.model_tags?.includes(t) && { className: "ai", title: "Added by Claude" }),
-              },
-              `#${t}`,
-            ),
-          ),
-        ),
-      // A todo's due date and priority: tapped, changed in place (a closed one with none
-      // offers no "Add due date": Reopen it first)
-      p.kind !== "todo" || (!said && closed(p))
-        ? ""
-        : (todoForm ??
-            h(
-              "p",
-              { className: "todoline" },
-              h(
-                "button",
-                {
-                  type: "button",
-                  title: "Due date and priority",
-                  onclick: (e: Event) => void todoEdit(e),
-                },
-                icon("due"),
-                h("span", { className: said?.[1] ?? "" }, said ? said[0] : "Add due date"),
-              ),
-            )),
-      h(
-        "p",
-        { className: "meta" },
-        // What it is, first (its row has only the icon): its kind, and its status if it has one;
-        // a topic is Claude's (#261): tapped, the Topics screen
-        p.topic
-          ? h(
-              "a",
-              {
-                className: "written topicby",
-                href: "/topics",
-                title: "Made and kept up by Claude from your pages",
-              },
-              "Topic by Claude",
-            )
-          : kindChip(p),
-        h("span", {}, `Created ${whenShort(p.created_at)}`),
-        p.updated_at !== p.created_at && h("span", {}, `Edited ${whenShort(p.updated_at)}`),
-        // Written over MCP (made_by, store/roles.py): a badge, the origin Claude
-        // gave as the tooltip; tapped, finds them all
-        p.made_by === "claude" &&
-          h(
-            "a",
-            {
-              className: "written", // not .badge: that is the top bar's queue pill (36 px, a dot)
-              href: "/search?q=is%3Aclaude",
-              title: String(p.fields.origin ?? "Written by Claude over MCP"),
-            },
-            "Written by Claude",
-          ),
-      ),
+      // What it is and when, one quiet line or two; then one row of chips: a todo's due chip
+      // (opens the due editor, under the row) and its tags (each a search; + changes them)
+      ...headLines(p),
+      tagForm ?? chipRow(p, { tags: tagEdit, due: (e) => void todoEdit(e), dueOpen: !!todoForm }),
+      todoForm ?? "",
       body,
       // A topic's notes are the owner's, empty at first: where they go, said once
       p.topic && !p.body.trim()
@@ -310,7 +229,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
 
   // Its tags edited in place of their line: no new revision (a chunk of its own)
   async function tagEdit(e: Event) {
-    const line = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const line = (e.currentTarget as HTMLElement).closest(".tags") as HTMLElement;
     const mod = await import("./tagedit").catch(() => null);
     if (!mod) return toast("Can't edit tags offline");
     const p = shown; // as it is now
@@ -320,7 +239,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const close = (to: Page) => {
       tagForm = null;
       show(to);
-      root.querySelector<HTMLElement>(".tags > button")?.focus();
+      root.querySelector<HTMLElement>(".tags .add")?.focus();
     };
     const form = h(
       "form",
@@ -352,23 +271,31 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       ),
     );
     tagForm = form;
-    line.replaceWith(form);
+    // The due chip stays (it is not a tag); the tags and + give way to the form under the row
+    const chip = line.querySelector(".duechip");
+    if (chip) {
+      for (const c of [...line.children]) if (c !== chip) c.remove();
+      line.after(form);
+    } else line.replaceWith(form);
     field.input.focus();
   }
 
   // A todo's due date and priority, changed in place of their line: no new revision
   async function todoEdit(e: Event) {
-    const line = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const chip = e.currentTarget as HTMLElement;
+    const row = chip.parentElement as HTMLElement;
     const mod = await import("./todoedit").catch(() => null);
     if (!mod) return toast("Can't change it offline");
     // Saved: the page as saved; cancelled: as it is now (it may have changed meanwhile)
     const { form, focus } = mod.todoForm(shown, (to) => {
       todoForm = null;
       show(to ?? shown);
-      root.querySelector<HTMLElement>(".todoline > button")?.focus();
+      // The chip may be gone (a closed todo saved with no date or priority): then the +
+      root.querySelector<HTMLElement>(".tags > .duechip, .tags .add")?.focus();
     });
     todoForm = form;
-    line.replaceWith(form);
+    chip.remove(); // under the row, in the chip's place
+    row.after(form);
     focus();
   }
 
