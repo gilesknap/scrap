@@ -41,7 +41,6 @@
   padding: 0 var(--s-3);
   color: var(--ink-2);
   font-size: var(--t-sm);
-  text-decoration-color: var(--line-strong);
 }
 .list.recents li {
   display: flex;

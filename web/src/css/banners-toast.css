@@ -23,6 +23,7 @@
   color: var(--ink-2);
 }
 .restored {
+  --link-line: var(--ink-2); /* --line-strong is under 3:1 on --accent-soft */
   display: flex;
   align-items: center;
   flex-wrap: wrap;

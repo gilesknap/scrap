@@ -192,14 +192,18 @@ test("a source names its topics; search labels a topic page", async ({ page }) =
   const t = topic();
   await page.goto(`/p/${t.sources[0].slug}`);
   const s = card(page);
-  const line = s.locator(".topicsline");
-  await expect(line).toHaveText(`Topics: ${t.title}`);
-  await expect(line.getByRole("link", { name: t.title })).toHaveAttribute("href", `/p/${t.slug}`);
+  // A fold, Topics, drawn as Related is: a line per topic, its title a link
+  const fold = s.locator(".topics");
+  await expect(fold.locator("summary")).toHaveText("Topics");
+  await expect(fold.locator("li")).toHaveText([t.title]);
+  await expect(fold.getByRole("link", { name: t.title })).toHaveAttribute("href", `/p/${t.slug}`);
   // Its synthesis cites this page: in Related, both ways, marked
-  await expect(s.locator(".related li", { hasText: t.title })).toContainText("in a topic");
+  await expect(s.locator(".related:not(.topics) li", { hasText: t.title })).toContainText(
+    "in a topic",
+  );
   // A source it does not cite is in it all the same
   await page.goto(`/p/${t.sources[2].slug}`);
-  await expect(card(page).locator(".topicsline")).toHaveText(`Topics: ${t.title}`);
+  await expect(card(page).locator(".topics li")).toHaveText([t.title]);
 
   // Search: the topic first, labelled, with the topic's icon
   await page.goto(`/search?q=${t.word}`);

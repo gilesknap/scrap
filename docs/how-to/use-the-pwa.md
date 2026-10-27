@@ -607,10 +607,11 @@ text. Without ingest the card is hidden unless the page already has a summary or
 - **Summary** is Claude's one-line summary, which search also covers (on a board, the lead of the
   write-up).
 - **Related** has pages Claude picked, plus pages that link here (*· links here*) and topics whose
-  synthesis cites the page (*· in a topic*).
-- **Topics**: on a page that is a source of topic pages, a line names them (*Topics: ibek ·
-  RTEMS IOCs*), each a link.
-- Summary and Related are open until closed. Tags Claude added have a ✦ before their name.
+  synthesis cites the page (*· in a topic*). Each is a line of its own, with the icon of its kind
+  before the title.
+- **Topics**: on a page that is a source of topic pages, a fold names them, a line per topic with
+  the topic icon, each a link.
+- Summary, Topics and Related are open until closed. Tags Claude added have a ✦ before their name.
 
 Reading needs the server; the page rechecks while Claude has it queued or is reading it.
 
