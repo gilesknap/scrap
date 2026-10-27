@@ -18,10 +18,12 @@ const list = [
   todo("late oldest due", "2026-10-01", "low"),
   todo("today low", T, "low"),
   todo("today high", T, "high"),
+  // The dated highs edited before the undated ones, and the sooner due before the later: the
+  // order is by due, not by last edited
+  todo("high soon", "2026-10-23", "high"),
+  todo("high later", "2026-11-30", "high"),
   todo("high no date, older", null, "high"),
   todo("high no date, newer", null, "high"),
-  todo("high later", "2026-11-30", "high"),
-  todo("high soon", "2026-10-23", "high"),
   todo("rest none", null, null),
   todo("rest medium no date", null, "medium"),
   todo("done late", "2026-10-02", "high", "done"),

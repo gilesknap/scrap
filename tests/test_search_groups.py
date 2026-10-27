@@ -108,8 +108,17 @@ def test_group_type_puts_done_last(store):  # noqa: F811
 def test_group_now_and_due_follow_the_todos_screen(store):  # noqa: F811
     od2, od1 = todo(store, "od2", day(-5)), todo(store, "od1", day(-2), "high")
     today_ = todo(store, "today", day(0))
-    high = todo(store, "high", priority="high")
+    # The dated highs edited before the undated one, the sooner due first: the order is
+    # by due, not by last edited (set below, so no two share a millisecond)
     open_hi = todo(store, "open hi", day(3), "high")
+    later_hi = todo(store, "later hi", day(6), "high")
+    high = todo(store, "high", priority="high")
+    with store.connect() as conn:
+        for i, s in enumerate((open_hi, later_hi, high)):
+            conn.execute(
+                "UPDATE page SET updated_at = ? WHERE slug = ?",
+                (f"2026-02-0{i + 1}T00:00:00.000Z", s),
+            )
     open_med = todo(store, "open med", day(2), "medium")
     open_lo = todo(store, "open lo", day(8), "low")
     open_none = todo(store, "open none")
@@ -121,14 +130,17 @@ def test_group_now_and_due_follow_the_todos_screen(store):  # noqa: F811
     # first: a dated high above an undated one), Open (by priority, then due), Snoozed,
     # Done
     assert got == [
-        od2, od1, today_, open_hi, high, open_med, open_lo, open_none, asleep, done,
+        od2, od1, today_, open_hi, later_hi, high, open_med, open_lo, open_none,
+        asleep, done,
     ]  # fmt: skip
     # an order chosen is kept inside the sections
     assert slugs(store, "kind:todo group:now sort:title")[:2] == [od1, od2]
     by_due = slugs(store, "kind:todo group:due")  # (no date: as found)
-    assert by_due[:7] == [od2, od1, today_, asleep, open_med, open_hi, open_lo]
-    assert set(by_due[7:9]) == {high, open_none}
-    assert by_due[9] == done
+    assert by_due[:8] == [
+        od2, od1, today_, asleep, open_med, open_hi, later_hi, open_lo,
+    ]  # fmt: skip
+    assert set(by_due[8:10]) == {high, open_none}
+    assert by_due[10] == done
 
 
 def test_the_api_groups_past_the_first_page(tmp_path):

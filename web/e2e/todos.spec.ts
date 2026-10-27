@@ -44,10 +44,11 @@ test.beforeAll(async ({ request }) => {
   made.soonMedium = await todo(page, `${Q} later medium`, { due: day(3), priority: "medium" });
   made.lateNew = await todo(page, `${Q} late new`, { due: day(-1), priority: "high" });
   made.todayLow = await todo(page, `${Q} today low`, { due: day(0), priority: "low" });
+  // The dated high made before the undated one: it leads High priority by its date, not by edit
+  made.farHigh = await todo(page, `${Q} later high`, { due: day(10), priority: "high" });
   made.high = await todo(page, `${Q} high no date`, { priority: "high" });
   made.lateOld = await todo(page, `${Q} late old`, { due: day(-5), priority: "low" });
   made.todayHigh = await todo(page, `${Q} today high`, { due: day(0), priority: "high" });
-  made.farHigh = await todo(page, `${Q} later high`, { due: day(10), priority: "high" });
   made.done = await todo(page, `${Q} done`, { due: day(-3) });
   await request.patch(`/api/pages/${made.done.page_id}`, { data: { fields: { status: "done" } } });
 });
