@@ -13,12 +13,14 @@ from .constants import (
     MAX_TAGS,
     META_REV,
     META_SOURCES,
+    TODO,
     Value,
 )
 from .core import Core
 from .db import transaction
 from .errors import InvalidError
 from .helpers import (
+    check_todo,
     check_value,
     clean_tags,
     fields_for,
@@ -27,6 +29,8 @@ from .helpers import (
     now,
     seconds_between,
 )
+from .todo import read as read_todo
+from .todo import write as write_todo
 from .types import FieldEdit, Meta
 
 # Fields with a meaning of their own (a Later's link and summary): the pages' own edits
@@ -35,6 +39,15 @@ from .types import FieldEdit, Meta
 RESERVED_FIELDS = frozenset({"personal", "source", "summary", "title", "body"})
 STATUSES = ("open", "in_progress", "done", "cancelled")
 MAX_FIELD_TEXT = 200  # characters, as the PWA's field has it (pages_api.FIELD)
+
+
+def _fits_todo(name: str, value: Value | None) -> bool:
+    """Whether page_todo can hold value as name (check_todo takes it)."""
+    try:
+        check_todo(name, value)
+    except InvalidError:
+        return False
+    return True
 
 
 class MetaMixin(Core):
@@ -103,7 +116,9 @@ class MetaMixin(Core):
             and 0 <= seconds_between(last["created_at"], stamp) < self.window
         ):
             prior = json.loads(last["fields_added"])
-            merged = {**prior, **added}
+            # a field taken off now (in was, not added) is no longer one the burst set
+            gone = {k for k in was if k not in added}
+            merged = {k: v for k, v in {**prior, **added}.items() if k not in gone}
             first_was = json.loads(last["fields_was"])
             # the first's wins; and a field it added that was not there before has no
             # was: a later change must not make one up (a revert takes it off)
@@ -139,20 +154,50 @@ class MetaMixin(Core):
         before: Meta,
         after: Meta,
         edit: FieldEdit | None = None,
-    ) -> tuple[dict[str, Any], dict[str, Value], dict[str, Any], dict[str, Value]]:
+    ) -> tuple[
+        dict[str, Any],
+        dict[str, str | None],
+        dict[str, Value],
+        dict[str, Any],
+        dict[str, Value],
+    ]:
         """A page's fields once given after's kind (as the PWA's kind picker: that
         kind's defaults it lacks) and edit: its put set (None takes one off), and, for
         a revert, its drop and was undone: what the change it undoes set is taken off
-        or changed back to what it was, unless changed since. Returns the fields, those
-        added (set, or given back), those dropped (taken off or changed back: their
-        values now) and the values the fields changed had before (was)."""
+        or changed back to what it was, unless changed since. A todo's own values
+        (page_todo's due, priority, snoozed_until) are fields here, under their names.
+        Returns the fields, those todo values (None: none), the fields added (set, or
+        given back), those dropped (taken off or changed back: their values now) and
+        the values the fields changed had before (was)."""
         edit = edit or FieldEdit()
         row = conn.execute("SELECT fields FROM page WHERE id = ?", (page_id,))
-        fields = json.loads(row.fetchone()[0])
+        stored = json.loads(row.fetchone()[0])
         added = {}
         if after.kind != before.kind:
-            added = self._defaults(conn, page_id, after.kind, fields)
-        fields = {**fields, **added}
+            added = self._defaults(conn, page_id, after.kind, stored)
+        # due, priority and snoozed_until are page_todo's; a stale page.fields key of
+        # one's name (an import's, or an edit_meta's before #385) stays aside. Puts
+        # act on page_todo only. A revert acts on page.fields instead to undo a value
+        # page_todo does not hold (page_todo wins a tie), or to give one back to a
+        # page a todo neither before nor after, or that page_todo cannot hold
+        todo_now = read_todo(conn, page_id)
+        in_json = {
+            k
+            for k in TODO
+            if k in edit.drop.keys() | edit.was.keys()
+            and not (
+                (
+                    todo_now[k] == edit.drop[k]
+                    if k in edit.drop
+                    else "todo" in (before.kind, after.kind)
+                )
+                and _fits_todo(k, edit.was.get(k))
+            )
+        }
+        aside = {k: v for k, v in stored.items() if k in TODO and k not in in_json}
+        own = {k: v for k, v in todo_now.items() if v is not None and k not in in_json}
+        fields = {k: v for k, v in stored.items() if k not in aside}
+        fields = {**fields, **added, **own}
         undone = {  # key -> what to give back (None: take it off)
             k: edit.was.get(k)
             for k in edit.drop.keys() | edit.was.keys()
@@ -171,9 +216,11 @@ class MetaMixin(Core):
             if v is not None:
                 fields[k], added[k] = v, v
         added |= gave
+        values = {k: fields.pop(k, None) for k in TODO if k not in in_json}
+        fields |= aside
         if len(fields) > MAX_FIELDS:
             raise InvalidError(f"a page has at most {MAX_FIELDS} fields")
-        return fields, added, dropped, was
+        return fields, values, added, dropped, was
 
     def _put_meta(
         self,
@@ -190,11 +237,15 @@ class MetaMixin(Core):
         """Give a page after's kind (with its fields: _plan), fixed or not, and tags,
         as a revision; its search chunk again. Returns the revision's id, the fields
         added and removed, and the values of those changed before."""
-        fields, added, dropped, was = self._plan(conn, page_id, before, after, edit)
+        fields, values, added, dropped, was = self._plan(
+            conn, page_id, before, after, edit
+        )
         conn.execute(
             "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
             (after.kind, after.fixed, json.dumps(fields), page_id),
         )
+        if any(k in TODO for k in added.keys() | dropped.keys() | was.keys()):
+            write_todo(conn, page_id, values)
         if after.tags != before.tags:
             conn.execute("DELETE FROM tag WHERE page_id = ?", (page_id,))
             conn.executemany(
@@ -247,7 +298,9 @@ class MetaMixin(Core):
     ) -> dict[str, Any]:
         """One page's metadata change, or with dry_run what it would be."""
         if dry_run:
-            _, added, dropped, was = self._plan(conn, page["id"], before, after, edit)
+            _, _, added, dropped, was = self._plan(
+                conn, page["id"], before, after, edit
+            )
             return self._change(page, before, after, None, added, dropped, was)
         revision, added, dropped, was = self._put_meta(
             conn, page["id"], before, after, author, source, reverts, batch, edit
@@ -258,7 +311,8 @@ class MetaMixin(Core):
     @staticmethod
     def _field_puts(fields: dict[str, Value | None] | None) -> dict[str, Any]:
         """The fields edit_meta is to set, checked: a name and value the PWA could
-        show, a media_type one of the known media, and no subtype of its own."""
+        show, a media_type one of the known media, no subtype of its own, and a todo's
+        due and snoozed_until dates, its priority one of PRIORITIES."""
         put = dict(fields or {})
         for name, value in put.items():
             if not name or len(name) > MAX_TAG or name.startswith("_"):
@@ -269,7 +323,9 @@ class MetaMixin(Core):
                 )
             if isinstance(value, str) and len(value) > MAX_FIELD_TEXT:
                 raise InvalidError(f"field {name}: at most {MAX_FIELD_TEXT} characters")
-            if value is not None:
+            if name in TODO:
+                check_todo(name, value)
+            elif value is not None:
                 check_value(name, value)
         if "status" in put and put["status"] not in STATUSES:
             raise InvalidError(f"status must be one of {STATUSES}")
@@ -311,9 +367,12 @@ class MetaMixin(Core):
         fields sets (None takes off) these fields of every page, as part of the same
         revision (fields_added, and their values before: fields_was): a Later's
         media_type also sets its subtype, which it never has on its own; status (open,
-        in_progress, done or cancelled) is a todo's or a Later's, as the PWA's tick.
-        Never the title or the text."""
+        in_progress, done or cancelled) is a todo's or a Later's, as the PWA's tick;
+        due, priority and snoozed_until are a todo's (checked as check_todo; kept in
+        page_todo, not fields). Never the title or the text."""
         put = self._field_puts(fields)
+        # a todo's own values (due, priority, snoozed_until): page_todo's, not fields
+        todo_put = set(put) & set(TODO)
         kind = KIND_NAMES.get(kind, kind) if kind is not None else None
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
@@ -345,6 +404,11 @@ class MetaMixin(Core):
                     raise InvalidError(
                         f"{page['slug']}: status is a todo's or a Later's: make it "
                         "one first (in an earlier call)"
+                    )
+                if todo_put and before.kind != "todo":
+                    raise InvalidError(
+                        f"{page['slug']}: {', '.join(sorted(todo_put))}"
+                        " is a todo's: make it one first (in an earlier call)"
                     )
                 if put.get("media_type") and after.kind != "consume":
                     raise InvalidError(  # else a later kind change would pair it with

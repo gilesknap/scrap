@@ -6,11 +6,11 @@ result (structured content), never mixed into prose. write only adds pages, or a
 to pages written over MCP. Any page's text can be edited narrowly (edit_page: one
 passage found exactly, or the whole body given the page's current rev) and an earlier
 text restored (revert with to_rev), each as a new text revision, unless
-SCRAP_MCP_CONTENT_EDIT is off. Any page's kind and tags (and a todo's status) can be
-changed (edit_meta, rename_tag), each change a revision that revert undoes. No tool
-deletes a page for good, and nothing does until it has been in the trash for
-SCRAP_TRASH_DAYS (nightly gc purges it then, #276); trash_pages moves pages the user
-asked about to the trash (#332),
+SCRAP_MCP_CONTENT_EDIT is off. Any page's kind and tags (and a todo's status, due,
+priority and snooze) can be changed (edit_meta, rename_tag), each change a revision
+that revert undoes. No tool deletes a page for good, and nothing does until it has
+been in the trash for SCRAP_TRASH_DAYS (nightly gc purges it then, #276);
+trash_pages moves pages the user asked about to the trash (#332),
 and one there can be listed (trash, with when it is purged), read (read, revisions: read
 only) and brought back, alone or as the batch trash_pages moved (undelete); both unless
 SCRAP_MCP_CONTENT_EDIT is off. Every other tool treats the trash as absent."""
@@ -62,12 +62,13 @@ pages written over MCP. {text}{purge} The trash tool lists it (with when each pa
 is purged), read and revisions show a trashed page read only
 (trashed: true), and {restore}every other tool treats it as absent. edit_meta and
 rename_tag change only kinds and tags (edit_meta also a todo's status, to tick it done
-or reopen it), of any page: each change is a revision (the
-revisions tool; with no page or batch it lists what changed recently, across pages)
-that revert undoes. Revisions cover only the user's and your changes to text, kinds and
-tags, and moves into and out of the trash: what scrap's Claude enrichment adds
-(summary, model tags, related pages, a board's write-up; read's by_model) is not in
-them, and revert cannot undo it. Try a bulk change with dry_run first.
+or reopen it, and its due, priority and snoozed_until), of any page: each change is a
+revision (the revisions tool; with no page or batch it lists what changed recently,
+across pages) that revert undoes. Revisions cover only the user's and your changes to
+text, kinds, tags and fields (media_type, status; a todo's due, priority,
+snoozed_until), and moves into and out of the trash: what scrap's Claude enrichment
+adds (summary, model tags, related pages, a board's write-up; read's by_model) is not
+in them, and revert cannot undo it. Try a bulk change with dry_run first.
 A page URL (https://<host>/p/<slug>) names the page <slug>: give the URL, or the slug,
 as a tool's page."""
 UNDELETE = """\

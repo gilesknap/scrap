@@ -47,6 +47,11 @@ to get wrong, so letting Claude change them needs a way to see and undo every ch
   revision, since tools give ids out and `revert` takes them back.
 - Kinds are the fixed set the schema allows (`note`, `todo`, `consume`, `whiteboard`,
   `document`, with the PWA's names `read`, `board`, `doc`), not free-form.
+- `edit_meta`'s `fields` also set a todo's `due`, `priority` and `snoozed_until` (#385; refused
+  on other kinds, as `status` is: the check is of the page's kind before the call, so making a
+  page a todo and giving it a `due` takes two calls). They live in `page_todo`
+  ([ADR 36](0036-todo-values-in-a-side-table.md)), not `fields`, but are recorded in the revision
+  (`fields_added`, `fields_was`) as fields are, so `revert` undoes them.
 - A kind or tag edit does not change `updated_at`, as the PWA's never did. A kind given to
   `edit_meta` is fixed even if it is the page's kind already, as the PWA's PATCH does.
 - Migration 8 is additive, as 6 and 7: the table is made only if missing, so an older scrap still
