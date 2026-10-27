@@ -158,9 +158,9 @@
   background: var(--danger-soft);
   color: var(--danger);
 }
-.list li.armed.to-edit > .row-under {
-  background: var(--accent);
-  color: var(--on-accent);
+/* Armed: the icon grows (below) and turns amber; the fill stays amber-soft */
+.list li.armed.to-edit > .row-under .i {
+  color: var(--accent-ink);
 }
 .row-under .i {
   transition: scale var(--d-1) var(--ease);
@@ -240,7 +240,7 @@
   border-color: var(--line-strong);
 }
 .pending small {
-  color: var(--accent-ink);
+  color: var(--ink-2); /* waiting: said in words, as a date is; the badge's dot is the amber */
 }
 .pending .failed small {
   color: var(--danger);

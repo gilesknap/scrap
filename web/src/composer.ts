@@ -41,6 +41,22 @@ const ASK: Record<string, string> = {
   document: "What the document is",
 };
 
+/** Once its upload is over: "Saved", or, refused by the server, "Kept on this phone" (its
+ * row says why, with Retry); still going after 10 s, nothing (its waiting row says so). */
+function uploaded(ids: string[]) {
+  const stop = new AbortController();
+  const look = async () => {
+    const left = (await queue.items()).filter((i) => ids.includes(i.id));
+    if (left.some((i) => i.failed)) toast("Kept on this phone");
+    else if (!left.length) toast("Saved");
+    else return;
+    stop.abort();
+  };
+  document.addEventListener("queuechange", () => void look(), { signal: stop.signal });
+  setTimeout(() => stop.abort(), 10_000);
+  void look();
+}
+
 /** as: a kind chosen before it opens (the Todos screen's New todo, or a search's New for its
  * kind). resume: open the kept draft (Capture's draft row); otherwise a fresh capture (the
  * tiles, New todo). given: tags filled in to start with (a search's New, for its tags). */
@@ -197,8 +213,9 @@ export async function compose(picked: File[], as?: string, resume = false, given
       return toast(`${over} Remove some, or`, "Save separately", () => void store(true), 15000);
     }
     save.disabled = true;
+    let ids: string[];
     try {
-      await queue.addAll(separately ? split(capture) : [capture]);
+      ids = (await queue.addAll(separately ? split(capture) : [capture])).map((i) => i.id);
     } catch (err) {
       save.disabled = false; // keep everything in the composer to try again
       return toast(
@@ -210,7 +227,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     }
     await close();
     // Offline, Capture's waiting row says it; elsewhere (Todos) only this does
-    if (navigator.onLine) toast("Saved");
+    if (navigator.onLine) uploaded(ids);
     else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
   };
   if (!files.length) text.focus();

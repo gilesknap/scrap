@@ -68,8 +68,8 @@ nav .due-n {
   padding: 0 5px;
   border: 2px solid var(--bg);
   border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--ink); /* a count, not the thing to press: ink, never amber */
+  color: var(--bg);
   font-size: var(--t-xs);
   font-weight: 700;
   line-height: 16px;
