@@ -21,6 +21,7 @@ export function foldChips(row: HTMLElement, tags: HTMLElement[], end: Element, i
   const more = h("button", { type: "button", className: "morechips" });
   const fold = () => {
     for (const t of tags) t.hidden = false;
+    for (const e of [tags[0], tags[0].parentElement]) e?.classList.remove("cut");
     more.remove();
     if (opened === id || rows(row) <= ROWS) return;
     // (end is the box of the last tag and +: +N goes in it, before +)
@@ -31,7 +32,16 @@ export function foldChips(row: HTMLElement, tags: HTMLElement[], end: Element, i
       tags[tags.length - n].hidden = true;
       more.textContent = `+${n}`;
       more.ariaLabel = `Show ${n} more ${n === 1 ? "tag" : "tags"}`;
-      if (rows(row) <= ROWS) return;
+      if (rows(row) <= ROWS) break;
+    }
+    // Not even one tag fits beside +N and +: show the first, cut with … to the room there is,
+    // rather than none until +N is tapped
+    if (tags[0].hidden && tags.length > 1) {
+      tags[0].hidden = false;
+      more.textContent = `+${tags.length - 1}`;
+      more.ariaLabel = `Show ${tags.length - 1} more ${tags.length === 2 ? "tag" : "tags"}`;
+      tags[0].classList.add("cut");
+      tags[0].parentElement?.classList.add("cut"); // its box does not wrap +N and + away from it
     }
   };
   more.onclick = () => {

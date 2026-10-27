@@ -63,12 +63,12 @@ test("a page's tag searches for it, children too", async ({ page }) => {
   await page.goto(`/p/${slugs[0]}`);
   // A row of chips under the header, most used tag first; each a 44 px target
   const row = page.locator(".page .tags");
-  await expect(row.getByRole("link")).toHaveText(["#zephyr/garden", "#diy"]);
+  await expect(row.getByRole("link")).toHaveText(["#garden", "#diy"]); // the last part; the full tag is its name
   const [line, chip] = [await row.boundingBox(), await row.getByRole("link").first().boundingBox()];
   expect(chip?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout
   expect(line?.height).toBeGreaterThanOrEqual(chip?.height ?? 0); // wraps; no sideways scroll
   expect(await row.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await page.locator(".page .tags").getByRole("link", { name: "#zephyr/garden" }).click();
+  await page.locator(".page .tags").getByRole("link", { name: "Tag zephyr/garden" }).click();
   await expect(page).toHaveURL(/\/search\?q=tag%3Azephyr%2Fgarden$/);
   await expect(hits(page)).toHaveCount(3); // and zephyr/garden/shed
 });
@@ -166,7 +166,7 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   await page.getByRole("button", { name: "Remove #quokka pen" }).click();
   await box.fill("zebu"); // still in the box when saved: it counts
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#zebu"]);
+  await expect(line.getByRole("link")).toHaveText(["#feed", "#zebu"]);
   await expect(line.getByRole("button", { name: "Change tags" })).toBeVisible();
   // In the editor: Cancel puts them back, Save sends them with the text
   await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
@@ -179,7 +179,7 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   await editor.getByRole("textbox", { name: "Add a tag" }).fill("quokka/water");
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
-  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#quokka/water"]);
+  await expect(line.getByRole("link")).toHaveText(["#feed", "#water"]);
   await page.goto("/search?q=tag%3Aquokka");
   await expect(hits(page)).toHaveText(["Tag me please"]);
   // Suggestions: as typed, the tags in use that match, in our own row (no datalist menu)
@@ -244,7 +244,9 @@ test("the most used tags are offered one tap each, on a page and in the composer
   await expect(top.getByRole("button")).toHaveText(await expected([first.slice(1)]));
   await expect(top.getByRole("button").first()).toBeFocused(); // the chip now in its place
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.locator(".page .tags").getByRole("link")).toHaveText([first]);
+  await expect(page.locator(".page .tags").getByRole("link")).toHaveText([
+    `#${first.split("/").at(-1)}`, // a page's chip says the last part
+  ]);
   const saved = await (await page.request.get(`/api/pages/${page_id}`)).json();
   expect(saved.tags).toEqual([first.slice(1)]);
   // Off again: the other tests count that tag's pages

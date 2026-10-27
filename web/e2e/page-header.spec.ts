@@ -157,7 +157,7 @@ test("a tag opens its search; + opens the tag editor and gives focus back", asyn
   const t = await make(page, `Header tags ${word()}`, "note", { tags: [tag, "car"] });
   await open(page, t);
   const row = page.locator(".page .tags");
-  await row.getByRole("link", { name: "#car" }).click();
+  await row.getByRole("link", { name: "Tag car" }).click();
   await expect(page).toHaveURL("/search?q=tag%3Acar");
   await page.goBack();
   const plus = row.getByRole("button", { name: "Change tags" });

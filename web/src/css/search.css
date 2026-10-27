@@ -386,6 +386,22 @@
 .tags .morechips {
   padding-inline: 0.45em;
 }
+/* Not even one tag fits beside +N and +: the first stays, cut with … to the room there is */
+.tags.cut,
+.tagset.cut {
+  flex-wrap: nowrap;
+}
+.cut > .last {
+  flex: none;
+}
+.tags a.cut {
+  flex: 0 1 auto;
+}
+.tags a.cut > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .tags .add::before {
   content: "";
   position: absolute;
