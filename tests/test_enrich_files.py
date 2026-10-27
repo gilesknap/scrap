@@ -147,3 +147,74 @@ def test_a_file_page_finds_related_candidates_by_its_files_words(store, monkeypa
         conn.execute("DELETE FROM derived")  # with nothing read, it is not found
         found = [c["id"] for c in enrich.candidates(conn, page_id, limit=6)]
         assert target["page_id"] not in found
+
+
+def test_a_files_text_never_adds_task_boxes(store):
+    """A file's text is a stranger's (in a PDF, maybe invisible): Ask may summarise
+    it, but its list of actions never becomes the page's boxes or makes it a todo."""
+    todo = b"Todo\n- call the dentist\n- buy milk\n" + b"and more words " * 20
+    page_id = attach(store, todo, "text/plain", "todo.txt")
+    out = {**answer(["diy"], "A list of jobs.", "Jobs"), "intent": "list-of-actions",
+           "confidence": "high",
+           "items": [{"text": "call the dentist", "done": False}]}  # fmt: skip
+    ask(store, page_id, out)
+    page = store.page(page_id)
+    assert (page["kind"], page["body"]) == ("note", "")
+    assert page["enrich"]["summary"] == "A list of jobs."
+
+
+def pdf_note(store, body: str) -> str:
+    """A typed note (enrich's) with a PDF added; its page's id."""
+    note = capture(store, body)["page_id"]
+    sha, size = store.put_blob(io.BytesIO(pdf(READ)))
+    store.add_photos(note, new_ulid(), [(sha, "application/pdf", size, "g.pdf")], "me")
+    return note
+
+
+def test_a_save_keeps_the_summary_ask_made_from_the_files(store):
+    note = pdf_note(store, "Shed")
+    ask(store, note, answer(["diy"], "From the PDF."))
+    store.update_page(note, 1, None, "Shed, edited", "me")  # a save: no files sent
+    fake = Fake(answer(summary="From the body."))
+    run_all(worker(store, fake))
+    assert "<files>" not in user_turn(by_schema(fake, enrich.SCHEMA)[0])
+    assert store.page(note)["enrich"]["summary"] == "From the PDF."
+    ask(store, note, answer(summary="Asked again."))  # the next Ask renews it
+    assert store.page(note)["enrich"]["summary"] == "Asked again."
+
+
+def test_a_title_typed_while_ask_runs_wins(store):
+    page_id = attach(store, READ.encode(), "text/plain", "guide.txt")
+
+    def out(system, messages):
+        if "## Other pages" not in system:  # the enrich call: the user types a title
+            store.update_page(page_id, 1, "Typed meanwhile", None, "me")
+        return answer(["diy"], "A guide.", "Larch cladding")
+
+    ask(store, page_id, out)
+    assert store.page(page_id)["title"] == "Typed meanwhile"
+
+
+def test_ask_again_does_not_retitle(store):
+    page_id = attach(store, READ.encode(), "text/plain", "guide.txt")
+    ask(store, page_id)
+    assert store.page(page_id)["title"] == "Larch cladding"
+    fake = ask(store, page_id, answer(["diy"], "A guide.", "Another title"))
+    assert "Write a title." not in user_turn(by_schema(fake, enrich.SCHEMA)[0])
+    assert store.page(page_id)["title"] == "Larch cladding"
+
+
+def test_files_are_numbered_named_and_each_sent_once(store):
+    blobs = []
+    for data, name in ((pdf("Alpha text"), "a.pdf"), (b"%PDF broken", "b.pdf"),
+                       (pdf("Gamma text"), "c.pdf")):  # fmt: skip
+        sha, size = store.put_blob(io.BytesIO(data))
+        blobs.append((sha, "application/pdf", size, name))
+    c = store.prepare({"id": new_ulid(), "text": None}, ["application/pdf"] * 3)
+    page_id = store.capture(c, blobs, "me")[0]["page_id"]
+    again = [(blobs[0][0], "application/pdf", blobs[0][2], "again.pdf")]
+    store.add_photos(page_id, new_ulid(), again, "me")  # the same file once more
+    fake = ask(store, page_id)
+    assert files_block(user_turn(by_schema(fake, enrich.SCHEMA)[0])) == (
+        "File 1 (a.pdf), its text:\nAlpha text\nFile 3 (c.pdf), its text:\nGamma text"
+    )  # b.pdf could not be read: left out, the numbers still count it

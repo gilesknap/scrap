@@ -562,7 +562,7 @@ second job kind, `enrich` (`src/scrap/enrich/`), on the same worker thread, queu
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page's text, except that a confident list of actions gets task boxes appended
-({ref}`ingest-actions`). The schema is in
+({ref}`ingest-actions`), never from a file's text. The schema is in
 [`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql).
 
 What queues an enrich job, and what follows it:
@@ -627,9 +627,11 @@ flowchart TD
   (tagged, not summarised); `title`: 200 characters, for a link, and for a page made from a file
   alone (its first capture a file's with no text, its title still as made, `FILE_UNTITLED`)
   when its files' text was sent: the request then says "Write a title.", and the title replaces
-  the time it came while the title is untouched.
+  the time it came while the title is untouched. A list of actions is not applied when its
+  files' text was sent (a stranger's text, maybe invisible in a PDF: no task boxes, no todo).
 - **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill (a
-  save's re-reading refreshes the summary only); never one the user took off. `model_tag` marks
+  save's re-reading refreshes the summary only, but on a page with files' text it keeps the
+  summary it has, which Ask may have made from them); never one the user took off. `model_tag` marks
   Claude's tags (`on`), and `off` once the user removes one, so it never comes back; a tag the
   user puts back by hand is theirs. Photo ingest marks its tags there too. A link's title
   replaces the provisional one only while the title is still the URL as captured (rev 1, no edit
@@ -641,7 +643,8 @@ flowchart TD
   `model_run`, whose cost it shares in the budget; `request.purpose` is `enrich`, `related` or
   `writeup`). A
   link's fetched text is sent, not kept: the stored request has a placeholder with its length and
-  hash. What was read from images and files is stored in full, as the page's text is. Search indexes the summary in the page's summary column.
+  hash. What was read from images and files is stored in full, as the page's text is. Search
+  indexes the summary in the page's summary column.
 - **Failures** follow the photo rules: outage, credit, auth and budget pause the shared queue and
   refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
   it, and the page says so with **Ask Claude** to retry. A failed fetch is not a failed job: the
@@ -662,8 +665,8 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   text best match the page's words (full-text search, an OR of up to 24 distinct words), then the
   most recently changed. The words are taken in order, first from its title, tags and summary,
   then from the text photo ingest read from its images, their descriptions, its own text, and
-  last its files' text (searched locally: nothing of it is sent). A text page with a summary usually fills the 24 before its text; a photo page, which
-  usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+  last its files' text (searched locally: nothing of it is sent). A text page with a summary
+  usually fills the 24 before its text; a photo page, which usually has no summary (Ask can add one), is searched by what is written in the photo. A word
   search the index refuses is logged and skipped: the tag and recent candidates still go.
 - **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
   makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo

@@ -68,9 +68,18 @@ def page_files(conn: sqlite3.Connection, page_id: str) -> list[File]:
     return [dict(r) for r in conn.execute(FILES, (page_id,))]
 
 
+def read_files(files: Sequence[File]) -> list[tuple[int, str, str]]:
+    """Each file something was read from: its number, its name and its text."""
+    return [
+        (n, f.get("name") or "", text)
+        for n, f in enumerate(files, start=1)
+        if (text := (f.get("text") or "").strip())
+    ]
+
+
 def file_text(files: Sequence[File]) -> str:
     """All the text read from a page's files, for how much there is to summarise."""
-    return "\n".join(t for f in files if (t := (f.get("text") or "").strip()))
+    return "\n".join(text for _, _, text in read_files(files))
 
 
 def file_lines(files: Sequence[File], most: int) -> list[str]:
@@ -78,10 +87,9 @@ def file_lines(files: Sequence[File], most: int) -> list[str]:
     with its number and name, cut to most characters in all; none if nothing was
     read."""
     items = []
-    for n, file in enumerate(files, start=1):
-        if text := (file.get("text") or "").strip():
-            name = one_line(file.get("name") or "", 100)
-            items.append(f"File {n}{f' ({name})' if name else ''}, its text:\n{text}")
+    for n, name, text in read_files(files):
+        name = one_line(name, 100)
+        items.append(f"File {n}{f' ({name})' if name else ''}, its text:\n{text}")
     if not items:
         return []
     read = "\n".join(items)

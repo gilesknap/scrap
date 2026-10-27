@@ -249,8 +249,13 @@ class Enricher:
             link = link and link[0]
             images = page_images(conn, page_id)
             # A file's text goes to Claude only when the owner asks (ADR 35, #378)
-            files = page_files(conn, page_id) if job["reason"] == "ask" else []
-            untitled = bool(conn.execute(UNTITLED_FILE, {"page": page_id}).fetchone())
+            asked = job["reason"] == "ask"
+            files = page_files(conn, page_id)
+            filed = bool(file_text(files))  # it has some: a re-reading keeps Ask's
+            files = files if asked else []
+            untitled = asked and bool(
+                conn.execute(UNTITLED_FILE, {"page": page_id}).fetchone()
+            )
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
@@ -298,10 +303,13 @@ class Enricher:
         except claude.CallError as error:
             self.failed(jid, run_id, error)
             return
-        if not self.succeeded(job, run_id, done, out, link, got):
+        if not self.succeeded(job, run_id, done, out, link, got, filed and not asked):
             return
         items = [(i["text"], i["done"]) for i in out["items"]]
-        if not link and actions.accepted(out["intent"], out["confidence"], items):
+        # never from a file's text (a stranger's, maybe invisible in the PDF: ADR 35)
+        if not (link or read) and actions.accepted(
+            out["intent"], out["confidence"], items
+        ):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
         if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
@@ -371,10 +379,12 @@ class Enricher:
         out: dict[str, Any],
         link: str | None,
         got: fetch.Fetched | None,
+        keep_summary: bool = False,
     ) -> bool:
         """Apply what Claude added; whether the job is still this worker's (else it
         was given back at shutdown, and runs again). An Ask's job is finished by the
-        caller, after its related pages."""
+        caller, after its related pages. keep_summary: a re-reading of a page with
+        files' text, which only Ask sends, keeps the summary it has (#378)."""
         jid, page_id = job["id"], job["page_id"]
         producer = done.served_model
         with self.store.connect() as conn, transaction(conn):
@@ -408,6 +418,12 @@ class Enricher:
                     ).fetchone()
                     if old is not None:
                         source, source_title = old
+                summary = out["summary"]
+                if keep_summary:
+                    old = conn.execute(
+                        "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
+                    ).fetchone()
+                    summary = old and old[0] or summary
                 conn.execute(
                     "INSERT INTO enrichment (page_id, run_id, producer, summary,"
                     " source, source_title, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -415,7 +431,7 @@ class Enricher:
                     " producer = excluded.producer, summary = excluded.summary,"
                     " source = excluded.source, source_title = excluded.source_title,"
                     " updated_at = excluded.updated_at",
-                    (page_id, run_id, producer, out["summary"], source,
+                    (page_id, run_id, producer, summary, source,
                      source_title, stamp),
                 )  # fmt: skip
                 if link:

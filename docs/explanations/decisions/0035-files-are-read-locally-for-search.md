@@ -66,6 +66,10 @@ act, so it is the owner deciding what a model sees:
   the files' words, a local full-text search that sends nothing.
 - A page made from a file alone (its first capture a file's with no text, its title untouched)
   gets a title from its files' text on Ask, as a photo page gets one from its photo.
+- A list of actions in the files' text is never applied (no task boxes, no todo): the text is
+  a stranger's, maybe invisible in the PDF.
+- A re-reading that does not send the files (a save of a typed page with a PDF added) keeps the
+  page's summary, which Ask may have made from them; the next Ask renews it.
 - Still no model reads the file itself, and file ingest still never changes the page.
 
 ## Consequences

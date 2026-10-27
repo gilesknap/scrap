@@ -40,11 +40,11 @@ def relate(
         summary = human if isinstance(human, str) else model_summary(conn, page_id)
         pages = CANDIDATES(conn, page_id)
         images = page_images(conn, page_id)
-        read = page_files(conn, page_id) if files else []
+        read_from = page_files(conn, page_id) if files else []
         up = writeups.shown(conn, page_id)
     system, version = related_prompt(pages)
     messages = related_message(
-        page, tags, summary, images, up["text"] if up else "", read
+        page, tags, summary, images, up["text"] if up else "", read_from
     )
     model, effort = claude.text_model()
     request = {

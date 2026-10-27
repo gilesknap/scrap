@@ -52,8 +52,9 @@ def candidates(
     title, tags, summary or text best match its words (full-text search, BY_WORDS),
     then the most recently changed; none in the trash. Its words: the first
     QUERY_WORDS distinct ones of its title, tags and summary, then of what was read
-    from its images (their text, then their descriptions), then of its own text, so
-    a photo page with no summary is searched by what is in the photo.
+    from its images (their text, then their descriptions), then of its own text, and
+    last of what was read from its files, so a photo or file page with no summary is
+    searched by what is in it (locally: nothing of a file is sent).
     Swappable (CANDIDATES): embeddings (#53) if these prove too weak."""
     me = conn.execute(
         "SELECT p.title, p.fields, p.body FROM page p WHERE p.id = ?", (page_id,)
