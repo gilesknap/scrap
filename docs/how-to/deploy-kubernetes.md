@@ -390,6 +390,12 @@ extraEnv:
 
 The same address makes the page links the MCP tools return absolute.
 
+```{warning}
+The web app and API check `Host` as well: a hostname missing from `SCRAP_PUBLIC_URL` gets `421`
+on every page, not just `/mcp`. Set it to the address you reach scrap at (`/healthz`, which the
+probes use, answers to any name), and roll the pod after changing it.
+```
+
 ### Port-forward
 
 For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is exposed beyond your own machine.

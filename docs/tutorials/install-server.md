@@ -157,8 +157,9 @@ TZ=Europe/London
 - Photos are queued either way but only sent to Claude with `SCRAP_INGEST=on`.
   `SCRAP_BUDGET_DAY_USD` caps what ingest may spend in a day; scrap pauses until tomorrow when it
   is reached.
-- `/mcp` answers only loopback and the addresses in `SCRAP_PUBLIC_URL`, port included, and
-  otherwise `421 Invalid Host header`. The same address makes the page links in Claude's replies
+- scrap answers only loopback, IP addresses and the addresses in `SCRAP_PUBLIC_URL`, port included,
+  and otherwise `421 Invalid Host header`: the web app as well as `/mcp`, so a missing address
+  locks you out. The same address makes the page links in Claude's replies
   clickable.
 - Set `TZ` to your own time zone, otherwise `due:today` follows UTC.
 
