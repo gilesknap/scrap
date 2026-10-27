@@ -638,7 +638,7 @@ def test_folded_field_edits_revert_to_what_was_never_there(store):
 def test_edit_meta_refuses_reserved_long_and_unpaired_fields(store):
     ref = later(store, "A")
     key = ref["slug"]
-    for name in ("status", "personal", "source", "summary"):
+    for name in ("personal", "source", "summary"):
         assert "meaning of its own" in refused(
             store, "edit_meta", pages=[key], fields={name: "x"}
         )
@@ -655,3 +655,64 @@ def test_edit_meta_refuses_reserved_long_and_unpaired_fields(store):
         fields={"media_type": "film"},
     )  # fmt: skip
     assert both["pages"][0]["fields_added"]["subtype"] == "watch"
+
+
+# ---- edit_meta's status: a todo ticked done and reopened over MCP
+
+
+def todo(store, title="Buy milk"):
+    ref = human(store, title)
+    made = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")
+    age(store, made["pages"][0]["revision"])  # its own revision: later ones don't fold
+    return ref["slug"]
+
+
+def test_edit_meta_marks_a_todo_done_and_reopens_it(store):
+    key = todo(store)
+    dry = ok(store, "edit_meta", pages=[key], fields={"status": "done"}, dry_run=True)
+    assert dry["pages"][0]["revision"] is None and dry["pages"][0]["changed"]
+    assert store.page(key)["fields"]["status"] == "open"  # nothing saved
+    done = ok(store, "edit_meta", pages=[key], fields={"status": "done"})
+    row = done["pages"][0]
+    assert row["fields_added"] == {"status": "done"} and row["fields_was"] == {
+        "status": "open"
+    }
+    assert store.page(key)["fields"]["status"] == "done"
+    assert [p["slug"] for p in store.search("is:done", 5)] == [key]
+    rev = meta(store, key)[0]
+    assert rev["source"] == "mcp" and rev["id"] == row["revision"]
+    ok(store, "edit_meta", pages=[key], fields={"status": "open"})  # reopen
+    assert store.page(key)["fields"]["status"] == "open"
+
+
+def test_a_status_change_is_reverted(store):
+    key = todo(store)
+    rev = ok(store, "edit_meta", pages=[key], fields={"status": "done"})
+    ok(store, "revert", revision=rev["pages"][0]["revision"])
+    assert store.page(key)["fields"]["status"] == "open"
+
+
+def test_edit_meta_refuses_a_bad_status(store):
+    key = todo(store)
+    assert "status must be" in refused(
+        store, "edit_meta", pages=[key], fields={"status": "finished"}
+    )
+    assert "status must be" in refused(
+        store, "edit_meta", pages=[key], fields={"status": None}
+    )
+    note = human(store, "Just a note")["slug"]
+    assert "make it one first" in refused(
+        store, "edit_meta", pages=[note], fields={"status": "done"}
+    )
+    assert store.page(key)["fields"]["status"] == "open"
+
+
+def test_status_with_a_kind_change_is_refused_and_a_later_takes_one(store):
+    note = human(store, "Just a note")["slug"]
+    assert "earlier call" in refused(
+        store, "edit_meta", pages=[note], kind="todo", fields={"status": "done"}
+    )
+    assert store.page(note)["kind"] == "note"
+    film = later(store, "Film")["slug"]
+    ok(store, "edit_meta", pages=[film], fields={"status": "cancelled"})
+    assert store.page(film)["fields"]["status"] == "cancelled"
