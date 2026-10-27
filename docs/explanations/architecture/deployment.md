@@ -86,7 +86,7 @@ flowchart TD
             ct["enrich-topics Sun 04:11"]:::claude
             cg["gc 04:30"]
         end
-        bpvc[("Backup PVC<br/>daily/ + monthly/")]:::store
+        bpvc[("Backup PVC<br/>timestamped runs + monthly/")]:::store
     end
     me --> ing --> np --> svc --> dep
     dep --- pvc

@@ -4,9 +4,8 @@ scrap keeps one SQLite database and a folder of content-addressed files. Capture
 are the truth; derived rows cost an LLM call to remake so they are stored; chunks and the FTS index
 are a disposable cache.
 
-Back to [Architecture](../design.md). The schema is the numbered scripts in
-`src/scrap/migrations/`: one generated baseline, `baseline.sql` (schema 18), plus the numbered scripts
-after it (none yet; the first is 0019). The code is in `src/scrap/store/`.
+Back to [Architecture](../design.md). The schema is `src/scrap/migrations/baseline.sql` (schema
+18); numbered scripts after it start at 0019 (none yet). The code is in `src/scrap/store/`.
 
 ## Core tables
 
@@ -20,7 +19,7 @@ erDiagram
     page ||--o{ tag : has
     page ||--o{ capture : "arrived as"
     page ||--o| enrichment : "summary"
-    page ||--o{ writeup : "board write-ups"
+    page ||--o{ writeup : "write-ups, syntheses"
     page ||--o{ chunk : "search cache"
     capture ||--o{ capture_blob : holds
     blob ||--o{ capture_blob : "same bytes once"
@@ -111,11 +110,11 @@ erDiagram
 
 | Table | Holds |
 | --- | --- |
-| `job`, `queue_state` | Photo and file jobs, kind `ingest` or `refine` (`queued`, `running`, `done`, `dead`), and the single-row pause state (`auth`, `credit`, `outage`, `budget`) |
+| `job`, `queue_state` | Photo and file jobs, kind `ingest` (the `CHECK` also allows `refine`, which nothing uses), state `queued`, `running`, `done` or `dead`, and the single-row pause state (`auth`, `credit`, `outage`, `budget`) |
 | `model_run`, `enrich_run`, `topic_run` | Every call: request, response, usage, `cost_microusd`, error class. `topic_run` covers discovery calls of no one page |
 | `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (its `CHECK` lists them) |
 | `enrichment`, `model_tag`, `related` | Summary and fetched link title; tags Claude added (`on`) or the user removed (`off`, never re-added); related pages in order |
-| `writeup`, `writeup_guidance` | Versions of a board's write-up (one current, never changed) and the owner's guidance for the next |
+| `writeup`, `writeup_guidance` | Versions of a board's write-up or a topic's synthesis (one current, never changed) and the owner's guidance for the next |
 | `topic`, `topic_source` | Which pages are topics (with a key never made again) and their sources, with the owner's exclusions |
 
 ## Originals, derived, cache
@@ -159,10 +158,11 @@ flowchart LR
 - **Derived** (orange) rows are immutable versions. A new current version supersedes the old by
   trigger; a restore inserts a copy. Never `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE
   deletes without firing the FTS triggers.
-- **The cache** (blue) is rebuilt by `index_all`. A page has one own
-  chunk (title, tags, summary, plain-text body), rebuilt in the same transaction as any capture,
-  save, tag change or enrich result, so there is no index job. Each current derived text is a
-  further chunk. Chunks are deleted and inserted, never updated.
+- **The cache** (blue) is rebuilt by `index_all`. A page has one own chunk (title, tags, summary,
+  plain-text body), rebuilt in the same transaction as any capture, save, tag change or enrich
+  result, so there is no index job. The current write-up (a board's write-up or a topic's synthesis)
+  is a second chunk, and each current derived text a further one. Chunks are deleted and inserted,
+  never updated.
 - **What is indexed** is text only. Pixels, fetched article text and raw Excalidraw JSON are not.
   Search itself is on [Search](search.md).
 
@@ -313,9 +313,11 @@ Python steps and `store/fixes.py` went with them, and the history is in the ADRs
 
 Numbered scripts after the baseline are numbered by merge order with no gaps: the first is
 `0019_*.sql`, and the number in a file's name is `BASELINE + 1 + its position` (`db.BASELINE`, 18;
-`tests/test_migrate.py` enforces it). Script *N* sets `PRAGMA user_version = N`.
+`tests/test_migrate.py` enforces it). The runner sets `PRAGMA user_version = N` after script *N*,
+in the same transaction.
 
-`migrate()` takes an exclusive `flock` on `db.lock`, turns on WAL and then:
+`migrate()` takes an exclusive `flock` on `scrap.db.lock` (`<database>.lock`), turns on WAL and
+then:
 
 | The database is | `migrate()` |
 | --- | --- |

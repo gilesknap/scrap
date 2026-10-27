@@ -1,16 +1,18 @@
 # Job queue and Claude features
 
-All Claude work in scrap runs on one background worker thread that takes jobs from SQLite, one at a
-time, and stores what comes back as derived rows beside the page, never in the owner's text. This
-page shows the shape of that queue; the prompts, limits and operating detail are in
-[](../ingest.md) and [](../llm-calls.md).
+Queued Claude work in scrap runs on one background worker thread that takes jobs from SQLite, one at
+a time; the `scrap enrich` passes call Claude from their own process, one page at a time, under the
+same pause and budget. Either way what comes back is stored as derived rows beside the page, never
+in the owner's text. This page shows the shape of that queue; the prompts, limits and operating
+detail are in [](../ingest.md) and [](../llm-calls.md).
 
 Colours in the diagrams: blue is stored data, orange is Claude, green is the user.
 
 ## What feeds the worker and what it writes
 
-Every trigger ends as a row in a jobs table; the worker passes each job through the budget gate to
-Claude, and each result lands in a derived table.
+Most triggers end as a row in a jobs table, which the worker passes through the budget gate to
+Claude; the scheduled `scrap enrich` passes go through the same gate from their own process. Each
+result lands in a derived table.
 
 ```mermaid
 flowchart LR
@@ -26,6 +28,7 @@ flowchart LR
         ej[("enrich_job<br/>capture, save, ask,<br/>related, writeup, topic")]:::store
     end
     W["Worker thread<br/>one job at a time"]
+    P["scrap enrich pass<br/>its own process,<br/>one page at a time"]
     G{"Budget gate<br/>and pause"}
     C(["Claude<br/>API or claude -p"]):::claude
     subgraph OUT["Derived, apart from the text"]
@@ -37,11 +40,13 @@ flowchart LR
     photo --> job
     save -->|"after debounce"| ej
     ask -->|"now"| ej
-    night -->|"enrich --related"| ej
-    week -->|"enrich --topics"| ej
+    night -->|"enrich --related"| P
+    week -->|"enrich --topics"| P
+    P -->|"queues topic syntheses"| ej
     job --> W
     ej --> W
     W --> G --> C
+    P --> G
     C --> d & e & r & w
     job -. "read: queues<br/>write-up or related" .-> ej
     classDef store fill:#e8f1ff,stroke:#4a7bd0;
@@ -53,14 +58,15 @@ flowchart LR
 |---|---|---|---|---|
 | Photo ingest | `job`, kind `ingest` | A photo capture, Reprocess, *Ask Claude* on one image | Vision model, one per distinct image | `derived` `ocr`, `description`, `excalidraw`; page title, tags and kind |
 | Enrich | `enrich_job` `capture`, `save`, `ask`, `backfill` | A text page save or link capture, *Ask Claude*, `scrap enrich --backfill` | Text model | `enrichment` summary, `model_tag` tags, a link's title |
-| Related | `enrich_job` `related` | A page's first read, *Ask Claude*, the nightly pass | Text model, candidates from tags and search | `related` rows (at most five per page) |
-| Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude*, `scrap enrich --writeups` | Vision model with the board photos | `writeup` version |
+| Related | `enrich_job` `related` | A page's first read, *Ask Claude* (the nightly pass calls Claude in its own process) | Text model, candidates from tags and search | `related` rows (at most five per page) |
+| Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude* (`scrap enrich --writeups` calls Claude in its own process) | Vision model with the board photos | `writeup` version |
 | Topic | `enrich_job` `topic` | The weekly topics pass | Vision model | `writeup` version of a topic page |
 
 The nightly related pass and the weekly topics pass are Helm CronJobs (`enrichRelated`, default
 `41 3 * * *`; `enrichTopics`, default `11 4 * * 0`) that run `scrap enrich --related` and
-`--topics`. Related picks run in the CronJob's own process, under the same budget and pause; topic
-discovery runs there too and queues one `topic` job per topic due, which the service's worker runs.
+`--topics`. Related picks run in the CronJob's own process, under the same budget and pause, as do
+the write-ups of `scrap enrich --writeups` run by hand; topic discovery runs there too and queues
+one `topic` job per topic due, which the service's worker runs.
 
 How the jobs are chosen and ordered:
 
@@ -175,7 +181,9 @@ For a board or diagram the photo call also returns Excalidraw skeleton elements 
 
 ## Invariants
 
-- One worker thread, one job at a time, and `claude.complete()` never retries.
+- Queued Claude work runs on one worker thread, one job at a time; the `scrap enrich` passes call
+  Claude from their own process, one page at a time, under the same pause and budget.
+  `claude.complete()` never retries.
 - A pause never costs a job a failure; a charged failure dies on the third.
 - Photo, text and topic spend share one daily budget.
 - Claude's output is stored apart from the owner's text and can be regenerated or restored.

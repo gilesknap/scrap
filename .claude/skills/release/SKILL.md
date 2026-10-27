@@ -80,6 +80,10 @@ You orchestrate; subagents do the work. How a tag publishes is in
 - Open a PR titled `scrap <ver>`: the user-visible changes, the backup
   directory (or why it was skipped) and any migration. End the body with the
   session's attribution lines.
+- For 1.0 (and its release notes): say that a store or backup below schema 18
+  needs 0.16.x first, then 1.0 (the "Upgrading to 1.0 from before 0.16" notes in
+  `docs/how-to/deploy-kubernetes.md` and `deploy-single-server.md`). Check the
+  live `user_version` is 18 before deploying 1.0, or 1.0 refuses to start.
 
 ## 6. Merge
 

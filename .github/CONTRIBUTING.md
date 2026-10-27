@@ -47,7 +47,8 @@ uv run tox -e docs-autobuild   # rebuild the docs on change
 
 The docs build fails on any warning and needs
 [graphviz](https://graphviz.org/) installed. pytest also runs the doctests in
-`docs/` and `src/`, and treats warnings as errors.
+the docstrings under `src/` (the docs are Markdown, which it does not collect),
+and treats warnings as errors.
 
 ### Writing the docs
 
@@ -149,8 +150,8 @@ After a change to `charts/`, run `./charts/test-chart.sh` (needs `helm` and
   53-character release name) and validates the output with `kubeconform
   -strict` against Kubernetes 1.30.0 and 1.36.5. Set `K8S_VERSIONS` to change
   that, for example `K8S_VERSIONS="1.30.0" ./charts/test-chart.sh`.
-- fails if a Secret or ConfigMap is rendered, if `ANTHROPIC_API_KEY` or
-  `SCRAP_NOTIFY_URL` appears as a plain value, if the Deployment is not one
+- fails if a Secret or ConfigMap is rendered, if `ANTHROPIC_API_KEY`,
+  `SCRAP_NOTIFY_URL` or `SCRAP_MCP_TOKEN` appears as a plain value, if the Deployment is not one
   replica with `Recreate`, or if a name or label exceeds the Kubernetes limits.
 
 It also checks that the chart refuses values such as `ingest.enabled` without
@@ -179,6 +180,8 @@ CI must pass:
 - **lint**: the pre-commit hooks (ruff lint and format, `uv.lock` in sync,
   gitleaks, file checks) and pyright.
 - **test**: pytest on Python 3.11, 3.12, 3.13 and 3.14.
+- **deploy**: shellcheck on the `deploy/` scripts, and the `deploy/test-*.sh`
+  tests.
 - **web**: Biome and tsc, vitest, the PWA build and size budget, and Playwright.
 - **container**, **docs** and **dist**: the container image, the docs and the
   package must all build. The image is published on release tags.
@@ -203,7 +206,7 @@ Releases are cut by pushing a tag. The tag is the version, with no `v` prefix
    ```
 
 The CI workflow then runs on the tag. The GitHub Release is created once the
-`dist`, `test`, `docs` and `web` jobs have passed. It has generated release
+`dist`, `test`, `deploy`, `docs` and `web` jobs have passed. It has generated release
 notes with the sdist, the wheel, `docs.zip` and `install.sh` attached. In parallel:
 
 - The image is built natively for amd64 and arm64, each on a runner of that

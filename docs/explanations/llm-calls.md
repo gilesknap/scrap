@@ -34,17 +34,17 @@ page's: see the end. "Nightly" is the related-pages job and "weekly" the topics 
 | Topic page (Claude's, a Doc; its text is the owner's notes) | — | Never: its text is not read, Ask makes its synthesis instead | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
 
 What each call sees. Enrich gets the page's kind, tags, title and text as plain words (at most
-12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched
-text. Related gets the page in brief (title, tags, summary, the first 2,000 characters of its text
-and 3,000 of its images' text) and an index of up to 150 candidates. The candidates are the pages
-sharing the most tags, then a full-text search for 24 of the page's words: title, tags and summary
-first, then its images' text, their descriptions, and last its own text. Data is quoted in
-`<page>`, `<images>` and `<fetched>` blocks, and any such tag inside the data has its `<` sent as
+12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched text.
+Related gets the page in brief (title, tags, summary, the first 2,000 characters of its text, 3,000
+of its images' text and 2,000 of its write-up) and an index of up to 150 candidates. The candidates
+are the pages sharing the most tags, then a full-text search for 24 of the page's words: title, tags
+and summary first, then its images' text, their descriptions, and last its own text. Data is quoted
+in `<page>`, `<images>` and `<fetched>` blocks, and any such tag inside the data has its `<` sent as
 `&lt;`, so the data cannot end its block. A photo page usually has no enrich summary (Ask can add
 one); a board's write-up gives it one. The write-up gets the board photos themselves (at most 4),
 what was read from them (at most 12,000 characters), the page's title, tags and text (at most
-6,000), the owner's guidance in a `<guidance>` block and the related call's index; it cites pages
-by number, and scrap makes those `[[slug]]` links ({ref}`ingest-writeup`).
+6,000), the owner's guidance in a `<guidance>` block and the related call's index; it cites pages by
+number, and scrap makes those `[[slug]]` links ({ref}`ingest-writeup`).
 
 The store's health checks (`is:orphan`, `is:outdated` and the rest, the PWA's Store health
 screen) are plain SQL and make no call: Claude's views of the library are the topic syntheses

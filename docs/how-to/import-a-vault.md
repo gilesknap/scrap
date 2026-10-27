@@ -45,7 +45,8 @@ flowchart LR
    scrap import --data-dir ./data ~/vault-copy
    ```
 
-   It prints the same summary, then `imported N pages into DIR`.
+   It prints the same summary, then `imported N pages into <data folder> (--dry-run lists
+   problems)`.
 
    Running it again imports only pages it has not imported before (a page is known by its path in
    the vault, so the summary says `(0 new)` for a vault already imported); a page already there is
@@ -188,3 +189,4 @@ off the command only says that enrichment is off.
 | `tag dropped` | A tag that is not text or a number (null, a list, a map, true or false). An empty tag is dropped without a line |
 | `symlink skipped`, `unreadable`, `too large` | Files left out: symbolic links, files that cannot be read, and pages over 1 MB, and images or PDFs over `SCRAP_MAX_UPLOAD_MB` (50 MB) |
 | `skipped`, `dropped folder` | Files left out, and why. `dropped folder` counts the files under the top-level `raw/`, `inbox/` and `_*` folders |
+| `imported N pages into <data folder> (--dry-run lists problems)` | The last line of a real import: how many pages it saved. Without `--dry-run` the problems above are only counted; a dry run lists each one |

@@ -48,14 +48,24 @@ try:
 except (OSError, CalledProcessError):
     release_tag = re.split(r"\.dev|\+", release)[0]
 
+# The chart version of that release (``{{ chart_version }}``), for `helm --version`:
+# Helm needs semver, so a pre-release tag 1.0.0rc1 is chart 1.0.0-rc.1, as
+# .github/workflows/chart.yml publishes it.
+chart_version = re.sub(r"^(\d+\.\d+\.\d+)(a|b|rc)(\d+)$", r"\1-\2.\3", release_tag)
+
 
 def _substitute_release_tag(app, docname, source):
-    """Replace ``{{ release_tag }}`` everywhere, including inside code fences.
+    """Replace ``{{ release_tag }}`` and ``{{ chart_version }}`` everywhere, including
+    inside code fences.
 
     MyST substitutions do not apply inside fenced code blocks, which is where the
     install commands live, so do it on the source text before parsing.
     """
-    source[0] = source[0].replace("{{ release_tag }}", release_tag)
+    source[0] = (
+        source[0]
+        .replace("{{ release_tag }}", release_tag)
+        .replace("{{ chart_version }}", chart_version)
+    )
 
 
 def setup(app):
