@@ -141,8 +141,7 @@ def resume(conn: sqlite3.Connection, stamp: str) -> None:
 
 def spent_today(conn: sqlite3.Connection, stamp: str) -> int:
     """Micro-dollars recorded for runs started since UTC midnight: photos', text
-    enrichment's and topic discovery's (one budget; no topic_run before migration
-    13)."""
+    enrichment's and topic discovery's (one budget)."""
     day = stamp[:10] + "T00:00:00.000Z"
     spent = conn.execute(
         "SELECT (SELECT coalesce(sum(cost_microusd), 0) FROM model_run"
@@ -151,14 +150,10 @@ def spent_today(conn: sqlite3.Connection, stamp: str) -> int:
         "  WHERE started_at >= :day)",
         {"day": day},
     ).fetchone()[0]
-    try:
-        spent += conn.execute(
-            "SELECT coalesce(sum(cost_microusd), 0) FROM topic_run"
-            " WHERE started_at >= ?",
-            (day,),
-        ).fetchone()[0]
-    except sqlite3.OperationalError:  # no such table: an older schema
-        pass
+    spent += conn.execute(
+        "SELECT coalesce(sum(cost_microusd), 0) FROM topic_run WHERE started_at >= ?",
+        (day,),
+    ).fetchone()[0]
     return spent
 
 

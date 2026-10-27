@@ -6,7 +6,7 @@ owner's notes, and Claude's synthesis is its write-up (store.writeups). Its sour
 (topic_source) are the synthesis's inputs; one the owner excluded stays, excluded, so
 discovery never adds it again. A topic in the trash keeps its key, so discovery never
 makes it again: the trash is the veto. These run on an open connection; the callers
-own the transaction. Before migration 13 there are no topics.
+own the transaction.
 """
 
 import json
@@ -36,11 +36,7 @@ def topic_key(name: str) -> str:
 
 def key_of(conn: sqlite3.Connection, page_id: str) -> str | None:
     """A topic page's key, else None."""
-    try:
-        sql = "SELECT key FROM topic WHERE page_id = ?"
-        row = conn.execute(sql, (page_id,)).fetchone()
-    except sqlite3.OperationalError:
-        return None
+    row = conn.execute("SELECT key FROM topic WHERE page_id = ?", (page_id,)).fetchone()
     return row[0] if row else None
 
 
@@ -95,15 +91,10 @@ def include(conn: sqlite3.Connection, topic_id: str, page_id: str, stamp: str) -
 
 def touch(conn: sqlite3.Connection, page_id: str, stamp: str) -> None:
     """A page is back from the trash: each topic it is a source of is due again (its
-    memberships' changed_at), so the synthesis sees it. Nothing before migration
-    13."""
-    try:
-        conn.execute(
-            "UPDATE topic_source SET changed_at = ? WHERE page_id = ?",
-            (stamp, page_id),
-        )
-    except sqlite3.OperationalError:  # no such table: an older schema
-        pass
+    memberships' changed_at), so the synthesis sees it."""
+    conn.execute(
+        "UPDATE topic_source SET changed_at = ? WHERE page_id = ?", (stamp, page_id)
+    )
 
 
 def exclude(conn: sqlite3.Connection, topic_id: str, page_id: str, stamp: str) -> bool:
@@ -122,33 +113,27 @@ def sources(
 ) -> list[dict[str, Any]]:
     """A topic's sources not in the trash, first added first: id, slug, title, kind,
     added_by, added_at and excluded; with excluded, those the owner took out too."""
-    try:
-        return _rows(
-            conn,
-            "SELECT p.id, p.slug, p.title, p.kind, s.added_by, s.added_at,"
-            " s.excluded FROM topic_source s JOIN page p ON p.id = s.page_id"
-            " WHERE s.topic_id = ? AND p.deleted_at IS NULL AND (? OR s.excluded = 0)"
-            " ORDER BY s.added_at, p.created_at, p.id",
-            topic_id, excluded,
-        )  # fmt: skip
-    except sqlite3.OperationalError:
-        return []
+    return _rows(
+        conn,
+        "SELECT p.id, p.slug, p.title, p.kind, s.added_by, s.added_at,"
+        " s.excluded FROM topic_source s JOIN page p ON p.id = s.page_id"
+        " WHERE s.topic_id = ? AND p.deleted_at IS NULL AND (? OR s.excluded = 0)"
+        " ORDER BY s.added_at, p.created_at, p.id",
+        topic_id, excluded,
+    )  # fmt: skip
 
 
 def of_page(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
     """The topics (not in the trash) a page is a source of, by title: id, slug,
     title."""
-    try:
-        return _rows(
-            conn,
-            "SELECT p.id, p.slug, p.title FROM topic_source s"
-            " JOIN page p ON p.id = s.topic_id WHERE s.page_id = ?"
-            " AND s.excluded = 0 AND p.deleted_at IS NULL"
-            " ORDER BY p.title COLLATE NOCASE, p.id",
-            page_id,
-        )  # fmt: skip
-    except sqlite3.OperationalError:
-        return []
+    return _rows(
+        conn,
+        "SELECT p.id, p.slug, p.title FROM topic_source s"
+        " JOIN page p ON p.id = s.topic_id WHERE s.page_id = ?"
+        " AND s.excluded = 0 AND p.deleted_at IS NULL"
+        " ORDER BY p.title COLLATE NOCASE, p.id",
+        page_id,
+    )  # fmt: skip
 
 
 def every(conn: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -191,25 +176,22 @@ def index(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     updated_at (its synthesis's, else the page's), and area (the top-level tag most
     common among its sources' tags, None if they have none). Grouped by area, the
     biggest first, those with none last; by title within one."""
-    try:
-        rows = _rows(
-            conn,
-            "SELECT p.id, p.slug, p.title, coalesce(w.summary, '') AS summary,"
-            " coalesce(w.created_at, p.updated_at) AS updated_at,"
-            " (SELECT count(*) FROM topic_source s JOIN page q ON q.id = s.page_id"
-            "  WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)"
-            " AS sources,"
-            " (SELECT json_group_array(json_array(s.page_id, g.tag))"
-            "  FROM topic_source s JOIN page q ON q.id = s.page_id"
-            "  JOIN tag g ON g.page_id = s.page_id"
-            "  WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)"
-            " AS tags"
-            " FROM topic t JOIN page p ON p.id = t.page_id"
-            " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
-            " WHERE p.deleted_at IS NULL",
-        )
-    except sqlite3.OperationalError:  # no such table: an older schema
-        return []
+    rows = _rows(
+        conn,
+        "SELECT p.id, p.slug, p.title, coalesce(w.summary, '') AS summary,"
+        " coalesce(w.created_at, p.updated_at) AS updated_at,"
+        " (SELECT count(*) FROM topic_source s JOIN page q ON q.id = s.page_id"
+        "  WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)"
+        " AS sources,"
+        " (SELECT json_group_array(json_array(s.page_id, g.tag))"
+        "  FROM topic_source s JOIN page q ON q.id = s.page_id"
+        "  JOIN tag g ON g.page_id = s.page_id"
+        "  WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)"
+        " AS tags"
+        " FROM topic t JOIN page p ON p.id = t.page_id"
+        " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
+        " WHERE p.deleted_at IS NULL",
+    )
     for r in rows:
         r["area"] = area([(p, t) for p, t in json.loads(r.pop("tags"))])
     size: dict[str | None, int] = {}

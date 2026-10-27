@@ -110,15 +110,11 @@ def due(conn: sqlite3.Connection, page_id: str) -> bool:
 
 
 def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
-    """A page's current write-up, or None (also before migration 12)."""
-    try:
-        row = conn.execute(
-            f"SELECT {COLUMNS} FROM writeup"
-            " WHERE page_id = ? AND superseded_at IS NULL",
-            (page_id,),
-        ).fetchone()
-    except sqlite3.OperationalError:  # no such table: an older schema
-        return None
+    """A page's current write-up, or None."""
+    row = conn.execute(
+        f"SELECT {COLUMNS} FROM writeup WHERE page_id = ? AND superseded_at IS NULL",
+        (page_id,),
+    ).fetchone()
     return dict(row) if row else None
 
 
@@ -168,12 +164,9 @@ def put(
 
 def guidance(conn: sqlite3.Connection, page_id: str) -> str | None:
     """The owner's guidance for a page's next write-up, if any."""
-    try:
-        row = conn.execute(
-            "SELECT text FROM writeup_guidance WHERE page_id = ?", (page_id,)
-        ).fetchone()
-    except sqlite3.OperationalError:  # no such table: an older schema
-        return None
+    row = conn.execute(
+        "SELECT text FROM writeup_guidance WHERE page_id = ?", (page_id,)
+    ).fetchone()
     return row[0] if row else None
 
 
@@ -216,19 +209,16 @@ def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
     write-up links to slug (SQL wiki_links). Only write-ups holding the slug as typed
     are parsed (instr): one escaped (`&#97;`, `\\-`) is missed, as in
     Store.backlinks."""
-    try:
-        return _rows(
-            conn,
-            "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
-            " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
-            f" AND p.deleted_at IS NULL AND {SHOWN.format(p='p')} AND p.slug <> ?"
-            " AND instr(w.text, ?) > 0 AND EXISTS (SELECT 1 FROM"
-            " json_each(wiki_links(w.text)) l WHERE l.value = ?)"
-            " ORDER BY w.created_at DESC",
-            slug, slug, slug,
-        )  # fmt: skip
-    except sqlite3.OperationalError:  # no such table: an older schema
-        return []
+    return _rows(
+        conn,
+        "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
+        " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
+        f" AND p.deleted_at IS NULL AND {SHOWN.format(p='p')} AND p.slug <> ?"
+        " AND instr(w.text, ?) > 0 AND EXISTS (SELECT 1 FROM"
+        " json_each(wiki_links(w.text)) l WHERE l.value = ?)"
+        " ORDER BY w.created_at DESC",
+        slug, slug, slug,
+    )  # fmt: skip
 
 
 def outdated(conn: sqlite3.Connection, page_id: str, version: str | None) -> bool:
