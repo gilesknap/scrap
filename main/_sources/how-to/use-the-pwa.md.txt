@@ -261,9 +261,8 @@ repeats the title. Search needs the server.
   `- [Name](/p/slug)` line to the Pinned page instead). The toast says *Pinned*, with **Undo**.
   **Edit pins** opens the page: rename a pin by its link text, reorder or remove it by its line.
   A page keeps its slug when renamed, so a pin to it survives. **Copy link** in the header copies
-  the search's address. Claude does not read the Pinned page. Pins show
-  here, not on the capture screen the app opens on. See [](make-your-own-lists.md) and, for a
-  bookmarks page, [](keep-an-index.md).
+  the search's address. Claude does not read the Pinned page. See
+  [](make-your-own-lists.md).
 - **New from a search.** A search with a tag filter, or a single kind, shows **New** at the right
   end of the top bar. It opens the composer with those tags and that kind filled in (a Note when
   no kind is chosen); cancelling straight away keeps no draft, and the saved page joins the list.
