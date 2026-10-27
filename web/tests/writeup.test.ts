@@ -42,8 +42,8 @@ it("says who wrote a version, when, and what it was restored from", () => {
     guidance: null,
     restored_from: 1,
   };
-  expect(byline(v)).toMatch(/^claude-opus-5-5 · .+ · version 3 · restored from version 1$/);
-  expect(byline({ ...v, restored_from: null })).toMatch(/ · version 3$/);
+  expect(byline(v)).toMatch(/^Claude · .+ · v3 · restored from v1$/);
+  expect(byline({ ...v, restored_from: null })).toMatch(/ · v3$/);
 });
 
 it("says a current write-up is outdated, only when it is and nothing is under way", () => {
