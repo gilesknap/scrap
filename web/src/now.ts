@@ -30,8 +30,9 @@ const by =
 export const toDo = (t: Todo, today: string) => isOpen(t) && !snoozed(t, today);
 
 /** Now: the open todos (not snoozed) in groups, each in its order: Overdue (oldest due first), Today, High
- * priority with no date, then the rest, Open (by priority, then due, then last edited). Empty groups
- * are left out. */
+ * priority, dated or not (soonest due first), then the rest, Open (by priority, then due, then last
+ * edited). A date is a promise: a dated todo never ranks below an undated one of its priority. Empty
+ * groups are left out. */
 export function now<T extends Todo>(list: T[], today: string): [string, T[]][] {
   const groups: [string, T[]][] = [
     ["Overdue", []],
@@ -41,9 +42,9 @@ export function now<T extends Todo>(list: T[], today: string): [string, T[]][] {
   ];
   for (const t of list.filter((t) => toDo(t, today))) {
     const late = t.due && t.due < today;
-    groups[late ? 0 : t.due === today ? 1 : !t.due && t.priority === "high" ? 2 : 3][1].push(t);
+    groups[late ? 0 : t.due === today ? 1 : t.priority === "high" ? 2 : 3][1].push(t);
   }
-  const orders = [by(due, rank, recent), by(rank, recent), by(recent), by(rank, due, recent)];
+  const orders = [by(due, rank, recent), by(rank, recent), by(due, recent), by(rank, due, recent)];
   for (const [i, [, ts]] of groups.entries()) ts.sort(orders[i]);
   return groups.filter(([, ts]) => ts.length);
 }

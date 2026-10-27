@@ -110,23 +110,25 @@ def test_group_now_and_due_follow_the_todos_screen(store):  # noqa: F811
     today_ = todo(store, "today", day(0))
     high = todo(store, "high", priority="high")
     open_hi = todo(store, "open hi", day(3), "high")
+    open_med = todo(store, "open med", day(2), "medium")
     open_lo = todo(store, "open lo", day(8), "low")
     open_none = todo(store, "open none")
     asleep = todo(store, "asleep", day(1))
     store.update_page(asleep, None, None, None, "me", todo={"snoozed_until": day(4)})
     done = todo(store, "done", day(-1), status="done")
     got = slugs(store, "kind:todo group:now")
-    # Overdue (oldest due first), Today, High priority with no date, Open (by priority,
-    # then due), Snoozed, Done
+    # Overdue (oldest due first), Today, High priority (dated or not, soonest due
+    # first: a dated high above an undated one), Open (by priority, then due), Snoozed,
+    # Done
     assert got == [
-        od2, od1, today_, high, open_hi, open_lo, open_none, asleep, done,
+        od2, od1, today_, open_hi, high, open_med, open_lo, open_none, asleep, done,
     ]  # fmt: skip
     # an order chosen is kept inside the sections
     assert slugs(store, "kind:todo group:now sort:title")[:2] == [od1, od2]
     by_due = slugs(store, "kind:todo group:due")  # (no date: as found)
-    assert by_due[:6] == [od2, od1, today_, asleep, open_hi, open_lo]
-    assert set(by_due[6:8]) == {high, open_none}
-    assert by_due[8] == done
+    assert by_due[:7] == [od2, od1, today_, asleep, open_med, open_hi, open_lo]
+    assert set(by_due[7:9]) == {high, open_none}
+    assert by_due[9] == done
 
 
 def test_the_api_groups_past_the_first_page(tmp_path):

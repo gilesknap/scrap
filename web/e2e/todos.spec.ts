@@ -1,4 +1,4 @@
-// The Todos screen: Now (overdue, today, high priority with no date, then the rest; done
+// The Todos screen: Now (overdue, today, high priority dated or not, then the rest; done
 // ones folded away), Upcoming and All, the switch in the address, and its rows' tick.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
@@ -72,14 +72,16 @@ test("Now ranks open todos: overdue, today, high priority, then the rest", async
       `${Q} late new`,
       `${Q} today high`,
       `${Q} today low`,
+      `${Q} later high`, // a date is a promise: dated before undated, in High priority
       `${Q} high no date`,
-      `${Q} later high`,
       `${Q} later medium`,
       `${Q} later none`,
     ]);
   const section = (name: string) => page.getByRole("region", { name: new RegExp(`^${name}`) });
   await expect(section("Overdue").getByText(`${Q} late old`)).toBeVisible();
   await expect(section("Today").getByText(`${Q} today high`)).toBeVisible();
+  await expect(section("High priority").getByText(`${Q} later high`)).toBeVisible();
+  await expect(section("Open").getByText(`${Q} later high`)).toHaveCount(0);
   // Each row says its priority and due date first; overdue in words (and red)
   const late = page.locator(".list li", { hasText: `${Q} late old` }).locator(".due");
   await expect(late).toHaveText(/^low\s·\soverdue\s/); // the parts hold their no-break spaces
