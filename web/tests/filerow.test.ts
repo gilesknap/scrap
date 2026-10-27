@@ -13,7 +13,8 @@ const el = (tag: string): El => ({
     this.kids.push(...k);
   },
 });
-const text = (e: El | string): string => (typeof e === "string" ? e : e.kids.map(text).join(" "));
+const text = (e: El | string): string =>
+  typeof e === "string" ? e : e.kids.map(text).join(" ");
 const find = (e: El | string, cls: string): El | undefined => {
   if (typeof e === "string") return undefined;
   if (
@@ -30,7 +31,7 @@ const find = (e: El | string, cls: string): El | undefined => {
 
 vi.mock("../src/app", () => ({ rerender: () => {} }));
 vi.mock("../src/icons", () => ({ icon: () => "" }));
-const { fileFacts, fileRow, UNREAD } = await import("../src/filerow");
+const { fileFacts, fileRow, UNREAD, RETRY } = await import("../src/filerow");
 
 const pdf = (o: Partial<FileIngest>): FileIngest => ({
   state: "done",
@@ -48,7 +49,10 @@ const pdf = (o: Partial<FileIngest>): FileIngest => ({
 describe("fileFacts: what a file's row says", () => {
   it("gives a read PDF's page count, and no hint", () => {
     expect(fileFacts(pdf({}))).toEqual({ pages: "12 pages", hint: null });
-    expect(fileFacts(pdf({ pages: 1, pages_read: 1 }))).toEqual({ pages: "1 page", hint: null });
+    expect(fileFacts(pdf({ pages: 1, pages_read: 1 }))).toEqual({
+      pages: "1 page",
+      hint: null,
+    });
   });
 
   it("says its text couldn't be read when reading failed or found none", () => {
@@ -65,18 +69,36 @@ describe("fileFacts: what a file's row says", () => {
     expect(UNREAD).toBe("Text couldn't be read; not searchable");
   });
 
+  it("does not blame the file for a failure that may not repeat", () => {
+    for (const error of [
+      "timeout: reading the PDF took over 60 s",
+      "internal: OSError",
+    ])
+      expect(fileFacts(pdf({ state: "failed", pages: null, error })).hint).toBe(
+        RETRY,
+      );
+    expect(
+      fileFacts(pdf({ state: "failed", pages: null, error: "content: x" }))
+        .hint,
+    ).toBe(UNREAD);
+  });
+
   it("says nothing while it waits or is read, nor for a file never queued", () => {
     for (const state of ["queued", "processing"] as const)
-      expect(fileFacts(pdf({ state, pages: null, searchable: false }))).toEqual({
-        pages: null,
-        hint: null,
-      });
+      expect(fileFacts(pdf({ state, pages: null, searchable: false }))).toEqual(
+        {
+          pages: null,
+          hint: null,
+        },
+      );
     expect(fileFacts(null)).toEqual({ pages: null, hint: null });
     expect(fileFacts(undefined)).toEqual({ pages: null, hint: null });
   });
 
   it("gives a text file no page count", () => {
-    expect(fileFacts(pdf({ kind: "text", pages: null, pages_read: null }))).toEqual({
+    expect(
+      fileFacts(pdf({ kind: "text", pages: null, pages_read: null })),
+    ).toEqual({
       pages: null,
       hint: null,
     });
@@ -100,12 +122,21 @@ describe("fileRow", () => {
   beforeEach(() => vi.stubGlobal("document", { createElement: el }));
 
   const row = (i?: FileIngest | null) =>
-    fileRow("/api/blobs/ab", "report.pdf", el("a") as never, i) as unknown as El;
+    fileRow(
+      "/api/blobs/ab",
+      "report.pdf",
+      el("a") as never,
+      i,
+    ) as unknown as El;
 
   it("is the file's name, opening it, with its pages, then Download", () => {
     const r = row(pdf({}));
     const link = r.kids[0] as El;
-    expect(link).toMatchObject({ tag: "a", href: "/api/blobs/ab", target: "_blank" });
+    expect(link).toMatchObject({
+      tag: "a",
+      href: "/api/blobs/ab",
+      target: "_blank",
+    });
     expect(text(link)).toContain("report.pdf");
     expect(text(link)).toContain("12 pages");
     expect(find(r, "hint")).toBeUndefined();
@@ -113,9 +144,15 @@ describe("fileRow", () => {
   });
 
   it("has the hint on failure only", () => {
-    expect(text(find(row(pdf({ state: "failed", pages: null })), "hint") as El)).toBe(UNREAD);
-    expect(text(find(row(pdf({ searchable: false })), "hint") as El)).toBe(UNREAD);
-    expect(find(row(pdf({ state: "queued", pages: null })), "hint")).toBeUndefined();
+    expect(
+      text(find(row(pdf({ state: "failed", pages: null })), "hint") as El),
+    ).toBe(UNREAD);
+    expect(text(find(row(pdf({ searchable: false })), "hint") as El)).toBe(
+      UNREAD,
+    );
+    expect(
+      find(row(pdf({ state: "queued", pages: null })), "hint"),
+    ).toBeUndefined();
     expect(find(row(null), "hint")).toBeUndefined();
     expect(text(row(null))).not.toMatch(/page/);
   });

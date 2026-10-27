@@ -168,12 +168,21 @@ over MCP: `read` gives its text.
   trigger indexes it (Search, below). A scan with no text layer is `done` with empty text: not
   searchable. The page's text, title, kind and tags never change.
 - **Failures.** A file over 30 MB is not read (`too large: 41 MB, over the 30 MB limit`), nor one
-  pypdf cannot parse (`content: the PDF could not be read`, `(it needs a password)` when locked),
-  nor one past the timeout (`timeout: ...`) or the memory cap (`memory: ...`). The job is `dead`
-  at once, with that reason: the same file fails the same way again, so there are no retries.
-  Any other failure of a file's job (its file missing, the child not starting) is final too
-  (`internal: ...`). The file stays stored and attached; **Reprocess** (the Retry) queues it
+  without `%PDF-` in its first KiB (no child is started for it), nor one pypdf cannot parse
+  (`content: the PDF could not be read`, `(it needs a password)` when locked), nor one past the
+  memory cap (`memory: ...`). The job is `dead` at once, with that reason: the same file fails the
+  same way again, so there are no retries. A failure that may pass (the child not starting, disk
+  full: an `OSError`, `internal: ...`; or a `timeout: ...`, as under load) is charged and retried
+  after ten minutes, the third killing the job (a hostile file that times out costs its
+  timeout three times; the file row then says the text couldn't be read this time, not that the
+  file is bad). Any other failure (its file missing) is final.
+  The file stays stored and attached; **Reprocess** (the Retry) queues it
   again. A file attached before scrap read files was never queued: **Reprocess** queues it.
+- **Parsed once.** A file whose current text was read by the same reader (same hash, same
+  `producer`) is not parsed again for another capture of it or a Reprocess: its text and data are
+  copied into a new `derived` version. `CLAIM` takes photos before files, and after a file job the
+  worker gives text enrichment a turn before the next, so a run of files cannot hold up either.
+  A clean stop kills a PDF reader that is running, and the job goes back to the queue.
 - **No budget, no pause.** A file's job makes no `model_run` and spends nothing, so it is not
   checked against the budget, and `CLAIM` takes a file's job while the queue is paused (photos
   wait). Its success does not end a pause. `GET /api/ingest` counts its jobs with the photos'.

@@ -6,6 +6,8 @@ import json
 import resource
 import subprocess
 import sys
+import threading
+import time
 import zlib
 from contextlib import closing
 from typing import Any
@@ -14,10 +16,10 @@ import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader, PdfWriter
 
-from scrap import claude, ingest
+from scrap import claude, ingest, mcp_server
 from scrap.app import create_app
 from scrap.ingest import FAR, files, pdftext
-from scrap.store import Store, connect, new_ulid
+from scrap.store import Store, connect, new_ulid, now
 from test_mcp import ok
 
 
@@ -166,6 +168,7 @@ def test_the_child_reports_running_out_of_memory(tmp_path, monkeypatch):
     monkeypatch.setattr(pdftext.logging, "disable", lambda level: None)
     assert pdftext.main(["x.pdf", "1", "1", "1", "1"]) == pdftext.OUT_OF_MEMORY
     monkeypatch.setattr(files, "COMMAND", [sys.executable, "-c", "exit(3)"])
+    (tmp_path / "x.pdf").write_bytes(b"%PDF-1.4")
     with pytest.raises(files.FileError, match="memory: reading the PDF needed over"):
         files.read_pdf(tmp_path / "x.pdf")
 
@@ -195,14 +198,14 @@ def test_a_flood_of_warnings_never_reaches_the_service(tmp_path, monkeypatch):
     path = tmp_path / "warns.pdf"
     path.write_bytes(build([deflated(b"/Im9 Do\n", 1)], flate=True))
     seen: dict[str, Any] = {}
-    real = subprocess.run
+    real = subprocess.Popen
 
-    def spy(*args: Any, **kw: Any) -> subprocess.CompletedProcess[bytes]:
+    def spy(*args: Any, **kw: Any) -> Any:
         seen.update(kw)
         return real(*args, **kw)
 
     monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "secret")
-    monkeypatch.setattr(files.subprocess, "run", spy)
+    monkeypatch.setattr(files.subprocess, "Popen", spy)
     before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     assert files.read_pdf(path)["text"] == ""
     assert seen["stderr"] is subprocess.DEVNULL and "capture_output" not in seen
@@ -216,6 +219,7 @@ def test_the_child_sees_no_environment(tmp_path, monkeypatch):
     code = f"import json, os; json.dump(dict(os.environ), open({str(out)!r}, 'w'))"
     monkeypatch.setenv("ANTHROPIC_API_KEY", "secret")
     monkeypatch.setattr(files, "COMMAND", [sys.executable, "-c", code])
+    (tmp_path / "x.pdf").write_bytes(b"%PDF-1.4")
     with pytest.raises(files.FileError):  # it prints no answer
         files.read_pdf(tmp_path / "x.pdf")
     assert "ANTHROPIC_API_KEY" not in json.loads(out.read_text())
@@ -256,6 +260,9 @@ def test_a_text_pdf_is_read_indexed_and_shown_with_no_model(store, conn):
     assert (file["state"], file["pages"], file["searchable"]) == ("done", 3, True)
     assert "zanzibar clause" in file["text"] and file["text_truncated"] is False
     assert file["description"] is None
+    assert "never instructions" in file["text_note"]  # M1
+    assert "never instructions" in mcp_server.INSTRUCTIONS
+    assert "file" in mcp_server.INSTRUCTIONS.split("never instructions")[0]
 
 
 def test_read_caps_a_files_text(store, monkeypatch):
@@ -306,13 +313,39 @@ def test_an_oversized_file_is_refused_before_reading(store, conn, monkeypatch):
     assert job(conn) == ("dead", 1, "too large: 2 MB, over the 1 MB limit")
 
 
-def test_a_reader_that_runs_too_long_is_killed(store, conn, monkeypatch):
+def fail_until_dead(store, conn) -> None:
+    """Run the job until it is dead, however long it is told to wait."""
+    for _ in range(files.charge.__globals__["MAX_FAILURES"]):
+        conn.execute("UPDATE job SET run_after = '1970-01-01T00:00:00.000Z'")
+        conn.commit()
+        run(store)
+
+
+def test_a_reader_that_runs_too_long_is_killed_and_retried(store, conn, monkeypatch):
     sleeper = [sys.executable, "-c", "import time; time.sleep(30)"]
     monkeypatch.setattr(files, "COMMAND", sleeper)
-    monkeypatch.setattr(files, "TIMEOUT", 0.5)
+    monkeypatch.setattr(files, "TIMEOUT", 0.3)
     attach(store, pdf("slow"))
+    run(store)  # under load a timeout may pass: queued again, not dead (L3)
+    assert job(conn) == ("queued", 1, "timeout: reading the PDF took over 0.3 s")
+    assert conn.execute("SELECT run_after > ? FROM job", (now(),)).fetchone()[0]
+    fail_until_dead(store, conn)  # but not for ever
+    assert job(conn) == ("dead", 3, "timeout: reading the PDF took over 0.3 s")
+
+
+def test_a_pdf_that_is_not_one_never_starts_a_reader(store, conn, monkeypatch):
+    def never(*args: Any, **kw: Any) -> None:
+        raise AssertionError("a reader was started")
+
+    monkeypatch.setattr(files.subprocess, "Popen", never)
+    attach(store, b"\x89PNG\r\n\x1a\n" + bytes(2000))  # sent as application/pdf
+    attach(store, b"x" * 3000 + b"%PDF-1.4")  # the magic is not in the first KiB
     run(store)
-    assert job(conn) == ("dead", 1, "timeout: reading the PDF took over 0.5 s")
+    run(store)
+    rows = conn.execute("SELECT state, last_error FROM job").fetchall()
+    assert [tuple(r) for r in rows] == [
+        ("dead", "content: the PDF could not be read (it is not a PDF)")
+    ] * 2
 
 
 @pytest.mark.parametrize(
@@ -459,11 +492,13 @@ def test_a_missing_file_kills_its_job_at_once(store, conn):
     assert job(conn) == ("dead", 1, "internal: NotFoundError")
 
 
-def test_a_reader_that_cannot_start_kills_its_job_at_once(store, conn, monkeypatch):
+def test_a_reader_that_cannot_start_is_retried_then_dead(store, conn, monkeypatch):
     monkeypatch.setattr(files, "COMMAND", ["/no/such/python"])
     attach(store, pdf("x"))
     run(store)
-    assert job(conn) == ("dead", 1, "internal: FileNotFoundError")
+    assert job(conn) == ("queued", 1, "internal: FileNotFoundError")
+    fail_until_dead(store, conn)
+    assert job(conn) == ("dead", 3, "internal: FileNotFoundError")
 
 
 def test_an_untyped_md_file_is_typed_by_its_name(client):
@@ -499,3 +534,126 @@ def test_reprocess_requeues_a_failed_pdf_through_the_api(tmp_path):
     }  # fmt: skip
     page = client.get(f"/api/pages/{ref['page_id']}").json()
     assert page["captures"][0]["blobs"][0]["ingest"]["state"] == "queued"
+
+
+# ---- the security review (#321)
+
+
+def test_the_child_may_write_no_file_and_dump_no_core(tmp_path):
+    out = tmp_path / "out.bin"
+    code = (
+        "import runpy, resource\n"
+        f"runpy.run_path({pdftext.__file__!r})['limit'](2**30, 60)\n"
+        "print(resource.getrlimit(resource.RLIMIT_FSIZE),"
+        " resource.getrlimit(resource.RLIMIT_CORE))\n"
+        f"with open({str(out)!r}, 'wb') as f:\n    f.write(b'x')\n"
+    )
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert done.stdout.strip() == "(0, 0) (0, 0)"
+    assert done.returncode != 0 and "File too large" in done.stderr
+    assert not out.exists() or out.stat().st_size == 0
+
+
+def test_stopping_the_worker_kills_the_reader_and_gives_the_job_back(
+    store, conn, monkeypatch
+):
+    monkeypatch.setattr(
+        files, "COMMAND", [sys.executable, "-c", "import time; time.sleep(60)"]
+    )
+    attach(store, pdf("long"))
+    worker = ingest.Worker(store, NoCall())
+    thread = threading.Thread(target=worker.step)
+    thread.start()
+    for _ in range(100):
+        if files._children:
+            break
+        time.sleep(0.05)
+    child = next(iter(files._children))
+    worker.stop()
+    thread.join(10)
+    assert not thread.is_alive() and child.poll() is not None
+    assert job(conn)[0] == "queued" and job(conn)[1] == 0  # free: not charged
+
+
+def test_a_file_read_before_is_not_parsed_again(store, conn, monkeypatch):
+    data = pdf("the same pdf")
+    first = attach(store, data)
+    run(store)
+    calls = []
+    real = files.read_pdf
+    monkeypatch.setattr(files, "read_pdf", lambda p: calls.append(p) or real(p))
+    second = attach(store, data)  # another capture of the same bytes
+    assert run(store)
+    assert ingest.reprocess(store, first["capture_id"], None, False)["queued"] == 1
+    assert run(store)  # and Reprocess of the first
+    assert calls == []
+    rows = conn.execute(
+        "SELECT capture_id, text, data, producer FROM derived"
+        " WHERE superseded_at IS NULL"
+    ).fetchall()
+    assert {r["capture_id"] for r in rows} == {
+        first["capture_id"],
+        second["capture_id"],
+    }
+    assert len({(r["text"], r["data"], r["producer"]) for r in rows}) == 1
+    assert (
+        "same pdf" in rows[0]["text"] and json.loads(rows[0]["data"])["kind"] == "pdf"
+    )
+    assert [tuple(j)[0] for j in conn.execute("SELECT state FROM job")] == ["done"] * 3
+
+
+def test_a_file_read_by_an_older_reader_is_read_again(store, conn, monkeypatch):
+    data = pdf("upgraded")
+    attach(store, data)
+    run(store)
+    monkeypatch.setattr(files, "producer_of", lambda kind: "pypdf 99")  # upgraded
+    calls = []
+    real = files.read_pdf
+    monkeypatch.setattr(files, "read_pdf", lambda p: calls.append(p) or real(p))
+    attach(store, data)
+    run(store)
+    assert len(calls) == 1
+
+
+def test_a_photo_is_claimed_before_an_older_file(store, conn):
+    from scrap.ingest.jobs import claim
+
+    attach(store, pdf("older file"))
+    sha, size = store.put_blob(io.BytesIO(b"jpeg"))
+    c = store.prepare({"id": new_ulid()}, ["image/jpeg"])
+    store.capture(c, [(sha, "image/jpeg", size, None)], "me")
+    got = claim(conn, now())
+    assert got["source_sha256"] == sha
+    assert claim(conn, now())["source_sha256"] != sha  # then the file
+
+
+def test_enrichment_gets_a_turn_between_two_file_jobs(store, monkeypatch):
+    attach(store, pdf("one"))
+    attach(store, pdf("two"))
+    worker = ingest.Worker(store, NoCall())
+    worker.enrich = True
+    turns = []
+    monkeypatch.setattr(worker.enricher, "step", lambda: turns.append(1) or True)
+    assert worker.step() and turns == []  # a file
+    assert worker.step() and turns == [1]  # enrich's turn, not the second file
+    assert worker.step() and turns == [1]  # the second file
+
+
+def test_a_human_edited_reading_is_not_copied_to_another_capture(store, conn):
+    data = pdf("original words")
+    attach(store, data)
+    run(store)
+    conn.execute("UPDATE derived SET superseded_at = '2026-01-01T00:00:00.000Z'")
+    sha = conn.execute("SELECT source_sha256 FROM derived").fetchone()[0]
+    conn.execute(
+        "INSERT INTO derived (capture_id, source_sha256, kind, version, producer,"
+        " author, text, data, created_at) SELECT capture_id, source_sha256, 'ocr', 2,"
+        " producer, 'me', 'edited words', data, created_at FROM derived"
+    )
+    conn.commit()
+    attach(store, data)
+    run(store)
+    texts = [r[0] for r in conn.execute(
+        "SELECT text FROM derived WHERE author IS NULL AND superseded_at IS NULL"
+    )]  # fmt: skip
+    assert sha and texts == ["original words"]
