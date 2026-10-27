@@ -67,6 +67,8 @@ owner should be able to steer it.
   regenerated: it has no board).
 - To roll back to 0.6.0 (which refuses schema 12), with scrap stopped, run:
 
+  > Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): this rollback no longer works. Migrations 0001 to 0018 are folded into the baseline and 1.0 refuses a store below schema 18, so `user_version` cannot be set back to 11. Go back by restoring a backup with a release that accepts it.
+
   ```sql
   PRAGMA user_version = 11;
   DELETE FROM enrich_job WHERE reason = 'writeup' AND state IN ('queued', 'running');

@@ -29,6 +29,8 @@ dependencies today.)
 - The index is a cache and a numbered migration with an `AFTER` hook (`store.AFTER`) rebuilds it;
   there is no `reindex` command.
 
+  > Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): `store.AFTER` is deleted; the baseline carries the full-text index rebuild.
+
 ## Consequences
 
 - Fast, explainable, no model download. No semantic recall: "that thing about gardens" will not find
