@@ -72,7 +72,7 @@ sequenceDiagram
 |---|---|---|
 | note | the text | first line (no leading `#`, at most 200 characters); a bare URL makes it a link |
 | link | the URL, then any text | the URL, or the first line of the text |
-| photo (any image) | text if any, then one image embed per image; other files listed below it | text's first line, else device time, which ingest replaces |
+| photo (any image; its images stored first, so ingest reads the page from one) | text if any, then one image embed per image; other files listed below it | text's first line, else device time, which ingest replaces |
 | file (no image) | text if any; the files listed below it | text's first line, else device time |
 
 Claude then adds derived text, a better title, tags and a summary

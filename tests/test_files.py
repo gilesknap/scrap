@@ -537,6 +537,22 @@ def test_a_new_capture_of_a_photo_and_a_pdf_is_a_photo_capture(client):
     assert doc["ingest"]["state"] == "queued" and doc["ingest"]["kind"] == "pdf"
 
 
+def test_a_new_captures_images_come_first_in_the_order_picked(client):
+    """A PDF picked before a photo (File, then Gallery): the photo is file 0, which
+    ingest titles, tags and files the page from; each group keeps its order."""
+    from test_photos import jpeg
+
+    files_ = [("file", ("m.pdf", pdf("agenda"), "application/pdf")),
+              ("file", ("a.jpg", jpeg(), "image/jpeg")),
+              ("file", ("n.md", b"notes", "text/markdown")),
+              ("file", ("b.jpg", jpeg("blue"), "image/jpeg"))]  # fmt: skip
+    ref = client.post("/api/captures", data={"id": new_ulid()}, files=files_).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    blobs = page["captures"][0]["blobs"]  # in ord order
+    assert [b["filename"] for b in blobs] == ["a.jpg", "b.jpg", "m.pdf", "n.md"]
+    assert page["captures"][0]["kind"] == "photo"
+
+
 def test_a_shared_photo_and_pdf_make_a_photo_capture(client):
     from test_photos import jpeg
 
