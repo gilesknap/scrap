@@ -22,6 +22,7 @@ import {
 } from "./editor";
 import { laterField, mediaFields, mediaNow, mediaSays } from "./lateredit";
 import { tooLong } from "./pagecap";
+import { reading, toLine } from "./readat";
 import { textPart } from "./textpart";
 import { h, toast } from "./ui";
 
@@ -38,10 +39,17 @@ interface Draft {
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
 
-export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: Page) => void) {
+export async function edit(
+  p: Page,
+  load: (p: Page) => Promise<void>,
+  show: (p: Page) => void,
+  row = false, // from a list's row: no view read
+) {
   // An unsaved edit comes back, on the revision it was made on: if the page has changed
   // since, saving it shows the conflict rather than overwriting.
   const key = `page:${p.id}`;
+  const lines = p.body.split("\n").length;
+  const read = row ? null : reading(lines); // taken now, while the view is as it was left
   const kept = await drafts.get<Draft>(key).catch(() => undefined);
   // Its kind. A note nobody filed yet gets one suggested from its text (a link alone: Later),
   // as in the composer, until the user picks one; a draft's kind only if the user picked it
@@ -234,4 +242,10 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   };
   addEventListener(ADDED, adopted);
   text.focus();
+  // Where the page was being read (its top if not scrolled into its text); with no view (a
+  // list's row), as the box opens. A draft kept with other text: as far down its text instead
+  // (its lines need not be the page's)
+  if (read === null) return;
+  const asRead = !kept || kept.text === p.body;
+  toLine(text, asRead ? read : Math.floor((read * text.value.split("\n").length) / lines));
 }

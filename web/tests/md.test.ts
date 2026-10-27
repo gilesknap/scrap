@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unembedded } from "../src/md";
-import { markdown, origins, own } from "../src/render";
+import { markdown as marked, origins, own } from "../src/render";
 
 const SHA = "a".repeat(64);
 const a = (href: string, text = href) =>
   `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+// Each block marked with its lines (data-at, tested on its own below): taken out to compare
+const markdown = (s: string) => marked(s).replace(/ data-at="\d+,\d+"/g, "");
 const one = (s: string) => markdown(s).trim();
 
 describe("markdown", () => {
@@ -18,6 +20,14 @@ describe("markdown", () => {
     );
     expect(one("```\n<b>**not bold**</b>\n```")).toBe(
       "<pre><code>&lt;b&gt;**not bold**&lt;/b&gt;\n</code></pre>",
+    );
+  });
+
+  it("marks each block with its lines in the text", () => {
+    expect(marked("# T\n\none\ntwo\n\n- a\n- b\n\n```\nx\n```")).toBe(
+      '<h1 data-at="0,1" id="h-t">T</h1>\n<p data-at="2,4">one<br>\ntwo</p>\n' +
+        '<ul data-at="5,8">\n<li data-at="5,6">a</li>\n<li data-at="6,8">b</li>\n</ul>\n' +
+        '<pre><code data-at="8,11">x\n</code></pre>\n',
     );
   });
 
@@ -223,11 +233,23 @@ describe("markdown", () => {
     "<!-- x --><style>*{}</style>",
   ])("never lets HTML through: %s", (payload) => {
     // Text is escaped, so every "<" and '"' left is the renderer's own: check each tag.
-    const html = markdown(payload);
+    const html = marked(payload);
     const ALLOWED =
       /^(p|br|h[1-6]|strong|em|s|code|pre|ul|ol|li|blockquote|hr|a|img|div|table|thead|tbody|tr|th|td|input|label|sup|section)$/;
     const ATTRS = [
-      ...["href", "target", "rel", "src", "alt", "loading", "data-sha", "data-line", "id", "class"],
+      ...[
+        "href",
+        "target",
+        "rel",
+        "src",
+        "alt",
+        "loading",
+        "data-sha",
+        "data-line",
+        "data-at",
+        "id",
+      ],
+      "class",
       "aria-label",
     ];
     for (const [, name, attrs] of html.matchAll(/<\/?([^\s>/]+)([^>]*)>/g)) {
@@ -240,6 +262,7 @@ describe("markdown", () => {
         if (attr === "src") expect(value).toMatch(/^\/api\/blobs\/[0-9a-f]{64}/);
         if (attr === "data-sha") expect(value).toMatch(/^[0-9a-f]{64}$/);
         if (attr === "data-line") expect(value).toMatch(/^\d+$/);
+        if (attr === "data-at") expect(value).toMatch(/^\d+,\d+$/);
         if (attr === "style") expect(value).toMatch(/^text-align:(left|right|center)$/);
         if (attr === "type") expect(value).toBe("checkbox");
         if (attr === "class" || attr === "aria-label") expect(value).not.toMatch(/[<>"]/); // escaped

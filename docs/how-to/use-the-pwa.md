@@ -489,7 +489,9 @@ scrap and try again*.
 ## Editing and deleting
 
 - **Edit** is a full-screen editor like the composer: **Cancel**, **Preview** and **Save** stay at
-  the top, clear of the keyboard. Tags and a todo's due date are folded into one line each.
+  the top, clear of the keyboard. Tags and a todo's due date are folded into one line each. It
+  opens the text where you were reading the page (at its top if you had not scrolled past the
+  title).
 - **Camera**, **Gallery** and **File** under the text (the Add photo buttons) add photos to the end of the page as a capture
   of their own: Claude reads them and search finds what it read, but they never change the page's
   kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
