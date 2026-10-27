@@ -24,12 +24,16 @@ async function note(page: Page, text: string) {
 }
 
 /** The page's answer as if Claude were on and had read it, with these related pages. */
-async function asRead(page: Page, slug: string, related: object[]) {
+async function asRead(page: Page, slug: string, related: object[] | (() => object[])) {
   await page.route(`**/api/pages/${slug}`, async (r) => {
     if (r.request().method() !== "GET") return r.continue();
     const json = await (await r.fetch()).json();
     await r.fulfill({
-      json: { ...json, enrich: { on: true, error: null, state: "done", summary: "S." }, related },
+      json: {
+        ...json,
+        enrich: { on: true, error: null, state: "done", summary: "S." },
+        related: typeof related === "function" ? related() : related,
+      },
     });
   });
 }
@@ -183,3 +187,50 @@ for (const colorScheme of ["light", "dark"] as const) {
     expect(overlapped, "some box went under the bar").toBeGreaterThan(0);
   });
 }
+
+test("Related: a note never starts a line, whatever the title's length (320 px)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const x = await note(page, `Rel sweep ${ulid().slice(-6)}`);
+  const n = await note(page, `Rel host ${ulid().slice(-6)}`);
+  // Titles of 12 to 71 two-letter words: the last line takes every width, some all but full
+  const titles = Array.from({ length: 60 }, (_, i) =>
+    Array(12 + i)
+      .fill("ab")
+      .join(" "),
+  );
+  // Eight to a page: the most Related lists
+  let batch: string[] = [];
+  await asRead(page, n.slug, () =>
+    batch.map((title) => ({ id: x.page_id, slug: x.slug, title, kind: "note", via: "link" })),
+  );
+  const rows = [];
+  for (let at = 0; at < titles.length; at += 8) {
+    batch = titles.slice(at, at + 8);
+    await page.goto(`/p/${n.slug}`);
+    await expect(page.locator(".enrich .related li")).toHaveCount(batch.length);
+    rows.push(
+      ...(await page.locator(".enrich .related li").evaluateAll((lis) =>
+        lis.map((li) => {
+          const text = li.querySelector("a")?.lastChild as Text;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const lines = range.getClientRects();
+          const small = (li.querySelector("small") as HTMLElement).getBoundingClientRect();
+          const lh = Number.parseFloat(getComputedStyle(li).lineHeight);
+          return {
+            title: `${text.textContent?.split(" ").length} words, last line to ${Math.round(lines[lines.length - 1].right)}`,
+            wrapped: lines.length > 1,
+            onTitleLine: Math.abs(small.top - lines[lines.length - 1].top) < lh / 2,
+          };
+        }),
+      )),
+    );
+  }
+  expect(
+    rows.some((r) => r.wrapped),
+    "some titles wrap",
+  ).toBe(true);
+  expect(rows.filter((r) => !r.onTitleLine).map((r) => r.title)).toEqual([]);
+});

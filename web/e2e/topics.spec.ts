@@ -198,7 +198,9 @@ test("a source names its topics; search labels a topic page", async ({ page }) =
   await expect(fold.locator("li")).toHaveText([t.title]);
   await expect(fold.getByRole("link", { name: t.title })).toHaveAttribute("href", `/p/${t.slug}`);
   // Its synthesis cites this page: in Related, both ways, marked
-  await expect(s.locator(".related li", { hasText: t.title })).toContainText("in a topic");
+  await expect(s.locator(".related:not(.topics) li", { hasText: t.title })).toContainText(
+    "in a topic",
+  );
   // A source it does not cite is in it all the same
   await page.goto(`/p/${t.sources[2].slug}`);
   await expect(card(page).locator(".topics li")).toHaveText([t.title]);
