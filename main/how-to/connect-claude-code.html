@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.13.1.dev5+g654c7f4ab documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.14.1.dev1+g7edb4d72e documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=f0db494c"></script>
+    <script src="../_static/documentation_options.js?v=d10688bf"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -922,12 +922,12 @@ Tailscale operator’s address (no port, since it serves on 443):</p>
 your projects. Avoid <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">project</span></code>: it writes the tailnet hostname into a <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code> that
 you would commit. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">scrap</span></code>
 takes it out again.</p>
-<p>The server has fourteen tools (eleven with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
+<p>The server has fifteen tools (eleven with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
 pages and the todos), <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__tags</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__topics</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__write</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__rename_tag</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revert</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code> and
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revert</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
 returns.</p>
 <p>Try it: ask “get my recent photos”. Search results say which pages hold images (<code class="docutils literal notranslate"><span class="pre">image_count</span></code>,
 and the first image’s kind, description and thumbnail URL), and <code class="docutils literal notranslate"><span class="pre">has:image</span></code> or <code class="docutils literal notranslate"><span class="pre">image:photo</span></code>
@@ -940,7 +940,7 @@ the tailnet (see “Images” in the reference).</p>
   <span class="o">-</span><span class="n">d</span> <span class="s1">'{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</span>
 </pre></div>
 </div>
-<p>It should print an HTTP <code class="docutils literal notranslate"><span class="pre">200</span></code> status and JSON with fourteen tools in <code class="docutils literal notranslate"><span class="pre">result.tools</span></code>.</p>
+<p>It should print an HTTP <code class="docutils literal notranslate"><span class="pre">200</span></code> status and JSON with fifteen tools in <code class="docutils literal notranslate"><span class="pre">result.tools</span></code>.</p>
 <p>Off the tailnet, or for a quick test, use the SSH tunnel fallback (<a class="reference internal" href="deploy-single-server.html#scrap-ssh-tunnel"><span class="std std-ref">Fallback: an SSH tunnel</span></a>) and
 add <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790/mcp</span></code> instead; loopback needs no <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. A session that
 cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
