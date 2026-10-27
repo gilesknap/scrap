@@ -302,14 +302,25 @@ test("Order writes sort: into the query, and the results follow it", async ({ pa
     "aria-pressed",
     "true",
   );
-  await order2.getByRole("button", { name: "A–Z" }).click();
+  // The box reads sort:title at once, but the rows on show are still the newest-first list
+  // (the same .list li a strong) until the search's answer replaces them (#329). Take the
+  // order from that answer, and wait for the rows to be its hits, not a snapshot of either
+  const [answer] = await Promise.all([
+    page.waitForResponse(
+      (r) => new URL(r.url()).pathname === "/api/search" && r.url().includes("sort%3Atitle"),
+    ),
+    order2.getByRole("button", { name: "A–Z" }).click(),
+  ]);
+  const sorted = ((await answer.json()) as { title: string }[]).map((h) => h.title);
+  expect(sorted.length).toBeGreaterThanOrEqual(4); // the pages tagged.py adds, and any others
+  expect(sorted.filter((t) => t.startsWith("Zephyr"))).toEqual([
+    "Zephyr fence book",
+    "Zephyr fence paint",
+    "Zephyr fence repair",
+    "Zephyr shed plans",
+  ]); // A–Z, whatever else is in the store
   await expect(page.getByRole("searchbox")).toHaveValue("sort:title");
-  await expect(hits(page).first()).toBeVisible();
-  const titles = await hits(page).allTextContents();
-  expect(titles.length).toBeGreaterThan(4);
-  expect(titles).toEqual(
-    [...titles].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
-  );
+  await expect(page.locator(".list.hits li a strong")).toHaveText(sorted);
   expect(await page.evaluate(lowContrast, ""), "order").toEqual([]);
 });
 
