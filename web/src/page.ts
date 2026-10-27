@@ -165,6 +165,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       ...headLines(p),
       tagForm ?? chipRow(p, { tags: tagEdit, due: (e) => void todoEdit(e), dueOpen: !!todoForm }),
       todoForm ?? "",
+      // The header's end: one hairline between it and the body
+      h("hr", { className: "headend", "aria-hidden": "true" }),
       body,
       // A topic's notes are the owner's, empty at first: where they go, said once
       p.topic && !p.body.trim()

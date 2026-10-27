@@ -458,3 +458,11 @@ div.orig .save {
   border-radius: 50%;
   background: var(--accent);
 }
+
+/* The header's end: a hairline across the text column under the chips (16 px above, counting
+   the chip row's own margin, and 20 px below), so the body reads as starting afresh */
+.page > hr.headend {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--s-1) 0 20px;
+}

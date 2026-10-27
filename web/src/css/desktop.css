@@ -98,6 +98,10 @@
   .page > .todoedit {
     order: 0;
   }
+  /* None on a computer: the action row under the header has its own hairline */
+  .page > hr.headend {
+    display: none;
+  }
   .page > .tools {
     order: 1;
     top: calc(var(--bar-h) + env(safe-area-inset-top));
