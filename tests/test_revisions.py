@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
+from old_schema import undo_0018
 from scrap import mcp_server
 from scrap.app import create_app
 from scrap.store import Store, connect, migrations
@@ -327,6 +328,7 @@ def test_migration_8_is_additive_and_can_run_again(tmp_path):
     store.edit_meta([ref["slug"]], "claude", "mcp", add=["a"])
     with closing(connect(store.db)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
+        undo_0018(conn)
         conn.execute("PRAGMA user_version = 7")
     store.migrate()
     with closing(connect(store.db)) as conn:
@@ -614,6 +616,7 @@ def test_migration_15_adds_fields_was_and_can_run_again(tmp_path):
     with closing(connect(store.db)) as conn:
         columns = [r[1] for r in conn.execute("PRAGMA table_info(page_meta_rev)")]
         assert "fields_was" in columns
+        undo_0018(conn)
         conn.execute("PRAGMA user_version = 14")
     store.migrate()  # an older scrap ran meanwhile: it adds nothing twice
     assert store.revisions(ref["slug"])["meta"][0]["fields_was"] == {}

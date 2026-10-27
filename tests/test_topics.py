@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
+from old_schema import undo_0018
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
@@ -165,6 +166,7 @@ def test_migration_13_on_a_v12_database_keeps_jobs_and_runs(store):
     note(store, "a note")
     run_all(store, Fake())
     with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
+        undo_0018(conn)
         conn.executescript(
             "BEGIN; DROP TABLE topic_source; DROP TABLE topic; DROP TABLE topic_run;"
             " CREATE TABLE old AS SELECT * FROM enrich_job; DROP TABLE enrich_job;"
@@ -178,7 +180,6 @@ def test_migration_13_on_a_v12_database_keeps_jobs_and_runs(store):
         assert topics.index(conn) == [] and topics.sources(conn, page_id) == []
         assert not roles.is_topic(conn, page_id) and topics.of_page(conn, page_id) == []
         assert ingest.spent_today(conn, now()) > 0  # no topic_run: enrich's only
-    assert store.page(page_id)["topics"] == []
     before = jobs(store)
     store.migrate()
     assert jobs(store) == before

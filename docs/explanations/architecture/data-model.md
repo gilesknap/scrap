@@ -5,7 +5,7 @@ are the truth; derived rows cost an LLM call to remake so they are stored; chunk
 are a disposable cache.
 
 Back to [Architecture](../design.md). The schema is the numbered scripts in
-`src/scrap/migrations/` (0001 to 0016) plus the Python steps in `src/scrap/store/fixes.py`; the
+`src/scrap/migrations/` (0001 to 0018) plus the Python steps in `src/scrap/store/fixes.py`; the
 code is in `src/scrap/store/`.
 
 ## Core tables
@@ -77,7 +77,8 @@ erDiagram
 
 | Table | Holds |
 | --- | --- |
-| `page` | Title, Markdown body, `kind`, `kind_fixed`, flat `fields`, `deleted_at`, plus typed todo columns `due`, `priority`, `snoozed_until` and the task counts `task_done`, `task_total` |
+| `page` | Title, Markdown body, `kind`, `kind_fixed`, flat `fields`, `deleted_at`, plus the task counts `task_done`, `task_total` |
+| `page_todo` | A todo's typed `due`, `priority` and `snoozed_until`: one row per page that has at least one set, deleted when the last is cleared; removed with its page |
 | `blob` | Bytes of every original and binary derived artifact at `files/<sha[0:2]>/<sha>`, keyed by SHA-256 so a photo shared twice is stored once |
 | `capture`, `capture_blob` | What arrived, with a client-minted ULID as the retry key; ordered blobs per capture |
 | `derived` | Versioned Claude (or human) results: `ocr`, `description`, `excalidraw` are written (a PDF's or text file's `ocr` is scrap's own reading, `run_id` NULL: {ref}`ingest-files`); `summary` and `fetched` are allowed by the `CHECK` but reserved |
@@ -187,11 +188,14 @@ These five are the only kinds. A topic page is a `document`, identified by the `
 - **`fields`** is a flat JSON object: no nulls or nested values, at most 32 keys, numbers within
   +/-2^53. In use: `status` (`open`, `in_progress`, `done`, `cancelled`), `subtype` and `source` on
   Later, `summary` (an import's or the user's, which wins over Claude's in the index) and `origin`.
-- **Typed todo columns** `due` (day, `YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and
-  `snoozed_until` (day) are columns so `due:`, `priority:`, `is:snoozed` and `sort:` are plain SQL
-  ([ADR 12](../decisions/0012-kinds-flat-fields-and-typed-todo-columns.md)). A snoozed todo is left
-  out of Now and the Todos count until its day. They belong to todos: another kind ignores them
-  but keeps them. Setting them is not a revision.
+- **Typed todo values** `due` (day, `YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and
+  `snoozed_until` (day) are typed, checked columns of the side table `page_todo`, so `due:`,
+  `priority:`, `is:snoozed` and `sort:` are plain SQL
+  ([ADR 12](../decisions/0012-kinds-flat-fields-and-typed-todo-columns.md), moved off `page` by
+  [ADR 36](../decisions/0036-todo-values-in-a-side-table.md)). A row has at least one value; a
+  page with none has no row, and the SQL reads that as NULL. A snoozed todo is left out of Now and
+  the Todos count until its day. They belong to todos (`page.kind = 'todo'`): another kind ignores
+  them but keeps its row. Setting them is not a revision. Only `store/todo.py` names the table.
 - **Task boxes** (`- [ ]`, `- [x]`) are counted per page into `task_done` and `task_total`. An
   unfixed note with boxes is filed as a todo; on a todo, ticking the last box marks it done and
   unticking reopens it. A `cancelled` todo is left alone and a status set in the same edit wins.
@@ -303,7 +307,7 @@ stateDiagram-v2
 
 Script *N* sets `PRAGMA user_version = N`. `migrate()` takes an exclusive `flock` on `db.lock`,
 turns on WAL and applies each missing script in one transaction, with an optional Python step from
-`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)). Script 16 adds `page.made_by` and `page_rev.source` the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps `made_by` as made ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)). Script 17 creates `page_trash_rev` the same way, only if missing ([ADR 34](../decisions/0034-claude-can-move-pages-to-the-trash.md)).
+`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)). Script 16 adds `page.made_by` and `page_rev.source` the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps `made_by` as made ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)). Script 17 creates `page_trash_rev` the same way, only if missing ([ADR 34](../decisions/0034-claude-can-move-pages-to-the-trash.md)). Script 18 is plain SQL: it creates `page_todo`, copies the three todo values into it and drops them, and the two indexes on them, from `page` ([ADR 36](../decisions/0036-todo-values-in-a-side-table.md)); it needs SQLite 3.35 for `DROP COLUMN`.
 
 | Migration | Adds or changes |
 | --- | --- |
@@ -320,11 +324,13 @@ turns on WAL and applies each missing script in one transaction, with an optiona
 | 0015 | `page_meta_rev.fields_was` |
 | 0016 | `page.made_by` (backfilled, then fixed by a trigger) and `page_rev.source` |
 | 0017 | `page_trash_rev` |
+| 0018 | `page_todo`: `due`, `priority`, `snoozed_until` move off `page` |
 
 - Migrations 6 to 9, 15 and 17 are additive, so an older scrap still runs on a newer database if
   `user_version` is set back. Migration 16 is not: an older scrap writes text revisions without
   naming their columns, which the new `page_rev.source` refuses, so going back past it needs the
-  pre-upgrade backup.
+  pre-upgrade backup. Migration 18 is not additive either: it moves data, so an older scrap
+  cannot run on the migrated database.
 - A database newer than the code is refused, as is a backup newer than the code on restore.
 - Policy: keep only the baseline for N-1 plus migration N, and drop them all at 1.0. The search index
   is rebuilt by migration rather than patched.

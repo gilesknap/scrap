@@ -27,7 +27,7 @@ FIELDS = {  # front matter -> scrap field
     "due_date": "due",
     "due": "due",
     "priority": "priority",
-    "snoozed_until": "snoozed_until",  # a todo's column, as scrap exports it
+    "snoozed_until": "snoozed_until",  # a todo's value, as scrap exports it
     "media_type": "media_type",
     "url": "source",
     "source_url": "source",

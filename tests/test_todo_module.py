@@ -16,9 +16,9 @@ def store(tmp_path):
 
 
 def test_col_and_cols_name_the_values():
-    assert todo.col("due") == "p.due"
-    assert todo.col("priority", "x") == "x.priority"
-    assert todo.cols("q").split(", ")[-1] == "q.snoozed_until AS snoozed_until"
+    assert todo.col("due") == "(SELECT due FROM page_todo WHERE page_id = p.id)"
+    assert "page_id = x.id" in todo.col("priority", "x")
+    assert todo.cols("q").endswith(" AS snoozed_until")
     with pytest.raises(ValueError):
         todo.col("title")
 

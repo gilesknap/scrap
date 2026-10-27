@@ -5,6 +5,7 @@ from contextlib import closing
 
 import pytest
 
+from old_schema import undo_0018
 from scrap.markdown import tasks
 from scrap.store import Store, connect, migrations
 from test_mcp import ok
@@ -128,6 +129,7 @@ def test_migration_7_counts_again_what_an_older_scrap_left(tmp_path):
             " updated_at) VALUES ('A', 'a', 'T', ?, 'note', '{}', 'x', 'x')",
             (BOXES,),
         )  # as an older scrap writes it: no counts
+        undo_0018(conn)
         conn.execute("PRAGMA user_version = 6")
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:

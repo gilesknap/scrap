@@ -128,7 +128,12 @@ def imported(tmp_path, vault, **kw):
 def test_kinds_fields_tags_and_dates(tmp_path, vault):
     store, _ = imported(tmp_path, vault)
     with store.connect() as conn:
-        rows = {r["slug"]: dict(r) for r in conn.execute("SELECT * FROM page")}
+        rows = {
+            r["slug"]: dict(r)
+            for r in conn.execute(
+                "SELECT *, due, priority FROM page LEFT JOIN page_todo ON page_id = id"
+            )
+        }
     assert {s: r["kind"] for s, r in rows.items()} == {
         "alpha": "note",
         "alpha-2": "document",
@@ -141,7 +146,7 @@ def test_kinds_fields_tags_and_dates(tmp_path, vault):
         "loose-page": "note",
     }
     assert all(r["kind_fixed"] == 1 for r in rows.values())
-    # a todo's due date and priority are columns of its own (#104), not fields
+    # a todo's due date and priority are in page_todo (#104), not fields
     assert json.loads(rows["do-it"]["fields"]) == {"status": "open"}
     assert (rows["do-it"]["due"], rows["do-it"]["priority"]) == ("2025-06-01", "high")
     assert json.loads(rows["a-show"]["fields"]) == {

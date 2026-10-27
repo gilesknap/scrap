@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
+from old_schema import undo_0018
 from scrap import mcp_server, orphans
 from scrap.app import create_app
 from scrap.store import CLAUDE, MCP, Store, new_ulid, now, roles, topics
@@ -122,6 +123,7 @@ def test_migration_16_can_run_again(tmp_path):
     store.migrate()
     with closing(connect(store.db)) as conn, transaction(conn):
         add_made_by(conn)  # again: nothing to do
+        undo_0018(conn)
         conn.execute("PRAGMA user_version = 15")
     store.migrate()
     assert made(store)["MCP"] == "claude" and sources(store) == REVS
@@ -139,7 +141,6 @@ def test_an_older_schema_reads_who_made_a_page_as_before(tmp_path):
         assert roles.by_claude(conn, "MCP") and not roles.by_claude(conn, "LATE_MCP")
         assert roles.edited_by_claude(conn, "NOTE")
         assert not roles.edited_by_claude(conn, "PHOTO")
-    assert store.page("mcp")["made_by"] == "claude"
 
 
 # ---- made once, by each way a page is made

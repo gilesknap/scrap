@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from old_schema import undo_0018
 from scrap.store import Store, connect, migrations, todo_columns
 from test_mcp import ok, write
 
@@ -107,6 +108,7 @@ def test_migration_6_is_additive_and_can_run_again(tmp_path):
         assert (
             conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations()) >= 6
         )
+        undo_0018(conn)  # migration 18 moves the columns: this is the schema before
         conn.execute(
             "INSERT INTO page (id, slug, title, kind, fields, created_at, updated_at,"
             " snoozed_until) VALUES ('A', 'a', 'T', 'todo', '{}', 'x', 'x', ?)",
@@ -124,7 +126,10 @@ def test_migration_6_is_additive_and_can_run_again(tmp_path):
     Store(tmp_path).migrate()
     with closing(connect(db)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        rows = conn.execute("SELECT id, snoozed_until FROM page ORDER BY id")
+        rows = conn.execute(
+            "SELECT id, t.snoozed_until FROM page LEFT JOIN page_todo t"
+            " ON t.page_id = id ORDER BY id"
+        )
         assert [tuple(r) for r in rows] == [("A", LATER), ("B", None)]
 
 
