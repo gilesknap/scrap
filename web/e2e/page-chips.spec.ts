@@ -242,7 +242,7 @@ test("on a 360 px phone at 130% a todo's long first tag is cut with …, not hid
       .every((c) => c.getBoundingClientRect().right <= r.right + 0.5);
   });
   expect(fits).toBe(true);
-  const text = links.first().locator("span");
+  const text = links.first().locator("span.tl");
   await expect(text).toHaveCSS("text-overflow", "ellipsis");
   // Really cut: the name is wider than the room it has
   expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
