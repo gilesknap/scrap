@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>What Claude is asked, per page &#8212; scrap 0.16.1.dev1+ga34c16742 documentation</title>
+    <title>What Claude is asked, per page &#8212; scrap 0.16.1.dev2+g6822dde20 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c163bb43"></script>
+    <script src="../_static/documentation_options.js?v=ac6f6be3"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -818,6 +818,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -1111,9 +1112,9 @@ change the kind, title and tags by hand.</p>
 </tbody>
 </table>
 </div>
-<p>Migration 16 filled in <code class="docutils literal notranslate"><span class="pre">made_by</span></code> for the pages made before it from what these rules said then: a
-topic, else a <code class="docutils literal notranslate"><span class="pre">gc</span></code> capture, else a first capture from MCP, else <code class="docutils literal notranslate"><span class="pre">human</span></code> (<code class="docutils literal notranslate"><span class="pre">INFERRED_MADE_BY</span></code>, also
-the answer on an older schema). See <a class="reference internal" href="decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">made_by</span></code> is stored when a page is made and never changes (a trigger refuses it); it was first
+filled in for the pages made before it, in the migration that added it, from what these rules said
+then (a topic, else a <code class="docutils literal notranslate"><span class="pre">gc</span></code> capture, else a first capture from MCP, else <code class="docutils literal notranslate"><span class="pre">human</span></code>). See <a class="reference internal" href="decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>.</p>
 <p>Open questions, marked TODO in <code class="docutils literal notranslate"><span class="pre">store/roles.py</span></code> for the owner (none changes what scrap does today):</p>
 <ul class="simple">
 <li><p><strong>Board or topic first:</strong> a page that is both is a board in <code class="docutils literal notranslate"><span class="pre">writeup_type</span></code> and the write-up view,

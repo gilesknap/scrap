@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.16.1.dev1+ga34c16742 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.16.1.dev2+g6822dde20 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c163bb43"></script>
+    <script src="../_static/documentation_options.js?v=ac6f6be3"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1311,6 +1311,8 @@ queues captures meanwhile. A clean stop gives any ingest job in flight back to t
 runs its database migrations at startup, before it answers <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>: the startup probe allows
 them five minutes.</p>
 <p>Migrations are <strong>forward only</strong>, and an older scrap refuses a database migrated by a newer one.
+scrap 1.0 starts from schema 18 and refuses a database or a backup below it (<code class="docutils literal notranslate"><span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">1.0</span></code>): update to 0.16.x first, let it migrate,
+then update to 1.0.
 So <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">rollback</span></code> alone does not go back: roll back to the old image <em>and</em> restore the
 pre-upgrade backup with <code class="docutils literal notranslate"><span class="pre">--force</span></code> (below). Anything captured since the upgrade is then lost from
 the database; its files stay.</p>
@@ -1509,9 +1511,9 @@ nothing is rebuilt.</p>
 <p>What to expect:</p>
 <ul class="simple">
 <li><p>A backup from an older scrap is migrated by <code class="docutils literal notranslate"><span class="pre">restore</span></code>, on the copy, before it is swapped into
-place. Here that took about a second on a 60 MB database: schema 16 became 17 (migration
-<code class="docutils literal notranslate"><span class="pre">0017</span></code>, which adds the empty <code class="docutils literal notranslate"><span class="pre">page_trash_rev</span></code> table), <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">integrity_check</span></code> said <code class="docutils literal notranslate"><span class="pre">ok</span></code>, and
-every other table kept its row count.</p></li>
+place (scrap 1.0 refuses one below schema 18; restore it with 0.16.x first). On that test it
+took about a second on a 60 MB database: schema 16 became 17 (the empty <code class="docutils literal notranslate"><span class="pre">page_trash_rev</span></code>
+table), <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">integrity_check</span></code> said <code class="docutils literal notranslate"><span class="pre">ok</span></code>, and every other table kept its row count.</p></li>
 <li><p>The backup holds the database and every file in <code class="docutils literal notranslate"><span class="pre">files/</span></code>. It does not hold <code class="docutils literal notranslate"><span class="pre">cache/</span></code>, the page
 previews, which scrap makes again the first time a photo is shown.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">enrich.on</span></code> and <code class="docutils literal notranslate"><span class="pre">writeup.on</span></code> read <code class="docutils literal notranslate"><span class="pre">false</span></code> on the scratch instance only because Claude is off

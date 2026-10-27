@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data model and storage &#8212; scrap 0.16.1.dev1+ga34c16742 documentation</title>
+    <title>Data model and storage &#8212; scrap 0.16.1.dev2+g6822dde20 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=c163bb43"></script>
+    <script src="../../_static/documentation_options.js?v=ac6f6be3"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -818,6 +818,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -903,8 +904,8 @@ window.runMermaid = runMermaid;</script>
 are the truth; derived rows cost an LLM call to remake so they are stored; chunks and the FTS index
 are a disposable cache.</p>
 <p>Back to <a class="reference internal" href="../design.html"><span class="std std-doc">Architecture</span></a>. The schema is the numbered scripts in
-<code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code> (0001 to 0018) plus the Python steps in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/fixes.py</span></code>; the
-code is in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code>: one generated baseline, <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code> (schema 18), plus the numbered scripts
+after it (none yet; the first is 0019). The code is in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/</span></code>.</p>
 <section id="core-tables">
 <h2>Core tables<a class="headerlink" href="#core-tables" title="Link to this heading">#</a></h2>
 <p>Pages and their history on the left, what arrived and what Claude made of it on the right.</p>
@@ -1037,7 +1038,7 @@ every connection.</p>
 <td><p>Every call: request, response, usage, <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, error class. <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> covers discovery calls of no one page</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code></p></td>
-<td><p>One queued job per page; reason is <code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">save</span></code>, <code class="docutils literal notranslate"><span class="pre">ask</span></code>, <code class="docutils literal notranslate"><span class="pre">backfill</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup</span></code> or <code class="docutils literal notranslate"><span class="pre">topic</span></code> (migrations 11 to 13 widen its <code class="docutils literal notranslate"><span class="pre">CHECK</span></code>)</p></td>
+<td><p>One queued job per page; reason is <code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">save</span></code>, <code class="docutils literal notranslate"><span class="pre">ask</span></code>, <code class="docutils literal notranslate"><span class="pre">backfill</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup</span></code> or <code class="docutils literal notranslate"><span class="pre">topic</span></code> (its <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> lists them)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichment</span></code>, <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code></p></td>
 <td><p>Summary and fetched link title; tags Claude added (<code class="docutils literal notranslate"><span class="pre">on</span></code>) or the user removed (<code class="docutils literal notranslate"><span class="pre">off</span></code>, never re-added); related pages in order</p></td>
@@ -1091,7 +1092,7 @@ in the trash for N days (<a class="reference internal" href="../decisions/0030-t
 <li><p><strong>Derived</strong> (orange) rows are immutable versions. A new current version supersedes the old by
 trigger; a restore inserts a copy. Never <code class="docutils literal notranslate"><span class="pre">INSERT</span> <span class="pre">OR</span> <span class="pre">REPLACE</span></code> into <code class="docutils literal notranslate"><span class="pre">derived</span></code> or <code class="docutils literal notranslate"><span class="pre">chunk</span></code>: REPLACE
 deletes without firing the FTS triggers.</p></li>
-<li><p><strong>The cache</strong> (blue) is rebuilt by <code class="docutils literal notranslate"><span class="pre">index_all</span></code>, which migrations 3 and 4 run. A page has one own
+<li><p><strong>The cache</strong> (blue) is rebuilt by <code class="docutils literal notranslate"><span class="pre">index_all</span></code>. A page has one own
 chunk (title, tags, summary, plain-text body), rebuilt in the same transaction as any capture,
 save, tag change or enrich result, so there is no index job. Each current derived text is a
 further chunk. Chunks are deleted and inserted, never updated.</p></li>
@@ -1173,7 +1174,7 @@ table: outgoing links come from scanning the body, backlinks from an <code class
 pages. Dangling links are allowed. Markdown is parsed by a library on both sides
 (<a class="reference internal" href="../decisions/0014-markdown-parsed-by-a-library-on-both-sides.html"><span class="std std-doc">ADR 14</span></a>).</p></li>
 <li><p><strong>Tags</strong> are flat, lower-case, <code class="docutils literal notranslate"><span class="pre">/</span></code> allowed as a path; empty path segments are normalised
-(migration 10). Claude’s tags are marked in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> and shown with a ✦; a tag the user removes
+(<code class="docutils literal notranslate"><span class="pre">clean_tags</span></code>). Claude’s tags are marked in <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> and shown with a ✦; a tag the user removes
 is never added back and Claude never removes one.</p></li>
 <li><p><strong>Related</strong> pages come from enrich, kept apart from the text and shown both ways, merged with
 backlinks and a board’s write-up links.</p></li>
@@ -1243,7 +1244,7 @@ page or empties the trash. Undelete also makes the page’s topics due again.</p
 that brings the Pinned page back, and MCP’s; all go through <code class="docutils literal notranslate"><span class="pre">trash_in</span></code> and <code class="docutils literal notranslate"><span class="pre">restore_in</span></code>): <code class="docutils literal notranslate"><span class="pre">action</span></code> (<code class="docutils literal notranslate"><span class="pre">trash</span></code> or <code class="docutils literal notranslate"><span class="pre">restore</span></code>), <code class="docutils literal notranslate"><span class="pre">author</span></code>, <code class="docutils literal notranslate"><span class="pre">source</span></code> (<code class="docutils literal notranslate"><span class="pre">web</span></code> or <code class="docutils literal notranslate"><span class="pre">mcp</span></code>), <code class="docutils literal notranslate"><span class="pre">batch_id</span></code> (shared
 by the pages one <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> call moved; a batch undelete’s restores carry it too) and
 <code class="docutils literal notranslate"><span class="pre">created_at</span></code>. MCP <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists them (<code class="docutils literal notranslate"><span class="pre">trash</span></code>) for a page, a batch, or in the
-recent-changes feed. It is not backfilled: a page already in the trash before migration 17 has
+recent-changes feed. It is not backfilled: a page already in the trash before <code class="docutils literal notranslate"><span class="pre">page_trash_rev</span></code> existed has
 no row, so it is in no batch.</p></li>
 <li><p>The purge (<code class="docutils literal notranslate"><span class="pre">retention.py</span></code>) deletes the page row in one transaction, committed before gc reads
 what is in use; the cascades take its revisions, captures and file records, Claude’s results,
@@ -1261,70 +1262,51 @@ each page’s (per reason) newest.</p></li>
 </section>
 <section id="migrations">
 <h2>Migrations<a class="headerlink" href="#migrations" title="Link to this heading">#</a></h2>
-<p>Script <em>N</em> sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code>. <code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">db.lock</span></code>,
-turns on WAL and applies each missing script in one transaction, with an optional Python step from
-<code class="docutils literal notranslate"><span class="pre">store.AFTER</span></code> in the same transaction. Script 15 adds <code class="docutils literal notranslate"><span class="pre">page_meta_rev.fields_was</span></code> (a Python step, as SQLite has no <code class="docutils literal notranslate"><span class="pre">ADD</span> <span class="pre">COLUMN</span> <span class="pre">IF</span> <span class="pre">NOT</span> <span class="pre">EXISTS</span></code>): the values a metadata edit replaced, so <code class="docutils literal notranslate"><span class="pre">revert</span></code> can restore a changed field (<a class="reference internal" href="../decisions/0031-search-orders-by-section-on-the-server.html"><span class="std std-doc">ADR 31</span></a>). Script 16 adds <code class="docutils literal notranslate"><span class="pre">page.made_by</span></code> and <code class="docutils literal notranslate"><span class="pre">page_rev.source</span></code> the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps <code class="docutils literal notranslate"><span class="pre">made_by</span></code> as made (<a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html"><span class="std std-doc">ADR 33</span></a>). Script 17 creates <code class="docutils literal notranslate"><span class="pre">page_trash_rev</span></code> the same way, only if missing (<a class="reference internal" href="../decisions/0034-claude-can-move-pages-to-the-trash.html"><span class="std std-doc">ADR 34</span></a>). Script 18 is plain SQL: it creates <code class="docutils literal notranslate"><span class="pre">page_todo</span></code>, copies the three todo values into it and drops them, and the two indexes on them, from <code class="docutils literal notranslate"><span class="pre">page</span></code> (<a class="reference internal" href="../decisions/0036-todo-values-in-a-side-table.html"><span class="std std-doc">ADR 36</span></a>); it needs SQLite 3.35 for <code class="docutils literal notranslate"><span class="pre">DROP</span> <span class="pre">COLUMN</span></code>.</p>
+<p>The schema is <code class="docutils literal notranslate"><span class="pre">migrations/baseline.sql</span></code>, schema 18, the 1.0 squash of the migrations 0001 to 0018
+(<a class="reference internal" href="../decisions/0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>). It is generated from a database, never
+edited by hand (<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">scrap.store.baseline</span></code>), and holds every table, index and trigger, the
+<code class="docutils literal notranslate"><span class="pre">queue_state</span></code> seed row and the full-text index rebuild. The migrations that built it are gone: their
+Python steps and <code class="docutils literal notranslate"><span class="pre">store/fixes.py</span></code> went with them, and the history is in the ADRs and the 0.16 tag.</p>
+<p>Numbered scripts after the baseline are numbered by merge order with no gaps: the first is
+<code class="docutils literal notranslate"><span class="pre">0019_*.sql</span></code>, and the number in a file’s name is <code class="docutils literal notranslate"><span class="pre">BASELINE</span> <span class="pre">+</span> <span class="pre">1</span> <span class="pre">+</span> <span class="pre">its</span> <span class="pre">position</span></code> (<code class="docutils literal notranslate"><span class="pre">db.BASELINE</span></code>, 18;
+<code class="docutils literal notranslate"><span class="pre">tests/test_migrate.py</span></code> enforces it). Script <em>N</em> sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">db.lock</span></code>, turns on WAL and then:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
-<tr class="row-odd"><th class="head"><p>Migration</p></th>
-<th class="head"><p>Adds or changes</p></th>
+<tr class="row-odd"><th class="head"><p>The database is</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">migrate()</span></code></p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>0001</p></td>
-<td><p>Baseline: <code class="docutils literal notranslate"><span class="pre">page</span></code>, <code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, <code class="docutils literal notranslate"><span class="pre">blob</span></code>, <code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk_fts</span></code></p></td>
+<tr class="row-even"><td><p>empty (<code class="docutils literal notranslate"><span class="pre">user_version</span></code> 0)</p></td>
+<td><p>applies <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code> and sets version 18, in one transaction, then any later scripts</p></td>
 </tr>
-<tr class="row-odd"><td><p>0002</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">job</span></code>, <code class="docutils literal notranslate"><span class="pre">queue_state</span></code>, <code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">derived</span></code></p></td>
+<tr class="row-odd"><td><p>below 18</p></td>
+<td><p>refuses: <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">1.0</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>0003, 0004</p></td>
-<td><p>Search columns and a full re-index</p></td>
+<tr class="row-even"><td><p>18 up to the latest</p></td>
+<td><p>applies each missing script in its own transaction; none is missing at 18 now</p></td>
 </tr>
-<tr class="row-odd"><td><p>0005</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>; moves import fields into them</p></td>
-</tr>
-<tr class="row-even"><td><p>0006, 0007</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>; task counts, counted for every page</p></td>
-</tr>
-<tr class="row-odd"><td><p>0008</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>0009</p></td>
-<td><p>Text enrich tables</p></td>
-</tr>
-<tr class="row-odd"><td><p>0010</p></td>
-<td><p>Tag path normalisation</p></td>
-</tr>
-<tr class="row-even"><td><p>0011 to 0013</p></td>
-<td><p>Rebuild <code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> for new reasons; write-ups; topics</p></td>
-</tr>
-<tr class="row-odd"><td><p>0014</p></td>
-<td><p>Kinds <code class="docutils literal notranslate"><span class="pre">memory</span></code> and <code class="docutils literal notranslate"><span class="pre">reference</span></code> become <code class="docutils literal notranslate"><span class="pre">document</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>0015</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">page_meta_rev.fields_was</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>0016</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">page.made_by</span></code> (backfilled, then fixed by a trigger) and <code class="docutils literal notranslate"><span class="pre">page_rev.source</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>0017</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">page_trash_rev</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>0018</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">page_todo</span></code>: <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> move off <code class="docutils literal notranslate"><span class="pre">page</span></code></p></td>
+<tr class="row-odd"><td><p>newer than the code</p></td>
+<td><p>refuses: <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <ul class="simple">
-<li><p>Migrations 6 to 9, 15 and 17 are additive, so an older scrap still runs on a newer database if
-<code class="docutils literal notranslate"><span class="pre">user_version</span></code> is set back. Migration 16 is not: an older scrap writes text revisions without
-naming their columns, which the new <code class="docutils literal notranslate"><span class="pre">page_rev.source</span></code> refuses, so going back past it needs the
-pre-upgrade backup. Migration 18 is not additive either: it moves data, so an older scrap
-cannot run on the migrated database.</p></li>
-<li><p>A database newer than the code is refused, as is a backup newer than the code on restore.</p></li>
-<li><p>Policy: keep only the baseline for N-1 plus migration N, and drop them all at 1.0. The search index
-is rebuilt by migration rather than patched.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> runs the same check on the copy of a backup before it swaps anything in, so a
+backup below schema 18 is refused with that message, naming the folder given. To use one, restore
+it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 1.0.</p></li>
+<li><p>A migration after the baseline avoids rebuilding a table in Python unless a <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> must change;
+plain SQL is enough and easy to fold later.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/data/schema_baseline.json</span></code> is the frozen structure of the baseline, and
+<code class="docutils literal notranslate"><span class="pre">tests/data/schema_head.json</span></code> of the baseline plus the later scripts. A migration PR fails
+<code class="docutils literal notranslate"><span class="pre">tests/test_baseline.py</span></code> until it reviews the schema diff and refreezes
+(<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">scrap.store.baseline</span> <span class="pre">--snapshot</span></code>).</p></li>
+<li><p>Folding later scripts into a new baseline is deliberate and rare (when the live store is past
+them): <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">scrap.store.baseline</span> <span class="pre">--fold</span></code>, bump <code class="docutils literal notranslate"><span class="pre">BASELINE</span></code>, delete the folded scripts,
+<code class="docutils literal notranslate"><span class="pre">--snapshot</span></code>.</p></li>
+<li><p>The search index is a cache: a migration may drop and rebuild it rather than patch it.</p></li>
 </ul>
 <p>Related pages: <a class="reference internal" href="search.html"><span class="std std-doc">Search</span></a>, <a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a>,
 <a class="reference internal" href="deployment.html"><span class="std std-doc">Deployment and operations</span></a>, and the <a class="reference internal" href="../../reference/api.html"><span class="std std-doc">REST API</span></a>.</p>

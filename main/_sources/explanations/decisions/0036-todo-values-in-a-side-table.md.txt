@@ -16,8 +16,8 @@ the core row of every kind. The columns were also not used as indexes: every fil
 column in `coalesce(p.kind = 'todo' AND ..., 0)`, which hides it from the query planner, so
 `page_by_due` and `page_by_snooze` were never chosen (checked with `EXPLAIN QUERY PLAN`).
 
-The schema is about to be squashed into one baseline for 1.0, so this was the last cheap moment
-to move them: a data-moving migration is easiest to fold in while the store is small (about 380
+The schema is about to be squashed into one baseline for 1.0 ([ADR 37](0037-one-baseline-schema-for-1-0.md);
+this migration became part of it), so this was the last cheap moment to move them: a data-moving migration is easiest to fold in while the store is small (about 380
 pages and 40 todos on the live store).
 
 ## Decision
@@ -48,7 +48,7 @@ pages and 40 todos on the live store).
   going back means restoring the pre-upgrade backup (as for migration 16).
 - Reading the three values for a list of pages costs a primary-key lookup each in `page_todo`.
   The plans for `due:` and `sort:due` are otherwise the same as before: neither used a due index.
-- `tests/test_todo_migration.py` builds a schema 17 database with the real runner, migrates it and
-  compares every value, search, list, export and MCP read before and after.
-- Tests that pretend an older scrap ran in between (set `user_version` back and migrate again)
-  call `tests/old_schema.py`'s `undo_0018` first, as 0018 cannot be run twice.
+- 0018 was tested by building a schema 17 database with the real runner, migrating it and
+  comparing every value, search, list, export and MCP read before and after. The squash (ADR 37)
+  deleted that test with the migration; `tests/test_todo_values.py` now covers the same reads,
+  writes and an export/import round trip on a store made from the baseline.

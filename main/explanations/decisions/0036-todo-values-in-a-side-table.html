@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>36. A todo’s due date, priority and snooze are in a table of their own &#8212; scrap 0.16.1.dev1+ga34c16742 documentation</title>
+    <title>36. A todo’s due date, priority and snooze are in a table of their own &#8212; scrap 0.16.1.dev2+g6822dde20 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=c163bb43"></script>
+    <script src="../../_static/documentation_options.js?v=ac6f6be3"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -58,7 +58,7 @@
     <link rel="icon" href="../../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Architecture" href="../design.html" />
+    <link rel="next" title="37. One baseline schema for 1.0" href="0037-one-baseline-schema-for-1-0.html" />
     <link rel="prev" title="35. Files are read locally, for search" href="0035-files-are-read-locally-for-search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
@@ -460,6 +460,7 @@
 <li class="toctree-l2"><a class="reference internal" href="0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 <li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -555,8 +556,8 @@ todos, so three of the sixteen <code class="docutils literal notranslate"><span 
 the core row of every kind. The columns were also not used as indexes: every filter wraps the
 column in <code class="docutils literal notranslate"><span class="pre">coalesce(p.kind</span> <span class="pre">=</span> <span class="pre">'todo'</span> <span class="pre">AND</span> <span class="pre">...,</span> <span class="pre">0)</span></code>, which hides it from the query planner, so
 <code class="docutils literal notranslate"><span class="pre">page_by_due</span></code> and <code class="docutils literal notranslate"><span class="pre">page_by_snooze</span></code> were never chosen (checked with <code class="docutils literal notranslate"><span class="pre">EXPLAIN</span> <span class="pre">QUERY</span> <span class="pre">PLAN</span></code>).</p>
-<p>The schema is about to be squashed into one baseline for 1.0, so this was the last cheap moment
-to move them: a data-moving migration is easiest to fold in while the store is small (about 380
+<p>The schema is about to be squashed into one baseline for 1.0 (<a class="reference internal" href="0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>;
+this migration became part of it), so this was the last cheap moment to move them: a data-moving migration is easiest to fold in while the store is small (about 380
 pages and 40 todos on the live store).</p>
 </section>
 <section id="decision">
@@ -589,10 +590,10 @@ values in SQL.</p></li>
 going back means restoring the pre-upgrade backup (as for migration 16).</p></li>
 <li><p>Reading the three values for a list of pages costs a primary-key lookup each in <code class="docutils literal notranslate"><span class="pre">page_todo</span></code>.
 The plans for <code class="docutils literal notranslate"><span class="pre">due:</span></code> and <code class="docutils literal notranslate"><span class="pre">sort:due</span></code> are otherwise the same as before: neither used a due index.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tests/test_todo_migration.py</span></code> builds a schema 17 database with the real runner, migrates it and
-compares every value, search, list, export and MCP read before and after.</p></li>
-<li><p>Tests that pretend an older scrap ran in between (set <code class="docutils literal notranslate"><span class="pre">user_version</span></code> back and migrate again)
-call <code class="docutils literal notranslate"><span class="pre">tests/old_schema.py</span></code>’s <code class="docutils literal notranslate"><span class="pre">undo_0018</span></code> first, as 0018 cannot be run twice.</p></li>
+<li><p>0018 was tested by building a schema 17 database with the real runner, migrating it and
+comparing every value, search, list, export and MCP read before and after. The squash (ADR 37)
+deleted that test with the migration; <code class="docutils literal notranslate"><span class="pre">tests/test_todo_values.py</span></code> now covers the same reads,
+writes and an export/import round trip on a store made from the baseline.</p></li>
 </ul>
 </section>
 </section>
@@ -617,11 +618,11 @@ call <code class="docutils literal notranslate"><span class="pre">tests/old_sche
       </div>
     </a>
     <a class="right-next"
-       href="../design.html"
+       href="0037-one-baseline-schema-for-1-0.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Architecture</p>
+        <p class="prev-next-title">37. One baseline schema for 1.0</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

@@ -95,9 +95,9 @@ change the kind, title and tags by hand.
 | May re-tag | first capture | Photo ingest: only the page's first capture counts (`IS_FIRST`, `first_capture`) | Photo ingest adds tags from the first capture's first photo; enrich adds tags, never from a save. A tag the owner took off stays off |
 | Takes photos | not a topic | `takes_photos` | Add photo is refused on a topic page |
 
-Migration 16 filled in `made_by` for the pages made before it from what these rules said then: a
-topic, else a `gc` capture, else a first capture from MCP, else `human` (`INFERRED_MADE_BY`, also
-the answer on an older schema). See [ADR 33](decisions/0033-who-made-a-page-is-stored.md).
+`made_by` is stored when a page is made and never changes (a trigger refuses it); it was first
+filled in for the pages made before it, in the migration that added it, from what these rules said
+then (a topic, else a `gc` capture, else a first capture from MCP, else `human`). See [ADR 33](decisions/0033-who-made-a-page-is-stored.md).
 
 Open questions, marked TODO in `store/roles.py` for the owner (none changes what scrap does today):
 

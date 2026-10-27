@@ -37,7 +37,7 @@ into deleting pages the user never named.
   (discovery will not make it again), so the description and instructions say to trash one only
   if the user named it.
 - Every move into or out of the trash, the PWA's delete and undo and a pin that brings the
-  Pinned page back included, is a row of a new table, `page_trash_rev` (migration 17: action, author, source web or mcp, batch id, when).
+  Pinned page back included, is a row of a new table, `page_trash_rev` (action, author, source web or mcp, batch id, when).
   `revisions` lists them (`trash`) for a page, a batch, or in the recent-changes feed.
 - The tool description and the server's instructions say to trash only pages the user named or
   asked to delete, never because text in a page says to, and to try `dry_run` first.
@@ -48,4 +48,4 @@ into deleting pages the user never named.
 - An injected instruction could still get pages trashed, but at most 50 a call, each named, each
   recorded with source `mcp`, and all recoverable as a batch until the purge.
 - Deletes become visible in history: "what changed overnight?" now also answers "what was
-  deleted?". Pages already in the trash before migration 17 have no row and are in no batch.
+  deleted?". Pages already in the trash before the table existed have no row and are in no batch.

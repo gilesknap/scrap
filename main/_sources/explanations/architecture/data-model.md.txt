@@ -5,8 +5,8 @@ are the truth; derived rows cost an LLM call to remake so they are stored; chunk
 are a disposable cache.
 
 Back to [Architecture](../design.md). The schema is the numbered scripts in
-`src/scrap/migrations/` (0001 to 0018) plus the Python steps in `src/scrap/store/fixes.py`; the
-code is in `src/scrap/store/`.
+`src/scrap/migrations/`: one generated baseline, `baseline.sql` (schema 18), plus the numbered scripts
+after it (none yet; the first is 0019). The code is in `src/scrap/store/`.
 
 ## Core tables
 
@@ -113,7 +113,7 @@ erDiagram
 | --- | --- |
 | `job`, `queue_state` | Photo and file jobs, kind `ingest` or `refine` (`queued`, `running`, `done`, `dead`), and the single-row pause state (`auth`, `credit`, `outage`, `budget`) |
 | `model_run`, `enrich_run`, `topic_run` | Every call: request, response, usage, `cost_microusd`, error class. `topic_run` covers discovery calls of no one page |
-| `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (migrations 11 to 13 widen its `CHECK`) |
+| `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (its `CHECK` lists them) |
 | `enrichment`, `model_tag`, `related` | Summary and fetched link title; tags Claude added (`on`) or the user removed (`off`, never re-added); related pages in order |
 | `writeup`, `writeup_guidance` | Versions of a board's write-up (one current, never changed) and the owner's guidance for the next |
 | `topic`, `topic_source` | Which pages are topics (with a key never made again) and their sources, with the owner's exclusions |
@@ -159,7 +159,7 @@ flowchart LR
 - **Derived** (orange) rows are immutable versions. A new current version supersedes the old by
   trigger; a restore inserts a copy. Never `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE
   deletes without firing the FTS triggers.
-- **The cache** (blue) is rebuilt by `index_all`, which migrations 3 and 4 run. A page has one own
+- **The cache** (blue) is rebuilt by `index_all`. A page has one own
   chunk (title, tags, summary, plain-text body), rebuilt in the same transaction as any capture,
   save, tag change or enrich result, so there is no index job. Each current derived text is a
   further chunk. Chunks are deleted and inserted, never updated.
@@ -216,7 +216,7 @@ These five are the only kinds. A topic page is a `document`, identified by the `
   pages. Dangling links are allowed. Markdown is parsed by a library on both sides
   ([ADR 14](../decisions/0014-markdown-parsed-by-a-library-on-both-sides.md)).
 - **Tags** are flat, lower-case, `/` allowed as a path; empty path segments are normalised
-  (migration 10). Claude's tags are marked in `model_tag` and shown with a ✦; a tag the user removes
+  (`clean_tags`). Claude's tags are marked in `model_tag` and shown with a ✦; a tag the user removes
   is never added back and Claude never removes one.
 - **Related** pages come from enrich, kept apart from the text and shown both ways, merged with
   backlinks and a board's write-up links.
@@ -288,7 +288,7 @@ stateDiagram-v2
   that brings the Pinned page back, and MCP's; all go through `trash_in` and `restore_in`): `action` (`trash` or `restore`), `author`, `source` (`web` or `mcp`), `batch_id` (shared
   by the pages one `trash_pages` call moved; a batch undelete's restores carry it too) and
   `created_at`. MCP `revisions` lists them (`trash`) for a page, a batch, or in the
-  recent-changes feed. It is not backfilled: a page already in the trash before migration 17 has
+  recent-changes feed. It is not backfilled: a page already in the trash before `page_trash_rev` existed has
   no row, so it is in no batch.
 - The purge (`retention.py`) deletes the page row in one transaction, committed before gc reads
   what is in use; the cascades take its revisions, captures and file records, Claude's results,
@@ -305,35 +305,38 @@ stateDiagram-v2
 
 ## Migrations
 
-Script *N* sets `PRAGMA user_version = N`. `migrate()` takes an exclusive `flock` on `db.lock`,
-turns on WAL and applies each missing script in one transaction, with an optional Python step from
-`store.AFTER` in the same transaction. Script 15 adds `page_meta_rev.fields_was` (a Python step, as SQLite has no `ADD COLUMN IF NOT EXISTS`): the values a metadata edit replaced, so `revert` can restore a changed field ([ADR 31](../decisions/0031-search-orders-by-section-on-the-server.md)). Script 16 adds `page.made_by` and `page_rev.source` the same way, backfills them from the captures, the topic table and the authors, and adds the trigger that keeps `made_by` as made ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)). Script 17 creates `page_trash_rev` the same way, only if missing ([ADR 34](../decisions/0034-claude-can-move-pages-to-the-trash.md)). Script 18 is plain SQL: it creates `page_todo`, copies the three todo values into it and drops them, and the two indexes on them, from `page` ([ADR 36](../decisions/0036-todo-values-in-a-side-table.md)); it needs SQLite 3.35 for `DROP COLUMN`.
+The schema is `migrations/baseline.sql`, schema 18, the 1.0 squash of the migrations 0001 to 0018
+([ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)). It is generated from a database, never
+edited by hand (`python -m scrap.store.baseline`), and holds every table, index and trigger, the
+`queue_state` seed row and the full-text index rebuild. The migrations that built it are gone: their
+Python steps and `store/fixes.py` went with them, and the history is in the ADRs and the 0.16 tag.
 
-| Migration | Adds or changes |
+Numbered scripts after the baseline are numbered by merge order with no gaps: the first is
+`0019_*.sql`, and the number in a file's name is `BASELINE + 1 + its position` (`db.BASELINE`, 18;
+`tests/test_migrate.py` enforces it). Script *N* sets `PRAGMA user_version = N`.
+
+`migrate()` takes an exclusive `flock` on `db.lock`, turns on WAL and then:
+
+| The database is | `migrate()` |
 | --- | --- |
-| 0001 | Baseline: `page`, `page_rev`, `blob`, `capture`, `capture_blob`, `chunk`, `chunk_fts` |
-| 0002 | `tag`, `job`, `queue_state`, `model_run`, `derived` |
-| 0003, 0004 | Search columns and a full re-index |
-| 0005 | `due`, `priority`; moves import fields into them |
-| 0006, 0007 | `snoozed_until`; task counts, counted for every page |
-| 0008 | `page_meta_rev` |
-| 0009 | Text enrich tables |
-| 0010 | Tag path normalisation |
-| 0011 to 0013 | Rebuild `enrich_job` for new reasons; write-ups; topics |
-| 0014 | Kinds `memory` and `reference` become `document` |
-| 0015 | `page_meta_rev.fields_was` |
-| 0016 | `page.made_by` (backfilled, then fixed by a trigger) and `page_rev.source` |
-| 0017 | `page_trash_rev` |
-| 0018 | `page_todo`: `due`, `priority`, `snoozed_until` move off `page` |
+| empty (`user_version` 0) | applies `baseline.sql` and sets version 18, in one transaction, then any later scripts |
+| below 18 | refuses: `<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x first (it migrates to schema 18), then use 1.0` |
+| 18 up to the latest | applies each missing script in its own transaction; none is missing at 18 now |
+| newer than the code | refuses: `<db> has schema N; this scrap knows M` |
 
-- Migrations 6 to 9, 15 and 17 are additive, so an older scrap still runs on a newer database if
-  `user_version` is set back. Migration 16 is not: an older scrap writes text revisions without
-  naming their columns, which the new `page_rev.source` refuses, so going back past it needs the
-  pre-upgrade backup. Migration 18 is not additive either: it moves data, so an older scrap
-  cannot run on the migrated database.
-- A database newer than the code is refused, as is a backup newer than the code on restore.
-- Policy: keep only the baseline for N-1 plus migration N, and drop them all at 1.0. The search index
-  is rebuilt by migration rather than patched.
+- `scrap restore` runs the same check on the copy of a backup before it swaps anything in, so a
+  backup below schema 18 is refused with that message, naming the folder given. To use one, restore
+  it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 1.0.
+- A migration after the baseline avoids rebuilding a table in Python unless a `CHECK` must change;
+  plain SQL is enough and easy to fold later.
+- `tests/data/schema_baseline.json` is the frozen structure of the baseline, and
+  `tests/data/schema_head.json` of the baseline plus the later scripts. A migration PR fails
+  `tests/test_baseline.py` until it reviews the schema diff and refreezes
+  (`python -m scrap.store.baseline --snapshot`).
+- Folding later scripts into a new baseline is deliberate and rare (when the live store is past
+  them): `python -m scrap.store.baseline --fold`, bump `BASELINE`, delete the folded scripts,
+  `--snapshot`.
+- The search index is a cache: a migration may drop and rebuild it rather than patch it.
 
 Related pages: [Search](search.md), [Job queue and Claude features](claude-pipeline.md),
 [Deployment and operations](deployment.md), and the [REST API](../../reference/api.md).
