@@ -65,8 +65,10 @@ the wrong day around midnight. To stop it, `podman stop scrap`; to run it again 
 settings, `podman rm -f scrap` and re-run the command (the `scrap-data` volume keeps your
 pages). Docker takes the same arguments.
 
-`SCRAP_PUBLIC_URL` matters to Claude, not the web page. `/mcp` answers only loopback and the
-addresses listed there, and replies `421 Invalid Host header` to any other. Page links in
+`SCRAP_PUBLIC_URL` matters to Claude and to any hostname you use. `/mcp` answers only loopback and the
+addresses listed there, and replies `421 Invalid Host header` to any other; the web page and the API do
+the same for a *name* not listed there (an IP address always works), so list a MagicDNS or LAN
+hostname if you open the app at it. Page links in
 Claude's replies start with the first address, and the app opens a link to any listed address in
 place, so Back returns to the page you were on. Claude Code on this machine needs none of it; on
 another machine, use `claude mcp add` from the README with the LAN address, for example

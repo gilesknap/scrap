@@ -12,10 +12,30 @@ A text revision made over HTTP is always source `web`, never Claude's.
 
 ## HTTP
 
+### Host and Origin
+
+Every route but `/mcp` (which has its own, the same check) and `/healthz` checks the request's
+`Host` and `Origin`, against the allow-list `/mcp` uses ([](mcp.md) has its rules), so one setting,
+`SCRAP_PUBLIC_URL`, covers both. This stops another web page from reaching scrap through your browser:
+a DNS rebinding page (its name as `Host`) and a form or `fetch` it sends from its own site.
+
+- **Host**: loopback (`127.0.0.1`, `localhost`, `[::1]`, any port) or a host of `SCRAP_PUBLIC_URL`,
+  else `421`. Case and a trailing dot are ignored; two `Host` headers are refused. An IP address
+  is always accepted, so an install reached at `http://192.168.1.10:8000` needs no setting. A
+  *name* (a MagicDNS or LAN hostname, a Cloudflare or Serve address) must be in `SCRAP_PUBLIC_URL`,
+  as it already must for `/mcp`. `X-Forwarded-Host` is ignored: the proxy must pass the public
+  `Host` through (Tailscale Serve and Cloudflare do).
+- **Origin**, on `POST`, `PUT`, `PATCH` and `DELETE` only: none sent (curl, the CLI, the hooks) is
+  accepted; one sent must be a loopback `http://` origin or a `SCRAP_PUBLIC_URL` origin, or, for an
+  install reached by IP address, that address and port. Anything else, `null` included, is `403`.
+  Browsers always send `Origin` on a cross-site write, so a page cannot leave it off.
+
 ### Errors
 
 An error is a JSON body `{"detail": ...}` with the status that says what went wrong:
 
+- `403`: a write (any method but `GET`, `HEAD` or `OPTIONS`) whose `Origin` header is not allowed.
+- `421`: a `Host` header that is not allowed. Both checks are described under [Host and Origin](#host-and-origin).
 - `400`: a multipart text field (`text`, `url`, `title`...) over 1 MiB, refused by the form
   parser before scrap sees it; the body is `{"detail": "Part exceeded maximum size of 1024KB."}`.
   A JSON body of that size is `422` instead (see `POST /api/captures`).
@@ -240,7 +260,7 @@ chart's values in [](../how-to/deploy-kubernetes.md).
 | --- | --- | --- |
 | `SCRAP_DATA_DIR` | `./data` | The data folder |
 | `SCRAP_WEB_DIR` | the packaged PWA | Serve the PWA from this folder instead: a new build there shows without a restart |
-| `SCRAP_PUBLIC_URL` | unset | The address the service is reached at, e.g. `https://host.tailnet.ts.net:8446` (several, comma separated). `/mcp` answers only requests whose `Host` is loopback or one of these (DNS rebinding protection), and the first makes the page URLs MCP tools return; without it they are paths (`/p/<slug>`). A Markdown link to `/p/<slug>` on any of them is a page link (links, backlinks, `is:orphan`, `has:dangling`), and the PWA opens it in place: the server lists their origins in the `index.html` it serves (`<meta name="scrap-origins">`). An installed app keeps that page offline, so it picks up a changed list on its next app update; the address it was opened at always works. An address without a scheme and host (`foo`) stops scrap at start with `SCRAP_PUBLIC_URL: 'foo' is not a URL`; see [](mcp.md) |
+| `SCRAP_PUBLIC_URL` | unset | The address the service is reached at, e.g. `https://host.tailnet.ts.net:8446` (several, comma separated). every route but `/healthz` answers only requests whose `Host` is loopback, an IP address or one of these, and a write only an `Origin` that is (DNS rebinding and cross-site protection; see [Host and Origin](#host-and-origin)), and the first makes the page URLs MCP tools return; without it they are paths (`/p/<slug>`). A Markdown link to `/p/<slug>` on any of them is a page link (links, backlinks, `is:orphan`, `has:dangling`), and the PWA opens it in place: the server lists their origins in the `index.html` it serves (`<meta name="scrap-origins">`). An installed app keeps that page offline, so it picks up a changed list on its next app update; the address it was opened at always works. An address without a scheme and host (`foo`) stops scrap at start with `SCRAP_PUBLIC_URL: 'foo' is not a URL`; see [](mcp.md) |
 | `SCRAP_MCP_TOKEN` | unset | Bearer token(s) `/mcp` requires, comma separated. Unset (with `SCRAP_MCP_TOKEN_FILE` also unset): `/mcp` is open as before. Only `/mcp` is guarded; `/healthz`, the API and the PWA are not. A set but empty value stops scrap at start. See [](mcp.md) |
 | `SCRAP_MCP_TOKEN_FILE` | unset | A file with one bearer token per line (blank lines and `#` comments skipped), for a mounted secret; its tokens add to `SCRAP_MCP_TOKEN`'s. A missing or token-less file stops scrap at start |
 | `SCRAP_IDENTITY_HEADER` | `Tailscale-User-Login` | The request header recorded as the author of a change, else `tagged`. Only this header is read; set it to what your authenticating proxy sends (e.g. `X-Auth-Request-User`). Blank counts as unset, and so does a value of `claude` (any case), MCP's author |

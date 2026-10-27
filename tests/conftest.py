@@ -21,6 +21,19 @@ def no_mcp_token(monkeypatch):
     monkeypatch.delenv("SCRAP_MCP_TOKEN_FILE", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def loopback_client(monkeypatch):
+    """TestClient's default Host is `testserver`, which the Host check (hostguard)
+    refuses like any name not in SCRAP_PUBLIC_URL; default to loopback, as a real
+    local install is reached."""
+    init = TestClient.__init__
+
+    def local(self, app, base_url="http://localhost", *args, **kwargs):
+        init(self, app, base_url, *args, **kwargs)
+
+    monkeypatch.setattr(TestClient, "__init__", local)
+
+
 @pytest.fixture
 def client(tmp_path):
     return TestClient(create_app(tmp_path / "data"))
