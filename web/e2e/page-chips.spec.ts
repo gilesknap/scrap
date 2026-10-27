@@ -61,6 +61,7 @@ const large = (page: Page) => page.addStyleTag({ content: ":root { font-size: 22
 test("a chip says the last part of its tag, more of the path only to tell two apart", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 800, height: 900 }); // wide: no chip folds away to +N
   const [a, b] = [word(), word()];
   const p = await make(page, [`kind${a}/project-management`, `epics${a}/thoth`, `other${b}/thoth`]);
   await page.goto(`/p/${p.slug}`);
