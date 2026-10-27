@@ -55,16 +55,13 @@ def index_page(conn: sqlite3.Connection, page_id: str) -> None:
 
 def model_summary(conn: sqlite3.Connection, page_id: str) -> str:
     """The summary Claude wrote for a page: its current write-up's (a board's), else
-    enrich's, else ''. Before migration 9 there is no enrichment table: ''."""
+    enrich's, else ''."""
     up = shown_writeup(conn, page_id)
     if up is not None and up["summary"]:
         return up["summary"]
-    try:
-        row = conn.execute(
-            "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
-        ).fetchone()
-    except sqlite3.OperationalError:
-        return ""
+    row = conn.execute(
+        "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
+    ).fetchone()
     return row[0] if row else ""
 
 

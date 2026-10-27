@@ -213,16 +213,13 @@ def _trash(conn: sqlite3.Connection, trash_days: float | None) -> dict[str, Any]
 def _runs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     out = []
     for table in RUNS:
-        try:
-            found = conn.execute(
-                "SELECT substr(started_at, 1, 7), count(*),"
-                " sum(length(CAST(request AS BLOB))"
-                " + coalesce(length(CAST(response AS BLOB)), 0)"
-                " + coalesce(length(CAST(output AS BLOB)), 0))"
-                f" FROM {table} GROUP BY 1 ORDER BY 1"
-            ).fetchall()
-        except sqlite3.OperationalError:  # an older schema: no such table
-            continue
+        found = conn.execute(
+            "SELECT substr(started_at, 1, 7), count(*),"
+            " sum(length(CAST(request AS BLOB))"
+            " + coalesce(length(CAST(response AS BLOB)), 0)"
+            " + coalesce(length(CAST(output AS BLOB)), 0))"
+            f" FROM {table} GROUP BY 1 ORDER BY 1"
+        ).fetchall()
         out += [
             {"table": table, "month": m, "rows": n, "bytes": b or 0}
             for m, n, b in found
