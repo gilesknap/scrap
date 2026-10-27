@@ -12,7 +12,7 @@ import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
 import { groupBy, KIND_ROW, kindsIn, listing, served, withKind } from "./terms";
-import { empty, failed, h } from "./ui";
+import { empty, h, problem } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)
 const MOST = 1000; // search results, fetched PAGE at a time
@@ -278,8 +278,7 @@ export async function search(): Promise<Node> {
       }
       return shown;
     } catch (e) {
-      if ((e as Error).name !== "AbortError")
-        ul.append(h("li", {}, failed("Search needs the server.")));
+      if ((e as Error).name !== "AbortError") ul.append(h("li", {}, problem(e))); // as every screen says it: why, and Retry
     }
     return ul;
   }
