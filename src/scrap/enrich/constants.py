@@ -187,6 +187,12 @@ FILE_UNTITLED = f"""
   AND EXISTS (SELECT 1 FROM capture c WHERE c.id = {_FIRST}
               AND c.kind = 'file' AND c.text IS NULL)
 """
+# A page's summary, if an Ask made it (its run's job was an Ask's: it may have read the
+# page's files, which nothing else sends); none once that run or job is pruned
+ASKED_SUMMARY = """
+SELECT e.summary FROM enrichment e JOIN enrich_run r ON r.id = e.run_id
+JOIN enrich_job j ON j.id = r.job_id WHERE e.page_id = ? AND j.reason = 'ask'
+"""
 UNTITLED_FILE = f"SELECT 1 FROM page WHERE id = :page AND {FILE_UNTITLED}"
 FILE_TITLE_CAS = f"""
 UPDATE page SET title = :title

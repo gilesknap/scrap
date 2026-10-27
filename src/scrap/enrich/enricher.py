@@ -29,6 +29,7 @@ from ..store import (
 )
 from .checking import checked, record
 from .constants import (
+    ASKED_SUMMARY,
     CLAIM,
     FILE_TITLE_CAS,
     MAX_NEW_TAGS,
@@ -384,7 +385,7 @@ class Enricher:
         """Apply what Claude added; whether the job is still this worker's (else it
         was given back at shutdown, and runs again). An Ask's job is finished by the
         caller, after its related pages. keep_summary: a re-reading of a page with
-        files' text, which only Ask sends, keeps the summary it has (#378)."""
+        files' text, which only Ask sends, keeps a summary an Ask made (#378)."""
         jid, page_id = job["id"], job["page_id"]
         producer = done.served_model
         with self.store.connect() as conn, transaction(conn):
@@ -420,9 +421,7 @@ class Enricher:
                         source, source_title = old
                 summary = out["summary"]
                 if keep_summary:
-                    old = conn.execute(
-                        "SELECT summary FROM enrichment WHERE page_id = ?", (page_id,)
-                    ).fetchone()
+                    old = conn.execute(ASKED_SUMMARY, (page_id,)).fetchone()
                     summary = old and old[0] or summary
                 conn.execute(
                     "INSERT INTO enrichment (page_id, run_id, producer, summary,"

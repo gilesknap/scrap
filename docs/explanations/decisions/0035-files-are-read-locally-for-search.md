@@ -63,13 +63,18 @@ act, so it is the owner deciding what a model sees:
 - On Ask, enrich and its related call are sent what scrap read from the page's files (at most
   8,000 and 3,000 characters), quoted in a `<files>` block. Nothing else sends it: not enrich on
   a capture or save, nor the nightly related pass, nor topics. Related candidates may be found by
-  the files' words, a local full-text search that sends nothing.
+  the files' words, a local full-text search that sends nothing. What Ask writes from them (the
+  summary, the title) is stored, and later calls send it as any page's (related, the indexes,
+  topics: quoted, model-written).
 - A page made from a file alone (its first capture a file's with no text, its title untouched)
   gets a title from its files' text on Ask, as a photo page gets one from its photo.
-- A list of actions in the files' text is never applied (no task boxes, no todo): the text is
-  a stranger's, maybe invisible in the PDF.
-- A re-reading that does not send the files (a save of a typed page with a PDF added) keeps the
-  page's summary, which Ask may have made from them; the next Ask renews it.
+- On an Ask that sends files' text, no list of actions is applied at all (no task boxes, no
+  todo), not even one in the owner's own typed text: the files' text is a stranger's, maybe
+  invisible in the PDF. A later save of a typed page (one enrich reads on a save) still files its
+  own list, as that re-reading sends no files.
+- A re-reading that does not send the files (a save of a typed page with a PDF added) keeps a
+  summary an Ask made; the next Ask renews it. Any other summary is refreshed as before, as is
+  one whose Ask run or job retention has since pruned.
 - Still no model reads the file itself, and file ingest still never changes the page.
 
 ## Consequences

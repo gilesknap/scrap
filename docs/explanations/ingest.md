@@ -562,7 +562,7 @@ second job kind, `enrich` (`src/scrap/enrich/`), on the same worker thread, queu
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page's text, except that a confident list of actions gets task boxes appended
-({ref}`ingest-actions`), never from a file's text. The schema is in
+({ref}`ingest-actions`), never on an Ask that sends a file's text. The schema is in
 [`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql).
 
 What queues an enrich job, and what follows it:
@@ -627,11 +627,14 @@ flowchart TD
   (tagged, not summarised); `title`: 200 characters, for a link, and for a page made from a file
   alone (its first capture a file's with no text, its title still as made, `FILE_UNTITLED`)
   when its files' text was sent: the request then says "Write a title.", and the title replaces
-  the time it came while the title is untouched. A list of actions is not applied when its
-  files' text was sent (a stranger's text, maybe invisible in a PDF: no task boxes, no todo).
+  the time it came while the title is untouched. On an Ask that sends files' text no list of
+  actions is applied at all, the owner's own typed one included (the files' text is a
+  stranger's, maybe invisible in a PDF: no task boxes, no todo); a later save of a typed page
+  still files its own list.
 - **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill (a
-  save's re-reading refreshes the summary only, but on a page with files' text it keeps the
-  summary it has, which Ask may have made from them); never one the user took off. `model_tag` marks
+  save's re-reading refreshes the summary only, but on a page with files' text it keeps a
+  summary an Ask made (`ASKED_SUMMARY`; not once retention has pruned that Ask's run or job));
+  never one the user took off. `model_tag` marks
   Claude's tags (`on`), and `off` once the user removes one, so it never comes back; a tag the
   user puts back by hand is theirs. Photo ingest marks its tags there too. A link's title
   replaces the provisional one only while the title is still the URL as captured (rev 1, no edit

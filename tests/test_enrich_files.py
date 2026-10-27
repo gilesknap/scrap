@@ -10,7 +10,7 @@ import pytest
 
 from scrap import enrich
 from scrap.store import Store, connect, new_ulid
-from test_enrich import Fake, answer, capture, run_all, user_turn, worker
+from test_enrich import LONG, Fake, answer, capture, run_all, user_turn, worker
 from test_files import pdf
 
 READ = "Larch cladding: a guide.\n\n" + "Treat the boards before fixing. " * 20
@@ -181,6 +181,31 @@ def test_a_save_keeps_the_summary_ask_made_from_the_files(store):
     assert store.page(note)["enrich"]["summary"] == "From the PDF."
     ask(store, note, answer(summary="Asked again."))  # the next Ask renews it
     assert store.page(note)["enrich"]["summary"] == "Asked again."
+
+
+def test_a_save_refreshes_a_summary_no_ask_made(store):
+    note = pdf_note(store, LONG)  # enriched on capture, from its text alone
+    run_all(worker(store, Fake(answer(summary="About sheds."))))
+    assert store.page(note)["enrich"]["summary"] == "About sheds."
+    store.update_page(note, 1, None, "Boats. " * 40, "me")
+    run_all(worker(store, Fake(answer(summary="About boats."))))
+    assert store.page(note)["enrich"]["summary"] == "About boats."
+
+
+def test_an_ask_retried_after_a_failed_related_call_still_sends_the_files(store):
+    page_id = attach(store, READ.encode(), "text/plain", "guide.txt")
+    failed = []
+
+    def out(system, messages):
+        if "## Other pages" in system and not failed:
+            failed.append(1)
+            return {"nope": 1}  # invalid: the job is retried at once
+        return answer(["diy"], "A guide.", "Larch cladding")
+
+    fake = ask(store, page_id, out)
+    related = by_schema(fake, enrich.RELATED_SCHEMA)
+    assert len(related) == 2
+    assert all("<files>" in user_turn(c) for c in related)
 
 
 def test_a_title_typed_while_ask_runs_wins(store):
