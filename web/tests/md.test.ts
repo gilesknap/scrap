@@ -265,13 +265,21 @@ describe("markdown", () => {
     "a\n",
     "https://e.com/",
   ])("takes linear time on a run of %j", (piece) => {
+    // Best of a few runs, so a stall on a busy runner doesn't count
     const took = (n: number) => {
-      const start = performance.now();
-      markdown(piece.repeat(n / piece.length));
-      return performance.now() - start;
+      let best = Infinity;
+      for (let i = 0; i < 3; i++) {
+        const start = performance.now();
+        markdown(piece.repeat(n / piece.length));
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
     };
     took(20_000); // warm up
-    expect(took(200_000)).toBeLessThan(2000);
+    // Compare scaling, not wall time (a slow runner is slower at both sizes):
+    // 4x the input is ~4x the time if linear, ~16x if quadratic.
+    const small = Math.max(took(50_000), 1);
+    expect(took(200_000) / small).toBeLessThan(10);
   });
 });
 
