@@ -49,7 +49,10 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
             dict[str, str | int | float | bool | None] | None,
             Field(
                 max_length=MAX_TAGS,
-                description="Fields to set on every page (null takes one off)",
+                description=(
+                    "Fields to set on every page (null takes one off): media_type, "
+                    "or status (open, in_progress, done, cancelled) of a todo or Later"
+                ),
             ),
         ] = None,
         dry_run: DryRun = False,

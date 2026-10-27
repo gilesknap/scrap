@@ -224,7 +224,7 @@ that way (480 px JPEGs, so a few hundred kB each).
   the title, the text, other fields, nor `updated_at` (as with the PWA's own tag and kind
   edits). **Status.** `fields: {"status": "done"}` ticks a todo (or a Later) off and `{"status": "open"}`
   reopens it, as the PWA's Mark done and Reopen do; it takes `open`, `in_progress`, `done` or
-  `cancelled`, is refused on other kinds (and cannot be taken off), and is a revision like any
+  `cancelled`, is refused on a page that is not one already (make it a todo in an earlier call, not the same one) and cannot be taken off; later ticking boxes with `edit_page` can still move it, as in the PWA, and is a revision like any
   field change (`fields_was` holds the old status; `revert` puts it back). It is not text, so
   `SCRAP_MCP_CONTENT_EDIT=0` leaves it on, as it does kinds and tags. All or nothing: an unknown page or a refused change saves nothing. **`dry_run`** says
   what each page would get and saves nothing: try a bulk change with it first.

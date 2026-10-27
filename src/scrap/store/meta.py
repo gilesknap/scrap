@@ -341,10 +341,10 @@ class MetaMixin(Core):
                 )
                 if len(after.tags) > MAX_TAGS:
                     raise InvalidError(f"{page['slug']}: over {MAX_TAGS} tags")
-                if "status" in put and after.kind not in ("todo", "consume"):
+                if "status" in put and before.kind not in ("todo", "consume"):
                     raise InvalidError(
                         f"{page['slug']}: status is a todo's or a Later's: make it "
-                        "one first"
+                        "one first (in an earlier call)"
                     )
                 if put.get("media_type") and after.kind != "consume":
                     raise InvalidError(  # else a later kind change would pair it with

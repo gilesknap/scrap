@@ -705,3 +705,14 @@ def test_edit_meta_refuses_a_bad_status(store):
         store, "edit_meta", pages=[note], fields={"status": "done"}
     )
     assert store.page(key)["fields"]["status"] == "open"
+
+
+def test_status_with_a_kind_change_is_refused_and_a_later_takes_one(store):
+    note = human(store, "Just a note")["slug"]
+    assert "earlier call" in refused(
+        store, "edit_meta", pages=[note], kind="todo", fields={"status": "done"}
+    )
+    assert store.page(note)["kind"] == "note"
+    film = later(store, "Film")["slug"]
+    ok(store, "edit_meta", pages=[film], fields={"status": "cancelled"})
+    assert store.page(film)["fields"]["status"] == "cancelled"
