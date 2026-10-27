@@ -60,7 +60,7 @@
   font-size: var(--t-sm);
 }
 .meta {
-  line-height: 1.7; /* room for the Written by Claude pill on a wrapped line */
+  line-height: 1.7;
 }
 .dates {
   margin-bottom: var(--s-1);
@@ -103,10 +103,12 @@
   margin-inline-end: var(--s-1);
   vertical-align: -0.2em; /* on the text's middle */
 }
+/* "by Claude": a quiet link in the line, its target 48 px high (the line's 25 px and its
+   padding) */
 .meta .written {
-  padding: 1px var(--s-2);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-pill);
+  display: inline-block;
+  padding-block: 12px;
+  margin-block: -12px;
   color: var(--ink-2);
   text-decoration: none;
 }
