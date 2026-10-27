@@ -21,7 +21,7 @@ from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
 from scrap.public import origin
-from scrap.store import Store, connect, fixes, health, new_ulid, now, topics
+from scrap.store import Store, connect, fixes, health, new_ulid, now, topics, writeups
 
 BOARD = {
     "kind": "whiteboard", "title": "Encoder pipeline", "tags": ["video"],
@@ -442,6 +442,62 @@ def test_outdated_write_up_by_its_inputs_or_prompt_but_never_a_restore(store):
     enrich.regenerate(store, page_id)
     run_all(store, Fake())
     assert found(store, "is:outdated") == set()
+
+
+# ---- a write-up linking a page with no live page is outdated (#310)
+
+
+def link_writeup(store, page_id, text, restored_from=None):
+    """A board's new current write-up with this text (as its cited numbers become)."""
+    tick()
+    (version,) = sql(store, "SELECT prompt_version FROM writeup WHERE page_id = ?"
+                     " AND superseded_at IS NULL", page_id)[0]  # fmt: skip
+    with closing(connect(store.db)) as conn:
+        writeups.put(conn, page_id, now(), producer="claude", run_id=None,
+                     prompt_version=version, summary="s", text=text, guidance=None,
+                     restored_from=restored_from)  # fmt: skip
+
+
+def test_a_write_up_linking_a_trashed_page_is_outdated_until_it_is_back(store):
+    page_id = board(store)
+    target = note(store, "Target page")
+    link_writeup(
+        store, page_id, f"Like [[{store.page(target)['slug']}]] and `[[nowhere]]`."
+    )
+    assert found(store, "is:outdated") == set()  # live link; a link in code is no link
+    store.delete_page(target)
+    assert found(store, "is:outdated") == {page_id}
+    assert store.page(page_id)["writeup"]["outdated"] is True
+    assert (
+        enrich.writeup_pass(store, Fake(), outdated=True, dry_run=True)["pages"] == 1
+    )  # as enrich --writeups
+    store.delete_page(target, undo=True)
+    assert found(store, "is:outdated") == set()
+    assert store.page(page_id)["writeup"]["outdated"] is False
+    store.delete_page(target)
+    sql(store, "DELETE FROM page WHERE id = ?", target)  # purged: no page at all
+    assert found(store, "is:outdated") == {page_id}
+
+
+def test_a_restored_write_up_or_an_embed_or_a_plain_one_is_exempt(store):
+    page_id = board(store)
+    target = note(store, "Target page")
+    slug = store.page(target)["slug"]
+    store.delete_page(target)
+    link_writeup(store, page_id, "No links here")
+    assert found(store, "is:outdated") == set()
+    link_writeup(store, page_id, f"An embed ![[{slug}]]")
+    assert found(store, "is:outdated") == set()  # an embed is no link
+    link_writeup(store, page_id, f"[[{slug}]]")
+    assert found(store, "is:outdated") == {page_id}
+    link_writeup(store, page_id, f"[[{slug}]]", restored_from=1)
+    assert found(store, "is:outdated") == set()  # the owner's Restore stands
+
+
+def test_a_topic_synthesis_linking_a_trashed_page_is_not_is_outdated(store):
+    ids, topic = library_and_topic(store)
+    store.delete_page(ids[0])
+    assert found(store, "is:outdated") == set()  # the weekly pass's, not this
 
 
 def test_outdated_related_pages_are_due_to_the_pass_not_is_outdated(store):

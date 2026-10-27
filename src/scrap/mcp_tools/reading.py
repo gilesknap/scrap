@@ -45,8 +45,9 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         is:untagged, is:stale (an open todo not edited for 60 days, not snoozed or
         due from today),
         is:duplicate (a file shared with another page), has:dangling (a [[link]] to
-        no page), is:outdated (a board's write-up older than the page or Claude's
-        prompt, not one the owner restored); image:K (the
+        no live page), is:outdated (a board's write-up older than the page or Claude's
+        prompt, or linking a page in the trash or gone, not one the owner restored);
+        image:K (the
         kind Claude gave a photo: photo, whiteboard, handwriting, diagram,
         screenshot, document, other), after:D and before:D (YYYY-MM-DD, or 1d, 2w,
         1m, 1y ago), date:created, a todo's due:D (due:today, due:<today overdue,

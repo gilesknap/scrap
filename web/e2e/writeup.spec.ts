@@ -222,7 +222,9 @@ test("an edit since the write-up says so quietly, and nothing regenerates", asyn
   expect(r.ok()).toBe(true);
   await page.reload();
   const line = s.locator("p.stale");
-  await expect(line).toHaveText("The page (or Claude's prompt) has changed since this write-up.");
+  await expect(line).toHaveText(
+    "The page, a page it links to, or Claude's prompt has changed since this write-up.",
+  );
   await expect(s.locator(".by").first()).toContainText("version 2"); // not made again
   expect((await (await page.request.get(`/api/pages/${b.slug}`)).json()).writeup.versions).toBe(2);
   for (const colorScheme of ["light", "dark"] as const) {

@@ -67,15 +67,20 @@ SELECT 1 FROM page p WHERE p.id = :page AND p.deleted_at IS NULL
 # the write-up view's outdated flag, scrap enrich --writeups --outdated; only a newly
 # read photo regenerates one on its own, DUE): a board image read since it, or the
 # page's text, title, kind or tags changed since, or made with another prompt version
-# than {version} (a placeholder: ? or :version; NULL checks none). Never one the owner
-# restored: their Restore stands until they Regenerate (or a photo is read: DUE).
+# than {version} (a placeholder: ? or :version; NULL checks none), or whose text links a
+# slug with no live page (in the trash or purged; undelete clears it, #310). Never
+# one the owner restored: their Restore stands until they Regenerate (or a photo is
+# read: DUE).
 OUTDATED = f"""({HAS_BOARD} AND NOT {IS_TOPIC}
   AND EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = {{p}}.id
     AND w.superseded_at IS NULL AND w.restored_from IS NULL
     AND (coalesce(w.prompt_version <> {{version}}, 0)
       OR w.created_at < max({{p}}.updated_at, coalesce((SELECT max(m.updated_at)
         FROM page_meta_rev m WHERE m.page_id = {{p}}.id), ''))
-      OR {READ_SINCE})))"""
+      OR {READ_SINCE}
+      OR EXISTS (SELECT 1 FROM json_each(wiki_links(w.text)) l
+        WHERE NOT EXISTS (SELECT 1 FROM page t
+          WHERE t.slug = l.value AND t.deleted_at IS NULL)))))"""
 COLUMNS = (
     "id, version, producer, run_id, prompt_version, summary, text, guidance,"
     " restored_from, superseded_at, created_at"

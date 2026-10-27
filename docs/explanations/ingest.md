@@ -674,7 +674,7 @@ sequenceDiagram
   older than a reading of a board image (as above), or than a change to the page's text, title,
   kind or tags, or made with another version of the prompt; never one the owner restored. Only a
   newly read board photo writes it again on its own (above). An edit or a new prompt does not:
-  the write-up's card says "The page (or Claude's prompt) has changed since this write-up."
+  the write-up's card says "The page, a page it links to, or Claude's prompt has changed since this write-up."
   beside Regenerate, and the owner chooses. `scrap enrich --writeups --outdated` writes again
   every outdated one (with `--limit`, `--dry-run`, the budget and the pause, as above): how a new
   prompt is rolled out.

@@ -330,7 +330,7 @@ there: a check that keeps finding a page you are happy with is the check to chan
 | `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not snoozed and not due today or later |
 | `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
 | `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`) |
-| `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt; never a restored version. Lists only board write-ups, which wait for you |
+| `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt, or linking a page in the trash or gone (restore the page and it clears); never a restored version. Lists only board write-ups, which wait for you |
 
 Related pages and topic syntheses are not listed: the nightly and weekly passes refresh them on
 their own ([](../reference/scheduled-jobs.md)).
@@ -615,8 +615,8 @@ card's Summary. It is Claude's, never part of the text you edit.
 - **Regenerate** (**Generate** before there is one) writes it again and finds related pages
   afresh. A new board photo, or a Regenerate of a board photo, writes it again anyway. While
   working the card says *Waiting for Claude* or *Claude is writing it…*.
-- **Stale line.** *The page (or Claude's prompt) has changed since this write-up.* appears once you
-  edit the text, title or tags, or Claude's prompt changed (not for a restored version). Nothing
+- **Stale line.** *The page, a page it links to, or Claude's prompt has changed since this write-up.* appears once you
+  edit the text, title or tags, Claude's prompt changed, or a page it links is deleted (not for a restored version). Nothing
   rewrites on its own; `is:outdated` lists such pages.
 - **Guidance for Claude** is a note for the next write-up (such as "focus on the data flow; 'Enc'
   means encoder"). **Save** keeps it without writing; **Regenerate** uses it and the new version

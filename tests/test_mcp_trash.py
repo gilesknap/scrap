@@ -251,3 +251,17 @@ def tools_described(store) -> dict[str, str]:
             return (await client.list_tools()).tools
 
     return {t.name: t.description or "" for t in anyio.run(main)}
+
+
+def test_a_trashed_page_s_links_are_found_by_has_dangling_and_its_backlinks(store):
+    gone = human(store, "Old list\nzebrafish")
+    linker = human(store, f"Linker\nsee [[{gone['slug']}]]")
+    ids = lambda q: {r["id"] for r in ok(store, "search", query=q)["results"]}  # noqa: E731
+    assert ids("has:dangling") == set()
+    ok(store, "trash_pages", pages=[gone["slug"]])
+    assert ids("has:dangling") == {linker["page_id"]}
+    out = ok(store, "read", page=gone["slug"])
+    assert out["page"]["trashed"] is True
+    assert [b["id"] for b in out["backlinks"]] == [linker["page_id"]]
+    ok(store, "undelete", page=gone["slug"])
+    assert ids("has:dangling") == set()
