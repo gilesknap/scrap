@@ -66,7 +66,7 @@ test("a page's tag searches for it, children too", async ({ page }) => {
   await expect(row.getByRole("link")).toHaveText(["#garden", "#diy"]); // the last part; the full tag is its name
   const [line, chip] = [await row.boundingBox(), await row.getByRole("link").first().boundingBox()];
   expect(chip?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout
-  expect(line?.height).toBeGreaterThanOrEqual(chip?.height ?? 0); // wraps; no sideways scroll
+  expect(line?.height).toBeGreaterThanOrEqual((chip?.height ?? 0) - 0.1); // wraps; sub-pixel layout; no sideways scroll
   expect(await row.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await page.locator(".page .tags").getByRole("link", { name: "Tag zephyr/garden" }).click();
   await expect(page).toHaveURL(/\/search\?q=tag%3Azephyr%2Fgarden$/);
