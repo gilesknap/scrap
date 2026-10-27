@@ -129,7 +129,7 @@ Search filters (the PWA's search box takes them too): `has:image` (a page with a
 `image:photo`, `image:whiteboard`); `-` before any of them excludes. The store's health
 checks are filters too (the PWA's Store health screen counts them, `GET /api/health`):
 `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling` and `is:outdated` (`is:stale` is an open todo untouched for 60 days; `is:outdated` a
-board's write-up older than the page or Claude's prompt; not related pages or topic syntheses)
+board's write-up older than the page or Claude's prompt, or linking a page that is in the trash or gone; not related pages or topic syntheses)
 ([](../how-to/use-the-pwa.md) says what each finds). A filter alone lists newest
 first, so **`search` with `has:image` is "my recent photos"**. A word in a photo's description or
 its transcribed text finds the page (Claude's results are indexed as the page's text), so

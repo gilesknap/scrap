@@ -42,7 +42,8 @@ to catch up without a prompt change making every page due at once.
 - **One definition of outdated per kind of derived data**, in `store/health.py`, shared with
   what refreshes it: a board write-up (`writeups.OUTDATED`, beside the worker's `DUE`: a board
   image read, or the page's text, title, kind or tags changed, after it, or another prompt
-  version; never a version the owner restored), a topic synthesis (the weekly pass's
+  version, or its text links a page in the trash or gone (#310); never a version the owner
+  restored), a topic synthesis (the weekly pass's
   `TOPIC_DUE`) and related pages (the nightly pass's `STALE`).
 - **`is:outdated` lists only outdated write-ups** (#291): what the owner acts on, with
   Regenerate or `scrap enrich --writeups --outdated`. The current write-up prompt version is
@@ -54,8 +55,8 @@ to catch up without a prompt change making every page due at once.
 - **An outdated write-up is the owner's to regenerate.** Only a newly read board photo writes one
   again on its own (as before). An edit to the page, or a new prompt, does not: an edit may be
   small, a write-up is an Opus call, and the owner may prefer the old one. The page's write-up
-  carries an `outdated` flag (the same SQL), and its card says quietly "The page (or Claude's
-  prompt) has changed since this write-up." beside Regenerate. `scrap enrich --writeups
+  carries an `outdated` flag (the same SQL), and its card says quietly "The page, a page it links to, or
+  Claude's prompt has changed since this write-up." beside Regenerate. `scrap enrich --writeups
   --outdated` writes again every outdated one (with `--limit`, `--dry-run`, the budget and the
   pause): how a new prompt is rolled out. The nightly related pass and the weekly topics pass are
   unchanged: related pages and topic syntheses stay automatic, as do summaries (enrich on save).

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate &#8212; scrap 0.14.1.dev1+g7edb4d72e documentation</title>
+    <title>29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate &#8212; scrap 0.14.1.dev2+g3e2f112ba documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=d10688bf"></script>
+    <script src="../../_static/documentation_options.js?v=34901ea9"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -581,7 +581,8 @@ dismissed: a check that keeps finding a page the owner is happy with is the chec
 <li><p><strong>One definition of outdated per kind of derived data</strong>, in <code class="docutils literal notranslate"><span class="pre">store/health.py</span></code>, shared with
 what refreshes it: a board write-up (<code class="docutils literal notranslate"><span class="pre">writeups.OUTDATED</span></code>, beside the worker’s <code class="docutils literal notranslate"><span class="pre">DUE</span></code>: a board
 image read, or the page’s text, title, kind or tags changed, after it, or another prompt
-version; never a version the owner restored), a topic synthesis (the weekly pass’s
+version, or its text links a page in the trash or gone (#310); never a version the owner
+restored), a topic synthesis (the weekly pass’s
 <code class="docutils literal notranslate"><span class="pre">TOPIC_DUE</span></code>) and related pages (the nightly pass’s <code class="docutils literal notranslate"><span class="pre">STALE</span></code>).</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> lists only outdated write-ups</strong> (#291): what the owner acts on, with
 Regenerate or <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code>. The current write-up prompt version is
@@ -593,8 +594,8 @@ related picks are older than it).</p></li>
 <li><p><strong>An outdated write-up is the owner’s to regenerate.</strong> Only a newly read board photo writes one
 again on its own (as before). An edit to the page, or a new prompt, does not: an edit may be
 small, a write-up is an Opus call, and the owner may prefer the old one. The page’s write-up
-carries an <code class="docutils literal notranslate"><span class="pre">outdated</span></code> flag (the same SQL), and its card says quietly “The page (or Claude’s
-prompt) has changed since this write-up.” beside Regenerate. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code> writes again every outdated one (with <code class="docutils literal notranslate"><span class="pre">--limit</span></code>, <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>, the budget and the
+carries an <code class="docutils literal notranslate"><span class="pre">outdated</span></code> flag (the same SQL), and its card says quietly “The page, a page it links to, or
+Claude’s prompt has changed since this write-up.” beside Regenerate. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">--outdated</span></code> writes again every outdated one (with <code class="docutils literal notranslate"><span class="pre">--limit</span></code>, <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>, the budget and the
 pause): how a new prompt is rolled out. The nightly related pass and the weekly topics pass are
 unchanged: related pages and topic syntheses stay automatic, as do summaries (enrich on save).</p></li>
 <li><p><strong>No model-assisted lint call.</strong> Contradictions and open questions are in each topic’s

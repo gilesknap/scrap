@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.14.1.dev1+g7edb4d72e documentation</title>
+    <title>MCP server &#8212; scrap 0.14.1.dev2+g3e2f112ba documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d10688bf"></script>
+    <script src="../_static/documentation_options.js?v=34901ea9"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1021,7 +1021,7 @@ the page has (fields added in place; older clients can ignore them):</p>
 <code class="docutils literal notranslate"><span class="pre">image:photo</span></code>, <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code>); <code class="docutils literal notranslate"><span class="pre">-</span></code> before any of them excludes. The store’s health
 checks are filters too (the PWA’s Store health screen counts them, <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code>):
 <code class="docutils literal notranslate"><span class="pre">is:orphan</span></code>, <code class="docutils literal notranslate"><span class="pre">is:untagged</span></code>, <code class="docutils literal notranslate"><span class="pre">is:stale</span></code>, <code class="docutils literal notranslate"><span class="pre">is:duplicate</span></code>, <code class="docutils literal notranslate"><span class="pre">has:dangling</span></code> and <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> (<code class="docutils literal notranslate"><span class="pre">is:stale</span></code> is an open todo untouched for 60 days; <code class="docutils literal notranslate"><span class="pre">is:outdated</span></code> a
-board’s write-up older than the page or Claude’s prompt; not related pages or topic syntheses)
+board’s write-up older than the page or Claude’s prompt, or linking a page that is in the trash or gone; not related pages or topic syntheses)
 (<a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a> says what each finds). A filter alone lists newest
 first, so <strong><code class="docutils literal notranslate"><span class="pre">search</span></code> with <code class="docutils literal notranslate"><span class="pre">has:image</span></code> is “my recent photos”</strong>. A word in a photo’s description or
 its transcribed text finds the page (Claude’s results are indexed as the page’s text), so
