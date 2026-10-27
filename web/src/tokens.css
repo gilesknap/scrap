@@ -72,11 +72,11 @@
   :root:not([data-theme="light"]) {
     --bg: #161411;
     --surface: #211e1a;
-    --sunk: #2b2722;
+    --sunk: #36312a;
     --ink: #f2ece1;
     --ink-2: #b8b0a2;
     --ink-3: #958d80;
-    --line: #322d27;
+    --line: #423b33;
     --line-strong: #706858;
     --accent: #f0ac4b;
     --on-accent: #1e1b16;
@@ -101,11 +101,11 @@
   color-scheme: dark;
   --bg: #161411;
   --surface: #211e1a;
-  --sunk: #2b2722;
+  --sunk: #36312a;
   --ink: #f2ece1;
   --ink-2: #b8b0a2;
   --ink-3: #958d80;
-  --line: #322d27;
+  --line: #423b33;
   --line-strong: #706858;
   --accent: #f0ac4b;
   --on-accent: #1e1b16;
