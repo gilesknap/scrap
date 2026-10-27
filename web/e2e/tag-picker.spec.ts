@@ -233,3 +233,27 @@ test("outlined offer chips and the picker's text meet contrast, in both themes",
     await composer.getByRole("button", { name: "Cancel" }).click();
   }
 });
+
+test("Enter in Search's tag box adds the first match even right after a chip was tapped", async ({
+  page,
+}) => {
+  const w = word();
+  const [one, two] = await seed(page, w, 3);
+  await make(page, w, [`c${w}`]); // so the clashing pair is on some results, not all
+  await page.goto(`/search?q=${w}`);
+  const panel = await filters(page);
+  const box = panel.getByRole("textbox", { name: "Add a tag filter" });
+  await box.fill("ioc");
+  const offers = panel.getByRole("group", { name: "Matching tags" });
+  await expect(offers.getByRole("button")).toHaveCount(2);
+  // A tap (a click with a detail), then at once Enter's click on the first match, which has
+  // none: the double-tap guard is for taps only, so this one is not dropped
+  await offers.evaluate((el) => {
+    const [a, b] = el.querySelectorAll<HTMLElement>("button");
+    a.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    b.click();
+  });
+  const on = page.getByRole("group", { name: "Filters on" });
+  await expect(on.getByRole("button", { name: `Remove #${one}` })).toBeVisible();
+  await expect(on.getByRole("button", { name: `Remove #${two}` })).toBeVisible();
+});

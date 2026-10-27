@@ -100,8 +100,10 @@ export function offerRow(label: string, lead?: HTMLElement): Offers {
             "data-k": `tag:${t}`, // (Search puts focus back by it)
             onclick: (e: Event) => {
               // A double tap: the second lands on the chip that slid into the first's place
-              if (e.timeStamp - tapped < DOUBLE) return;
-              tapped = e.timeStamp;
+              // (a click with no detail is the keyboard's, or Search's Enter: never a tap)
+              const tap = (e as MouseEvent).detail > 0;
+              if (tap && e.timeStamp - tapped < DOUBLE) return;
+              if (tap) tapped = e.timeStamp;
               pick(t, e);
             },
           },
