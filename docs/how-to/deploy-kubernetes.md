@@ -278,6 +278,9 @@ then look at the page's history (or `GET /api/pages/<id>`): your tailnet login s
 author, not the fixed fallback author `tagged`. If it is not, every change is recorded as
 `tagged`; nothing else breaks.
 
+The chart leaves `networkPolicy` off and `/mcp` without a token by default; see
+[](../explanations/architecture/mcp-and-access.md) for the values to set on a shared cluster.
+
 Because a pod inside the cluster can send its own `Tailscale-User-Login` header straight to the
 Service, let only the operator's proxies in (they run in the operator's namespace, `tailscale` by
 default):

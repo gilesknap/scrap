@@ -24,6 +24,15 @@ from pathlib import Path
 from typing import Any
 
 TOOLS = "mcp__scrap__tags,mcp__scrap__search,mcp__scrap__read,mcp__scrap__write"
+# What the child must not have even if the user's own settings.json allows it: the other
+# scrap tools that change or trash pages. (--tools "" drops every built-in tool; MCP
+# servers other than scrap stay, as claude cannot name "all but these".)
+DENIED = ",".join(
+    f"mcp__scrap__{n}"
+    for n in (
+        "edit_page edit_meta edit_drawing rename_tag revert trash_pages undelete".split()
+    )
+)
 MAX_CHARS = 150_000  # of dialogue given to the model (the newest part is kept)
 MAX_TURN_CHARS = 4_000  # per message
 TIMEOUT = min(int(os.environ.get("SCRAP_PRECOMPACT_TIMEOUT", "180")), 190)
@@ -221,8 +230,12 @@ def summarise(
         "claude",
         "-p",
         prompt,
+        "--tools",
+        "",  # no built-in tool (Bash, Edit...): the user's allow rules cannot widen this
         "--allowedTools",
         TOOLS,
+        "--disallowedTools",
+        DENIED,
         "--permission-mode",
         "dontAsk",
     ]

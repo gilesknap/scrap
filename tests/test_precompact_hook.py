@@ -99,6 +99,16 @@ def test_session_maps_to_one_page_and_appends(tmp_path: Path) -> None:
         calls.append(cmd)
         assert "SECRET OUTPUT" not in stdin
         assert "mcp__scrap__write" in cmd[cmd.index("--allowedTools") + 1]
+        assert (
+            cmd[cmd.index("--tools") + 1] == ""
+        )  # no built-in tool, whatever the user allows
+        denied = cmd[cmd.index("--disallowedTools") + 1].split(",")
+        assert {
+            "mcp__scrap__edit_page",
+            "mcp__scrap__trash_pages",
+            "mcp__scrap__edit_drawing",
+        } <= set(denied)
+        assert not set(denied) & set(cmd[cmd.index("--allowedTools") + 1].split(","))
         return "SLUG: page-one\nTITLE: [auto-compact] One\n"
 
     payload = {"session_id": "sess", "transcript_path": str(transcript), "cwd": "/w"}

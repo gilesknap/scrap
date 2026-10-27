@@ -49,7 +49,7 @@ Open <http://localhost:8000/>. Then add scrap to Claude Code and install the `sc
 
 ```
 claude mcp add --transport http --scope user scrap http://localhost:8000/mcp
-curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/commands/install.sh | sh
+curl -fsSL https://github.com/gilesknap/scrap/releases/latest/download/install.sh | sh
 ```
 
 Start a new Claude Code session, save a note in the browser, then try 

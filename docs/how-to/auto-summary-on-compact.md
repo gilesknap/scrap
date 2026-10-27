@@ -69,9 +69,15 @@ report its slug, the next compaction starts a second page.
    }
    ```
 
-The headless call runs with `--allowedTools` limited to the four scrap tools and
-`--permission-mode dontAsk`, so it asks for nothing and can do nothing else. It does need your
-Claude Code login and the scrap server to be reachable.
+The headless call runs with `--permission-mode dontAsk`, `--allowedTools` limited to the four scrap
+tools (tags, search, read, write), `--tools ""` (no built-in tool at all: no Bash, Edit or web
+fetch) and `--disallowedTools` for the scrap tools that edit or trash pages. The last two matter
+because `--allowedTools` only approves tools: an allow rule in your own `settings.json` (say
+`Bash(git:*)`) would still apply in the child, and the dialogue it reads can hold text from web pages
+or files. `--tools` and `--disallowedTools` are not widened by your settings. MCP tools of
+*other* servers that your settings allow stay available to it; keep broad `mcp__*` allow rules out of
+a setup where you do not trust what you read. It does need your Claude Code login and the scrap server
+to be reachable.
 
 ## Try it without compacting
 
