@@ -135,8 +135,7 @@ def test_the_pwa_posts_from_its_own_origin(served):
     assert served.post("/api/captures", json=body, headers=own).status_code == 201
     r = served.post("/share", data=SHARE, headers=own, follow_redirects=False)
     assert r.status_code == 303  # the share target's form POST
-    [first] = [p for p in pages(served) if p["title"] != "from the app"] or [None]
-    assert first is not None
+    [first] = [p for p in pages(served) if p["title"] != "from the app"]
     key = first["id"]
     assert served.patch(
         f"/api/pages/{key}", json={"status": "done"}, headers=own
@@ -223,3 +222,63 @@ def test_mcp_keeps_its_own_check(served):
 )
 def test_split(value, parsed):
     assert split(value) == parsed
+
+
+NULL = {"Host": "scrap.example.ts.net:8446", "Origin": "null"}
+
+
+@pytest.mark.parametrize("site", ["none", "same-origin"])
+def test_share_target_with_a_null_origin_from_the_users_own_action(served, site):
+    """The share sheet opening the installed app (no initiating page) if the service
+    worker did not take the POST."""
+    r = served.post(
+        "/share",
+        data=SHARE,
+        headers=NULL | {"Sec-Fetch-Site": site},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+
+@pytest.mark.parametrize("site", ["cross-site", "same-site", ""])
+def test_a_null_origin_form_from_a_page_is_refused_on_share(served, site):
+    """A sandboxed iframe's form, or any page: cross-site, or no Sec-Fetch-Site."""
+    headers = NULL | ({"Sec-Fetch-Site": site} if site else {})
+    r = served.post("/share", data=SHARE, headers=headers, follow_redirects=False)
+    assert r.status_code == 403
+    assert pages(served) == []
+
+
+def test_null_origin_is_refused_off_share_even_if_the_user_started_it(served):
+    h = NULL | {"Sec-Fetch-Site": "none"}
+    assert (
+        served.post("/api/captures", json={"text": "x"}, headers=h).status_code == 403
+    )
+
+
+@pytest.mark.parametrize("origin", [None, PUBLIC])
+def test_a_write_marked_cross_site_is_refused_whatever_its_origin(served, origin):
+    h = {"Host": "scrap.example.ts.net:8446", "Sec-Fetch-Site": "cross-site"}
+    if origin:
+        h["Origin"] = origin
+    r = served.post("/share", data=SHARE, headers=h, follow_redirects=False)
+    assert r.status_code == 403
+    assert pages(served) == []
+
+
+def test_same_origin_writes_with_fetch_metadata_pass(served):
+    h = {"Host": "scrap.example.ts.net:8446", "Origin": PUBLIC}
+    for site in ("same-origin", "none"):
+        r = served.post(
+            "/share",
+            data=SHARE,
+            headers=h | {"Sec-Fetch-Site": site},
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+
+
+def test_mcp_exemption_is_the_exact_path(served):
+    """Nothing below /mcp/ skips the check."""
+    h = {"Host": "evil.example", "Origin": "http://evil.example"}
+    assert served.post("/mcp/api/captures", json={}, headers=h).status_code == 421

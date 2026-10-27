@@ -7,7 +7,10 @@ $SCRAP_PUBLIC_URL), so one setting covers both. Two attacks are closed:
   `Host: <that name>`. A Host that is not allowed gets 421, whatever the method.
 - Cross-site writes (a form auto-submitted from another site, a `fetch` with
   `no-cors`): browsers always send `Origin` on a cross-origin POST, PUT, PATCH or
-  DELETE. A present Origin that is not allowed (`null` included) gets 403.
+  DELETE. A present Origin that is not allowed (`null` included) gets 403, as does a
+  write the browser marks `Sec-Fetch-Site: cross-site`. The one exception: `null` on
+  /share with `Sec-Fetch-Site: none` or `same-origin` (an Android share sheet opening
+  the installed app, if its service worker did not take the POST; sw.ts normally does).
 
 Not checked: a request with no Origin (curl, the CLI, hooks, tests; a browser does
 not leave it off a cross-origin write), and GET, HEAD and OPTIONS Origins (they change
@@ -99,9 +102,28 @@ class HostOrigin:
             is_ip(host) and got[0] == host and (got[1] or default) == (port or default)
         )
 
+    @staticmethod
+    def cross_site(scope: Scope, origins: list[bytes], path: str) -> bool:
+        """A browser says (Sec-Fetch-Site, which a page cannot set) the write is from
+        another site: refused whatever Origin it carries. `Origin: null` is accepted on
+        /share only when the browser says it is the user's own action (`none`: the
+        Android share sheet starting the installed app) or same-origin."""
+        site = b""
+        for k, v in scope["headers"]:
+            if k == b"sec-fetch-site":
+                site = v.strip().lower()
+        if site == b"cross-site":
+            return True
+        null = [o.strip().lower() == b"null" for o in origins]
+        return any(null) and not (
+            path == "/share" and len(origins) == 1 and site in (b"none", b"same-origin")
+        )
+
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
-        if scope["type"] != "http" or path in EXEMPT or path.startswith("/mcp/"):
+        if (root := scope.get("root_path", "")) and path.startswith(root):
+            path = path[len(root) :]  # as BearerAuth does
+        if scope["type"] != "http" or path in EXEMPT:
             await self.app(scope, receive, send)
             return
         hosts = [v for k, v in scope["headers"] if k == b"host"]
@@ -113,9 +135,14 @@ class HostOrigin:
             refusal = PlainTextResponse(
                 "Invalid Host header (add its address to SCRAP_PUBLIC_URL)", 421
             )
+        elif scope["method"] not in SAFE and self.cross_site(scope, origins, path):
+            log.warning("Refused cross-site write %s %s", scope["method"], path)
+            refusal = PlainTextResponse("Invalid Origin header", 403)
         elif origins and scope["method"] not in SAFE:
             origin = origins[0].decode("latin-1").strip().lower()
-            if len(origins) > 1 or not self.origin_ok(origin, *got):
+            if origin != "null" and (
+                len(origins) > 1 or not self.origin_ok(origin, *got)
+            ):  # a lone `null` was settled by cross_site
                 log.warning(
                     "Refused Origin %r on %s %s", origins, scope["method"], path
                 )

@@ -27,7 +27,7 @@ a DNS rebinding page (its name as `Host`) and a form or `fetch` it sends from it
   `Host` through (Tailscale Serve and Cloudflare do).
 - **Origin**, on `POST`, `PUT`, `PATCH` and `DELETE` only: none sent (curl, the CLI, the hooks) is
   accepted; one sent must be a loopback `http://` origin or a `SCRAP_PUBLIC_URL` origin, or, for an
-  install reached by IP address, that address and port. Anything else, `null` included, is `403`.
+  install reached by IP address, that address and port. Anything else, `null` included, is `403`, as is any write the browser marks `Sec-Fetch-Site: cross-site`. The one exception is `Origin: null` on `/share` with `Sec-Fetch-Site: none` or `same-origin` (the Android share sheet, if the service worker did not take the POST).
   Browsers always send `Origin` on a cross-site write, so a page cannot leave it off.
 
 ### Errors
