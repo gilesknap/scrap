@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.16.1.dev9+g7bd320529 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.16.1.dev10+g04d4adf52 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=ca37c607"></script>
+    <script src="../_static/documentation_options.js?v=d0b09656"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1068,8 +1068,9 @@ the resume.</p>
 by its name, scrap registering <code class="docutils literal notranslate"><span class="pre">.md</span></code> itself) in any capture (a capture, an import with ingest, a file added to a page, <strong>Reprocess</strong>) gets
 an ordinary <code class="docutils literal notranslate"><span class="pre">ingest</span></code> job, keyed by capture and SHA-256 as a photo’s is. No model reads it: scrap
 extracts its text itself, so search finds words in it, and nothing is sent anywhere
-(<a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>). To have a file summarised, ask Claude
-over MCP: <code class="docutils literal notranslate"><span class="pre">read</span></code> gives its text.</p>
+(<a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>). To have a file summarised, press
+<strong>Ask Claude</strong> on its page (enrich then reads its text: <a class="reference internal" href="#ingest-enrich"><span class="std std-ref">Enrich: text pages and links</span></a>), or ask Claude over
+MCP: <code class="docutils literal notranslate"><span class="pre">read</span></code> gives its text.</p>
 <ul class="simple">
 <li><p><strong>PDF.</strong> <code class="docutils literal notranslate"><span class="pre">pypdf</span></code> reads the text layer in a child process (<code class="docutils literal notranslate"><span class="pre">ingest/pdftext.py</span></code>, run by
 <code class="docutils literal notranslate"><span class="pre">ingest/files.py</span></code>) with a 60 s wall-clock timeout, a 512 MiB address-space cap and a CPU-time
@@ -1108,7 +1109,9 @@ wait). Its success does not end a pause. <code class="docutils literal notransla
 no related call or write-up (<code class="docutils literal notranslate"><span class="pre">FIRST_READ</span></code>, the write-up’s <code class="docutils literal notranslate"><span class="pre">DUE</span></code> and <code class="docutils literal notranslate"><span class="pre">charge</span></code> look at images’
 jobs only), and a page made from a PDF with a photo added later still gets its first related
 call when the photo is read. An image in a <code class="docutils literal notranslate"><span class="pre">file</span></code> capture is still not sent to Claude unless
-asked. Enrich, related pages and topics do not read a file’s text.</p></li>
+asked. Only <strong>Ask Claude</strong> sends a file’s text to Claude (enrich and its related call:
+<a class="reference internal" href="#ingest-enrich"><span class="std std-ref">Enrich: text pages and links</span></a>); enrich on a capture or save, the nightly related pass and topics do not
+read it.</p></li>
 </ul>
 </section>
 <section id="the-claude-call">
@@ -1554,10 +1557,10 @@ per-call contents are in <a class="reference internal" href="llm-calls.html"><sp
 <td><p>Nothing: its text is read locally (<a class="reference internal" href="#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>Enrich</p></td>
-<td><p>Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored)</p></td>
+<td><p>Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), on Ask what was read from its files (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Related</p></td>
-<td><p>The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up</p></td>
+<td><p>The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up, on Ask the start of its files’ text</p></td>
 </tr>
 <tr class="row-even"><td><p>Write-up</p></td>
 <td><p>Up to 4 board JPEGs, what was read from them, the page’s text (at most 6,000), the owner’s guidance, and the related index</p></td>
@@ -1583,7 +1586,7 @@ second job kind, <code class="docutils literal notranslate"><span class="pre">en
 daily budget (<a class="reference internal" href="decisions/0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page’s text, except that a confident list of actions gets task boxes appended
-(<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>). The schema is in
+(<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>), never on an Ask that sends a file’s text. The schema is in
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql"><code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code></a>.</p>
 <p>What queues an enrich job, and what follows it:</p>
 <pre  class="mermaid">
@@ -1637,14 +1640,25 @@ budget.</p></li>
 counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
 text as plain words (at most 12,000 characters), each image’s description and text as photo
 ingest read them (labelled by image, at most 8,000 characters in all, in an <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> block
-of their own) and, for a link, what was fetched. Everything there is data; the prompt says to
-follow nothing in it. A page with a photo capture reaches this call only by Ask Claude.</p></li>
+of their own), on Ask each file’s text as file ingest read it (a PDF’s or text file’s,
+labelled by file number and name, at most 8,000 characters in all, in a <code class="docutils literal notranslate"><span class="pre">&lt;files&gt;</span></code> block; only
+Ask sends it, <a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>) and, for a link, what
+was fetched. Everything there is data; the prompt says to follow nothing in it. A page with a
+photo or file capture first reaches this call only by Ask Claude.</p></li>
 <li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">tags</span></code>: cleaned like the user’s, each at most 40 characters, at most 2 not
 already in use (invented ones are the sprawl risk), at most 5 added; <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one paragraph,
-at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
-<code class="docutils literal notranslate"><span class="pre">title</span></code>: links only, 200 characters.</p></li>
+at most 600 characters, dropped for a note under 200 characters, its files’ text counted
+(tagged, not summarised); <code class="docutils literal notranslate"><span class="pre">title</span></code>: 200 characters, for a link, and for a page made from a file
+alone (its first capture a file’s with no text, its title still as made, <code class="docutils literal notranslate"><span class="pre">FILE_UNTITLED</span></code>)
+when its files’ text was sent: the request then says “Write a title.”, and the title replaces
+the time it came while the title is untouched. On an Ask that sends files’ text no list of
+actions is applied at all, the owner’s own typed one included (the files’ text is a
+stranger’s, maybe invisible in a PDF: no task boxes, no todo); a later save of a typed page
+still files its own list.</p></li>
 <li><p><strong>The user wins.</strong> Tags are added on the first reading, on Ask, on a capture and on backfill (a
-save’s re-reading refreshes the summary only); never one the user took off. <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> marks
+save’s re-reading refreshes the summary only, but on a page with files’ text it keeps a
+summary an Ask made (<code class="docutils literal notranslate"><span class="pre">ASKED_SUMMARY</span></code>; not once retention has pruned that Ask’s run or job));
+never one the user took off. <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> marks
 Claude’s tags (<code class="docutils literal notranslate"><span class="pre">on</span></code>), and <code class="docutils literal notranslate"><span class="pre">off</span></code> once the user removes one, so it never comes back; a tag the
 user puts back by hand is theirs. Photo ingest marks its tags there too. A link’s title
 replaces the provisional one only while the title is still the URL as captured (rev 1, no edit
@@ -1656,7 +1670,8 @@ only while it is an unfixed note. The summary is the model’s own (<code class=
 <code class="docutils literal notranslate"><span class="pre">model_run</span></code>, whose cost it shares in the budget; <code class="docutils literal notranslate"><span class="pre">request.purpose</span></code> is <code class="docutils literal notranslate"><span class="pre">enrich</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> or
 <code class="docutils literal notranslate"><span class="pre">writeup</span></code>). A
 link’s fetched text is sent, not kept: the stored request has a placeholder with its length and
-hash. Search indexes the summary in the page’s summary column.</p></li>
+hash. What was read from images and files is stored in full, as the page’s text is. Search
+indexes the summary in the page’s summary column.</p></li>
 <li><p><strong>Failures</strong> follow the photo rules: outage, credit, auth and budget pause the shared queue and
 refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
 it, and the page says so with <strong>Ask Claude</strong> to retry. A failed fetch is not a failed job: the
@@ -1666,8 +1681,8 @@ fetched. The PWA does not show why; see <a class="reference internal" href="#ing
 <section id="related-pages">
 <span id="ingest-enrich-related"></span><h3>Related pages<a class="headerlink" href="#related-pages" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">enrich.relate</span></code>, prompt <code class="docutils literal notranslate"><span class="pre">prompts/related.md</span></code>. One call per page: the page in
-brief (title, tags, summary, the start of its text, of what was read from its images and of
-its write-up, if it has one) and a
+brief (title, tags, summary, the start of its text, of what was read from its images, on Ask
+of its files’ text, and of its write-up, if it has one) and a
 numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
 answers with up to 5 index numbers, so it cannot name a page that is not there.</p>
 <ul class="simple">
@@ -1675,9 +1690,9 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.<
 size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
 text best match the page’s words (full-text search, an OR of up to 24 distinct words), then the
 most recently changed. The words are taken in order, first from its title, tags and summary,
-then from the text photo ingest read from its images, their descriptions, and last its own
-text. A text page with a summary usually fills the 24 before its text; a photo page, which
-usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+then from the text photo ingest read from its images, their descriptions, its own text, and
+last its files’ text (searched locally: nothing of it is sent). A text page with a summary
+usually fills the 24 before its text; a photo page, which usually has no summary (Ask can add one), is searched by what is written in the photo. A word
 search the index refuses is logged and skipped: the tag and recent candidates still go.</p></li>
 <li><p><strong>When.</strong> On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
 makes its <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> row, unless that was an Ask), or photo ingest finishing the last photo

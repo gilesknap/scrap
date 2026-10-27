@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>35. Files are read locally, for search &#8212; scrap 0.16.1.dev9+g7bd320529 documentation</title>
+    <title>35. Files are read locally, for search &#8212; scrap 0.16.1.dev10+g04d4adf52 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=ca37c607"></script>
+    <script src="../../_static/documentation_options.js?v=d0b09656"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -598,6 +598,30 @@ before files, and enrichment gets a turn between files.</p></li>
 instructions), as <code class="docutils literal notranslate"><span class="pre">by_model</span></code> does, and the server instructions name file text.</p></li>
 </ul>
 </section>
+<section id="amendment-ask-claude-reads-a-file-s-text-378">
+<h2>Amendment: Ask Claude reads a file’s text (#378)<a class="headerlink" href="#amendment-ask-claude-reads-a-file-s-text-378" title="Link to this heading">#</a></h2>
+<p>A page made from a PDF alone kept its capture time as its title and got no summary even on
+<strong>Ask Claude</strong>, because enrich saw only the page’s own (empty) text. Ask is the owner’s explicit
+act, so it is the owner deciding what a model sees:</p>
+<ul class="simple">
+<li><p>On Ask, enrich and its related call are sent what scrap read from the page’s files (at most
+8,000 and 3,000 characters), quoted in a <code class="docutils literal notranslate"><span class="pre">&lt;files&gt;</span></code> block. Nothing else sends it: not enrich on
+a capture or save, nor the nightly related pass, nor topics. Related candidates may be found by
+the files’ words, a local full-text search that sends nothing. What Ask writes from them (the
+summary, the title) is stored, and later calls send it as any page’s (related, the indexes,
+topics: quoted, model-written).</p></li>
+<li><p>A page made from a file alone (its first capture a file’s with no text, its title untouched)
+gets a title from its files’ text on Ask, as a photo page gets one from its photo.</p></li>
+<li><p>On an Ask that sends files’ text, no list of actions is applied at all (no task boxes, no
+todo), not even one in the owner’s own typed text: the files’ text is a stranger’s, maybe
+invisible in the PDF. A later save of a typed page (one enrich reads on a save) still files its
+own list, as that re-reading sends no files.</p></li>
+<li><p>A re-reading that does not send the files (a save of a typed page with a PDF added) keeps a
+summary an Ask made; the next Ask renews it. Any other summary is refreshed as before, as is
+one whose Ask run or job retention has since pruned.</p></li>
+<li><p>Still no model reads the file itself, and file ingest still never changes the page.</p></li>
+</ul>
+</section>
 <section id="consequences">
 <h2>Consequences<a class="headerlink" href="#consequences" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -665,6 +689,7 @@ searchable) follows separately.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context">Context</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decision">Decision</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-2026-10-27">Amendment (2026-10-27)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-ask-claude-reads-a-file-s-text-378">Amendment: Ask Claude reads a file’s text (#378)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences">Consequences</a></li>
 </ul>
   </nav></div>

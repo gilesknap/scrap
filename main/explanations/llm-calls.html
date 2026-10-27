@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>What Claude is asked, per page &#8212; scrap 0.16.1.dev9+g7bd320529 documentation</title>
+    <title>What Claude is asked, per page &#8212; scrap 0.16.1.dev10+g04d4adf52 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=ca37c607"></script>
+    <script src="../_static/documentation_options.js?v=d0b09656"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -955,10 +955,10 @@ page’s: see the end. “Nightly” is the related-pages job and “weekly” t
 <td><p>Queued at once when this is the page’s first capture with a photo’s job (its first photos), once they are read; otherwise nightly, as a photo is read; Ask. Sees the new images’ text</p></td>
 </tr>
 <tr class="row-odd"><td><p>File capture (PDF and the like)</p></td>
-<td><p>— (a PDF’s or text file’s text is read locally for search, no model: <a class="reference internal" href="ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>; summaries are asked of Claude over MCP)</p></td>
-<td><p>Skipped (Ask only)</p></td>
+<td><p>— (a PDF’s or text file’s text is read locally for search, no model: <a class="reference internal" href="ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>)</p></td>
+<td><p>Ask only: sees the files’ text, so it gets tags, a summary when its text and the files’ text reach 200 characters, and, made from a file alone (no text sent with it, its title still the time it came), a title from it. An Ask that sends files’ text applies no list of actions at all, the owner’s own typed one included (a later save of a typed page still files it). A later save’s re-reading (a typed page with a PDF added), which does not see the files, keeps a summary an Ask made</p></td>
 <td><p>—</p></td>
-<td><p>Nightly if changed; Ask. Sees title, tags and text only, not the file’s text</p></td>
+<td><p>Nightly if changed; Ask. Only Ask’s related call sees the start of the files’ text; the nightly one sees title, tags, summary and text</p></td>
 </tr>
 <tr class="row-even"><td><p>Whiteboard or document page typed, not photographed</p></td>
 <td><p>—</p></td>
@@ -976,12 +976,17 @@ page’s: see the end. “Nightly” is the related-pages job and “weekly” t
 </table>
 </div>
 <p>What each call sees. Enrich gets the page’s kind, tags, title and text as plain words (at most
-12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched text.
-Related gets the page in brief (title, tags, summary, the first 2,000 characters of its text, 3,000
-of its images’ text and 2,000 of its write-up) and an index of up to 150 candidates. The candidates
-are the pages sharing the most tags, then a full-text search for 24 of the page’s words: title, tags
-and summary first, then its images’ text, their descriptions, and last its own text. Data is quoted
-in <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fetched&gt;</span></code> blocks, and any such tag inside the data has its <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> sent as
+12,000 characters), what was read from its images (at most 8,000), on Ask what was read from its
+files (a PDF’s or text file’s text, at most 8,000) and, for a link, the fetched text. A file’s text
+goes to Claude only on Ask, the owner’s explicit act (<a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>):
+never on a save, a capture or the nightly pass. The summary is asked for when the text and the
+files’ text together reach 200 characters. Related gets the page in brief (title, tags, summary,
+the first 2,000 characters of its text, 3,000 of its images’ text, on Ask 3,000 of its files’ text,
+and 2,000 of its write-up) and an index of up to 150 candidates. The candidates are the pages
+sharing the most tags, then a full-text search (local) for 24 of the page’s words: title, tags and
+summary first, then its images’ text, their descriptions, its own text, and last its files’ text.
+Data is quoted in <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;files&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fetched&gt;</span></code> blocks, and any such tag inside
+the data has its <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> sent as
 <code class="docutils literal notranslate"><span class="pre">&amp;lt;</span></code>, so the data cannot end its block. A photo page usually has no enrich summary (Ask can add
 one); a board’s write-up gives it one. The write-up gets the board photos themselves (at most 4),
 what was read from them (at most 12,000 characters), the page’s title, tags and text (at most
@@ -1082,7 +1087,7 @@ change the kind, title and tags by hand.</p>
 <tr class="row-even"><td><p>May retitle</p></td>
 <td><p>while untouched</p></td>
 <td><p>Its title is still revision 1’s and there is no later text revision (<code class="docutils literal notranslate"><span class="pre">TITLE_UNTOUCHED</span></code>)</p></td>
-<td><p>Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link’s title as captured</p></td>
+<td><p>Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link’s title as captured; on Ask, a page whose first capture is a file’s with no text, from the files’ text (<code class="docutils literal notranslate"><span class="pre">FILE_UNTITLED</span></code>)</p></td>
 </tr>
 <tr class="row-odd"><td><p>May re-kind</p></td>
 <td><p>an unfiled note</p></td>

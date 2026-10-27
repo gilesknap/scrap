@@ -150,8 +150,9 @@ A PDF or a text file (`text/plain`, `text/markdown`; a `.md` or `.txt` sent with
 by its name, scrap registering `.md` itself) in any capture (a capture, an import with ingest, a file added to a page, **Reprocess**) gets
 an ordinary `ingest` job, keyed by capture and SHA-256 as a photo's is. No model reads it: scrap
 extracts its text itself, so search finds words in it, and nothing is sent anywhere
-([](decisions/0035-files-are-read-locally-for-search.md)). To have a file summarised, ask Claude
-over MCP: `read` gives its text.
+([](decisions/0035-files-are-read-locally-for-search.md)). To have a file summarised, press
+**Ask Claude** on its page (enrich then reads its text: {ref}`ingest-enrich`), or ask Claude over
+MCP: `read` gives its text.
 
 - **PDF.** `pypdf` reads the text layer in a child process (`ingest/pdftext.py`, run by
   `ingest/files.py`) with a 60 s wall-clock timeout, a 512 MiB address-space cap and a CPU-time
@@ -190,7 +191,9 @@ over MCP: `read` gives its text.
   no related call or write-up (`FIRST_READ`, the write-up's `DUE` and `charge` look at images'
   jobs only), and a page made from a PDF with a photo added later still gets its first related
   call when the photo is read. An image in a `file` capture is still not sent to Claude unless
-  asked. Enrich, related pages and topics do not read a file's text.
+  asked. Only **Ask Claude** sends a file's text to Claude (enrich and its related call:
+  {ref}`ingest-enrich`); enrich on a capture or save, the nightly related pass and topics do not
+  read it.
 
 (ingest-call)=
 ## The Claude call
@@ -540,8 +543,8 @@ per-call contents are in [](llm-calls.md); in brief:
 | --- | --- |
 | Photo | The JPEG described above (a resized, re-encoded copy; only its colour profile is kept) and the fixed prompt. Nothing else about the page |
 | File (PDF, text) | Nothing: its text is read locally ({ref}`ingest-files`) |
-| Enrich | Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored) |
-| Related | The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up |
+| Enrich | Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), on Ask what was read from its files (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored) |
+| Related | The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up, on Ask the start of its files' text |
 | Write-up | Up to 4 board JPEGs, what was read from them, the page's text (at most 6,000), the owner's guidance, and the related index |
 | Topic discovery | An index of up to 2,000 pages (title, 6 tags, summary) and the topics with their sources' numbers |
 | Topic synthesis | Up to 40 sources (title, kind, tags, summary, write-up, image text, text: 6,000 characters each, 60,000 in all), the owner's notes and guidance |
@@ -559,7 +562,7 @@ second job kind, `enrich` (`src/scrap/enrich/`), on the same worker thread, queu
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page's text, except that a confident list of actions gets task boxes appended
-({ref}`ingest-actions`). The schema is in
+({ref}`ingest-actions`), never on an Ask that sends a file's text. The schema is in
 [`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql).
 
 What queues an enrich job, and what follows it:
@@ -613,14 +616,25 @@ flowchart TD
   counts (most used first, at most 600). The page goes in the user turn: kind, tags, title, its
   text as plain words (at most 12,000 characters), each image's description and text as photo
   ingest read them (labelled by image, at most 8,000 characters in all, in an `<images>` block
-  of their own) and, for a link, what was fetched. Everything there is data; the prompt says to
-  follow nothing in it. A page with a photo capture reaches this call only by Ask Claude.
+  of their own), on Ask each file's text as file ingest read it (a PDF's or text file's,
+  labelled by file number and name, at most 8,000 characters in all, in a `<files>` block; only
+  Ask sends it, [](decisions/0035-files-are-read-locally-for-search.md)) and, for a link, what
+  was fetched. Everything there is data; the prompt says to follow nothing in it. A page with a
+  photo or file capture first reaches this call only by Ask Claude.
 - **Output, checked.** `tags`: cleaned like the user's, each at most 40 characters, at most 2 not
   already in use (invented ones are the sprawl risk), at most 5 added; `summary`: one paragraph,
-  at most 600 characters, dropped for a note under 200 characters (tagged, not summarised);
-  `title`: links only, 200 characters.
+  at most 600 characters, dropped for a note under 200 characters, its files' text counted
+  (tagged, not summarised); `title`: 200 characters, for a link, and for a page made from a file
+  alone (its first capture a file's with no text, its title still as made, `FILE_UNTITLED`)
+  when its files' text was sent: the request then says "Write a title.", and the title replaces
+  the time it came while the title is untouched. On an Ask that sends files' text no list of
+  actions is applied at all, the owner's own typed one included (the files' text is a
+  stranger's, maybe invisible in a PDF: no task boxes, no todo); a later save of a typed page
+  still files its own list.
 - **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill (a
-  save's re-reading refreshes the summary only); never one the user took off. `model_tag` marks
+  save's re-reading refreshes the summary only, but on a page with files' text it keeps a
+  summary an Ask made (`ASKED_SUMMARY`; not once retention has pruned that Ask's run or job));
+  never one the user took off. `model_tag` marks
   Claude's tags (`on`), and `off` once the user removes one, so it never comes back; a tag the
   user puts back by hand is theirs. Photo ingest marks its tags there too. A link's title
   replaces the provisional one only while the title is still the URL as captured (rev 1, no edit
@@ -632,7 +646,8 @@ flowchart TD
   `model_run`, whose cost it shares in the budget; `request.purpose` is `enrich`, `related` or
   `writeup`). A
   link's fetched text is sent, not kept: the stored request has a placeholder with its length and
-  hash. Search indexes the summary in the page's summary column.
+  hash. What was read from images and files is stored in full, as the page's text is. Search
+  indexes the summary in the page's summary column.
 - **Failures** follow the photo rules: outage, credit, auth and budget pause the shared queue and
   refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
   it, and the page says so with **Ask Claude** to retry. A failed fetch is not a failed job: the
@@ -643,8 +658,8 @@ flowchart TD
 ### Related pages
 
 `enrich.relate`, prompt `prompts/related.md`. One call per page: the page in
-brief (title, tags, summary, the start of its text, of what was read from its images and of
-its write-up, if it has one) and a
+brief (title, tags, summary, the start of its text, of what was read from its images, on Ask
+of its files' text, and of its write-up, if it has one) and a
 numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
 answers with up to 5 index numbers, so it cannot name a page that is not there.
 
@@ -652,9 +667,9 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   size: the 90 sharing the most tags with the page, then up to 60 whose title, tags, summary or
   text best match the page's words (full-text search, an OR of up to 24 distinct words), then the
   most recently changed. The words are taken in order, first from its title, tags and summary,
-  then from the text photo ingest read from its images, their descriptions, and last its own
-  text. A text page with a summary usually fills the 24 before its text; a photo page, which
-  usually has no summary (Ask can add one), is searched by what is written in the photo. A word
+  then from the text photo ingest read from its images, their descriptions, its own text, and
+  last its files' text (searched locally: nothing of it is sent). A text page with a summary
+  usually fills the 24 before its text; a photo page, which usually has no summary (Ask can add one), is searched by what is written in the photo. A word
   search the index refuses is logged and skipped: the tag and recent candidates still go.
 - **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
   makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo
