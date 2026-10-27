@@ -120,7 +120,9 @@ stateDiagram-v2
 - **Badge.** The header badge shows what is on the phone (**2 waiting · 1 failed**); tap it to
   retry now. Waiting items are listed oldest first at the top of the capture and search screens:
   *waiting to upload* with the last problem (*offline*, *server error (503)*, *connection lost*,
-  *timed out*), or *not saved* with the server's reason. Offline, the capture screen shows the
+  *timed out*), or *not saved* with the server's reason. A capture saved online says *Saved* at
+  once; if the server then refuses it within ten seconds, a second toast says *Kept on this
+  phone* and its row there says why, with **Retry**. Offline, the capture screen shows the
   badge, the waiting rows and *Offline: showing what's on this phone* in place of the newest
   pages; the pages return when the phone is back online.
 - **When it uploads.** At once, when the phone comes back online, whenever the app opens or comes
@@ -262,7 +264,8 @@ repeats the title. Search needs the server.
   end of the top bar. It opens the composer with those tags and that kind filled in (a Note when
   no kind is chosen); cancelling straight away keeps no draft, and the saved page joins the list.
 - **Topics.** `is:topic` groups by area as the Topics tab does (**Group**: Area, None, A–Z), and
-  the Topics tab has a quiet **Refine** link on its count line that opens it in Search.
+  the Topics tab has a **Refine in Search** button (a filter icon) at the end of its count line
+  that opens it here.
 - **Recent.** Tap the empty box for your last ten searches, newest first, filters and all. Tap one
   to run it again, **✕** to forget it, or **Clear all**. A search is kept when run (Enter, opening
   a result, or a few seconds with results), only on this phone.
@@ -380,9 +383,11 @@ their own ([](../reference/scheduled-jobs.md)).
 - **Snooze.** On a page, tap the line under the tags and pick **Snooze until** a date, **Tomorrow**
   or **Next week** (**No snooze** wakes it), then **Save**. A snooze later than the due date asks
   whether the due date moves too: **Move due date** or **Keep due date**. Until that day it is
-  out of **Now**, **Upcoming** and the badge (Now says *1 snoozed*; tap it for
-  `kind:todo is:snoozed sort:due`). **All** shows it as *snoozed till 3 Nov*. It returns by itself
+  out of **Now**, **Upcoming** and the badge (Now says *1 snoozed* at the end of its count line;
+  tap it for `kind:todo is:snoozed sort:due`). **All** shows it as *snoozed till 3 Nov*. It returns by itself
   on its day. Only open todos are hidden by a snooze.
+- **Refine.** At the end of the Todos count line, **Refine in Search** (a filter icon) opens the
+  same view in Search, with its query filled in, to narrow it further.
 - **The Todos screen** (`/todos`) has a switch, an icon over each word:
 
   | View | Shows |
@@ -570,7 +575,7 @@ Under each photo, **What's in the photo** has:
 
 Tap the drawing to open it full screen.
 
-- Pinch and drag to zoom and pan; **Fit** resets. **Photo** shows the photo beside (landscape) or
+- Pinch and drag to zoom and pan; **Fit** resets. The **✕** (Close) at the top left closes it. **Photo** shows the photo beside (landscape) or
   over (upright) the drawing. Back closes.
 - **Edit** turns on Excalidraw's tools (draw, shapes, arrows, text, eraser; not images). **Undo**
   is in the top bar, **Cancel** puts the drawing back, **Save** stores a new version.

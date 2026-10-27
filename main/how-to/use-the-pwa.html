@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.14.1.dev20+g106aa2fe7 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.14.1.dev21+gfd8ab8269 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=54753f93"></script>
+    <script src="../_static/documentation_options.js?v=415b9cbf"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -997,7 +997,9 @@ restarting the phone.</p></li>
 <li><p><strong>Badge.</strong> The header badge shows what is on the phone (<strong>2 waiting · 1 failed</strong>); tap it to
 retry now. Waiting items are listed oldest first at the top of the capture and search screens:
 <em>waiting to upload</em> with the last problem (<em>offline</em>, <em>server error (503)</em>, <em>connection lost</em>,
-<em>timed out</em>), or <em>not saved</em> with the server’s reason. Offline, the capture screen shows the
+<em>timed out</em>), or <em>not saved</em> with the server’s reason. A capture saved online says <em>Saved</em> at
+once; if the server then refuses it within ten seconds, a second toast says <em>Kept on this
+phone</em> and its row there says why, with <strong>Retry</strong>. Offline, the capture screen shows the
 badge, the waiting rows and <em>Offline: showing what’s on this phone</em> in place of the newest
 pages; the pages return when the phone is back online.</p></li>
 <li><p><strong>When it uploads.</strong> At once, when the phone comes back online, whenever the app opens or comes
@@ -1184,7 +1186,8 @@ the search’s address. Claude does not read the Pinned page. See
 end of the top bar. It opens the composer with those tags and that kind filled in (a Note when
 no kind is chosen); cancelling straight away keeps no draft, and the saved page joins the list.</p></li>
 <li><p><strong>Topics.</strong> <code class="docutils literal notranslate"><span class="pre">is:topic</span></code> groups by area as the Topics tab does (<strong>Group</strong>: Area, None, A–Z), and
-the Topics tab has a quiet <strong>Refine</strong> link on its count line that opens it in Search.</p></li>
+the Topics tab has a <strong>Refine in Search</strong> button (a filter icon) at the end of its count line
+that opens it here.</p></li>
 <li><p><strong>Recent.</strong> Tap the empty box for your last ten searches, newest first, filters and all. Tap one
 to run it again, <strong>✕</strong> to forget it, or <strong>Clear all</strong>. A search is kept when run (Enter, opening
 a result, or a few seconds with results), only on this phone.</p></li>
@@ -1365,9 +1368,11 @@ cancelled todo is left as it is.</p></li>
 <li><p><strong>Snooze.</strong> On a page, tap the line under the tags and pick <strong>Snooze until</strong> a date, <strong>Tomorrow</strong>
 or <strong>Next week</strong> (<strong>No snooze</strong> wakes it), then <strong>Save</strong>. A snooze later than the due date asks
 whether the due date moves too: <strong>Move due date</strong> or <strong>Keep due date</strong>. Until that day it is
-out of <strong>Now</strong>, <strong>Upcoming</strong> and the badge (Now says <em>1 snoozed</em>; tap it for
-<code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">is:snoozed</span> <span class="pre">sort:due</span></code>). <strong>All</strong> shows it as <em>snoozed till 3 Nov</em>. It returns by itself
+out of <strong>Now</strong>, <strong>Upcoming</strong> and the badge (Now says <em>1 snoozed</em> at the end of its count line;
+tap it for <code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">is:snoozed</span> <span class="pre">sort:due</span></code>). <strong>All</strong> shows it as <em>snoozed till 3 Nov</em>. It returns by itself
 on its day. Only open todos are hidden by a snooze.</p></li>
+<li><p><strong>Refine.</strong> At the end of the Todos count line, <strong>Refine in Search</strong> (a filter icon) opens the
+same view in Search, with its query filled in, to narrow it further.</p></li>
 <li><p><strong>The Todos screen</strong> (<code class="docutils literal notranslate"><span class="pre">/todos</span></code>) has a switch, an icon over each word:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -1583,7 +1588,7 @@ with the photo.</p></li>
 <h3>The drawing viewer<a class="headerlink" href="#the-drawing-viewer" title="Link to this heading">#</a></h3>
 <p>Tap the drawing to open it full screen.</p>
 <ul class="simple">
-<li><p>Pinch and drag to zoom and pan; <strong>Fit</strong> resets. <strong>Photo</strong> shows the photo beside (landscape) or
+<li><p>Pinch and drag to zoom and pan; <strong>Fit</strong> resets. The <strong>✕</strong> (Close) at the top left closes it. <strong>Photo</strong> shows the photo beside (landscape) or
 over (upright) the drawing. Back closes.</p></li>
 <li><p><strong>Edit</strong> turns on Excalidraw’s tools (draw, shapes, arrows, text, eraser; not images). <strong>Undo</strong>
 is in the top bar, <strong>Cancel</strong> puts the drawing back, <strong>Save</strong> stores a new version.</p></li>
