@@ -14,7 +14,7 @@ say so and give: `claude mcp add --transport http --scope user scrap <SCRAP_URL>
 2. `read` the most relevant pages (up to about 8) rather than answering from snippets. Follow
    `links` and `backlinks` when they are likely to hold the rest of the answer.
 3. Answer in a few short lines, phone-friendly, synthesising across the pages. Cite every page
-   you used as `[[slug|title]]` next to the claim it supports. If pages disagree, say which says
+   you used as a markdown link `[Title](url)` next to the claim it supports. If pages disagree, say which says
    what and which is newer.
 4. If scrap does not contain the answer, say "not in scrap" and list what you searched for. Do
    NOT fall back on general knowledge. If it answers only part of the question, answer that part

@@ -4,6 +4,8 @@ the release job rewrites its `default_ref=main` line to the tag."""
 import subprocess
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parents[1] / "commands" / "install.sh"
 
 
@@ -55,3 +57,47 @@ def test_the_release_rewrite_pins_the_tag(tmp_path):
 
 def test_scrap_ref_overrides(tmp_path):
     assert run(SCRIPT, tmp_path, SCRAP_REF="x").strip().endswith("/archive/x.tar.gz")
+
+
+@pytest.mark.parametrize("has_skill", [True, False])
+def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
+    """One install step copies commands/*.md and skills/scrap-links from the archive.
+
+    An older ref without skills/ installs the commands and keeps an existing skill.
+    """
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "curl").write_text("#!/bin/sh\n")
+    # A tar that extracts a fake repository tree into the -C directory
+    (bin_dir / "tar").write_text(
+        "#!/bin/sh\n"
+        'cat >/dev/null; d="$3/scrap-main"\n'
+        'mkdir -p "$d/commands"\n'
+        'echo cmd > "$d/commands/sc-find.md"\n'
+        + (
+            'mkdir -p "$d/skills/scrap-links"\n'
+            'echo skill > "$d/skills/scrap-links/SKILL.md"\n'
+            if has_skill
+            else ""
+        )
+    )
+    for tool in ("curl", "tar"):
+        (bin_dir / tool).chmod(0o755)
+    cmds, skills = tmp_path / "cmds", tmp_path / "skills"
+    (skills / "scrap-links").mkdir(parents=True)
+    (skills / "scrap-links" / "SKILL.md").write_text("old\n")
+    done = subprocess.run(
+        ["sh", str(SCRIPT)],
+        env={
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "HOME": str(tmp_path),
+            "CLAUDE_COMMANDS_DIR": str(cmds),
+            "CLAUDE_SKILLS_DIR": str(skills),
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr
+    assert (cmds / "sc-find.md").read_text() == "cmd\n"
+    want = "skill\n" if has_skill else "old\n"
+    assert (skills / "scrap-links" / "SKILL.md").read_text() == want
