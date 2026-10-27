@@ -114,11 +114,11 @@ def test_bad_requests_are_refused(client, note):
     assert client.get(f"/api/pages/{ref['page_id']}").json()["rev"] == 1
 
 
-def test_only_images_and_pdfs_can_be_added(client, note):
+def test_only_images_pdfs_and_text_files_can_be_added(client, note):
     ref = note("Minutes")
     zipped = add(client, ref["page_id"], b"PK", name="m.zip", mime="application/zip")
     assert zipped.status_code == 415
-    assert "Only images and PDFs" in zipped.json()["detail"]
+    assert "Only images, PDFs and text files" in zipped.json()["detail"]
     mixed = client.post(
         f"/api/pages/{ref['page_id']}/captures",
         data={"id": new_ulid()},

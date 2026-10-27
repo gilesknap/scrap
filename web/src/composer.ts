@@ -2,7 +2,7 @@
 // the editor (loaded when it opens; the service worker keeps it for offline use).
 import { overLimit, uploadLimit } from "./api";
 import { queue } from "./app";
-import { picker } from "./capture";
+import { FILES, picker } from "./capture";
 import { drafts } from "./db";
 import {
   editor,
@@ -83,7 +83,8 @@ export async function compose(picked: File[], as?: string, resume = false, given
   const todoNow = () => (todoLine.el.hidden ? null : todo.value());
   const dated = () => !!todoNow()?.due || !!todoNow()?.priority;
   const thumbs = h("div", { className: "thumbs" });
-  // One capture, many photos: add from the camera (one at a time) or the gallery.
+  const isImage = (f: File) => f.type.startsWith("image/"); // else a file: a PDF, a .md
+  // One capture, many photos (or files): add from the camera (one at a time), the gallery or File.
   const add = (more: File[]) => {
     files.push(...more);
     showThumbs();
@@ -97,12 +98,13 @@ export async function compose(picked: File[], as?: string, resume = false, given
         h(
           "span",
           { className: "thumb" },
-          blobImg(f, f.name),
+          // A file (a PDF, a .md) is a chip with its name: no picture to show
+          isImage(f) ? blobImg(f, f.name) : h("span", { className: "file" }, icon("file"), f.name),
           h(
             "button",
             {
               type: "button",
-              "aria-label": `Remove photo ${i + 1}`,
+              "aria-label": isImage(f) ? `Remove photo ${i + 1}` : `Remove ${f.name}`,
               onclick: () => {
                 files.splice(i, 1);
                 showThumbs();
@@ -120,6 +122,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     { className: "bar" },
     picker("Camera", true, add, "add"),
     picker("Gallery", false, add, "add"),
+    picker("File", false, add, "add", FILES, "file"),
   );
   showThumbs();
   const ed = editor({

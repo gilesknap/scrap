@@ -1,5 +1,6 @@
-"""The HTTP route that adds photos (or PDFs, #234) to a page that exists (#260): the
-page editor's Add photo. Registered by app.create_app (add_routes)."""
+"""The HTTP route that adds photos (or PDFs and text files, #234) to a page that
+exists (#260): the page editor's Add photo. Registered by app.create_app
+(add_routes)."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -15,9 +16,14 @@ from .store.constants import SOURCES, ULID
 from .store.photos import addable
 from .uploads import author, mimes, put_files, too_large
 
+REFUSED = (
+    "Only images, PDFs and text files can be added to a page; another file needs a "
+    "capture of its own."
+)
+
 
 class NotImageError(Exception):
-    """Only images and PDFs can be added to a page; another file needs a capture."""
+    """A file that is not an image, a PDF or a text file: 415, REFUSED."""
 
 
 def fields(form: dict[str, Any]) -> tuple[str, str, str | None]:
@@ -40,7 +46,7 @@ def add_routes(
     app: FastAPI, store: Store, wake: Callable[[], None], limit: int
 ) -> None:
     def refused(request: Request, error: Exception) -> JSONResponse:
-        return JSONResponse({"detail": NotImageError.__doc__}, 415)
+        return JSONResponse({"detail": REFUSED}, 415)
 
     app.add_exception_handler(NotImageError, refused)
 
@@ -60,13 +66,13 @@ def add_routes(
 
     @app.post("/api/pages/{key}/captures", status_code=201)
     async def add_photos(key: str, request: Request, response: Response) -> Any:
-        """Add photos or PDFs to a page: multipart id (a ULID, the retry key) and file
-        parts, images and PDFs only (415 otherwise). Each new image's embed goes to the
-        end of its text as it is now, as a new revision; a PDF is listed below the
-        text, not put in it. They are read as a capture's are (a PDF's text, for
-        search). 201 with the page and appended_on (the revision the embeds went onto;
-        null with no image); a retry with the same id returns 200, appended_on
-        null."""
+        """Add photos or files to a page: multipart id (a ULID, the retry key) and file
+        parts, images, PDFs and text or Markdown files only (415 otherwise; an untyped
+        part is typed by its name). Each new image's embed goes to the end of its text
+        as it is now, as a new revision; a file is listed below the text, not put in
+        it. They are read as a capture's are (a file's text, for search). 201 with the
+        page and appended_on (the revision the embeds went onto; null with no image); a
+        retry with the same id returns 200, appended_on null."""
         if int(request.headers.get("content-length") or 0) > limit:
             raise TooLargeError(too_large(limit))
         if not request.headers.get("content-type", "").startswith(

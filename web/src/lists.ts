@@ -85,8 +85,8 @@ export async function pendingList(): Promise<Node> {
     { className: "list pending" },
     ...items.map((i) => {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
-      const title =
-        (i.page && `Photo for ${i.to || "a page"}`) ||
+      const title = // files alone (a PDF, a .md, #380): not called a photo
+        (i.page && `${image ? "Photo" : "File"} for ${i.to || "a page"}`) ||
         i.text?.split("\n")[0] ||
         i.url ||
         i.files[0]?.name ||
@@ -126,7 +126,8 @@ export async function pendingList(): Promise<Node> {
             "Discard this capture? It never reached the server, so it will be gone.",
           ),
         );
-      const r = row(image?.blob ?? null, title, state, actions || "", undefined, i.kind ?? i.hint);
+      const kind = i.kind ?? (image || !i.files[0] ? i.hint : "file"); // a file's icon
+      const r = row(image?.blob ?? null, title, state, actions || "", undefined, kind);
       if (i.failed) r.className = "failed";
       return r;
     }),

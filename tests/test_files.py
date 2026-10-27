@@ -513,10 +513,37 @@ def test_other_files_are_refused(client, note):
     ref = note("Zip")
     r = add(client, ref["page_id"], ("a.zip", b"PK\x03\x04", "application/zip"))
     assert r.status_code == 415
-    assert "images and PDFs" in r.json()["detail"]
-    r = add(client, ref["page_id"], ("n.txt", b"text", "text/plain"))
-    assert r.status_code == 415  # a text file goes in as a capture of its own
-    assert client.get(f"/api/pages/{ref['page_id']}").json()["rev"] == 1
+    assert "images, PDFs and text files" in r.json()["detail"]
+    r = add(client, ref["page_id"], ("a.bin", b"\x00", "application/octet-stream"))
+    assert r.status_code == 415  # untyped, and its name says nothing either
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert (page["rev"], len(page["captures"])) == (1, 1)
+
+
+@pytest.mark.parametrize(
+    ("name", "mime", "typed"),
+    [
+        ("n.txt", "text/plain", "text/plain"),
+        ("n.md", "text/markdown", "text/markdown"),
+        ("n.md", "application/octet-stream", "text/markdown"),  # a phone's .md
+        ("n.md", "", "text/markdown"),
+        ("n.txt", "", "text/plain"),
+    ],
+)
+def test_a_text_file_added_to_a_page_is_listed_and_read(client, note, name, mime,
+                                                         typed):  # fmt: skip
+    """The editor's File... (#380): a text or Markdown file, typed by its name when a
+    phone sends none, goes to the page as a file capture, read for search."""
+    ref = note("Reading list")
+    r = add(client, ref["page_id"], (name, b"the wombat", mime))
+    assert r.status_code == 201, r.text
+    page = r.json()
+    assert (page["rev"], page["appended_on"]) == (1, None)  # not put in the text
+    added = page["captures"][1]
+    assert added["kind"] == "file"
+    got = added["blobs"][0]
+    assert (got["filename"], got["mime"]) == (name, typed)
+    assert got["ingest"]["state"] == "queued" and got["ingest"]["kind"] == "text"
 
 
 def test_reprocess_requeues_a_failed_pdf_through_the_api(tmp_path):

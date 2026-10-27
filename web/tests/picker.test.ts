@@ -21,8 +21,8 @@ vi.mock("../src/db", () => ({ drafts: {} }));
 vi.mock("../src/fresh", () => ({ DRAFT: "d", recover: () => {} }));
 vi.mock("../src/lists", () => ({ pageList: () => null, pendingList: () => null }));
 vi.mock("../src/icons", () => ({ icon: () => "", kindIcon: () => "note" }));
-const { picker } = await import("../src/capture");
-const { GALLERY, noun, photoAdder } = await import("../src/addphoto");
+const { FILES, picker } = await import("../src/capture");
+const { noun, photoAdder } = await import("../src/addphoto");
 
 beforeEach(() => {
   inputs = [];
@@ -38,10 +38,12 @@ it("takes photos only, unless told otherwise", () => {
   expect(inputs.map((i) => i.multiple)).toEqual([false, true, true]);
 });
 
-it("lets the editor's Gallery take PDFs, and its Camera photos only", () => {
-  expect(GALLERY).toBe("image/*,application/pdf");
+it("gives the editor's Camera and Gallery photos only, and File PDFs, text and Markdown", () => {
+  // .md and .txt by name too: a phone's Markdown file often has no type
+  expect(FILES).toBe("application/pdf,text/plain,text/markdown,.md,.txt");
   photoAdder({ id: "P1", title: "Board" });
-  expect(inputs.map((i) => i.accept)).toEqual(["image/*", GALLERY]);
+  expect(inputs.map((i) => i.accept)).toEqual(["image/*", "image/*", FILES]);
+  expect(inputs.map((i) => i.multiple)).toEqual([false, true, true]);
 });
 
 it("names what was added as photos, files (PDFs), or both", () => {

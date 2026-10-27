@@ -307,6 +307,25 @@ button.more {
   border-radius: var(--r-md);
   background: var(--sunk);
 }
+/* A picked file (File: a PDF, a .md): its icon and name in a photo's square, under its ✕ */
+.thumb .file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 84px;
+  height: 84px;
+  padding: var(--s-1);
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  line-height: var(--lh-tight);
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 .thumb button {
   position: absolute;
   top: 4px;

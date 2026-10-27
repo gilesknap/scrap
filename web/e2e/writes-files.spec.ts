@@ -1,7 +1,7 @@
-// The page editor's Gallery takes PDFs too (#234): one goes to the page through the capture
+// The page editor's File takes PDFs (#234, #380): one goes to the page through the capture
 // queue, listed below the text as a plain row (its name, opening it, and its pages once read),
 // with a hint only if its text couldn't be read; picked with a photo, the photo still goes in
-// the text. Camera, and the composer's pickers, take photos only. The e2e server runs with ingest off, so e2e/readfiles.py reads the files.
+// the text. Camera and Gallery take photos only (writes-picked-files.spec.ts has File's others). The e2e server runs with ingest off, so e2e/readfiles.py reads the files.
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
@@ -72,15 +72,16 @@ async function choose(page: Page, scope: string, label: string) {
 
 const row = (page: Page, name: string) => page.locator(".filerow").filter({ hasText: name });
 
-test("the editor's Gallery adds PDFs, listed below the text with their pages", async ({ page }) => {
+test("the editor's File adds PDFs, listed below the text with their pages", async ({ page }) => {
   const ref = await notePage(page, "Committee notes\nsee the minutes");
   await page.goto(`/p/${ref.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
   const bar = '.editor [role="group"][aria-label="Add photo"]';
   expect((await choose(page, bar, "Camera")).accept).toBe("image/*");
-  const gallery = await choose(page, bar, "Gallery");
-  expect(gallery.accept).toBe("image/*,application/pdf");
-  await gallery.chooser.setFiles(FILES);
+  expect((await choose(page, bar, "Gallery")).accept).toBe("image/*");
+  const file = await choose(page, bar, "File");
+  expect(file.accept).toBe("application/pdf,text/plain,text/markdown,.md,.txt");
+  await file.chooser.setFiles(FILES);
   await expect(page.getByText("Files added to the end of the page")).toBeVisible();
   await expect.poll(async () => (await read(page, ref.page_id)).captures.length).toBe(2);
   const added = await read(page, ref.page_id);

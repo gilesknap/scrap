@@ -1,10 +1,11 @@
 // The page editor's Add photo (#260): photos from the camera or the gallery, added to the end
-// of a page that exists; the gallery's PDFs too (#234), listed below the page's text. They go through the capture queue (queue.ts), so they wait on the
-// phone while offline, and the server reads them as it reads any capture's photos. Part of
-// the editor's chunk.
+// of a page that exists; and File's PDFs, text and Markdown (#234, #380), listed below the
+// page's text. They go through the capture queue (queue.ts), so they wait on the phone while
+// offline, and the server reads them as it reads any capture's photos. Part of the editor's
+// chunk.
 import { overLimit } from "./api";
 import { queue } from "./app";
-import { picker } from "./capture";
+import { FILES, picker } from "./capture";
 import type { Capture } from "./queue";
 import { h, toast } from "./ui";
 
@@ -38,10 +39,7 @@ export function uploads(files: File[], page: { id: string; title: string }): Cap
  * (a board photo would queue one over it; the server refuses them too). */
 export const takesPhotos = (page: { topic?: unknown }) => !page.topic;
 
-/** What the editor's Gallery takes: photos and PDFs (the server refuses any other file). */
-export const GALLERY = "image/*,application/pdf";
-
-/** What a toast calls what was added: photos, files (PDFs), or photos and files. */
+/** What a toast calls what was added: photos, files (PDFs, text), or photos and files. */
 export function noun(files: { type: string }[]) {
   const photos = files.filter((f) => f.type.startsWith("image/")).length;
   const others = files.length - photos;
@@ -50,8 +48,8 @@ export function noun(files: { type: string }[]) {
   return words[0].toUpperCase() + words.slice(1);
 }
 
-/** Add photo, for the page editor: Camera and Gallery, named as the composer's are (short
- * enough to share a row at large text sizes). */
+/** Add photo, for the page editor: Camera, Gallery and File, named as the composer's are
+ * (short enough to share a row at large text sizes). */
 export function photoAdder(page: { id: string; title: string }) {
   const add = async (files: File[]) => {
     const queued = uploads(files, page);
@@ -72,6 +70,7 @@ export function photoAdder(page: { id: string; title: string }) {
     "div",
     { className: "bar", role: "group", "aria-label": "Add photo" },
     picker("Camera", true, (f) => void add(f), "add"),
-    picker("Gallery", false, (f) => void add(f), "add", GALLERY),
+    picker("Gallery", false, (f) => void add(f), "add"),
+    picker("File", false, (f) => void add(f), "add", FILES, "file"),
   );
 }
