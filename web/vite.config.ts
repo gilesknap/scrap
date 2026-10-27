@@ -8,13 +8,15 @@ import { defineConfig } from "vitest/config";
 // (sharing, loaded on the first tap of either), the search screen's Filters (refine) and its
 // recent searches (searches; without it, after a cold start offline, search works but shows
 // no Recent), and the top bar's Back on a page opened cold (back; a stalled fetch of it would
-// leave Back dead, its time limit being in it). They are not loaded until used, so they are
+// leave Back dead, its time limit being in it), and the photo panel on a page (figure: an old
+// shell's hashed file is gone after a deploy, which leaves a page with bare photos). They are not loaded until used, so they are
 // not part of the shell's size budget. (Mermaid, for diagrams, is not kept: it is big.)
 export const OFFLINE = [
   "back",
   "composer",
   "downscale",
   "editor",
+  "figure",
   "page",
   "pageedit",
   "render",
