@@ -203,8 +203,10 @@ def test_waiting_for_the_decoder_holds_no_worker_thread(tmp_path, monkeypatch):
         page = sync.get(f"/api/pages/{ref['slug']}").json()
         shas.append(page["captures"][0]["blobs"][0]["sha256"])
     go = threading.Event()
+    decoding = threading.Event()
 
     def slow(src, dest, size):
+        decoding.set()
         go.wait(10)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(b"jpeg")
@@ -223,8 +225,15 @@ def test_waiting_for_the_decoder_holds_no_worker_thread(tmp_path, monkeypatch):
             async with anyio.create_task_group() as tg:
                 for sha in shas:
                     tg.start_soon(get, sha)
-                await anyio.sleep(0.5)  # one decoding, nine waiting
-                busy = anyio.to_thread.current_default_thread_limiter().borrowed_tokens
+                limiter = anyio.to_thread.current_default_thread_limiter()
+                # Wait for the state, not a fixed time: one decoding, and the nine
+                # others past their threaded steps and waiting. A regression (waiters
+                # holding threads) never settles, so it fails at the deadline.
+                with anyio.fail_after(30):
+                    while not decoding.is_set() or limiter.borrowed_tokens != 1:
+                        await anyio.sleep(0.01)
+                await anyio.sleep(0.1)  # and it stays settled
+                busy = limiter.borrowed_tokens
                 assert (await c.get("/healthz")).status_code == 200  # still answered
                 go.set()
         return busy
