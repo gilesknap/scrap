@@ -610,7 +610,7 @@ photo as it is when it is at or under the limit, would not get smaller, or canno
 ```{warning}
 **Back up first** (`systemctl --user start scrap-backup`, see above). The old file is deleted
 and the change cannot be undone except from a backup. A page's earlier text revisions keep the old
-address, so reverting to one shows a missing image.
+address, so reverting to one shows a missing image. A photo whose embed was deleted from its page, or that Claude is reading right now, is skipped (and counted as such); run again later for the second.
 ```
 
 It is a dry run unless given `--apply`. Run it like the backup command above, with `shrink`

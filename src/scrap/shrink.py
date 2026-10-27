@@ -22,7 +22,8 @@ is safe while scrap serves), every reference moves to the new file:
 - then the old file, if nothing else refers to it (``scrap.gc.in_use``, so a model
   run's sent JPEG counts), is removed with its previews, as ``scrap gc`` removes one.
 
-A photo is left as it is when it is not a JPEG, HEIC, HEIF or WebP, is at or under
+A photo is left as it is when Claude is reading it now, a page's text lost its embed
+(see ``_blocked``), it is not a JPEG, HEIC, HEIF or WebP, is at or under
 the limit, would not get smaller, cannot be read, or cannot be repointed (a conflict
 rolls its transaction back). Each photo has its own transaction, so a run stopped
 halfway keeps what it did, and running again does the rest; a second run finds
@@ -81,6 +82,7 @@ class Report:
     bigger: int = 0  # would not get smaller
     unreadable: int = 0  # missing, not an image, too large to decode
     failed: int = 0  # could not be repointed: left as it was
+    busy: int = 0  # being read by Claude now, or its embed was removed from a page
     other_types: int = 0  # PNG, GIF and the rest
     removed: int = 0  # old files removed (apply)
     kept: int = 0  # old files kept: still in use, or touched meanwhile
@@ -113,6 +115,7 @@ class Report:
             f" would not get smaller, {self.other_types} not JPEG, HEIC or WebP,"
             f" {self.unreadable} unreadable"
             + (f", {self.failed} that could not be repointed" if self.failed else "")
+            + (f", {self.busy} skipped (see the docs)" if self.busy else "")
         )
         return "\n".join(lines)
 
@@ -184,12 +187,30 @@ def _repoint(
         "SELECT id, title, body FROM page WHERE instr(body, ?)", (old,)
     ).fetchall():
         rev = conn.execute(
-            "SELECT max(rev) FROM page_rev WHERE page_id = ?", (page_id,)
+            "SELECT coalesce(max(rev), 0) FROM page_rev WHERE page_id = ?", (page_id,)
         ).fetchone()[0]
         body = body.replace(old, new)
         conn.execute("UPDATE page SET body = ? WHERE id = ?", (body, page_id))
         conn.execute(REV_INSERT, (page_id, rev + 1, title, body, AUTHOR, "web", stamp))
         index_page(conn, page_id)
+
+
+def _blocked(conn: sqlite3.Connection, sha: str) -> bool:
+    """Whether a photo is left alone: an ingest job is reading it now (the worker holds
+    the old address and would write its result against it), or a page's text no longer
+    has its embed but an earlier revision does (the page stops showing a file by that
+    difference, Store.removed, and a new address would make it show again)."""
+    if conn.execute(
+        "SELECT 1 FROM job WHERE source_sha256 = ? AND state = 'running'", (sha,)
+    ).fetchone():
+        return True
+    return bool(
+        conn.execute(
+            "SELECT 1 FROM page_rev r JOIN page p ON p.id = r.page_id"
+            " WHERE instr(r.body, ?) AND NOT instr(p.body, ?) LIMIT 1",
+            (sha, sha),
+        ).fetchone()
+    )
 
 
 def _uses(conn: sqlite3.Connection, sha: str) -> tuple[int, int]:
@@ -231,6 +252,9 @@ def _one(
         report.bigger += 1
         return
     with store.connect() as conn:
+        if _blocked(conn, sha):
+            report.busy += 1
+            return
         pages, caps = _uses(conn, sha)
     item = Item(sha, size, len(data), width, height, pages, caps)
     if not apply:
@@ -253,17 +277,27 @@ def _one(
                 ):
                     report.unreadable += 1  # gone since it was listed
                     return
+                if _blocked(conn, sha):
+                    report.busy += 1
+                    return
                 _repoint(conn, sha, new, len(data), stamp)
+        except sqlite3.Error as error:  # rolled back: left as it was
+            log.warning("scrap shrink: %s left as it was: %s", sha, error)
+            report.failed += 1
+            return
+        report.items.append(item)
+        # Only once the repoint is committed (a failed commit must leave the old file
+        # for the old references) is the old file looked at again, as gc does
+        try:
+            with transaction(conn):
                 gone = sha not in gc.in_use(conn) and gc.delete_file(
                     store, sha, path, cutoff
                 )
                 if gone:
                     conn.execute("DELETE FROM blob WHERE sha256 = ?", (sha,))
-        except sqlite3.Error as error:  # rolled back: left as it was
-            log.warning("scrap shrink: %s left as it was: %s", sha, error)
-            report.failed += 1
-            return
-    report.items.append(item)
+        except (sqlite3.Error, OSError) as error:  # scrap gc finds it later
+            log.warning("scrap shrink: %s not removed: %s", sha, error)
+            gone = False
     report.removed += gone
     report.kept += not gone
 

@@ -245,3 +245,26 @@ def test_a_conflict_rolls_back(client, store):
     assert report.failed == 1 and report.items == []
     assert state(store)[0] == before[0]  # no reference moved
     assert store.blob_path(old).is_file()
+
+
+def test_a_photo_removed_from_its_page_is_left_alone(client, store):
+    cap, old = photo(client, jpeg())
+    age(store)
+    with store.connect() as conn:  # the embed was deleted in a later revision
+        conn.execute("UPDATE page SET body = 'no photo now'")
+    # the first revision still has the address
+    with store.connect() as conn:
+        conn.execute("UPDATE page_rev SET body = body || ?", (f"/api/blobs/{old}",))
+    report = shrink.run(store, apply=True)
+    assert report.busy == 1 and report.items == []
+    assert shrink.run(store).busy == 1
+    assert store.blob_path(old).is_file()
+
+
+def test_a_photo_being_read_is_left_alone(client, store):
+    _, old = photo(client, jpeg())
+    age(store)
+    with store.connect() as conn:
+        conn.execute("UPDATE job SET state = 'running'")
+    assert shrink.run(store, apply=True).busy == 1
+    assert store.blob_path(old).is_file()
