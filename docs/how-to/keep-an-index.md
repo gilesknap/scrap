@@ -31,16 +31,35 @@ Tag the page `index`: tap **+ Tag** under its title. Tags are lower case, at
 most 64 characters. If only this page carries the tag, a search for `tag:index` finds it at once. Use `index/projects`, `index/people` and so on for a page per topic: a search
 for `tag:index` finds them all.
 
-## 2. Pin it
+## 2. Reach it quickly
 
-Open the page, tap **Share**, then **Pin to Search**. Or run the search `tag:index` and tap the
-pin in the results header, which pins the search instead of the page (useful with several index
-pages; it lists them, one more tap to open one). Either way the pin goes on the **Pinned**
-page, an ordinary page of links, described in [](make-your-own-lists.md).
+There are two ways, and you can use both.
+
+### A pinned search
+
+Run the search `tag:index` and tap the pin in the results header (**Pin search**). Or open the
+Index page, tap **Share**, then **Pin to Search**, which pins the page itself and skips the
+list. The pin goes on the **Pinned** page, an ordinary page of links, described in
+[](make-your-own-lists.md).
 
 **Pins do not show on launch.** The app opens on the capture screen, and pins appear only in
 the Search view: tap **Search**, then tap the empty search box, and **Pinned** is listed above
-Recent. So the index is two taps from launch, and one tap from the search view.
+Recent. So from launch, a pinned page is three taps away (**Search**, the box, the pin) and a
+pinned search four (the results list the Index, which you then tap). From the Search view it is
+two and three.
+
+### A home-screen icon for the page
+
+Open the Index page in your browser (its address is `/p/<slug>`, `/p/index` if you kept the
+title) and use the browser's **Add to Home screen**, or just bookmark the address. That gives
+you an icon or bookmark that points at the page, with no scrap code involved.
+
+What is checked: the installed scrap app always starts at `/` (its manifest sets `start_url`,
+`scope` and `id` to `/`), which is why it opens on capture, so the icon from
+[installing scrap](use-the-pwa.md) cannot be pointed at the Index; a shortcut made from the page
+is a second, separate icon. Not checked: whether your browser opens that second icon in the app
+window or in a browser tab, and whether an installed scrap captures the link and opens it in the
+app. Both depend on the browser and the phone; try it once and see.
 
 ## 3. Let Claude maintain it
 
