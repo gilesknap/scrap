@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>19. Kinds and tags editable over MCP, made safe by metadata revisions &#8212; scrap 0.16.1.dev15+g142239f19 documentation</title>
+    <title>19. Kinds and tags editable over MCP, made safe by metadata revisions &#8212; scrap 0.16.1.dev16+g0833b784d documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=c59e8cd4"></script>
+    <script src="../../_static/documentation_options.js?v=ecca1e90"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -594,6 +594,9 @@ on other kinds, as <code class="docutils literal notranslate"><span class="pre">
 page a todo and giving it a <code class="docutils literal notranslate"><span class="pre">due</span></code> takes two calls). They live in <code class="docutils literal notranslate"><span class="pre">page_todo</span></code>
 (<a class="reference internal" href="0036-todo-values-in-a-side-table.html"><span class="std std-doc">ADR 36</span></a>), not <code class="docutils literal notranslate"><span class="pre">fields</span></code>, but are recorded in the revision
 (<code class="docutils literal notranslate"><span class="pre">fields_added</span></code>, <code class="docutils literal notranslate"><span class="pre">fields_was</span></code>) as fields are, so <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes them.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>’s <code class="docutils literal notranslate"><span class="pre">fields</span></code> are only <code class="docutils literal notranslate"><span class="pre">media_type</span></code>, <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>
+(#386): any other name is refused, not stored as a meaningless field. <code class="docutils literal notranslate"><span class="pre">revert</span></code> still undoes an
+older revision that set one.</p></li>
 <li><p>A kind or tag edit does not change <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, as the PWA’s never did. A kind given to
 <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> is fixed even if it is the page’s kind already, as the PWA’s PATCH does.</p></li>
 <li><p>Migration 8 is additive, as 6 and 7: the table is made only if missing, so an older scrap still
