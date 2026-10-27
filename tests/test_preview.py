@@ -273,13 +273,9 @@ def webp(size, mode="RGB"):
     return out.getvalue()
 
 
-def test_a_webp_costs_more_than_the_same_png():
-    def cost(data):
-        return preview._cost(Image.open(io.BytesIO(data)))
-
-    png = io.BytesIO()
-    Image.new("RGB", (2000, 1000), "red").save(png, "PNG")
-    assert cost(webp((2000, 1000))) >= 3 * cost(png.getvalue())
+def test_a_webp_is_costed_at_its_measured_peak():
+    im = Image.open(io.BytesIO(webp((6000, 5000))))  # 30 MP peaked at ~460 MB
+    assert preview._cost(im) > preview.DECODE_BUDGET
 
 
 def test_a_webp_over_the_budget_is_refused_and_a_normal_one_previews(client, upload):
