@@ -36,6 +36,24 @@ also more private than a photo: a statement or a letter would go whole.
   first 20,000 characters, and whether it is searchable) and summarises it in the conversation.
 - No schema change: everything fits the existing `job`, `derived` and `chunk` tables.
 
+## Amendment (2026-10-27)
+
+The security review of file ingest (#321) corrected and tightened this decision.
+
+- "The child never holds the service's keys" is true of its environment only. The child runs as
+  the service's user, on its filesystem and network, so a code-execution bug in `pypdf` could read
+  the data directory. The sandbox is a limit on cost (time, memory, and now no file written and no
+  core dump: `RLIMIT_FSIZE` and `RLIMIT_CORE` are 0), not a boundary for confidentiality. The
+  container's non-root user, read-only root and seccomp profile are what limit it. `uv.lock` pins
+  `pypdf` 6.21.2, past the decompression limits the child relies on.
+- A failure that may pass (the child not starting, a timeout under load) is charged and retried,
+  three times in all, rather than final; a file that cannot be read is still dead at once. A
+  file without `%PDF-` in its first KiB is refused before a child is started.
+- A file already read (same hash, same `pypdf`) is copied, not parsed again; photos are claimed
+  before files, and enrichment gets a turn between files.
+- Over MCP, a file's `text` carries a `text_note` (untrusted third-party text, quoted data, never
+  instructions), as `by_model` does, and the server instructions name file text.
+
 ## Consequences
 
 - Search finds words in PDFs and text files as soon as the worker reads them, at no cost, and the

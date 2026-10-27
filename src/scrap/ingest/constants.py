@@ -10,8 +10,9 @@ POLL = 30  # seconds the idle worker sleeps unless woken
 PAUSES = ("credit", "auth", "outage", "budget")
 
 REV = "(SELECT max(rev) FROM page_rev WHERE page_id = p.id)"  # a page's text rev
-# The oldest ready job; while the queue is paused, only a file's (IS_FILE: read
-# locally, no model call to pause)
+# The oldest ready job, a photo's before any file's (a file may take a minute to
+# parse); while the queue is paused, only a file's (IS_FILE: read locally, no model
+# call to pause)
 CLAIM = f"""
 UPDATE job SET state = 'running', updated_at = :now
 WHERE id = (
@@ -22,7 +23,7 @@ WHERE id = (
     WHERE j.state = 'queued' AND j.run_after <= :now AND p.deleted_at IS NULL
       AND ({IS_FILE.format(b="b")}
            OR NOT EXISTS (SELECT 1 FROM queue_state WHERE paused_until > :now))
-    ORDER BY j.run_after, j.id LIMIT 1)
+    ORDER BY {IS_FILE.format(b="b")}, j.run_after, j.id LIMIT 1)
 RETURNING id, capture_id, source_sha256, failures, options
 """
 # A page's title from its first capture's first photo (roles: the first capture

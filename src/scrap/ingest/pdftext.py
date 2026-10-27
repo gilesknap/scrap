@@ -6,8 +6,10 @@ runs this file as a script, isolated, with an empty environment and no stderr:
 (python -m scrap.ingest.pdftext works too, but imports the service's packages first.)
 The child caps its own address space at MEMORY bytes and its CPU time at CPU seconds
 before it parses anything (in the child, not a preexec_fn: the service has threads),
-so a hostile file can cost it its time and memory, not the service's; the CPU cap also
-ends a child the service left behind at shutdown. pypdf's logging is off: a broken
+and may write no file and dump no core, so a hostile file can cost it its time and
+memory, not the service's; the CPU cap also ends a child that outlives the service (a
+clean stop kills it: files.stop_children). It is a limit on cost, not a confidentiality
+boundary: it runs as the service's user. pypdf's logging is off: a broken
 file can warn once per operator. It prints {pages, pages_read, text, truncated} as
 JSON: the first MAX_PAGES pages, at most MAX_CHARS characters of text; truncated if
 either cut it. A PDF encrypted with a password other than the empty one (which pypdf
@@ -52,6 +54,8 @@ def limit(memory: int, cpu: int) -> None:
         return
     resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
     resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))  # writes no file (a pipe is fine)
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))  # leaves no core dump of the file
 
 
 def main(argv: list[str]) -> int:

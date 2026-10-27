@@ -59,6 +59,7 @@ class Worker:
         # Text pages (enrich/), when there is no photo to read
         self.enricher = Enricher(store, self.call, self.budget, fetcher)
         self.enrich = enrich_on()
+        self._after_file = False  # the last job was a file's: enrich gets a turn
         self._wake, self._stop = threading.Event(), threading.Event()
         self._thread = threading.Thread(target=self.run, name="ingest", daemon=True)
 
@@ -101,6 +102,8 @@ class Worker:
                     " finished_at = ? WHERE job_id = ? AND status = 'running'",
                     (now(), job),
                 )
+        files.stop_children()  # after the give-back: a killed read then changes nothing
+        files.stop_children()  # after the give-back: a killed read then changes nothing
 
     def run(self) -> None:
         while not self._stop.is_set():
@@ -115,6 +118,10 @@ class Worker:
 
     def step(self) -> bool:
         """Claim and process one job; False if there was none to claim."""
+        if self._after_file:  # a file may take a minute: enrichment's turn before more
+            self._after_file = False
+            if self.enrich and self.enricher.step():
+                return True
         with self.store.connect() as conn:
             job = claim(conn, now())
         if job is None:
@@ -155,6 +162,7 @@ class Worker:
             ).fetchone()
         if mime is not None and file_kind(mime[0]):
             files.process(self.store, job, mime[0])  # read here: no Claude, no budget
+            self._after_file = True
             return
         with self.store.connect() as conn, transaction(conn):
             over = spent_today(conn, now()) >= self.budget
