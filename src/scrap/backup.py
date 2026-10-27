@@ -15,6 +15,7 @@ from urllib.parse import quote, unquote
 
 from .drawing import excalidraw_file
 from .store import NoSuchPage, Store, connect, migrate, schema_version
+from .store.todo import read as read_todo
 
 __all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
 
@@ -206,7 +207,7 @@ def page_markdown(
         key: page[key] for key in ("title", "id", "kind", "created_at", "updated_at")
     }
     if page["kind"] == "todo":  # a todo's due date and priority, if it has them
-        front |= {k: page[k] for k in ("due", "priority", "snoozed_until") if page[k]}
+        front |= {k: v for k, v in read_todo(conn, page["id"]).items() if v}
     if page["task_total"]:  # its task boxes, as counted
         front["tasks"] = {"done": page["task_done"], "total": page["task_total"]}
     front["fields"] = json.loads(page["fields"])

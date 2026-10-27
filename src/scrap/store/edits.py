@@ -21,6 +21,7 @@ from .helpers import (
 )
 from .indexing import debounce, enrich_on, queue_enrich
 from .roles import may_rekind, should_enrich
+from .todo import write as write_todo
 
 
 class EditsMixin(Core):
@@ -251,5 +252,4 @@ class EditsMixin(Core):
         """Set (or clear, None) a todo's due date and/or priority, checked already."""
         if kind != "todo" and any(v is not None for v in todo.values()):
             raise InvalidError("due and priority are for todos")
-        sets = ", ".join(f"{k} = ?" for k in todo)  # names from TODO only
-        conn.execute(f"UPDATE page SET {sets} WHERE id = ?", (*todo.values(), page_id))
+        write_todo(conn, page_id, todo)

@@ -12,6 +12,7 @@ from .errors import InvalidError, NotFoundError
 from .helpers import body_refs, file_kind, now, todo_only
 from .indexing import enrich_on
 from .roles import is_topic, made_by
+from .todo import cols as todo_cols
 from .topics import key_of, of_page
 from .topics import sources as topic_sources
 from .writeups import backlinks as writeup_backlinks
@@ -28,7 +29,7 @@ class PagesMixin(Core):
             rows = _rows(
                 conn,
                 "SELECT id, slug, title, kind, kind_fixed, fields, created_at,"
-                f" updated_at, due, priority, snoozed_until, task_done, task_total,"
+                f" updated_at, {todo_cols('p')}, task_done, task_total,"
                 f" {THUMB} AS thumb"
                 " FROM page p WHERE deleted_at IS NULL"
                 " AND coalesce(?, kind) = kind"
