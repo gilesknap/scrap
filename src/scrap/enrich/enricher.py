@@ -410,14 +410,17 @@ class Enricher:
                             TITLE_CAS, {"title": title[:MAX_TITLE], "page": page_id,
                                         "url": link},
                         )  # fmt: skip
-                    if roles.may_rekind(alive["kind"], alive["kind_fixed"]):
-                        medium = site_media(link) or out["media_type"]
+                    rekind = roles.may_rekind(alive["kind"], alive["kind_fixed"])
+                    if rekind or alive["kind"] == "consume":
                         kept = json.loads(alive["fields"])
-                        fields = {**fields_for("consume", link),
-                                  **({"media_type": medium,
-                                      "subtype": subtype_of(medium)}
-                                     if medium else {}),
-                                  **kept}  # fmt: skip
+                        fields = {**fields_for("consume", link), **kept} if rekind \
+                            else kept  # fmt: skip
+                        medium = site_media(link) or out["media_type"]
+                        if medium and not kept.get("media_type"):
+                            # derived beats the default "read", not a chosen one
+                            fields["media_type"] = medium
+                            if kept.get("subtype", "read") == "read":
+                                fields["subtype"] = subtype_of(medium)
                         conn.execute(
                             "UPDATE page SET kind = 'consume', fields = ? WHERE id = ?",
                             (json.dumps(fields), page_id),

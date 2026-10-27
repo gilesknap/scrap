@@ -726,6 +726,35 @@ def test_a_link_gets_its_type_from_the_site_then_the_model(
     assert fields["subtype"] == subtype
 
 
+@pytest.mark.parametrize(
+    ("url", "said", "media", "subtype"),
+    [
+        ("https://www.youtube.com/watch?v=1", "", "video", "watch"),
+        ("https://example.com/pod", "podcast", "podcast", "listen"),
+        ("https://example.com/shed", "", None, "read"),
+    ],
+)
+def test_a_link_saved_directly_as_later_gets_its_type(store, url, said, media, subtype):
+    ref = capture(store, url=url, kind="consume")
+    fake = Fake(answer(["x"], "S.", "T", media=said))
+    run_all(worker(store, fake, page_fetch))
+    fields = store.page(ref["page_id"])["fields"]
+    assert fields.get("media_type") == media
+    assert fields["subtype"] == subtype
+
+
+def test_a_media_type_set_by_hand_on_a_later_is_kept(store):
+    ref = capture(store, url="https://www.youtube.com/watch?v=1", kind="consume")
+    pid = ref["page_id"]
+    fields = {"subtype": "read", "status": "open", "media_type": "tv"}
+    with closing(connect(store.db)) as conn, conn:
+        conn.execute(
+            "UPDATE page SET fields = ? WHERE id = ?", (json.dumps(fields), pid)
+        )
+    run_all(worker(store, Fake(answer(["x"], "S.", "T")), page_fetch))
+    assert store.page(pid)["fields"] == fields
+
+
 def test_a_link_is_fetched_titled_summarised_and_filed_as_later(store):
     url = "https://example.com/shed"
     ref = capture(store, url=url)
