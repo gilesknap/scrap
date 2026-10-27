@@ -8,8 +8,7 @@ import { h } from "./ui";
 
 export const UNREAD = "Text couldn't be read; not searchable";
 /** A failure that may not repeat (the reader timed out or didn't start): not the file's fault. */
-export const RETRY =
-  "Text couldn't be read this time; not searchable. Try Reprocess";
+export const RETRY = "Text couldn't be read this time; not searchable. Try Reprocess";
 
 /** What a file's row says besides its name: its pages ("12 pages", a PDF's once read) and
  * the hint, if its reading failed or found no text. Nothing for a photo's ingest. */
@@ -18,11 +17,9 @@ export function fileFacts(i: Ingest | FileIngest | null | undefined): {
   hint: string | null;
 } {
   if (!i || !("kind" in i)) return { pages: null, hint: null };
-  const pages =
-    i.pages == null ? null : `${i.pages} page${i.pages === 1 ? "" : "s"}`;
+  const pages = i.pages == null ? null : `${i.pages} page${i.pages === 1 ? "" : "s"}`;
   const unread = i.state === "failed" || (i.state === "done" && !i.searchable);
-  const transient =
-    i.state === "failed" && /^(timeout|internal):/.test(i.error ?? "");
+  const transient = i.state === "failed" && /^(timeout|internal):/.test(i.error ?? "");
   return { pages, hint: unread ? (transient ? RETRY : UNREAD) : null };
 }
 
