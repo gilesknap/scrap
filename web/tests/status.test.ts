@@ -44,6 +44,11 @@ it("writes today as a due date is, on the device's calendar", () => {
 });
 
 it("says a todo's priority and due date, overdue only while it is not done", () => {
+  // As read: the parts' no-break spaces as spaces
+  const due = (...a: Parameters<typeof dueOf>) => {
+    const got = dueOf(...a);
+    return got && ([got[0].replace(/\u00a0/g, " "), got[1]] as const);
+  };
   const now = "2026-10-21";
   const todo = (due: string | null, priority: string | null = null, status = "open") => ({
     kind: "todo",
@@ -51,36 +56,40 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
     due,
     priority,
   });
-  expect(dueOf(todo(null), now)).toBeNull();
-  expect(dueOf({ ...todo("2026-10-01"), kind: "note" }, now)).toBeNull();
-  expect(dueOf(todo(null, "high"), now)).toEqual(["high", "due"]);
-  expect(dueOf(todo("2026-10-21", "low"), now)).toEqual(["low · due today", "due"]);
-  const [late, overdue] = dueOf(todo("2026-10-20"), now) ?? [];
+  expect(due(todo(null), now)).toBeNull();
+  expect(due({ ...todo("2026-10-01"), kind: "note" }, now)).toBeNull();
+  expect(due(todo(null, "high"), now)).toEqual(["high priority", "due"]); // alone: said in full
+  // Each part kept whole: the line breaks only before a "·"
+  const whole = dueOf({ ...todo("2026-10-30", "low"), snoozed_until: "2026-10-25" }, now)?.[0];
+  expect(whole?.split(" ·\u00a0")).toHaveLength(3);
+  expect(whole?.replace(/ ·/g, "")).not.toMatch(/ /);
+  expect(due(todo("2026-10-21", "low"), now)).toEqual(["low · due today", "due"]);
+  const [late, overdue] = due(todo("2026-10-20"), now) ?? [];
   expect([late?.startsWith("overdue "), overdue]).toEqual([true, "due late"]);
   expect(late).toMatch(/20/);
   // Done or cancelled: greyed, its date kept and said as a date, never today or overdue
-  expect(dueOf(todo("2026-10-20", null, "done"), now)?.[1]).toBe("due closed");
-  expect(dueOf(todo("2026-10-20", null, "cancelled"), now)?.[0]).toMatch(/^due \D*\d/);
-  expect(dueOf(todo("2026-10-21", "high", "done"), now)).toEqual([
+  expect(due(todo("2026-10-20", null, "done"), now)?.[1]).toBe("due closed");
+  expect(due(todo("2026-10-20", null, "cancelled"), now)?.[0]).toMatch(/^due \D*\d/);
+  expect(due(todo("2026-10-21", "high", "done"), now)).toEqual([
     `high · due ${new Date("2026-10-21T12:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}`,
     "due closed",
   ]);
-  expect(dueOf(todo("2027-01-02"), now)?.[0]).toMatch(/2027/); // another year: said
+  expect(due(todo("2027-01-02"), now)?.[0]).toMatch(/2027/); // another year: said
   // Snoozed: said after the rest, until its day (and not once done)
   const nap = { ...todo("2026-10-30", "low"), snoozed_until: "2026-10-25" };
-  expect(dueOf(nap, now)?.[0]).toMatch(/^low · due \S+.* · snoozed till \S/);
-  expect(dueOf({ ...todo(null), snoozed_until: "2026-10-25" }, now)?.[0]).toMatch(/^snoozed till /);
-  expect(dueOf({ ...nap, snoozed_until: now }, now)?.[0]).not.toMatch(/snoozed/);
+  expect(due(nap, now)?.[0]).toMatch(/^low · due \S+.* · snoozed till \S/);
+  expect(due({ ...todo(null), snoozed_until: "2026-10-25" }, now)?.[0]).toMatch(/^snoozed till /);
+  expect(due({ ...nap, snoozed_until: now }, now)?.[0]).not.toMatch(/snoozed/);
   expect(snoozed({ ...nap, fields: { status: "done" } }, now)).toBe(false);
   // Task boxes: "2 of 5" while some (not all) are ticked; not once it is done
   const boxes = (done: number, total: number, status = "open") => ({
     ...todo(null, null, status),
     tasks: { done, total },
   });
-  expect(dueOf(boxes(2, 5), now)?.[0]).toBe("2 of 5");
+  expect(due(boxes(2, 5), now)?.[0]).toBe("2 of 5");
   expect(partly(boxes(0, 5))).toBe(false);
   expect(partly(boxes(5, 5))).toBe(false);
-  expect(dueOf(boxes(2, 5, "done"), now)).toBeNull();
-  expect(dueOf({ ...boxes(1, 2), priority: "high" }, now)?.[0]).toBe("high · 1 of 2");
-  expect(dueOf(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);
+  expect(due(boxes(2, 5, "done"), now)).toBeNull();
+  expect(due({ ...boxes(1, 2), priority: "high" }, now)?.[0]).toBe("high priority · 1 of 2");
+  expect(due(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);
 });

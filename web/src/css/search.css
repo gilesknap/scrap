@@ -75,14 +75,7 @@
   padding: 0;
   color: var(--ink-2);
 }
-/* A Recent row's pin, beside its ✕: once pinned, filled (no amber: that is for selection) */
-.list.recents .pin {
-  margin-inline-end: calc(-1 * var(--s-3)); /* pin and ✕ read as a pair */
-}
-.list.recents .pin.on {
-  color: var(--ink);
-}
-:is(.pin, .act).on .i path {
+.act.on .i path {
   fill: currentColor;
 }
 /* Pinned, above Recent: the Pinned page's links, drawn as Recent's rows */
@@ -228,7 +221,9 @@
   margin: 0 0 0 var(--s-3);
 }
 /* The results header, over the list: the count, then Pin and Copy link, two 48 px ghost
-   icon buttons at its end; it takes some of the space around it, so it reads as one quiet line */
+   icon buttons at its end; it takes some of the space around it, so it reads as one quiet line.
+   The Todos and Topics screens draw their count line with it too: there, the actions are
+   Refine (the filter icon) and on Now a quiet "1 snoozed" text button */
 .rhead {
   display: flex;
   align-items: center;
@@ -250,6 +245,11 @@
   width: var(--tap);
   padding: 0;
   color: var(--ink-2);
+}
+.rhead .snoozed {
+  padding: 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
 }
 /* Pinned: the pin filled, on a 36 px amber-soft disc drawn inside the 48 px target */
 .rhead .act.on {

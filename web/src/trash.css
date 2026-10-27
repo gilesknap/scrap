@@ -11,6 +11,12 @@
   line-height: var(--lh-tight);
   white-space: normal; /* when it goes is the point: never cut */
 }
+.trash .list small > span {
+  display: block; /* a line per part: "Deleted 20 Oct", then when it goes */
+}
+.trash .list small > .sep {
+  display: none;
+}
 .trash .list button {
   flex: none;
   min-height: var(--tap);

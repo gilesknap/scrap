@@ -78,7 +78,7 @@ export function dueParts(p: Todo, now = today()): [string, boolean][] | null {
   const late = !!p.due && p.due < now && !shut;
   const day = p.due && (p.due === now && !shut ? "today" : short(p.due, now));
   const said: [string | false | null | undefined, boolean][] = [
-    [p.priority, false],
+    [p.priority && (day ? p.priority : `${p.priority} priority`), false], // "low priority" alone
     [day && `${late ? "overdue" : "due"} ${day}`, late],
     [until && `snoozed till ${short(until, now)}`, false],
     [part, false],
@@ -94,7 +94,12 @@ export function dueOf(p: Todo, now = today()): [string, string] | null {
   const parts = dueParts(p, now);
   if (!parts) return null;
   const late = parts.some(([, l]) => l);
-  return [parts.map(([s]) => s).join(" · "), late ? "due late" : closed(p) ? "due closed" : "due"];
+  // Each part kept whole ("snoozed till 29 Oct" never breaks), the line breaking only before a
+  // "·", which leads the part after it
+  return [
+    parts.map(([s]) => s.replace(/ /g, "\u00a0")).join(" ·\u00a0"),
+    late ? "due late" : closed(p) ? "due closed" : "due",
+  ];
 }
 
 /** What a todo's due chip on its page says: its day and priority ("30 Oct · high", "today"),

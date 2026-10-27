@@ -1,9 +1,4 @@
 /* ---- Todos: Now / Upcoming / All, a ranked list in groups ---- */
-.todos .count {
-  margin: 0 0 var(--s-2);
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
 /* A list in sections (sections.ts): the Todos screen's Now, and the search screen's groups */
 .groups section + section,
 .groups section + .donefold {
@@ -269,4 +264,12 @@
   margin-block: calc((var(--tap) - 1lh) / -2);
   color: inherit;
   text-decoration: none;
+}
+/* With no thumbnail beside it, a todo's title wraps to a second line rather than being cut */
+.todos .list strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
