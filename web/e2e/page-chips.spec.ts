@@ -64,9 +64,9 @@ test("a chip says the last part of its tag, more of the path only to tell two ap
   const [a, b] = [word(), word()];
   const p = await make(page, [`kind${a}/project-management`, `epics${a}/thoth`, `other${b}/thoth`]);
   await page.goto(`/p/${p.slug}`);
-  await expect(tag(page, `kind${a}/project-management`)).toHaveText("#project-management");
+  await expect(tag(page, `kind${a}/project-management`)).toHaveText("#…/project-management"); // "…/": shortened
   // Two end the same: each says the part before as well
-  await expect(tag(page, `epics${a}/thoth`)).toHaveText(`#epics${a}/thoth`);
+  await expect(tag(page, `epics${a}/thoth`)).toHaveText(`#epics${a}/thoth`); // the whole tag: no "…/"
   await expect(tag(page, `other${b}/thoth`)).toHaveText(`#other${b}/thoth`);
   // The full tag stays in the tooltip, and the chip still searches for it, children too
   await expect(tag(page, `kind${a}/project-management`)).toHaveAttribute(
@@ -94,7 +94,7 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   claudes(p.page_id, `ai${a}/robot`);
   await page.goto(`/p/${p.slug}`);
   const ai = row(page).getByRole("link", { name: `Tag ai${a}/robot, added by Claude` });
-  await expect(ai).toHaveText("#robot");
+  await expect(ai).toHaveText("#…/robot");
   await expect(ai).toHaveClass(/\bai\b/);
   const mark = await ai.evaluate((el) => {
     const s = getComputedStyle(el, "::before");
@@ -108,32 +108,28 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   // The tag editor marks it the same way, by the same short name (the full tag its tooltip)
   await row(page).getByRole("button", { name: "Change tags" }).click();
   const chip = page.getByRole("button", { name: `Remove #ai${a}/robot, added by Claude` });
-  await expect(chip).toHaveText("#robot");
+  await expect(chip).toHaveText("#…/robot");
   await expect(chip).toHaveAttribute("title", `#ai${a}/robot, added by Claude`);
   expect(await chip.evaluate((el) => getComputedStyle(el, "::before").content)).toBe('"✦"');
   await expect(page.getByRole("button", { name: `Remove #mine${a}`, exact: true })).toBeVisible();
 });
 
-test("the tag editor and the search chips say the short name, the full path as the tooltip", async ({
+test("the tag editor says the short name (the full path its tooltip), a filter on its full path", async ({
   page,
 }) => {
   const a = word();
   const full = `deep${a}/er/leaf${a}`;
   const p = await make(page, [full]);
   await page.goto(`/p/${p.slug}`);
-  await expect(tag(page, full)).toHaveText(`#leaf${a}`);
+  await expect(tag(page, full)).toHaveText(`#…/leaf${a}`);
   await row(page).getByRole("button", { name: "Change tags" }).click();
   const chip = page.getByRole("button", { name: `Remove #${full}` });
-  await expect(chip).toHaveText(`#leaf${a}`);
+  await expect(chip).toHaveText(`#…/leaf${a}`);
   await expect(chip).toHaveAttribute("title", `#${full}`);
   await page.keyboard.press("Escape");
   await page.goto(`/search?q=tag%3A${encodeURIComponent(full)}`);
   const on = page.getByRole("group", { name: "Filters on" });
-  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#leaf${a}`);
-  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveAttribute(
-    "title",
-    `#${full}`,
-  );
+  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`); // in full: the focus of the search
 });
 
 test("at 390 px and 130% text, tags fold to two rows, then +N shows the rest in place", async ({

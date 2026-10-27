@@ -148,6 +148,20 @@
   gap: var(--s-2);
   margin: calc(-1 * var(--s-1)) 0 var(--s-1);
 }
+/* A tag filter says its full path: a long one wraps inside its chip, after a "/" (or anywhere,
+   a part longer than the line), never wider than the screen; the ✕ stays at its end */
+.fon .facet {
+  max-width: 100%;
+  padding-block: var(--s-1);
+  white-space: normal;
+  text-align: start;
+}
+.fon .facet .i {
+  flex: none;
+}
+.tl.full {
+  overflow-wrap: anywhere;
+}
 /* The Filters panel, under the box: each row's heading over its chips, which wrap */
 .fpanel {
   display: flex;
@@ -293,6 +307,11 @@
 .facet.on .i {
   width: 16px;
   height: 16px;
+}
+/* A shortened tag's "…/" (taglabel.ts): what is left out of its path, quiet beside its name */
+.tl .more {
+  color: var(--ink-2);
+  font-weight: 400;
 }
 .range {
   display: flex;
@@ -446,7 +465,7 @@
 .pick .facet {
   max-width: 100%;
 }
-.pick .facet span {
+.pick .facet > span {
   overflow: hidden;
   text-overflow: ellipsis; /* a name longer than the row: cut, not wider than the screen */
 }

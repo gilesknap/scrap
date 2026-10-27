@@ -3,20 +3,16 @@
 // with a ✕; offered tags are outlined chips under the box, one tap each, that wrap to at most
 // two rows (measured: those that would start a third are left out, no "+N": typing narrows
 // them). Each says its short name (tagname.ts, as on a page's chip row: the last part, more of
-// the path only where two shown would clash); the full tag is in its tooltip and accessible
-// name. Claude's are marked ✦, as on the page.
+// the path only where two shown would clash, "…/" marking what is left out: taglabel.ts); the
+// full tag is in its tooltip and accessible name. Claude's are marked ✦, as on the page. Not
+// the whole path, however faint: at a large text size (130%) such a chip took a row of its own.
 import { icon } from "./icons";
+import { tagLabel } from "./taglabel";
 import { tagNames } from "./tagname";
 import { h } from "./ui";
 
 const ROWS = 2;
 const DOUBLE = 400; // ms: a second tap on the offers sooner than this is a double tap, ignored
-
-/** A tag's label: its short name ("#project-management" for kind/project-management, or
- * "#epics/thoth" beside other/thoth), as on a page's chip row. Not the rest of its path too,
- * however faint: at a large text size (130%) a chip with it took a row of its own, and two rows
- * offered one or two tags; the full tag is in the chip's tooltip and accessible name. */
-const tagLabel = (name: string) => h("span", { dir: "auto" }, `#${name}`);
 
 /** The chosen tags as filled chips, each with a ✕ (remove): Claude's (in claude) marked ✦.
  * also: the tags offered beside them, whose names they are told apart from. */
@@ -39,7 +35,7 @@ export function chosenChips(
         title: said,
         onclick: (e: Event) => remove(t, e),
       },
-      tagLabel(names.get(t) ?? t),
+      tagLabel(t, names.get(t)),
       icon("close"),
     );
   });
@@ -109,7 +105,7 @@ export function offerRow(label: string, lead?: HTMLElement): Offers {
               pick(t, e);
             },
           },
-          tagLabel(names.get(t) ?? t),
+          tagLabel(t, names.get(t)),
           n !== undefined && h("small", {}, String(n)),
         ),
       );

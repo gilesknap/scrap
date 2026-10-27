@@ -7,6 +7,7 @@ import { icon, kindIcon } from "./icons";
 import { KINDS } from "./kinds";
 import { edited, metaParts } from "./pagemeta";
 import { closed, dueChip } from "./status";
+import { tagLabel } from "./taglabel";
 import { tagNames } from "./tagname";
 import { token } from "./terms";
 import { h, whenShort } from "./ui";
@@ -97,7 +98,7 @@ export function chipRow(p: Page, on: Edits): HTMLElement {
         title: name,
         ...(ai && { className: "ai" }),
       },
-      h("span", { dir: "auto" }, `#${names.get(t)}`),
+      tagLabel(t, names.get(t)),
     );
   };
   // Not "Edit tags": the toolbar's Edit stays the only button named Edit

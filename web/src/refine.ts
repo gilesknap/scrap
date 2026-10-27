@@ -13,7 +13,8 @@ import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
 import { actions, offerNew } from "./searchacts";
-import { matching, tagNames } from "./tagname";
+import { fullLabel } from "./taglabel";
+import { matching } from "./tagname";
 import { offerRow } from "./tagpick";
 import { MEDIA, removing, withGroup } from "./termedit";
 import {
@@ -187,14 +188,13 @@ export async function refine(
     );
   // The filters on, as chips on a row of their own under the kinds, wrapping (none: no row):
   // each says what it is ("#home", "past month") and a tap takes it off
-  // (a tag by its short name, as the Tags row offers it: the full tag in its tooltip)
-  const names = tagNames(on.filter((a) => a.key === "tag").map((a) => a.value));
+  // A tag filter in full ("#tech/epics/thoth"): what the search is about, and only one or two,
+  // so not shortened as the Tags row's offers are; it breaks after a "/" when it must
   const chips = on.map((a) => {
     const said =
-      a.key === "tag" ? `${a.neg ? "not " : ""}#${names.get(a.value) ?? a.value}` : label(a);
+      a.key === "tag" ? h("span", {}, a.neg ? "not " : "", fullLabel(a.value)) : label(a);
     const b = chip(said, null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
-    if (a.key === "tag") b.title = label(a);
     b.dataset.k = `off:${a.token}`;
     return b;
   });
