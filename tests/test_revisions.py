@@ -539,17 +539,15 @@ def test_a_fields_change_in_a_batch_is_reverted_with_its_values(store):
     a, b = later(store, "A", media_type="book"), later(store, "B")
     out = ok(
         store, "edit_meta", pages=[a["slug"], b["slug"]],
-        fields={"media_type": "game", "note": "x"},
+        fields={"media_type": "game"},
     )  # fmt: skip
     batch = out["batch"]
     assert batch and store.page(a["slug"])["fields"]["subtype"] == "play"
-    assert store.page(a["slug"])["fields"]["note"] == "x"
     undo = ok(store, "revert", batch=batch)
     assert undo["reverts_batch"] == batch
     fa, fb = store.page(a["slug"])["fields"], store.page(b["slug"])["fields"]
     assert (fa["media_type"], fa["subtype"]) == ("book", "read")  # changed back
     assert "media_type" not in fb and fb["subtype"] == "read"  # taken off / back
-    assert "note" not in fa and "note" not in fb
     # and the revert is undone in turn
     ok(store, "revert", batch=undo["batch"])
     assert store.page(a["slug"])["fields"]["media_type"] == "game"
@@ -557,12 +555,15 @@ def test_a_fields_change_in_a_batch_is_reverted_with_its_values(store):
 
 
 def test_a_field_can_be_taken_off_and_reverted(store):
-    ref = later(store, "A", media_type="tv", subtype="watch", extra="y")
-    out = ok(store, "edit_meta", pages=[ref["slug"]], fields={"extra": None})
-    assert out["pages"][0]["fields_was"] == {"extra": "y"}
-    assert "extra" not in store.page(ref["slug"])["fields"]
+    ref = later(store, "A", media_type="tv", subtype="watch")
+    for made in meta(store, ref["slug"]):
+        age(store, made["id"])  # the kind change is its own revision
+    out = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": None})
+    assert out["pages"][0]["fields_was"] == {"media_type": "tv", "subtype": "watch"}
+    assert "media_type" not in store.page(ref["slug"])["fields"]
     ok(store, "revert", revision=out["pages"][0]["revision"])
-    assert store.page(ref["slug"])["fields"]["extra"] == "y"
+    fields = store.page(ref["slug"])["fields"]
+    assert (fields["media_type"], fields["subtype"]) == ("tv", "watch")
 
 
 def test_a_revert_keeps_a_field_changed_since(store):
@@ -583,7 +584,7 @@ def test_edit_meta_refuses_bad_fields(store):
     assert "media_type must be" in refused(
         store, "edit_meta", pages=[key], fields={"media_type": "pigeon"}
     )
-    assert "at most +-2**53" in refused(
+    assert "cannot be set here" in refused(
         store, "edit_meta", pages=[key], fields={"x": 2**60}
     )
     assert "nothing to change" in refused(store, "edit_meta", pages=[key])
@@ -606,16 +607,13 @@ def test_folded_field_edits_revert_to_what_was_never_there(store):
     assert "media_type" not in fields and fields["subtype"] == "read"
 
 
-def test_edit_meta_refuses_reserved_long_and_unpaired_fields(store):
+def test_edit_meta_refuses_reserved_and_unpaired_fields(store):
     ref = later(store, "A")
     key = ref["slug"]
-    for name in ("personal", "source", "summary"):
-        assert "meaning of its own" in refused(
+    for name in ("personal", "source", "summary", "title", "body", "_x", ""):
+        assert "cannot be set here" in refused(
             store, "edit_meta", pages=[key], fields={name: "x"}
         )
-    assert "at most 200" in refused(
-        store, "edit_meta", pages=[key], fields={"note": "x" * 201}
-    )
     note = human(store, "Plain")  # not a Later: media_type would pair with read
     assert "make it one first" in refused(
         store, "edit_meta", pages=[note["slug"]], fields={"media_type": "film"}

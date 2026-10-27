@@ -61,14 +61,14 @@ writing; reuse existing tags (the tags tool). write only adds new pages, or appe
 pages written over MCP. {text}{purge} The trash tool lists it (with when each page
 is purged), read and revisions show a trashed page read only
 (trashed: true), and {restore}every other tool treats it as absent. edit_meta and
-rename_tag change only kinds and tags (edit_meta also a todo's status, to tick it done
-or reopen it, and its due, priority and snoozed_until), of any page: each change is a
-revision (the revisions tool; with no page or batch it lists what changed recently,
-across pages) that revert undoes. Revisions cover only the user's and your changes to
-text, kinds, tags and fields (media_type, status; a todo's due, priority,
-snoozed_until), and moves into and out of the trash: what scrap's Claude enrichment
-adds (summary, model tags, related pages, a board's write-up; read's by_model) is not
-in them, and revert cannot undo it. Try a bulk change with dry_run first.
+rename_tag change only kinds and tags (edit_meta's fields are only media_type, status
+and a todo's due, priority, snoozed_until), of any page: each change is a revision
+(the revisions tool; with no page or batch it lists what changed recently, across
+pages) that revert undoes. Revisions cover only the user's and your changes to text,
+kinds, tags and fields (media_type, status; a todo's due, priority, snoozed_until),
+and moves into and out of the trash: what scrap's Claude enrichment adds (summary,
+model tags, related pages, a board's write-up; read's by_model) is not in them, and
+revert cannot undo it. Try a bulk change with dry_run first.
 A page URL (https://<host>/p/<slug>) names the page <slug>: give the URL, or the slug,
 as a tool's page."""
 UNDELETE = """\

@@ -50,10 +50,10 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
             Field(
                 max_length=MAX_TAGS,
                 description=(
-                    "Fields to set on every page (null takes one off): media_type, "
-                    "status (open, in_progress, done, cancelled) of a todo or Later, "
-                    "or a todo's due, snoozed_until (YYYY-MM-DD) or priority "
-                    "(high, medium, low)"
+                    "Fields to set on every page (null takes one off, not status), "
+                    "only these (any other is refused): media_type, status (open, "
+                    "in_progress, done, cancelled) of a todo or Later, or a todo's "
+                    "due, snoozed_until (YYYY-MM-DD) or priority (high, medium, low)"
                 ),
             ),
         ] = None,
@@ -65,7 +65,7 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
         than limit). A kind given is fixed (ingest and task boxes no longer change it),
         as when the user picks one, and adds that kind's default fields it lacks. Tags:
         add_tags and remove_tags (exact: removing a leaves a/b), or set_tags to
-        replace them all. fields: values for the pages' fields, such as a Later's
+        replace them all. fields: only these, any other name refused: a Later's
         media_type (book, article, film, tv, video, podcast, music or game; its subtype,
         what it is for, follows and is never set on its own), or a todo's or Later's
         status (open, in_progress, done, cancelled: {"status": "done"} ticks a todo
