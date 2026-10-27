@@ -34,9 +34,17 @@ from .trash_revs import add_trash_revs
 
 
 def migrations() -> list[str]:
-    """The numbered migration scripts, in order: script N sets user_version N."""
+    """The numbered migration scripts, in order: script N sets user_version N. The
+    generated baseline.sql (store/baseline.py) is not one: numbered names only."""
     folder = package_files("scrap") / "migrations"
-    scripts = sorted((p for p in folder.iterdir() if p.name.endswith(".sql")), key=str)
+    scripts = sorted(
+        (
+            p
+            for p in folder.iterdir()
+            if p.name[:1].isdigit() and p.name.endswith(".sql")
+        ),
+        key=str,
+    )
     return [p.read_text() for p in scripts]
 
 
