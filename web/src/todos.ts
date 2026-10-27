@@ -1,5 +1,5 @@
 // The Todos screen: what to do now, first (now.ts ranks it). A switch on top picks the list:
-// Now (open todos: overdue, today, high priority with no date, then the rest; done ones
+// Now (open todos: overdue, today, high priority dated or not, then the rest; done ones
 // folded away at the end), Upcoming (due from tomorrow to a week away) or All (last edited first). The address
 // says which (/todos, /todos?view=upcoming, /todos?view=all), so Back and a reload come back
 // to it. Rows are the search screen's: tick, swipe, a pager through the list. A lazy chunk.

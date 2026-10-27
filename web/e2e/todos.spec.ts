@@ -1,4 +1,4 @@
-// The Todos screen: Now (overdue, today, high priority with no date, then the rest; done
+// The Todos screen: Now (overdue, today, high priority dated or not, then the rest; done
 // ones folded away), Upcoming and All, the switch in the address, and its rows' tick.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
@@ -44,10 +44,11 @@ test.beforeAll(async ({ request }) => {
   made.soonMedium = await todo(page, `${Q} later medium`, { due: day(3), priority: "medium" });
   made.lateNew = await todo(page, `${Q} late new`, { due: day(-1), priority: "high" });
   made.todayLow = await todo(page, `${Q} today low`, { due: day(0), priority: "low" });
+  // The dated high made before the undated one: it leads High priority by its date, not by edit
+  made.farHigh = await todo(page, `${Q} later high`, { due: day(10), priority: "high" });
   made.high = await todo(page, `${Q} high no date`, { priority: "high" });
   made.lateOld = await todo(page, `${Q} late old`, { due: day(-5), priority: "low" });
   made.todayHigh = await todo(page, `${Q} today high`, { due: day(0), priority: "high" });
-  made.farHigh = await todo(page, `${Q} later high`, { due: day(10), priority: "high" });
   made.done = await todo(page, `${Q} done`, { due: day(-3) });
   await request.patch(`/api/pages/${made.done.page_id}`, { data: { fields: { status: "done" } } });
 });
@@ -72,14 +73,16 @@ test("Now ranks open todos: overdue, today, high priority, then the rest", async
       `${Q} late new`,
       `${Q} today high`,
       `${Q} today low`,
+      `${Q} later high`, // a date is a promise: dated before undated, in High priority
       `${Q} high no date`,
-      `${Q} later high`,
       `${Q} later medium`,
       `${Q} later none`,
     ]);
   const section = (name: string) => page.getByRole("region", { name: new RegExp(`^${name}`) });
   await expect(section("Overdue").getByText(`${Q} late old`)).toBeVisible();
   await expect(section("Today").getByText(`${Q} today high`)).toBeVisible();
+  await expect(section("High priority").getByText(`${Q} later high`)).toBeVisible();
+  await expect(section("Open").getByText(`${Q} later high`)).toHaveCount(0);
   // Each row says its priority and due date first; overdue in words (and red)
   const late = page.locator(".list li", { hasText: `${Q} late old` }).locator(".due");
   await expect(late).toHaveText(/^low\s·\soverdue\s/); // the parts hold their no-break spaces

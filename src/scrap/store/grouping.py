@@ -60,8 +60,9 @@ def now_key(
     kind: str, fields: str, due: str | None, priority: str | None,
     snoozed_until: str | None, updated_at: str, today: str, ranked: int,
 ) -> str:  # fmt: skip
-    """A page's place in Now (now.ts): Overdue, Today, High priority with no date, then
-    Open; Snoozed; then Done. ranked: each section in now.ts's own order, else the
+    """A page's place in Now (now.ts): Overdue, Today, High priority (dated or not,
+    soonest due first), then Open; Snoozed; then Done. A dated todo never ranks below an
+    undated one of its priority. ranked: each section in now.ts's own order, else the
     caller's."""
     if _closed(kind, fields):
         return LAST
@@ -70,14 +71,14 @@ def now_key(
     section = (
         0 if due and due < today
         else 1 if due == today
-        else 2 if not due and priority == "high"
+        else 2 if priority == "high"
         else 3
     )  # fmt: skip
     if not ranked:
         return str(section)
     recent, rank, when = updated_at.translate(NEWEST), _rank(priority), due or "~"
     order = (
-        (when, rank, recent), (rank, recent), (recent,), (rank, when, recent)
+        (when, rank, recent), (rank, recent), (when, recent), (rank, when, recent)
     )[section]  # fmt: skip
     return "|".join((str(section), *order))
 

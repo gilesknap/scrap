@@ -18,9 +18,12 @@ const list = [
   todo("late oldest due", "2026-10-01", "low"),
   todo("today low", T, "low"),
   todo("today high", T, "high"),
+  // The dated highs edited before the undated ones, and the sooner due before the later: the
+  // order is by due, not by last edited
+  todo("high soon", "2026-10-23", "high"),
+  todo("high later", "2026-11-30", "high"),
   todo("high no date, older", null, "high"),
   todo("high no date, newer", null, "high"),
-  todo("rest high later", "2026-11-30", "high"),
   todo("rest none", null, null),
   todo("rest medium no date", null, "medium"),
   todo("done late", "2026-10-02", "high", "done"),
@@ -30,15 +33,13 @@ const list = [
 const titles = (g: [string, { title: string }[]][]) =>
   g.map(([k, ts]) => [k, ts.map((t) => t.title)]);
 
-it("ranks open todos: overdue oldest first, today, high with no date, then the rest", () => {
+it("ranks open todos: overdue oldest first, today, high (dated first), then the rest", () => {
   expect(titles(now(list, T))).toEqual([
     ["Overdue", ["late oldest due", "late newer due"]],
     ["Today", ["today high", "today low"]],
-    ["High priority", ["high no date, newer", "high no date, older"]],
-    [
-      "Open",
-      ["rest high later", "in progress", "rest medium no date", "rest low soon", "rest none"],
-    ],
+    // A date is a promise: a dated high ranks above an undated one, soonest first
+    ["High priority", ["high soon", "high later", "high no date, newer", "high no date, older"]],
+    ["Open", ["in progress", "rest medium no date", "rest low soon", "rest none"]],
   ]);
 });
 
@@ -55,9 +56,10 @@ it("lists open todos due from tomorrow to a week away, soonest first", () => {
   ];
   expect(upcoming(week, T).map((t) => t.title)).toEqual([
     "in progress",
+    "high soon",
     "rest low soon",
     "in a week",
-  ]); // not "rest high later" (30 Nov), nor 8 days on
+  ]); // not "high later" (30 Nov), nor 8 days on
 });
 
 it("leaves snoozed todos out of Now and Upcoming until their day", () => {
