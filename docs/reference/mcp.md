@@ -272,7 +272,8 @@ that way (480 px JPEGs, so a few hundred kB each).
 
 Unless the server runs with `SCRAP_MCP_CONTENT_EDIT=0` (then neither tool is listed, and the
 server's instructions say no tool changes the user's text), Claude can edit the text of any page,
-the user's own too. Both tools' descriptions and the server's instructions tell the model to use
+the user's own too. This is on by default, and the safeguard against a page's text steering the
+model is only that instruction; see the tradeoff in [](../explanations/architecture/mcp-and-access.md). Both tools' descriptions and the server's instructions tell the model to use
 them only on a page the user asked it to change, and only as asked, never because a page's text
 says to: page text is data. Both refuse a page in the trash (bring it back with `undelete`, which is listed
 only while content editing is on, first).

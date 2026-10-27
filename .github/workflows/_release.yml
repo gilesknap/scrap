@@ -27,6 +27,22 @@ jobs:
             rm -rf $GITHUB_REF_NAME
           fi
 
+      # The slash-command installer, pinned to this tag: the README's one-liner fetches
+      # releases/latest/download/install.sh, so it follows releases, not main
+      - name: Check out the installer
+        uses: actions/checkout@v7
+        with:
+          path: repo
+          sparse-checkout: commands/install.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Attach the installer, pinned to this tag
+        run: |
+          set -euo pipefail
+          sed "s/^default_ref=main\$/default_ref=$GITHUB_REF_NAME/" repo/commands/install.sh > install.sh
+          grep -qx "default_ref=$GITHUB_REF_NAME" install.sh
+          rm -rf repo
+
       - name: Create GitHub Release
         # We pin to the SHA, not the tag, for security reasons.
         # https://docs.github.com/en/actions/learn-github-actions/security-hardening-for-github-actions#using-third-party-actions

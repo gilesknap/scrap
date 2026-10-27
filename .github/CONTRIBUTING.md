@@ -204,7 +204,7 @@ Releases are cut by pushing a tag. The tag is the version, with no `v` prefix
 
 The CI workflow then runs on the tag. The GitHub Release is created once the
 `dist`, `test`, `docs` and `web` jobs have passed. It has generated release
-notes with the sdist, the wheel and `docs.zip` attached. In parallel:
+notes with the sdist, the wheel, `docs.zip` and `install.sh` attached. In parallel:
 
 - The image is built natively for amd64 and arm64, each on a runner of that
   architecture, while the tests run, and each is pushed by digest only. Once
@@ -218,7 +218,12 @@ notes with the sdist, the wheel and `docs.zip` attached. In parallel:
 Things to know:
 
 - A tag containing `a`, `b` or `rc` (such as `0.2.0rc1`) is marked as a
-  pre-release on GitHub, but the image is still also tagged `latest`.
+  pre-release on GitHub, and its image is not tagged `latest` (only a tag
+  without `-`, `a`, `b` or `rc` moves it).
+- The release also has `install.sh` attached: `commands/install.sh` with its
+  `default_ref` set to the tag, so the README's one-liner
+  (`releases/latest/download/install.sh`) installs the commands of the latest
+  release, not of `main`. Nothing to edit per release.
 - The **Chart** workflow is separate. On a tag it packages the chart with
   `version` and `appVersion` taken from the tag and pushes it to
   `oci://ghcr.io/gilesknap/charts/scrap`. A pre-release tag `X.Y.ZrcN` (or `aN`,
