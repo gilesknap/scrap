@@ -111,7 +111,7 @@ fixed dark `#161411`.
 | `--sunk` | `#ece7dd` | `#2c2723` | wells: tiles, segmented track, placeholders, pressed |
 | `--ink` | `#1e1b16` | `#f2ece1` | text |
 | `--ink-2` | `#5c564c` | `#b8b0a2` | secondary text: dates, hints |
-| `--ink-3` | `#736c61` | `#958d80` | placeholders, captions |
+| `--ink-3` | `#6e675c` | `#958d80` | placeholders, captions |
 | `--line` | `#e2dccf` | `#423b33` | hairlines (decorative) |
 | `--line-strong` | `#8f8778` | `#706858` | field and control edges |
 | `--accent` | `#eba13a` | `#f0ac4b` | the hero's fill, the badge dot, a selected segment's icon, a new topic's dot |
