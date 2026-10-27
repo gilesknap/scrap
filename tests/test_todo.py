@@ -1,4 +1,4 @@
-"""Todo richness (#104): a todo's due date and priority, typed columns of its page."""
+"""Todo richness (#104): a todo's due date and priority, in its page_todo row."""
 
 from contextlib import closing
 
@@ -87,7 +87,7 @@ def test_capture_takes_due_and_priority_for_a_todo(client, note):
     assert client.get(f"/api/pages/{ref['page_id']}").json()["due"] == "2026-11-03"
 
 
-def test_import_moves_due_and_priority_into_their_columns(tmp_path):
+def test_import_moves_due_and_priority_into_the_todo_row(tmp_path):
     store = Store(tmp_path)
     store.migrate()
 

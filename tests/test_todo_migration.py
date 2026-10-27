@@ -14,7 +14,8 @@ from datetime import date, timedelta
 import pytest
 
 from scrap import backup
-from scrap.store import Store, connect, migrations, new_ulid
+from scrap.__main__ import main
+from scrap.store import Store, connect, migrations, new_ulid, todo
 from scrap.store.constants import REV_INSERT
 from scrap.store.db import AFTER
 from scrap.store.indexing import index_page
@@ -203,3 +204,36 @@ def test_the_searches_find_something_before_and_after(store):
     assert set(hits["is:snoozed"]) == {"snz-future", "all-three"}
     assert "old-stale" in hits["is:stale"]
     assert hits["due:none"]
+
+
+def test_writes_and_a_round_trip_still_work_on_the_migrated_database(store, tmp_path):
+    store.migrate()
+    clear = dict.fromkeys(todo.NAMES)
+
+    def edit(slug, values):
+        page = store.page(slug)
+        store.update_page(slug, page["rev"], None, None, "me", todo=values)
+
+    assert table_rows(store)["due-only"] == (day(5), None, None)
+    edit("due-only", {"due": None})  # the last value: the row goes
+    assert "due-only" not in table_rows(store)
+    edit("none-set", {"priority": "low"})  # a migrated todo with none: a row
+    assert table_rows(store)["none-set"] == (None, "low", None)
+    edit("all-three", {"priority": None, "due": day(9)})  # change and clear
+    assert table_rows(store)["all-three"] == (day(9), None, day(1))
+    edit("all-three", clear)
+    assert "all-three" not in table_rows(store)
+    # export, then import into a new store: the three values come back
+    edit("all-three", {"due": day(2), "priority": "high", "snoozed_until": day(1)})
+    out = tmp_path / "md"
+    main(["export", "--data-dir", str(store.dir), str(out)])
+    other = tmp_path / "other"
+    main(["import", "--data-dir", str(other), str(out)])
+    with closing(connect(Store(other).db)) as conn:
+        got = conn.execute(
+            "SELECT t.* FROM page_todo t JOIN page ON id = page_id"
+            " WHERE slug = 'all-three'"
+        ).fetchone()
+    assert (got["due"], got["priority"], got["snoozed_until"]) == (
+        day(2), "high", day(1),
+    )  # fmt: skip

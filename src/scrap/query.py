@@ -38,7 +38,7 @@ MEDIA = {
     "book": "read", "article": "read", "film": "watch", "tv": "watch",
     "video": "watch", "podcast": "listen", "music": "listen", "game": "play",
 }  # fmt: skip
-# A todo's priorities, highest first (the page.priority column's CHECK has them too)
+# A todo's priorities, highest first (page_todo.priority's CHECK has them too)
 PRIORITIES = ("high", "medium", "low")
 # due:D compares a todo's due day with D: a date, or one of these days from today
 DAYS_FROM_TODAY = {"yesterday": -1, "today": 0, "tomorrow": 1}

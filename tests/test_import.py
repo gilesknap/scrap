@@ -146,7 +146,7 @@ def test_kinds_fields_tags_and_dates(tmp_path, vault):
         "loose-page": "note",
     }
     assert all(r["kind_fixed"] == 1 for r in rows.values())
-    # a todo's due date and priority are columns of its own (#104), not fields
+    # a todo's due date and priority are in page_todo (#104), not fields
     assert json.loads(rows["do-it"]["fields"]) == {"status": "open"}
     assert (rows["do-it"]["due"], rows["do-it"]["priority"]) == ("2025-06-01", "high")
     assert json.loads(rows["a-show"]["fields"]) == {
