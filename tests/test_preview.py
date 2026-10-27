@@ -265,3 +265,25 @@ def test_the_colour_profile_is_kept(client, upload):
     cmyk = io.BytesIO()  # a profile for another colour space is dropped
     Image.new("CMYK", (40, 30)).save(cmyk, "JPEG", icc_profile=srgb)
     assert "icc_profile" not in get_preview(client, upload(cmyk.getvalue())).info
+
+
+def webp(size, mode="RGB"):
+    out = io.BytesIO()
+    Image.new(mode, size, "red").save(out, "WEBP")
+    return out.getvalue()
+
+
+def test_a_webp_is_costed_at_its_measured_peak():
+    im = Image.open(io.BytesIO(webp((6000, 5000))))  # 30 MP peaked at ~460 MB
+    assert preview._cost(im) > preview.DECODE_BUDGET
+
+
+def test_a_webp_over_the_budget_is_refused_and_a_normal_one_previews(client, upload):
+    big = upload(webp((6000, 5000)), "big.webp", "image/webp")  # 30 MP: ~460 MB peak
+    response = client.get(f"/api/blobs/{big}/preview?size=480")
+    assert response.status_code == 422
+    assert response.json()["detail"] == "image too large to preview"
+    small = upload(webp((1200, 800)), "ok.webp", "image/webp")
+    response = client.get(f"/api/blobs/{small}/preview?size=480")
+    assert response.status_code == 200
+    assert Image.open(io.BytesIO(response.content)).width == 480

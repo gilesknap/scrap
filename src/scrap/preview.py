@@ -38,7 +38,7 @@ SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 # 48 MP fits), 80 MP for a PNG, 47 MP with transparency; a JPEG is decoded shrunk, so
 # even 120 MP fits. Measured peak RSS over the process's own: 48 MP HEIC 330 MB, 12 MP
 # HEIC 90 MB, 40 MP PNG 200 MB (with transparency 355 MB), 100 MP PNG 470 MB (refused
-# now), 120 MP JPEG 60 MB.
+# now), 120 MP JPEG 60 MB, 30 MP WebP 460 MB (so one over 26 MP is refused).
 DECODE_BUDGET = 400 * 2**20
 CLAUDE_EDGE, CLAUDE_TOKENS = 2048, 4784  # the high-resolution image cap
 CLI_EDGE = 2000  # claude -p rescales a longer edge, so none is sent (ADR 0021)
@@ -59,6 +59,8 @@ def _cost(im: Image.Image) -> int:
     pixels = im.width * im.height
     if im.format == "HEIF":
         return pixels * 8  # libheif's YCbCr planes as well as the RGB
+    if im.format == "WEBP":
+        return pixels * 16  # measured ~15 bytes a pixel: 3x what the rest would say
     alpha = "A" in im.getbands() or "transparency" in im.info
     if len(im.getbands()) > 1 or im.mode in ("P", "1"):
         store = 4
