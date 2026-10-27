@@ -4,6 +4,8 @@ the release job rewrites its `default_ref=main` line to the tag."""
 import subprocess
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parents[1] / "commands" / "install.sh"
 
 
@@ -57,8 +59,12 @@ def test_scrap_ref_overrides(tmp_path):
     assert run(SCRIPT, tmp_path, SCRAP_REF="x").strip().endswith("/archive/x.tar.gz")
 
 
-def test_it_installs_the_commands_and_the_skill(tmp_path):
-    """One install step copies commands/*.md and skills/scrap-links from the archive."""
+@pytest.mark.parametrize("has_skill", [True, False])
+def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
+    """One install step copies commands/*.md and skills/scrap-links from the archive.
+
+    An older ref without skills/ installs the commands and keeps an existing skill.
+    """
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     (bin_dir / "curl").write_text("#!/bin/sh\n")
@@ -66,13 +72,20 @@ def test_it_installs_the_commands_and_the_skill(tmp_path):
     (bin_dir / "tar").write_text(
         "#!/bin/sh\n"
         'cat >/dev/null; d="$3/scrap-main"\n'
-        'mkdir -p "$d/commands" "$d/skills/scrap-links"\n'
+        'mkdir -p "$d/commands"\n'
         'echo cmd > "$d/commands/sc-find.md"\n'
-        'echo skill > "$d/skills/scrap-links/SKILL.md"\n'
+        + (
+            'mkdir -p "$d/skills/scrap-links"\n'
+            'echo skill > "$d/skills/scrap-links/SKILL.md"\n'
+            if has_skill
+            else ""
+        )
     )
     for tool in ("curl", "tar"):
         (bin_dir / tool).chmod(0o755)
     cmds, skills = tmp_path / "cmds", tmp_path / "skills"
+    (skills / "scrap-links").mkdir(parents=True)
+    (skills / "scrap-links" / "SKILL.md").write_text("old\n")
     done = subprocess.run(
         ["sh", str(SCRIPT)],
         env={
@@ -86,4 +99,5 @@ def test_it_installs_the_commands_and_the_skill(tmp_path):
     )
     assert done.returncode == 0, done.stderr
     assert (cmds / "sc-find.md").read_text() == "cmd\n"
-    assert (skills / "scrap-links" / "SKILL.md").read_text() == "skill\n"
+    want = "skill\n" if has_skill else "old\n"
+    assert (skills / "scrap-links" / "SKILL.md").read_text() == want

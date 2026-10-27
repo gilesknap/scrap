@@ -179,7 +179,7 @@ line.
 | `/sc-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
 | `/sc-undo` | Lists recent `revisions` and `revert`s the one you name. |
 | `/sc-write <what>` | Writes one new page from your instructions, picking out only what you ask for from the conversation ("the URLs we discussed and why"). Uses only the conversation, lists anything uncertain under *Unsure*, and reuses existing tags. Always creates a page. |
-| `/sc-answer <question>` | Answers from scrap alone: searches, reads the pages, and cites them as `[[slug\|title]]`; says "not in scrap" rather than using general knowledge. Read-only. |
+| `/sc-answer <question>` | Answers from scrap alone: searches, reads the pages, and cites them as links; says "not in scrap" rather than using general knowledge. Read-only. |
 | `/sc-edit <page> <change>` | Changes the text of an existing page with `edit_page`: a `dry_run` diff first, then the edit once you agree. `/sc-undo` reverts it. |
 | `/sc-done <todo>` | Ticks off a todo's task boxes with `edit_page` (the todo becomes `done` when all are ticked). A todo with no task boxes cannot be closed over MCP: mark it in the app. |
 | `/sc-recent [period]` | What changed lately (default `1d`), by you and by Claude, from the `revisions` feed and `search`. Read-only. |
@@ -204,7 +204,7 @@ scrap, not only in the `sc` commands: a todo, note or search result is shown as
 `~/.claude/skills/scrap-links` (set `CLAUDE_SKILLS_DIR` to put it elsewhere, such as
 `.claude/skills` for one project). From a clone you can copy the folder yourself, or symlink it:
 `ln -sfn "$PWD"/skills/scrap-links ~/.claude/skills/`. To check it is loaded, start a new Claude
-Code session: `scrap-links` is in the skill list (`/skills`, or ask "what skills do you have"),
+Code session: `scrap-links` is listed when you ask "what skills do you have",
 and asking "what todos are for today" lists every todo as a link.
 
 These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the

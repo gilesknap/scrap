@@ -5,7 +5,7 @@ description: Use whenever an answer mentions, lists, summarises or recommends an
 
 Any answer that surfaces scrap items must link every one of them.
 
-- Render each item as `[Title](url)` using the `url` field from the tool result. If a result has no `url`, build `<SCRAP_URL>/p/<slug>`, where `<SCRAP_URL>` is the address scrap is served at: the host of the `url` fields other results returned, or ask the user.
+- Render each item as `[Title](url)` using the `url` field from the tool result. If a result has no `url`, or it is a bare path (`/p/<slug>`, when the server has no `SCRAP_PUBLIC_URL`), build `<SCRAP_URL>/p/<slug>`, where `<SCRAP_URL>` is the address scrap is served at: the host of other results' `url` fields, else the address the scrap MCP server was added with (`claude mcp list`, without `/mcp`).
 - Never print a bare slug, id or plain title for an item the user might want to open. Plain titles are fine only when quoting something already linked earlier in the same answer.
 - This applies to every scrap tool: search, read, topics, revisions, trash, tags results, and to items you mention in passing (related pages, duplicates, things you changed).
 - Keep each line short: link, then the useful facts (status, due, priority, checklist progress, tags) as appropriate to the question.

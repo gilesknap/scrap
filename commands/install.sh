@@ -22,9 +22,14 @@ curl -fsSL "https://github.com/gilesknap/scrap/archive/$ref.tar.gz" |
 mkdir -p "$dest"
 cp "$tmp"/*/commands/*.md "$dest"/
 rm -f "$dest/sc-session.md"  # folded into /sc-summarise all
-mkdir -p "$skills"
-rm -rf "$skills/scrap-links"
-cp -R "$tmp"/*/skills/scrap-links "$skills"/
 echo "Installed: $(cd "$tmp"/*/commands && echo *.md) -> $dest"
-echo "Installed: scrap-links skill -> $skills/scrap-links"
+skill=$(echo "$tmp"/*/skills/scrap-links)
+if [ -d "$skill" ]; then
+    mkdir -p "$skills"
+    rm -rf "$skills/scrap-links"
+    cp -R "$skill" "$skills"/
+    echo "Installed: scrap-links skill -> $skills/scrap-links"
+else
+    echo "No scrap-links skill in $ref: skipped"
+fi
 echo "Start a new Claude Code session and type /sc."
