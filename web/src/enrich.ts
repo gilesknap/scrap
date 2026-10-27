@@ -7,6 +7,7 @@
 // are marked in the tag line (page.ts). A chunk of its own: the page view loads it when the
 // page has any of it.
 import { ApiError, api, kept, type Page } from "./api";
+import { icon, kindIcon } from "./icons";
 import { sourcesFold, topicsLine } from "./topic";
 import { h, toast } from "./ui";
 import type { writeupParts } from "./writeup";
@@ -180,7 +181,12 @@ export function enrichPanel(
               h(
                 "li",
                 {},
-                h("a", { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" }, r.title),
+                h(
+                  "a",
+                  { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" },
+                  icon(kindIcon(r.kind)),
+                  r.title,
+                ),
                 r.via === "link" && h("small", {}, " · links here"),
                 r.via === "writeup" && h("small", {}, " · in a write-up"),
                 r.via === "topic" && h("small", {}, " · in a topic"),
