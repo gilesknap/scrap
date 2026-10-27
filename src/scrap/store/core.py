@@ -15,6 +15,7 @@ from .db import connect, migrate
 from .errors import NoSuchPage, NotFoundError
 from .helpers import revision_window, slug_base
 from .indexing import index_page
+from .todo import cols as todo_cols
 
 
 class Core:
@@ -122,7 +123,8 @@ class Core:
     ) -> sqlite3.Row:
         """A page by id or slug; one in the trash is NoSuchPage unless trashed."""
         row = conn.execute(
-            "SELECT *, (SELECT max(rev) FROM page_rev WHERE page_id = page.id) AS rev"
+            f"SELECT *, {todo_cols('page')},"
+            " (SELECT max(rev) FROM page_rev WHERE page_id = page.id) AS rev"
             " FROM page WHERE (id = ? OR slug = ?) AND (deleted_at IS NULL OR ?)",
             (key, key, trashed),
         ).fetchone()

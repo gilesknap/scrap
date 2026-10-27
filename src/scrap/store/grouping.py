@@ -13,6 +13,7 @@ from typing import Any
 
 from ..query import SUBTYPES, Query
 from . import topics
+from .todo import col
 
 # Digits to their nines' complement, so a timestamp as text sorts newest first
 NEWEST = str.maketrans("0123456789", "9876543210")
@@ -133,12 +134,13 @@ def order(q: Query) -> tuple[str, list[Any]]:
             return f"grp_type({cols}), ", []
         case "now":
             return (
-                f"grp_now({cols}, p.due, p.priority, p.snoozed_until, p.updated_at,"
+                f"grp_now({cols}, {col('due')}, {col('priority')},"
+                f" {col('snoozed_until')}, p.updated_at,"
                 " ?, ?), ",
                 [today, ranked],
             )
         case "due":
-            return f"grp_due({cols}, p.due, ?), ", [today]
+            return f"grp_due({cols}, {col('due')}, ?), ", [today]
         case "tag":
             tags = [
                 f.value.strip("/") for f in q.filters if f.key == "tag" and not f.neg

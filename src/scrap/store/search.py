@@ -35,6 +35,8 @@ from .grouping import use_areas
 from .health import CHECKS, condition
 from .helpers import checked_query, tag_counts, todo_only, unlink
 from .roles import BY_CLAUDE, CLAUDE_EDITED, IS_TOPIC
+from .todo import col
+from .todo import cols as todo_cols
 
 # media:M and later:T filter by a Later's medium and what it is for: the column of
 # its fields, and the values it takes. A Later with no subtype is to read.
@@ -156,8 +158,8 @@ class SearchMixin(Core):
                 topic = IS_TOPIC.format(p="p")
                 tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
                 rows = conn.execute(
-                    "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
-                    " p.snoozed_until, p.task_done, p.task_total,"
+                    f"SELECT p.id, p.slug, p.title, p.kind, p.fields, {todo_cols()},"
+                    " p.task_done, p.task_total,"
                     " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet"
                     " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
                     " JOIN page p ON p.id = c.page_id"
@@ -172,8 +174,8 @@ class SearchMixin(Core):
                 )  # fmt: skip
             else:
                 rows = conn.execute(
-                    "SELECT p.id, p.slug, p.title, p.kind, p.fields, p.due, p.priority,"
-                    " p.snoozed_until, p.task_done, p.task_total, p.body AS snippet"
+                    f"SELECT p.id, p.slug, p.title, p.kind, p.fields, {todo_cols()},"
+                    " p.task_done, p.task_total, p.body AS snippet"
                     f" FROM page p WHERE {where}"
                     f" ORDER BY {order}p.updated_at DESC, p.id DESC LIMIT ? OFFSET ?",
                     (*args, *section_args, limit, offset),
@@ -329,7 +331,7 @@ class SearchMixin(Core):
             elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
                 # An open one: a done or cancelled one's snooze hides nothing (#131)
                 sql.append(
-                    f"{no}coalesce({TODO_SQL}p.snoozed_until > ?"
+                    f"{no}coalesce({TODO_SQL}{col('snoozed_until')} > ?"
                     " AND coalesce(json_extract(p.fields, '$.status'), 'open')"
                     " NOT IN ('done', 'cancelled'), 0)"
                 )
@@ -349,9 +351,9 @@ class SearchMixin(Core):
                 if asked is None:  # not a day: nothing (and with -, everything)
                     sql.append(f"{no}0")
                 elif asked[0] == "none":
-                    sql.append(f"{no}coalesce({TODO_SQL}p.due IS NULL, 0)")
+                    sql.append(f"{no}coalesce({TODO_SQL}{col('due')} IS NULL, 0)")
                 else:  # the operator is one of query.COMPARE's
-                    sql.append(f"{no}coalesce({TODO_SQL}p.due {asked[0]} ?, 0)")
+                    sql.append(f"{no}coalesce({TODO_SQL}{col('due')} {asked[0]} ?, 0)")
                     args.append(asked[1])
             elif f.key == "priority" and f.neg:  # priority:none: a todo with none
                 sql.append(f"NOT ({TODO_SQL}{RANK} = ?)")

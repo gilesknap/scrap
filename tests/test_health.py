@@ -21,7 +21,17 @@ from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
 from scrap.public import origin
-from scrap.store import Store, connect, fixes, health, new_ulid, now, topics, writeups
+from scrap.store import (
+    Store,
+    connect,
+    fixes,
+    health,
+    new_ulid,
+    now,
+    todo,
+    topics,
+    writeups,
+)
 
 BOARD = {
     "kind": "whiteboard", "title": "Encoder pipeline", "tags": ["video"],
@@ -110,6 +120,11 @@ def photo(store, colour="red", text=None):
 def sql(store, query, *args):
     with closing(connect(store.db)) as conn:
         return conn.execute(query, args).fetchall()
+
+
+def set_todo(store, page_id, **values):
+    with closing(connect(store.db)) as conn:
+        todo.write(conn, page_id, values)
 
 
 def found(store, query):
@@ -313,16 +328,16 @@ def test_stale_is_an_open_todo_unedited_for_sixty_days(store):
             " fields = json_set(fields, '$.status', ?) WHERE id = ?",
             "done" if p == done else "open", p)  # fmt: skip
     later = (date.today() + timedelta(days=3)).isoformat()
-    sql(store, "UPDATE page SET snoozed_until = ? WHERE id = ?", later, snoozed)
+    set_todo(store, snoozed, snoozed_until=later)
     store.edit_meta([tagged], "me", "web", add=["garden"])  # a change of tags
     assert found(store, "is:stale") == {old}
     assert fresh not in found(store, "is:stale")
     soon = (date.today() + timedelta(days=0)).isoformat()
-    sql(store, "UPDATE page SET due = ? WHERE id = ?", soon, old)  # due today
+    set_todo(store, old, due=soon)  # due today
     assert found(store, "is:stale") == set()  # its due date brings it up
-    sql(store, "UPDATE page SET due = '2026-01-15' WHERE id = ?", old)  # overdue
+    set_todo(store, old, due="2026-01-15")  # overdue
     assert found(store, "is:stale") == {old}
-    sql(store, "UPDATE page SET snoozed_until = '2026-01-02' WHERE id = ?", snoozed)
+    set_todo(store, snoozed, snoozed_until="2026-01-02")
     assert found(store, "is:stale") == {old, snoozed}  # its snooze is over
 
 

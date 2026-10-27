@@ -2,6 +2,8 @@
 
 import re
 
+from .todo import col
+
 BlobRef = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -73,13 +75,13 @@ SORT_SQL = {
     "created": "p.created_at",
     "title": "p.title COLLATE NOCASE",  # ASCII letters only: SQLite has no ICU here
     # A todo's: other kinds keep theirs (see the migration) but have none here
-    "due": "CASE WHEN p.kind = 'todo' THEN p.due END",
-    "priority": "CASE WHEN p.kind = 'todo' THEN CASE p.priority"
+    "due": f"CASE WHEN p.kind = 'todo' THEN {col('due')} END",
+    "priority": f"CASE WHEN p.kind = 'todo' THEN CASE {col('priority')}"
     " WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 END END",
 }
 TODO = ("due", "priority", "snoozed_until")  # a todo's own columns
 TODO_SQL = "p.kind = 'todo' AND "  # a filter on them: only a todo's count
-RANK = "coalesce(p.priority, 'none')"  # priority:none finds a todo with none
+RANK = f"coalesce({col('priority')}, 'none')"  # priority:none finds a todo with none
 # Priorities as an imported todo may have them (Thoth's Urgent: the highest there is)
 PRIORITY_NAMES = {"urgent": "high"}
 SOURCES = ("pwa", "share")  # a capture's, from a client; "mcp" only from scrap.mcp

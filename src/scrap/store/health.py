@@ -20,6 +20,7 @@ from typing import Any
 
 from .constants import GONE
 from .roles import IS_TOPIC, REVIEW
+from .todo import col
 from .writeups import OUTDATED
 
 log = logging.getLogger(__name__)
@@ -69,8 +70,8 @@ UNTAGGED = (
 STALE = f"""({{p}}.kind = 'todo' AND NOT {REVIEW}
   AND coalesce(json_extract({{p}}.fields, '$.status'), 'open')
     NOT IN ('done', 'cancelled')
-  AND NOT coalesce({{p}}.snoozed_until > ?, 0)
-  AND NOT coalesce({{p}}.due >= ?, 0)
+  AND NOT coalesce({col("snoozed_until", "{p}")} > ?, 0)
+  AND NOT coalesce({col("due", "{p}")} >= ?, 0)
   AND max({{p}}.updated_at, coalesce((SELECT max(m.updated_at) FROM page_meta_rev m
     WHERE m.page_id = {{p}}.id), '')) < ?)"""
 # Sharing a stored file with another page: one of its captures' files is also one of

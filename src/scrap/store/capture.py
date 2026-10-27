@@ -1,6 +1,7 @@
 """Capturing pages: a new capture, an imported page, text appended to Claude's."""
 
 import json
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -36,6 +37,15 @@ from .helpers import (
 )
 from .indexing import debounce, enrich_on, queue_enrich
 from .roles import by_claude, by_ingest, made_by_source, should_enrich
+from .todo import write as write_todo
+
+
+def _new_todo(
+    conn: sqlite3.Connection, page_id: str, todo: dict[str, str | None]
+) -> None:
+    """A new page's todo values, if it has any."""
+    if any(v is not None for v in todo.values()):
+        write_todo(conn, page_id, todo)
 
 
 class CaptureMixin(Core):
@@ -121,13 +131,13 @@ class CaptureMixin(Core):
             page_id = new_ulid()
             conn.execute(  # made_by: by its source, once (roles.made_by_source)
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at, due, priority, snoozed_until, made_by)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " created_at, updated_at, made_by)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (page_id, self._slug(conn, title), title, body, kind or "note",
                  int(bool(kind)), json.dumps(c["fields"]), stamp, stamp,
-                 c.get("due"), c.get("priority"), c.get("snoozed_until"),
                  made_by_source(c["source"])),
             )  # fmt: skip
+            _new_todo(conn, page_id, {n: c.get(n) for n in TODO})
             conn.execute(
                 REV_INSERT,
                 (page_id, 1, title, body, author,
@@ -192,12 +202,12 @@ class CaptureMixin(Core):
             todo, fields = todo_columns(p["kind"], p["fields"])
             conn.execute(  # made_by human: the owner's, made elsewhere
                 "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-                " created_at, updated_at, due, priority, snoozed_until, made_by)"
-                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 'human')",
+                " created_at, updated_at, made_by)"
+                " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'human')",
                 (page_id, p["slug"], p["title"], p["body"], p["kind"],
-                 json.dumps(fields), p["created_at"], p["updated_at"], todo["due"],
-                 todo["priority"], todo["snoozed_until"]),
+                 json.dumps(fields), p["created_at"], p["updated_at"]),
             )  # fmt: skip
+            _new_todo(conn, page_id, todo)
             conn.execute(
                 REV_INSERT,
                 (page_id, 1, p["title"], p["body"], author, "web", p["updated_at"]),
