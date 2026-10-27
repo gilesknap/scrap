@@ -71,6 +71,6 @@ export function photoAdder(page: { id: string; title: string }) {
     { className: "bar", role: "group", "aria-label": "Add photo" },
     picker("Camera", true, (f) => void add(f), "add"),
     picker("Gallery", false, (f) => void add(f), "add"),
-    picker("File", false, (f) => void add(f), "add", FILES, "file"),
+    picker("File", false, (f) => void add(f), "add", FILES),
   );
 }

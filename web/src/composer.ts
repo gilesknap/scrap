@@ -122,7 +122,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     { className: "bar" },
     picker("Camera", true, add, "add"),
     picker("Gallery", false, add, "add"),
-    picker("File", false, add, "add", FILES, "file"),
+    picker("File", false, add, "add", FILES),
   );
   showThumbs();
   const ed = editor({

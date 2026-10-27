@@ -4,7 +4,7 @@ import { view } from "./app";
 import type { Draft } from "./composer";
 import { drafts } from "./db";
 import { DRAFT, recover } from "./fresh";
-import { type Icon, icon, kindIcon } from "./icons";
+import { icon, kindIcon } from "./icons";
 import { pageList, pendingList } from "./lists";
 import { h, toast } from "./ui";
 
@@ -27,7 +27,6 @@ export function picker(
   onPick: (files: File[]) => void,
   className = "tile",
   accept = "image/*",
-  shown: Icon = camera ? "camera" : "image",
 ) {
   // A real button (Tab and TalkBack reach it) opening a file input kept out of the page.
   const input = h("input", { type: "file", accept, multiple: !camera });
@@ -36,7 +35,7 @@ export function picker(
     if (input.files?.length) onPick([...input.files]);
     input.value = ""; // so the same shot again still fires change
   };
-  const glyph = icon(shown);
+  const glyph = icon(camera ? "camera" : accept === FILES ? "file" : "image");
   return h("button", { type: "button", className, onclick: () => input.click() }, glyph, label);
 }
 
@@ -65,7 +64,7 @@ export async function capture(): Promise<Node> {
     { className: "actions" },
     picker("Camera", true, (f) => void compose(f)),
     picker("Gallery", false, (f) => void compose(f)),
-    picker("File", false, (f) => void compose(f), "tile", FILES, "file"),
+    picker("File", false, (f) => void compose(f), "tile", FILES),
     h(
       "button",
       { type: "button", className: "tile", onclick: () => void compose([]) },
