@@ -62,6 +62,16 @@
   resize: none;
   overflow-y: auto;
 }
+/* The page editor (a title over the text) with Add photo under it: the text gives up that
+   row's room, so Camera and Gallery show whole above the keys rather than cut off at the
+   fields' edge */
+.fields:has(> input):has(> .bar) > textarea {
+  min-height: calc(var(--vv-h, 100dvh) * 0.6 - var(--tap) - var(--s-3));
+}
+/* and the row of its embeds' chips under the fields too */
+.editor:has(> .embeds:not(:empty)) > .fields:has(> input):has(> .bar) > textarea {
+  min-height: calc(var(--vv-h, 100dvh) * 0.6 - 2 * var(--tap) - 2 * var(--s-3));
+}
 /* The title: big and bold, on a line rather than in a second box */
 .fields > input {
   padding-inline: 0;
@@ -77,6 +87,7 @@
   border-color: transparent;
   background: transparent;
   color: var(--ink-2);
+  font-size: var(--t-sm); /* a secondary control's size, under the folds' and the chips' */
 }
 /* Cancel and Preview: text buttons beside Save, the bar's one fill */
 .editor > .bar > button:not(.primary) {

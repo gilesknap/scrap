@@ -387,7 +387,13 @@ div.orig .save {
   border-radius: var(--r-md);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: var(--t-sm);
+}
+/* While a form is open in the page (its tags, its due date), its Save is the screen's one
+   fill: Mark done is a plain tool meanwhile */
+.page:has(> .tagform, > .todoedit) > .tools > .primary {
+  flex: 1 1 auto;
+  background: transparent;
+  color: var(--ink);
 }
 /* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
    page Download (a link drawn as its rows are) */

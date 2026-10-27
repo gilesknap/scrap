@@ -127,6 +127,10 @@
     background: var(--accent);
     filter: brightness(1.05);
   }
+  .page:has(> .tagform, > .todoedit) > .tools > .primary:hover {
+    background: var(--sunk);
+    filter: none;
+  }
   .page > .tools > :last-child {
     margin-inline-start: auto; /* Delete, apart at the end */
   }

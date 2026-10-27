@@ -281,21 +281,21 @@
 .list .due.closed {
   color: var(--ink-3);
 }
+/* A todo's due date, priority and (on its page) snooze: each part under a small uppercase
+   heading (.flabel, as the Filters panel's rows), every row on one left edge: a row of chips
+   (No date, Today, Tomorrow, Next week; the one set pressed, as in the Filters panel), then the
+   native date picker for any other day */
 .todoedit {
   display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--s-2) var(--s-3);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
 }
 .todoedit[hidden] {
   display: none; /* the editor's, while the kind is not Todo */
 }
-.todoedit label {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  color: var(--ink-2);
-  font-size: var(--t-sm);
+.todoedit .flabel:not(:first-child) {
+  margin-top: var(--s-2);
 }
 .todoedit :is(input, select) {
   min-height: 48px;
@@ -312,21 +312,24 @@
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
 }
-/* Due soon: Today, Tomorrow, Next week, on a line of their own under the date; the one set is
-   pressed, as in the Filters panel */
 .todoedit .soon {
   display: flex;
   flex-wrap: wrap;
-  flex-basis: 100%;
-  gap: var(--s-2);
+  gap: 6px;
+}
+.todoedit .soon .facet {
+  padding-inline: 10px; /* No date, Today, Tomorrow, Next week: one row from 380 px */
+}
+/* Narrower: two and two, never one alone on a second line */
+@media (max-width: 379px) {
+  .todoedit .soon {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    justify-content: start;
+  }
 }
 .todoedit .facet[aria-pressed="true"] {
   border-color: transparent;
   background: var(--accent-soft);
   font-weight: 600;
-}
-/* Snooze starts a line of its own, under the priority */
-.todoedit .break {
-  flex-basis: 100%;
-  height: 0;
 }

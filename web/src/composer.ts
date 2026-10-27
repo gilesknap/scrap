@@ -34,7 +34,12 @@ export interface Draft {
 }
 
 /** What the text box asks for, by kind. */
-const ASK: Record<string, string> = { todo: "What needs doing?", consume: "Link or title" };
+const ASK: Record<string, string> = {
+  todo: "What needs doing?",
+  consume: "Link or title",
+  whiteboard: "What the board is about",
+  document: "What the document is",
+};
 
 /** as: a kind chosen before it opens (the Todos screen's New todo, or a search's New for its
  * kind). resume: open the kept draft (Capture's draft row); otherwise a fresh capture (the
