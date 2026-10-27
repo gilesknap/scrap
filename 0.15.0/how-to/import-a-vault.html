@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Import a Thoth vault &#8212; scrap 0.15.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=ef97403f"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/import-a-vault';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.15.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Make your own lists: a contacts directory" href="make-your-own-lists.html" />
+    <link rel="prev" title="Deploy on a single server" href="deploy-single-server.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.15.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-code.html">Connect a Claude Code session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Import a Thoth vault</a></li>
+<li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../how-to.html" class="nav-link">How-to Guides</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Import a Thoth vault</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="import-a-thoth-vault">
+<h1>Import a Thoth vault<a class="headerlink" href="#import-a-thoth-vault" title="Link to this heading">#</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span></code> reads a Thoth vault (Obsidian-style Markdown pages with YAML front matter, as
+its <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code> describes) and saves each content page as a scrap page, with its images. The
+command itself calls no model; what Claude does with the pages afterwards is under
+<a class="reference internal" href="#import-claude"><span class="std std-ref">What Claude does with imported pages</span></a>.</p>
+<p>The commands below assume <code class="docutils literal notranslate"><span class="pre">scrap</span></code> is on your <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, as in a development checkout. Against a
+deployed scrap, see <a class="reference internal" href="#import-container"><span class="std std-ref">In a container</span></a>. <code class="docutils literal notranslate"><span class="pre">--data-dir</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">$SCRAP_DATA_DIR</span></code>, then
+<code class="docutils literal notranslate"><span class="pre">./data</span></code>; a real import creates the data folder if it is missing and migrates its database (<code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> creates nothing).</p>
+<section id="steps">
+<h2>Steps<a class="headerlink" href="#steps" title="Link to this heading">#</a></h2>
+<pre  class="mermaid">
+        flowchart LR
+    A[&quot;Copy vault&quot;] --&gt; B[&quot;scrap import --dry-run&quot;]
+    B --&gt;|&quot;read the report&quot;| C[&quot;Stop scrap&quot;]
+    C --&gt; D[&quot;scrap import&quot;]
+    D --&gt; E[&quot;Start scrap&quot;]
+    classDef user fill:#e9f7ef,stroke:#2e9d5b
+    class A,B,C,D,E user
+    </pre><ol class="arabic">
+<li><p>Work from a copy of the vault, so nothing can change it underneath you:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>cp<span class="w"> </span>-a<span class="w"> </span>/path/to/vault<span class="w"> </span>~/vault-copy
+</pre></div>
+</div>
+</li>
+<li><p>Look before you write. <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> writes nothing. It prints the pages it would import as
+counts (by kind and by folder), then each kind of problem it found with a count and, under
+it, one line per file:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>scrap<span class="w"> </span>import<span class="w"> </span>--dry-run<span class="w"> </span>--data-dir<span class="w"> </span>./data<span class="w"> </span>~/vault-copy
+</pre></div>
+</div>
+<p>A real import prints only the counts, not the lines, so use <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> to see which files a
+problem is about. A <code class="docutils literal notranslate"><span class="pre">DIR</span></code> that does not exist fails with <code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">folder</span> <span class="pre">DIR</span></code>.</p>
+</li>
+<li><p>Import. Stop scrap first: slugs are worked out before anything is written, so a page
+captured meanwhile can take one and stop the import (running it again carries on).</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>scrap<span class="w"> </span>import<span class="w"> </span>--data-dir<span class="w"> </span>./data<span class="w"> </span>~/vault-copy
+</pre></div>
+</div>
+<p>It prints the same summary, then <code class="docutils literal notranslate"><span class="pre">imported</span> <span class="pre">N</span> <span class="pre">pages</span> <span class="pre">into</span> <span class="pre">DIR</span></code>.</p>
+<p>Running it again imports only pages it has not imported before (a page is known by its path in
+the vault, so the summary says <code class="docutils literal notranslate"><span class="pre">(0</span> <span class="pre">new)</span></code> for a vault already imported); a page already there is
+left as it is, even if the vault’s copy has changed: there is no update. To pick up changes,
+import afresh into an empty data folder. Moving or renaming a file in the vault makes it a new
+path, so a re-run imports it again as a second page. A page you imported and then trashed in
+scrap is not brought back by a re-run.</p>
+</li>
+<li><p>Optionally, <code class="docutils literal notranslate"><span class="pre">--ingest</span></code> also queues every imported image for Claude, as a photo capture would
+be. Off by default: Thoth pages already describe their images. The queue is run by the
+service, which needs <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> and <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>. Each queued image is a paid
+call, counted against <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (the queue pauses when it is spent). Only the
+images the PWA can preview are sent to Claude, not PDFs, SVGs or other attached files; a PDF
+is queued too, but only to have its text read locally for search, with no model call. The settings are
+in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>. Claude’s first reading of a page’s first image
+adds its tags to the page’s imported ones, so the vault’s tags no longer stand alone.</p></li>
+</ol>
+</section>
+<section id="in-a-container">
+<span id="import-container"></span><h2>In a container<a class="headerlink" href="#in-a-container" title="Link to this heading">#</a></h2>
+<p>The documented deployments run scrap from the image, whose entrypoint is <code class="docutils literal notranslate"><span class="pre">scrap</span></code> and whose data
+folder is <code class="docutils literal notranslate"><span class="pre">/data</span></code> (<code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR</span></code>), as uid 10001. To import into a single-server install, stop
+the service, run <code class="docutils literal notranslate"><span class="pre">import</span></code> in a throwaway container with the vault mounted read-only, and start
+the service again. As in the restore recipe of <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>, load the settings
+file first so <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> are yours; the vault must be readable by that uid
+(with the <code class="docutils literal notranslate"><span class="pre">--userns</span></code> option below, by the user who runs podman):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>scrap
+<span class="nb">set</span><span class="w"> </span>-a<span class="p">;</span><span class="w"> </span>.<span class="w"> </span>~/.config/scrap/env<span class="p">;</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>+a
+podman<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--userns<span class="o">=</span>keep-id:uid<span class="o">=</span><span class="m">10001</span>,gid<span class="o">=</span><span class="m">10001</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$SCRAP_DATA</span><span class="s2">:/data:z"</span><span class="w"> </span>-v<span class="w"> </span>~/vault-copy:/vault:ro,z<span class="w"> </span>-e<span class="w"> </span><span class="nv">SCRAP_DATA_DIR</span><span class="o">=</span>/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="s2">"</span><span class="nv">$SCRAP_IMAGE</span><span class="s2">"</span><span class="w"> </span>import<span class="w"> </span>--dry-run<span class="w"> </span>/vault
+</pre></div>
+</div>
+<p>Before the real import, take a backup, since an import cannot be undone from within scrap. With
+scrap stopped (so nothing is captured after it), run <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap-backup</span></code>; the
+command returns when the backup is done. If the import goes wrong, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code> of
+that backup puts the database back, as in <a class="reference internal" href="deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>; any page captured after
+the backup is lost with it. The files the import stored stay on disk, unused, until <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>
+removes them (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p>
+<p>Then run the import command again without <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>, and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap</span></code>. The
+import does not take the lock that <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> share, but nothing needs
+coordinating with the timers: scrap is stopped, and a <code class="docutils literal notranslate"><span class="pre">gc</span></code> that runs meanwhile does not delete
+the files of pages already saved.</p>
+<p>On Kubernetes the chart has no import recipe. The nearest is the one-off pod that
+<a class="reference internal" href="deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a> uses for <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code>: the same image and data claim with scrap
+stopped, run with <code class="docutils literal notranslate"><span class="pre">import</span></code> arguments, and the vault on a second volume mounted read-only.</p>
+</section>
+<section id="what-is-imported">
+<h2>What is imported<a class="headerlink" href="#what-is-imported" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Vault</p></th>
+<th class="head"><p>scrap</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pages in <code class="docutils literal notranslate"><span class="pre">notes/</span></code>, <code class="docutils literal notranslate"><span class="pre">entities/</span></code>, <code class="docutils literal notranslate"><span class="pre">memories/</span></code>, <code class="docutils literal notranslate"><span class="pre">actions/</span></code>, <code class="docutils literal notranslate"><span class="pre">media/</span></code> and at the top</p></td>
+<td><p>One page each, with <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> set</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">type</span></code>: <code class="docutils literal notranslate"><span class="pre">note</span></code>, <code class="docutils literal notranslate"><span class="pre">entity</span></code>, <code class="docutils literal notranslate"><span class="pre">memory</span></code>, <code class="docutils literal notranslate"><span class="pre">action</span></code>, <code class="docutils literal notranslate"><span class="pre">media</span></code> (no type: the folder’s)</p></td>
+<td><p>kind <code class="docutils literal notranslate"><span class="pre">note</span></code>, Doc tagged <code class="docutils literal notranslate"><span class="pre">entity</span></code>, Doc tagged <code class="docutils literal notranslate"><span class="pre">memory</span></code>, <code class="docutils literal notranslate"><span class="pre">todo</span></code>, <code class="docutils literal notranslate"><span class="pre">consume</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">title</span></code> (else the first <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">heading</span></code>, else the file name)</p></td>
+<td><p>Title; a first heading equal to it is dropped from the body</p></td>
+</tr>
+<tr class="row-odd"><td><p>File name</p></td>
+<td><p>Slug: the name without <code class="docutils literal notranslate"><span class="pre">.md</span></code>, lower-cased to ASCII letters and digits (accents are removed, other non-ASCII characters dropped) with runs of anything else as one <code class="docutils literal notranslate"><span class="pre">-</span></code>, cut to 60 characters (<code class="docutils literal notranslate"><span class="pre">page</span></code> if nothing is left). A slug already in use gets <code class="docutils literal notranslate"><span class="pre">-2</span></code>, <code class="docutils literal notranslate"><span class="pre">-3</span></code>… (see <code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">created</span></code>, <code class="docutils literal notranslate"><span class="pre">updated</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">created_at</span></code> and <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>. No <code class="docutils literal notranslate"><span class="pre">created</span></code>: <code class="docutils literal notranslate"><span class="pre">memory_date</span></code>, else <code class="docutils literal notranslate"><span class="pre">updated</span></code>, else the file’s time. No <code class="docutils literal notranslate"><span class="pre">updated</span></code>: the same as <code class="docutils literal notranslate"><span class="pre">created</span></code>, and never earlier than it. A date alone is taken as noon UTC, so it is the same day in any time zone</p></td>
+</tr>
+<tr class="row-odd"><td><p>(none)</p></td>
+<td><p>Revision 1 of the page, stamped with <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>, by author <code class="docutils literal notranslate"><span class="pre">import</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
+<td><p>Tags: a leading <code class="docutils literal notranslate"><span class="pre">#</span></code> removed, spaces collapsed, lower-cased, cut to 64 characters, duplicates removed. A single <code class="docutils literal notranslate"><span class="pre">tags:</span> <span class="pre">x</span></code> is one tag. The PWA’s limit of 64 tags per page is not applied</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">status</span></code> (<code class="docutils literal notranslate"><span class="pre">todo</span></code> becomes <code class="docutils literal notranslate"><span class="pre">open</span></code>), <code class="docutils literal notranslate"><span class="pre">due_date</span></code> or <code class="docutils literal notranslate"><span class="pre">due</span></code> (as <code class="docutils literal notranslate"><span class="pre">due</span></code>), <code class="docutils literal notranslate"><span class="pre">priority</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code>, <code class="docutils literal notranslate"><span class="pre">media_type</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code> or <code class="docutils literal notranslate"><span class="pre">source_url</span></code> (as <code class="docutils literal notranslate"><span class="pre">source</span></code>), <code class="docutils literal notranslate"><span class="pre">memory_date</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">personal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fields</span></code>, over the kind’s defaults. <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">priority</span></code> and <code class="docutils literal notranslate"><span class="pre">media_type</span></code> are lower-cased. A todo’s <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> and <code class="docutils literal notranslate"><span class="pre">priority</span></code> become the todo’s own due day, snooze day and priority instead, if they are a date or a priority (<code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>; Thoth’s <code class="docutils literal notranslate"><span class="pre">urgent</span></code> becomes <code class="docutils literal notranslate"><span class="pre">high</span></code>); otherwise they stay in <code class="docutils literal notranslate"><span class="pre">fields</span></code>. <code class="docutils literal notranslate"><span class="pre">snoozed_until</span></code> is what <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> writes, so an export imports back</p></td>
+</tr>
+<tr class="row-even"><td><p>Defaults</p></td>
+<td><p>A todo has <code class="docutils literal notranslate"><span class="pre">status</span></code> <code class="docutils literal notranslate"><span class="pre">open</span></code>. A consume page has <code class="docutils literal notranslate"><span class="pre">subtype</span></code> <code class="docutils literal notranslate"><span class="pre">read</span></code> and <code class="docutils literal notranslate"><span class="pre">status</span></code> <code class="docutils literal notranslate"><span class="pre">open</span></code>, and its <code class="docutils literal notranslate"><span class="pre">media_type</span></code> sets <code class="docutils literal notranslate"><span class="pre">subtype</span></code>: <code class="docutils literal notranslate"><span class="pre">book</span></code> and <code class="docutils literal notranslate"><span class="pre">article</span></code> give <code class="docutils literal notranslate"><span class="pre">read</span></code>; <code class="docutils literal notranslate"><span class="pre">film</span></code>, <code class="docutils literal notranslate"><span class="pre">tv</span></code> and <code class="docutils literal notranslate"><span class="pre">video</span></code> give <code class="docutils literal notranslate"><span class="pre">watch</span></code>; <code class="docutils literal notranslate"><span class="pre">podcast</span></code> and <code class="docutils literal notranslate"><span class="pre">music</span></code> give <code class="docutils literal notranslate"><span class="pre">listen</span></code>. Any other <code class="docutils literal notranslate"><span class="pre">media_type</span></code> leaves <code class="docutils literal notranslate"><span class="pre">read</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[Label](folder/page.md)</span></code>, <code class="docutils literal notranslate"><span class="pre">[[page]]</span></code>, <code class="docutils literal notranslate"><span class="pre">[[page|label]]</span></code> to an imported page</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code>, a link to it in the PWA. A heading anchor (<code class="docutils literal notranslate"><span class="pre">[[page#sec]]</span></code>, <code class="docutils literal notranslate"><span class="pre">page.md#h</span></code>) is dropped, so the link goes to the page. A path is tried from the linking page’s folder, then from the top; a wiki link with a folder (<code class="docutils literal notranslate"><span class="pre">[[memories/x]]</span></code>) is tried as a path first, from the top, then from the linking page’s folder, then by name; case is ignored in the folders and name (an exact-case match wins, several that differ only by case are reported as ambiguous), and a leading <code class="docutils literal notranslate"><span class="pre">/</span></code> is dropped. A wiki link in a table cell, its pipe escaped with a backslash, works too. A wiki name found in several places prefers an imported page, then the linking page’s folder, and never <code class="docutils literal notranslate"><span class="pre">raw/</span></code> or <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> over a content folder</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">![](../raw/assets/x.png)</span></code> and <code class="docutils literal notranslate"><span class="pre">![[x.png]]</span></code></p></td>
+<td><p>The image, stored with the page (a photo capture) and shown where it was, not again among the page’s files. An image the PWA cannot preview (SVG) is attached as a file instead, and its place in the text becomes <code class="docutils literal notranslate"><span class="pre">*alt</span> <span class="pre">text</span> <span class="pre">(attached)*</span></code> (the file name if there is no alt text)</p></td>
+</tr>
+<tr class="row-odd"><td><p>A link (not an embed) to an image the PWA can preview</p></td>
+<td><p>The image is attached to the page as a photo, and the link becomes the text <code class="docutils literal notranslate"><span class="pre">*label</span> <span class="pre">(attached)*</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>A PDF embedded or linked</p></td>
+<td><p>Attached to the page as a file; the link or embed becomes <code class="docutils literal notranslate"><span class="pre">*label</span> <span class="pre">(attached)*</span></code> (the file name if there is no label)</p></td>
+</tr>
+<tr class="row-odd"><td><p>A drawing, or a file that cannot be attached (a CSV, a file over the size limit or one that cannot be read), embedded or linked</p></td>
+<td><p>Not imported; replaced by the text <code class="docutils literal notranslate"><span class="pre">*name</span> <span class="pre">(not</span> <span class="pre">imported)*</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>The page file as it is</p></td>
+<td><p>Kept as its capture’s text (capture source <code class="docutils literal notranslate"><span class="pre">import</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Symbolic links are never followed, and nothing outside <code class="docutils literal notranslate"><span class="pre">DIR</span></code> is read. Search ignores the addresses
+of links and images (it indexes their labels and alt text), for every page: a link’s domain is
+not a word to find, even in a note you wrote by hand. That is the intended trade-off. Links are
+found by parsing the page as Markdown, so one in code (fenced, indented or <code class="docutils literal notranslate"><span class="pre">inline</span></code>) is left as
+it is.</p>
+<p>Not imported: the top-level folders <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> and any starting <code class="docutils literal notranslate"><span class="pre">_</span></code> (except the images and
+PDFs pages use; the same names deeper in the tree are ordinary folders, and their pages are
+imported), the top <code class="docutils literal notranslate"><span class="pre">index.md</span></code>, <code class="docutils literal notranslate"><span class="pre">log.md</span></code> and <code class="docutils literal notranslate"><span class="pre">SCHEMA.md</span></code>, pages of any other <code class="docutils literal notranslate"><span class="pre">type</span></code> (such as
+<code class="docutils literal notranslate"><span class="pre">summary</span></code>), Excalidraw drawings, and every file that is not Markdown. Files and folders whose
+name starts with <code class="docutils literal notranslate"><span class="pre">.</span></code>, at any depth (such as <code class="docutils literal notranslate"><span class="pre">.obsidian/</span></code>), are ignored without a line in the
+report. Other front matter fields are dropped, Thoth’s <code class="docutils literal notranslate"><span class="pre">source</span></code> among them (the original stays in
+the capture’s text).</p>
+</section>
+<section id="limits">
+<h2>Limits<a class="headerlink" href="#limits" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>A page file over 1 MB, the most a page saved through the API holds, is skipped and reported as
+<code class="docutils literal notranslate"><span class="pre">too</span> <span class="pre">large</span></code>; links to it are reported as <code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">to</span> <span class="pre">dropped</span> <span class="pre">page</span></code>. Images and PDFs are checked
+against <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (50 MB).</p></li>
+<li><p>If a file changes between the check and the write, the import stops with <code class="docutils literal notranslate"><span class="pre">changed</span> <span class="pre">since</span> <span class="pre">it</span> <span class="pre">was</span> <span class="pre">checked:</span> <span class="pre">run</span> <span class="pre">again</span></code>. Run it again: it carries on with the pages not yet imported. The files
+of the page it stopped on were already stored, but the page was not saved, so nothing uses
+them. On the single server the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> removes them once they are over 24 hours
+old; to remove them by hand, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> after a backup (see <a class="reference internal" href="deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>).</p></li>
+<li><p>A page you import and then trash in scrap keeps its images while it is in the trash: <code class="docutils literal notranslate"><span class="pre">gc</span></code>
+counts the text of trashed pages as in use, so that the page can be brought back. After
+30 days in the trash it is purged with them (<a class="reference internal" href="use-the-pwa.html#the-trash"><span class="std std-ref">The trash</span></a>).</p></li>
+<li><p>The vault must be readable by the user (or container uid) that runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code>.</p></li>
+</ul>
+</section>
+<section id="what-claude-does-with-imported-pages">
+<span id="import-claude"></span><h2>What Claude does with imported pages<a class="headerlink" href="#what-claude-does-with-imported-pages" title="Link to this heading">#</a></h2>
+<p>Importing queues no Claude work for text, but a deployment with Claude enrichment on
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>, <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> set, <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> not <code class="docutils literal notranslate"><span class="pre">off</span></code>) still picks up the pages:</p>
+<ul class="simple">
+<li><p>The nightly related-pages pass (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>, run by <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>
+on the single server) treats a page with no related pages picked yet as stale, so it makes a
+paid call for every imported page, oldest first, within <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, even if you did
+not use <code class="docutils literal notranslate"><span class="pre">--ingest</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code> queues every page with no tags that Claude has not read yet.</p></li>
+</ul>
+<p>To hold this back, set <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> (or leave ingest off) until you want it. With
+enrichment on, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">--dry-run</span></code> says how many pages the pass would do; with it
+off the command only says that enrichment is off.</p>
+</section>
+<section id="the-report">
+<h2>The report<a class="headerlink" href="#the-report" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Line</p></th>
+<th class="head"><p>Means</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">pages</span> <span class="pre">(M</span> <span class="pre">new):</span> <span class="pre">...</span></code></p></td>
+<td><p>The pages found, how many are not imported yet, and the count of each kind</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">folder:</span></code></p></td>
+<td><p>Pages by top-level folder; pages at the top of the vault show as <code class="docutils literal notranslate"><span class="pre">./</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">images</span> <span class="pre">shown</span> <span class="pre">inline</span> <span class="pre">and</span> <span class="pre">M</span> <span class="pre">other</span> <span class="pre">files</span> <span class="pre">attached;</span> <span class="pre">K</span> <span class="pre">tags</span></code></p></td>
+<td><p>What the pages bring with them: N counts the previewable images attached as photos (a linked one is attached but not shown inline), M the PDFs and SVGs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">broken</span> <span class="pre">link</span></code></p></td>
+<td><p>A link to a page that is not in the vault: left as its label</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">to</span> <span class="pre">dropped</span> <span class="pre">page</span></code></p></td>
+<td><p>A link into <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code>, an index or a skipped page: left as its label</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">link</span> <span class="pre">found</span> <span class="pre">by</span> <span class="pre">name</span></code></p></td>
+<td><p>A link whose path was wrong, matched to a page by its file name or title</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">missing</span> <span class="pre">file</span></code></p></td>
+<td><p>An embedded image or file that is not in the vault</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">links</span> <span class="pre">kept</span> <span class="pre">as</span> <span class="pre">typed</span></code></p></td>
+<td><p>A block of text (paragraph, list item, table row) whose links could not be found back in the text as typed: its links are left as they were, not rewritten</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">file</span> <span class="pre">not</span> <span class="pre">imported</span></code></p></td>
+<td><p>A drawing or other file a page embeds or links: replaced by <code class="docutils literal notranslate"><span class="pre">*name</span> <span class="pre">(not</span> <span class="pre">imported)*</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unreferenced</span> <span class="pre">image</span></code></p></td>
+<td><p>An image in <code class="docutils literal notranslate"><span class="pre">raw/</span></code> no imported page uses: not imported</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">slug</span> <span class="pre">collision</span></code></p></td>
+<td><p>A slug already in use, by an earlier page in the vault (the later, in path order, gets the suffix; <code class="docutils literal notranslate"><span class="pre">My</span> <span class="pre">Note.md</span></code> and <code class="docutils literal notranslate"><span class="pre">my-note.md</span></code> collide) or by any page already in the data folder, the trash included</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">changed</span></code></p></td>
+<td><p>A tag that was changed (lower-cased, cut, <code class="docutils literal notranslate"><span class="pre">#</span></code> removed or spaces collapsed)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unmapped</span> <span class="pre">field</span></code></p></td>
+<td><p>A front matter field scrap has no field for, or a mapped one whose value is a list or a map: dropped</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">unknown</span> <span class="pre">status</span></code></p></td>
+<td><p>A status other than <code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code> or <code class="docutils literal notranslate"><span class="pre">cancelled</span></code>: kept as it is</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">no</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
+<td><p>Imported anyway, with its folder’s kind and the file’s time</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">front</span> <span class="pre">matter</span></code></p></td>
+<td><p>Front matter that is not valid YAML (an impossible date such as <code class="docutils literal notranslate"><span class="pre">2024-13-45</span></code>, or more than 64 aliases): the page is imported as if it had none</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">date</span></code></p></td>
+<td><p>A <code class="docutils literal notranslate"><span class="pre">created</span></code>, <code class="docutils literal notranslate"><span class="pre">updated</span></code> or <code class="docutils literal notranslate"><span class="pre">memory_date</span></code> that is not a date: the next one is used, else the file’s time</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ambiguous</span> <span class="pre">link</span></code></p></td>
+<td><p>A wiki name that matches several files, and the one chosen</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">cut</span></code>, <code class="docutils literal notranslate"><span class="pre">field</span> <span class="pre">dropped</span></code></p></td>
+<td><p>A field value over 200 characters, cut to 200 (ending <code class="docutils literal notranslate"><span class="pre">…</span></code>; the whole of it stays in the capture’s text), and fields past 32, as a PWA edit allows</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tag</span> <span class="pre">dropped</span></code></p></td>
+<td><p>A tag that is not text or a number (null, a list, a map, true or false). An empty tag is dropped without a line</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">symlink</span> <span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">unreadable</span></code>, <code class="docutils literal notranslate"><span class="pre">too</span> <span class="pre">large</span></code></p></td>
+<td><p>Files left out: symbolic links, files that cannot be read, and pages over 1 MB, and images or PDFs over <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code> (50 MB)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code></p></td>
+<td><p>Files left out, and why. <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code> counts the files under the top-level <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> and <code class="docutils literal notranslate"><span class="pre">_*</span></code> folders</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="deploy-single-server.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Deploy on a single server</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="make-your-own-lists.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Make your own lists: a contacts directory</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#steps">Steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#in-a-container">In a container</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-imported">What is imported</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limits">Limits</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-claude-does-with-imported-pages">What Claude does with imported pages</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-report">The report</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.15.0/docs/how-to/import-a-vault.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/how-to/import-a-vault.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
