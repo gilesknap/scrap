@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server and access &#8212; scrap 0.14.1.dev10+gfb25f29fb documentation</title>
+    <title>MCP server and access &#8212; scrap 0.14.1.dev11+g6581b9302 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=9874e442"></script>
+    <script src="../../_static/documentation_options.js?v=33ded4d6"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1107,6 +1107,8 @@ line) compare in constant time and are never logged. A setting that yields no to
 startup rather than leaving <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> open.</p></li>
 <li><p>Then the transport checks <code class="docutils literal notranslate"><span class="pre">Host</span></code> and <code class="docutils literal notranslate"><span class="pre">Origin</span></code> against loopback and <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (DNS
 rebinding protection). Set it to the Serve address or clients get <code class="docutils literal notranslate"><span class="pre">421</span></code> or <code class="docutils literal notranslate"><span class="pre">403</span></code>.</p></li>
+<li><p>The web app and the API (every route but <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>) check <code class="docutils literal notranslate"><span class="pre">Host</span></code> and, on writes, <code class="docutils literal notranslate"><span class="pre">Origin</span></code>
+the same way (<code class="docutils literal notranslate"><span class="pre">hostguard.py</span></code>, #238), so another site cannot write through the owner’s browser.</p></li>
 <li><p>Limits per write: body 200 000 bytes, 20 tags, 200-character title, 200 pages per bulk
 <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, request 2 MB.</p></li>
 </ul>

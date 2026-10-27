@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap on Kubernetes &#8212; scrap 0.14.1.dev10+gfb25f29fb documentation</title>
+    <title>Install scrap on Kubernetes &#8212; scrap 0.14.1.dev11+g6581b9302 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9874e442"></script>
+    <script src="../_static/documentation_options.js?v=33ded4d6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -956,7 +956,7 @@ Generate it and keep a copy for Claude Code later:</p>
 and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> are not affected.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> records the signed-in email, which Cloudflare Access adds to each request,
 as the author of a change. Changes made through <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> are always author <code class="docutils literal notranslate"><span class="pre">claude</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is the address you reach scrap at. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers <code class="docutils literal notranslate"><span class="pre">421</span></code> to any other <code class="docutils literal notranslate"><span class="pre">Host</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is the address you reach scrap at. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, the web app and the API answer <code class="docutils literal notranslate"><span class="pre">421</span></code> to any other <code class="docutils literal notranslate"><span class="pre">Host</span></code> (and <code class="docutils literal notranslate"><span class="pre">403</span></code> to a write from another <code class="docutils literal notranslate"><span class="pre">Origin</span></code>), apart from <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code> admits only the cloudflared pods, in the <code class="docutils literal notranslate"><span class="pre">cloudflared</span></code> namespace you create in
 the next step. Without it, any pod in the cluster could reach scrap directly and send its own
 identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around

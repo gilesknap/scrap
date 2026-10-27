@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 0.14.1.dev10+gfb25f29fb documentation</title>
+    <title>MCP server &#8212; scrap 0.14.1.dev11+g6581b9302 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9874e442"></script>
+    <script src="../_static/documentation_options.js?v=33ded4d6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1249,7 +1249,7 @@ cannot contain a comma.
 Make a token with <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-c</span> <span class="pre">'import</span> <span class="pre">secrets;</span> <span class="pre">print(secrets.token_urlsafe(32))'</span></code>. The tokens are
 static; there is no token-issuing command and no rate limiting or lock-out of repeated <code class="docutils literal notranslate"><span class="pre">401</span></code>s
 (leave that to the proxy in front, such as Cloudflare). See <a class="reference internal" href="../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">/mcp</span></code> also checks the <code class="docutils literal notranslate"><span class="pre">Host</span></code> header against loopback and the hosts of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (<code class="docutils literal notranslate"><span class="pre">421</span></code>
+<p>The web app and the API check them the same way (<a class="reference internal" href="api.html"><span class="std std-doc">HTTP API and CLI</span></a>). <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> also checks the <code class="docutils literal notranslate"><span class="pre">Host</span></code> header against loopback and the hosts of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (<code class="docutils literal notranslate"><span class="pre">421</span></code>
 otherwise), and an <code class="docutils literal notranslate"><span class="pre">Origin</span></code> header, if sent, against those origins (<code class="docutils literal notranslate"><span class="pre">403</span></code>), so a web page cannot
 reach it by DNS rebinding. The rules are:</p>
 <ul class="simple">

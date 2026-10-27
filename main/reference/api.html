@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 0.14.1.dev10+gfb25f29fb documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 0.14.1.dev11+g6581b9302 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9874e442"></script>
+    <script src="../_static/documentation_options.js?v=33ded4d6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -501,10 +501,31 @@ proxy) in front. The author of a capture or edit is the <code class="docutils li
 A text revision made over HTTP is always source <code class="docutils literal notranslate"><span class="pre">web</span></code>, never Claude’s.</p>
 <section id="http">
 <h2>HTTP<a class="headerlink" href="#http" title="Link to this heading">#</a></h2>
+<section id="host-and-origin">
+<h3>Host and Origin<a class="headerlink" href="#host-and-origin" title="Link to this heading">#</a></h3>
+<p>Every route but <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (which has its own, the same check) and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> checks the request’s
+<code class="docutils literal notranslate"><span class="pre">Host</span></code> and <code class="docutils literal notranslate"><span class="pre">Origin</span></code>, against the allow-list <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> uses (<a class="reference internal" href="mcp.html"><span class="std std-doc">MCP server</span></a> has its rules), so one setting,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, covers both. This stops another web page from reaching scrap through your browser:
+a DNS rebinding page (its name as <code class="docutils literal notranslate"><span class="pre">Host</span></code>) and a form or <code class="docutils literal notranslate"><span class="pre">fetch</span></code> it sends from its own site.</p>
+<ul class="simple">
+<li><p><strong>Host</strong>: loopback (<code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>, <code class="docutils literal notranslate"><span class="pre">localhost</span></code>, <code class="docutils literal notranslate"><span class="pre">[::1]</span></code>, any port) or a host of <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>,
+else <code class="docutils literal notranslate"><span class="pre">421</span></code>. Case and a trailing dot are ignored; two <code class="docutils literal notranslate"><span class="pre">Host</span></code> headers are refused. An IP address
+is always accepted, so an install reached at <code class="docutils literal notranslate"><span class="pre">http://192.168.1.10:8000</span></code> needs no setting. A
+<em>name</em> (a MagicDNS or LAN hostname, a Cloudflare or Serve address) must be in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>,
+as it already must for <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. <code class="docutils literal notranslate"><span class="pre">X-Forwarded-Host</span></code> is ignored: the proxy must pass the public
+<code class="docutils literal notranslate"><span class="pre">Host</span></code> through (Tailscale Serve and Cloudflare do).</p></li>
+<li><p><strong>Origin</strong>, on <code class="docutils literal notranslate"><span class="pre">POST</span></code>, <code class="docutils literal notranslate"><span class="pre">PUT</span></code>, <code class="docutils literal notranslate"><span class="pre">PATCH</span></code> and <code class="docutils literal notranslate"><span class="pre">DELETE</span></code> only: none sent (curl, the CLI, the hooks) is
+accepted; one sent must be a loopback <code class="docutils literal notranslate"><span class="pre">http://</span></code> origin or a <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> origin, or, for an
+install reached by IP address, that address and port. Anything else, <code class="docutils literal notranslate"><span class="pre">null</span></code> included, is <code class="docutils literal notranslate"><span class="pre">403</span></code>, as is any write the browser marks <code class="docutils literal notranslate"><span class="pre">Sec-Fetch-Site:</span> <span class="pre">cross-site</span></code>. The one exception is <code class="docutils literal notranslate"><span class="pre">Origin:</span> <span class="pre">null</span></code> on <code class="docutils literal notranslate"><span class="pre">/share</span></code> with <code class="docutils literal notranslate"><span class="pre">Sec-Fetch-Site:</span> <span class="pre">none</span></code> or <code class="docutils literal notranslate"><span class="pre">same-origin</span></code> (the Android share sheet, if the service worker did not take the POST).
+Browsers always send <code class="docutils literal notranslate"><span class="pre">Origin</span></code> on a cross-site write, so a page cannot leave it off.</p></li>
+</ul>
+</section>
 <section id="errors">
 <h3>Errors<a class="headerlink" href="#errors" title="Link to this heading">#</a></h3>
 <p>An error is a JSON body <code class="docutils literal notranslate"><span class="pre">{&quot;detail&quot;:</span> <span class="pre">...}</span></code> with the status that says what went wrong:</p>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">403</span></code>: a write (any method but <code class="docutils literal notranslate"><span class="pre">GET</span></code>, <code class="docutils literal notranslate"><span class="pre">HEAD</span></code> or <code class="docutils literal notranslate"><span class="pre">OPTIONS</span></code>) whose <code class="docutils literal notranslate"><span class="pre">Origin</span></code> header is not allowed.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">421</span></code>: a <code class="docutils literal notranslate"><span class="pre">Host</span></code> header that is not allowed. Both checks are described under <a class="reference internal" href="#host-and-origin">Host and Origin</a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">400</span></code>: a multipart text field (<code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">url</span></code>, <code class="docutils literal notranslate"><span class="pre">title</span></code>…) over 1 MiB, refused by the form
 parser before scrap sees it; the body is <code class="docutils literal notranslate"><span class="pre">{&quot;detail&quot;:</span> <span class="pre">&quot;Part</span> <span class="pre">exceeded</span> <span class="pre">maximum</span> <span class="pre">size</span> <span class="pre">of</span> <span class="pre">1024KB.&quot;}</span></code>.
 A JSON body of that size is <code class="docutils literal notranslate"><span class="pre">422</span></code> instead (see <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/captures</span></code>).</p></li>
@@ -872,7 +893,7 @@ chart’s values in <a class="reference internal" href="../how-to/deploy-kuberne
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code></p></td>
 <td><p>unset</p></td>
-<td><p>The address the service is reached at, e.g. <code class="docutils literal notranslate"><span class="pre">https://host.tailnet.ts.net:8446</span></code> (several, comma separated). <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only requests whose <code class="docutils literal notranslate"><span class="pre">Host</span></code> is loopback or one of these (DNS rebinding protection), and the first makes the page URLs MCP tools return; without it they are paths (<code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>). A Markdown link to <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code> on any of them is a page link (links, backlinks, <code class="docutils literal notranslate"><span class="pre">is:orphan</span></code>, <code class="docutils literal notranslate"><span class="pre">has:dangling</span></code>), and the PWA opens it in place: the server lists their origins in the <code class="docutils literal notranslate"><span class="pre">index.html</span></code> it serves (<code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">name=&quot;scrap-origins&quot;&gt;</span></code>). An installed app keeps that page offline, so it picks up a changed list on its next app update; the address it was opened at always works. An address without a scheme and host (<code class="docutils literal notranslate"><span class="pre">foo</span></code>) stops scrap at start with <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL:</span> <span class="pre">'foo'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">a</span> <span class="pre">URL</span></code>; see <a class="reference internal" href="mcp.html"><span class="std std-doc">MCP server</span></a></p></td>
+<td><p>The address the service is reached at, e.g. <code class="docutils literal notranslate"><span class="pre">https://host.tailnet.ts.net:8446</span></code> (several, comma separated). every route but <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> answers only requests whose <code class="docutils literal notranslate"><span class="pre">Host</span></code> is loopback, an IP address or one of these, and a write only an <code class="docutils literal notranslate"><span class="pre">Origin</span></code> that is (DNS rebinding and cross-site protection; see <a class="reference internal" href="#host-and-origin">Host and Origin</a>), and the first makes the page URLs MCP tools return; without it they are paths (<code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>). A Markdown link to <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code> on any of them is a page link (links, backlinks, <code class="docutils literal notranslate"><span class="pre">is:orphan</span></code>, <code class="docutils literal notranslate"><span class="pre">has:dangling</span></code>), and the PWA opens it in place: the server lists their origins in the <code class="docutils literal notranslate"><span class="pre">index.html</span></code> it serves (<code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">name=&quot;scrap-origins&quot;&gt;</span></code>). An installed app keeps that page offline, so it picks up a changed list on its next app update; the address it was opened at always works. An address without a scheme and host (<code class="docutils literal notranslate"><span class="pre">foo</span></code>) stops scrap at start with <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL:</span> <span class="pre">'foo'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">a</span> <span class="pre">URL</span></code>; see <a class="reference internal" href="mcp.html"><span class="std std-doc">MCP server</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code></p></td>
 <td><p>unset</p></td>
@@ -1000,6 +1021,7 @@ chart’s values in <a class="reference internal" href="../how-to/deploy-kuberne
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#http">HTTP</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#host-and-origin">Host and Origin</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#errors">Errors</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#the-page-object">The page object</a></li>
 </ul>

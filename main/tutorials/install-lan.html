@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on your LAN &#8212; scrap 0.14.1.dev10+gfb25f29fb documentation</title>
+    <title>Try scrap on your LAN &#8212; scrap 0.14.1.dev11+g6581b9302 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9874e442"></script>
+    <script src="../_static/documentation_options.js?v=33ded4d6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -567,8 +567,10 @@ your own addresses and time zone; without <code class="docutils literal notransl
 the wrong day around midnight. To stop it, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">stop</span> <span class="pre">scrap</span></code>; to run it again with new
 settings, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">rm</span> <span class="pre">-f</span> <span class="pre">scrap</span></code> and re-run the command (the <code class="docutils literal notranslate"><span class="pre">scrap-data</span></code> volume keeps your
 pages). Docker takes the same arguments.</p>
-<p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> matters to Claude, not the web page. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only loopback and the
-addresses listed there, and replies <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> to any other. Page links in
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> matters to Claude and to any hostname you use. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only loopback and the
+addresses listed there, and replies <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code> to any other; the web page and the API do
+the same for a <em>name</em> not listed there (an IP address always works), so list a MagicDNS or LAN
+hostname if you open the app at it. Page links in
 Claude’s replies start with the first address, and the app opens a link to any listed address in
 place, so Back returns to the page you were on. Claude Code on this machine needs none of it; on
 another machine, use <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code> from the README with the LAN address, for example
