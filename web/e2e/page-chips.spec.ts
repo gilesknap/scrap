@@ -162,6 +162,33 @@ test("at 390 px and 130% text, tags fold to two rows, then +N shows the rest in 
   await plus.click();
   await page.keyboard.press("Escape");
   await expect(line.getByRole("link")).toHaveCount(tags.length);
+  await expect(line.getByRole("button", { name: "Change tags" })).toBeFocused();
+});
+
+test("a focused tag that folds away on a narrower screen hands focus to +N", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  const a = word();
+  const tags = [
+    "alpha-centauri",
+    "bravo-charlie",
+    "delta-foxtrot",
+    "golf-hotel",
+    "india-juliet",
+  ].map((n, i) => `t${i}${a}/${n}`);
+  const p = await make(page, tags);
+  await page.goto(`/p/${p.slug}`);
+  await large(page);
+  const line = row(page);
+  const more = line.getByRole("button", { name: /^Show \d+ more tags?$/ });
+  await expect(line.getByRole("link")).toHaveCount(tags.length);
+  await expect(more).toHaveCount(0);
+  const last = tag(page, tags[tags.length - 1]); // by name: stays this one once folded away
+  await last.focus();
+  await expect(last).toBeFocused();
+  await page.setViewportSize({ width: 320, height: 800 });
+  await expect(more).toBeVisible();
+  await expect(last).toBeHidden();
+  await expect(more).toBeFocused();
 });
 
 test("a todo's due chip is always shown, and tags fold beside it to two rows", async ({ page }) => {
@@ -210,7 +237,10 @@ test("on a 360 px phone at 130% a todo's long first tag is cut with …, not hid
       .every((c) => c.getBoundingClientRect().right <= r.right + 0.5);
   });
   expect(fits).toBe(true);
-  await expect(links.first().locator("span")).toHaveCSS("text-overflow", "ellipsis");
+  const text = links.first().locator("span");
+  await expect(text).toHaveCSS("text-overflow", "ellipsis");
+  // Really cut: the name is wider than the room it has
+  expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   // And +N still shows the rest
   await more.click();
   await expect(links).toHaveCount(tags.length);

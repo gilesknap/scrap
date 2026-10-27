@@ -59,10 +59,15 @@ it("chips a todo's due day and priority, with whether it is overdue", () => {
 
 it("names a page's tags by their last part, with enough path to tell them apart", () => {
   const names = tagNames(["kind/project-management", "tools/developer-portal", "tech/epics/thoth"]);
-  expect([...names.values()]).toEqual(
-    ["#project-management", "#developer-portal", "#thoth"].map((n) => n.slice(1)),
-  );
+  expect([...names.values()]).toEqual(["project-management", "developer-portal", "thoth"]);
   const same = tagNames(["tech/epics/thoth", "other/thoth", "garden"]);
   expect([...same.values()]).toEqual(["epics/thoth", "other/thoth", "garden"]);
   expect(tagNames(["a/b/c", "x/b/c"]).get("x/b/c")).toBe("x/b/c");
+  // A tag with no slash beside a slashed one that ends the same: only the slashed one grows
+  expect([...tagNames(["a/b", "b"]).values()]).toEqual(["a/b", "b"]);
+  expect([...tagNames(["café/crème", "bar/crème", "日本/語"]).values()]).toEqual([
+    "café/crème",
+    "bar/crème",
+    "語",
+  ]);
 });

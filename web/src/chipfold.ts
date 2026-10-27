@@ -20,10 +20,17 @@ const rows = (row: HTMLElement) =>
 export function foldChips(row: HTMLElement, tags: HTMLElement[], end: Element, id: string) {
   const more = h("button", { type: "button", className: "morechips" });
   const fold = () => {
+    // Hiding the focused chip (or taking +N out to measure) would drop focus to the page: +N
+    // takes it if its tag is folded away
+    const had = document.activeElement;
+    const keep = () => {
+      if (had === more || (tags.includes(had as HTMLElement) && (had as HTMLElement).hidden))
+        more.focus();
+    };
     for (const t of tags) t.hidden = false;
     for (const e of [tags[0], tags[0].parentElement]) e?.classList.remove("cut");
     more.remove();
-    if (opened === id || rows(row) <= ROWS) return;
+    if (opened === id || rows(row) <= ROWS) return keep();
     // (end is the box of the last tag and +: +N goes in it, before +)
     (end.lastElementChild ?? end).before(more); // +N and + together: + never alone on a line
     // Hide from the end until the shown tags, +N and + fit in two rows (all of them, if even
@@ -43,6 +50,7 @@ export function foldChips(row: HTMLElement, tags: HTMLElement[], end: Element, i
       tags[0].classList.add("cut");
       tags[0].parentElement?.classList.add("cut"); // its box does not wrap +N and + away from it
     }
+    keep();
   };
   more.onclick = () => {
     opened = id;
