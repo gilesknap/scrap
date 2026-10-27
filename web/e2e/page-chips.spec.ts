@@ -199,7 +199,7 @@ test("a focused tag that folds away on a narrower screen hands focus to +N", asy
 test("a todo's due chip is always shown, and tags fold beside it to two rows", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const a = word();
-  const tags = ["alpha-name", "bravo-name", "delta-name"].map((n, i) => `g${i}${a}/${n}`);
+  const tags = ["alpha", "bravo", "delta"].map((n, i) => `g${i}${a}/${n}`);
   const p = await make(page, tags, "todo", { due: "2099-01-02" });
   await page.goto(`/p/${p.slug}`);
   await large(page);
