@@ -106,6 +106,10 @@ def _decode(src: Path, size: int) -> tuple[Image.Image, dict]:
         raise InvalidError("cannot preview this file") from None
 
 
+decode = _decode  # for scrap shrink, with decoder (hold it while decoding)
+decoder = _decoder
+
+
 def _make(src: Path, dest: Path, size: int) -> None:
     im, extra = _decode(src, size)
     dest.parent.mkdir(parents=True, exist_ok=True)

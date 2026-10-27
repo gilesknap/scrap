@@ -115,6 +115,13 @@ flowchart LR
 - **Download and `scrap export`** rewrite embeds and links to the files beside the Markdown, never
   inside code.
 
+## Shrinking stored photos
+
+`scrap shrink` (`shrink.py`, {ref}`scrap-shrink`) is the one command that changes a stored original.
+A shrunk photo is a new file, so in one transaction per photo it moves `capture_blob`, `derived`,
+`job` and `model_run` rows and the address in page text (a revision each) to the new SHA-256, then
+removes the old file as gc would. It decodes with `preview.py`'s decoder, so rotation is applied.
+
 ## Unused files
 
 `scrap gc` is a dry run unless given `--delete`. A file is in use while anything refers to it, and

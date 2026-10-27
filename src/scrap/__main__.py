@@ -127,6 +127,26 @@ def main(args: Sequence[str] | None = None) -> None:
         " stored files by use, the trash by age, the Claude call records by month and"
         " the job records; reads only, deletes nothing",
     )
+    shr = subparsers.add_parser(
+        "shrink",
+        parents=[common],
+        help="Make the stored photos over 2560 px smaller, as the PWA now does before"
+        " it queues one (JPEG, quality 85, upright), and point every page, capture and"
+        " Claude result at the new file; a dry run unless --apply. Back up first",
+    )
+    shr.add_argument(
+        "--apply",
+        action="store_true",
+        help="Shrink them and remove the old files nothing else uses (default: only"
+        " list what would change and the bytes saved)",
+    )
+    shr.add_argument(
+        "--grace-hours",
+        type=float,
+        default=24.0,
+        help="Keep an old file touched more recently than this many hours, as gc"
+        " does (default 24)",
+    )
     once = subparsers.add_parser(
         "ingest-once",
         help="Send one image to Claude as ingest would (no database) and print the"
@@ -239,6 +259,13 @@ def main(args: Sequence[str] | None = None) -> None:
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
         if parsed.command == "gc":
             gc_command(store, parsed)
+        elif parsed.command == "shrink":
+            from .shrink import ShrinkError, run
+
+            try:
+                print(run(store, parsed.apply, parsed.grace_hours).text())
+            except ShrinkError as error:
+                raise SystemExit(f"scrap shrink: {error}") from None
         elif parsed.command == "import":
             from . import importer
 
