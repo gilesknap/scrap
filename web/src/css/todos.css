@@ -140,6 +140,7 @@
    related pages. Its parts are folds. */
 .enrich,
 .claude {
+  --link-line: var(--ink-2); /* --line-strong is under 3:1 on --sunk */
   margin: var(--s-4) 0;
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-md);
@@ -279,9 +280,6 @@
    regular, each a 48 px target */
 .enrich :is(.sources, .related) a {
   padding-block: 15px; /* inline: its target 48 px high, the line's box unchanged */
-  color: var(--ink);
-  font-weight: 600;
-  text-decoration: none;
 }
 /* A section's heading that goes to its search (a Type: later:watch) reads as the heading
    still: no colour or underline, only the press */

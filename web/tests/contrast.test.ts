@@ -45,6 +45,11 @@ const PAIRS: [string, string, number][] = [
   ["toast-action", "toast", 4.5],
   ["line-strong", "bg", 3],
   ["line-strong", "surface", 3],
+  // A link's underline, its only cue (base.css): --line-strong on --bg and --surface (above),
+  // --ink-2 where --line-strong is under 3:1, on the Claude card's --sunk and the restored
+  // draft's --accent-soft
+  ["ink-2", "sunk", 3],
+  ["ink-2", "accent-soft", 3],
 ];
 
 // And every rule in the component CSS (style.css and src/css/) that sets both a text colour and a background from tokens. Text

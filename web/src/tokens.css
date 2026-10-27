@@ -12,7 +12,7 @@
   --ink-2: #5c564c; /* secondary text: dates, hints */
   --ink-3: #6e675c; /* placeholders, captions */
   --line: #e2dccf; /* hairlines, separators (decorative) */
-  --line-strong: #8f8778; /* field and control edges (3:1) */
+  --line-strong: #8f8778; /* field and control edges, a link's underline (3:1 on bg, surface) */
   --accent: #eba13a; /* the one colour: primary fills, selection, the badge */
   --on-accent: #1e1b16; /* text on --accent */
   --accent-ink: #8a4f00; /* accent as text or icon on --bg/--surface: links, active nav */
