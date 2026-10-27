@@ -1,8 +1,8 @@
 // Refine a search with a tap (#84). Under the box, Filters: one line saying what is on
 // ("Filters · #home · past month"); tapped, it opens in place, over the results rather than in
 // a sheet, so each tap shows its effect at once and a few taps in a row cost nothing. Inside:
-// Tags (those on, each with a ✕, then a box that offers the tags in use as you type, or the
-// results' top tags with their counts), Order and When, each a row of chips.
+// Tags (the tag picker, tagpick.ts: a box that offers the tags in use as you type, or the
+// results' top tags with their counts), When, Order and Group, each a row of chips.
 // Under the box, each filter that is on, as a chip (tap to take it out), so nothing chosen is
 // hidden, led by how many pages were found (no filters on: the count alone, over the list).
 // All of it only edits the query's text (tag:tech, is:personal), so it can be typed too, and
@@ -13,6 +13,9 @@ import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
 import { actions, offerNew } from "./searchacts";
+import { fullLabel } from "./taglabel";
+import { matching } from "./tagname";
+import { offerRow } from "./tagpick";
 import { MEDIA, removing, withGroup } from "./termedit";
 import {
   adding,
@@ -185,8 +188,12 @@ export async function refine(
     );
   // The filters on, as chips on a row of their own under the kinds, wrapping (none: no row):
   // each says what it is ("#home", "past month") and a tap takes it off
+  // A tag filter in full ("#tech/epics/thoth"): what the search is about, and only one or two,
+  // so not shortened as the Tags row's offers are; it breaks after a "/" when it must
   const chips = on.map((a) => {
-    const b = chip(label(a), null, () => apply((now) => removing(now, a.token)), true);
+    const said =
+      a.key === "tag" ? h("span", {}, a.neg ? "not " : "", fullLabel(a.value)) : label(a);
+    const b = chip(said, null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
     b.dataset.k = `off:${a.token}`;
     return b;
@@ -246,7 +253,6 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   // Tags: those on (a ✕ each), a box, and the tags it offers: as typed, the tags in use that
   // match; with nothing typed, the results' top tags with their counts
   const asked = f.active.filter((a) => a.key === "tag" && !a.neg).map((a) => a.value);
-  const offers = h("div", { className: "opts" });
   const box = h("input", {
     type: "text",
     value: typed,
@@ -257,6 +263,12 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     enterKeyHint: "done",
   });
   box.dataset.k = "tagbox";
+  // The heading and the box, then what it offers, in one flow: two rows in all, so the panel
+  // stays short enough for the results to show under it at a large text size
+  const offers = offerRow(
+    "Tags in these results",
+    h("div", { className: "tagline" }, h("span", { className: "flabel" }, "Tags"), box),
+  );
   const addTag = (t: string) => {
     typed = "";
     apply((now) => adding(now, token("tag", t)));
@@ -295,46 +307,33 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     };
     let list: [string, number][];
     // Nothing typed: the results' top tags (the facets already here); with no search yet,
-    // the most used of all. Typed: every tag of the results (top=1000), fetched only now
+    // the most used of all. Typed: every tag of the results (top=1000), fetched only now.
+    // At most 8, those of them that fit in two rows (tagpick.ts)
     if (!want)
-      list = q
-        ? f.tags
-        : (await source())
-            .filter(([t]) => !t.includes("/"))
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 8);
+      list = (
+        q ? f.tags : (await source()).filter(([t]) => !t.includes("/")).sort((a, b) => b[1] - a[1])
+      ).slice(0, 8);
     else {
       const all = (await source()).filter(([t]) => !asked.includes(t));
-      const starts = all.filter(
-        ([t]) => t.startsWith(want) || t.split("/").some((p) => p.startsWith(want)),
-      );
-      const holds = all.filter((r) => !starts.includes(r) && r[0].includes(want));
-      list = [...starts, ...holds].slice(0, 8);
+      list = matching(all, want, ([t]) => t).slice(0, 8);
     }
     if (box.value.trim().replace(/^#+/, "").toLowerCase() !== want) return; // typed on meanwhile
-    offers.replaceChildren(
-      ...list.map(([t, n]) => {
-        const b = chip(`#${t}`, n, () => addTag(t));
-        b.setAttribute("aria-label", `Filter by #${t}`);
-        b.dataset.k = `tag:${t}`;
-        return b;
-      }),
-    );
+    offers.el.setAttribute("aria-label", want ? "Matching tags" : "Tags in these results");
     // None to offer: say why, rather than an empty row
-    if (!list.length)
-      offers.prepend(
-        h(
-          "small",
-          { className: "none" },
-          want ? `No tag in these results has “${want}”` : "No tag narrows these results",
-        ),
-      );
+    offers.show(list, "Filter by", (t) => addTag(t), {
+      also: asked,
+      note: list.length
+        ? undefined
+        : want
+          ? `No tag in these results has “${want}”`
+          : "No tag narrows these results",
+    });
   };
   box.oninput = () => void offer();
   box.onkeydown = (e) => {
     if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
-    const first = offers.querySelector<HTMLElement>("[data-k^='tag:']");
+    const first = offers.el.querySelector<HTMLElement>("[data-k^='tag:']");
     const want = box.value.trim().replace(/^#+/, "").toLowerCase();
     if (first && want) first.click();
     else if (want) addTag(want); // a tag typed whole: searched as typed
@@ -342,10 +341,8 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   void offer();
   const tags = h(
     "div",
-    { className: "frow ftags", role: "group", "aria-label": "Tags" },
-    h("span", { className: "flabel" }, "Tags"),
-    h("div", { className: "tagline" }, box),
-    offers,
+    { className: "frow ftags pick", role: "group", "aria-label": "Tags" },
+    offers.el,
   );
 
   // Order: one tap each; the default (best match, or last edited) has its own chip
@@ -441,11 +438,12 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       return b;
     });
 
-  // Tags and When choose what is found; Arrange, how it is laid out: Order and Group
+  // Tags and When choose what is found; Arrange, how it is laid out: Order and Group, each
+  // with its sub-label on its line (no Arrange heading over them: the panel stays short
+  // enough for the results to show under it at a large text size)
   const arrange = h(
     "div",
     { className: "frow", role: "group", "aria-label": "Arrange" },
-    h("span", { className: "flabel" }, "Arrange"),
     line("Order", ...orders),
     line("Group", ...groups),
   );

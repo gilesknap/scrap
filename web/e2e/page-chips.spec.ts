@@ -61,12 +61,13 @@ const large = (page: Page) => page.addStyleTag({ content: ":root { font-size: 22
 test("a chip says the last part of its tag, more of the path only to tell two apart", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 800, height: 900 }); // wide: no chip folds away to +N
   const [a, b] = [word(), word()];
   const p = await make(page, [`kind${a}/project-management`, `epics${a}/thoth`, `other${b}/thoth`]);
   await page.goto(`/p/${p.slug}`);
-  await expect(tag(page, `kind${a}/project-management`)).toHaveText("#project-management");
+  await expect(tag(page, `kind${a}/project-management`)).toHaveText("#…/project-management"); // "…/": shortened
   // Two end the same: each says the part before as well
-  await expect(tag(page, `epics${a}/thoth`)).toHaveText(`#epics${a}/thoth`);
+  await expect(tag(page, `epics${a}/thoth`)).toHaveText(`#epics${a}/thoth`); // the whole tag: no "…/"
   await expect(tag(page, `other${b}/thoth`)).toHaveText(`#other${b}/thoth`);
   // The full tag stays in the tooltip, and the chip still searches for it, children too
   await expect(tag(page, `kind${a}/project-management`)).toHaveAttribute(
@@ -94,7 +95,7 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   claudes(p.page_id, `ai${a}/robot`);
   await page.goto(`/p/${p.slug}`);
   const ai = row(page).getByRole("link", { name: `Tag ai${a}/robot, added by Claude` });
-  await expect(ai).toHaveText("#robot");
+  await expect(ai).toHaveText("#…/robot");
   await expect(ai).toHaveClass(/\bai\b/);
   const mark = await ai.evaluate((el) => {
     const s = getComputedStyle(el, "::before");
@@ -105,26 +106,31 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   const mine = tag(page, `mine${a}`);
   await expect(mine).toHaveAccessibleName(`Tag mine${a}`);
   expect(await mine.evaluate((el) => getComputedStyle(el, "::before").content)).toBe("none");
-  // The tag editor marks it the same way, and keeps the full path
+  // The tag editor marks it the same way, by the same short name (the full tag its tooltip)
   await row(page).getByRole("button", { name: "Change tags" }).click();
   const chip = page.getByRole("button", { name: `Remove #ai${a}/robot, added by Claude` });
-  await expect(chip).toHaveText(`#ai${a}/robot`);
+  await expect(chip).toHaveText("#…/robot");
+  await expect(chip).toHaveAttribute("title", `#ai${a}/robot, added by Claude`);
   expect(await chip.evaluate((el) => getComputedStyle(el, "::before").content)).toBe('"✦"');
   await expect(page.getByRole("button", { name: `Remove #mine${a}`, exact: true })).toBeVisible();
 });
 
-test("the tag editor and the search chips keep the full path", async ({ page }) => {
+test("the tag editor says the short name (the full path its tooltip), a filter on its full path", async ({
+  page,
+}) => {
   const a = word();
   const full = `deep${a}/er/leaf${a}`;
   const p = await make(page, [full]);
   await page.goto(`/p/${p.slug}`);
-  await expect(tag(page, full)).toHaveText(`#leaf${a}`);
+  await expect(tag(page, full)).toHaveText(`#…/leaf${a}`);
   await row(page).getByRole("button", { name: "Change tags" }).click();
-  await expect(page.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`);
+  const chip = page.getByRole("button", { name: `Remove #${full}` });
+  await expect(chip).toHaveText(`#…/leaf${a}`);
+  await expect(chip).toHaveAttribute("title", `#${full}`);
   await page.keyboard.press("Escape");
   await page.goto(`/search?q=tag%3A${encodeURIComponent(full)}`);
   const on = page.getByRole("group", { name: "Filters on" });
-  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`);
+  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`); // in full: the focus of the search
 });
 
 test("at 390 px and 130% text, tags fold to two rows, then +N shows the rest in place", async ({
@@ -194,7 +200,7 @@ test("a focused tag that folds away on a narrower screen hands focus to +N", asy
 test("a todo's due chip is always shown, and tags fold beside it to two rows", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const a = word();
-  const tags = ["alpha-name", "bravo-name", "delta-name"].map((n, i) => `g${i}${a}/${n}`);
+  const tags = ["alpha", "bravo", "delta"].map((n, i) => `g${i}${a}/${n}`);
   const p = await make(page, tags, "todo", { due: "2099-01-02" });
   await page.goto(`/p/${p.slug}`);
   await large(page);
@@ -237,7 +243,7 @@ test("on a 360 px phone at 130% a todo's long first tag is cut with …, not hid
       .every((c) => c.getBoundingClientRect().right <= r.right + 0.5);
   });
   expect(fits).toBe(true);
-  const text = links.first().locator("span");
+  const text = links.first().locator("span.tl");
   await expect(text).toHaveCSS("text-overflow", "ellipsis");
   // Really cut: the name is wider than the room it has
   expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
