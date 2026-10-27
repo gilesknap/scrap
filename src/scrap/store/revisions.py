@@ -59,7 +59,7 @@ class RevisionsMixin(Core):
         undo = FieldEdit(
             drop=json.loads(row["fields_added"]), was=json.loads(row["fields_was"])
         )
-        _, added, dropped, was = self._plan(conn, page["id"], before, after, undo)
+        _, _, added, dropped, was = self._plan(conn, page["id"], before, after, undo)
         if dry_run or (before == after and not added and not dropped):
             return self._change(page, before, after, None, added, dropped, was)
         return self._apply(
