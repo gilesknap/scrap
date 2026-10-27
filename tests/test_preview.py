@@ -216,7 +216,9 @@ def test_waiting_for_the_decoder_holds_no_worker_thread(tmp_path, monkeypatch):
 
     async def main():
         transport = httpx2.ASGITransport(app=app)
-        async with httpx2.AsyncClient(transport=transport, base_url="http://t") as c:
+        async with httpx2.AsyncClient(
+            transport=transport, base_url="http://localhost"
+        ) as c:
 
             async def get(sha):
                 codes.append((await c.get(f"/api/blobs/{sha}/preview")).status_code)

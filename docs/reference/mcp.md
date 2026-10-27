@@ -355,7 +355,7 @@ Make a token with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`
 static; there is no token-issuing command and no rate limiting or lock-out of repeated `401`s
 (leave that to the proxy in front, such as Cloudflare). See [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md).
 
-`/mcp` also checks the `Host` header against loopback and the hosts of `SCRAP_PUBLIC_URL` (`421`
+The web app and the API check them the same way ([](api.md)). `/mcp` also checks the `Host` header against loopback and the hosts of `SCRAP_PUBLIC_URL` (`421`
 otherwise), and an `Origin` header, if sent, against those origins (`403`), so a web page cannot
 reach it by DNS rebinding. The rules are:
 

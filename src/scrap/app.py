@@ -32,6 +32,7 @@ from . import (
 )
 from .api_models import SURROGATE_MSG, EnrichOffError
 from .blobs_api import attachment
+from .hostguard import HostOrigin
 from .middleware import BodyLimit, TextGzip
 from .pwa import ORIGINS_SLOT, VERSION_SLOT
 from .store import (
@@ -90,6 +91,10 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     app.state.worker = worker
     app.add_middleware(BodyLimit, limit=limit)
     app.add_middleware(TextGzip)
+    # Host and Origin on every route but /mcp (it has the same check in its transport)
+    app.add_middleware(
+        HostOrigin, settings=mcp_server.security(mcp_server.public_urls())
+    )
     if bearer := mcp_server.tokens():  # added last, so outermost: before any work
         app.add_middleware(mcp_server.BearerAuth, tokens=bearer)
 

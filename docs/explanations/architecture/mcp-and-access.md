@@ -162,6 +162,8 @@ sequenceDiagram
   startup rather than leaving `/mcp` open.
 - Then the transport checks `Host` and `Origin` against loopback and `SCRAP_PUBLIC_URL` (DNS
   rebinding protection). Set it to the Serve address or clients get `421` or `403`.
+- The web app and the API (every route but `/mcp` and `/healthz`) check `Host` and, on writes, `Origin`
+  the same way (`hostguard.py`, #238), so another site cannot write through the owner's browser.
 - Limits per write: body 200 000 bytes, 20 tags, 200-character title, 200 pages per bulk
   `edit_meta`, request 2 MB.
 

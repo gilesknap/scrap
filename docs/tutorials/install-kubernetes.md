@@ -122,7 +122,7 @@ What each part does:
   and `/healthz` are not affected.
 - `identityHeader` records the signed-in email, which Cloudflare Access adds to each request,
   as the author of a change. Changes made through `/mcp` are always author `claude`.
-- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp` answers `421` to any other `Host`.
+- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API answer `421` to any other `Host` (and `403` to a write from another `Origin`), apart from `/healthz`.
 - `networkPolicy` admits only the cloudflared pods, in the `cloudflared` namespace you create in
   the next step. Without it, any pod in the cluster could reach scrap directly and send its own
   identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around
