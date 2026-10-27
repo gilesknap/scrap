@@ -103,7 +103,8 @@ flowchart LR
   are never changed.
 - **In the PWA.** An embed on a line of its own becomes a figure (tap for the viewer, caption with
   Download and *Ask Claude*); an embed inside a link, heading, list, quote or beside text stays a
-  plain image. Files a page does not embed (PDFs) are listed below the text.
+  plain image. Files a page does not embed (PDFs) are listed below the text. A PDF's or text
+  file's text is read by scrap itself, with no model, so search finds it ({ref}`ingest-files`).
 - **Deleted embeds.** Deleting a file's last embed from a page's text does not detach it: the
   capture keeps it, so `scrap gc` still finds and gathers it as an orphan. The page stops showing
   it: its thumbnail, `read`, the search `image_count` and `has:image`, and `is:duplicate` leave out a

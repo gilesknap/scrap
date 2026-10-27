@@ -55,6 +55,7 @@ flowchart LR
 | Job | Trigger | Result | Page |
 | --- | --- | --- | --- |
 | `ingest` | A photo in a capture | Text, description, kind, title, tags, drawing, task boxes | {ref}`ingest-call` |
+| `ingest` (a file) | A PDF or text file in any capture | Its text, for search, read locally: no model | {ref}`ingest-files` |
 | `enrich` (reason `enrich`) | A text capture or save, a link, Ask Claude | Tags, summary, link title, task boxes | {ref}`ingest-enrich` |
 | `enrich` (`related`) | First reading; nightly pass; Ask | Up to 5 related pages | {ref}`ingest-enrich-related` |
 | `enrich` (`writeup`) | A board photo read; Regenerate; Ask | A board's write-up | {ref}`ingest-writeup` |
@@ -71,7 +72,9 @@ circuit breaker and a rate-limit class (the budget and **Retry** cover them), ch
 ## Enabling ingest
 
 Photos are queued whether or not ingest is on, so nothing captured before you switch it on is
-lost: it is sent when the worker starts.
+lost: it is sent when the worker starts. PDFs and text files are queued the same way, and wait
+unread (not searchable) while ingest is off: the worker that reads them is the same thread
+({ref}`ingest-files`).
 
 The switch is `SCRAP_INGEST=on` with `ANTHROPIC_API_KEY` set (or, on a Claude seat,
 `SCRAP_LLM_BACKEND=cli` with `CLAUDE_CODE_OAUTH_TOKEN`: {ref}`on-a-claude-seat`). The worker does
@@ -139,6 +142,46 @@ Claude", or "Waiting: Claude ingest is off"), *processing*, *done*, *failed* (wi
 **Retry**) or *paused* ("Paused (reason): nothing is lost", with **Resume**). A finished photo has
 a quiet **Reprocess**. `GET /api/ingest` and `POST /api/ingest/resume` are the queue's status and
 the resume.
+
+(ingest-files)=
+## Files: read locally, for search
+
+A PDF or a text file (`text/plain`, `text/markdown`; a `.md` or `.txt` sent with no type is typed
+by its name, scrap registering `.md` itself) in any capture (a capture, an import with ingest, a file added to a page, **Reprocess**) gets
+an ordinary `ingest` job, keyed by capture and SHA-256 as a photo's is. No model reads it: scrap
+extracts its text itself, so search finds words in it, and nothing is sent anywhere
+([](decisions/0035-files-are-read-locally-for-search.md)). To have a file summarised, ask Claude
+over MCP: `read` gives its text.
+
+- **PDF.** `pypdf` reads the text layer in a child process (`ingest/pdftext.py`, run by
+  `ingest/files.py`) with a 60 s wall-clock timeout, a 512 MiB address-space cap and a CPU-time
+  cap a little over the timeout, so a hostile file costs that process, not the service; on the
+  timeout it is killed, and the CPU cap ends one left behind at a shutdown. The child gets an empty
+  environment (none of the service's keys or tokens), no stdin, and its stderr is discarded, with
+  pypdf's logging off (a broken file can warn once per operator); only its JSON answer is read. It reads at most the first
+  200 pages and keeps at most 500,000 characters. A PDF encrypted with the empty password is read,
+  as pypdf does; one with any other password is not.
+- **Text file.** Decoded as UTF-8 in the service (a byte that is not becomes U+FFFD; the BOM is
+  dropped), at most 500,000 characters.
+- **Result.** The text is a `derived` version of kind `ocr`, `producer` `pypdf <version>` or
+  `scrap`, `run_id` NULL, `data` `{kind: pdf|text, pages, pages_read, truncated}`; the derived
+  trigger indexes it (Search, below). A scan with no text layer is `done` with empty text: not
+  searchable. The page's text, title, kind and tags never change.
+- **Failures.** A file over 30 MB is not read (`too large: 41 MB, over the 30 MB limit`), nor one
+  pypdf cannot parse (`content: the PDF could not be read`, `(it needs a password)` when locked),
+  nor one past the timeout (`timeout: ...`) or the memory cap (`memory: ...`). The job is `dead`
+  at once, with that reason: the same file fails the same way again, so there are no retries.
+  Any other failure of a file's job (its file missing, the child not starting) is final too
+  (`internal: ...`). The file stays stored and attached; **Reprocess** (the Retry) queues it
+  again. A file attached before scrap read files was never queued: **Reprocess** queues it.
+- **No budget, no pause.** A file's job makes no `model_run` and spends nothing, so it is not
+  checked against the budget, and `CLAIM` takes a file's job while the queue is paused (photos
+  wait). Its success does not end a pause. `GET /api/ingest` counts its jobs with the photos'.
+- **Not a photo.** It has no part in a page's first reading or its write-up: reading it queues
+  no related call or write-up (`FIRST_READ`, the write-up's `DUE` and `charge` look at images'
+  jobs only), and a page made from a PDF with a photo added later still gets its first related
+  call when the photo is read. An image in a `file` capture is still not sent to Claude unless
+  asked. Enrich, related pages and topics do not read a file's text.
 
 (ingest-call)=
 ## The Claude call
@@ -285,7 +328,7 @@ none: {ref}`ingest-first-capture`), and the user wins:
   `whiteboard`, document becomes `document` (`ingest.PAGE_KINDS`).
 
 **Search.** A trigger indexes a current version's `text` as a chunk of its page (with
-`derived_id`), and superseding removes it. That covers OCR, the description and a human drawing's
+`derived_id`), and superseding removes it. That covers OCR, the description, a file's text and a human drawing's
 labels; a model drawing's text is empty, because its words are the OCR. `Store.index_page`
 rewrites only the chunks with `derived_id IS NULL`, and search groups hits by page.
 
@@ -481,6 +524,7 @@ per-call contents are in [](llm-calls.md); in brief:
 | Call | Sent |
 | --- | --- |
 | Photo | The JPEG described above (a resized, re-encoded copy; only its colour profile is kept) and the fixed prompt. Nothing else about the page |
+| File (PDF, text) | Nothing: its text is read locally ({ref}`ingest-files`) |
 | Enrich | Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored) |
 | Related | The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up |
 | Write-up | Up to 4 board JPEGs, what was read from them, the page's text (at most 6,000), the owner's guidance, and the related index |

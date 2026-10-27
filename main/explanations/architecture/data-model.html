@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data model and storage &#8212; scrap 0.14.1.dev13+g9302c9394 documentation</title>
+    <title>Data model and storage &#8212; scrap 0.14.1.dev14+g8a0f0a318 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=3633b618"></script>
+    <script src="../../_static/documentation_options.js?v=9a24675e"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -816,6 +816,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -984,7 +985,7 @@ code is in <code class="docutils literal notranslate"><span class="pre">src/scra
 <td><p>What arrived, with a client-minted ULID as the retry key; ordered blobs per capture</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">derived</span></code></p></td>
-<td><p>Versioned Claude (or human) results: <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> are written; <code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code> are allowed by the <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> but reserved</p></td>
+<td><p>Versioned Claude (or human) results: <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> are written (a PDF’s or text file’s <code class="docutils literal notranslate"><span class="pre">ocr</span></code> is scrap’s own reading, <code class="docutils literal notranslate"><span class="pre">run_id</span></code> NULL: <a class="reference internal" href="../ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>); <code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code> are allowed by the <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> but reserved</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, <code class="docutils literal notranslate"><span class="pre">page_meta_rev</span></code></p></td>
 <td><p>Text history and kind/tag history (see <a class="reference internal" href="#revisions-and-conflicts">Revisions</a>)</p></td>
@@ -1026,7 +1027,7 @@ every connection.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">job</span></code>, <code class="docutils literal notranslate"><span class="pre">queue_state</span></code></p></td>
-<td><p>Photo jobs, kind <code class="docutils literal notranslate"><span class="pre">ingest</span></code> or <code class="docutils literal notranslate"><span class="pre">refine</span></code> (<code class="docutils literal notranslate"><span class="pre">queued</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">dead</span></code>), and the single-row pause state (<code class="docutils literal notranslate"><span class="pre">auth</span></code>, <code class="docutils literal notranslate"><span class="pre">credit</span></code>, <code class="docutils literal notranslate"><span class="pre">outage</span></code>, <code class="docutils literal notranslate"><span class="pre">budget</span></code>)</p></td>
+<td><p>Photo and file jobs, kind <code class="docutils literal notranslate"><span class="pre">ingest</span></code> or <code class="docutils literal notranslate"><span class="pre">refine</span></code> (<code class="docutils literal notranslate"><span class="pre">queued</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">dead</span></code>), and the single-row pause state (<code class="docutils literal notranslate"><span class="pre">auth</span></code>, <code class="docutils literal notranslate"><span class="pre">credit</span></code>, <code class="docutils literal notranslate"><span class="pre">outage</span></code>, <code class="docutils literal notranslate"><span class="pre">budget</span></code>)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>, <code class="docutils literal notranslate"><span class="pre">topic_run</span></code></p></td>
 <td><p>Every call: request, response, usage, <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, error class. <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> covers discovery calls of no one page</p></td>

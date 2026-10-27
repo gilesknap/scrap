@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Search &#8212; scrap 0.14.1.dev13+g9302c9394 documentation</title>
+    <title>Search &#8212; scrap 0.14.1.dev14+g8a0f0a318 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=3633b618"></script>
+    <script src="../../_static/documentation_options.js?v=9a24675e"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -816,6 +816,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -935,7 +936,7 @@ that migrations rebuild, and the store-health checks are ordinary search filters
 <td><p>One linear pass. Space means AND. <code class="docutils literal notranslate"><span class="pre">&quot;phrase&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">-word</span></code> / <code class="docutils literal notranslate"><span class="pre">!word</span></code> (NOT) and <code class="docutils literal notranslate"><span class="pre">key:value</span></code> (also <code class="docutils literal notranslate"><span class="pre">key:&quot;two</span> <span class="pre">words&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">-key:value</span></code>). Words with no letter or digit are dropped. At most 64 terms and 64 filters: a larger query is refused (HTTP 422, MCP tool error), never silently cut</p></td>
 </tr>
 <tr class="row-odd"><td><p>Match</p></td>
-<td><p>Each word is a prefix (<code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>) wherever it stands, in the title, tags, summary, text or a photo’s text or description. Phrases and NOT words are exact. Tokenizer <code class="docutils literal notranslate"><span class="pre">porter</span> <span class="pre">unicode61</span></code></p></td>
+<td><p>Each word is a prefix (<code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>) wherever it stands, in the title, tags, summary, text, a photo’s text or description, or a PDF’s or text file’s text. Phrases and NOT words are exact. Tokenizer <code class="docutils literal notranslate"><span class="pre">porter</span> <span class="pre">unicode61</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Rank</p></td>
 <td><p>Tiers: a topic page first, then every word in the title, then every word in title, tags or summary, then bm25 with column weights 10, 5, 3, 1 (title, tags, summary, text)</p></td>
@@ -1047,7 +1048,8 @@ link text not addresses, code as typed, table cells). The summary is the page’
 else Claude’s (current write-up, else enrichment). Chunk 1 is a board’s current write-up. Control
 characters become spaces, since snippets mark hits with <code class="docutils literal notranslate"><span class="pre">\x02</span></code> and <code class="docutils literal notranslate"><span class="pre">\x03</span></code>.</p></li>
 <li><p><strong>Photo text.</strong> What ingest read (description, OCR) is its own chunk, made by a trigger when the
-<code class="docutils literal notranslate"><span class="pre">derived</span></code> row is inserted and removed when it is superseded. It fills only the text column.</p></li>
+<code class="docutils literal notranslate"><span class="pre">derived</span></code> row is inserted and removed when it is superseded. It fills only the text column. A
+PDF’s or text file’s text, which scrap reads itself (<a class="reference internal" href="../ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>), is such a chunk too.</p></li>
 <li><p><strong>Disposable.</strong> There is no <code class="docutils literal notranslate"><span class="pre">reindex</span></code> command. A numbered migration whose Python step
 (<code class="docutils literal notranslate"><span class="pre">AFTER</span></code> in <code class="docutils literal notranslate"><span class="pre">store/db.py</span></code>) calls <code class="docutils literal notranslate"><span class="pre">index_all</span></code> rebuilds every page’s own chunk, trash included
 (undo brings a page back). Migration 3 added the title, tags and summary columns by dropping

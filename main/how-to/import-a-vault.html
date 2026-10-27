@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import a Thoth vault &#8212; scrap 0.14.1.dev13+g9302c9394 documentation</title>
+    <title>Import a Thoth vault &#8212; scrap 0.14.1.dev14+g8a0f0a318 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3633b618"></script>
+    <script src="../_static/documentation_options.js?v=9a24675e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -901,7 +901,8 @@ scrap is not brought back by a re-run.</p>
 be. Off by default: Thoth pages already describe their images. The queue is run by the
 service, which needs <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code> and <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>. Each queued image is a paid
 call, counted against <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (the queue pauses when it is spent). Only the
-images the PWA can preview are queued, not PDFs, SVGs or other attached files. The settings are
+images the PWA can preview are sent to Claude, not PDFs, SVGs or other attached files; a PDF
+is queued too, but only to have its text read locally for search, with no model call. The settings are
 in the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">API reference</span></a>. Claude’s first reading of a page’s first image
 adds its tags to the page’s imported ones, so the vault’s tags no longer stand alone.</p></li>
 </ol>

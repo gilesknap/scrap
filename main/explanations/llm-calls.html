@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>What Claude is asked, per page &#8212; scrap 0.14.1.dev13+g9302c9394 documentation</title>
+    <title>What Claude is asked, per page &#8212; scrap 0.14.1.dev14+g8a0f0a318 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3633b618"></script>
+    <script src="../_static/documentation_options.js?v=9a24675e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -816,6 +816,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -945,17 +946,17 @@ page’s: see the end. “Nightly” is the related-pages job and “weekly” t
 <td><p>—</p></td>
 <td><p>Once when all of its first photo capture is read; nightly if changed or a photo is read; Ask. Sees the images’ text</p></td>
 </tr>
-<tr class="row-even"><td><p>Photos added to a page (the editor’s Add photo)</p></td>
+<tr class="row-even"><td><p>Photos added to a page (the editor’s Add photo; a PDF added with it is read locally only: <a class="reference internal" href="ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>)</p></td>
 <td><p>Per image: description, text (OCR), drawing. Never the page’s kind, title, tags or task boxes: its first capture decides what the page is (<a class="reference internal" href="ingest.html#ingest-first-capture"><span class="std std-ref">Added photos: the first capture decides</span></a>)</p></td>
 <td><p>As the page was before: a typed page keeps enrich on save; a photo page, Ask only</p></td>
 <td><p>As above, once a board image is read</p></td>
-<td><p>Queued at once when this is the page’s first capture with a job (its first photos), once they are read; otherwise nightly, as a photo is read; Ask. Sees the new images’ text</p></td>
+<td><p>Queued at once when this is the page’s first capture with a photo’s job (its first photos), once they are read; otherwise nightly, as a photo is read; Ask. Sees the new images’ text</p></td>
 </tr>
 <tr class="row-odd"><td><p>File capture (PDF and the like)</p></td>
-<td><p>— (PDF summaries: #234)</p></td>
+<td><p>— (a PDF’s or text file’s text is read locally for search, no model: <a class="reference internal" href="ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>; summaries are asked of Claude over MCP)</p></td>
 <td><p>Skipped (Ask only)</p></td>
 <td><p>—</p></td>
-<td><p>Nightly if changed; Ask. Sees title, tags and text only</p></td>
+<td><p>Nightly if changed; Ask. Sees title, tags and text only, not the file’s text</p></td>
 </tr>
 <tr class="row-even"><td><p>Whiteboard or document page typed, not photographed</p></td>
 <td><p>—</p></td>
