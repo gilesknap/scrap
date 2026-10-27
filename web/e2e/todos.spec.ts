@@ -139,7 +139,10 @@ test("the Now / Upcoming / All switch is in the address; Back and reload keep it
   await expect(page).toHaveURL(/\/search\?q=kind%3Atodo$/); // not the Todos screen
   await expect(page.getByRole("searchbox")).toHaveValue("kind:todo");
   await expect(page.getByRole("radio", { name: "Todos" })).toBeChecked();
-  await expect(page.locator(".list li em").first()).toBeVisible();
+  // The list has drawn when a row is shown. Only a done or cancelled row has a chip, and those
+  // sit in the folded Done section, hidden (a search's cap can cut them off the list as well),
+  // so no chip is waited for: those there all read as a todo's (#316)
+  await expect(page.locator(".list li").first()).toBeVisible();
   for (const chip of await page.locator(".list li em").allTextContents())
     expect(["todo", "done", "cancelled"]).toContain(chip); // todos only
   await page.getByRole("radiogroup", { name: "Kind" }).getByText("Todos").click(); // off again
