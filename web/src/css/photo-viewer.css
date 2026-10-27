@@ -283,9 +283,9 @@
   color: var(--ink-3);
 }
 /* A todo's due date, priority and (on its page) snooze: each part under a small uppercase
-   heading (.flabel, as the Filters panel's rows), every row on one left edge: a row of chips
-   (No date, Today, Tomorrow, Next week; the one set pressed, as in the Filters panel), then the
-   native date picker for any other day */
+   heading (.flabel, as the Filters panel's rows), every row on one left edge: one wrapping row
+   of chips (Today, Tomorrow, Next week, Pick a date…, No date; the one set pressed, as in the
+   Filters panel), the native date field hidden under Pick a date…; Snooze folded to one line */
 .todoedit {
   display: flex;
   flex-direction: column;
@@ -319,15 +319,61 @@
   gap: 6px;
 }
 .todoedit .soon .facet {
-  padding-inline: 10px; /* No date, Today, Tomorrow, Next week: one row from 380 px */
+  padding-inline: 10px;
 }
-/* Narrower: two and two, never one alone on a second line */
-@media (max-width: 379px) {
-  .todoedit .soon {
-    display: grid;
-    grid-template-columns: repeat(2, auto);
-    justify-content: start;
-  }
+/* Pick a date…: the date field under it, out of sight but named (its picker opens from the
+   chip, and drops from here); shown beside it where the picker can't be opened */
+.todoedit .pick {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.todoedit input.vh {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Snooze, folded to one quiet line: its heading, then what it is ("till 29 Oct", or none), a
+   chevron at its end (down folded, up open); open, its chips under it */
+.todoedit .snooze {
+  margin-top: var(--s-1);
+}
+.todoedit .snooze > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+.todoedit .snooze > summary::-webkit-details-marker {
+  display: none;
+}
+.todoedit .snooze .says {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.todoedit .snooze > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin: 0 var(--s-1) 3px;
+  border: solid var(--ink-2);
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.todoedit .snooze[open] > summary::after {
+  margin-bottom: -3px;
+  rotate: -135deg;
 }
 .todoedit .facet[aria-pressed="true"] {
   border-color: transparent;

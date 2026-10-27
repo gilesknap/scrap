@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { chipOf, dueOf, partly, snoozed, statusOf, ticks, today } from "../src/status";
+import { chipOf, dueOf, partly, short, snoozed, statusOf, ticks, today } from "../src/status";
 
 it("gives todos and Laters a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
@@ -82,4 +82,12 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   expect(due(boxes(2, 5, "done"), now)).toBeNull();
   expect(due({ ...boxes(1, 2), priority: "high" }, now)?.[0]).toBe("high priority · 1 of 2");
   expect(due(todo("2026-11-02"), now)?.[0]).not.toMatch(/2026/);
+});
+
+it("says a day as 'D Mon', with the year only when it is not this year's", () => {
+  const plain = short("2026-10-31", "2026-03-01");
+  expect(plain).toMatch(/31/);
+  expect(plain).not.toMatch(/2026/);
+  expect(short("2027-01-05", "2026-03-01")).toMatch(/2027/);
+  expect(short("2025-12-31", "2026-03-01")).toMatch(/2025/);
 });

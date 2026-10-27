@@ -96,7 +96,8 @@ test("due date and priority are set and cleared on a todo's page", async ({ page
   await expect(line).toHaveText("medium");
   await line.click();
   const due = page.getByLabel("Due", { exact: true });
-  await expect(due).toBeFocused();
+  // Focus on the due chip pressed (none set: No date); the date field is Pick a date…'s
+  await expect(page.getByRole("button", { name: "No date" })).toBeFocused();
   await due.fill(day(-1));
   await page.getByRole("combobox", { name: "Priority" }).selectOption("high");
   await page.getByRole("button", { name: "Save" }).click();
@@ -121,23 +122,32 @@ test("due date and priority are set and cleared on a todo's page", async ({ page
   await expect(page.locator(".page .duechip")).toHaveCount(0);
 });
 
-test("Today, Tomorrow and Next week set the due date in one tap", async ({ page }) => {
+test("Today, Tomorrow and Next week set the due date in one tap; Pick a date… says any other", async ({
+  page,
+}) => {
   await page.goto(`/p/${made.soon.slug}`);
   const line = page.locator(".page .tags .duechip");
   await line.click();
   const due = page.getByLabel("Due", { exact: true });
   const chips = page.getByRole("group", { name: "Due soon" });
   const pressed = () => chips.locator('[aria-pressed="true"]').allTextContents();
-  await expect(chips.getByRole("button")).toHaveText(["No date", "Today", "Tomorrow", "Next week"]);
-  await expect.poll(pressed).toEqual([]); // due in 5 days: none of them
+  // Pick a date… is named for what it does, and says the day picked once one is
+  const pick = chips.getByRole("button", { name: /^Pick a date…/ });
+  await expect(chips.getByRole("button")).toHaveCount(5);
+  await expect(chips.getByRole("button").first()).toHaveText("Today");
+  await expect(chips.getByRole("button").last()).toHaveText("No date");
+  // Due in 5 days: none of the fixed ones, so Pick a date… says it
+  await expect(pick).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(pressed).toHaveLength(1);
   await chips.getByRole("button", { name: "Tomorrow" }).click();
   await expect(due).toHaveValue(day(1));
   await expect.poll(pressed).toEqual(["Tomorrow"]);
   await chips.getByRole("button", { name: "Next week" }).click();
   await expect(due).toHaveValue(day(7));
   await expect.poll(pressed).toEqual(["Next week"]);
-  await due.fill(day(3)); // another day: none pressed
-  await expect.poll(pressed).toEqual([]);
+  await due.fill(day(3)); // another day (as the picker sets it): Pick a date… pressed
+  await expect(pick).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(pressed).toHaveLength(1);
   await chips.getByRole("button", { name: "No date" }).click(); // empties it, and is pressed
   await expect(due).toHaveValue("");
   await expect.poll(pressed).toEqual(["No date"]);
@@ -206,7 +216,7 @@ test("the todo views meet AA contrast, in both themes", async ({ page }) => {
     await expect(page.locator(".page .duechip .late")).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} page`).toEqual([]);
     await page.locator(".page .tags .duechip").click();
-    await expect(page.getByLabel("Due", { exact: true })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Due soon" })).toBeVisible();
     await page
       .getByRole("group", { name: "Due soon" })
       .getByRole("button", { name: "Today" })

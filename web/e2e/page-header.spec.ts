@@ -174,7 +174,8 @@ test("the tag editor's and the write-up's .row are not the header's parts", asyn
   const t = await make(page, `Header rows ${word()}`, "note", { tags: ["car"] });
   await open(page, t);
   await page.locator(".page .tags .add").click();
-  const save = page.locator(".tagform .row > *").last();
+  // Its Cancel and Save are the action row's while it is open
+  const save = page.locator(".page > .tools").getByRole("button", { name: "Save" });
   await expect(save).toBeVisible();
   const style = await save.evaluate((e) => {
     const cs = getComputedStyle(e, "::before");

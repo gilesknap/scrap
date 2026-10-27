@@ -340,6 +340,30 @@ test("Order writes sort: into the query, and the results follow it", async ({ pa
   expect(await page.evaluate(lowContrast, ""), "order").toEqual([]);
 });
 
+test("the tag editor's Cancel and Save are the page's action row", async ({ page }) => {
+  const made = await page.request.post("/api/captures", {
+    data: { id: "01E2ETAGRW1".padEnd(26, "0"), text: "Tag row please" },
+  });
+  const { slug } = await made.json();
+  await page.goto(`/p/${slug}`);
+  const buttons = page.locator(".page > .tools").getByRole("button");
+  await expect(buttons).toHaveText(["Edit", "Delete"]);
+  await page.getByRole("button", { name: "Add tags" }).click();
+  await expect(buttons).toHaveText(["Cancel", "Save"]);
+  await expect(
+    page.locator(".tagform").getByRole("button", { name: /^(Save|Cancel)$/ }),
+  ).toHaveCount(0);
+  await expect(buttons.last()).toBeInViewport({ ratio: 1 });
+  await page.getByRole("textbox", { name: "Add a tag" }).fill("rowtag");
+  await buttons.last().click();
+  await expect(buttons).toHaveText(["Edit", "Delete"]);
+  await expect(page.locator(".page .tags").getByRole("link")).toHaveText(["#rowtag"]);
+  await page.getByRole("button", { name: "Change tags" }).click();
+  await expect(buttons).toHaveText(["Cancel", "Save"]);
+  await buttons.first().click();
+  await expect(buttons).toHaveText(["Edit", "Delete"]);
+});
+
 test("an open tag edit survives the page being drawn again; Cancel and Escape close it", async ({
   page,
 }) => {

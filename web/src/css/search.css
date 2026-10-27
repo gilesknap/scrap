@@ -487,11 +487,6 @@
   gap: var(--s-2);
   margin-bottom: var(--s-3);
 }
-.tagform .row {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--s-2);
-}
 
 /* A–Z: one card, each letter a slim divider row inside it, sticky under the top bar while its
    rows scroll by (clip, not hidden: hidden would make the card the scroller and stop it) */

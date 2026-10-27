@@ -136,6 +136,9 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   // the page is drawn again meanwhile, e.g. a photo's reading state changing
   let tagForm: HTMLFormElement | null = null;
   let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
+  // While a form is open, its Cancel and Save are the action row (the latest form's, when both
+  // are): always in view, however tall the form
+  let acts: HTMLElement[][] = [];
   const show = (p: Page) => {
     shown = p;
     drawn++;
@@ -186,41 +189,40 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       // One Claude card for the page, at its end: its summary, a board's write-up, related pages
       enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
       h("div", { className: "originals" }, ...files),
-      h(
-        "div",
-        { className: "bar tools" },
-        // A todo or a Later leads with Mark done (the page's hero), or Reopen once done or
-        // cancelled
-        ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
-          h(
-            "button",
-            {
-              className: to === "done" ? "primary" : "",
-              onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement),
-            },
-            icon(to === "done" ? "done" : "retry"),
-            label,
-          ),
-        ),
-        editButton(p),
-        // Its link, its text as typed (no link to scrap in it), or the page as a file; where
-        // the phone can't share, Download in Share's place, and where it can share but has no
-        // menu (no Popover API), Download beside Share
-        share(
-          () => ({ title: p.title, text: unembedded(p.body) }),
-          pageLink(p.slug),
-          undefined,
-          // (and Pin to Search, from the pins chunk: not on the Pinned page itself)
-          menus
-            ? [saved, ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : [])]
-            : undefined,
-        ) ?? saved,
-        !menus && "share" in navigator && saved,
-        h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
-      ),
+      h("div", { className: "bar tools" }, ...(acts.at(-1) ?? tools(p, saved, menus))),
     );
     if (typing) tagForm?.querySelector("input")?.focus();
   };
+
+  // The page's actions, while no form is open
+  const tools = (p: Page, saved: HTMLElement, menus: boolean) => [
+    // A todo or a Later leads with Mark done (the page's hero), or Reopen once done or
+    // cancelled
+    ...ticks(statusOf(p.kind, p.fields)).map(([label, to]) =>
+      h(
+        "button",
+        {
+          className: to === "done" ? "primary" : "",
+          onclick: (e: Event) => tick(p, to, e.currentTarget as HTMLButtonElement),
+        },
+        icon(to === "done" ? "done" : "retry"),
+        label,
+      ),
+    ),
+    editButton(p),
+    // Its link, its text as typed (no link to scrap in it), or the page as a file; where
+    // the phone can't share, Download in Share's place, and where it can share but has no
+    // menu (no Popover API), Download beside Share
+    share(
+      () => ({ title: p.title, text: unembedded(p.body) }),
+      pageLink(p.slug),
+      undefined,
+      // (and Pin to Search, from the pins chunk: not on the Pinned page itself)
+      menus ? [saved, ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : [])] : undefined,
+    ) ?? saved,
+    !menus && "share" in navigator && saved,
+    h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
+  ];
 
   // The editor, with its draft if one was kept: a chunk of its own (pageedit.ts, with editor.ts)
   // row: from a list's row (not where the view is read)
@@ -237,16 +239,27 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     if (!mod) return toast("Can't edit tags offline");
     const p = shown; // as it is now
     const field = mod.tagField(p.tags, undefined, p.model_tags);
-    const save = h("button", { type: "submit", className: "primary" }, "Save");
+    // Its Cancel and Save are the action row's while it is open; Save is the form's (its form
+    // attribute), so Enter still sends it
+    const save = h("button", { type: "submit", className: "primary" }, icon("done"), "Save");
+    save.setAttribute("form", "tagform");
+    const cancel = h("button", { onclick: () => close(shown) }, icon("close"), "Cancel");
+    for (const b of [cancel, save])
+      b.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") close(shown); // from the action row too
+      });
+    const mine = [cancel, save];
     // Closed (saved or not): the page as it is now, focus back on its Tags button
     const close = (to: Page) => {
       tagForm = null;
+      acts = acts.filter((a) => a !== mine);
       show(to);
       root.querySelector<HTMLElement>(".tags .add")?.focus();
     };
     const form = h(
       "form",
       {
+        id: "tagform",
         className: "tagform",
         onkeydown: (e: KeyboardEvent) => {
           if (e.key === "Escape") close(shown);
@@ -266,20 +279,16 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
         },
       },
       field.el,
-      h(
-        "div",
-        { className: "row" },
-        h("button", { type: "button", className: "ghost", onclick: () => close(shown) }, "Cancel"),
-        save,
-      ),
     );
     tagForm = form;
+    acts.push(mine);
     // The due chip stays (it is not a tag); the tags and + give way to the form under the row
     const chip = line.querySelector(".duechip");
     if (chip) {
       for (const c of [...line.children]) if (c !== chip) c.remove();
       line.after(form);
     } else line.replaceWith(form);
+    root.querySelector(":scope > .tools")?.replaceChildren(...mine);
     field.input.focus();
   }
 
@@ -290,16 +299,19 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const mod = await import("./todoedit").catch(() => null);
     if (!mod) return toast("Can't change it offline");
     // Saved: the page as saved; cancelled: as it is now (it may have changed meanwhile)
-    const { form, focus } = mod.todoForm(shown, (to) => {
+    const due = mod.todoForm(shown, (to) => {
       todoForm = null;
+      acts = acts.filter((a) => a !== due.acts);
       show(to ?? shown);
       // The chip may be gone (a closed todo saved with no date or priority): then the +
       root.querySelector<HTMLElement>(".tags > .duechip, .tags .add")?.focus();
     });
-    todoForm = form;
+    todoForm = due.form;
+    acts.push(due.acts);
     chip.remove(); // under the row, in the chip's place
-    row.after(form);
-    focus();
+    row.after(due.form);
+    root.querySelector(":scope > .tools")?.replaceChildren(...due.acts);
+    due.focus();
   }
 
   // Ticked off (or not): its status only, no new revision
