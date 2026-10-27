@@ -288,6 +288,12 @@ test("Capture offline: the badge, the waiting row and one quiet line; no card or
 }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Camera" })).toBeVisible();
+  // The composer is a lazy chunk: offline it comes from the service worker's shell cache, so
+  // wait until the worker has installed (cached the shell) and taken this page over
+  await page.waitForFunction(async () => {
+    await navigator.serviceWorker.ready;
+    return !!navigator.serviceWorker.controller;
+  });
   await context.setOffline(true);
   await page.getByRole("button", { name: "Note" }).click();
   await page.getByPlaceholder("Note or link").fill("Quiet offline note");
