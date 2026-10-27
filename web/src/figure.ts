@@ -3,19 +3,20 @@
 // a page made before photos were embedded; not one whose embed was deleted). A figure opens the
 // photo viewer (every image of the page, in order), and its caption has the file's name,
 // Download and Ask Claude; once Claude has (or will have) seen it, its panel instead (ingest.ts).
+// Any other file is a plain row (filerow.ts).
 import {
   ApiError,
   api,
   blobUrl,
   type FileRef,
-  type Ingest,
   type Page,
+  photoIngest,
   previewUrl,
   type Queue,
   shareable,
 } from "./api";
 import { plain } from "./app";
-import { icon } from "./icons";
+import { fileRow } from "./filerow";
 import { PHOTO, photoPanel } from "./ingest";
 import { download, h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
@@ -79,12 +80,14 @@ export function figures(
     // No caption: its name and Download are the viewer's, a tap away
     const fig = h("figure", { className: "orig" }, h("a", { href, onclick: open }, img));
     img.onerror = () => fig.replaceWith(fileRow(href, name || "file", save)); // no preview
-    if (!f) return fig; // another page's file: Claude's results are that page's
-    if (f.ingest) {
-      const blob = f as Placed & { ingest: Ingest };
+    // Another page's file (Claude's results are that page's), or not an image (a PDF's sha in an
+    // image embed): no panel and no Ask Claude
+    if (!f || !isImage(f)) return fig;
+    const ingest = photoIngest(f);
+    if (ingest) {
       return photoPanel({
         cid: f.cid,
-        blob,
+        blob: { ...f, ingest },
         figure: fig,
         photo: photos[at - 1].src,
         slug: p.slug,
@@ -123,17 +126,9 @@ export function figures(
     const name = f.filename || f.mime;
     if (isImage(f)) return figure(f.sha256, f.filename || "", f);
     const href = blobUrl(f.sha256);
-    return fileRow(href, name, download(`${href}?download=1`, "save"));
+    return fileRow(href, name, download(`${href}?download=1`, "save"), f.ingest);
   });
 }
-
-const fileRow = (href: string, name: string, save: HTMLElement) =>
-  h(
-    "div",
-    { className: "orig" },
-    h("a", { href, target: "_blank", className: "file" }, icon("file"), h("span", {}, name)),
-    save,
-  );
 
 /** Send one image to Claude; the page, shown again, then has its panel with the queue state. */
 function askClaude(cid: string, sha: string, refresh: () => void) {
