@@ -1,4 +1,5 @@
-"""The background Worker thread: claims a job, calls Claude, records the result."""
+"""The background Worker thread: claims a job, calls Claude, records the result (a
+file's job is read locally instead: files.py)."""
 
 import json
 import logging
@@ -19,7 +20,9 @@ from ..store import (
     queue_after_read,
     transaction,
 )
+from ..store.helpers import file_kind
 from ..store.roles import IS_FIRST, UNFILED, first_capture
+from . import files
 from .constants import PAUSES, POLL, REV, TITLE_CAS
 from .jobs import (
     charge,
@@ -146,6 +149,13 @@ class Worker:
 
     def process(self, job: sqlite3.Row) -> None:
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
+        with self.store.connect() as conn:
+            mime = conn.execute(
+                "SELECT mime FROM blob WHERE sha256 = ?", (photo,)
+            ).fetchone()
+        if mime is not None and file_kind(mime[0]):
+            files.process(self.store, job, mime[0])  # read here: no Claude, no budget
+            return
         with self.store.connect() as conn, transaction(conn):
             over = spent_today(conn, now()) >= self.budget
             announce = over and pause(conn, jid, "budget", now())

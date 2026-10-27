@@ -51,7 +51,8 @@ class Reprocess(BaseModel):
 def add_routes(app: FastAPI, store: Store) -> None:
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:
-        """Send a capture's photos (or one) to Claude again, or retry a failed one."""
+        """Send a capture's photos (or one) to Claude again, or retry a failed one; a
+        PDF or text file (or one) is read again, for search."""
         added = ingest.reprocess(store, cid.upper(), ask.photo, ask.replace_human)
         if app.state.worker:
             app.state.worker.wake()

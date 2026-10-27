@@ -1,5 +1,6 @@
 """The ingest queue's limits and SQL."""
 
+from ..store.constants import IS_FILE
 from ..store.roles import FIRST_CAPTURE, TITLE_UNTOUCHED
 
 FAR = "9999-12-31T00:00:00.000Z"  # paused until Resume
@@ -9,15 +10,19 @@ POLL = 30  # seconds the idle worker sleeps unless woken
 PAUSES = ("credit", "auth", "outage", "budget")
 
 REV = "(SELECT max(rev) FROM page_rev WHERE page_id = p.id)"  # a page's text rev
-CLAIM = """
+# The oldest ready job; while the queue is paused, only a file's (IS_FILE: read
+# locally, no model call to pause)
+CLAIM = f"""
 UPDATE job SET state = 'running', updated_at = :now
 WHERE id = (
     SELECT j.id FROM job j
     JOIN capture c ON c.id = j.capture_id
     JOIN page p ON p.id = c.page_id
+    JOIN blob b ON b.sha256 = j.source_sha256
     WHERE j.state = 'queued' AND j.run_after <= :now AND p.deleted_at IS NULL
+      AND ({IS_FILE.format(b="b")}
+           OR NOT EXISTS (SELECT 1 FROM queue_state WHERE paused_until > :now))
     ORDER BY j.run_after, j.id LIMIT 1)
-  AND NOT EXISTS (SELECT 1 FROM queue_state WHERE paused_until > :now)
 RETURNING id, capture_id, source_sha256, failures, options
 """
 # A page's title from its first capture's first photo (roles: the first capture

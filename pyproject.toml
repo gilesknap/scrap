@@ -24,6 +24,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "uvicorn",
     "mcp>=2.3,<3",
+    "pypdf>=6.21",
 ]
 dynamic = ["version"]
 license.file = "LICENSE"

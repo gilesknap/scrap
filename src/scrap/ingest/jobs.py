@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ..store import MAX_PAGE, queue_after_read, transaction
+from ..store.constants import IMAGE_JOB
 from .constants import CLAIM, FAR, INSERT_DERIVED, MAX_FAILURES, RETRY
 
 log = logging.getLogger(__name__)
@@ -58,9 +59,9 @@ def charge(
     conn: sqlite3.Connection, job_id: int, cls: str, stamp: str, error: str
 ) -> None:
     """A charged failure: one more failure, retried in RETRY seconds (invalid output
-    at once); the third kills the job. A dead job counts as read for the page's
+    at once); the third kills the job. A dead photo's job counts as read for the page's
     write-up and first related call (queue_after_read), so one dead photo does not
-    hold them back."""
+    hold them back; a file's (read locally) has no part in them."""
     conn.execute(
         "UPDATE job SET failures = failures + 1, run_after = ?, last_error = ?,"
         " updated_at = ?, state = CASE WHEN failures + 1 >= ? THEN 'dead'"
@@ -74,10 +75,24 @@ def charge(
         ),
     )
     dead = conn.execute(
-        "SELECT capture_id FROM job WHERE id = ? AND state = 'dead'", (job_id,)
+        f"SELECT capture_id FROM job j WHERE id = ? AND state = 'dead'"
+        f" AND {IMAGE_JOB.format(j='j')}",
+        (job_id,),
     ).fetchone()
     if dead is not None:
         queue_after_read(conn, dead[0])
+
+
+def kill(conn: sqlite3.Connection, job_id: int, stamp: str, error: str) -> bool:
+    """A failure that trying again cannot mend (a file that cannot be read): the job
+    is dead at once, if it is still running. Whether it was."""
+    return bool(
+        conn.execute(
+            "UPDATE job SET state = 'dead', failures = failures + 1, last_error = ?,"
+            " updated_at = ? WHERE id = ? AND state = 'running'",
+            (error[:500], stamp, job_id),
+        ).rowcount
+    )
 
 
 def pause(

@@ -2,6 +2,7 @@
 
 import json
 import math
+import mimetypes
 import os
 import re
 import secrets
@@ -24,6 +25,7 @@ from .constants import (
     BLOB_ADDRESS,
     CROCKFORD,
     DEFAULT_FIELDS,
+    FILE_TYPES,
     MAX_INT,
     MAX_PAGE,
     MAX_TAG,
@@ -111,6 +113,20 @@ def body_refs(text: str) -> set[str]:
     counts). Deliberately not the Markdown parser (markdown.py): gc deletes what this
     misses, so it errs on keeping a file (in code, an absolute URL, broken Markdown)."""
     return set(BLOB_ADDRESS.findall(text))
+
+
+# A .md file sent untyped is typed by its name (uploads.mimes, the importer): Python's
+# own table has no .md before 3.13, and a slim image has no /etc/mime.types to add it
+mimetypes.add_type("text/markdown", ".md")
+
+
+def file_kind(mime: str) -> str | None:
+    """pdf or text for a file ingest reads locally (FILE_TYPES, as IS_FILE tests it in
+    SQL), else None."""
+    base = mime.split(";", 1)[0].strip().lower()
+    if base not in FILE_TYPES:
+        return None
+    return "pdf" if base == "application/pdf" else "text"
 
 
 def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str]:
