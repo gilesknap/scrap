@@ -72,7 +72,7 @@
   :root:not([data-theme="light"]) {
     --bg: #161411;
     --surface: #211e1a;
-    --sunk: #36312a;
+    --sunk: #2c2723;
     --ink: #f2ece1;
     --ink-2: #b8b0a2;
     --ink-3: #958d80;
@@ -101,7 +101,7 @@
   color-scheme: dark;
   --bg: #161411;
   --surface: #211e1a;
-  --sunk: #36312a;
+  --sunk: #2c2723;
   --ink: #f2ece1;
   --ink-2: #b8b0a2;
   --ink-3: #958d80;

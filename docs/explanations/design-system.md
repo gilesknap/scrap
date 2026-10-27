@@ -108,7 +108,7 @@ fixed dark `#161411`.
 | --- | --- | --- | --- |
 | `--bg` | `#f6f3ec` | `#161411` | the page; theme-color |
 | `--surface` | `#fffdf9` | `#211e1a` | cards, list groups, fields |
-| `--sunk` | `#ece7dd` | `#36312a` | wells: tiles, segmented track, placeholders, pressed |
+| `--sunk` | `#ece7dd` | `#2c2723` | wells: tiles, segmented track, placeholders, pressed |
 | `--ink` | `#1e1b16` | `#f2ece1` | text |
 | `--ink-2` | `#5c564c` | `#b8b0a2` | secondary text: dates, hints |
 | `--ink-3` | `#736c61` | `#958d80` | placeholders, captions |

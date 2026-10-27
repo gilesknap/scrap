@@ -10,6 +10,7 @@ export function refused(ids: string[]) {
   const look = async () => {
     if (stop.signal.aborted) return;
     const left = (await queue.items()).filter((i) => ids.includes(i.id));
+    if (stop.signal.aborted) return; // another look finished while this one waited
     if (left.some((i) => i.failed)) toast("Kept on this phone");
     else if (left.length) return; // still uploading
     stop.abort(); // refused, or uploaded

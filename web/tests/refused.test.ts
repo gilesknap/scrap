@@ -45,3 +45,17 @@ it("still waits while it uploads, and a later refusal is told once", async () =>
   await new Promise((r) => setTimeout(r, 20));
   expect(toast).toHaveBeenCalledTimes(1);
 });
+
+it("toasts once when two looks overlap", async () => {
+  const gate: (() => void)[] = [];
+  items.mockImplementation(
+    () => new Promise((done) => gate.push(() => done([{ id: "a", failed: true }]))),
+  );
+  refused(["a"]); // its first look, waiting on the queue
+  document.dispatchEvent(new Event("queuechange")); // a second one, in flight beside it
+  await vi.waitFor(() => expect(gate).toHaveLength(2));
+  for (const release of gate) release();
+  await vi.waitFor(() => expect(toast).toHaveBeenCalled());
+  await new Promise((r) => setTimeout(r, 20));
+  expect(toast).toHaveBeenCalledTimes(1);
+});
