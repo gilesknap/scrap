@@ -44,6 +44,8 @@ untrusted.
   a queued `related` job as a full enrich, adding tags and redoing the summary). Upgrading again
   is safe: migration 11 skips the rebuild when the table already takes `'related'`. Related shows both ways, so an older page learns of a newer one that picked it without a call of
   its own.
+
+  > Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): this rollback no longer works. Migrations 0001 to 0018 are folded into the baseline and 1.0 refuses a store below schema 18, so `user_version` cannot be set back to 10.
 - **Triggers.** A note or link capture queues a job (a link at once, a note after
   `SCRAP_ENRICH_DEBOUNCE` seconds, default 60). A save of a page's title or text moves its one
   queued job that far ahead again, so a burst of edits makes one call. A save only refreshes the

@@ -30,6 +30,8 @@ Data falls into three tiers:
    migration's Python step (`store.AFTER`), as migrations 0003 and 0004 did. (The design's `link`
    table and `scrap reindex` command were never built.)
 
+   > Superseded in part by [ADR 37](0037-one-baseline-schema-for-1-0.md): `store.AFTER` and its Python steps are deleted with migrations 0001 to 0018; a fresh store gets its index from the baseline's full-text rebuild.
+
 **The user wins.** Model output may set a title, tags or a kind only while the user has not chosen
 one (`kind_fixed`, an unchanged rev 1 title, an empty tag list). A model can change only its own
 page's versions. (Tags have since become a merge: photo ingest and text enrichment add their tags
