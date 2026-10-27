@@ -445,7 +445,7 @@ def test_mcp_shows_the_purge_date_and_says_so(store, monkeypatch):
     assert "with when each page\nis purged" in text
     monkeypatch.setenv("SCRAP_TRASH_DAYS", "off")
     text = mcp_server.server(store).instructions or ""
-    assert "Nothing deletes a page: the user's deletes go to a trash." in text
+    assert "Nothing deletes a page: deletes go to a trash." in text
     assert ok(store, "read", page=page)["page"]["purge_at"] is None
 
 

@@ -75,7 +75,7 @@ flowchart LR
 
 `/mcp` is served by the official MCP SDK inside the app (Streamable HTTP, stateless, JSON replies),
 so one `claude mcp add --transport http` line connects a client and a restart drops no session
-([ADR 0013](../decisions/0013-mcp-server-inside-the-app.md)). There are fourteen tools;
+([ADR 0013](../decisions/0013-mcp-server-inside-the-app.md)). There are fifteen tools;
 arguments, limits and result shapes are in
 [](../../reference/mcp.md).
 
@@ -102,17 +102,20 @@ flowchart LR
         revisions
         revert
         trash
+        trash_pages
         undelete
     end
     write_ --> R[("revisions")]
     meta --> R
     text --> R
     revert --> R
-    undelete --> T[("trash")]
+    trash_pages --> T[("trash")]
+    undelete --> T
+    trash_pages --> R
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef claude fill:#fff3e0,stroke:#e08a00
     class R,T store
-    class edit_page,undelete claude
+    class edit_page,trash_pages,undelete claude
 ```
 
 Tools in orange are listed only while `SCRAP_MCP_CONTENT_EDIT` is on (default). `revert` with
@@ -125,7 +128,7 @@ Tools in orange are listed only while `SCRAP_MCP_CONTENT_EDIT` is on (default). 
 | Kind and tags | `edit_meta`, `rename_tag` | any page; bulk changes record a batch id; `dry_run` first ([ADR 0019](../decisions/0019-kinds-and-tags-editable-with-revisions.md)) |
 | Text | `edit_page` | one passage found exactly once, or the whole body given its current `rev` ([ADR 0022](../decisions/0022-page-text-editable-over-mcp-with-revisions.md)) |
 | History | `revisions`, `revert` | `revert` undoes metadata by revision or batch, or text with `to_rev` |
-| Trash | `trash`, `undelete` | the user's deletes land in trash; nothing over MCP deletes ([ADR 0025](../decisions/0025-trash-and-recent-changes-over-mcp.md)); `trash` gives each page's `purge_at`, as nightly gc purges it after N days ([ADR 0030](../decisions/0030-trash-purged-after-n-days.md)) |
+| Trash | `trash`, `trash_pages`, `undelete` | the user's deletes land in trash, as do pages the user asks Claude to delete (`trash_pages`, at most 50 a call, as a batch `undelete` brings back); nothing over MCP deletes for good or empties the trash ([ADR 0025](../decisions/0025-trash-and-recent-changes-over-mcp.md), [ADR 0034](../decisions/0034-claude-can-move-pages-to-the-trash.md)); every move is in `revisions`; `trash` gives each page's `purge_at`, as nightly gc purges it after N days ([ADR 0030](../decisions/0030-trash-purged-after-n-days.md)) |
 
 What is not revisioned: Claude's own enrichment (summary, model tags, related pages, board
 write-ups, `by_model`). See [](claude-pipeline.md).

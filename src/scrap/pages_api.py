@@ -172,14 +172,14 @@ def add_routes(app: FastAPI, store: Store, limit: int) -> None:
         )  # fmt: skip
 
     @app.delete("/api/pages/{key}", status_code=204)
-    def delete(key: str) -> None:
+    def delete(key: str, request: Request) -> None:
         """Move a page to the trash."""
-        store.delete_page(key)
+        store.delete_page(key, author=author(request))
 
     @app.post("/api/pages/{key}/undelete")
-    def undelete(key: str) -> dict[str, Any]:
+    def undelete(key: str, request: Request) -> dict[str, Any]:
         """Bring a page back from the trash."""
-        store.delete_page(key, undo=True)
+        store.delete_page(key, undo=True, author=author(request))
         return store.page(key)
 
     @app.post("/api/pages/{key}/enrich")

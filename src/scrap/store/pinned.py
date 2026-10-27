@@ -12,7 +12,7 @@ from .constants import PINNED_SLUG, REV_INSERT
 from .db import transaction
 from .helpers import new_ulid, now
 from .pages import PagesMixin
-from .trash import restore_in
+from .trash import WEB, restore_in
 
 
 class PinnedMixin(PagesMixin):
@@ -39,6 +39,6 @@ class PinnedMixin(PagesMixin):
                 self.reindex(conn, page_id)
             else:
                 page_id = row["id"]
-                if row["deleted_at"]:
-                    restore_in(conn, page_id)
+                if row["deleted_at"]:  # a pin brings it back: the user's, as web
+                    restore_in(conn, page_id, author, WEB)
             return self.page_in(conn, page_id)

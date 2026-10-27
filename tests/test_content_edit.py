@@ -411,16 +411,18 @@ def test_instructions_follow_the_switch(store, monkeypatch):
     monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
     off = mcp_server.server(store).instructions or ""
     assert "edit_page" not in off and "No tool changes the text" in off
+    assert "trash_pages" in on and "trash_pages" not in off
 
 
 def test_no_mcp_path_deletes_a_page_or_writes_text_without_a_revision(store):
-    """Every tool and argument: nothing deletes or trashes a page; only write (new
-    pages and appends), edit_page and revert(to_rev) take text, and every text change
-    they make is a revision; a whole body needs the current rev."""
+    """Every tool and argument: nothing deletes a page for good, only trash_pages
+    moves one to the trash (see test_mcp_trash), and nothing else trashes one; only
+    write (new pages and appends), edit_page and revert(to_rev) take text, and every
+    text change they make is a revision; a whole body needs the current rev."""
     names = tools(store)
-    # the trash can be listed and a page brought back, never emptied or deleted
+    # the trash can be listed, filled and a page brought back, never emptied or purged
     risky = {n for n in names if re.search("delete|trash|purge|remove|empty", n)}
-    assert risky == {"trash", "undelete"}
+    assert risky == {"trash", "trash_pages", "undelete"}
     for name, args in names.items():
         if name not in ("write", "edit_page"):
             assert not args & {"body", "title", "text", "status"}, name

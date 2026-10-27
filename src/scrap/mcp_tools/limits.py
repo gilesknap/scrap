@@ -14,6 +14,7 @@ MAX_TAGS = 20
 MAX_ORIGIN = 200
 MAX_KEY = 128
 MAX_BULK = 200  # pages one edit_meta may change
+MAX_TRASH = 50  # pages one trash_pages may move to the trash
 MAX_DRAWING = 200_000  # bytes of a drawing's elements as JSON; whole elements only
 MAX_DIFF = 100_000  # characters of a unified diff returned; the rest is cut
 CONTEXT = 3  # lines around a change in a diff

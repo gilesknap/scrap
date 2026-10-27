@@ -23,6 +23,7 @@ from .helpers import (
 )
 from .indexing import debounce, enrich_on, queue_enrich
 from .roles import may_rekind, should_enrich
+from .trash_revs import trash_revs
 from .types import FieldEdit
 
 
@@ -123,8 +124,10 @@ class RevisionsMixin(Core):
         text). With batch, only that batch's revisions, of every page (with key, of
         that page). With neither, the recent changes of every page not in the trash:
         the latest metadata revisions and the latest text revisions (each with its
-        page's id and slug), newest first. With trashed, key may be a page in the
-        trash (then deleted_at is returned)."""
+        page's id and slug), newest first. trash: the moves into and out of the trash
+        (trash_revs) of that page, that batch, or (with neither) every page, newest
+        first, at most limit. With trashed, key may be a page in the trash (then
+        deleted_at is returned)."""
         with self.connect() as conn:
             page = self._page_row(conn, key, trashed) if key else None
             feed = page is None and batch is None
@@ -164,10 +167,12 @@ class RevisionsMixin(Core):
                 " ORDER BY r.created_at DESC, r.page_id DESC, r.rev DESC LIMIT ?",
                 limit,
             ) if feed else []  # fmt: skip
+            trash = trash_revs(conn, None if page is None else page["id"], batch, limit)
         out: dict[str, Any] = {
             "meta": [{**meta_row(r), "slug": slugs.get(r["page_id"])} for r in meta],
             "more": more,  # older revisions than limit allows
             "text": text,
+            "trash": trash,
         }
         if page is not None:
             out |= {
