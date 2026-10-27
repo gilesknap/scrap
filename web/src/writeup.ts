@@ -37,7 +37,8 @@ export function stateText(w: Writeup): string | null {
 /** The quiet line under the card's title when the current write-up is outdated (the page's
  * text, title or tags, a board photo or Claude's prompt changed since): Regenerate, beside it,
  * makes it again. Nothing regenerates it on its own but a newly read photo. */
-export const OUTDATED = "The page (or Claude's prompt) has changed since this write-up.";
+export const OUTDATED =
+  "The page, a page it links to, or Claude's prompt has changed since this write-up.";
 export const outdatedLine = (w: Writeup) =>
   w.outdated && w.current && !["queued", "processing", "paused"].includes(w.state ?? "")
     ? OUTDATED

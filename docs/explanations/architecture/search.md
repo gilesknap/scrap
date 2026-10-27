@@ -137,7 +137,7 @@ flowchart LR
 | `is:stale` | An open todo, not snoozed, not due today or later, unchanged for 60 days (`STALE_DAYS`) |
 | `is:duplicate` | A file of one of its captures is also another page's |
 | `has:dangling` | A page link in its text to no page or one in the trash |
-| `is:outdated` | A board's write-up older than its inputs or of an older prompt version, unless the owner restored it |
+| `is:outdated` | A board's write-up older than its inputs or of an older prompt version, or linking a page that is in the trash or gone, unless the owner restored it |
 
 Related pages and a topic's synthesis have outdated definitions in the same module, but they are
 not findings: the nightly related pass and weekly topics pass refresh them

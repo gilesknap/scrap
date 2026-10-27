@@ -9,7 +9,11 @@ export const CHECKS: [term: string, name: string, about: string][] = [
   ["is:stale", "Stale todos", "Open, not edited for 60 days, not snoozed or due yet"],
   ["is:duplicate", "Duplicates", "A photo or file shared with another page"],
   ["has:dangling", "Dangling links", "A link to a page that isn't there"],
-  ["is:outdated", "Outdated write-ups", "A board's write-up older than the page or the prompt"],
+  [
+    "is:outdated",
+    "Outdated write-ups",
+    "A board's write-up older than the page or the prompt, or linking a deleted page",
+  ],
 ];
 
 /** A check's name ("Orphans"), by its term; undefined for any other term. */
