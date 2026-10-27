@@ -103,7 +103,11 @@ def test_session_maps_to_one_page_and_appends(tmp_path: Path) -> None:
             cmd[cmd.index("--tools") + 1] == ""
         )  # no built-in tool, whatever the user allows
         denied = cmd[cmd.index("--disallowedTools") + 1].split(",")
-        assert {"mcp__scrap__edit_page", "mcp__scrap__trash"} <= set(denied)
+        assert {
+            "mcp__scrap__edit_page",
+            "mcp__scrap__trash_pages",
+            "mcp__scrap__edit_drawing",
+        } <= set(denied)
         assert not set(denied) & set(cmd[cmd.index("--allowedTools") + 1].split(","))
         return "SLUG: page-one\nTITLE: [auto-compact] One\n"
 

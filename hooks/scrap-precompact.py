@@ -29,7 +29,9 @@ TOOLS = "mcp__scrap__tags,mcp__scrap__search,mcp__scrap__read,mcp__scrap__write"
 # servers other than scrap stay, as claude cannot name "all but these".)
 DENIED = ",".join(
     f"mcp__scrap__{n}"
-    for n in ("edit_page edit_meta rename_tag revert trash undelete drawing".split())
+    for n in (
+        "edit_page edit_meta edit_drawing rename_tag revert trash_pages undelete".split()
+    )
 )
 MAX_CHARS = 150_000  # of dialogue given to the model (the newest part is kept)
 MAX_TURN_CHARS = 4_000  # per message
