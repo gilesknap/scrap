@@ -58,7 +58,8 @@ flowchart LR
    be. Off by default: Thoth pages already describe their images. The queue is run by the
    service, which needs `SCRAP_INGEST=on` and `ANTHROPIC_API_KEY`. Each queued image is a paid
    call, counted against `SCRAP_BUDGET_DAY_USD` (the queue pauses when it is spent). Only the
-   images the PWA can preview are queued, not PDFs, SVGs or other attached files. The settings are
+   images the PWA can preview are sent to Claude, not PDFs, SVGs or other attached files; a PDF
+   is queued too, but only to have its text read locally for search, with no model call. The settings are
    in the [API reference](../reference/api.md). Claude's first reading of a page's first image
    adds its tags to the page's imported ones, so the vault's tags no longer stand alone.
 

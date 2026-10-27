@@ -102,9 +102,12 @@ DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
 # a write-up is a finding (is:outdated); the passes find the rest by the same SQL
 
 # The latest change to what a page's related call or a topic's synthesis reads from its
-# images: a current description or text photo ingest read ('' if none)
+# images: a current description or text photo ingest read ('' if none). Not a file's
+# text (#234): they do not read it.
 READ_AT = """coalesce((SELECT max(d.created_at) FROM derived d
-    JOIN capture c ON c.id = d.capture_id WHERE c.page_id = {p}.id
+    JOIN capture c ON c.id = d.capture_id
+    JOIN blob b ON b.sha256 = d.source_sha256 AND b.mime LIKE 'image/%'
+    WHERE c.page_id = {p}.id
     AND d.kind IN ('description', 'ocr') AND d.superseded_at IS NULL), '')"""
 # A topic with a source in whose synthesis (its current write-up) is of another prompt
 # version (unless the owner restored it), or older than the latest change to its

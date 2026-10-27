@@ -1,4 +1,4 @@
-"""Adding photos to a page that already exists (#260)."""
+"""Adding photos (and PDFs, #234) to a page that already exists (#260)."""
 
 import sqlite3
 from typing import Any
@@ -7,10 +7,15 @@ from .constants import ENQUEUE, REV_INSERT, ULID
 from .core import Core
 from .db import transaction
 from .errors import InvalidError
-from .helpers import boxes_before, check_page, embeds, now
+from .helpers import boxes_before, check_page, embeds, file_kind, now
 from .roles import takes_photos
 
 Blob = tuple[str, str, int, str | None]  # sha256, mime, size, filename
+
+
+def addable(mime: str) -> bool:
+    """Whether a file can be added to a page: an image, or a PDF."""
+    return mime.startswith("image/") or file_kind(mime) == "pdf"
 
 
 class PhotosMixin(Core):
@@ -23,17 +28,22 @@ class PhotosMixin(Core):
         source: str = "pwa",
         created_at: str | None = None,
     ) -> tuple[dict[str, Any], bool]:
-        """Add images (blobs: already in files/) to a page as a new photo capture cid,
-        and each new one's embed to the end of its text as it is now, as a text
-        revision (appending loses nothing, so there is no revision to check); they
-        are queued for ingest, as a capture's photos are. Returns the page, with
-        appended_on (the revision the embeds went onto; None on a retry), and whether
-        it is new: a retry with the same cid changes nothing."""
+        """Add images and PDFs (blobs: already in files/) to a page as a new capture
+        cid: a photo capture if any is an image (so its images are read as Add photo's
+        always were), else a file capture. Each new image's embed goes to the end of
+        its text as it is now, as a text revision (appending loses nothing, so there is
+        no revision to check); a PDF is
+        not put in the text (the page lists it below), so PDFs alone make no revision.
+        They are queued for ingest as a capture's are: the images of a photo capture
+        for Claude, a PDF to be read for search (#234). Returns the page, with
+        appended_on (the revision the embeds went onto; None on a retry or with no
+        image), and whether it is new: a retry with the same cid changes nothing."""
         cid = cid.upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")
-        if not blobs or not all(mime.startswith("image/") for _, mime, *_ in blobs):
-            raise InvalidError("only images can be added to a page")
+        if not blobs or not all(addable(mime) for _, mime, *_ in blobs):
+            raise InvalidError("only images and PDFs can be added to a page")
+        images = any(mime.startswith("image/") for _, mime, *_ in blobs)
         stamp = now()
         with self.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -56,9 +66,10 @@ class PhotosMixin(Core):
                 [(sha, mime, size, stamp) for sha, mime, size, _ in blobs],
             )
             conn.execute(  # received now: after the page's other captures
-                "INSERT INTO capture VALUES (?, 'photo', NULL, NULL, ?, ?, ?, ?, ?)",
-                (cid, source, author, created_at or stamp, stamp, page["id"]),
-            )
+                "INSERT INTO capture VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?)",
+                (cid, "photo" if images else "file", source, author,
+                 created_at or stamp, stamp, page["id"]),
+            )  # fmt: skip
             conn.executemany(
                 "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
                 [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
@@ -70,7 +81,7 @@ class PhotosMixin(Core):
             conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
                                    "now": stamp})  # fmt: skip
             added = self.page_in(conn, page["id"])
-            return {**added, "appended_on": page["rev"]}, True
+            return {**added, "appended_on": page["rev"] if images else None}, True
 
     def _append_text(
         self, conn: sqlite3.Connection, page: sqlite3.Row, body: str, author: str,

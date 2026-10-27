@@ -15,7 +15,8 @@ from .jobs import enabled, resume, spent_today
 def reprocess(
     store: Store, capture_id: str, photo: str | None, replace_human: bool
 ) -> dict[str, int]:
-    """Queue a capture's photos (or one of them) again. Returns how many were added
+    """Queue a capture's photos and readable files (a PDF, a text file: read again
+    locally, #234), or one of them, again: ENQUEUE. Returns how many were added
     (queued) and how many were queued or running already (already). Confirming
     replace_human reaches a job that is already queued or running too."""
     with store.connect() as conn, transaction(conn):
@@ -42,7 +43,8 @@ def reprocess(
 
 
 def status(store: Store) -> dict[str, Any]:
-    """The queue: whether it is paused (and why, until when) and its jobs by state."""
+    """The queue: whether it is paused (and why, until when) and its jobs by state
+    (photos' and files' alike: a file's job is not held by a pause)."""
     with store.connect() as conn:
         q = conn.execute("SELECT paused_until, reason FROM queue_state").fetchone()
         # Jobs of pages in the trash wait there (restoring resumes them): not counted.

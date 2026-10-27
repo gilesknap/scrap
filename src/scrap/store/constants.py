@@ -110,18 +110,36 @@ META_REV = (
     " fixed_after, tags_before, tags_after, fields_added, fields_was, reverts,"
     " batch_id, created_at, updated_at FROM page_meta_rev"
 )
-# One ingest job per distinct image of a photo capture (or the one photo asked for);
-# job_one_active makes a repeat add nothing.
-ENQUEUE = """
+# The files ingest reads locally for search (#234): a PDF's text layer, a text file's
+# text. No model reads them. A blob's type as stored, without parameters (charset=).
+FILE_TYPES = ("application/pdf", "text/plain", "text/markdown")
+IS_FILE = (
+    "lower(trim(substr({b}.mime, 1, instr({b}.mime || ';', ';') - 1))) IN ("
+    + ", ".join(f"'{t}'" for t in FILE_TYPES)
+    + ")"
+)
+IS_IMAGE = "{b}.mime LIKE 'image/%'"
+# One ingest job per distinct image of a photo capture (or the one photo asked for),
+# and per distinct readable file (FILE_TYPES) of any capture; job_one_active makes a
+# repeat add nothing. An image of a file capture is not sent to Claude unasked.
+ENQUEUE = f"""
 INSERT INTO job (kind, capture_id, source_sha256, options, run_after, created_at,
                  updated_at)
 SELECT DISTINCT 'ingest', cb.capture_id, cb.sha256, :options, :now, :now, :now
 FROM capture_blob cb
-JOIN capture c ON c.id = cb.capture_id AND (c.kind = 'photo' OR :photo IS NOT NULL)
-JOIN blob b ON b.sha256 = cb.sha256 AND b.mime LIKE 'image/%'
+JOIN capture c ON c.id = cb.capture_id
+JOIN blob b ON b.sha256 = cb.sha256
 WHERE cb.capture_id = :capture AND coalesce(:photo, cb.sha256) = cb.sha256
+  AND (({IS_IMAGE.format(b="b")} AND (c.kind = 'photo' OR :photo IS NOT NULL))
+       OR {IS_FILE.format(b="b")})
 ON CONFLICT DO NOTHING
 """
+# An ingest job j of an image: what photo ingest sends to Claude. A file's job (IS_FILE)
+# is read locally, and never counts for a page's first read or its write-up.
+IMAGE_JOB = (
+    "EXISTS (SELECT 1 FROM blob jb WHERE jb.sha256 = {j}.source_sha256"
+    " AND jb.mime LIKE 'image/%')"
+)
 
 
 HEADING = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")  # an ATX heading's marker
@@ -157,14 +175,16 @@ SELECT :page, 'related', :now, :now, :now
 WHERE NOT EXISTS (SELECT 1 FROM enrich_job WHERE page_id = :page AND reason = 'related')
 ON CONFLICT DO NOTHING
 """
-# A page's first photo capture (the first with an ingest job), once none of its photos
-# waits or is being read (each read, or dead): its page, else nothing
-FIRST_READ = """
+# A page's first photo capture (the first with an image's ingest job), once none of its
+# photos waits or is being read (each read, or dead): its page, else nothing. A file's
+# job (a PDF's) counts for neither.
+FIRST_READ = f"""
 SELECT c.page_id FROM capture c WHERE c.id = :capture
   AND c.id = (SELECT f.id FROM capture f JOIN job j ON j.capture_id = f.id
-              WHERE f.page_id = c.page_id ORDER BY f.received_at, f.id LIMIT 1)
+              WHERE f.page_id = c.page_id AND {IMAGE_JOB.format(j="j")}
+              ORDER BY f.received_at, f.id LIMIT 1)
   AND NOT EXISTS (SELECT 1 FROM job j WHERE j.capture_id = c.id
-                  AND j.state IN ('queued', 'running'))
+                  AND j.state IN ('queued', 'running') AND {IMAGE_JOB.format(j="j")})
 """
 
 

@@ -119,9 +119,11 @@ def test_a_photo_capture_queues_each_distinct_image(store, conn):
     assert len(shas(conn, ref["capture_id"])) == 2  # already queued: nothing added
 
 
-def test_files_notes_and_non_images_are_not_queued(store, conn):
-    pdf = photo(store, [b"pdf"], mime="application/pdf")
-    assert shas(conn, pdf["capture_id"]) == []
+def test_notes_and_files_ingest_cannot_read_are_not_queued(store, conn):
+    pdf = photo(store, [b"pdf"], mime="application/pdf")  # read locally (#234)
+    assert len(shas(conn, pdf["capture_id"])) == 1
+    zipped = photo(store, [b"zip"], mime="application/zip")
+    assert shas(conn, zipped["capture_id"]) == []
     note = store.capture(store.prepare({"id": new_ulid(), "text": "hi"}, []), [], "me")
     assert shas(conn, note[0]["capture_id"]) == []
     odd = photo(store, [b"d"])  # a non-image forced in beside a photo

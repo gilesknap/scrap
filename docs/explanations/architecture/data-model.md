@@ -80,7 +80,7 @@ erDiagram
 | `page` | Title, Markdown body, `kind`, `kind_fixed`, flat `fields`, `deleted_at`, plus typed todo columns `due`, `priority`, `snoozed_until` and the task counts `task_done`, `task_total` |
 | `blob` | Bytes of every original and binary derived artifact at `files/<sha[0:2]>/<sha>`, keyed by SHA-256 so a photo shared twice is stored once |
 | `capture`, `capture_blob` | What arrived, with a client-minted ULID as the retry key; ordered blobs per capture |
-| `derived` | Versioned Claude (or human) results: `ocr`, `description`, `excalidraw` are written; `summary` and `fetched` are allowed by the `CHECK` but reserved |
+| `derived` | Versioned Claude (or human) results: `ocr`, `description`, `excalidraw` are written (a PDF's or text file's `ocr` is scrap's own reading, `run_id` NULL: {ref}`ingest-files`); `summary` and `fetched` are allowed by the `CHECK` but reserved |
 | `page_rev`, `page_meta_rev` | Text history and kind/tag history (see [Revisions](#revisions-and-conflicts)) |
 | `page_trash_rev` | Each move of a page into or out of the trash (see [Trash](#trash)) |
 | `tag` | Lower-case tags per page, 1 to 64 characters, `/` allowed |
@@ -110,7 +110,7 @@ erDiagram
 
 | Table | Holds |
 | --- | --- |
-| `job`, `queue_state` | Photo jobs, kind `ingest` or `refine` (`queued`, `running`, `done`, `dead`), and the single-row pause state (`auth`, `credit`, `outage`, `budget`) |
+| `job`, `queue_state` | Photo and file jobs, kind `ingest` or `refine` (`queued`, `running`, `done`, `dead`), and the single-row pause state (`auth`, `credit`, `outage`, `budget`) |
 | `model_run`, `enrich_run`, `topic_run` | Every call: request, response, usage, `cost_microusd`, error class. `topic_run` covers discovery calls of no one page |
 | `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (migrations 11 to 13 widen its `CHECK`) |
 | `enrichment`, `model_tag`, `related` | Summary and fetched link title; tags Claude added (`on`) or the user removed (`off`, never re-added); related pages in order |

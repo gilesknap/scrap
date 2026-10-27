@@ -13,6 +13,7 @@ from typing import Any
 
 from ..markdown import wiki_targets
 from ..public import public_origins
+from .constants import IMAGE_JOB
 from .roles import HAS_BOARD, IS_TOPIC, SHOWN, writeup_type
 
 
@@ -54,12 +55,14 @@ READ_SINCE = """EXISTS (
       AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
       AND d.created_at > coalesce(
         (SELECT max(w.created_at) FROM writeup w WHERE w.page_id = {p}.id), ''))"""
-# A board page whose write-up is due: none of its photos waits or is being read, and
-# a board image was read since its last write-up (or it has none)
+# A board page whose write-up is due: none of its photos waits or is being read (a
+# file's job, read locally, does not hold it back), and a board image was read since
+# its last write-up (or it has none)
 DUE = f"""
 SELECT 1 FROM page p WHERE p.id = :page AND p.deleted_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM job j JOIN capture c ON c.id = j.capture_id
-                  WHERE c.page_id = p.id AND j.state IN ('queued', 'running'))
+                  WHERE c.page_id = p.id AND j.state IN ('queued', 'running')
+                    AND {IMAGE_JOB.format(j="j")})
   AND {HAS_BOARD.format(p="p")}
   AND {READ_SINCE.format(p="p")}
 """

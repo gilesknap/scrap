@@ -9,7 +9,7 @@ from .constants import KINDS, KINDS_SHOWN, SHA256, THUMB
 from .core import Core
 from .db import _rows
 from .errors import InvalidError, NotFoundError
-from .helpers import body_refs, now, todo_only
+from .helpers import body_refs, file_kind, now, todo_only
 from .indexing import enrich_on
 from .roles import is_topic, made_by
 from .topics import key_of, of_page
@@ -63,7 +63,9 @@ class PagesMixin(Core):
                 c["id"],
             )
             for blob in c["blobs"]:
-                blob["ingest"] = self._ingest(conn, c["id"], blob["sha256"])
+                blob["ingest"] = self._ingest(
+                    conn, c["id"], blob["sha256"], blob["mime"]
+                )
         tags = [r[0] for r in conn.execute(
             "SELECT tag FROM tag WHERE page_id = ? ORDER BY"  # most used first
             " (SELECT count(*) FROM tag t WHERE t.tag = tag.tag) DESC, tag",
@@ -189,9 +191,13 @@ class PagesMixin(Core):
             ).fetchone()[0]
 
     def _ingest(
-        self, conn: sqlite3.Connection, cid: str, sha: str
+        self, conn: sqlite3.Connection, cid: str, sha: str, mime: str
     ) -> dict[str, Any] | None:
-        """A photo's ingest state and current results; None if it was never queued."""
+        """A photo's ingest state and current results; None if it was never queued. A
+        file's (a PDF's, a text file's: file_kind) is _file_ingest's."""
+        kind = file_kind(mime)
+        if kind:
+            return self._file_ingest(conn, cid, sha, kind)
         job = conn.execute(
             "SELECT state, failures, last_error,"
             " (SELECT paused_until > ? FROM queue_state) AS paused"
@@ -233,3 +239,48 @@ class PagesMixin(Core):
                 "element_count": drawing["element_count"],
             },
         }
+
+    def _file_ingest(
+        self, conn: sqlite3.Connection, cid: str, sha: str, kind: str
+    ) -> dict[str, Any] | None:
+        """A file's ingest (#234): state (queued, processing, done or failed; never
+        paused: a pause does not hold a file), failures, error, kind (pdf or text),
+        and from its current text (None until read): pages and pages_read (a PDF's),
+        truncated, text_chars and searchable (it has text to find). The text itself
+        is file_text's, not on every page read."""
+        job = conn.execute(
+            "SELECT state, failures, last_error FROM job"
+            " WHERE capture_id = ? AND source_sha256 = ? ORDER BY id DESC LIMIT 1",
+            (cid, sha),
+        ).fetchone()
+        if job is None:
+            return None
+        got = conn.execute(
+            "SELECT data, coalesce(length(text), 0) FROM derived WHERE capture_id = ?"
+            " AND source_sha256 = ? AND kind = 'ocr' AND superseded_at IS NULL",
+            (cid, sha),
+        ).fetchone()
+        data = json.loads(got[0] or "{}") if got else {}
+        return {
+            "state": {"running": "processing", "dead": "failed"}.get(job[0], job[0]),
+            "failures": job["failures"],
+            "error": job["last_error"],
+            "kind": kind,
+            "pages": data.get("pages"),
+            "pages_read": data.get("pages_read"),
+            "truncated": bool(data.get("truncated")),
+            "text_chars": got[1] if got else 0,
+            "searchable": bool(got and got[1]),
+        }
+
+    def file_text(self, cid: str, sha: str, limit: int) -> tuple[str | None, bool]:
+        """A file's current text (what ingest read from it), at most limit characters,
+        and whether it was cut; None if it has none."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT substr(text, 1, ?), length(text) > ? FROM derived"
+                " WHERE capture_id = ? AND source_sha256 = ? AND kind = 'ocr'"
+                " AND superseded_at IS NULL",
+                (limit, limit, cid, sha),
+            ).fetchone()
+        return (row[0], bool(row[1])) if row else (None, False)

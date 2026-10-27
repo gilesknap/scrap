@@ -254,11 +254,14 @@ def test_rerun_skips_imported_pages_and_keeps_their_links(tmp_path, vault):
     assert len(store.recent(50)) == 11
 
 
-def test_ingest_queues_the_images(tmp_path, vault):
+def test_ingest_queues_the_images_and_pdfs(tmp_path, vault):
     store, _ = imported(tmp_path, vault, ingest=True)
     with store.connect() as conn:
-        jobs = conn.execute("SELECT source_sha256 FROM job").fetchall()
-    assert [j[0] for j in jobs] == [SHA]
+        jobs = conn.execute(
+            "SELECT b.mime FROM job j JOIN blob b ON b.sha256 = j.source_sha256"
+            " ORDER BY b.mime"
+        ).fetchall()
+    assert [j[0] for j in jobs] == ["application/pdf", "image/png"]  # a PDF: #234
 
 
 def test_cli_dry_run_writes_nothing(tmp_path, vault, capsys):
