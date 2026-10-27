@@ -112,12 +112,14 @@ function decoded(text: string): string {
  * the server counts them, markdown.py ITEM; tasks.ts ticks it there). */
 export const ITEM = /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\]/;
 
-/** After parsing: safe links and images, heading ids, task list boxes. */
+/** After parsing: safe links and images, heading ids, task list boxes, and each block's lines
+ * in the source (data-at="start,end"), so a page's Edit opens where it is read (readat.ts). */
 function tidy(state: StateCore) {
   const ids = new Map<string, number>();
   const tokens = state.tokens;
   let lines: string[] | undefined; // the source's, for task boxes, split once
   tokens.forEach((t, i) => {
+    if (t.map) t.attrSet("data-at", t.map.join());
     if (t.type === "heading_open") {
       const text = tokens[i + 1]?.children?.map((c) => c.content).join("") ?? "";
       const id = anchor(text);

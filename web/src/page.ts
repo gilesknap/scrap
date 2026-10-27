@@ -223,10 +223,11 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   };
 
   // The editor, with its draft if one was kept: a chunk of its own (pageedit.ts, with editor.ts)
-  async function edit(p: Page) {
+  // row: from a list's row (not where the view is read)
+  async function edit(p: Page, row = false) {
     const mod = await import("./pageedit").catch(() => null);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    await mod.edit(p, load, show);
+    await mod.edit(p, load, show, row);
   }
 
   // Its tags edited in place of their line: no new revision (a chunk of its own)
@@ -350,7 +351,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   if (state?.edit) {
     // Edit from a list's row: straight into the editor (once: not again on Back or reload)
     history.replaceState({ ...state, edit: false }, "");
-    void edit(p);
+    void edit(p, true);
   }
   return root;
 }
