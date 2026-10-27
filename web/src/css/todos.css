@@ -250,11 +250,25 @@
   list-style: none;
 }
 .enrich .related li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 var(--s-1);
-  min-height: var(--tap);
+  /* Under its heading's text (past the chevron), a line each; a note (· links here) runs on
+     after the title rather than wrapping alone. 4 px between items; each link's 48 px target
+     is the a's inline padding-block (below), overlapping its neighbours', not the gap */
+  padding-inline-start: 22px;
+}
+.enrich .related li + li {
+  margin-top: var(--s-1);
+}
+/* Each a page: its kind's icon before the title (as the page's own meta line has it), hung in
+   the indent so wrapped lines align with the title */
+.enrich .related a .i {
+  width: 16px;
+  height: 16px;
+  margin-inline: -22px 6px;
+  vertical-align: -0.15em;
+  color: var(--ink-2);
+}
+.enrich .related li small {
+  white-space: nowrap;
 }
 .enrich small {
   color: var(--ink-2);
@@ -267,6 +281,10 @@
   color: var(--ink);
   font-weight: 600;
   text-decoration: none;
+}
+/* Related is a list under its heading, not more headings: its titles in the regular weight */
+.enrich .related a {
+  font-weight: 400;
 }
 /* Only a source's topics to say: the line alone, no card */
 .enrich.topicsonly {
