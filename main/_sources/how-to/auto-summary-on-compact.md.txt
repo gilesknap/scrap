@@ -7,6 +7,15 @@ When Claude Code compacts a long session, the detail of the earlier part is lost
 `PreCompact` hook in `hooks/scrap-precompact.py` posts a summary to scrap just before each
 compaction, while the whole transcript is still there.
 
+```{note}
+**Cost and when to skip it.** The hook is optional and opt-in: nothing installs it for you.
+Every compaction waits for it, so expect about 30 s of added delay on a small session (34 s
+measured on a small test session) and more on a long one, bounded by `SCRAP_PRECOMPACT_TIMEOUT`
+(default 180 s, at most 190 s). It also costs one extra model call per compaction. The summary
+is model-written and can pick up noise from the dialogue, so check the page. If that trade is
+not worth it, skip the hook, or see [](#turn-it-off).
+```
+
 ## What it does
 
 - Runs on the `PreCompact` event. It reads the session id and `transcript_path` from the hook

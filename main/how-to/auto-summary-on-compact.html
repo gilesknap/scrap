@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Post a summary to scrap when Claude Code compacts &#8212; scrap 0.14.1.dev4+gd5edd2495 documentation</title>
+    <title>Post a summary to scrap when Claude Code compacts &#8212; scrap 0.14.1.dev5+g9c57ceae9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=df7c6623"></script>
+    <script src="../_static/documentation_options.js?v=0e6ef176"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -498,6 +498,15 @@
 <code class="docutils literal notranslate"><span class="pre">/sc-summarise</span> <span class="pre">all</span></code> written afterwards can only work from the compaction summary. The
 <code class="docutils literal notranslate"><span class="pre">PreCompact</span></code> hook in <code class="docutils literal notranslate"><span class="pre">hooks/scrap-precompact.py</span></code> posts a summary to scrap just before each
 compaction, while the whole transcript is still there.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Cost and when to skip it.</strong> The hook is optional and opt-in: nothing installs it for you.
+Every compaction waits for it, so expect about 30 s of added delay on a small session (34 s
+measured on a small test session) and more on a long one, bounded by <code class="docutils literal notranslate"><span class="pre">SCRAP_PRECOMPACT_TIMEOUT</span></code>
+(default 180 s, at most 190 s). It also costs one extra model call per compaction. The summary
+is model-written and can pick up noise from the dialogue, so check the page. If that trade is
+not worth it, skip the hook, or see <a class="reference internal" href="#turn-it-off"><span class="std std-ref">Turn it off</span></a>.</p>
+</div>
 <section id="what-it-does">
 <h2>What it does<a class="headerlink" href="#what-it-does" title="Link to this heading">#</a></h2>
 <ul class="simple">
