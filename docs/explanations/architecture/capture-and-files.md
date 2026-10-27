@@ -214,7 +214,7 @@ flowchart LR
 
 - A capture is saved with no LLM call and no network beyond the upload itself.
 - A capture id is a client-minted ULID: sending twice stores once.
-- Originals (blobs and captures) are never changed, and are purged only with their page after N
+- Originals (blobs and captures) are never changed (but by `scrap shrink`, on request), and are purged only with their page after N
   days in the trash (or, for an orphan, with the review page that showed it); everything else is
   derived.
 - A blob is deleted only when no page text, capture, derived row, job or model run refers to it,

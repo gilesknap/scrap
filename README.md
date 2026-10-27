@@ -6,7 +6,7 @@
 
 # scrap
 
-scrap is a memory system for Claude Code: a self-hosted store that Claude searches, reads and writes over MCP (and the `/sc-*` skills). Capture from your phone in seconds, never waiting on an LLM, then see it all in a PWA: photos, Excalidraw diagrams and rendered markdown. It follows the [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern, and **your words and Claude's never mix**: page text is yours, and everything Claude adds is stored apart, labelled and regenerable.
+scrap is a memory system for Claude Code: a self-hosted store that Claude searches, reads and writes over MCP (and the `/sc-*` commands). Capture from your phone in seconds, never waiting on an LLM, then see it all in a PWA: photos, Excalidraw diagrams and rendered markdown. It follows the [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern, and **your words and Claude's never mix**: page text is yours, and everything Claude adds is stored apart, labelled and regenerable.
 
 **Status:** in daily use, and deployed on Kubernetes.
 

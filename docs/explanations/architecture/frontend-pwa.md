@@ -53,7 +53,7 @@ flowchart LR
 | Route | Screen |
 | --- | --- |
 | `/` | Capture |
-| `/search` | Search; `/recent` and the retired `/tags` redirect here (`/recent?kind=todo` goes to `/todos`) |
+| `/search` | Search, with the pins under the empty box ([](../decisions/0032-pins-are-a-page-of-links.md)); `/recent` and the retired `/tags` redirect here (`/recent?kind=todo` goes to `/todos`) |
 | `/todos` | Todos (a lazy chunk) |
 | `/p/<slug>` | A page (`page` chunk) |
 | `/topics`, `/health` | Topics list and store health (lazy chunks) |

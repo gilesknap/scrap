@@ -6,7 +6,9 @@ Date: 2026-10-24
 
 Accepted. Revises [](0019-kinds-and-tags-editable-with-revisions.md) and
 [](0022-page-text-editable-over-mcp-with-revisions.md), which both said there is no trash
-over MCP.
+over MCP. Revised by
+[](0034-claude-can-move-pages-to-the-trash.md): `trash_pages` now lets Claude move pages to
+the trash.
 
 ## Context
 
