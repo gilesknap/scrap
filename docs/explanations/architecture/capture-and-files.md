@@ -72,8 +72,8 @@ sequenceDiagram
 |---|---|---|
 | note | the text | first line (no leading `#`, at most 200 characters); a bare URL makes it a link |
 | link | the URL, then any text | the URL, or the first line of the text |
-| photo | text if any, then one image embed per image | text's first line, else device time, which ingest replaces |
-| file (not all images) | text if any, plus embeds for any images | text's first line, else device time |
+| photo (any image) | text if any, then one image embed per image; other files listed below it | text's first line, else device time, which ingest replaces |
+| file (no image) | text if any; the files listed below it | text's first line, else device time |
 
 Claude then adds derived text, a better title, tags and a summary
 ([](claude-pipeline.md)). Merging and linking pages is by hand or over MCP.

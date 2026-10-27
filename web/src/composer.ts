@@ -195,7 +195,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     const size = files.reduce((n, f) => n + f.size, 0);
     const max = uploadLimit();
     if (overLimit(size) && !separately) {
-      const over = `${mb(size)} of photos is over the server's ${mb(max)} limit.`;
+      const over = `${mb(size)} of files is over the server's ${mb(max)} limit.`;
       if (files.length < 2)
         return toast(`${over} Remove it to save the text.`, "", undefined, 10000);
       return toast(`${over} Remove some, or`, "Save separately", () => void store(true), 15000);

@@ -509,6 +509,48 @@ def test_an_untyped_md_file_is_typed_by_its_name(client):
     assert got["mime"] == "text/markdown" and got["ingest"]["state"] == "queued"
 
 
+def test_a_type_ingest_cannot_read_takes_its_names_only_if_that_is_one(client):
+    """A .md sent as text/x-markdown is typed by its name; a zip keeps its type, and
+    a text file sent as text/plain keeps that."""
+    files_ = [("file", ("n.md", b"the wombat", "text/x-markdown")),
+              ("file", ("a.zip", b"PK", "application/zip")),
+              ("file", ("t.md", b"plain", "text/plain"))]  # fmt: skip
+    ref = client.post("/api/captures", data={"id": new_ulid()}, files=files_).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    got = [b["mime"] for b in page["captures"][0]["blobs"]]
+    assert got == ["text/markdown", "application/zip", "text/plain"]
+
+
+def test_a_new_capture_of_a_photo_and_a_pdf_is_a_photo_capture(client):
+    """As Add photo's (#380): a composer's or a share's photo and PDF together make a
+    photo capture, so the photo is sent to Claude, and the PDF is still read."""
+    from test_photos import jpeg
+
+    files_ = [("file", ("a.jpg", jpeg(), "image/jpeg")),
+              ("file", ("m.pdf", pdf("agenda"), "application/pdf"))]  # fmt: skip
+    ref = client.post("/api/captures", data={"id": new_ulid()}, files=files_).json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    capture = page["captures"][0]
+    assert capture["kind"] == "photo"
+    image, doc = capture["blobs"]
+    assert image["ingest"]["state"] == "queued"
+    assert doc["ingest"]["state"] == "queued" and doc["ingest"]["kind"] == "pdf"
+
+
+def test_a_shared_photo_and_pdf_make_a_photo_capture(client):
+    from test_photos import jpeg
+
+    files_ = [("files", ("a.jpg", jpeg(), "image/jpeg")),
+              ("files", ("m.pdf", pdf("agenda"), "application/pdf"))]  # fmt: skip
+    r = client.post("/share", data={"title": "Both"}, files=files_,
+                    follow_redirects=False)  # fmt: skip
+    assert r.status_code == 303, r.text
+    page = client.get("/api/pages?limit=1").json()[0]
+    got = client.get(f"/api/pages/{page['id']}").json()["captures"][0]
+    assert got["kind"] == "photo" and got["source"] == "share"
+    assert [b["ingest"]["state"] for b in got["blobs"]] == ["queued", "queued"]
+
+
 def test_other_files_are_refused(client, note):
     ref = note("Zip")
     r = add(client, ref["page_id"], ("a.zip", b"PK\x03\x04", "application/zip"))
@@ -528,6 +570,7 @@ def test_other_files_are_refused(client, note):
         ("n.md", "application/octet-stream", "text/markdown"),  # a phone's .md
         ("n.md", "", "text/markdown"),
         ("n.txt", "", "text/plain"),
+        ("n.md", "text/x-markdown", "text/markdown"),  # another phone's .md
     ],
 )
 def test_a_text_file_added_to_a_page_is_listed_and_read(client, note, name, mime,

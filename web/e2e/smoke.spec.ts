@@ -271,7 +271,7 @@ test("photos over the upload limit are saved separately, or split after a 413", 
   await chooser.setFiles([png("one.png"), png("two.png")]);
   await page.getByPlaceholder("Caption (optional)").fill("limit test");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("1.4 MB of photos is over the server's 1.0 MB limit")).toBeVisible();
+  await expect(page.getByText("1.4 MB of files is over the server's 1.0 MB limit")).toBeVisible();
   await expect(page.locator(".thumb img")).toHaveCount(2); // nothing lost
   await page.getByRole("button", { name: "Save separately" }).click();
   await expect.poll(async () => (await pages()).length).toBe(1); // the text goes with the first

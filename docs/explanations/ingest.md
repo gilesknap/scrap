@@ -361,8 +361,8 @@ every other test of what a page is (who made it, whether enrich or ingest mainta
 write-up, what automation may change, whether it takes photos) are in `store/roles.py`: see
 {ref}`page-roles` for the table of them.
 
-**Photos added to a page.** The page editor's **Add photo** (camera or gallery) adds photos to a
-page that exists (not a topic page: its synthesis is its write-up, which a board photo would
+**Photos added to a page.** The page editor's **Add photo** (camera, gallery or file) adds photos
+to a page that exists (not a topic page: its synthesis is its write-up, which a board photo would
 replace), as a photo capture of its own (`POST /api/pages/{id}/captures`, images, PDFs and text
 or Markdown files, `Store.add_photos`; its **File** button offers PDFs, text and Markdown, which
 are listed below the text and are read for search only: {ref}`ingest-files`; files alone make a

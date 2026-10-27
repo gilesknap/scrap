@@ -79,7 +79,9 @@ class CaptureMixin(Core):
         if not url and text and BARE_URL.fullmatch(text.strip()):
             url, text = text.strip(), None  # a link shared as text
         if mimes:
-            images = all(mime.startswith("image/") for mime in mimes)
+            # A photo capture if any is an image, as Add photo's (store.photos): its
+            # images go to Claude; a PDF or text file among them is still read (ENQUEUE)
+            images = any(mime.startswith("image/") for mime in mimes)
             what = "photo" if images else "file"
         else:
             what = "url" if url else "note"

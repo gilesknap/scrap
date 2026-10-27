@@ -1,5 +1,6 @@
 // The page view: editing, downloads, the photo viewer and Markdown (runs after smoke.spec.ts,
 // which expects an empty store).
+import { execFileSync } from "node:child_process";
 import { deflateSync } from "node:zlib";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
@@ -366,10 +367,17 @@ test("Back closes the editor, not the page, and keeps the edit as a draft", asyn
   await expect(page).toHaveURL(/\/search$/); // /recent is the search screen now
 });
 
+/** Make a page's capture one Claude was never asked about (e2e/unasked.py): photos with a
+ * PDF are a photo capture, its images queued for Claude (#380). */
+function unasked(pageId: string) {
+  const args = ["run", "--locked", "python", "web/e2e/unasked.py"];
+  execFileSync("uv", [...args, process.env.SCRAP_E2E_DATA as string, pageId], { cwd: ".." });
+}
+
 test("embedded images are figures: no caption, the viewer names them, Generate asks Claude", async ({
   page,
 }) => {
-  // A photo beside a PDF: a file capture, so Claude has not been asked about the photo
+  // A photo beside a PDF whose capture Claude was never asked about (e2e/unasked.py)
   const form = new FormData();
   form.append("id", ulid());
   form.append("text", "Embeds");
@@ -384,8 +392,9 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
     new Blob([new Uint8Array(png(200, 300, 160))], { type: "image/png" }),
     "b.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
-  await page.goto(`/p/${slug}`);
+  const made = await (await page.request.post("/api/captures", { multipart: form })).json();
+  unasked(made.page_id);
+  await page.goto(`/p/${made.slug}`);
   const figs = page.locator(".md figure.orig");
   await expect(figs).toHaveCount(2);
   // No caption under them: the name is the image's alt and the viewer's label
@@ -454,10 +463,11 @@ test("every photo of the page can be opened, saved and sent, wherever the text p
       new Blob([new Uint8Array(png(30, 20, 20 + i * 40))], { type: "image/png" }),
       `${n}.png`,
     );
-  form.append("file", new Blob(["%PDF-1.4"], { type: "application/pdf" }), "doc.pdf"); // not sent to Claude
+  form.append("file", new Blob(["%PDF-1.4"], { type: "application/pdf" }), "doc.pdf");
   const { page_id, slug } = await (
     await page.request.post("/api/captures", { multipart: form })
   ).json();
+  unasked(page_id); // not sent to Claude
   const url = `/api/pages/${page_id}`;
   const blobs = (await (await page.request.get(url)).json()).captures[0].blobs;
   const e = (i: number) => `![](/api/blobs/${blobs[i].sha256}/preview?size=2048)`;

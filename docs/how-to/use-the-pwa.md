@@ -75,9 +75,9 @@ flowchart LR
 - **Photos and files.** **Camera** and **Gallery** add more photos (to a note too), and **File**
   PDFs, text and Markdown files, each shown as its name; the cross on a thumbnail removes one. All
   of them and the text become one capture and one page. A file's text is read for search.
-- **Upload limit.** Photos together over the server's limit (50 MB, `SCRAP_MAX_UPLOAD_MB`; the app
-  learns it from `/healthz`, so this works offline) make Save say so: remove some, or **Save
-  separately** (one capture per photo, text on the first). A proxy may have a lower limit.
+- **Upload limit.** Photos and files together over the server's limit (50 MB,
+  `SCRAP_MAX_UPLOAD_MB`; the app learns it from `/healthz`, so this works offline) make Save say
+  so: remove some, or **Save separately** (one capture per photo or file, text on the first). A proxy may have a lower limit.
 - **Tags.** The **Tags** line opens a tags box as on a page ([Tags](#tags)). The page is made with
   its tags, so search finds it at once, also when saved offline. Your tags on a photo are kept and
   Claude's join them on its first read (a later Regenerate adds tags only to a page with none).
