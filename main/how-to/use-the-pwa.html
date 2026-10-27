@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.16.1.dev18+g3039349df documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.16.1.dev19+g14a0163ea documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c148af6c"></script>
+    <script src="../_static/documentation_options.js?v=b7dd0ed6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -947,7 +947,7 @@ makes a whiteboard or document a page of that kind. A kind you choose is kept; C
 changes it. You can change it later in the editor and nothing is lost (status, due date and
 summary stay, so changing back restores the page).</p></li>
 <li><p><strong>Todo.</strong> With kind <strong>Todo</strong> (and no photos) the composer adds <strong>Due</strong> (<strong>Today</strong>,
-<strong>Tomorrow</strong>, <strong>Next week</strong> or a date) and <strong>Priority</strong>, and asks <em>What needs doing?</em>.</p></li>
+<strong>Tomorrow</strong>, <strong>Next week</strong> or <strong>Pick a date…</strong>) and <strong>Priority</strong>, and asks <em>What needs doing?</em>.</p></li>
 <li><p><strong>Folded lines.</strong> Due and Tags are each one line above the text (<strong>Due</strong> <em>24 Oct · high</em>,
 <strong>Tags</strong> <em>2 · #home #garden</em>); tap to open, tap again to fold.</p></li>
 <li><p><strong>Photos and files.</strong> <strong>Camera</strong> and <strong>Gallery</strong> add more photos (to a note too), and <strong>File</strong>
@@ -1360,8 +1360,9 @@ only toggles open and done: <strong>in progress</strong> and <strong>cancelled</
 app shows them.</p></li>
 <li><p><strong>Due date and priority.</strong> A todo may have a due date and a priority (high, medium, low). A
 page shows them in its first chip, before the tags (<em>3 Nov · high</em>, or <strong>Add due date</strong>): tap it to
-pick a date (<strong>Today</strong>, <strong>Tomorrow</strong>, <strong>Next week</strong>, <strong>No date</strong> clears), and a priority, then
-<strong>Save</strong>. <strong>Edit</strong> has the same two. Rows show them; a todo due before today and not done says
+pick a date (<strong>Today</strong>, <strong>Tomorrow</strong>, <strong>Next week</strong>, <strong>Pick a date…</strong> for any other day, <strong>No
+date</strong> clears), and a priority, then <strong>Save</strong>: while the form is open, <strong>Cancel</strong> and <strong>Save</strong>
+take the place of the page’s buttons at the bottom. <strong>Edit</strong> has the same two. Rows show them; a todo due before today and not done says
 <em>overdue</em> in red (that one word, the only red on the page). They belong to todos only: a page made a note keeps them, hidden. Neither is a
 revision nor moves the page. Today is your phone’s day on rows and pages, the server’s for <code class="docutils literal notranslate"><span class="pre">due:</span></code>
 searches.</p></li>
@@ -1372,8 +1373,8 @@ and Doc never change. Boxes in code do not count. Rows and pages say how many ar
 5</em>). Ticking the last box marks it done; while every box is ticked, unticking one or adding an
 unticked one reopens it. A todo marked done by hand stays done. <strong>Mark done</strong> ticks no box; a
 cancelled todo is left as it is.</p></li>
-<li><p><strong>Snooze.</strong> On a page, tap the line under the tags and pick <strong>Snooze until</strong> a date, <strong>Tomorrow</strong>
-or <strong>Next week</strong> (<strong>No snooze</strong> wakes it), then <strong>Save</strong>. A snooze later than the due date asks
+<li><p><strong>Snooze.</strong> On a page, tap the line under the tags, then the folded <strong>Snooze</strong> line, and pick
+<strong>Tomorrow</strong>, <strong>Next week</strong> or <strong>Pick a date…</strong> (<strong>Not snoozed</strong> wakes it), then <strong>Save</strong>. A snooze later than the due date asks
 whether the due date moves too: <strong>Move due date</strong> or <strong>Keep due date</strong>. Until that day it is
 out of <strong>Now</strong>, <strong>Upcoming</strong> and the badge (Now says <em>1 snoozed</em> at the end of its count line;
 tap it for <code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">is:snoozed</span> <span class="pre">sort:due</span></code>). <strong>All</strong> shows it as <em>snoozed till 3 Nov</em>. It returns by itself
