@@ -531,6 +531,74 @@ arguments runs any `scrap` command against the data, for example `["export", "/b
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without `--force`, and point `persistence.existingClaim` at it.
 
+(k8s-test-restore)=
+### Try a restore in a scratch instance
+
+A backup you have never opened is a hope, not a backup. This checks one on any machine, with
+nothing touching the cluster's data: restore it into a throwaway folder, start scrap on another
+port and compare what it shows with the live store. It was tested on 2026-10-27 with a backup of
+the live store (schema 16, 285 pages, 98 of them in the trash, 244 files, 290 MB) restored by a
+newer scrap (schema 17, a clone of `main` set up with `uv sync`).
+
+1. Get a run onto the machine. A run directory holds `scrap.db`, `files/` and a `COMPLETE` file;
+   copy one off the backup claim into a folder (`/tmp/rt/backup/<run>` below), for example with
+   `kubectl cp` from a pod that mounts the claim. Use the scrap version that wrote it or a newer
+   one: restore refuses a newer backup. (The test run was made with `scrap backup` from a copy of
+   the data folder, because nothing mounted the backup claim outside the CronJob pods.)
+
+2. Restore into an empty folder of its own, without `--force`. It prints nothing when it works:
+
+   ```
+   export SCRAP_DATA_DIR=/tmp/rt/scratch
+   scrap restore /tmp/rt/backup/<run>
+   ```
+
+   With the image rather than a clone, run the same command with the two folders mounted, as in
+   `restore.yaml` above. Running it again says `/tmp/rt/scratch is not empty; stop scrap and use
+   --force` and changes nothing.
+
+3. Start scrap on a spare port. Leave `SCRAP_INGEST` and the Claude settings unset, so it makes no
+   calls. A clone without the PWA build logs `The scrap PWA is not built`; the API checks do not
+   need it:
+
+   ```
+   scrap serve --port 8793
+   curl -s localhost:8793/healthz
+   ```
+
+4. Compare with the live store, read only. With the live service on a port-forward
+   (`kubectl -n scrap port-forward svc/scrap 8794:80`), the same `GET`s answer from both:
+
+   | Check | Call | Tested result |
+   | --- | --- | --- |
+   | Pages | `GET /api/pages?limit=500` (the trash is left out) | 285 on both, same ids |
+   | Pages in full | `GET /api/pages/<slug>` for each | same text, tags, kind, fields and tasks |
+   | Tags, topics | `GET /api/tags`, `/api/topics` | 307 and 5, identical |
+   | Todos | `GET /api/search?q=kind:todo` | 20 pages, identical; 37 pages hold 325 tasks, 93 done |
+   | Write-ups | `writeup.current.text` in `GET /api/pages/<slug>` | 19 pages, identical |
+   | Trash | `GET /api/trash` | 98 pages, identical, `purge_at` from 2026-11-19 to 2026-11-26 |
+   | Files | `GET /api/blobs/<sha>` for every file a page refers to | 152 files, 189 MB: each one's SHA-256 matches its name and its bytes equal the live ones |
+   | Search | `GET /api/search?q=watch`, `q=frontier` | 12 and 2 results, identical to live |
+   | Health | `GET /healthz`, `GET /api/health` | `ok`, with the same counts as live (see below) |
+
+   Row counts also match table by table (`SELECT count(*)` on each, opening the database with
+   `file:...?mode=ro`). The search index is a table in the backup (`chunk_fts`, 540 rows), so
+   nothing is rebuilt.
+
+5. Stop the server and delete the folders.
+
+What to expect:
+
+- A backup from an older scrap is migrated by `restore`, on the copy, before it is swapped into
+  place. Here that took about a second on a 60 MB database: schema 16 became 17 (migration
+  `0017`, which adds the empty `page_trash_rev` table), `PRAGMA integrity_check` said `ok`, and
+  every other table kept its row count.
+- The backup holds the database and every file in `files/`. It does not hold `cache/`, the page
+  previews, which scrap makes again the first time a photo is shown.
+- `enrich.on` and `writeup.on` read `false` on the scratch instance only because Claude is off
+  there. A newer scrap can also count more: `GET /api/health` showed `is:outdated` as 2 on the
+  restored copy and 0 on the live service, which runs an older version without that check.
+
 ## Health and monitoring
 
 `/healthz` answers 200 with the version while scrap is well. It answers 503 when ingest is on and
