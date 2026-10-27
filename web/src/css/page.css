@@ -66,6 +66,17 @@
 :is(.meta, .dates) > :is(span, a) {
   white-space: nowrap;
 }
+/* The kind word leads: semibold ink, the rest quiet */
+.meta > .kind {
+  color: var(--ink);
+  font-weight: 600;
+}
+.meta > .kind .i {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: var(--s-1);
+  vertical-align: -0.2em; /* on the text's middle */
+}
 .meta .written {
   padding: 1px var(--s-2);
   border: 1px solid var(--line-strong);
