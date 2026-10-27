@@ -314,16 +314,18 @@ class RevisionsMixin(Core):
             "SELECT body, kind, kind_fixed, fields FROM page WHERE id = ?",
             (page["id"],),
         ).fetchone()
-        theirs = conn.execute(
-            "SELECT body FROM page_rev WHERE page_id = ? AND source <> ?",
-            (page["id"], MCP),
-        ).fetchall()
         if (
             not may_rekind(now_["kind"], now_["kind_fixed"], ("todo",))
             or tasks(now_["body"])[1]
-            or not tasks(page["body"])[1] or any(tasks(r[0])[1] for r in theirs)
+            or not tasks(page["body"])[1]
             or json.loads(now_["fields"]).get("status", "open") != "open"
-        ):  # fmt: skip
+        ):  # the cheap exits first: the scan below reads every revision by others
+            return
+        theirs = conn.execute(
+            "SELECT body FROM page_rev WHERE page_id = ? AND source <> ?",
+            (page["id"], MCP),
+        )
+        if any(tasks(r[0])[1] for r in theirs):  # stops at the first with boxes
             return
         seen = conn.execute(
             "SELECT json_extract(d.data, '$.kind') FROM derived d JOIN capture c"

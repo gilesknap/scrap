@@ -158,6 +158,25 @@ def test_a_todo_the_user_filed_stays_when_claude_removes_boxes(store):
     assert store.page(ref["page_id"])["kind"] == "todo"
 
 
+def test_unbox_skips_the_revision_scan_when_an_early_exit_applies(store):
+    ref = note(store, "- [ ] mine")
+    for i in range(5):  # revisions by someone other than Claude
+        store.edit_text(
+            ref["page_id"], "me", lambda c, p, i=i: (p["title"], f"- [ ] v{i}"),
+            fold=False, source="web",
+        )  # fmt: skip
+    sql: list[str] = []
+
+    def change(conn, page):  # Claude's edit keeps its boxes: _unbox has nothing to do
+        conn.set_trace_callback(sql.append)
+        return page["title"], "- [ ] claude"
+
+    store.edit_text(ref["page_id"], CLAUDE, change, fold=False, source=MCP)
+    assert any("UPDATE page SET title" in q for q in sql)  # the trace saw the save
+    assert not any("source <>" in q for q in sql)  # and no scan of others' revisions
+    assert store.page(ref["page_id"])["kind"] == "todo"
+
+
 @pytest.mark.parametrize(
     "answer",
     [
