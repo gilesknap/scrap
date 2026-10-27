@@ -244,6 +244,10 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const save = h("button", { type: "submit", className: "primary" }, icon("done"), "Save");
     save.setAttribute("form", "tagform");
     const cancel = h("button", { onclick: () => close(shown) }, icon("close"), "Cancel");
+    for (const b of [cancel, save])
+      b.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") close(shown); // from the action row too
+      });
     const mine = [cancel, save];
     // Closed (saved or not): the page as it is now, focus back on its Tags button
     const close = (to: Page) => {

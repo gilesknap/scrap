@@ -536,6 +536,72 @@ test("with the due form open at 390 px and 130% text, Save is in the action row 
   await expect(buttons).toHaveText(ROW);
 });
 
+test("Escape cancels from Save and Cancel in the action row too", async ({ page }) => {
+  const t = await todo(page, "Bilby escape", { due: day(3) });
+  await page.goto(`/p/${t.slug}`);
+  const tools = page.locator(".page > .tools");
+  const chip = page.locator(".page .tags .duechip");
+  for (const name of ["Cancel", "Save"]) {
+    await chip.click();
+    await expect(tools.getByRole("button")).toHaveText(["Cancel", "Save"]);
+    await tools.getByRole("button", { name }).focus();
+    await page.keyboard.press("Escape");
+    await expect(tools.getByRole("button")).toHaveText(ROW);
+    await expect(page.locator(".todoedit")).toHaveCount(0);
+    await expect(chip).toBeFocused();
+  }
+  // Tabbing there from the form reaches the row's buttons
+  await chip.click();
+  await page.locator(".page").getByRole("button", { name: "Tomorrow", exact: true }).focus();
+  await page.keyboard.press("Tab"); // Pick a date…
+  await tools.getByRole("button", { name: "Cancel" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(tools.getByRole("button", { name: "Save" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(chip).toBeFocused();
+});
+
+test("two forms open: cancelling the older leaves the newer's row, the last restores it", async ({
+  page,
+}) => {
+  const t = await todo(page, "Bilby two forms", { due: day(3) });
+  await page.goto(`/p/${t.slug}`);
+  const buttons = page.locator(".page > .tools").getByRole("button");
+  await page.locator(".page .tags .duechip").click(); // the due form first (older)
+  await page.getByRole("button", { name: "Add tags" }).click(); // the tag form last (newer)
+  await expect(buttons).toHaveText(["Cancel", "Save"]);
+  await expect(page.locator(".tagform")).toHaveCount(2);
+  // The older one's Escape, from inside its form
+  await page.getByRole("button", { name: "Tomorrow", exact: true }).focus();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".todoedit")).toHaveCount(0);
+  await expect(page.locator(".tagform")).toHaveCount(1);
+  await expect(buttons).toHaveText(["Cancel", "Save"]); // still the tag form's
+  await expect(page.getByRole("textbox", { name: "Add a tag" })).toBeVisible();
+  await buttons.first().click();
+  await expect(buttons).toHaveText(ROW);
+});
+
+test("when the picker cannot open, the date field shows, focused, then hides again", async ({
+  page,
+}) => {
+  const t = await todo(page, "Bilby nopicker", { due: day(3) });
+  await page.goto(`/p/${t.slug}`);
+  await page.evaluate(() => {
+    HTMLInputElement.prototype.showPicker = () => {
+      throw new Error("no picker here");
+    };
+  });
+  await page.locator(".page .tags .duechip").click();
+  const field = page.getByLabel("Due", { exact: true });
+  await expect(field).toHaveClass("vh");
+  await page.getByRole("button", { name: "Pick a date…" }).click();
+  await expect(field).not.toHaveClass("vh");
+  await expect(field).toBeFocused();
+  await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await expect(field).toHaveClass("vh");
+});
+
 test("Pick a date… says the chosen day and is the selected chip", async ({ page }) => {
   const t = await todo(page, "Bilby pick", { due: day(0) });
   await page.goto(`/p/${t.slug}`);
@@ -556,6 +622,7 @@ test("Pick a date… says the chosen day and is the selected chip", async ({ pag
   await expect(pick).toHaveAttribute("aria-pressed", "true");
   await expect(due.getByRole("button", { name: "Today" })).toHaveAttribute("aria-pressed", "false");
   await page.locator(".page > .tools").getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".page > .tools").getByRole("button", { name: "Edit" })).toBeVisible();
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(chosen);
 });
 

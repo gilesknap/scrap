@@ -46,7 +46,7 @@ export const partly = (p: Todo) =>
   `${p.tasks.done} of ${p.tasks.total}`;
 
 /** A day as a row says it: "3 Nov", with the year if it is not this one's. */
-const short = (d: string, now: string) =>
+export const short = (d: string, now = today()) =>
   new Date(`${d}T12:00`).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",

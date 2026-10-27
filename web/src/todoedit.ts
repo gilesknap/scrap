@@ -6,7 +6,7 @@
 // sent with the page). A chunk of its own: the page's due line and the editor load it.
 import { api, type Page } from "./api";
 import { icon } from "./icons";
-import { today } from "./status";
+import { short as dayName, today } from "./status";
 import { why } from "./swipe";
 import { h, toast } from "./ui";
 
@@ -25,13 +25,6 @@ export const todoStart = (kept: { todo?: Todo } | undefined, p: Partial<Page>): 
 export const inDays = (n: number, d = new Date()) =>
   today(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12));
 
-/** A day as a chip says it: "31 Oct", with its year when not this one's. */
-const dayName = (d: string) => {
-  const t = new Date(`${d}T12:00`);
-  const year = t.getFullYear() !== new Date().getFullYear() && { year: "numeric" as const };
-  return t.toLocaleDateString(undefined, { day: "numeric", month: "short", ...year });
-};
-
 const SOON: [string, number][] = [
   ["Today", 0],
   ["Tomorrow", 1],
@@ -47,6 +40,7 @@ const PICK = "Pick a date…";
  * for any other day, the emptying one while there is none. A group named name. */
 function soon(date: HTMLInputElement, days: [string, number][], none: string, name: string) {
   const set = (v: string) => {
+    date.className = "vh"; // hidden again once a chip chooses (after a picker that couldn't open)
     date.value = v;
     date.dispatchEvent(new Event("input", { bubbles: true }));
   };
@@ -222,5 +216,10 @@ export function todoForm(p: Page, close: (p?: Page) => void) {
     (choice.querySelector("button") as HTMLButtonElement).focus();
   };
   const cancel = h("button", { type: "button", onclick: () => close() }, icon("close"), "Cancel");
+  // Escape cancels from the action row's buttons too (they go with the form when it closes)
+  for (const b of [cancel, save])
+    b.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") close();
+    });
   return { form, acts: [cancel, save], focus: () => field.first()?.focus() };
 }
