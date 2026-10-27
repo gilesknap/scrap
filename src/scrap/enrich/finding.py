@@ -9,7 +9,7 @@ from typing import Any
 from ..markdown import plain
 from ..store import model_summary, roles
 from .constants import BY_TAGS, BY_WORDS, MAX_CANDIDATES, QUERY_WORDS, WORD
-from .prompts import page_images
+from .prompts import page_files, page_images
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,8 @@ def page_texts(
 ) -> Iterator[str]:
     """A page's texts to search by, most telling first: its title, tags and summary,
     then what photo ingest read from its images (their text, then their
-    descriptions), then its own text (made plain only if it is reached)."""
+    descriptions), then its own text (made plain only if it is reached), then what
+    file ingest read from its files."""
     yield title
     yield " ".join(r[0] for r in conn.execute(
         "SELECT tag FROM tag WHERE page_id = ?", (page_id,)))  # fmt: skip
@@ -40,6 +41,7 @@ def page_texts(
     yield from (i["text"] or "" for i in images)
     yield from (i["description"] or "" for i in images)
     yield plain(body)
+    yield from (f["text"] or "" for f in page_files(conn, page_id))
 
 
 def candidates(
@@ -50,8 +52,9 @@ def candidates(
     title, tags, summary or text best match its words (full-text search, BY_WORDS),
     then the most recently changed; none in the trash. Its words: the first
     QUERY_WORDS distinct ones of its title, tags and summary, then of what was read
-    from its images (their text, then their descriptions), then of its own text, so
-    a photo page with no summary is searched by what is in the photo.
+    from its images (their text, then their descriptions), then of its own text, and
+    last of what was read from its files, so a photo or file page with no summary is
+    searched by what is in it (locally: nothing of a file is sent).
     Swappable (CANDIDATES): embeddings (#53) if these prove too weak."""
     me = conn.execute(
         "SELECT p.title, p.fields, p.body FROM page p WHERE p.id = ?", (page_id,)

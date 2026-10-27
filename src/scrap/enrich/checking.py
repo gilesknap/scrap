@@ -53,9 +53,14 @@ def clean_tag(tag: Any) -> str | None:
 
 
 def checked(
-    out: dict[str, Any], vocab: set[str], want_summary: bool, link: bool
+    out: dict[str, Any],
+    vocab: set[str],
+    want_summary: bool,
+    link: bool,
+    want_title: bool = False,
 ) -> dict[str, Any]:
-    """The model's output within bounds (ValueError if not an answer at all)."""
+    """The model's output within bounds (ValueError if not an answer at all): a
+    title only for a link, or when one was asked for (want_title)."""
     if not all(k in out for k in ("tags", "summary", "title")):
         raise ValueError("output lacks a field")
     tags: list[str] = []
@@ -72,7 +77,8 @@ def checked(
     summary = out["summary"] if isinstance(out["summary"], str) else ""
     summary = " ".join(CONTROL.sub(" ", summary).split())[:MAX_SUMMARY]
     title = out["title"] if isinstance(out["title"], str) else ""
-    title = " ".join(CONTROL.sub(" ", title).split())[:MAX_TITLE] if link else ""
+    title = " ".join(CONTROL.sub(" ", title).split())[:MAX_TITLE]
+    title = title if link or want_title else ""
     media = out.get("media_type")
     intent, confidence = actions.clean_intent(out)
     items = actions.clean_items(out.get("items")) if intent == actions.INTENT else []

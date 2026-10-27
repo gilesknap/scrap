@@ -29,16 +29,26 @@ from ..store import (
 )
 from .checking import checked, record
 from .constants import (
+    ASKED_SUMMARY,
     CLAIM,
+    FILE_TITLE_CAS,
     MAX_NEW_TAGS,
     MAX_TITLE,
     SAVE_REREAD,
     SCHEMA,
     SHORT,
     TITLE_CAS,
+    UNTITLED_FILE,
 )
 from .media import site_media
-from .prompts import page_images, page_message, system_prompt, vocabulary
+from .prompts import (
+    file_text,
+    page_files,
+    page_images,
+    page_message,
+    system_prompt,
+    vocabulary,
+)
 from .relating import relate
 from .synthesis import synthesise
 from .types import Call, Fetch
@@ -239,6 +249,14 @@ class Enricher:
             ).fetchone()
             link = link and link[0]
             images = page_images(conn, page_id)
+            # A file's text goes to Claude only when the owner asks (ADR 35, #378)
+            asked = job["reason"] == "ask"
+            files = page_files(conn, page_id)
+            filed = bool(file_text(files))  # it has some: a re-reading keeps Ask's
+            files = files if asked else []
+            untitled = asked and bool(
+                conn.execute(UNTITLED_FILE, {"page": page_id}).fetchone()
+            )
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
@@ -253,11 +271,14 @@ class Enricher:
                 failed = str(error)
             except Exception as error:  # noqa: BLE001  the page is enriched anyway
                 failed = f"could not fetch the page ({type(error).__name__})"
-        text = plain(page["body"]).strip()
-        want_summary = bool(link) or len(text) >= SHORT
+        text, read = plain(page["body"]).strip(), file_text(files)
+        want_summary = bool(link) or len(text) + len(read) >= SHORT
+        # a page made from a file, with no title of its own: one from its text (#378)
+        want_title = not link and untitled and bool(read)
         args = (page, tags, link, got, failed, want_summary)
-        messages = page_message(*args, images=images)
-        stored = page_message(*args, False, images)
+        extra = {"images": images, "files": files, "want_title": want_title}
+        messages = page_message(*args, **extra)
+        stored = page_message(*args, False, **extra)
         model, effort = claude.text_model()
         request = {
             "purpose": "enrich", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
@@ -277,16 +298,19 @@ class Enricher:
                 effort=effort, max_tokens=claude.TEXT_MAX_TOKENS,
             )  # fmt: skip
             try:
-                out = checked(done.output, vocab, want_summary, bool(link))
+                out = checked(done.output, vocab, want_summary, bool(link), want_title)
             except ValueError as error:
                 raise claude.CallError("invalid", str(error), completion=done) from None
         except claude.CallError as error:
             self.failed(jid, run_id, error)
             return
-        if not self.succeeded(job, run_id, done, out, link, got):
+        if not self.succeeded(job, run_id, done, out, link, got, filed and not asked):
             return
         items = [(i["text"], i["done"]) for i in out["items"]]
-        if not link and actions.accepted(out["intent"], out["confidence"], items):
+        # never from a file's text (a stranger's, maybe invisible in the PDF: ADR 35)
+        if not (link or read) and actions.accepted(
+            out["intent"], out["confidence"], items
+        ):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
         if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
@@ -295,7 +319,7 @@ class Enricher:
                 None
                 if self._written(jid)
                 else write_up(self.store, self.call, page_id, jid)
-            ) or relate(self.store, self.call, page_id, jid)
+            ) or relate(self.store, self.call, page_id, jid, files=True)
             if error is not None:
                 self._job_failed(jid, error)
                 return
@@ -356,10 +380,12 @@ class Enricher:
         out: dict[str, Any],
         link: str | None,
         got: fetch.Fetched | None,
+        keep_summary: bool = False,
     ) -> bool:
         """Apply what Claude added; whether the job is still this worker's (else it
         was given back at shutdown, and runs again). An Ask's job is finished by the
-        caller, after its related pages."""
+        caller, after its related pages. keep_summary: a re-reading of a page with
+        files' text, which only Ask sends, keeps a summary an Ask made (#378)."""
         jid, page_id = job["id"], job["page_id"]
         producer = done.served_model
         with self.store.connect() as conn, transaction(conn):
@@ -393,6 +419,10 @@ class Enricher:
                     ).fetchone()
                     if old is not None:
                         source, source_title = old
+                summary = out["summary"]
+                if keep_summary:
+                    old = conn.execute(ASKED_SUMMARY, (page_id,)).fetchone()
+                    summary = old and old[0] or summary
                 conn.execute(
                     "INSERT INTO enrichment (page_id, run_id, producer, summary,"
                     " source, source_title, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -400,7 +430,7 @@ class Enricher:
                     " producer = excluded.producer, summary = excluded.summary,"
                     " source = excluded.source, source_title = excluded.source_title,"
                     " updated_at = excluded.updated_at",
-                    (page_id, run_id, producer, out["summary"], source,
+                    (page_id, run_id, producer, summary, source,
                      source_title, stamp),
                 )  # fmt: skip
                 if link:
@@ -425,6 +455,10 @@ class Enricher:
                             "UPDATE page SET kind = 'consume', fields = ? WHERE id = ?",
                             (json.dumps(fields), page_id),
                         )
+                elif out["title"]:  # a page made from a file (want_title)
+                    conn.execute(
+                        FILE_TITLE_CAS, {"title": out["title"], "page": page_id}
+                    )
                 self.store.reindex(conn, page_id)
             elif job["reason"] == "ask":
                 self._done(conn, jid)  # trashed: nothing to relate

@@ -6,6 +6,7 @@ from typing import Any
 from .. import claude
 from ..query import MEDIA
 from ..store import health, roles, writeups
+from ..store.constants import IS_FILE
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -76,8 +77,8 @@ DISCOVERY_SCHEMA: dict[str, Any] = {
 # The tags that mark quoted data in a user turn, and one of them, opening or closing,
 # in the data itself (any case, with spaces: < / Page >), to be neutralised
 DELIMITERS = (
-    "page", "images", "fetched", "guidance", "writeup", "source", "notes", "index",
-    "topics",
+    "page", "images", "files", "fetched", "guidance", "writeup", "source", "notes",
+    "index", "topics",
 )  # fmt: skip
 DELIMITER = re.compile(
     r"<(?=\s*/?\s*(?:" + "|".join(DELIMITERS) + r")\b)", re.IGNORECASE
@@ -85,8 +86,10 @@ DELIMITER = re.compile(
 SHORT = 200  # characters: a shorter note gets tags but no summary
 MAX_BODY = 12_000  # characters of the page's text sent
 MAX_IMAGES = 8_000  # characters of what was read from its images (descriptions, text)
+MAX_FILES = 8_000  # and from its files (a PDF's or text file's text, #378)
 RELATED_BODY = 2_000  # the related call's start of the page's text
 RELATED_IMAGES = 3_000  # and of what was read from its images
+RELATED_FILES = 3_000  # and from its files
 RELATED_WRITEUP = 2_000  # and of its write-up
 MAX_BOARDS = 4  # board images a write-up call is sent (the photos themselves)
 WRITEUP_BODY = 6_000  # characters of the page's own text a write-up call is sent
@@ -155,6 +158,45 @@ SELECT
        AND d.source_sha256 = o.sha256 AND d.kind = 'ocr'
        AND d.superseded_at IS NULL) AS text
 FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
+"""
+
+
+# A page's files (each distinct readable file, IS_FILE, of its captures once, in
+# order) with its name and what file ingest read from it: its current text (NULL if
+# not read yet, or it could not be)
+FILES = f"""
+WITH once AS (
+    SELECT c.id AS capture_id, cb.sha256, cb.filename, c.received_at, cb.ord,
+           row_number() OVER (PARTITION BY cb.sha256
+                              ORDER BY c.received_at, c.id, cb.ord) AS copy
+    FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id
+    JOIN blob b USING (sha256)
+    WHERE c.page_id = ? AND {IS_FILE.format(b="b")})
+SELECT o.filename AS name,
+    (SELECT d.text FROM derived d WHERE d.capture_id = o.capture_id
+       AND d.source_sha256 = o.sha256 AND d.kind = 'ocr'
+       AND d.superseded_at IS NULL) AS text
+FROM once o WHERE o.copy = 1 ORDER BY o.received_at, o.capture_id, o.ord
+"""
+# A page :page made from a file, with no title of its own: its first capture is a
+# file's with no text (titled by the time it came), and its title is as made
+# (roles.TITLE_UNTOUCHED). Enrich titles it, as photo ingest titles a photo's (#378).
+_FIRST = roles.FIRST_CAPTURE.format(page=":page")
+FILE_UNTITLED = f"""
+{roles.TITLE_UNTOUCHED.format(page=":page")}
+  AND EXISTS (SELECT 1 FROM capture c WHERE c.id = {_FIRST}
+              AND c.kind = 'file' AND c.text IS NULL)
+"""
+# A page's summary, if an Ask made it (its run's job was an Ask's: it may have read the
+# page's files, which nothing else sends); none once that run or job is pruned
+ASKED_SUMMARY = """
+SELECT e.summary FROM enrichment e JOIN enrich_run r ON r.id = e.run_id
+JOIN enrich_job j ON j.id = r.job_id WHERE e.page_id = ? AND j.reason = 'ask'
+"""
+UNTITLED_FILE = f"SELECT 1 FROM page WHERE id = :page AND {FILE_UNTITLED}"
+FILE_TITLE_CAS = f"""
+UPDATE page SET title = :title
+WHERE id = :page AND deleted_at IS NULL AND {FILE_UNTITLED}
 """
 
 
