@@ -100,7 +100,8 @@ The people I keep a note on are tagged #person, with family and work under it.
 
 A link to `/search?q=...` opens the search in place, and Back returns to the page. To get a
 search's address, run it and tap **Copy link** in the results header. Then pin the page with
-**Share**, **Pin to Search**.
+**Share**, **Pin to Search**. To keep a list of links to individual pages, as bookmarks,
+see [](keep-an-index.md).
 
 ## Other lists
 
