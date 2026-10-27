@@ -68,6 +68,7 @@ export async function edit(p: Page, load: (p: Page) => Promise<void>, show: (p: 
   const tags = tagField(
     ours?.tags ? mergeTags(p.tags, ours.tagsFrom ?? p.tags, ours.tags) : p.tags,
     () => ed.keep(),
+    p.model_tags,
   );
   const retagged = () => !same(tags.value(), tagsFrom);
   // A todo's due date and priority: shown while the kind is Todo, sent if changed

@@ -235,7 +235,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     const mod = await import("./tagedit").catch(() => null);
     if (!mod) return toast("Can't edit tags offline");
     const p = shown; // as it is now
-    const field = mod.tagField(p.tags);
+    const field = mod.tagField(p.tags, undefined, p.model_tags);
     const save = h("button", { type: "submit", className: "primary" }, "Save");
     // Closed (saved or not): the page as it is now, focus back on its Tags button
     const close = (to: Page) => {
