@@ -256,6 +256,7 @@
      after the title rather than wrapping alone. 4 px between items; each link's 48 px target
      is the a's inline padding-block (below), overlapping its neighbours', not the gap */
   padding-inline-start: 22px;
+  overflow-wrap: anywhere; /* a long unbroken title breaks rather than running out of the card */
 }
 .enrich .related li + li {
   margin-top: var(--s-1);

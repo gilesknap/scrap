@@ -234,3 +234,44 @@ test("Related: a note never starts a line, whatever the title's length (320 px)"
   ).toBe(true);
   expect(rows.filter((r) => !r.onTitleLine).map((r) => r.title)).toEqual([]);
 });
+
+test("Related and Topics: an unbroken 80-character title does not overflow at 320 px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const x = await note(page, `Rel wide ${ulid().slice(-6)}`);
+  const n = await note(page, `Rel host ${ulid().slice(-6)}`);
+  const title = "W".repeat(80);
+  await page.route(`**/api/pages/${n.slug}`, async (r) => {
+    if (r.request().method() !== "GET") return r.continue();
+    const json = await (await r.fetch()).json();
+    await r.fulfill({
+      json: {
+        ...json,
+        enrich: { on: true, error: null, state: "done", summary: "S." },
+        related: [{ id: x.page_id, slug: x.slug, title, kind: "note", via: "writeup" }],
+        topics: [{ id: x.page_id, slug: x.slug, title, kind: "claude" }],
+      },
+    });
+  });
+  await page.goto(`/p/${n.slug}`);
+  await expect(page.locator(".enrich details.related")).toHaveCount(2); // Related and Topics
+  const over = await page.evaluate(() => {
+    const card = document.querySelector(".enrich") as HTMLElement;
+    const cr = card.getBoundingClientRect();
+    const out: Record<string, unknown> = {
+      card: card.scrollWidth <= card.clientWidth,
+      page: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+    document.querySelectorAll<HTMLElement>(".enrich details.related li").forEach((li, i) => {
+      out[`li${i}`] = li.scrollWidth <= li.clientWidth;
+      for (const e of li.querySelectorAll("a, small")) {
+        // inside the card, to the right edge
+        out[`${e.tagName}${i}`] = e.getBoundingClientRect().right <= cr.right;
+      }
+    });
+    return out;
+  });
+  expect(Object.values(over).length).toBeGreaterThan(5);
+  expect(Object.entries(over).filter(([, ok]) => !ok)).toEqual([]);
+});

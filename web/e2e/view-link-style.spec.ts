@@ -18,8 +18,8 @@ test.afterEach(async ({ request }) => {
   for (const id of made.splice(0)) await request.delete(`/api/pages/${id}`);
 });
 
-async function note(page: Page, text: string, tags: string[] = []) {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });
+async function note(page: Page, text: string, tags: string[] = [], kind?: string) {
+  const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });
   expect(r.ok()).toBe(true);
   const got = (await r.json()) as { page_id: string; slug: string };
   made.push(got.page_id);
@@ -129,6 +129,14 @@ for (const colorScheme of ["light", "dark"] as const) {
         line: "underline",
         lineColor: await token(page, "--line-strong"),
       });
+    });
+
+    test("a link card inside the owner's text is not underlined", async ({ page }) => {
+      const n = await note(page, `Card ${word()}\n\nhttps://example.com/some/path`, [], "consume");
+      await page.goto(`/p/${n.slug}`);
+      const card = page.locator(".page .md .linkcard").first();
+      await expect(card).toBeVisible();
+      expect((await looks(card)).line).toBe("none");
     });
 
     test("a search row and a tag chip are not underlined", async ({ page }) => {
