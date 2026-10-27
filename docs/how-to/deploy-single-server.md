@@ -599,6 +599,38 @@ key, notify URL, `SCRAP_PUBLIC_URL`, `TZ`) nor the Tailscale Serve entry, so kee
 `ingest.env` somewhere safe too (it holds a secret). Deleted pages are in a backup too: deleting
 only moves a page to the trash (see {ref}`scrap-gc`).
 
+(scrap-shrink)=
+### Shrink photos already stored
+
+Photos taken before the PWA made them smaller (see {ref}`smaller-photos`) are still full size.
+`scrap shrink` makes the stored ones over 2560 px on the long edge smaller, with the same limits as
+the phone: JPEG at quality 85, turned upright, and only JPEG, HEIC, HEIF and WebP. It keeps a
+photo as it is when it is at or under the limit, would not get smaller, or cannot be read.
+
+```{warning}
+**Back up first** (`systemctl --user start scrap-backup`, see above). The old file is deleted
+and the change cannot be undone except from a backup. A page's earlier text revisions keep the old
+address, so reverting to one shows a missing image.
+```
+
+It is a dry run unless given `--apply`. Run it like the backup command above, with `shrink`
+instead of `backup /backups/...` (on Kubernetes: `kubectl -n scrap exec deploy/scrap -- scrap shrink`).
+The dry run lists each photo with its size before and after, and the bytes saved:
+
+```
+  4f3a9c1d2b7e  2560x1920  5.9 MB -> 0.5 MB  (1 pages, 1 captures)
+scrap shrink: would shrink 114 photos over 2560 px, 203.0 MB -> 120.1 MB, saving 82.9 MB (dry run: --apply shrinks them; back up first)
+left alone: 94 within 2560 px, 0 that would not get smaller, 3 not JPEG, HEIC or WebP, 0 unreadable
+```
+
+With `--apply`, each photo is a new file (files are named by their SHA-256), and in one database
+transaction every capture, Claude result, job, model run and page text that named the old file
+names the new one, each page text change a revision by `scrap shrink`. The old file and its
+previews are then deleted unless something else still uses it or it was touched in the last
+`--grace-hours` (default 24). It is safe while scrap serves, takes the same `gc.lock` as a
+deleting `scrap gc` (it refuses to start while one runs), and can be stopped and run again: a second
+run finds nothing to do.
+
 ### Data folder layout
 
 `SCRAP_DATA` (mounted at `/data`) holds:
