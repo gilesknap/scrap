@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data model and storage &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Data model and storage &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -903,9 +903,8 @@ window.runMermaid = runMermaid;</script>
 <p>scrap keeps one SQLite database and a folder of content-addressed files. Captures, blobs and pages
 are the truth; derived rows cost an LLM call to remake so they are stored; chunks and the FTS index
 are a disposable cache.</p>
-<p>Back to <a class="reference internal" href="../design.html"><span class="std std-doc">Architecture</span></a>. The schema is the numbered scripts in
-<code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/</span></code>: one generated baseline, <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code> (schema 18), plus the numbered scripts
-after it (none yet; the first is 0019). The code is in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/</span></code>.</p>
+<p>Back to <a class="reference internal" href="../design.html"><span class="std std-doc">Architecture</span></a>. The schema is <code class="docutils literal notranslate"><span class="pre">src/scrap/migrations/baseline.sql</span></code> (schema
+18); numbered scripts after it start at 0019 (none yet). The code is in <code class="docutils literal notranslate"><span class="pre">src/scrap/store/</span></code>.</p>
 <section id="core-tables">
 <h2>Core tables<a class="headerlink" href="#core-tables" title="Link to this heading">#</a></h2>
 <p>Pages and their history on the left, what arrived and what Claude made of it on the right.</p>
@@ -917,7 +916,7 @@ after it (none yet; the first is 0019). The code is in <code class="docutils lit
     page ||--o{ tag : has
     page ||--o{ capture : &quot;arrived as&quot;
     page ||--o| enrichment : &quot;summary&quot;
-    page ||--o{ writeup : &quot;board write-ups&quot;
+    page ||--o{ writeup : &quot;write-ups, syntheses&quot;
     page ||--o{ chunk : &quot;search cache&quot;
     capture ||--o{ capture_blob : holds
     blob ||--o{ capture_blob : &quot;same bytes once&quot;
@@ -1032,7 +1031,7 @@ every connection.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">job</span></code>, <code class="docutils literal notranslate"><span class="pre">queue_state</span></code></p></td>
-<td><p>Photo and file jobs, kind <code class="docutils literal notranslate"><span class="pre">ingest</span></code> or <code class="docutils literal notranslate"><span class="pre">refine</span></code> (<code class="docutils literal notranslate"><span class="pre">queued</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>, <code class="docutils literal notranslate"><span class="pre">dead</span></code>), and the single-row pause state (<code class="docutils literal notranslate"><span class="pre">auth</span></code>, <code class="docutils literal notranslate"><span class="pre">credit</span></code>, <code class="docutils literal notranslate"><span class="pre">outage</span></code>, <code class="docutils literal notranslate"><span class="pre">budget</span></code>)</p></td>
+<td><p>Photo and file jobs, kind <code class="docutils literal notranslate"><span class="pre">ingest</span></code> (the <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> also allows <code class="docutils literal notranslate"><span class="pre">refine</span></code>, which nothing uses), state <code class="docutils literal notranslate"><span class="pre">queued</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code> or <code class="docutils literal notranslate"><span class="pre">dead</span></code>, and the single-row pause state (<code class="docutils literal notranslate"><span class="pre">auth</span></code>, <code class="docutils literal notranslate"><span class="pre">credit</span></code>, <code class="docutils literal notranslate"><span class="pre">outage</span></code>, <code class="docutils literal notranslate"><span class="pre">budget</span></code>)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code>, <code class="docutils literal notranslate"><span class="pre">topic_run</span></code></p></td>
 <td><p>Every call: request, response, usage, <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, error class. <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> covers discovery calls of no one page</p></td>
@@ -1044,7 +1043,7 @@ every connection.</p>
 <td><p>Summary and fetched link title; tags Claude added (<code class="docutils literal notranslate"><span class="pre">on</span></code>) or the user removed (<code class="docutils literal notranslate"><span class="pre">off</span></code>, never re-added); related pages in order</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code></p></td>
-<td><p>Versions of a board’s write-up (one current, never changed) and the owner’s guidance for the next</p></td>
+<td><p>Versions of a board’s write-up or a topic’s synthesis (one current, never changed) and the owner’s guidance for the next</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">topic</span></code>, <code class="docutils literal notranslate"><span class="pre">topic_source</span></code></p></td>
 <td><p>Which pages are topics (with a key never made again) and their sources, with the owner’s exclusions</p></td>
@@ -1092,10 +1091,11 @@ in the trash for N days (<a class="reference internal" href="../decisions/0030-t
 <li><p><strong>Derived</strong> (orange) rows are immutable versions. A new current version supersedes the old by
 trigger; a restore inserts a copy. Never <code class="docutils literal notranslate"><span class="pre">INSERT</span> <span class="pre">OR</span> <span class="pre">REPLACE</span></code> into <code class="docutils literal notranslate"><span class="pre">derived</span></code> or <code class="docutils literal notranslate"><span class="pre">chunk</span></code>: REPLACE
 deletes without firing the FTS triggers.</p></li>
-<li><p><strong>The cache</strong> (blue) is rebuilt by <code class="docutils literal notranslate"><span class="pre">index_all</span></code>. A page has one own
-chunk (title, tags, summary, plain-text body), rebuilt in the same transaction as any capture,
-save, tag change or enrich result, so there is no index job. Each current derived text is a
-further chunk. Chunks are deleted and inserted, never updated.</p></li>
+<li><p><strong>The cache</strong> (blue) is rebuilt by <code class="docutils literal notranslate"><span class="pre">index_all</span></code>. A page has one own chunk (title, tags, summary,
+plain-text body), rebuilt in the same transaction as any capture, save, tag change or enrich
+result, so there is no index job. The current write-up (a board’s write-up or a topic’s synthesis)
+is a second chunk, and each current derived text a further one. Chunks are deleted and inserted,
+never updated.</p></li>
 <li><p><strong>What is indexed</strong> is text only. Pixels, fetched article text and raw Excalidraw JSON are not.
 Search itself is on <a class="reference internal" href="search.html"><span class="std std-doc">Search</span></a>.</p></li>
 </ul>
@@ -1269,8 +1269,10 @@ edited by hand (<code class="docutils literal notranslate"><span class="pre">pyt
 Python steps and <code class="docutils literal notranslate"><span class="pre">store/fixes.py</span></code> went with them, and the history is in the ADRs and the 0.16 tag.</p>
 <p>Numbered scripts after the baseline are numbered by merge order with no gaps: the first is
 <code class="docutils literal notranslate"><span class="pre">0019_*.sql</span></code>, and the number in a file’s name is <code class="docutils literal notranslate"><span class="pre">BASELINE</span> <span class="pre">+</span> <span class="pre">1</span> <span class="pre">+</span> <span class="pre">its</span> <span class="pre">position</span></code> (<code class="docutils literal notranslate"><span class="pre">db.BASELINE</span></code>, 18;
-<code class="docutils literal notranslate"><span class="pre">tests/test_migrate.py</span></code> enforces it). Script <em>N</em> sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">db.lock</span></code>, turns on WAL and then:</p>
+<code class="docutils literal notranslate"><span class="pre">tests/test_migrate.py</span></code> enforces it). The runner sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">user_version</span> <span class="pre">=</span> <span class="pre">N</span></code> after script <em>N</em>,
+in the same transaction.</p>
+<p><code class="docutils literal notranslate"><span class="pre">migrate()</span></code> takes an exclusive <code class="docutils literal notranslate"><span class="pre">flock</span></code> on <code class="docutils literal notranslate"><span class="pre">scrap.db.lock</span></code> (<code class="docutils literal notranslate"><span class="pre">&lt;database&gt;.lock</span></code>), turns on WAL and
+then:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>The database is</p></th>

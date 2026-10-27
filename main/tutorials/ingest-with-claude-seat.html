@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -548,7 +548,7 @@ it out of shell history, notes and anything you commit.</p>
 <li><p>LAN: read the token into your shell the way the README reads the key, then remove the container
 and run it again with the new image (the volume keeps your data):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">printf</span> <span class="s1">'Claude token: '</span><span class="p">;</span> <span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="p">;</span> <span class="n">export</span> <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span>
-<span class="n">podman</span> <span class="n">rm</span> <span class="o">-</span><span class="n">f</span> <span class="n">scrap</span>
+<span class="n">podman</span> <span class="n">rm</span> <span class="o">-</span><span class="n">f</span> <span class="n">scrap</span>   <span class="c1"># only if you started it with --name scrap</span>
 <span class="n">podman</span> <span class="n">run</span> <span class="o">-</span><span class="n">d</span> <span class="o">--</span><span class="n">name</span> <span class="n">scrap</span> <span class="o">--</span><span class="n">restart</span> <span class="n">unless</span><span class="o">-</span><span class="n">stopped</span> <span class="o">--</span><span class="n">network</span><span class="o">=</span><span class="n">host</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> \
     <span class="o">-</span><span class="n">e</span> <span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span> <span class="o">-</span><span class="n">e</span> <span class="n">SCRAP_LLM_BACKEND</span><span class="o">=</span><span class="n">cli</span> <span class="o">-</span><span class="n">e</span> <span class="n">CLAUDE_CODE_OAUTH_TOKEN</span> \
     <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">claude</span><span class="p">:</span><span class="mf">0.16.0</span> <span class="n">serve</span>
@@ -575,10 +575,11 @@ anywhere.</p>
 <p>The chart has no first-class option for the token, so pass it through <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>. The chart still
 reads <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> from <code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code> whenever ingest is on, so put an empty
 one in the same Secret:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">TOKEN</span> <span class="o">&amp;&amp;</span> <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">secret</span> <span class="n">generic</span> <span class="n">scrap</span><span class="o">-</span><span class="n">claude</span> \
-    <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">literal</span><span class="o">=</span><span class="n">ANTHROPIC_API_KEY</span><span class="o">=</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">literal</span><span class="o">=</span><span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=</span><span class="s2">"$TOKEN"</span><span class="p">;</span> <span class="n">unset</span> <span class="n">TOKEN</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">TOKEN</span> <span class="o">&amp;&amp;</span> <span class="n">printf</span> <span class="o">%</span><span class="n">s</span> <span class="s2">"$TOKEN"</span> <span class="o">|</span> <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">secret</span> <span class="n">generic</span> <span class="n">scrap</span><span class="o">-</span><span class="n">claude</span> \
+    <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">literal</span><span class="o">=</span><span class="n">ANTHROPIC_API_KEY</span><span class="o">=</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">file</span><span class="o">=</span><span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">stdin</span><span class="p">;</span> <span class="n">unset</span> <span class="n">TOKEN</span>
 </pre></div>
 </div>
+<p>The token goes in on standard input, so it is not on <code class="docutils literal notranslate"><span class="pre">kubectl</span></code>’s command line.</p>
 <p>If your registry needs credentials, create an image pull Secret and list it under
 <code class="docutils literal notranslate"><span class="pre">imagePullSecrets</span></code> in the values. Add to your values, with your own image from the build section:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">image</span><span class="p">:</span>
@@ -597,8 +598,13 @@ one in the same Secret:</p>
 <span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CLAUDE_CODE_OAUTH_TOKEN</span>
 </pre></div>
 </div>
-<p>Then <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> as in the install. The nightly related-pages CronJob gets the same
-environment. Raise <code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code> if the pod is killed: the CLI takes about 250 MB.</p>
+<p>Then upgrade with the new values:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">upgrade</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">0.16.0</span> \
+    <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
+</pre></div>
+</div>
+<p>The nightly related-pages and weekly topics CronJobs get the same environment. Raise
+<code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code> if the pod is killed: the CLI takes about 250 MB.</p>
 </section>
 </section>
 <section id="check-a-photo-is-read">

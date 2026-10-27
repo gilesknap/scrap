@@ -56,13 +56,13 @@ flowchart LR
 | `/search` | Search, with the pins under the empty box ([](../decisions/0032-pins-are-a-page-of-links.md)); `/recent` and the retired `/tags` redirect here (`/recent?kind=todo` goes to `/todos`) |
 | `/todos` | Todos (a lazy chunk) |
 | `/p/<slug>` | A page (`page` chunk) |
-| `/topics`, `/health` | Topics list and store health (lazy chunks) |
+| `/topics`, `/health`, `/trash` | Topics list, store health and the trash (lazy chunks) |
 
 - **Router**: `main.ts` matches `location.pathname` against a route table and aborts the previous
   view's signal on each navigation. `go()` in `app.ts` records Back marks in `history.state`;
   Back in the top bar goes to the linking page, else the list, else a parent (`back.ts`).
-- **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `composer`, `editor`, `figure`, `page`,
-  `pageedit`, `render`, `sharing`, `refine`, `searches`.
+- **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `back`, `composer`, `downscale`,
+  `editor`, `figure`, `page`, `pageedit`, `render`, `sharing`, `refine`, `searches`.
 - **Not precached**: the Excalidraw board chunk and its fonts (served from `/excalidraw/fonts/`,
   not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.
 - **Filters** is an in-place panel (`refine.ts`), not a modal or sheet.

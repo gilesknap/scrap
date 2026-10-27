@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import a Thoth vault &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Import a Thoth vault &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -889,7 +889,7 @@ captured meanwhile can take one and stop the import (running it again carries on
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>scrap<span class="w"> </span>import<span class="w"> </span>--data-dir<span class="w"> </span>./data<span class="w"> </span>~/vault-copy
 </pre></div>
 </div>
-<p>It prints the same summary, then <code class="docutils literal notranslate"><span class="pre">imported</span> <span class="pre">N</span> <span class="pre">pages</span> <span class="pre">into</span> <span class="pre">DIR</span></code>.</p>
+<p>It prints the same summary, then <code class="docutils literal notranslate"><span class="pre">imported</span> <span class="pre">N</span> <span class="pre">pages</span> <span class="pre">into</span> <span class="pre">&lt;data</span> <span class="pre">folder&gt;</span> <span class="pre">(--dry-run</span> <span class="pre">lists</span> <span class="pre">problems)</span></code>.</p>
 <p>Running it again imports only pages it has not imported before (a page is known by its path in
 the vault, so the summary says <code class="docutils literal notranslate"><span class="pre">(0</span> <span class="pre">new)</span></code> for a vault already imported); a page already there is
 left as it is, even if the vault’s copy has changed: there is no update. To pick up changes,
@@ -1111,6 +1111,9 @@ off the command only says that enrichment is off.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">skipped</span></code>, <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code></p></td>
 <td><p>Files left out, and why. <code class="docutils literal notranslate"><span class="pre">dropped</span> <span class="pre">folder</span></code> counts the files under the top-level <code class="docutils literal notranslate"><span class="pre">raw/</span></code>, <code class="docutils literal notranslate"><span class="pre">inbox/</span></code> and <code class="docutils literal notranslate"><span class="pre">_*</span></code> folders</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">imported</span> <span class="pre">N</span> <span class="pre">pages</span> <span class="pre">into</span> <span class="pre">&lt;data</span> <span class="pre">folder&gt;</span> <span class="pre">(--dry-run</span> <span class="pre">lists</span> <span class="pre">problems)</span></code></p></td>
+<td><p>The last line of a real import: how many pages it saved. Without <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> the problems above are only counted; a dry run lists each one</p></td>
 </tr>
 </tbody>
 </table>

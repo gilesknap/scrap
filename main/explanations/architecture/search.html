@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Search &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Search &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -941,7 +941,7 @@ that migrations rebuild, and the store-health checks are ordinary search filters
 <td><p>Each word is a prefix (<code class="docutils literal notranslate"><span class="pre">vsc</span></code> finds <code class="docutils literal notranslate"><span class="pre">vscode</span></code>) wherever it stands, in the title, tags, summary, text, a photo’s text or description, or a PDF’s or text file’s text. Phrases and NOT words are exact. Tokenizer <code class="docutils literal notranslate"><span class="pre">porter</span> <span class="pre">unicode61</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Rank</p></td>
-<td><p>Tiers: a topic page first, then every word in the title, then every word in title, tags or summary, then bm25 with column weights 10, 5, 3, 1 (title, tags, summary, text)</p></td>
+<td><p>Tiers: every word in the title, then every word in title, tags or summary, with a topic page first within each of those tiers; then bm25 with column weights 10, 5, 3, 1 (title, tags, summary, text)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Group</p></td>
 <td><p>A page’s best chunk wins. <code class="docutils literal notranslate"><span class="pre">bm25()</span></code> and <code class="docutils literal notranslate"><span class="pre">snippet()</span></code> refuse <code class="docutils literal notranslate"><span class="pre">GROUP</span> <span class="pre">BY</span></code>, so it is done in Python</p></td>
@@ -1033,7 +1033,7 @@ the tool arguments are in <a class="reference internal" href="../../reference/mc
     subgraph write [&quot;Write path, one transaction&quot;]
         SV[&quot;Page save, tag or kind edit,&lt;br/&gt;summary, write-up&quot;] --&gt; IP[&quot;index_page&quot;]
         IP --&gt; C0[&quot;chunk ord 0&lt;br/&gt;title, tags, summary, text&quot;]
-        IP --&gt; C1[&quot;chunk ord 1&lt;br/&gt;board write-up&quot;]
+        IP --&gt; C1[&quot;chunk ord 1&lt;br/&gt;current write-up&quot;]
         C0 --&gt; TR[&quot;Triggers&lt;br/&gt;chunk_ai, chunk_ad&quot;]
         C1 --&gt; TR
         TR --&gt; FTS[(&quot;chunk_fts&quot;)]
@@ -1052,7 +1052,8 @@ inserts a fresh set, so a saved page is searchable at once and a failed save lea
 index.</p></li>
 <li><p><strong>Chunk shape.</strong> Chunk 0 holds title, tags, summary and the body as words (<code class="docutils literal notranslate"><span class="pre">markdown.py</span></code>:
 link text not addresses, code as typed, table cells). The summary is the page’s <code class="docutils literal notranslate"><span class="pre">summary</span></code> field,
-else Claude’s (current write-up, else enrichment). Chunk 1 is a board’s current write-up. Control
+else Claude’s (current write-up, else enrichment). Chunk 1 is the current write-up: a board’s
+write-up or a topic’s synthesis. Control
 characters become spaces, since snippets mark hits with <code class="docutils literal notranslate"><span class="pre">\x02</span></code> and <code class="docutils literal notranslate"><span class="pre">\x03</span></code>.</p></li>
 <li><p><strong>Photo text.</strong> What ingest read (description, OCR) is its own chunk, made by a trigger when the
 <code class="docutils literal notranslate"><span class="pre">derived</span></code> row is inserted and removed when it is superseded. It fills only the text column. A

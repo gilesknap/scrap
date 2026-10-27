@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Post a summary to scrap when Claude Code compacts &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Post a summary to scrap when Claude Code compacts &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -523,9 +523,11 @@ directory and date as origin. Later compactions of the same session append a sec
 summarised) in <code class="docutils literal notranslate"><span class="pre">$XDG_STATE_HOME/scrap/precompact.json</span></code> (<code class="docutils literal notranslate"><span class="pre">~/.local/state/scrap/precompact.json</span></code>).
 Delete the file, or a session’s entry, to make the next compaction start a new page.</p></li>
 <li><p>Never blocks compaction: on any error (no network, scrap down, <code class="docutils literal notranslate"><span class="pre">claude</span></code> missing, a timeout) it
-logs to stderr and exits 0. <code class="docutils literal notranslate"><span class="pre">SCRAP_PRECOMPACT_TIMEOUT</span></code> (seconds, default 180, at most 190) bounds the model
-call. Compaction waits for the hook, so a slow model delays it by up to that long; keep the
-hook’s own <code class="docutils literal notranslate"><span class="pre">timeout</span></code> in <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> above it.</p></li>
+logs to stderr and exits 0. <code class="docutils literal notranslate"><span class="pre">SCRAP_PRECOMPACT_TIMEOUT</span></code> (seconds, default 180, at most 190) bounds
+the model call; a value that is not a whole number makes the hook fail at start with exit 1, which
+Claude Code reports but which still does not block compaction. Compaction waits for the hook, so a
+slow model delays it by up to that long; keep the hook’s own <code class="docutils literal notranslate"><span class="pre">timeout</span></code> in <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> above
+it.</p></li>
 <li><p>The prompt follows <code class="docutils literal notranslate"><span class="pre">/sc-summarise</span> <span class="pre">all</span></code> (timeline, findings, decisions, changes made, open
 questions) and tells the model to leave out secrets, tokens, credentials and raw tool output.
 Check the page rather than trusting that: the model does the redaction.</p></li>

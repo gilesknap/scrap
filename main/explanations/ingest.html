@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1846,12 +1846,12 @@ owner’s notes in a <code class="docutils literal notranslate"><span class="pre
 returns a one-line <code class="docutils literal notranslate"><span class="pre">summary</span></code> and Markdown <code class="docutils literal notranslate"><span class="pre">text</span></code>: Overview, Key facts (each citing its sources),
 How the sources relate, Contradictions and open questions. Its citations <code class="docutils literal notranslate"><span class="pre">[[n]]</span></code> are made
 <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links to the sources and nothing else links, exactly as for a write-up.</p></li>
-<li><p><strong>Where it shows.</strong> Its summary is the topic page’s model summary, its text is indexed for
-search, and a matching topic page comes first in search (<code class="docutils literal notranslate"><span class="pre">is:topic</span></code> lists them). Its citations
-show in Related both ways (<code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">topic</span></code>). A source page lists its topics (<code class="docutils literal notranslate"><span class="pre">topics</span></code> in the page
-object), and the topic page its sources (<code class="docutils literal notranslate"><span class="pre">topic.sources</span></code>). <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/topics</span></code> and the MCP
-<code class="docutils literal notranslate"><span class="pre">topics</span></code> tool give the index, grouped by area (the top-level tag most common among a topic’s
-sources), with no model call.</p></li>
+<li><p><strong>Where it shows.</strong> Its summary is the topic page’s model summary, its text is indexed for search,
+and a matching topic page comes first within its tier in search (every word in the title; or in
+title, tags or summary; <code class="docutils literal notranslate"><span class="pre">is:topic</span></code> lists them). Its citations show in Related both ways
+(<code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">topic</span></code>). A source page lists its topics (<code class="docutils literal notranslate"><span class="pre">topics</span></code> in the page object), and the topic page its
+sources (<code class="docutils literal notranslate"><span class="pre">topic.sources</span></code>). <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/topics</span></code> and the MCP <code class="docutils literal notranslate"><span class="pre">topics</span></code> tool give the index, grouped by
+area (the top-level tag most common among a topic’s sources), with no model call.</p></li>
 <li><p><strong>Cost.</strong> Discovery is about 40 tokens a page in, roughly $0.30 a week for 1,000 pages at Opus
 prices; a synthesis roughly $0.10 to $0.30.</p></li>
 </ul>

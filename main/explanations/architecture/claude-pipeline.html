@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Job queue and Claude features &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Job queue and Claude features &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -900,15 +900,17 @@ window.runMermaid = runMermaid;</script>
                   
   <section id="job-queue-and-claude-features">
 <h1>Job queue and Claude features<a class="headerlink" href="#job-queue-and-claude-features" title="Link to this heading">#</a></h1>
-<p>All Claude work in scrap runs on one background worker thread that takes jobs from SQLite, one at a
-time, and stores what comes back as derived rows beside the page, never in the owner’s text. This
-page shows the shape of that queue; the prompts, limits and operating detail are in
-<a class="reference internal" href="../ingest.html"><span class="std std-doc">Claude ingest</span></a> and <a class="reference internal" href="../llm-calls.html"><span class="std std-doc">What Claude is asked, per page</span></a>.</p>
+<p>Queued Claude work in scrap runs on one background worker thread that takes jobs from SQLite, one at
+a time; the <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span></code> passes call Claude from their own process, one page at a time, under the
+same pause and budget. Either way what comes back is stored as derived rows beside the page, never
+in the owner’s text. This page shows the shape of that queue; the prompts, limits and operating
+detail are in <a class="reference internal" href="../ingest.html"><span class="std std-doc">Claude ingest</span></a> and <a class="reference internal" href="../llm-calls.html"><span class="std std-doc">What Claude is asked, per page</span></a>.</p>
 <p>Colours in the diagrams: blue is stored data, orange is Claude, green is the user.</p>
 <section id="what-feeds-the-worker-and-what-it-writes">
 <h2>What feeds the worker and what it writes<a class="headerlink" href="#what-feeds-the-worker-and-what-it-writes" title="Link to this heading">#</a></h2>
-<p>Every trigger ends as a row in a jobs table; the worker passes each job through the budget gate to
-Claude, and each result lands in a derived table.</p>
+<p>Most triggers end as a row in a jobs table, which the worker passes through the budget gate to
+Claude; the scheduled <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span></code> passes go through the same gate from their own process. Each
+result lands in a derived table.</p>
 <pre  class="mermaid">
         flowchart LR
     subgraph IN[&quot;Triggers&quot;]
@@ -923,6 +925,7 @@ Claude, and each result lands in a derived table.</p>
         ej[(&quot;enrich_job&lt;br/&gt;capture, save, ask,&lt;br/&gt;related, writeup, topic&quot;)]:::store
     end
     W[&quot;Worker thread&lt;br/&gt;one job at a time&quot;]
+    P[&quot;scrap enrich pass&lt;br/&gt;its own process,&lt;br/&gt;one page at a time&quot;]
     G{&quot;Budget gate&lt;br/&gt;and pause&quot;}
     C([&quot;Claude&lt;br/&gt;API or claude -p&quot;]):::claude
     subgraph OUT[&quot;Derived, apart from the text&quot;]
@@ -934,11 +937,13 @@ Claude, and each result lands in a derived table.</p>
     photo --&gt; job
     save --&gt;|&quot;after debounce&quot;| ej
     ask --&gt;|&quot;now&quot;| ej
-    night --&gt;|&quot;enrich --related&quot;| ej
-    week --&gt;|&quot;enrich --topics&quot;| ej
+    night --&gt;|&quot;enrich --related&quot;| P
+    week --&gt;|&quot;enrich --topics&quot;| P
+    P --&gt;|&quot;queues topic syntheses&quot;| ej
     job --&gt; W
     ej --&gt; W
     W --&gt; G --&gt; C
+    P --&gt; G
     C --&gt; d &amp; e &amp; r &amp; w
     job -. &quot;read: queues&lt;br/&gt;write-up or related&quot; .-&gt; ej
     classDef store fill:#e8f1ff,stroke:#4a7bd0;
@@ -968,13 +973,13 @@ Claude, and each result lands in a derived table.</p>
 </tr>
 <tr class="row-even"><td><p>Related</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> <code class="docutils literal notranslate"><span class="pre">related</span></code></p></td>
-<td><p>A page’s first read, <em>Ask Claude</em>, the nightly pass</p></td>
+<td><p>A page’s first read, <em>Ask Claude</em> (the nightly pass calls Claude in its own process)</p></td>
 <td><p>Text model, candidates from tags and search</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">related</span></code> rows (at most five per page)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Write-up</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> <code class="docutils literal notranslate"><span class="pre">writeup</span></code></p></td>
-<td><p>A board page whose photos are all read, <em>Ask Claude</em>, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code></p></td>
+<td><p>A board page whose photos are all read, <em>Ask Claude</em> (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code> calls Claude in its own process)</p></td>
 <td><p>Vision model with the board photos</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code> version</p></td>
 </tr>
@@ -989,8 +994,9 @@ Claude, and each result lands in a derived table.</p>
 </div>
 <p>The nightly related pass and the weekly topics pass are Helm CronJobs (<code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code>, default
 <code class="docutils literal notranslate"><span class="pre">41</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code>; <code class="docutils literal notranslate"><span class="pre">enrichTopics</span></code>, default <code class="docutils literal notranslate"><span class="pre">11</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">0</span></code>) that run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> and
-<code class="docutils literal notranslate"><span class="pre">--topics</span></code>. Related picks run in the CronJob’s own process, under the same budget and pause; topic
-discovery runs there too and queues one <code class="docutils literal notranslate"><span class="pre">topic</span></code> job per topic due, which the service’s worker runs.</p>
+<code class="docutils literal notranslate"><span class="pre">--topics</span></code>. Related picks run in the CronJob’s own process, under the same budget and pause, as do
+the write-ups of <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code> run by hand; topic discovery runs there too and queues
+one <code class="docutils literal notranslate"><span class="pre">topic</span></code> job per topic due, which the service’s worker runs.</p>
 <p>How the jobs are chosen and ordered:</p>
 <ul class="simple">
 <li><p><strong>Photos first.</strong> The worker claims a photo job; only when none is ready does it claim an enrich
@@ -1124,7 +1130,9 @@ revision, only if the text is unchanged (<a class="reference internal" href="../
 <section id="invariants">
 <h2>Invariants<a class="headerlink" href="#invariants" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>One worker thread, one job at a time, and <code class="docutils literal notranslate"><span class="pre">claude.complete()</span></code> never retries.</p></li>
+<li><p>Queued Claude work runs on one worker thread, one job at a time; the <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span></code> passes call
+Claude from their own process, one page at a time, under the same pause and budget.
+<code class="docutils literal notranslate"><span class="pre">claude.complete()</span></code> never retries.</p></li>
 <li><p>A pause never costs a job a failure; a charged failure dies on the third.</p></li>
 <li><p>Photo, text and topic spend share one daily budget.</p></li>
 <li><p>Claude’s output is stored apart from the owner’s text and can be regenerated or restored.</p></li>

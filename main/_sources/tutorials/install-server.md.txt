@@ -41,7 +41,10 @@ rights, and run nothing else as that user. See {ref}`scrap-access`.
 - Linux with systemd (user services and `loginctl`), and an admin account with `sudo` for the
   one-off setup steps.
 - Rootless [podman](https://podman.io), with `uidmap` (`newuidmap`/`newgidmap`) installed. The
-  units have been run with podman 5.x.
+  units have been run with podman 5.x. They run `/usr/bin/podman`: if yours is elsewhere, link
+  it there (`sudo ln -s $(command -v podman) /usr/bin/podman`).
+- `machinectl`, from the `systemd-container` package, if you will log in as the scrap user from
+  an admin account rather than over `ssh` (below).
 - `git` and `curl`.
 - An [Anthropic API key](https://console.anthropic.com/) for the ingest step, and
   [Claude Code](https://code.claude.com/docs) on the server if you want the last step.
@@ -105,7 +108,8 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:{{ release_tag }}|
 
 The script is safe to re-run. It writes `~/.config/scrap/env` and `~/.config/scrap/ingest.env`
 (never overwriting them), copies the systemd units and helper scripts into place, enables and
-starts `scrap.service`, and enables the daily backup, nightly gc, nightly related-pages and weekly topics timers. The
+starts `scrap.service`, and enables the daily and monthly backup, nightly gc, nightly related-pages
+and weekly topics timers. The
 defaults suit this tutorial: `SCRAP_LISTEN=socket` (a Unix socket only `scrap` and root can open,
 no TCP port), data in `~/.local/share/scrap/data` and backups in `~/.local/share/scrap/backups`.
 
@@ -157,10 +161,11 @@ TZ=Europe/London
 - Photos are queued either way but only sent to Claude with `SCRAP_INGEST=on`.
   `SCRAP_BUDGET_DAY_USD` caps what ingest may spend in a day; scrap pauses until tomorrow when it
   is reached.
-- scrap answers only loopback, IP addresses and the addresses in `SCRAP_PUBLIC_URL`, port included,
-  and otherwise `421 Invalid Host header`: the web app as well as `/mcp`, so a missing address
-  locks you out. The same address makes the page links in Claude's replies
-  clickable.
+- scrap answers only loopback and the addresses in `SCRAP_PUBLIC_URL`, port included, and
+  otherwise `421 Invalid Host header`: the web app as well as `/mcp`, so a missing address locks
+  you out. The web page and the API also accept any IP address; `/mcp` does not, so list every
+  address Claude Code will use, an IP address included. The same address makes the page links in
+  Claude's replies clickable.
 - Set `TZ` to your own time zone, otherwise `due:today` follows UTC.
 
 Then restart:

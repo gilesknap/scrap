@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 0.16.1.dev5+gdf1fc6143 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 0.16.1.dev6+g04e0fa373 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b3642992"></script>
+    <script src="../_static/documentation_options.js?v=d3696e6c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -952,18 +952,19 @@ release from <a class="reference external" href="https://github.com/gilesknap/sc
 <p>The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
 than <code class="docutils literal notranslate"><span class="pre">latest</span></code>, which moves with every release, pre-releases included.</p>
 <p>The install script and its units are not in the image: they come from the repo’s <code class="docutils literal notranslate"><span class="pre">deploy/</span></code>
-folder. So, as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, clone the repo too, into the user’s home directory so that the clone is
-<code class="docutils literal notranslate"><span class="pre">~/scrap</span></code>: the <code class="docutils literal notranslate"><span class="pre">./deploy/...</span></code> commands below run from it, and the update steps refer to it by
+folder. So, as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, clone the release too, into the user’s home directory so that the clone
+is <code class="docutils literal notranslate"><span class="pre">~/scrap</span></code>: the <code class="docutils literal notranslate"><span class="pre">./deploy/...</span></code> commands below run from it, and the update steps refer to it by
 that path.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
-<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="o">--</span><span class="n">branch</span> <span class="mf">0.16.0</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
 <span class="n">cd</span> <span class="n">scrap</span>
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>To run unreleased changes instead</strong>, build the image from the clone, and use
-<code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> wherever this page names the release image:</p>
+<p><strong>To run unreleased changes instead</strong>, clone <code class="docutils literal notranslate"><span class="pre">main</span></code> (leave out <code class="docutils literal notranslate"><span class="pre">--branch</span></code> and <code class="docutils literal notranslate"><span class="pre">--depth</span></code>), build
+the image from the clone, and use <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code> wherever this page names the release
+image:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">localhost</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="n">dev</span> <span class="o">.</span>
 </pre></div>
 </div>
@@ -1192,9 +1193,9 @@ image as <code class="docutils literal notranslate"><span class="pre">BASE</span
 binary, ingest pauses with a login problem and the log says which is missing.</p></li>
 </ol>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> still applies, to what the calls would cost at API prices (as Claude Code
-reports it), not to anything you are charged. Tagging and summarising notes and links, <em>Ask
-Claude</em> and the nightly related pages run on the seat too, each a call against its limits; set
-<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> to keep the seat to photos.</p>
+reports it), not to anything you are charged. Tagging and summarising notes and links, <em>Ask Claude</em>,
+board write-ups, the nightly related pages and the weekly topics run on the seat too, each a call
+against its limits; set <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH=off</span></code> to keep the seat to photos.</p>
 </section>
 </section>
 </section>
@@ -1304,10 +1305,12 @@ connection to <code class="docutils literal notranslate"><span class="pre">127.0
 </section>
 <section id="update">
 <span id="scrap-update"></span><h2>Update<a class="headerlink" href="#update" title="Link to this heading">#</a></h2>
-<p>Take a restore point first (<a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>). Then update the clone, pull the new
-release (see <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s releases</a>), point
-<code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> at it, and re-run the install script:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="o">-</span><span class="n">C</span> <span class="o">~/</span><span class="n">scrap</span> <span class="n">pull</span>
+<p>Take a restore point first (<a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>). Coming from before 0.16? See
+<a class="reference internal" href="#scrap-upgrade-1-0"><span class="std std-ref">Upgrading to 1.0 from before 0.16</span></a> first. Then update the clone, pull the new release (see <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s
+releases</a>), point <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> at it, and re-run the
+install script:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="o">-</span><span class="n">C</span> <span class="o">~/</span><span class="n">scrap</span> <span class="n">fetch</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">origin</span> <span class="n">tag</span> <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="n">git</span> <span class="o">-</span><span class="n">C</span> <span class="o">~/</span><span class="n">scrap</span> <span class="n">checkout</span> <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:&lt;version&gt;|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
 <span class="o">~/</span><span class="n">scrap</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
@@ -1315,8 +1318,9 @@ release (see <a class="reference external" href="https://github.com/gilesknap/sc
 </pre></div>
 </div>
 <p>For ingest on a Claude seat, build <code class="docutils literal notranslate"><span class="pre">localhost/scrap-claude:&lt;version&gt;</span></code> on the new release first
-and name that in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> instead. For a local build, run
-<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">localhost/scrap:dev</span> <span class="pre">~/scrap</span></code> in place of the pull and leave <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> alone.</p>
+and name that in <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> instead. For a local build from a clone of <code class="docutils literal notranslate"><span class="pre">main</span></code>, update it with
+<code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">-C</span> <span class="pre">~/scrap</span> <span class="pre">pull</span></code>, run <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">localhost/scrap:dev</span> <span class="pre">~/scrap</span></code> in place of the pull and
+leave <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> alone.</p>
 <p><code class="docutils literal notranslate"><span class="pre">scrap-run</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> now require podman at <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span></code>. If it lives
 elsewhere, <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> exits early with a <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">ln</span> <span class="pre">-s</span> <span class="pre">&lt;path-to-podman&gt;</span> <span class="pre">/usr/bin/podman</span></code> hint;
 run that, then re-run <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>.</p>
@@ -1330,7 +1334,7 @@ After editing only a settings file, restart by hand: <code class="docutils liter
 runs instead of the unit’s, now and after every update (<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> prints a note when it finds
 one). A drop-in that only added <code class="docutils literal notranslate"><span class="pre">--env-file</span> <span class="pre">~/.config/scrap/ingest.env</span></code> is no longer needed:
 delete it, then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">daemon-reload</span></code> and <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> pinned to a release version changes only when you edit it, so pulling the repo
+<p><code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> pinned to a release version changes only when you edit it, so updating the clone
 alone never changes the running image.</p>
 <section id="database-changes-and-rolling-back">
 <span id="scrap-upgrade-db"></span><h3>Database changes and rolling back<a class="headerlink" href="#database-changes-and-rolling-back" title="Link to this heading">#</a></h3>
@@ -1340,8 +1344,7 @@ data folder so two processes never migrate at once. A migration that fails is ro
 scrap does not start (<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-e</span></code> says why).</p>
 <p>Migrations are <strong>forward only</strong>, and an older scrap refuses a database that a newer one has
 migrated: it stops with <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code>. So starting the old image again
-is not a rollback. The reverse is refused too: scrap 1.0 starts from schema 18 and refuses a
-database or a backup below it, saying <code class="docutils literal notranslate"><span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">1.0</span></code>. Update to 0.16.x, let it migrate, then update to 1.0. Take a restore point before you update, and keep the old image to go back to:</p>
+is not a rollback. Take a restore point before you update, and keep the old image to go back to:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">start</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span>                       <span class="c1"># returns when the backup is done</span>
 </pre></div>
 </div>
@@ -1352,6 +1355,13 @@ with <code class="docutils literal notranslate"><span class="pre">podman</span> 
 before the update (see <a class="reference internal" href="#scrap-restore"><span class="std std-ref">Restore</span></a>; set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> to the old image first), and start
 scrap on that image. Pages added since the backup are lost from the database; their files stay.
 Backups made after the update have the new schema, so the old image refuses to restore them.</p>
+</section>
+<section id="upgrading-to-1-0-from-before-0-16">
+<span id="scrap-upgrade-1-0"></span><h3>Upgrading to 1.0 from before 0.16<a class="headerlink" href="#upgrading-to-1-0-from-before-0-16" title="Link to this heading">#</a></h3>
+<p>scrap 1.0 starts from schema 18 and refuses a database or a backup below it:
+<code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">1.0</span></code>. Update to the latest 0.16.x first (as above, with
+<code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.16.&lt;x&gt;</span></code>), let it start and migrate, take a new restore point, then
+update to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.</p>
 </section>
 </section>
 <section id="backup-and-restore">
@@ -1589,7 +1599,7 @@ gives the new one; <code class="docutils literal notranslate"><span class="pre">
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">%h/.local/lib/scrap/scrap-gc</span></code></p></td>
-<td><p>passed on to <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> after its own <code class="docutils literal notranslate"><span class="pre">--delete</span> <span class="pre">--grace-hours</span> <span class="pre">24</span></code> (the last wins): <code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">N</span></code>, <code class="docutils literal notranslate"><span class="pre">--run-days</span> <span class="pre">N</span></code> (default 30), <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> (only count)</p></td>
+<td><p>passed on to <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> after its own <code class="docutils literal notranslate"><span class="pre">--delete</span> <span class="pre">--grace-hours</span> <span class="pre">24</span></code> (the last wins): <code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">N</span></code>, <code class="docutils literal notranslate"><span class="pre">--run-days</span> <span class="pre">N</span></code> (default 30), <code class="docutils literal notranslate"><span class="pre">--job-days</span> <span class="pre">N</span></code> (default 30), <code class="docutils literal notranslate"><span class="pre">--trash-days</span> <span class="pre">N</span></code> (from the <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code> line in <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code>; one given here wins), <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> (only count)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.service</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code></p></td>
@@ -1611,13 +1621,13 @@ gives the new one; <code class="docutils literal notranslate"><span class="pre">
 <p>The backup’s options are settings in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> instead (<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code>,
 <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>). <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a> maps each of the Helm chart’s values to
 these.</p>
-<p>The two are linked: <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> deletes only if a run directory in <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> is under 26
-hours old, and otherwise counts, then fails (and it always keeps files younger than 24 hours,
-<code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">24</span></code>). While a backup runs daily, the newest is never much more than a day old, so
-gc may run at any time of day. A backup less often than daily makes gc a dry run that fails on
-the days between, as does a run of failed backups. Either keep the backup at least daily, or turn
-gc off with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-gc.timer</span></code> (unused files then build up, and you
-can run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> by hand, as below).</p>
+<p>The two are linked: <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> deletes only if a completed run (one holding a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file) in
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> is under 26 hours old, and otherwise counts, then fails (and it always keeps files
+younger than 24 hours, <code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">24</span></code>). While a backup runs daily, the newest is never much more
+than a day old, so gc may run at any time of day. A backup less often than daily makes gc a dry run
+that fails on the days between, as does a run of failed backups. Either keep the backup at least
+daily, or turn gc off with <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-gc.timer</span></code> (unused files then build
+up, and you can run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> by hand, as below).</p>
 </section>
 <section id="restore">
 <span id="scrap-restore"></span><h3>Restore<a class="headerlink" href="#restore" title="Link to this heading">#</a></h3>
@@ -1643,11 +1653,15 @@ one made by a newer scrap, and leaves the data as it was if the backup is refuse
 a copy and never writes to the backup, so the backups mount can be read-only (<code class="docutils literal notranslate"><span class="pre">:ro</span></code>), as above.
 <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--help</span></code> lists the arguments.</p>
 <p>The same pattern runs any other <code class="docutils literal notranslate"><span class="pre">scrap</span></code> command (for example <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>) against the data.</p>
-<p><strong>Rebuilding on a new server.</strong> Create the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user and get the image as above, copy your
-backups and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> over, and run <code class="docutils literal notranslate"><span class="pre">./deploy/install.sh</span></code>. That starts scrap, which creates an
-empty database, so stop it and restore with <code class="docutils literal notranslate"><span class="pre">--force</span></code> as shown (nothing is lost: the database
-is new). Start it, and publish it with <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> again. Make sure the new Serve address
-is what <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> says.</p>
+<p><strong>Rebuilding on a new server.</strong> Create the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user, get the image and clone the release as
+above. Then <code class="docutils literal notranslate"><span class="pre">mkdir</span> <span class="pre">-p</span> <span class="pre">~/.config/scrap</span> <span class="pre">~/.local/share/scrap/backups</span></code> and copy your backups into
+<code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/backups</span></code> (the default <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>) and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> into
+<code class="docutils literal notranslate"><span class="pre">~/.config/scrap/</span></code>. Run <code class="docutils literal notranslate"><span class="pre">./deploy/install.sh</span></code>: its first run writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> with
+<code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE=localhost/scrap:dev</span></code> and exits without starting scrap, so set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> as in
+<a class="reference internal" href="#scrap-install-script"><span class="std std-ref">Install</span></a> and run it again. That starts scrap, which creates an empty database, so
+stop it and restore with <code class="docutils literal notranslate"><span class="pre">--force</span></code> as shown (nothing is lost: the database is new). Start it, and
+publish it with <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">serve</span></code> again. Make sure the new Serve address is what <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>
+says.</p>
 </section>
 </section>
 <section id="deleting-unused-files-scrap-gc">
@@ -1740,8 +1754,10 @@ fails) until the next <code class="docutils literal notranslate"><span class="pr
 make one straight away.</p>
 <section id="reading-the-report">
 <h3>Reading the report<a class="headerlink" href="#reading-the-report" title="Link to this heading">#</a></h3>
-<p>A run prints one line, for example <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">would</span> <span class="pre">delete</span> <span class="pre">(dry</span> <span class="pre">run:</span> <span class="pre">--delete</span> <span class="pre">deletes)</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">and</span> <span class="pre">1</span> <span class="pre">leftover</span> <span class="pre">uploads,</span> <span class="pre">12.4</span> <span class="pre">MB;</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">file</span> <span class="pre">records;</span> <span class="pre">kept</span> <span class="pre">2</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period;</span> <span class="pre">2</span> <span class="pre">model</span> <span class="pre">runs</span> <span class="pre">and</span> <span class="pre">5</span> <span class="pre">enrich</span> <span class="pre">runs</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">retention</span></code>. With <code class="docutils literal notranslate"><span class="pre">--delete</span></code> it
-says <code class="docutils literal notranslate"><span class="pre">deleted</span></code> instead (for the files; the run records are deleted too). The parts:</p>
+<p>A run prints one line, for example <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc:</span> <span class="pre">would</span> <span class="pre">delete</span> <span class="pre">(dry</span> <span class="pre">run:</span> <span class="pre">--delete</span> <span class="pre">deletes)</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">and</span> <span class="pre">1</span> <span class="pre">leftover</span> <span class="pre">uploads,</span> <span class="pre">12.4</span> <span class="pre">MB;</span> <span class="pre">3</span> <span class="pre">unused</span> <span class="pre">file</span> <span class="pre">records;</span> <span class="pre">kept</span> <span class="pre">2</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period;</span> <span class="pre">2</span> <span class="pre">model</span> <span class="pre">runs</span> <span class="pre">and</span> <span class="pre">5</span> <span class="pre">enrich</span> <span class="pre">runs</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">retention;</span> <span class="pre">would</span> <span class="pre">gather</span> <span class="pre">1</span> <span class="pre">orphaned</span> <span class="pre">files</span> <span class="pre">onto</span> <span class="pre">Orphaned</span> <span class="pre">assets</span> <span class="pre">2026-10;</span> <span class="pre">would</span> <span class="pre">purge</span> <span class="pre">4</span> <span class="pre">pages</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">trash</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">30</span> <span class="pre">days;</span> <span class="pre">6</span> <span class="pre">ingest</span> <span class="pre">jobs</span> <span class="pre">and</span> <span class="pre">2</span> <span class="pre">enrich</span> <span class="pre">jobs</span> <span class="pre">finished</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">30</span> <span class="pre">days</span> <span class="pre">ago</span></code>. With <code class="docutils literal notranslate"><span class="pre">--delete</span></code> it says
+<code class="docutils literal notranslate"><span class="pre">deleted</span></code>, <code class="docutils literal notranslate"><span class="pre">gathered</span></code> and <code class="docutils literal notranslate"><span class="pre">purged</span></code> instead (the run and job records are deleted too). With
+<code class="docutils literal notranslate"><span class="pre">--trash-days</span> <span class="pre">off</span></code> the purge part reads <code class="docutils literal notranslate"><span class="pre">the</span> <span class="pre">trash</span> <span class="pre">is</span> <span class="pre">never</span> <span class="pre">purged</span> <span class="pre">(--trash-days</span> <span class="pre">off)</span></code>. The
+parts:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Part</p></th>
@@ -1761,19 +1777,22 @@ says <code class="docutils literal notranslate"><span class="pre">deleted</span>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">model</span> <span class="pre">runs</span> <span class="pre">and</span> <span class="pre">B</span> <span class="pre">enrich</span> <span class="pre">runs</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">retention</span></code></p></td>
 <td><p>Records of Claude calls past <code class="docutils literal notranslate"><span class="pre">--run-days</span></code> that nothing refers to and that are not the latest for their page or photo. With <code class="docutils literal notranslate"><span class="pre">--delete</span></code> they were deleted.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">would</span> <span class="pre">purge</span> <span class="pre">P</span> <span class="pre">pages</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">trash</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">T</span> <span class="pre">days</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">would</span> <span class="pre">gather</span> <span class="pre">G</span> <span class="pre">orphaned</span> <span class="pre">files</span> <span class="pre">onto</span> <span class="pre">Orphaned</span> <span class="pre">assets</span> <span class="pre">YYYY-MM</span></code></p></td>
+<td><p>Files of captures that no page shows any more: with <code class="docutils literal notranslate"><span class="pre">--delete</span></code>, <code class="docutils literal notranslate"><span class="pre">gathered</span></code> onto the month’s review page (see above), not deleted.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">would</span> <span class="pre">purge</span> <span class="pre">P</span> <span class="pre">pages</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">trash</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">T</span> <span class="pre">days</span></code></p></td>
 <td><p>Pages trashed more than <code class="docutils literal notranslate"><span class="pre">--trash-days</span></code> ago, topics aside: with <code class="docutils literal notranslate"><span class="pre">--delete</span></code>, <code class="docutils literal notranslate"><span class="pre">purged</span></code>, and their files counted in the unused files above. <code class="docutils literal notranslate"><span class="pre">(and</span> <span class="pre">F</span> <span class="pre">orphaned</span> <span class="pre">files)</span></code>: the files purged <em>Orphaned assets</em> pages showed that no page shows, let go with them.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">J</span> <span class="pre">ingest</span> <span class="pre">jobs</span> <span class="pre">and</span> <span class="pre">E</span> <span class="pre">enrich</span> <span class="pre">jobs</span> <span class="pre">finished</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">D</span> <span class="pre">days</span> <span class="pre">ago</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">J</span> <span class="pre">ingest</span> <span class="pre">jobs</span> <span class="pre">and</span> <span class="pre">E</span> <span class="pre">enrich</span> <span class="pre">jobs</span> <span class="pre">finished</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">D</span> <span class="pre">days</span> <span class="pre">ago</span></code></p></td>
 <td><p>Done or dead job records past <code class="docutils literal notranslate"><span class="pre">--job-days</span></code>, each photo’s and page’s latest aside. With <code class="docutils literal notranslate"><span class="pre">--delete</span></code> they were deleted.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kept</span> <span class="pre">Y</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kept</span> <span class="pre">Y</span> <span class="pre">unused</span> <span class="pre">files</span> <span class="pre">younger</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">grace</span> <span class="pre">period</span></code></p></td>
 <td><p>Unused, but too new to delete: a later run takes them.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">K</span> <span class="pre">used</span> <span class="pre">again</span> <span class="pre">meanwhile</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">K</span> <span class="pre">used</span> <span class="pre">again</span> <span class="pre">meanwhile</span></code></p></td>
 <td><p>Only shown when above zero. Unused when gc looked, but referenced, or uploaded again, before it deleted them (it checks again inside the delete), so they were kept.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">put</span> <span class="pre">back</span> <span class="pre">Z</span> <span class="pre">files</span> <span class="pre">an</span> <span class="pre">earlier</span> <span class="pre">run</span> <span class="pre">left</span> <span class="pre">aside</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">put</span> <span class="pre">back</span> <span class="pre">Z</span> <span class="pre">files</span> <span class="pre">an</span> <span class="pre">earlier</span> <span class="pre">run</span> <span class="pre">left</span> <span class="pre">aside</span></code></p></td>
 <td><p>Only shown when above zero. A run that stopped mid-delete left <code class="docutils literal notranslate"><span class="pre">.gc-&lt;sha&gt;</span></code> files; this run restored them before it began.</p></td>
 </tr>
 </tbody>
@@ -1842,7 +1861,7 @@ backups and the settings in <code class="docutils literal notranslate"><span cla
 </section>
 <section id="using-docker-instead">
 <span id="scrap-docker"></span><h2>Using Docker instead<a class="headerlink" href="#using-docker-instead" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">install.sh</span></code> exits at “podman is not installed” without podman on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and it calls
+<p><code class="docutils literal notranslate"><span class="pre">install.sh</span></code> exits at <code class="docutils literal notranslate"><span class="pre">/usr/bin/podman</span> <span class="pre">not</span> <span class="pre">found</span></code> without podman there, and it calls
 <code class="docutils literal notranslate"><span class="pre">podman</span></code> for its image and timer checks, so on a Docker-only host you do its work yourself:
 create <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> (the templates are in the script), copy the
 units from <code class="docutils literal notranslate"><span class="pre">deploy/</span></code> to <code class="docutils literal notranslate"><span class="pre">~/.config/systemd/user/</span></code> and the scripts to <code class="docutils literal notranslate"><span class="pre">~/.local/lib/scrap/</span></code>,
@@ -1886,8 +1905,9 @@ scrap, a busy listener, or a file scrap will not remove. Stop or move it and res
 nothing listens on (left by a scrap that stopped) is replaced on its own.</p>
 <p><strong>The service fails with “is open to other users”, “belongs to another user” or “is longer than
 107 bytes”.</strong> These come from the socket setup (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--uds</span></code>). Its folder must belong to
-the scrap user and be mode 700, which the unit’s runtime folder is; the path (including
-<code class="docutils literal notranslate"><span class="pre">$XDG_RUNTIME_DIR</span></code>) must be at most 107 bytes.</p>
+the scrap user and be mode 700, which the unit’s runtime folder is. The 107-byte limit is on the
+<code class="docutils literal notranslate"><span class="pre">--uds</span></code> path inside the container, <code class="docutils literal notranslate"><span class="pre">/run/scrap/scrap.sock</span></code> in the units, so it only arises when
+you run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span> <span class="pre">--uds</span></code> yourself with a longer path.</p>
 <p><strong>systemd shows scrap as active, but it does not answer.</strong> The unit uses <code class="docutils literal notranslate"><span class="pre">--sdnotify=conmon</span></code>,
 so systemd is told scrap is ready when the container <em>starts</em>, not when scrap listens, and
 <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">start</span> <span class="pre">scrap</span></code> and <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> succeed before then. A scrap that then exits
@@ -1904,8 +1924,8 @@ does the <code class="docutils literal notranslate"><span class="pre">reset-fail
 <p><strong>scrap will not start and <code class="docutils literal notranslate"><span class="pre">ingest.env</span></code> is missing or a dangling symlink.</strong> The launcher passes
 <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> to podman unconditionally. <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> only warns about a
 dangling symlink; restore the file (an empty one will do) and start scrap.</p>
-<p><strong><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> fails with a 503, <code class="docutils literal notranslate"><span class="pre">&quot;ingest</span> <span class="pre">worker</span> <span class="pre">stopped&quot;</span></code>.</strong> <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> reports 503 when the
-ingest worker has stopped, and <code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> fails on any error status. Look in
+<p><strong><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> fails with <code class="docutils literal notranslate"><span class="pre">returned</span> <span class="pre">error:</span> <span class="pre">503</span></code>.</strong> <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> answers 503 (<code class="docutils literal notranslate"><span class="pre">&quot;ingest</span> <span class="pre">worker</span> <span class="pre">stopped&quot;</span></code>) when the ingest worker has stopped. <code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> calls it with <code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">-fsS</span></code>, so it fails
+on any error status and shows only curl’s message, not the body. Look in
 <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span></code> for why, then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>.</p>
 <p><strong>Tailscale Serve answers 502 with <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code>.</strong> scrap is not running (the socket’s
 folder is removed when it stops), or the Serve target names another path or user id: compare
@@ -2002,6 +2022,7 @@ from a backup taken before the update (see <a class="reference internal" href="#
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#access-and-identity">Access and identity</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update">Update</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#database-changes-and-rolling-back">Database changes and rolling back</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-1-0-from-before-0-16">Upgrading to 1.0 from before 0.16</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a><ul class="nav section-nav flex-column">

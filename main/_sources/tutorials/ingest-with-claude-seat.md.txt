@@ -71,7 +71,7 @@ Use the one section for your install.
 
   ```
   printf 'Claude token: '; read -rs CLAUDE_CODE_OAUTH_TOKEN; export CLAUDE_CODE_OAUTH_TOKEN
-  podman rm -f scrap
+  podman rm -f scrap   # only if you started it with --name scrap
   podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data:/data \
       -e SCRAP_INGEST=on -e SCRAP_LLM_BACKEND=cli -e CLAUDE_CODE_OAUTH_TOKEN \
       localhost/scrap-claude:{{ release_tag }} serve
@@ -100,9 +100,11 @@ reads `ANTHROPIC_API_KEY` from `ingest.existingSecret` whenever ingest is on, so
 one in the same Secret:
 
 ```
-read -rs TOKEN && kubectl -n scrap create secret generic scrap-claude \
-    --from-literal=ANTHROPIC_API_KEY= --from-literal=CLAUDE_CODE_OAUTH_TOKEN="$TOKEN"; unset TOKEN
+read -rs TOKEN && printf %s "$TOKEN" | kubectl -n scrap create secret generic scrap-claude \
+    --from-literal=ANTHROPIC_API_KEY= --from-file=CLAUDE_CODE_OAUTH_TOKEN=/dev/stdin; unset TOKEN
 ```
+
+The token goes in on standard input, so it is not on `kubectl`'s command line.
 
 If your registry needs credentials, create an image pull Secret and list it under
 `imagePullSecrets` in the values. Add to your values, with your own image from the build section:
@@ -124,8 +126,15 @@ extraEnv:
         key: CLAUDE_CODE_OAUTH_TOKEN
 ```
 
-Then `helm upgrade` as in the install. The nightly related-pages CronJob gets the same
-environment. Raise `resources.limits.memory` if the pod is killed: the CLI takes about 250 MB.
+Then upgrade with the new values:
+
+```
+helm upgrade scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_version }} \
+    -n scrap -f my-values.yaml
+```
+
+The nightly related-pages and weekly topics CronJobs get the same environment. Raise
+`resources.limits.memory` if the pod is killed: the CLI takes about 250 MB.
 
 ## Check a photo is read
 

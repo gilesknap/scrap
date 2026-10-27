@@ -35,7 +35,7 @@ flowchart LR
 | --- | --- |
 | Parse | One linear pass. Space means AND. `"phrase"`, `-word` / `!word` (NOT) and `key:value` (also `key:"two words"`, `-key:value`). Words with no letter or digit are dropped. At most 64 terms and 64 filters: a larger query is refused (HTTP 422, MCP tool error), never silently cut |
 | Match | Each word is a prefix (`vsc` finds `vscode`) wherever it stands, in the title, tags, summary, text, a photo's text or description, or a PDF's or text file's text. Phrases and NOT words are exact. Tokenizer `porter unicode61` |
-| Rank | Tiers: a topic page first, then every word in the title, then every word in title, tags or summary, then bm25 with column weights 10, 5, 3, 1 (title, tags, summary, text) |
+| Rank | Tiers: every word in the title, then every word in title, tags or summary, with a topic page first within each of those tiers; then bm25 with column weights 10, 5, 3, 1 (title, tags, summary, text) |
 | Group | A page's best chunk wins. `bm25()` and `snippet()` refuse `GROUP BY`, so it is done in Python |
 | Snippet | `snippet()` on the text column, HTML-escaped, hits in `<mark>`. With filters only: the summary, else the start of the text, newest first |
 | Facets | `GET /api/search/facets` runs the same `_where` and counts kinds, tags (`a/b` counts for `a`) and personal/work |
@@ -81,7 +81,7 @@ flowchart TD
     subgraph write ["Write path, one transaction"]
         SV["Page save, tag or kind edit,<br/>summary, write-up"] --> IP["index_page"]
         IP --> C0["chunk ord 0<br/>title, tags, summary, text"]
-        IP --> C1["chunk ord 1<br/>board write-up"]
+        IP --> C1["chunk ord 1<br/>current write-up"]
         C0 --> TR["Triggers<br/>chunk_ai, chunk_ad"]
         C1 --> TR
         TR --> FTS[("chunk_fts")]
@@ -101,7 +101,8 @@ flowchart TD
   index.
 - **Chunk shape.** Chunk 0 holds title, tags, summary and the body as words (`markdown.py`:
   link text not addresses, code as typed, table cells). The summary is the page's `summary` field,
-  else Claude's (current write-up, else enrichment). Chunk 1 is a board's current write-up. Control
+  else Claude's (current write-up, else enrichment). Chunk 1 is the current write-up: a board's
+  write-up or a topic's synthesis. Control
   characters become spaces, since snippets mark hits with `\x02` and `\x03`.
 - **Photo text.** What ingest read (description, OCR) is its own chunk, made by a trigger when the
   `derived` row is inserted and removed when it is superseded. It fills only the text column. A
