@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture, files and import &#8212; scrap 0.16.1.dev10+g04d4adf52 documentation</title>
+    <title>Capture, files and import &#8212; scrap 0.16.1.dev11+g97761dfd0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=d0b09656"></script>
+    <script src="../../_static/documentation_options.js?v=86c8df23"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1002,12 +1002,12 @@ the body. Over it is <code class="docutils literal notranslate"><span class="pre
 <td><p>the URL, then any text</p></td>
 <td><p>the URL, or the first line of the text</p></td>
 </tr>
-<tr class="row-even"><td><p>photo</p></td>
-<td><p>text if any, then one image embed per image</p></td>
+<tr class="row-even"><td><p>photo (any image; its images stored first, so ingest reads the page from one)</p></td>
+<td><p>text if any, then one image embed per image; other files listed below it</p></td>
 <td><p>text’s first line, else device time, which ingest replaces</p></td>
 </tr>
-<tr class="row-odd"><td><p>file (not all images)</p></td>
-<td><p>text if any, plus embeds for any images</p></td>
+<tr class="row-odd"><td><p>file (no image)</p></td>
+<td><p>text if any; the files listed below it</p></td>
 <td><p>text’s first line, else device time</p></td>
 </tr>
 </tbody>
