@@ -20,6 +20,7 @@ import { DRAFT, FRESH, promote, recover } from "./fresh";
 import { icon } from "./icons";
 import { embedBytes, tooLong } from "./pagecap";
 import { type Capture, split } from "./queue";
+import { refused } from "./refused";
 import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
@@ -40,20 +41,6 @@ const ASK: Record<string, string> = {
   whiteboard: "What the board is about",
   document: "What the document is",
 };
-
-/** Refused by the server once it tries (within 10 s): a second toast, "Kept on this phone"
- * (its row says why, with Retry), so a refused capture is never left at "Saved". */
-function refused(ids: string[]) {
-  const stop = new AbortController();
-  const look = async () => {
-    const left = (await queue.items()).filter((i) => ids.includes(i.id));
-    if (left.some((i) => i.failed)) toast("Kept on this phone");
-    else if (left.length) return; // still uploading
-    stop.abort(); // refused, or uploaded
-  };
-  document.addEventListener("queuechange", () => void look(), { signal: stop.signal });
-  setTimeout(() => stop.abort(), 10_000);
-}
 
 /** as: a kind chosen before it opens (the Todos screen's New todo, or a search's New for its
  * kind). resume: open the kept draft (Capture's draft row); otherwise a fresh capture (the

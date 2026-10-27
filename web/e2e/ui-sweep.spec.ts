@@ -65,7 +65,14 @@ test("Topics: the count line is the results header, and Refine goes to Search", 
     cwd: "..",
     encoding: "utf8",
   });
-  const t = JSON.parse(out.trim().split("\n").pop() || "null") as { title: string };
+  const t = JSON.parse(out.trim().split("\n").pop() || "null") as {
+    slug: string;
+    title: string;
+    sources: { id: string }[];
+  };
+  // Into the Trash after (the store has no purge), so no Topics or Recent list keeps them
+  made.push(...t.sources.map((x) => x.id));
+  made.push(((await (await page.request.get(`/api/pages/${t.slug}`)).json()) as { id: string }).id);
   await page.goto("/topics");
   await expect(page.locator(".topics .list li", { hasText: t.title })).toBeVisible();
   const refine = await resultsHeader(page, ".topics", /^\d+ topics?$/);
@@ -154,7 +161,7 @@ const lineEnds = (page: Page, sel: string) =>
     return ends;
   });
 
-test("no line of a todo's row or page header ends in a dot, at 320 px", async ({ page }) => {
+test("no line of a todo's due text ends in a dot, at 320 px", async ({ page }) => {
   const t = await make(
     page,
     `Sweep dots ${word()} a longish title for a narrow screen\n\n- [x] one\n- [ ] two`,
@@ -169,11 +176,8 @@ test("no line of a todo's row or page header ends in a dot, at 320 px", async ({
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto(`/p/${t.slug}`);
   await expect(page.locator(".page .tags .duechip")).toBeVisible();
-  for (const sel of [".page > .meta", ".page > .dates"]) {
-    const ends = await lineEnds(page, sel);
-    expect(ends.length, `${sel} has lines`).toBeGreaterThan(0);
-    expect(ends, `${sel}: line ends`).not.toContain("·");
-  }
+  // The page header's own lines draw their dots in CSS (::before), which text cannot see:
+  // page-header.spec.ts checks those. Here: the todo's row in Search
   // Its row in Search: the due line wraps (never mid-phrase), its lines end on a word
   await page.goto(`/search?q=${encodeURIComponent(`kind:todo "Sweep dots"`)}`);
   const due = page.locator(".list li .due").first();
@@ -208,12 +212,18 @@ test("a capture the server takes says Saved and never Kept on this phone", async
   const text = `Sweep taken ${word()}`;
   await page.getByPlaceholder("Note or link").fill(text);
   await page.getByRole("button", { name: "Save" }).click();
+  // Found and queued for deletion before anything is asserted, so a failure leaks nothing
+  await expect
+    .poll(async () => {
+      const hits = await (
+        await page.request.get(`/api/search?q=${encodeURIComponent(text)}`)
+      ).json();
+      for (const h of hits) if (!made.includes(h.id)) made.push(h.id);
+      return hits.length;
+    })
+    .toBeGreaterThan(0);
   await expect(page.locator(".capture .list a", { hasText: text })).toBeVisible();
   await expect(page.locator(".toast", { hasText: "Kept on this phone" })).toHaveCount(0);
-  const hit = (
-    await (await page.request.get(`/api/search?q=${encodeURIComponent(text)}`)).json()
-  )[0];
-  made.push(hit.id);
 });
 
 test("an empty search shows no count; offline, it says why and Retry brings the results", async ({

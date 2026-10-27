@@ -23,3 +23,12 @@ it("finds the title leading a snippet, whole words, punctuation aside", () => {
   expect(leading("Great expectations", "Great exp")).toBe(0); // part of a word
   expect(leading("Something else", "Release")).toBe(0);
 });
+
+it("punctuation after an address stays outside it", () => {
+  const bare = clean("https://a.com/x");
+  expect(clean("(https://a.com/x)")).toBe(`(${bare})`);
+  expect(clean("see https://a.com/x.")).toBe(`see ${bare}.`);
+  expect(clean("https://a.com/x, then")).toBe(`${bare}, then`);
+  // a ")" the address opened itself is part of it
+  expect(clean("https://a.com/Foo_(bar)")).toBe("a.com \u00b7 Foo (bar)");
+});

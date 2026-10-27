@@ -32,7 +32,20 @@ const texts = (el: Element) => {
 };
 
 /** A piece of snippet text with its addresses in words and no task boxes. */
-export const clean = (text: string) => text.replace(BOX, "$1").replace(URLS, said);
+export const clean = (text: string) =>
+  text.replace(BOX, "$1").replace(URLS, (url) => {
+    // Punctuation after an address belongs to the sentence ("(see https://a.com/x)."); a ")"
+    // stays only when the address opened one itself (a Wikipedia title)
+    let end = url.length;
+    while (
+      /[.,;:!?'\]]/.test(url[end - 1]) ||
+      (url[end - 1] === ")" && !balanced(url.slice(0, end)))
+    )
+      end--;
+    return said(url.slice(0, end)) + url.slice(end);
+  });
+
+const balanced = (u: string) => (u.match(/\(/g)?.length ?? 0) >= (u.match(/\)/g)?.length ?? 0);
 
 /** How much of a snippet's start is only its title (whole words in order, punctuation
  * aside), when more follows; else 0 (a snippet that is only the title: echoes() takes it). */
