@@ -55,3 +55,35 @@ def test_the_release_rewrite_pins_the_tag(tmp_path):
 
 def test_scrap_ref_overrides(tmp_path):
     assert run(SCRIPT, tmp_path, SCRAP_REF="x").strip().endswith("/archive/x.tar.gz")
+
+
+def test_it_installs_the_commands_and_the_skill(tmp_path):
+    """One install step copies commands/*.md and skills/scrap-links from the archive."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "curl").write_text("#!/bin/sh\n")
+    # A tar that extracts a fake repository tree into the -C directory
+    (bin_dir / "tar").write_text(
+        "#!/bin/sh\n"
+        'cat >/dev/null; d="$3/scrap-main"\n'
+        'mkdir -p "$d/commands" "$d/skills/scrap-links"\n'
+        'echo cmd > "$d/commands/sc-find.md"\n'
+        'echo skill > "$d/skills/scrap-links/SKILL.md"\n'
+    )
+    for tool in ("curl", "tar"):
+        (bin_dir / tool).chmod(0o755)
+    cmds, skills = tmp_path / "cmds", tmp_path / "skills"
+    done = subprocess.run(
+        ["sh", str(SCRIPT)],
+        env={
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "HOME": str(tmp_path),
+            "CLAUDE_COMMANDS_DIR": str(cmds),
+            "CLAUDE_SKILLS_DIR": str(skills),
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr
+    assert (cmds / "sc-find.md").read_text() == "cmd\n"
+    assert (skills / "scrap-links" / "SKILL.md").read_text() == "skill\n"

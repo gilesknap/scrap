@@ -45,7 +45,7 @@ podman run --network=host -v scrap-data:/data -e SCRAP_INGEST=${ANTHROPIC_API_KE
 
 The key is optional: it lets Claude read your photos and tag your notes.
 
-Open <http://localhost:8000/>. Then add scrap to Claude Code and install the `sc` commands:
+Open <http://localhost:8000/>. Then add scrap to Claude Code and install the `sc` commands and skill:
 
 ```
 claude mcp add --transport http --scope user scrap http://localhost:8000/mcp
