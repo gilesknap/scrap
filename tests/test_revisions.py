@@ -9,10 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
-from old_schema import undo_0018
 from scrap import mcp_server
 from scrap.app import create_app
-from scrap.store import Store, connect, migrations
+from scrap.store import Store, connect
 from test_mcp import human, ok, refused, write
 
 
@@ -319,23 +318,6 @@ def test_no_mcp_tool_can_delete_or_overwrite_text(store):
     assert (p["title"], p["body"], p["rev"]) == ("my own words", "my own words", 1)
 
 
-def test_migration_8_is_additive_and_can_run_again(tmp_path):
-    """An older scrap runs with user_version set back to 7: migrating again keeps the
-    table and its rows."""
-    store = Store(tmp_path)
-    store.migrate()
-    ref = human(store, "x")
-    store.edit_meta([ref["slug"]], "claude", "mcp", add=["a"])
-    with closing(connect(store.db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        undo_0018(conn)
-        conn.execute("PRAGMA user_version = 7")
-    store.migrate()
-    with closing(connect(store.db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-    assert len(store.revisions(ref["slug"])["meta"]) == 1
-
-
 def test_a_new_page_has_no_metadata_revision(store):
     ref = human(store, "x", tags=["a"], kind="todo")
     assert store.revisions(ref["slug"])["meta"] == []
@@ -606,20 +588,6 @@ def test_edit_meta_refuses_bad_fields(store):
     )
     assert "nothing to change" in refused(store, "edit_meta", pages=[key])
     assert "subtype" in store.page(key)["fields"]  # nothing saved
-
-
-def test_migration_15_adds_fields_was_and_can_run_again(tmp_path):
-    store = Store(tmp_path)
-    store.migrate()
-    ref = human(store, "x")
-    store.edit_meta([ref["slug"]], "claude", "mcp", add=["a"])
-    with closing(connect(store.db)) as conn:
-        columns = [r[1] for r in conn.execute("PRAGMA table_info(page_meta_rev)")]
-        assert "fields_was" in columns
-        undo_0018(conn)
-        conn.execute("PRAGMA user_version = 14")
-    store.migrate()  # an older scrap ran meanwhile: it adds nothing twice
-    assert store.revisions(ref["slug"])["meta"][0]["fields_was"] == {}
 
 
 def test_folded_field_edits_revert_to_what_was_never_there(store):

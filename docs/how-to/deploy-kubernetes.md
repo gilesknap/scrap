@@ -416,6 +416,9 @@ runs its database migrations at startup, before it answers `/healthz`: the start
 them five minutes.
 
 Migrations are **forward only**, and an older scrap refuses a database migrated by a newer one.
+scrap 1.0 starts from schema 18 and refuses a database or a backup below it (`upgrade with scrap
+0.16.x first (it migrates to schema 18), then use 1.0`): update to 0.16.x first, let it migrate,
+then update to 1.0.
 So `helm rollback` alone does not go back: roll back to the old image *and* restore the
 pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
 the database; its files stay.
@@ -599,9 +602,9 @@ newer scrap (schema 17, a clone of `main` set up with `uv sync`).
 What to expect:
 
 - A backup from an older scrap is migrated by `restore`, on the copy, before it is swapped into
-  place. Here that took about a second on a 60 MB database: schema 16 became 17 (migration
-  `0017`, which adds the empty `page_trash_rev` table), `PRAGMA integrity_check` said `ok`, and
-  every other table kept its row count.
+  place (scrap 1.0 refuses one below schema 18; restore it with 0.16.x first). On that test it
+  took about a second on a 60 MB database: schema 16 became 17 (the empty `page_trash_rev`
+  table), `PRAGMA integrity_check` said `ok`, and every other table kept its row count.
 - The backup holds the database and every file in `files/`. It does not hold `cache/`, the page
   previews, which scrap makes again the first time a photo is shown.
 - `enrich.on` and `writeup.on` read `false` on the scratch instance only because Claude is off

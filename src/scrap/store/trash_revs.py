@@ -1,8 +1,8 @@
-"""The trash's history (migration 17, #332): page_trash_rev, a row each time a page goes
+"""The trash's history (#332): page_trash_rev, a row each time a page goes
 to the trash or comes back from it, by whom and from where, so revisions and its
 recent-changes feed show deletes; the pages one call moves to the trash share a batch
-id, and undelete brings a batch back at once. Below trash and revisions, which use it;
-it imports nothing of the store's, so db can run its migration step."""
+id, and undelete brings a batch back at once. Below trash and revisions, which use it.
+"""
 
 import sqlite3
 from typing import Any
@@ -15,29 +15,6 @@ TRASH_REV = (
     "SELECT r.id, r.page_id, p.slug, r.action, r.author, r.source, r.batch_id,"
     " r.created_at FROM page_trash_rev r JOIN page p ON p.id = r.page_id"
 )
-
-
-def add_trash_revs(conn: sqlite3.Connection) -> None:
-    """page_trash_rev (migration 17), unless an earlier run made it: action trash or
-    restore, author and source (web or mcp) as page_meta_rev has them, batch_id shared
-    by the pages one call moved (else NULL; a batch undelete's restores carry the batch
-    they restored). No backfill: a page already in the trash has no row, so it is not in
-    any batch, and undelete brings it back by name."""
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS page_trash_rev ("
-        " id INTEGER PRIMARY KEY AUTOINCREMENT,"  # an id is never used again
-        " page_id TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,"
-        " action TEXT NOT NULL CHECK (action IN ('trash', 'restore')),"
-        " author TEXT NOT NULL,"
-        " source TEXT NOT NULL CHECK (source IN ('web', 'mcp')),"
-        " batch_id TEXT,"
-        " created_at TEXT NOT NULL)"
-    )
-    for name, columns in (("by_page", "page_id, id"), ("by_batch", "batch_id")):
-        conn.execute(
-            f"CREATE INDEX IF NOT EXISTS page_trash_rev_{name}"
-            f" ON page_trash_rev({columns})"
-        )
 
 
 def record(

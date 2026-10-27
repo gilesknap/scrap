@@ -24,7 +24,6 @@ from scrap.public import origin
 from scrap.store import (
     Store,
     connect,
-    fixes,
     health,
     new_ulid,
     now,
@@ -245,9 +244,12 @@ def review(store, page_id):
     """Make a page one of gc's review pages, as if gc had made it: made_by gc (its
     trigger set aside, since nothing else may change it) and its capture's source."""
     with closing(connect(store.db)) as conn:
+        (trigger,) = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE name = 'page_made_by_fixed'"
+        ).fetchone()
         conn.execute("DROP TRIGGER page_made_by_fixed")
         conn.execute("UPDATE page SET made_by = 'gc' WHERE id = ?", (page_id,))
-        conn.execute(fixes.MADE_BY_FIXED)
+        conn.execute(trigger)
     sql(store, "UPDATE capture SET source = 'gc' WHERE page_id = ?", page_id)
 
 

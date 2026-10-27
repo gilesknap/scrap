@@ -21,8 +21,8 @@ RAW = [
     re.compile(rf"\bINSERT INTO page\b[^\"']*\b{NAMES}\b", re.I),
     re.compile(rf"\b(?:ADD|DROP) COLUMN {NAMES}\b", re.I),
 ]
-# The one home, and history: migrations and the fixes that run them
-ALLOWED = {"store/todo.py", "store/fixes.py"}
+# The one home (the migrations are SQL files, not matched)
+ALLOWED = {"store/todo.py"}
 
 
 def hits() -> list[str]:

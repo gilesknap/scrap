@@ -1,8 +1,7 @@
 """Who made a page, stored (#280 step 3), and where a text revision came from (#153):
-migration 16, each way a page is made, and that neither changes afterwards."""
+each way a page is made, and that neither changes afterwards."""
 
 import sqlite3
-from contextlib import closing
 from datetime import UTC, datetime
 from typing import Any
 
@@ -11,136 +10,26 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
-from old_schema import undo_0018
 from scrap import mcp_server, orphans
 from scrap.app import create_app
-from scrap.store import CLAUDE, MCP, Store, new_ulid, now, roles, topics
-from scrap.store.db import AFTER, connect, migrations, transaction
-from scrap.store.fixes import add_made_by
+from scrap.store import CLAUDE, MCP, Store, new_ulid, now, topics
+from scrap.store.db import transaction
 
-T1, T2, T3 = (f"2026-01-0{d}T00:00:00.000Z" for d in (1, 2, 3))
-
-# The v15 fixture's pages: id -> (captures as (kind, source, received_at), made_by)
-V15 = {
-    "NOTE": ([("note", "pwa", T1)], "human"),
-    "SHARE": ([("url", "share", T1)], "human"),
-    "PHOTO": ([("photo", "pwa", T1)], "human"),
-    "MCP": ([("note", "mcp", T1)], "claude"),
-    "APPENDED": ([("note", "mcp", T1), ("note", "mcp", T2)], "claude"),
-    # Never made by scrap (Store.append refuses it): the first capture decides
-    "LATE_MCP": ([("note", "pwa", T1), ("note", "mcp", T2)], "human"),
-    "REVIEW": ([("file", "gc", T1)], "gc"),
-    "TOPIC": ([], "topic"),
-    "IMPORT": ([("note", "import", T1), ("file", "import", T1)], "human"),
-    "PINNED": ([], "human"),
-    "TRASHED_MCP": ([("note", "mcp", T1)], "claude"),
-}
-# Text revisions: (page, rev, author) -> source after migration 16
-REVS = {
-    ("NOTE", 1, "me@example.com"): "web",
-    ("NOTE", 2, CLAUDE): "mcp",  # task boxes Claude added (actions.append)
-    ("NOTE", 3, "tagged"): "web",
-    ("MCP", 1, CLAUDE): "mcp",
-    ("MCP", 2, CLAUDE): "mcp",
-    ("TOPIC", 1, "claude-sonnet"): "web",  # the producer, not claude
-    ("REVIEW", 1, "scrap gc"): "web",
-}
+T1 = "2026-01-01T00:00:00.000Z"
 
 
-def v15(data):
-    """A store folder whose database is at schema 15 (no made_by, no page_rev.source),
-    with a page of each kind."""
-    data.mkdir()
-    (data / "files").mkdir()
-    conn = connect(data / "scrap.db")
-    for n, sql in enumerate(migrations()[:15], start=1):
-        conn.executescript(f"BEGIN IMMEDIATE;\n{sql}")
-        if n in AFTER:
-            AFTER[n](conn)
-        conn.execute(f"PRAGMA user_version = {n}")
-        conn.execute("COMMIT")
-    for page_id, (captures, _) in V15.items():
-        deleted = T3 if page_id.startswith("TRASHED") else None
-        slug = "pinned" if page_id == "PINNED" else page_id.lower()
-        conn.execute(
-            "INSERT INTO page (id, slug, title, created_at, updated_at, deleted_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (page_id, slug, page_id.title(), T1, T1, deleted),
-        )
-        for i, (kind, source, received) in enumerate(captures):
-            conn.execute(
-                "INSERT INTO capture VALUES (?, ?, 'x', NULL, ?, 'me', ?, ?, ?)",
-                (f"{page_id}-{i}", kind, source, received, received, page_id),
-            )
-    conn.execute("INSERT INTO topic VALUES ('TOPIC', 'queues', ?)", (T1,))
-    for page_id, rev, author in REVS:  # page_rev as it was: six columns
-        conn.execute(
-            "INSERT INTO page_rev VALUES (?, ?, 't', 'b', ?, ?)",
-            (page_id, rev, author, T1),
-        )
-    conn.close()
-    return data
-
-
-def made(store: Store) -> dict[str, str]:
-    with store.connect() as conn:
-        return dict(conn.execute("SELECT id, made_by FROM page").fetchall())
-
-
-def sources(store: Store) -> dict[tuple[str, int, str], str]:
-    with store.connect() as conn:
-        rows = conn.execute("SELECT page_id, rev, author, source FROM page_rev")
-        return {(p, r, a): s for p, r, a, s in rows}
-
-
-def test_migration_16_backfills_made_by_and_revision_sources(tmp_path):
-    store = Store(v15(tmp_path / "data"))
+def test_the_checks_hold_on_a_new_store(tmp_path):
+    store = Store(tmp_path / "data")
     store.migrate()
-    assert made(store) == {page_id: by for page_id, (_, by) in V15.items()}
-    assert sources(store) == REVS
     with store.connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert len(migrations()) >= 16
-        with pytest.raises(sqlite3.IntegrityError, match="made_by"):  # the CHECK
-            conn.execute(
-                "INSERT INTO page (id, slug, title, created_at, updated_at, made_by)"
-                " VALUES ('X', 'x', 'X', ?, ?, 'robot')",
-                (T1, T1),
-            )
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute(
-                "INSERT INTO page_rev (page_id, rev, title, body, author, source,"
-                " created_at) VALUES ('NOTE', 9, 't', 'b', 'me', 'pwa', ?)",
-                (T1,),
-            )
-    # is:claude: the pages Claude wrote, out of the trash
-    assert {h["id"] for h in store.search("is:claude", 50)} == {"MCP", "APPENDED"}
-    assert {h["id"] for h in store.search("is:claude-edited", 50)} == {"NOTE", "MCP"}
-
-
-def test_migration_16_can_run_again(tmp_path):
-    store = Store(v15(tmp_path / "data"))
-    store.migrate()
-    with closing(connect(store.db)) as conn, transaction(conn):
-        add_made_by(conn)  # again: nothing to do
-        undo_0018(conn)
-        conn.execute("PRAGMA user_version = 15")
-    store.migrate()
-    assert made(store)["MCP"] == "claude" and sources(store) == REVS
-
-
-def test_an_older_schema_reads_who_made_a_page_as_before(tmp_path):
-    """Before migration 16, the Python helpers work made_by and edited_by_claude out
-    as they were (Store.page on a database not yet migrated). The SQL fragments read
-    the columns: scrap gc expects the database the service has already migrated."""
-    store = Store(v15(tmp_path / "data"))
-    with closing(connect(store.db)) as conn:
-        assert {p: roles.made_by(conn, p) for p in V15} == {
-            page_id: by for page_id, (_, by) in V15.items()
-        }
-        assert roles.by_claude(conn, "MCP") and not roles.by_claude(conn, "LATE_MCP")
-        assert roles.edited_by_claude(conn, "NOTE")
-        assert not roles.edited_by_claude(conn, "PHOTO")
+        for sql in (
+            "INSERT INTO page (id, slug, title, created_at, updated_at, made_by)"
+            " VALUES ('X', 'x', 'X', ?, ?, 'robot')",
+            "INSERT INTO page_rev (page_id, rev, title, body, author, source,"
+            " created_at) VALUES ('X', 9, 't', 'b', 'me', 'pwa', ?)",
+        ):
+            with pytest.raises(sqlite3.IntegrityError):
+                conn.execute(sql, (T1,) * sql.count("?"))
 
 
 # ---- made once, by each way a page is made

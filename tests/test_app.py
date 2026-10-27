@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from scrap import __version__
 from scrap.app import ORIGINS_SLOT, VERSION_SLOT, create_app
-from scrap.store import Store, connect, migrate, migrations, new_ulid
+from scrap.store import Store, connect, latest, migrate, new_ulid
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
 
@@ -32,7 +32,7 @@ def test_unknown_route_is_404(client):
 def test_migrations_apply_on_a_fresh_dir(tmp_path):
     Store(tmp_path).migrate()
     with Store(tmp_path).connect() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == latest()
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     Store(tmp_path).migrate()  # idempotent
 
@@ -44,7 +44,7 @@ def test_concurrent_migrations_apply_once(tmp_path):
     for db in dbs:
         with closing(connect(db)) as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
-            assert version == len(migrations())
+            assert version == latest()
 
 
 def test_migrate_refuses_a_newer_database(tmp_path):

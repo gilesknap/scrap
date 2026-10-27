@@ -1,25 +1,18 @@
-"""Migration 0018 moves a todo's due, priority and snoozed_until into page_todo.
+"""A todo's due, priority and snoozed_until live in page_todo (ADR 36, #267 baseline).
 
-A database is built at schema 17 by the real runner (the migrations up to 0017 and
-their Python steps) and filled with every combination of the three values. Before the
-move, the pages are read through a temporary view named page_todo over the old columns
-(so today's queries, which name page_todo, run on the old shape); after it, through the
-real table. Both must give the same values, search results, lists, exports and MCP
-reads, and a second migrate must change nothing."""
+A store is filled with every combination of the three values; the searches, writes and
+an export/import round trip run on it."""
 
 import json
-from contextlib import closing, contextmanager
+from contextlib import closing
 from datetime import date, timedelta
 
 import pytest
 
-from scrap import backup
 from scrap.__main__ import main
-from scrap.store import Store, connect, migrations, new_ulid, todo
+from scrap.store import Store, connect, new_ulid, todo
 from scrap.store.constants import REV_INSERT
-from scrap.store.db import AFTER
 from scrap.store.indexing import index_page
-from test_mcp import ok
 
 TODAY = date.today()
 
@@ -59,35 +52,28 @@ QUERIES = [
     "kind:todo group:now", "kind:todo group:due", "kind:todo -is:done sort:priority",
     "Fix", "fix sort:due", "kind:note due:none", "kind:note priority:high",
 ]  # fmt: skip
-VIEW = (
-    "CREATE TEMP VIEW page_todo AS SELECT id AS page_id, due, priority, snoozed_until"
-    " FROM page WHERE due IS NOT NULL OR priority IS NOT NULL"
-    " OR snoozed_until IS NOT NULL"
-)
 
 
-def build_v17(data):
-    """A store folder at schema 17, made by the real migrations, with PAGES."""
-    data.mkdir()
-    (data / "files").mkdir()
+def build(data):
+    """A store folder with PAGES."""
+    Store(data).migrate()
     conn = connect(data / "scrap.db")
-    for n, sql in enumerate(migrations()[:17], start=1):
-        conn.executescript(f"BEGIN IMMEDIATE;\n{sql}")
-        if n in AFTER:
-            AFTER[n](conn)
-        conn.execute(f"PRAGMA user_version = {n}")
-        conn.execute("COMMIT")
     for slug, kind, status, due, prio, snooze, trashed, body in PAGES:
         page_id = new_ulid()
         old = slug == "old-stale"
         conn.execute(
             "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-            " created_at, updated_at, deleted_at, due, priority, snoozed_until,"
-            " made_by) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, 'human')",
+            " created_at, updated_at, deleted_at, made_by)"
+            " VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'human')",
             (page_id, slug, slug.replace("-", " ").title(), body, kind,
              json.dumps({"status": status} if status else {}), STAMP,
-             OLD if old else STAMP, STAMP if trashed else None, due, prio, snooze),
+             OLD if old else STAMP, STAMP if trashed else None),
         )  # fmt: skip
+        if due or prio or snooze:
+            conn.execute(
+                "INSERT INTO page_todo VALUES (?, ?, ?, ?)",
+                (page_id, due, prio, snooze),
+            )
         conn.execute(
             REV_INSERT, (page_id, 1, slug, body, "me", "web", OLD if old else STAMP)
         )
@@ -102,55 +88,7 @@ def build_v17(data):
 
 @pytest.fixture
 def store(tmp_path):
-    return Store(build_v17(tmp_path / "data"))
-
-
-def raw(store):
-    with closing(connect(store.db)) as conn:
-        return {
-            r["slug"]: (r["due"], r["priority"], r["snoozed_until"])
-            for r in conn.execute("SELECT * FROM page")
-        }
-
-
-def through_view(store):
-    """Every connection the store opens gets the temporary page_todo view."""
-    real = store.connect
-
-    @contextmanager
-    def connect_with_view():
-        with real() as conn:
-            conn.execute(VIEW)
-            yield conn
-
-    store.connect = connect_with_view
-
-
-def outputs(store):
-    """Everything a reader sees of the todo values, as plain data."""
-    with store.connect() as conn:
-        slugs = [r[0] for r in conn.execute("SELECT slug FROM page ORDER BY slug")]
-        markdown = {
-            p["slug"]: backup.page_markdown(conn, p)[0]
-            for p in conn.execute("SELECT * FROM page ORDER BY slug")
-        }
-        ids = {r["slug"]: r["id"] for r in conn.execute("SELECT id, slug FROM page")}
-    live = [s for s in slugs if s != "trashed"]
-    return {
-        "page": {s: strip(store.page(s, trashed=True)) for s in slugs},
-        "recent": strip(store.recent(100)),
-        "recent_todo": strip(store.recent(100, kind="todo")),
-        "search": {q: strip(store.search(q, 100)) for q in QUERIES},
-        "markdown": markdown,
-        "mcp": {s: ok(store, "read", page=s) for s in live},
-        "mcp_search": {q: ok(store, "search", query=q) for q in QUERIES[:8]},
-        "ids": ids,
-    }
-
-
-def strip(x):
-    """The same data without ids' randomness: ids are kept, the build is one DB."""
-    return json.loads(json.dumps(x, default=str))
+    return Store(build(tmp_path / "data"))
 
 
 def table_rows(store):
@@ -163,39 +101,8 @@ def table_rows(store):
         }
 
 
-def test_migration_18_moves_the_values_and_changes_nothing_a_reader_sees(store):
-    before_raw = raw(store)
-    assert any(all(v is None for v in vals) for vals in before_raw.values())
-    through_view(store)
-    before = outputs(store)
-    del store.connect  # the real one again
-    store.migrate()
-    with closing(connect(store.db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert len(migrations()) >= 18
-        columns = {r[1] for r in conn.execute("PRAGMA table_info(page)")}
-        assert not columns & {"due", "priority", "snoozed_until"}
-        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        assert not conn.execute("PRAGMA foreign_key_check").fetchall()
-        names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
-        assert {"page_todo_by_due", "page_todo_by_snooze"} <= names
-        assert not names & {"page_by_due", "page_by_snooze"}
-    # Row for row: a row for each page with any value, the same three values
-    wanted = {s: v for s, v in before_raw.items() if any(x is not None for x in v)}
-    moved = table_rows(store)
-    assert moved == wanted
-    assert set(wanted.items()) - set(moved.items()) == set()
-    assert set(moved.items()) - set(wanted.items()) == set()
-    assert len(wanted) == 13 and len(before_raw) == len(PAGES)
-    assert outputs(store) == before
-    store.migrate()  # again: nothing to do
-    assert table_rows(store) == wanted
-    assert outputs(store) == before
-
-
-def test_the_searches_find_something_before_and_after(store):
+def test_the_searches_find_something(store):
     """The query list is not vacuous: the todo filters each match some pages."""
-    store.migrate()
     hits = {q: [h["slug"] for h in store.search(q, 100)] for q in QUERIES}
     assert hits["kind:todo sort:due"][0] == "done-due"  # the oldest date first
     assert "overdue" in hits[f"kind:todo due:<{day(0)}"]
@@ -206,8 +113,7 @@ def test_the_searches_find_something_before_and_after(store):
     assert hits["due:none"]
 
 
-def test_writes_and_a_round_trip_still_work_on_the_migrated_database(store, tmp_path):
-    store.migrate()
+def test_writes_and_a_round_trip_still_work_on_a_populated_store(store, tmp_path):
     clear = dict.fromkeys(todo.NAMES)
 
     def edit(slug, values):

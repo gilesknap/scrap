@@ -8,7 +8,7 @@ Accepted. Partly superseded by [](0036-todo-values-in-a-side-table.md): a todo's
 priority and snooze are now rows of `page_todo`, not columns of `page`.
 
 Update 2026-10-27: the "typed `page` columns" below are rows of the table `page_todo` since
-migration 0018. Everything else here, including that the values are typed, indexed SQL and
+migration 0018 (since folded into the baseline, [ADR 37](0037-one-baseline-schema-for-1-0.md)). Everything else here, including that the values are typed, indexed SQL and
 survive a change of kind, still holds.
 
 ## Context

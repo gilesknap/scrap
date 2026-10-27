@@ -25,7 +25,7 @@ store module, and the rest of scrap, can use it.
 import sqlite3
 from typing import Any, Literal
 
-from .constants import CLAUDE, ENRICH_KINDS, MCP, PINNED_SLUG
+from .constants import ENRICH_KINDS, MCP, PINNED_SLUG
 
 MadeBy = Literal["human", "claude", "topic", "gc"]
 WriteupType = Literal["board", "topic"]
@@ -59,14 +59,14 @@ def first_capture(conn: sqlite3.Connection, cid: str) -> tuple[str, bool]:
 
 # ---- made by (not fields.origin: the provenance Claude gives an MCP page)
 
-# Who made a page: page.made_by (migration 16), set once when the page is made (by
+# Who made a page: page.made_by , set once when the page is made (by
 # made_by_source, or topic for a topic page) and never changed: a trigger refuses it.
 MADE_BY_VALUES: tuple[MadeBy, ...] = ("human", "claude", "topic", "gc")
 MADE_BY = "{p}.made_by"
 # A topic page p: a row in topic (#261), as made_by 'topic' says too (topics.create
 # writes both, in one transaction, and neither changes). The table stays the test: it
 # holds the topic's key, which keeps Claude from making that topic again, and its
-# sources; and it answers on any schema since migration 13.
+# sources.
 IS_TOPIC = "EXISTS (SELECT 1 FROM topic t WHERE t.page_id = {p}.id)"
 # A review page: one scrap gc made, gathering capture files no page shows (orphans.py),
 # whatever it is titled now
@@ -84,28 +84,6 @@ CLAUDE_EDITED = (
     " AND r.source = '" + MCP + "')"
 )
 
-# What made_by was worked out from before migration 16, which backfills it with this:
-# a topic, else gc's (a capture with source gc: gc only ever makes such a page), else
-# Claude's (the first capture came over MCP), else the owner's. Also the answer on an
-# older schema, with no made_by column.
-_REVIEW_CAPTURE = (
-    "EXISTS (SELECT 1 FROM capture c WHERE c.page_id = {p}.id AND c.source = '"
-    + GC
-    + "')"
-)
-_FIRST_MCP = (
-    "coalesce((SELECT c.source FROM capture c WHERE c.id = "
-    + FIRST_CAPTURE.format(page="{p}.id")
-    + "), '') = '"
-    + MCP
-    + "'"
-)
-_NOT_TOPIC = (
-    f"WHEN {_REVIEW_CAPTURE} THEN 'gc' WHEN {_FIRST_MCP} THEN 'claude' ELSE 'human' END"
-)
-INFERRED_MADE_BY = f"CASE WHEN {IS_TOPIC} THEN 'topic' " + _NOT_TOPIC
-
-
 _BY_SOURCE: dict[str, MadeBy] = {MCP: "claude", GC: "gc"}
 
 
@@ -116,12 +94,6 @@ def made_by_source(source: str) -> MadeBy:
     return _BY_SOURCE.get(source, "human")
 
 
-def _older_schema(error: sqlite3.OperationalError) -> bool:
-    """Whether an error is an older schema's: no such column (made_by, page_rev's
-    source: before migration 16) or table (topic: before migration 13)."""
-    return str(error).startswith(("no such column", "no such table"))
-
-
 def _one(conn: sqlite3.Connection, fragment: str, page_id: str) -> bool:
     row = conn.execute(
         f"SELECT {fragment.format(p='p')} FROM page p WHERE p.id = ?", (page_id,)
@@ -130,12 +102,9 @@ def _one(conn: sqlite3.Connection, fragment: str, page_id: str) -> bool:
 
 
 def is_topic(conn: sqlite3.Connection, page_id: str) -> bool:
-    """Whether a page is a topic (False before migration 13)."""
-    try:
-        sql = "SELECT 1 FROM topic WHERE page_id = ?"
-        return conn.execute(sql, (page_id,)).fetchone() is not None
-    except sqlite3.OperationalError:  # no such table: an older schema
-        return False
+    """Whether a page is a topic."""
+    sql = "SELECT 1 FROM topic WHERE page_id = ?"
+    return conn.execute(sql, (page_id,)).fetchone() is not None
 
 
 def by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
@@ -145,31 +114,14 @@ def by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
 
 def edited_by_claude(conn: sqlite3.Connection, page_id: str) -> bool:
     """Whether a page has a later text revision by Claude: MCP edits, or task boxes
-    Claude added (CLAUDE_EDITED). On an older schema, with no
-    page_rev.source, a revision by author claude (as before migration 16)."""
-    try:
-        return _one(conn, CLAUDE_EDITED, page_id)
-    except sqlite3.OperationalError as error:
-        if not _older_schema(error):
-            raise
-        old = CLAUDE_EDITED.replace("r.source = '" + MCP, "r.author = '" + CLAUDE)
-        return _one(conn, old, page_id)
+    Claude added (CLAUDE_EDITED)."""
+    return _one(conn, CLAUDE_EDITED, page_id)
 
 
 def made_by(conn: sqlite3.Connection, page_id: str) -> MadeBy:
-    """Who made a page: topic, gc, claude or human (page.made_by). On an older schema,
-    worked out as before migration 16 (INFERRED_MADE_BY; never topic before
-    migration 13)."""
-    sql = "SELECT {} FROM page p WHERE p.id = ?"
-    for fragment in (MADE_BY, INFERRED_MADE_BY):
-        try:
-            found = conn.execute(sql.format(fragment.format(p="p")), (page_id,))
-            return found.fetchone()[0]
-        except sqlite3.OperationalError as error:
-            if not _older_schema(error):
-                raise
-    fragment = "CASE " + _NOT_TOPIC
-    return conn.execute(sql.format(fragment.format(p="p")), (page_id,)).fetchone()[0]
+    """Who made a page: topic, gc, claude or human (page.made_by)."""
+    sql = f"SELECT {MADE_BY.format(p='p')} FROM page p WHERE p.id = ?"
+    return conn.execute(sql, (page_id,)).fetchone()[0]
 
 
 # ---- maintainer: enrich or photo ingest

@@ -187,6 +187,25 @@ def test_restore_refuses_a_bad_backup_without_touching_data(note, tmp_path):
     ]
 
 
+def test_restore_refuses_a_backup_below_the_baseline(note, tmp_path):
+    from scrap.__main__ import main
+
+    data, bak = tmp_path / "data", tmp_path / "bak"
+    note("Keep me")
+    main(["backup", "--data-dir", str(data), str(bak)])
+    before = _dump(data)
+    with Store(bak).connect() as conn:
+        conn.execute("PRAGMA user_version = 17")
+    for target in [data, tmp_path / "new"]:
+        with pytest.raises(SystemExit) as raised:
+            main(["restore", "--force", "--data-dir", str(target), str(bak)])
+        message = str(raised.value)
+        assert "schema 17" in message and "upgrade with scrap 0.16.x first" in message
+        assert str(bak) in message and "scrap.db.restore" not in message
+    assert _dump(data) == before
+    assert not (tmp_path / "new").exists()
+
+
 def test_restore_interrupted_leaves_nothing_behind(note, tmp_path, monkeypatch):
     from scrap import backup as backup_mod
     from scrap.__main__ import main

@@ -1,10 +1,8 @@
 """Todo richness (#104): a todo's due date and priority, in its page_todo row."""
 
-from contextlib import closing
-
 import pytest
 
-from scrap.store import Store, connect, migrations, new_ulid
+from scrap.store import Store, new_ulid
 
 
 def test_patch_sets_and_clears_due_and_priority(client, note):
@@ -108,39 +106,6 @@ def test_import_moves_due_and_priority_into_the_todo_row(tmp_path):
     assert odd["fields"] == {"due": "next week", "priority": "p1"}
     other = imported("note", due="2026-11-01", priority="high")  # not a todo's
     assert other["fields"] == {"due": "2026-11-01", "priority": "high"}
-
-
-def test_migration_5_moves_imported_fields_into_columns(tmp_path):
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        script = "".join(migrations()[:4])
-        conn.executescript(f"BEGIN; {script} PRAGMA user_version = 4; COMMIT;")
-        for id_, kind, fields in [
-            ("A", "todo", '{"status": "open", "due": "2026-11-01", "priority": "low"}'),
-            ("B", "todo", '{"due": "2026-13-01", "priority": "medium"}'),
-            ("C", "note", '{"due": "2026-11-01"}'),
-        ]:
-            conn.execute(
-                "INSERT INTO page (id, slug, title, kind, fields, created_at,"
-                " updated_at) VALUES (?, ?, 'T', ?, ?, 'x', 'x')",
-                (id_, id_.lower(), kind, fields),
-            )
-    Store(tmp_path).migrate()
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        rows = conn.execute(
-            "SELECT id, t.due, t.priority, fields FROM page LEFT JOIN page_todo t"
-            " ON t.page_id = id ORDER BY id"
-        )
-        assert [tuple(r) for r in rows] == [
-            ("A", "2026-11-01", "low", '{"status": "open"}'),
-            ("B", None, "medium", '{"due": "2026-13-01"}'),
-            ("C", None, None, '{"due": "2026-11-01"}'),
-        ]
-        with pytest.raises(Exception, match="CHECK"):  # the schema refuses bad ones
-            conn.execute("UPDATE page_todo SET due = '2026-02-30' WHERE page_id = 'A'")
-        with pytest.raises(Exception, match="CHECK"):
-            conn.execute("UPDATE page_todo SET priority = 'urgent' WHERE page_id = 'A'")
 
 
 def test_markdown_carries_due_and_priority_as_front_matter(client, note, tmp_path):

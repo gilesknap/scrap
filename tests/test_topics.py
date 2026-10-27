@@ -5,7 +5,6 @@ CLI."""
 
 import json
 import re
-import sqlite3
 import time
 from contextlib import closing
 from typing import Any
@@ -15,18 +14,14 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
-from old_schema import undo_0018
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
     Store,
     connect,
-    fixes,
-    migrations,
     model_summary,
     new_ulid,
     now,
-    roles,
     topics,
     writeups,
 )
@@ -159,45 +154,6 @@ def test_keys_and_areas():
     assert topics.area(pairs) == "epics"  # a page counts epics once
     assert topics.area([("a", "x"), ("b", "w")]) == "w"  # ties by name
     assert topics.area([]) is None
-
-
-def test_migration_13_on_a_v12_database_keeps_jobs_and_runs(store):
-    """A database as 0.7.x left it: no topic tables, no 'topic' reason."""
-    note(store, "a note")
-    run_all(store, Fake())
-    with closing(sqlite3.connect(store.db)) as conn:  # foreign keys off: as it was
-        undo_0018(conn)
-        conn.executescript(
-            "BEGIN; DROP TABLE topic_source; DROP TABLE topic; DROP TABLE topic_run;"
-            " CREATE TABLE old AS SELECT * FROM enrich_job; DROP TABLE enrich_job;"
-            + fixes.ENRICH_JOB.format(name="enrich_job").replace(", 'topic'", "")
-            + "; INSERT INTO enrich_job SELECT * FROM old; DROP TABLE old;"
-            + fixes.ENRICH_JOB_INDEXES
-            + " PRAGMA user_version = 12; COMMIT;"
-        )
-    with closing(connect(store.db)) as conn:  # an older schema reads as no topics
-        page_id = conn.execute("SELECT id FROM page").fetchone()[0]
-        assert topics.index(conn) == [] and topics.sources(conn, page_id) == []
-        assert not roles.is_topic(conn, page_id) and topics.of_page(conn, page_id) == []
-        assert ingest.spent_today(conn, now()) > 0  # no topic_run: enrich's only
-    before = jobs(store)
-    store.migrate()
-    assert jobs(store) == before
-    with closing(connect(store.db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        assert len(migrations()) >= 14
-        runs = [tuple(r) for r in conn.execute(
-            "SELECT r.job_id, j.reason FROM enrich_run r JOIN enrich_job j"
-            " ON j.id = r.job_id ORDER BY r.id")]  # fmt: skip
-        assert runs == [(1, "capture"), (2, "related")]
-        fixes.add_topics(conn)  # again: nothing to do
-        conn.execute("DELETE FROM enrich_job")
-        conn.execute(
-            "INSERT INTO enrich_job (page_id, reason, run_after, created_at,"
-            " updated_at) VALUES (?, 'topic', '', '', '')",
-            (page_id,),
-        )
-        assert topics.every(conn) == []
 
 
 # ---- discovery

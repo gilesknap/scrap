@@ -117,25 +117,11 @@ def test_made_by(store, pages):
     assert each(store, pages, lambda c, p: bool(sql(roles.BY_CLAUDE)(c, p))) == (
         claude_only
     )
-    # What migration 16 backfilled from agrees with what each page was made as
-    assert each(store, pages, sql(roles.INFERRED_MADE_BY)) == want
     assert each(store, pages, roles.is_topic) == {n: n == "topic" for n in NAMES}
     review = each(store, pages, lambda c, p: bool(sql(roles.REVIEW)(c, p)))
     assert review == {n: n == "review" for n in NAMES}
     # The page as the PWA reads it says it too (its Written by Claude badge)
     assert {n: store.page(pages[n])["made_by"] for n in NAMES} == want
-
-
-def test_is_topic_is_false_before_the_topic_table(store, pages):
-    with closing(connect(store.db)) as conn:  # nor made_by (migration 16)
-        conn.execute("DROP TRIGGER page_made_by_fixed")
-        conn.execute("ALTER TABLE page DROP COLUMN made_by")
-        conn.execute("DROP TABLE topic_source")
-        conn.execute("DROP TABLE topic")
-        assert not roles.is_topic(conn, pages["topic"])
-        assert roles.made_by(conn, pages["note"]) == "human"
-        assert roles.made_by(conn, pages["review"]) == "gc"
-        assert roles.made_by(conn, pages["topic"]) == "human"
 
 
 def test_edited_by_claude(store, pages):

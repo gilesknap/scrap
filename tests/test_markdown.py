@@ -1,13 +1,11 @@
 """markdown.py: page text parsed as Markdown, for the search index and the importer."""
 
 import time
-from contextlib import closing
 
 import pytest
 
 from scrap import markdown
 from scrap.markdown import Link, plain, rewrite
-from scrap.store import Store, connect, migrations
 
 
 def tagged(text: str) -> str:
@@ -150,22 +148,3 @@ def test_a_megabyte_page_is_indexed():
     start = time.monotonic()
     assert "a label" in plain(text)
     assert time.monotonic() - start < 30  # about 3 s on the canary
-
-
-def test_migration_4_reindexes_pages_with_the_parser(tmp_path):
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        script = "".join(migrations()[:3])
-        conn.executescript(f"BEGIN; {script} PRAGMA user_version = 3; COMMIT;")
-        conn.execute(
-            "INSERT INTO page (id, slug, title, body, fields, created_at, updated_at)"
-            " VALUES ('P', 'p', 'T', '| cell | `[[codeword]]` |\n|-|-|\n| x | y |',"
-            " '{}', 'x', 'x')"
-        )
-        conn.execute("INSERT INTO chunk (page_id, ord, text) VALUES ('P', 0, 'old')")
-    store = Store(tmp_path)
-    store.migrate()
-    assert [h["slug"] for h in store.search("codeword", 5)] == ["p"]
-    assert store.search("old", 5) == []
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())

@@ -1,12 +1,10 @@
 """Snooze: a todo hidden from what to do now until a day (migration 6)."""
 
-from contextlib import closing
 from datetime import date, timedelta
 
 import pytest
 
-from old_schema import undo_0018
-from scrap.store import Store, connect, migrations, todo_columns
+from scrap.store import Store, todo_columns
 from test_mcp import ok, write
 
 TODAY = date.today()
@@ -97,40 +95,6 @@ def test_export_and_import_carry_it_as_front_matter(client, note, tmp_path):
 def exported(tmp_path, main, slug):
     main(["export", "--data-dir", str(tmp_path / "data"), str(tmp_path / "md")])
     return (tmp_path / "md" / f"{slug}.md").read_text()
-
-
-def test_migration_6_is_additive_and_can_run_again(tmp_path):
-    """An older scrap runs with user_version set back to 5: migrating again later finds
-    the column there and keeps it (and what it holds)."""
-    Store(tmp_path).migrate()
-    db = tmp_path / "scrap.db"
-    with closing(connect(db)) as conn:
-        assert (
-            conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations()) >= 6
-        )
-        undo_0018(conn)  # migration 18 moves the columns: this is the schema before
-        conn.execute(
-            "INSERT INTO page (id, slug, title, kind, fields, created_at, updated_at,"
-            " snoozed_until) VALUES ('A', 'a', 'T', 'todo', '{}', 'x', 'x', ?)",
-            (LATER,),
-        )
-        with pytest.raises(Exception, match="CHECK"):
-            conn.execute("UPDATE page SET snoozed_until = '2026-02-30'")
-        # An older scrap's own writes name their columns: the new one is left alone
-        conn.execute(
-            "INSERT INTO page (id, slug, title, body, kind, kind_fixed, fields,"
-            " created_at, updated_at, due, priority)"
-            " VALUES ('B', 'b', 'T', '', 'todo', 1, '{}', 'x', 'x', NULL, 'low')"
-        )
-        conn.execute("PRAGMA user_version = 5")
-    Store(tmp_path).migrate()
-    with closing(connect(db)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == len(migrations())
-        rows = conn.execute(
-            "SELECT id, t.snoozed_until FROM page LEFT JOIN page_todo t"
-            " ON t.page_id = id ORDER BY id"
-        )
-        assert [tuple(r) for r in rows] == [("A", LATER), ("B", None)]
 
 
 def test_mcp_writes_and_shows_it_and_todos_leaves_it_out(store):

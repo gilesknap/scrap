@@ -15,27 +15,23 @@ from typing import Any
 from ..markdown import wiki_targets
 from ..public import public_origins
 from . import grouping
-from .fixes import (
-    add_enrich,
-    add_fields_was,
-    add_made_by,
-    add_meta_revs,
-    add_related_reason,
-    add_snooze,
-    add_tasks,
-    add_topics,
-    add_writeups,
-    collapse_kinds,
-    fix_tag_paths,
-    move_todo_fields,
+
+# The schema version of migrations/baseline.sql (generated, store/baseline.py): the
+# first schema this scrap opens. A fresh database is made from it; one older is refused
+# (#267). Numbered scripts after it are version BASELINE + 1, + 2, ... by merge order.
+BASELINE = 18
+BASELINE_SQL = "baseline.sql"
+OLDER = (
+    "{db} has schema {version}, older than the baseline this scrap starts from"
+    " ({baseline}): upgrade with scrap 0.16.x first (it migrates to schema 18), then"
+    " use 1.0"
 )
-from .indexing import index_all
-from .trash_revs import add_trash_revs
 
 
 def migrations() -> list[str]:
-    """The numbered migration scripts, in order: script N sets user_version N. The
-    generated baseline.sql (store/baseline.py) is not one: numbered names only."""
+    """The numbered migration scripts after the baseline, in order: script i (from 0)
+    sets user_version BASELINE + 1 + i, and its file name's number is that version.
+    Not the generated baseline.sql (store/baseline.py): numbered names only."""
     folder = package_files("scrap") / "migrations"
     scripts = sorted(
         (
@@ -46,6 +42,11 @@ def migrations() -> list[str]:
         key=str,
     )
     return [p.read_text() for p in scripts]
+
+
+def latest() -> int:
+    """The schema version this scrap writes: the baseline plus its later migrations."""
+    return BASELINE + len(migrations())
 
 
 log = logging.getLogger(__name__)
@@ -119,50 +120,48 @@ def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]
 
 
 def schema_version(db: Path) -> int:
-    """A database's schema version, refusing one newer than this code knows."""
+    """A database's schema version (0: an empty file, to be made). Refuses one older
+    than the baseline, or newer than this code knows."""
     conn = connect(db)
     try:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
     finally:
         conn.close()
-    if version > len(migrations()):
-        raise RuntimeError(
-            f"{db} has schema {version}; this scrap knows {len(migrations())}"
-        )
+    if 0 < version < BASELINE:
+        raise RuntimeError(OLDER.format(db=db, version=version, baseline=BASELINE))
+    if version > latest():
+        raise RuntimeError(f"{db} has schema {version}; this scrap knows {latest()}")
     return version
 
 
 def migrate(db: Path) -> None:
-    """Apply the missing migrations, one process at a time (flock on db.lock). A
-    migration's Python step (AFTER) runs in its transaction, after its script."""
+    """Make a database current, one process at a time (flock on db.lock): an empty one
+    from the baseline, then the migrations after its version. A database older than
+    the baseline is refused (schema_version)."""
     with open(f"{db}.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         version = schema_version(db)
         with closing(connect(db)) as conn:
             conn.execute("PRAGMA journal_mode = WAL")
-            for n, sql in enumerate(migrations()[version:], start=version + 1):
-                try:
-                    conn.executescript(f"BEGIN IMMEDIATE;\n{sql}")
-                    if n in AFTER:
-                        AFTER[n](conn)
-                    conn.execute(f"PRAGMA user_version = {n}")
-                    conn.execute("COMMIT")
-                except BaseException:
-                    if conn.in_transaction:
-                        conn.execute("ROLLBACK")
-                    raise
+            if version == 0:
+                create_baseline(conn)
+                version = BASELINE
+            for n, sql in enumerate(migrations()[version - BASELINE :], version + 1):
+                _run(conn, f"{sql}\nPRAGMA user_version = {n};")
 
 
-AFTER = {
-    3: index_all, 4: index_all, 5: move_todo_fields, 6: add_snooze, 7: add_tasks,
-    8: add_meta_revs,
-    9: add_enrich,
-    10: fix_tag_paths,
-    11: add_related_reason,
-    12: add_writeups,
-    13: add_topics,
-    14: collapse_kinds,
-    15: add_fields_was,
-    16: add_made_by,
-    17: add_trash_revs,
-}  # fmt: skip
+def create_baseline(conn: sqlite3.Connection) -> None:
+    """The baseline, in one transaction, into a database with no tables."""
+    if conn.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone():
+        raise RuntimeError("a database with tables but no schema version")
+    script = (package_files("scrap") / "migrations" / BASELINE_SQL).read_text()
+    _run(conn, f"{script}\nPRAGMA user_version = {BASELINE};")
+
+
+def _run(conn: sqlite3.Connection, script: str) -> None:
+    try:
+        conn.executescript(f"BEGIN IMMEDIATE;\n{script}\nCOMMIT;")
+    except BaseException:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise

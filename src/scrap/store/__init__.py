@@ -23,7 +23,15 @@ from .constants import (
     WIKI_LINK,
     BlobRef,
 )
-from .db import connect, migrate, migrations, schema_version, transaction
+from .db import (
+    BASELINE,
+    connect,
+    latest,
+    migrate,
+    migrations,
+    schema_version,
+    transaction,
+)
 from .errors import (
     ConflictError,
     InvalidError,
@@ -32,7 +40,6 @@ from .errors import (
     NotFoundError,
     TooLargeError,
 )
-from .fixes import fix_tag_paths
 from .helpers import (
     body_refs,
     check_todo,
@@ -107,6 +114,8 @@ __all__ = [
     "migrate",
     "migrations",
     "schema_version",
+    "BASELINE",
+    "latest",
     "enrich_on",
     "model_summary",
     "queue_enrich",
@@ -119,6 +128,5 @@ __all__ = [
     "topics",
     "health",
     "roles",
-    "fix_tag_paths",
     "Store",
 ]

@@ -1,34 +1,33 @@
-"""migrations/baseline.sql builds the same database as the whole migration chain, and
-matches the frozen snapshot (#267). Kept in CI permanently: a migration PR that
-doesn't regenerate the baseline fails here (see scrap.store.baseline)."""
+"""migrations/baseline.sql builds the frozen schema, and the baseline plus the later
+migrations is the frozen head (#267, ADR 0037). Kept in CI permanently: a migration PR
+that does not refreeze fails here (see scrap.store.baseline)."""
 
 import json
-import re
 import sqlite3
 from contextlib import closing
 
 from scrap.store import baseline
 from scrap.store.baseline import BASELINE_FILE, SNAPSHOT_FILE, structure
-from scrap.store.db import connect, migrate, migrations
+from scrap.store.db import BASELINE, connect, latest, migrate, migrations
 
-REGEN = "regenerate with: uv run python -m scrap.store.baseline && ... --snapshot"
+REGEN = "review the schema diff, then: uv run python -m scrap.store.baseline --snapshot"
 
 
-def chain_db(tmp_path):
-    db = tmp_path / "chain.db"
+def head_db(tmp_path):
+    """A store made by the real code: the baseline, then every migration after it."""
+    db = tmp_path / "head.db"
     migrate(db)
     return db
 
 
-def baseline_db(tmp_path, sql=None, version=None, name="base"):
+def baseline_db(tmp_path, sql=None, name="base"):
+    """The baseline script alone (or an edited copy), at the baseline's version."""
     db = tmp_path / f"{name}.db"
     with closing(connect(db)) as conn:
         conn.executescript(
             "BEGIN;\n" + (sql or BASELINE_FILE.read_text()) + "\nCOMMIT;"
         )
-        header = re.search(r"version (\d+)", BASELINE_FILE.read_text())
-        assert header
-        conn.execute(f"PRAGMA user_version = {version or int(header[1])}")
+        conn.execute(f"PRAGMA user_version = {BASELINE}")
     return db
 
 
@@ -39,20 +38,29 @@ def struct(db):
 
 def test_baseline_file_is_what_the_generator_writes():
     assert BASELINE_FILE.read_text() == baseline.generate(), REGEN
+    assert f"version {BASELINE}." in BASELINE_FILE.read_text().splitlines()[0]
 
 
-def test_baseline_matches_the_chain(tmp_path):
-    chain, base = struct(chain_db(tmp_path)), struct(baseline_db(tmp_path))
-    assert chain["user_version"] == base["user_version"] == len(migrations()), REGEN
-    assert chain["rows"] == base["rows"]
-    assert chain["rows"]["queue_state"], "the queue_state seed row"
-    for key in ("objects", "tables", "indexes"):
-        assert chain[key] == base[key], (key, REGEN)
-
-
-def test_baseline_matches_the_frozen_snapshot(tmp_path):
+def test_a_store_made_from_the_baseline_is_the_frozen_snapshot(tmp_path):
     frozen = json.loads(SNAPSHOT_FILE.read_text())
+    assert frozen["user_version"] == BASELINE
+    assert frozen["rows"]["queue_state"], "the queue_state seed row"
     assert struct(baseline_db(tmp_path)) == frozen, REGEN
+
+
+def test_baseline_plus_later_migrations_is_the_frozen_head(tmp_path):
+    """A migration added without reviewing its schema diff and refreezing fails here."""
+    frozen = json.loads(SNAPSHOT_FILE.parent.joinpath("schema_head.json").read_text())
+    assert frozen["user_version"] == latest()
+    assert struct(head_db(tmp_path)) == frozen, REGEN
+
+
+def test_the_runner_makes_the_same_database_as_the_baseline_script(tmp_path):
+    made, script = struct(head_db(tmp_path)), struct(baseline_db(tmp_path))
+    if not migrations():
+        assert made == script
+    else:  # later migrations only add to the baseline's version
+        assert made["user_version"] == latest() > script["user_version"]
 
 
 def test_the_comparison_sees_one_column_of_drift(tmp_path):
@@ -60,7 +68,7 @@ def test_the_comparison_sees_one_column_of_drift(tmp_path):
     sql = BASELINE_FILE.read_text()
     drifted = sql.replace("size        INTEGER NOT NULL,", "size        INTEGER,", 1)
     assert drifted != sql
-    base, chain = struct(baseline_db(tmp_path, drifted)), struct(chain_db(tmp_path))
+    base, chain = struct(baseline_db(tmp_path, drifted)), struct(head_db(tmp_path))
     assert base["objects"] != chain["objects"]
     assert base["tables"] != chain["tables"]
     extra = sql.replace(
