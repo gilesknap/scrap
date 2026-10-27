@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap &#8212; scrap 0.15.1.dev2+g5d89b1bd4 documentation</title>
+    <title>scrap &#8212; scrap 0.15.1.dev3+gf2afcc024 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="_static/documentation_options.js?v=c8c1381d"></script>
+    <script src="_static/documentation_options.js?v=00917d23"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -435,7 +435,7 @@
                   
   <section id="scrap">
 <h1>scrap<a class="headerlink" href="#scrap" title="Link to this heading">#</a></h1>
-<p>scrap is a memory system for Claude Code: a self-hosted store that Claude searches, reads and writes over MCP (and the <code class="docutils literal notranslate"><span class="pre">/sc-*</span></code> skills). Capture from your phone in seconds, never waiting on an LLM, then see it all in a PWA: photos, Excalidraw diagrams and rendered markdown. It follows the <a class="reference external" href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">LLM Wiki</a> pattern, and <strong>your words and Claude’s never mix</strong>: page text is yours, and everything Claude adds is stored apart, labelled and regenerable.</p>
+<p>scrap is a memory system for Claude Code: a self-hosted store that Claude searches, reads and writes over MCP (and the <code class="docutils literal notranslate"><span class="pre">/sc-*</span></code> commands). Capture from your phone in seconds, never waiting on an LLM, then see it all in a PWA: photos, Excalidraw diagrams and rendered markdown. It follows the <a class="reference external" href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">LLM Wiki</a> pattern, and <strong>your words and Claude’s never mix</strong>: page text is yours, and everything Claude adds is stored apart, labelled and regenerable.</p>
 <p><strong>Status:</strong> in daily use, and deployed on Kubernetes.</p>
 <section id="goals">
 <h2>Goals<a class="headerlink" href="#goals" title="Link to this heading">#</a></h2>
@@ -499,11 +499,12 @@ worker sends photos to the Claude Messages API for their text, a description, a 
 Excalidraw redrawing, and tags, summarises and links text pages. It is off by default, it costs
 money, and a daily budget (<code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, default 3) pauses the queue when it is spent.
 See <a class="reference internal" href="explanations/ingest.html"><span class="std std-doc">Claude ingest</span></a> and the <a class="reference internal" href="reference/api.html"><span class="std std-doc">settings</span></a>.</p></li>
-<li><p><strong>Claude over MCP.</strong> A Claude Code session can search, read, write and retag pages, and undo
-metadata changes: see <a class="reference internal" href="how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a> and <a class="reference internal" href="reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p></li>
+<li><p><strong>Claude over MCP.</strong> A Claude Code session can search, read, write, edit, retag and trash pages
+and redraw a drawing, and undo each change: see <a class="reference internal" href="how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a> and <a class="reference internal" href="reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p></li>
 <li><p><strong>Your data stays yours.</strong> The store is one SQLite database and a folder of files. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code>
 and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> copy it, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> writes Markdown, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> brings in a Thoth
-vault and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> finds files nothing uses.</p></li>
+vault, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> finds files nothing uses and purges the trash (after 30 days by default), and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">shrink</span></code>
+makes old photos smaller.</p></li>
 </ul>
 <p>Search is full-text only (SQLite FTS5); semantic search was deferred, see
 <a class="reference internal" href="explanations/decisions/0008-search-fts5-only-for-now.html"><span class="std std-doc">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</span></a>. scrap has no login code of its own:

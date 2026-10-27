@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server and access &#8212; scrap 0.15.1.dev2+g5d89b1bd4 documentation</title>
+    <title>MCP server and access &#8212; scrap 0.15.1.dev3+gf2afcc024 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=c8c1381d"></script>
+    <script src="../../_static/documentation_options.js?v=00917d23"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1049,8 +1049,9 @@ arguments, limits and result shapes are in
         edit_meta
         rename_tag
     end
-    subgraph text[&quot;Page text&quot;]
+    subgraph text[&quot;Page text and drawings&quot;]
         edit_page
+        edit_drawing
     end
     subgraph hist[&quot;Revisions and trash&quot;]
         revisions
@@ -1069,7 +1070,7 @@ arguments, limits and result shapes are in
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef claude fill:#fff3e0,stroke:#e08a00
     class R,T store
-    class edit_page,trash_pages,undelete claude
+    class edit_page,edit_drawing,trash_pages,undelete claude
     </pre><p>Tools in orange are listed only while <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT</span></code> is on (default). <code class="docutils literal notranslate"><span class="pre">revert</span></code> with
 <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> also needs it; metadata revert does not.</p>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -1092,9 +1093,9 @@ arguments, limits and result shapes are in
 <td><p><code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code></p></td>
 <td><p>any page; bulk changes record a batch id; <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first (<a class="reference internal" href="../decisions/0019-kinds-and-tags-editable-with-revisions.html"><span class="std std-doc">ADR 0019</span></a>)</p></td>
 </tr>
-<tr class="row-odd"><td><p>Text</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code></p></td>
-<td><p>one passage found exactly once, or the whole body given its current <code class="docutils literal notranslate"><span class="pre">rev</span></code> (<a class="reference internal" href="../decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">ADR 0022</span></a>)</p></td>
+<tr class="row-odd"><td><p>Text and drawings</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code>: one passage found exactly once, or the whole body given its current <code class="docutils literal notranslate"><span class="pre">rev</span></code> (<a class="reference internal" href="../decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">ADR 0022</span></a>); <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>: a new current version of an image’s drawing, given the <code class="docutils literal notranslate"><span class="pre">base_version</span></code> read (<a class="reference internal" href="../../reference/mcp.html"><span class="std std-doc">MCP server</span></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>History</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">revert</span></code></p></td>

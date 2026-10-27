@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Job queue and Claude features &#8212; scrap 0.15.1.dev2+g5d89b1bd4 documentation</title>
+    <title>Job queue and Claude features &#8212; scrap 0.15.1.dev3+gf2afcc024 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=c8c1381d"></script>
+    <script src="../../_static/documentation_options.js?v=00917d23"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1001,7 +1001,8 @@ and each save moves it later, so a burst of edits is one call. A saved link runs
 <li><p><strong>Chaining.</strong> When a photo is read or goes dead, <code class="docutils literal notranslate"><span class="pre">queue_after_read</span></code> queues the board’s write-up
 or the page’s first related call. After a write-up (done or dead) the first related call follows,
 so it sees the write-up.</p></li>
-<li><p><strong>Jobs are per page or per photo, and never for a trashed page.</strong></p></li>
+<li><p><strong>Jobs are per page or per photo, and never for a trashed page or the Pinned page</strong>
+(<a class="reference internal" href="../decisions/0032-pins-are-a-page-of-links.html"><span class="std std-doc">32. Pins are an ordinary page of links</span></a>).</p></li>
 </ul>
 </section>
 <section id="job-lifecycle-pause-instead-of-fail">
@@ -1096,7 +1097,7 @@ the human’s.</p>
 <ul class="simple">
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">derived</span></code></strong> (per capture, photo and kind): immutable rows with <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">producer</span></code> (the model
 id, or <code class="docutils literal notranslate"><span class="pre">human</span></code>) and <code class="docutils literal notranslate"><span class="pre">superseded_at</span></code>. A new current version supersedes the last by trigger. Kinds
-are <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">fetched</span></code> and <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code>.</p></li>
+are <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">fetched</span></code> and <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code>. A PDF’s or text file’s text is also an <code class="docutils literal notranslate"><span class="pre">ocr</span></code> version, read by scrap itself with no model run (<a class="reference internal" href="../decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>).</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">writeup</span></code></strong> (per page, for boards and topics): versions with <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, the owner’s
 <code class="docutils literal notranslate"><span class="pre">guidance</span></code> and <code class="docutils literal notranslate"><span class="pre">restored_from</span></code>. <em>Regenerate</em> inserts a new version; <em>Restore</em> copies an old one.
 Nobody edits a write-up.</p></li>

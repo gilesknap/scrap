@@ -143,7 +143,7 @@ the capture's text).
   old; to remove them by hand, run `scrap gc --delete` after a backup (see {ref}`scrap-gc`).
 - A page you import and then trash in scrap keeps its images while it is in the trash: `gc`
   counts the text of trashed pages as in use, so that the page can be brought back. After
-  30 days in the trash it is purged with them ({ref}`the-trash`).
+  `SCRAP_TRASH_DAYS` days in the trash (30 by default) it is purged with them ({ref}`the-trash`).
 - The vault must be readable by the user (or container uid) that runs `scrap import`.
 
 (import-claude)=

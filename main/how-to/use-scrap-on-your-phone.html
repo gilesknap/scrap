@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Use scrap on your phone over Tailscale &#8212; scrap 0.15.1.dev2+g5d89b1bd4 documentation</title>
+    <title>Use scrap on your phone over Tailscale &#8212; scrap 0.15.1.dev3+gf2afcc024 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c8c1381d"></script>
+    <script src="../_static/documentation_options.js?v=00917d23"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -522,6 +522,11 @@ kept in your shell history):</p>
 <span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">ts</span> <span class="n">tailscale</span> <span class="n">serve</span> <span class="n">status</span>
 </pre></div>
 </div>
+<p>scrap refuses a request whose <code class="docutils literal notranslate"><span class="pre">Host</span></code> is a name it does not know (<code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>), so
+tell it its address. Stop the container from “Try it” and run it again with
+<code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">SCRAP_PUBLIC_URL=https://scrap.&lt;tailnet&gt;.ts.net</span></code> added (use the address <code class="docutils literal notranslate"><span class="pre">serve</span> <span class="pre">status</span></code>
+prints; the <code class="docutils literal notranslate"><span class="pre">scrap-data</span></code> volume keeps your pages). See <a class="reference internal" href="../tutorials/install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a> for the
+full command.</p>
 <p>Open the address it prints, <code class="docutils literal notranslate"><span class="pre">https://scrap.&lt;tailnet&gt;.ts.net</span></code>, in your phone’s browser and choose
 <em>Add to Home screen</em> or <em>Install app</em>. The first visit can take a minute while the certificate is
 issued. If a device called <code class="docutils literal notranslate"><span class="pre">scrap</span></code> already exists, the new one is <code class="docutils literal notranslate"><span class="pre">scrap-1</span></code>; use the address

@@ -29,6 +29,12 @@ podman exec scrap-ts tailscale serve --bg --https=443 http://127.0.0.1:8000
 podman exec scrap-ts tailscale serve status
 ```
 
+scrap refuses a request whose `Host` is a name it does not know (`421 Invalid Host header`), so
+tell it its address. Stop the container from "Try it" and run it again with
+`-e SCRAP_PUBLIC_URL=https://scrap.<tailnet>.ts.net` added (use the address `serve status`
+prints; the `scrap-data` volume keeps your pages). See [](../tutorials/install-lan.md) for the
+full command.
+
 Open the address it prints, `https://scrap.<tailnet>.ts.net`, in your phone's browser and choose
 *Add to Home screen* or *Install app*. The first visit can take a minute while the certificate is
 issued. If a device called `scrap` already exists, the new one is `scrap-1`; use the address

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 0.15.1.dev2+g5d89b1bd4 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 0.15.1.dev3+gf2afcc024 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=c8c1381d"></script>
+    <script src="../_static/documentation_options.js?v=00917d23"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -926,8 +926,9 @@ takes it out again.</p>
 pages and the todos), <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__tags</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__topics</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__write</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__rename_tag</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revert</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revert</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_page</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash_pages</span></code> and
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
 returns.</p>
 <p>Try it: ask “get my recent photos”. Search results say which pages hold images (<code class="docutils literal notranslate"><span class="pre">image_count</span></code>,
 and the first image’s kind, description and thumbnail URL), and <code class="docutils literal notranslate"><span class="pre">has:image</span></code> or <code class="docutils literal notranslate"><span class="pre">image:photo</span></code>
@@ -1074,7 +1075,8 @@ post twice. The command tells Claude to leave out secrets, credentials and priva
 appends to an earlier page only if that page was written by Claude (<code class="docutils literal notranslate"><span class="pre">written_by_claude</span></code> in
 <code class="docutils literal notranslate"><span class="pre">read</span></code>); otherwise it links to your page.</p>
 <p>Pages written this way carry a <em>Written by Claude</em> badge and the origin the session gave;
-<code class="docutils literal notranslate"><span class="pre">is:claude</span></code> lists them. Claude never deletes a page. It can change any page’s kind and tags
+<code class="docutils literal notranslate"><span class="pre">is:claude</span></code> lists them. Claude never deletes a page for good: it can move pages you name to the trash
+(<code class="docutils literal notranslate"><span class="pre">trash_pages</span></code>, undone with <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), and the nightly gc purges them after <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code> days. It can change any page’s kind and tags
 (“make these 15 notes whiteboards”, with <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>); each such change is a revision you can
 ask it to list (<code class="docutils literal notranslate"><span class="pre">revisions</span></code>) and undo (<code class="docutils literal notranslate"><span class="pre">revert</span></code>). It can also edit the text of a page you name
 (“fix the typo in my trip notes”, with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>): it replaces one passage it quotes exactly,
@@ -1109,7 +1111,7 @@ hook described in <a class="reference internal" href="auto-summary-on-compact.ht
 might allow the read tools (<code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>) and let
 <code class="docutils literal notranslate"><span class="pre">write</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and the rest keep asking.</p>
 <p>To keep Claude off the text of your pages, set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code> on the server
-(<code class="docutils literal notranslate"><span class="pre">edit_page</span></code> is then not offered, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> refuses <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>), or deny <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> in one
+(<code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code> are then not offered, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> refuses <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>), or deny <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> in one
 client’s settings: <code class="docutils literal notranslate"><span class="pre">&quot;permissions&quot;:</span> <span class="pre">{&quot;deny&quot;:</span> <span class="pre">[&quot;mcp__scrap__edit_page&quot;]}</span></code>. A client
 setting cannot deny only the text mode of <code class="docutils literal notranslate"><span class="pre">revert</span></code>, which also undoes kinds and tags.</p>
 <p>scrap has no login: any device on the tailnet that can reach the port can use <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, so

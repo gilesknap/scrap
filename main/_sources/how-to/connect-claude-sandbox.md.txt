@@ -27,6 +27,6 @@ scrap running on the host, such as the one from "Try it" in the README on port 8
 For a scrap on another machine, use `allow-ip = <that machine's IP address>` in
 `~/.config/claude-sandbox.conf` instead of `local-port` (an IP address, not a hostname), then:
 
-1. On that machine, add `http://<IP address>:8000` to `SCRAP_PUBLIC_URL` and restart scrap.
+1. On that machine, make scrap listen beyond loopback (`--host 0.0.0.0`, as in [](../tutorials/install-lan.md)). An IP address is always accepted as a `Host`; to have page links in Claude's replies use it, also add `http://<IP address>:8000` to `SCRAP_PUBLIC_URL` and restart scrap.
 2. Run `claude-sandbox --recreate`.
 3. Add scrap with `http://<IP address>:8000/mcp`.

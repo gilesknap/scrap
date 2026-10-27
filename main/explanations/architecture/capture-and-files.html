@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture, files and import &#8212; scrap 0.15.1.dev2+g5d89b1bd4 documentation</title>
+    <title>Capture, files and import &#8212; scrap 0.15.1.dev3+gf2afcc024 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=c8c1381d"></script>
+    <script src="../../_static/documentation_options.js?v=00917d23"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1161,7 +1161,7 @@ up.</p></li>
 <ul class="simple">
 <li><p>A capture is saved with no LLM call and no network beyond the upload itself.</p></li>
 <li><p>A capture id is a client-minted ULID: sending twice stores once.</p></li>
-<li><p>Originals (blobs and captures) are never changed, and are purged only with their page after N
+<li><p>Originals (blobs and captures) are never changed (but by <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">shrink</span></code>, on request), and are purged only with their page after N
 days in the trash (or, for an orphan, with the review page that showed it); everything else is
 derived.</p></li>
 <li><p>A blob is deleted only when no page text, capture, derived row, job or model run refers to it,

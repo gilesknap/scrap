@@ -74,7 +74,8 @@ How the jobs are chosen and ordered:
 - **Chaining.** When a photo is read or goes dead, `queue_after_read` queues the board's write-up
   or the page's first related call. After a write-up (done or dead) the first related call follows,
   so it sees the write-up.
-- **Jobs are per page or per photo, and never for a trashed page.**
+- **Jobs are per page or per photo, and never for a trashed page or the Pinned page**
+  ([](../decisions/0032-pins-are-a-page-of-links.md)).
 
 ## Job lifecycle: pause instead of fail
 
@@ -151,7 +152,7 @@ the human's.
 
 - **`derived`** (per capture, photo and kind): immutable rows with `version`, `producer` (the model
   id, or `human`) and `superseded_at`. A new current version supersedes the last by trigger. Kinds
-  are `ocr`, `description`, `summary`, `fetched` and `excalidraw`.
+  are `ocr`, `description`, `summary`, `fetched` and `excalidraw`. A PDF's or text file's text is also an `ocr` version, read by scrap itself with no model run ([](../decisions/0035-files-are-read-locally-for-search.md)).
 - **`writeup`** (per page, for boards and topics): versions with `prompt_version`, the owner's
   `guidance` and `restored_from`. *Regenerate* inserts a new version; *Restore* copies an old one.
   Nobody edits a write-up.

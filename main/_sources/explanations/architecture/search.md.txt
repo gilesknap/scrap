@@ -55,7 +55,7 @@ the tool arguments are in [](../../reference/mcp.md); the user's view is in
 | `tag:T` | A tag with `T` as whole `/` segments: `tag:a` and `tag:b` both find `a/b`. `tag:/` matches nothing ([](../decisions/0019-kinds-and-tags-editable-with-revisions.md)) |
 | `is:S` | Any status (`is:done`, `is:in_progress`; `_` for spaces) |
 | `is:personal`, `is:work` | `personal` field true / not true |
-| `is:claude`, `is:claude-edited` | Written over MCP; text changed over MCP after the first revision |
+| `is:claude`, `is:claude-edited` | Pages whose `made_by` is `claude` (written over MCP); text changed over MCP after the first revision |
 | `is:topic` | Claude's topic pages |
 | `is:snoozed` | An open todo snoozed past today |
 | `has:image`, `has:drawing` | An image capture; a current drawing. Other `has:` values match nothing |
@@ -64,6 +64,8 @@ the tool arguments are in [](../../reference/mcp.md); the user's view is in
 | `due:D` | A todo's due day. `D` is a date, `today`, `tomorrow`, `yesterday`, optionally after `<`, `<=`, `>`, `>=`, `=`; `due:none` has no due date. `due:<today` is overdue |
 | `priority:P` | `high`, `medium`, `low`, or `none`. `urgent` means `high`. Two mean either |
 | `sort:K` | Order, not a condition: `updated`, `created` (newest first), `title` (A to Z), `due` (soonest), `priority` (high first). `-sort:K` reverses; the last valid one wins. Pages with no due or priority come last |
+| `media:M`, `later:S` | A Later page's medium (`book`, `article`, `film`, `tv`, `video`, `podcast`, `music`, `game`) or what it is for (`read`, `watch`, `listen`, `play`) |
+| `group:G` | Not a condition: puts results in sections (`letter`, `tag`, `type`, `now`, `due`, `area`) on the server, so paging never splits one ([](../decisions/0031-search-orders-by-section-on-the-server.md)). Pins are saved searches and pages kept on the `pinned` page ([](../decisions/0032-pins-are-a-page-of-links.md)) |
 | Health checks | `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`, `is:outdated` (below) |
 
 "Today" is the server's local day, so set `TZ` (default UTC in the image) for `due:today` and
