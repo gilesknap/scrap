@@ -8,7 +8,7 @@
 // page has any of it.
 import { ApiError, api, kept, type Page } from "./api";
 import { icon, kindIcon } from "./icons";
-import { sourcesFold, topicsLine } from "./topic";
+import { sourcesFold, topicsList } from "./topic";
 import { h, toast } from "./ui";
 import type { writeupParts } from "./writeup";
 
@@ -73,7 +73,7 @@ export function enrichPanel(
 ): HTMLElement | null {
   const e = p.enrich;
   const related = relatedOf(p);
-  const topics = topicsLine(p); // a source's topics
+  const topics = topicsList(p); // a source's topics, as Related's list
   const sources = sourcesFold(p, show); // a topic's sources
   if (!wp && !e?.on && !e?.summary && !related.length && !topics && !sources) return null;
   const read = !!e?.summary || e?.state === "done";
@@ -135,13 +135,6 @@ export function enrichPanel(
     (e?.state !== "paused" && wp?.said && [wp.said, wp.state]) || (said && [said, state]);
   const summary = wp?.lead || e?.summary;
   const action = resume || ask || (!e?.on && wp?.action) || "";
-  // Only a source's topics to say, and nothing to do: the line alone, not a card for one line
-  if (topics && !wp && !summary && !related.length && !sources && !pill && !action)
-    return h(
-      "section",
-      { className: "enrich topicsonly", "aria-label": "About this page" },
-      topics,
-    );
   return h(
     "section",
     { className: "enrich claude", "aria-label": "About this page" },
@@ -160,15 +153,15 @@ export function enrichPanel(
       : !busy && e?.on && !read && !failed
         ? h("p", { className: "did" }, ASK)
         : "",
-    // The topics it is a source of, as a line: "Topics: ibek · RTEMS IOCs". Then its parts as
-    // folds: Summary, In detail (a board's write-up or a topic's synthesis, or its guidance
-    // before there is one), a topic's Sources and Related
-    topics,
+    // Its parts as folds: Summary, In detail (a board's write-up or a topic's synthesis, or its
+    // guidance before there is one), the topics it is a source of, a topic's Sources, Related
     !wp && read && !summary && !related.length && !topics
       ? h("p", { className: "did" }, "Claude found nothing to add.")
       : "",
     summary ? fold("Summary", h("p", { className: "summary", dir: "auto" }, summary)) : "",
     wp?.detail ?? wp?.guidance ?? "",
+    // Topics: the pages it belongs to, a list as Related is (the two lists side by side)
+    topics && Object.assign(fold("Topics", topics), { className: "claude-text related topics" }),
     sources,
     related.length > 0 &&
       Object.assign(

@@ -1,10 +1,6 @@
-/* Claude's topic pages (topic.ts), in the page's one Claude card, About this page: a source's
-   line naming its topics, and a topic's Sources, a fold with a ✕ (or Put back) per source. */
-.enrich .topicsline {
-  margin: 0 0 var(--s-2);
-  color: var(--ink-2);
-  overflow-wrap: anywhere;
-}
+/* Claude's topic pages (topic.ts), in the page's one Claude card, About this page: a topic's
+   Sources, a fold with a ✕ (or Put back) per source. (A source's Topics fold is drawn as
+   Related is: .related.topics.) */
 .enrich .sources ul {
   margin: 0 0 var(--s-2);
   padding: 0;

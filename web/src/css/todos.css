@@ -274,13 +274,8 @@
 }
 /* Claude's links (a source's Topics, a topic's Sources, Related): the app's links (base.css),
    regular, each a 48 px target */
-.enrich :is(.topicsline, .sources, .related) a {
+.enrich :is(.sources, .related) a {
   padding-block: 15px; /* inline: its target 48 px high, the line's box unchanged */
-}
-/* Only a source's topics to say: the line alone, no card */
-.enrich.topicsonly {
-  padding: 0;
-  background: none;
 }
 /* A section's heading that goes to its search (a Type: later:watch) reads as the heading
    still: no colour or underline, only the press */
