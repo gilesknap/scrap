@@ -75,17 +75,17 @@
 .dates {
   margin-bottom: calc(var(--s-1) - 4px);
 }
-:is(.meta, .dates) > .row {
+:is(.meta, .dates) > .parts {
   display: flex;
   flex-wrap: wrap;
   margin-inline-start: -1.5em;
 }
-.row > * {
+.parts > * {
   position: relative;
   margin-inline-start: 1.5em;
   white-space: nowrap;
 }
-.row > * + *::before {
+.parts > * + *::before {
   content: "·";
   position: absolute;
   inset-inline-start: -1.5em;
@@ -93,11 +93,11 @@
   text-align: center;
 }
 /* The kind word leads: semibold ink, the rest quiet */
-.row > .kind {
+.parts > .kind {
   color: var(--ink);
   font-weight: 600;
 }
-.row > .kind .i {
+.parts > .kind .i {
   width: 16px;
   height: 16px;
   margin-inline-end: var(--s-1);

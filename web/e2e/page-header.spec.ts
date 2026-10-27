@@ -45,7 +45,7 @@ async function make(
 
 /** The parts of a header line, as typed (its dots are drawn by CSS). */
 const parts = async (page: Page, line: string) => {
-  const row = page.locator(`.page > ${line} .row > *`);
+  const row = page.locator(`.page > ${line} .parts > *`);
   await row.first().waitFor();
   return row.allInnerTexts();
 };
@@ -101,17 +101,15 @@ test("a Later reads Kind · medium · verb, and its status once it is not open",
 });
 
 test("the due chip is first and opens the due editor, focus back after", async ({ page }) => {
-  const t = await make(page, `Header due ${word()}`, "todo", { due: day(3), priority: "high" }, {});
+  const t = await make(page, `Header due ${word()}`, "todo", { due: day(3), priority: "high" });
   await page.request.patch(`/api/pages/${t.page_id}`, { data: { tags: ["hdrcar"] } });
   await page.goto(`/p/${t.slug}`);
   const row = page.locator(".page .tags");
-  const buttons = row.locator("> :is(a, button, span)");
   await expect(row.locator(":scope > *").first()).toHaveClass(/duechip/);
   const chip = row.locator(".duechip");
   await expect(chip).toHaveText(/^.+ · high$/);
   const box = await chip.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(47); // a 48 px target
-  await expect(buttons.first()).toBeVisible();
   await chip.click();
   await expect(page.locator(".todoedit")).toBeVisible();
   await expect(chip).toHaveCount(0); // in its place
@@ -163,6 +161,19 @@ test("a tag opens its search; + opens the tag editor and gives focus back", asyn
   await expect(page.locator(".page .tags .add")).toBeFocused();
 });
 
+test("the tag editor's and the write-up's .row are not the header's parts", async ({ page }) => {
+  const t = await make(page, `Header rows ${word()}`, "note", { tags: ["car"] });
+  await page.goto(`/p/${t.slug}`);
+  await page.locator(".page .tags .add").click();
+  const save = page.locator(".tagform .row > *").last();
+  await expect(save).toBeVisible();
+  const style = await save.evaluate((e) => {
+    const cs = getComputedStyle(e, "::before");
+    return [cs.content, getComputedStyle(e).marginInlineStart];
+  });
+  expect(style).toEqual(["none", "0px"]);
+});
+
 test("the due chip stays while tags are edited; closing the due editor keeps focus", async ({
   page,
 }) => {
@@ -173,7 +184,7 @@ test("the due chip stays while tags are edited; closing the due editor keeps foc
   await expect(page.locator(".page .tags .duechip")).toBeVisible(); // not swept away
   await page.keyboard.press("Escape");
   await expect(page.locator(".page .tags .add")).toBeFocused();
-  // Cleared of date and priority, then cancelled: the chip is "Add due date", focus on it
+  // The due editor, cancelled: focus is back on its chip
   await page.locator(".page .tags .duechip").click();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".page .tags .duechip")).toBeFocused();
@@ -196,7 +207,7 @@ const lines = (page: Page, sel: string) =>
     const box = p.getBoundingClientRect();
     const pad = Number.parseFloat(getComputedStyle(p).paddingLeft);
     const em = Number.parseFloat(getComputedStyle(p).fontSize);
-    const parts = [...p.querySelectorAll<HTMLElement>(".row > *")].map((k, i) => {
+    const parts = [...p.querySelectorAll<HTMLElement>(".parts > *")].map((k, i) => {
       const r = k.getBoundingClientRect();
       const border = Number.parseFloat(getComputedStyle(k).borderLeftWidth);
       // The dot's box is 1.5em wide, ending at the part's padding edge
@@ -248,7 +259,7 @@ for (const width of [320, 360, 390, 430])
       await as(page, change);
       await page.setViewportSize({ width, height: 700 });
       await page.goto(`/p/${t.slug}`);
-      await expect(page.locator(".page .meta .row")).toBeVisible();
+      await expect(page.locator(".page .meta .parts")).toBeVisible();
       let wrapped = 0;
       for (const sel of [".page > .meta", ".page > .dates"]) {
         const { clip, edge, rows } = await lines(page, sel);

@@ -115,7 +115,7 @@ test("a page offers Mark done while open, only Reopen once done or cancelled", a
   await page.goto(`/p/${gone}`);
   await expect.poll(offered).toEqual(["Reopen"]); // a cancelled one looks closed
   await expect
-    .poll(() => page.locator(".page > .meta .row > *").allInnerTexts())
+    .poll(() => page.locator(".page > .meta .parts > *").allInnerTexts())
     .toEqual(["Todo", "cancelled"]);
   await page.setViewportSize({ width: 320, height: 700 }); // its tools still fit
   await page.screenshot({ path: test.info().outputPath("cancelled-320.png") });
