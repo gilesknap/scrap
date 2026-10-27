@@ -61,7 +61,7 @@ flowchart LR
 - **Router**: `main.ts` matches `location.pathname` against a route table and aborts the previous
   view's signal on each navigation. `go()` in `app.ts` records Back marks in `history.state`;
   Back in the top bar goes to the linking page, else the list, else a parent (`back.ts`).
-- **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `composer`, `editor`, `page`,
+- **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `composer`, `editor`, `figure`, `page`,
   `pageedit`, `render`, `sharing`, `refine`, `searches`.
 - **Not precached**: the Excalidraw board chunk and its fonts (served from `/excalidraw/fonts/`,
   not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.
