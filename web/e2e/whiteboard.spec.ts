@@ -23,6 +23,10 @@ const ulid = () => {
   const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
 };
+// This test idles for seconds between API calls (page loads, `uv run` shell-outs), longer than the
+// server keeps an idle connection (uvicorn closes it after 5 s). A call that reuses a pooled socket
+// the server is closing fails with "socket hang up" (#333), so each call opens its own.
+const fresh = { headers: { Connection: "close" } };
 const drawingUrl = (b: Board) => `/api/captures/${b.capture_id}/photos/${b.sha256}/drawing`;
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Drawing" });
 const tool = (page: Page, name: string) => dialog(page).getByRole("button", { name, exact: true });
@@ -407,6 +411,7 @@ test("every text of the drawing screens meets AA contrast, in both themes", asyn
   const failed = board("failed");
   const waiting = await (
     await page.request.post("/api/captures", {
+      ...fresh,
       multipart: {
         id: ulid(),
         text: "A waiting board",
@@ -456,8 +461,9 @@ test("every text of the drawing screens meets AA contrast, in both themes", asyn
     await open(page);
     await dialog(page).getByRole("button", { name: /^Edit/ }).click();
     await check(`${colorScheme} editor: restored draft`);
-    const now = (await (await page.request.get(drawingUrl(b))).json()).version;
+    const now = (await (await page.request.get(drawingUrl(b), fresh)).json()).version;
     await page.request.put(drawingUrl(b), {
+      ...fresh,
       data: { base_version: now, scene: { elements: [] } },
     });
     await tool(page, "Save").click();
