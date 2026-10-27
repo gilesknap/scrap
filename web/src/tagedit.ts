@@ -1,13 +1,14 @@
 // Edit a page's tags: its tags as chips (tap one to take it off) and a box to add one. Enter
 // or a comma adds what is typed; what is still in the box when saving counts too. The server
 // cleans tags as the importer does (lower case, no leading #), so this does the same for what
-// it shows. Under the box, one row of chips, one tap each: with nothing typed, the most used
-// tags not on it yet (counted by the pages given that very tag: not a/b's parent a, which
-// /api/tags adds and counts over a's children); as you type, the tags in use that match. Our
-// own row, not a native datalist: on a phone that pops a menu over the keyboard. A chunk of its
-// own: the page's Tags button and the editor load it.
+// it shows. Under the box, the offered tags (tagpick.ts: at most two rows), one tap each: with
+// nothing typed, the most used tags not on it yet (counted by the pages given that very tag:
+// not a/b's parent a, which /api/tags adds and counts over a's children); as you type, the tags
+// in use that match. Our own row, not a native datalist: on a phone that pops a menu over the
+// keyboard. A chunk of its own: the page's Tags button and the editor load it.
 import { api } from "./api";
-import { icon } from "./icons";
+import { matching } from "./tagname";
+import { chosenChips, offerRow } from "./tagpick";
 import { h } from "./ui";
 
 /** A tag as the server keeps it: lower case, one space between words, no leading #. */
@@ -25,11 +26,10 @@ export function tagProblem(tags: string[]): string | undefined {
   if (long) return `A tag can be at most ${MAX_TAG} characters: "${long.slice(0, 40)}…"`;
 }
 
-const TOP = 6; // tags offered at a time
-const DOUBLE = 400; // ms: a second tap on the chips sooner than this is a double tap, ignored
+const TOP = 6; // tags offered at a time (those of them that fit in two rows)
 
 /** The tag editor: initial's chips (Claude's, in claude, marked ✦ as on the page), a box and
- * suggestions. */
+ * suggestions (tagpick.ts draws both). */
 export function tagField(
   initial: string[],
   onchange: () => void = () => {},
@@ -38,53 +38,30 @@ export function tagField(
   let tags = [...initial];
   let used: string[] = []; // the tags pages were given, most used first
   let every: string[] = []; // every tag in use (parents too), most pages first
-  let tapped = -Infinity; // when a chip under the box was last tapped
-  const top = h("div", {
-    className: "toptags",
-    role: "group",
-    "aria-label": "Most used tags",
-    hidden: true, // until they come (never offline)
-  });
-  /** With nothing typed, the most used; else those in use that match what is typed: starting
-   * with it first (a part after a / counts: "bed" finds garden/beds), then holding it. */
+  const top = offerRow("Most used tags");
+  top.el.hidden = true; // until they come (never offline)
+  /** With nothing typed, the most used; else those in use that match what is typed. */
   const offered = () => {
     const q = clean(input.value);
     if (!q) return used.filter((t) => !tags.includes(t)).slice(0, TOP);
     const free = every.filter((t) => !tags.includes(t) && t !== q);
-    const starts = free.filter((t) => t.startsWith(q) || t.split("/").some((p) => p.startsWith(q)));
-    const holds = free.filter((t) => !starts.includes(t) && t.includes(q));
-    return [...starts, ...holds].slice(0, TOP);
+    return matching(free, q, (t) => t).slice(0, TOP);
   };
   const drawTop = (focus = -1) => {
     const typing = !!clean(input.value);
-    top.setAttribute("aria-label", typing ? "Matching tags" : "Most used tags");
-    top.replaceChildren(
-      ...offered().map((t) =>
-        h(
-          "button",
-          {
-            type: "button",
-            className: "facet",
-            "aria-label": `Add #${t}`,
-            onclick: (e: Event) => {
-              // A double tap: the second lands on the chip that slid into the first's place
-              if (e.timeStamp - tapped < DOUBLE) return;
-              tapped = e.timeStamp;
-              if (!tags.includes(t)) tags.push(t);
-              if (typing) input.value = ""; // what was typed is now that tag
-              const at = [...top.children].indexOf(e.currentTarget as Element);
-              draw(top.contains(document.activeElement) ? at : -1);
-              onchange();
-            },
-          },
-          h("span", { dir: "auto" }, `#${t}`),
-        ),
-      ),
+    top.el.setAttribute("aria-label", typing ? "Matching tags" : "Most used tags");
+    top.show(
+      offered().map((t) => [t]),
+      "Add",
+      (t, e) => {
+        if (!tags.includes(t)) tags.push(t);
+        if (typing) input.value = ""; // what was typed is now that tag
+        const at = [...top.el.children].indexOf(e.currentTarget as Element);
+        draw(top.el.contains(document.activeElement) ? at : -1);
+        onchange();
+      },
+      { focus, back: input, also: tags },
     );
-    top.hidden = !top.childElementCount;
-    // The tapped chip is gone: focus the one now in its place (else the last), or the box
-    if (focus >= 0)
-      (((top.children[focus] ?? top.lastElementChild) as HTMLElement | null) ?? input).focus();
   };
   // [tag, pages under it, pages with that very tag]
   api<[string, number, number][]>("tags")
@@ -110,29 +87,20 @@ export function tagField(
   const draw = (focus = -1) => {
     drawTop(focus);
     chips.replaceChildren(
-      ...tags.map((t) =>
-        h(
-          "button",
-          {
-            type: "button",
-            className: claude.includes(t) ? "facet on ai" : "facet on",
-            "aria-label": `Remove #${t}${claude.includes(t) ? ", added by Claude" : ""}`,
-            onclick: (e: Event) => {
-              // The button is replaced: if it had focus, the next chip (else the last) or the box
-              const at = tags.indexOf(t);
-              const had =
-                chips.contains(document.activeElement) &&
-                e.currentTarget === document.activeElement;
-              tags = tags.filter((x) => x !== t);
-              draw();
-              if (had)
-                ((chips.children[at] ?? chips.lastElementChild ?? input) as HTMLElement).focus();
-              onchange();
-            },
-          },
-          h("span", { dir: "auto" }, `#${t}`),
-          icon("close"),
-        ),
+      ...chosenChips(
+        tags,
+        (t, e) => {
+          // The button is replaced: if it had focus, the next chip (else the last) or the box
+          const at = tags.indexOf(t);
+          const had =
+            chips.contains(document.activeElement) && e.currentTarget === document.activeElement;
+          tags = tags.filter((x) => x !== t);
+          draw();
+          if (had) ((chips.children[at] ?? chips.lastElementChild ?? input) as HTMLElement).focus();
+          onchange();
+        },
+        claude,
+        offered(),
       ),
     );
   };
@@ -157,7 +125,7 @@ export function tagField(
     else drawTop();
   };
   draw();
-  const el = h("div", { className: "tagedit" }, chips, input, top);
+  const el = h("div", { className: "tagedit pick" }, chips, input, top.el);
   return {
     el,
     input,

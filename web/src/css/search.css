@@ -152,9 +152,9 @@
 .fpanel {
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--s-2); /* (s-3 until the tag picker: short, so the results show under it) */
   margin: calc(-1 * var(--s-2)) 0 var(--s-4);
-  padding: var(--s-3) 0;
+  padding: var(--s-2) 0;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -181,15 +181,16 @@
   flex-wrap: wrap;
   gap: var(--s-2);
 }
-/* Arrange's two parts, Order and Group: a small sub-label over its chips, which start at the
-   same left edge as every other row's and wrap from there */
+/* Arrange's two parts, Order and Group: a small sub-label, then its chips on the same line,
+   wrapping from the row's left edge (a line shorter than a label over them) */
 .fsub {
   display: flex;
-  flex-direction: column;
-  gap: var(--s-1); /* a little tighter than a heading to its chips */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
 }
-.fsub + .fsub {
-  margin-top: var(--s-1);
+.fsub .opts {
+  display: contents; /* its chips flow on after the sub-label */
 }
 .fsublabel {
   color: var(--ink-2);
@@ -200,20 +201,24 @@
   background: var(--accent-soft);
   font-weight: 600;
 }
-/* Tags: the box, then what it offers under it */
+/* Tags: its heading and the box, then what it offers after them, in one flow (two rows in
+   all, tagpick.ts), so the panel stays short */
 .frow.ftags .tagline {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
+  flex: 1 1 13rem;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 100%;
 }
 .frow.ftags .tagline input {
   flex: 1;
-  min-width: min(8rem, 100%); /* never wider than the panel at a large text size */
+  min-width: 0;
   min-height: 44px;
+  padding-block: 0; /* as high as the chips beside it, at any text size */
   border-radius: var(--r-pill);
 }
 /* Nothing to offer: why, in words that wrap */
-.fpanel .opts .none {
+.offers .none {
   flex: 1 1 8em;
   align-self: center;
   color: var(--ink-2);
@@ -431,29 +436,30 @@
 .tagchips {
   display: contents;
 }
-.tagedit .facet {
-  max-width: 100%;
-}
-.tagedit .facet span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .tagedit input {
   flex: 1 1 10rem;
   min-height: 44px;
 }
-/* The most used tags not on it yet, one tap each: one line under the box that scrolls */
-.toptags {
+/* The tag picker (tagpick.ts), in the tag editor and Filters → Tags: the chosen are filled
+   (.facet.on), the offered outlined in --line-strong; they wrap, at most two rows (the script
+   leaves out those that would start a third: nothing scrolls, nothing is cut in half) */
+.pick .facet {
+  max-width: 100%;
+}
+.pick .facet span {
+  overflow: hidden;
+  text-overflow: ellipsis; /* a name longer than the row: cut, not wider than the screen */
+}
+.offers {
   display: flex;
   flex-basis: 100%;
+  flex-wrap: wrap;
   gap: var(--s-2);
-  margin: 0 calc(-1 * var(--s-4));
-  padding: 0 var(--s-4);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.toptags .facet {
-  border-style: dashed; /* offered, not chosen: the chosen ones are filled */
+.offers[hidden] {
+  display: none;
+}
+.offers .facet {
   border-color: var(--line-strong);
 }
 .tagform {
@@ -466,10 +472,6 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--s-2);
-}
-/* More to the right: the row fades out at its end */
-.toptags {
-  mask-image: linear-gradient(to left, transparent, #000 var(--s-6));
 }
 
 /* A–Z: one card, each letter a slim divider row inside it, sticky under the top bar while its

@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
-import { edited, metaParts, tagNames } from "../src/pagemeta";
+import { edited, metaParts } from "../src/pagemeta";
 import { dueChip } from "../src/status";
+import { tagNames } from "../src/tagname";
 
 const now = "2026-10-26";
 const at = "2026-10-26T12:00:00";

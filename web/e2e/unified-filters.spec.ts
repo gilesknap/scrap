@@ -27,7 +27,7 @@ const hits = (page: Page) => page.locator(".hits li a strong");
 const filtersOn = (page: Page) => page.getByRole("group", { name: "Filters on" });
 /** The tags the panel offers, as their chips say them ("#hop1": the tag and its count). */
 const offers = (page: Page) =>
-  page.getByRole("group", { name: "Tags" }).locator("[data-k^='tag:']");
+  page.getByRole("group", { name: "Tags", exact: true }).locator("[data-k^='tag:']");
 
 test("Filters is a slider in the box; what is on shows as chips under it", async ({ page }) => {
   await page.goto("/search?q=potoroo");

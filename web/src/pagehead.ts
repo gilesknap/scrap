@@ -5,8 +5,9 @@ import type { Page } from "./api";
 import { foldChips } from "./chipfold";
 import { icon, kindIcon } from "./icons";
 import { KINDS } from "./kinds";
-import { edited, metaParts, tagNames } from "./pagemeta";
+import { edited, metaParts } from "./pagemeta";
 import { closed, dueChip } from "./status";
+import { tagNames } from "./tagname";
 import { token } from "./terms";
 import { h, whenShort } from "./ui";
 

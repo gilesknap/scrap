@@ -105,26 +105,35 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   const mine = tag(page, `mine${a}`);
   await expect(mine).toHaveAccessibleName(`Tag mine${a}`);
   expect(await mine.evaluate((el) => getComputedStyle(el, "::before").content)).toBe("none");
-  // The tag editor marks it the same way, and keeps the full path
+  // The tag editor marks it the same way, by the same short name (the full tag its tooltip)
   await row(page).getByRole("button", { name: "Change tags" }).click();
   const chip = page.getByRole("button", { name: `Remove #ai${a}/robot, added by Claude` });
-  await expect(chip).toHaveText(`#ai${a}/robot`);
+  await expect(chip).toHaveText("#robot");
+  await expect(chip).toHaveAttribute("title", `#ai${a}/robot, added by Claude`);
   expect(await chip.evaluate((el) => getComputedStyle(el, "::before").content)).toBe('"✦"');
   await expect(page.getByRole("button", { name: `Remove #mine${a}`, exact: true })).toBeVisible();
 });
 
-test("the tag editor and the search chips keep the full path", async ({ page }) => {
+test("the tag editor and the search chips say the short name, the full path as the tooltip", async ({
+  page,
+}) => {
   const a = word();
   const full = `deep${a}/er/leaf${a}`;
   const p = await make(page, [full]);
   await page.goto(`/p/${p.slug}`);
   await expect(tag(page, full)).toHaveText(`#leaf${a}`);
   await row(page).getByRole("button", { name: "Change tags" }).click();
-  await expect(page.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`);
+  const chip = page.getByRole("button", { name: `Remove #${full}` });
+  await expect(chip).toHaveText(`#leaf${a}`);
+  await expect(chip).toHaveAttribute("title", `#${full}`);
   await page.keyboard.press("Escape");
   await page.goto(`/search?q=tag%3A${encodeURIComponent(full)}`);
   const on = page.getByRole("group", { name: "Filters on" });
-  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`);
+  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#leaf${a}`);
+  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveAttribute(
+    "title",
+    `#${full}`,
+  );
 });
 
 test("at 390 px and 130% text, tags fold to two rows, then +N shows the rest in place", async ({
