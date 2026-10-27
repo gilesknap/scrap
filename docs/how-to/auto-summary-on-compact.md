@@ -31,9 +31,11 @@ not worth it, skip the hook, or see [](#turn-it-off).
   summarised) in `$XDG_STATE_HOME/scrap/precompact.json` (`~/.local/state/scrap/precompact.json`).
   Delete the file, or a session's entry, to make the next compaction start a new page.
 - Never blocks compaction: on any error (no network, scrap down, `claude` missing, a timeout) it
-  logs to stderr and exits 0. `SCRAP_PRECOMPACT_TIMEOUT` (seconds, default 180, at most 190) bounds the model
-  call. Compaction waits for the hook, so a slow model delays it by up to that long; keep the
-  hook's own `timeout` in `settings.json` above it.
+  logs to stderr and exits 0. `SCRAP_PRECOMPACT_TIMEOUT` (seconds, default 180, at most 190) bounds
+  the model call; a value that is not a whole number makes the hook fail at start with exit 1, which
+  Claude Code reports but which still does not block compaction. Compaction waits for the hook, so a
+  slow model delays it by up to that long; keep the hook's own `timeout` in `settings.json` above
+  it.
 - The prompt follows `/sc-summarise all` (timeline, findings, decisions, changes made, open
   questions) and tells the model to leave out secrets, tokens, credentials and raw tool output.
   Check the page rather than trusting that: the model does the redaction.

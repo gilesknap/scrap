@@ -122,7 +122,9 @@ What each part does:
   and `/healthz` are not affected.
 - `identityHeader` records the signed-in email, which Cloudflare Access adds to each request,
   as the author of a change. Changes made through `/mcp` are always author `claude`.
-- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API answer `421` to any other `Host` (and `403` to a write from another `Origin`), apart from `/healthz`.
+- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API answer `421`
+  to any other host name (and `403` to a write from another `Origin`), apart from `/healthz`. The
+  web app and the API also accept an IP address as the host; `/mcp` does not.
 - `networkPolicy` admits only the cloudflared pods, in the `cloudflared` namespace you create in
   the next step. Without it, any pod in the cluster could reach scrap directly and send its own
   identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around
@@ -266,7 +268,14 @@ kubectl -n cloudflared get pods
 ```
 
 You want `scrap` pods `Running` and ready (the nightly backup and other CronJob pods appear
-later), both claims `Bound`, the `scrap` NetworkPolicy present, and cloudflared `Running`.
+later), the data claim `Bound`, the `scrap` NetworkPolicy present, and cloudflared `Running`. The
+backups claim is `Bound` too, unless your storage binds a volume only when a pod first uses it
+(`WaitForFirstConsumer`, as k3s's `local-path` does): then it stays `Pending` until the first
+backup runs. To run one now:
+
+```
+kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-now
+```
 
 Then the edge, from your own machine:
 

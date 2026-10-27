@@ -109,19 +109,20 @@ The image is public (no login needed) and built for amd64 and arm64. Pin an exac
 than `latest`, which moves with every release, pre-releases included.
 
 The install script and its units are not in the image: they come from the repo's `deploy/`
-folder. So, as `scrap`, clone the repo too, into the user's home directory so that the clone is
-`~/scrap`: the `./deploy/...` commands below run from it, and the update steps refer to it by
+folder. So, as `scrap`, clone the release too, into the user's home directory so that the clone
+is `~/scrap`: the `./deploy/...` commands below run from it, and the update steps refer to it by
 that path.
 
 ```
 cd ~
-git clone https://github.com/gilesknap/scrap.git
+git clone --branch {{ release_tag }} --depth 1 https://github.com/gilesknap/scrap.git
 cd scrap
 ```
 
 ````{note}
-**To run unreleased changes instead**, build the image from the clone, and use
-`localhost/scrap:dev` wherever this page names the release image:
+**To run unreleased changes instead**, clone `main` (leave out `--branch` and `--depth`), build
+the image from the clone, and use `localhost/scrap:dev` wherever this page names the release
+image:
 
 ```
 podman build -t localhost/scrap:dev .
@@ -344,9 +345,9 @@ ingest pauses until it resets.
    binary, ingest pauses with a login problem and the log says which is missing.
 
 `SCRAP_BUDGET_DAY_USD` still applies, to what the calls would cost at API prices (as Claude Code
-reports it), not to anything you are charged. Tagging and summarising notes and links, *Ask
-Claude* and the nightly related pages run on the seat too, each a call against its limits; set
-`SCRAP_ENRICH=off` to keep the seat to photos.
+reports it), not to anything you are charged. Tagging and summarising notes and links, *Ask Claude*,
+board write-ups, the nightly related pages and the weekly topics run on the seat too, each a call
+against its limits; set `SCRAP_ENRICH=off` to keep the seat to photos.
 
 ## First run
 
@@ -472,7 +473,8 @@ release (see [scrap's releases](https://github.com/gilesknap/scrap/releases)), p
 `SCRAP_IMAGE` at it, and re-run the install script:
 
 ```
-git -C ~/scrap pull
+git -C ~/scrap fetch --depth 1 origin tag <version>
+git -C ~/scrap checkout <version>
 podman pull ghcr.io/gilesknap/scrap:<version>
 sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:<version>|' ~/.config/scrap/env
 ~/scrap/deploy/install.sh
@@ -480,8 +482,9 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:<version>|' ~/.con
 ```
 
 For ingest on a Claude seat, build `localhost/scrap-claude:<version>` on the new release first
-and name that in `SCRAP_IMAGE` instead. For a local build, run
-`podman build -t localhost/scrap:dev ~/scrap` in place of the pull and leave `SCRAP_IMAGE` alone.
+and name that in `SCRAP_IMAGE` instead. For a local build from a clone of `main`, update it with
+`git -C ~/scrap pull`, run `podman build -t localhost/scrap:dev ~/scrap` in place of the pull and
+leave `SCRAP_IMAGE` alone.
 
 `scrap-run`, `scrap-backup` and `scrap-gc` now require podman at `/usr/bin/podman`. If it lives
 elsewhere, `install.sh` exits early with a `sudo ln -s <path-to-podman> /usr/bin/podman` hint;
@@ -499,7 +502,7 @@ runs instead of the unit's, now and after every update (`install.sh` prints a no
 one). A drop-in that only added `--env-file ~/.config/scrap/ingest.env` is no longer needed:
 delete it, then `systemctl --user daemon-reload` and `systemctl --user restart scrap`.
 
-`SCRAP_IMAGE` pinned to a release version changes only when you edit it, so pulling the repo
+`SCRAP_IMAGE` pinned to a release version changes only when you edit it, so updating the clone
 alone never changes the running image.
 
 (scrap-upgrade-db)=
@@ -512,9 +515,7 @@ scrap does not start (`journalctl --user -u scrap -e` says why).
 
 Migrations are **forward only**, and an older scrap refuses a database that a newer one has
 migrated: it stops with `<db> has schema N; this scrap knows M`. So starting the old image again
-is not a rollback. The reverse is refused too: scrap 1.0 starts from schema 18 and refuses a
-database or a backup below it, saying `upgrade with scrap 0.16.x first (it migrates to schema 18),
-then use 1.0`. Update to 0.16.x, let it migrate, then update to 1.0. Take a restore point before you update, and keep the old image to go back to:
+is not a rollback. Take a restore point before you update, and keep the old image to go back to:
 
 ```
 systemctl --user start scrap-backup                       # returns when the backup is done
@@ -528,6 +529,15 @@ To roll back, stop scrap, run `scrap restore --force` from the **old** image on 
 before the update (see {ref}`scrap-restore`; set `SCRAP_IMAGE` to the old image first), and start
 scrap on that image. Pages added since the backup are lost from the database; their files stay.
 Backups made after the update have the new schema, so the old image refuses to restore them.
+
+(scrap-upgrade-1-0)=
+### Upgrading to 1.0 from before 0.16
+
+scrap 1.0 starts from schema 18 and refuses a database or a backup below it:
+`<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x
+first (it migrates to schema 18), then use 1.0`. Update to the latest 0.16.x first (as above, with
+`ghcr.io/gilesknap/scrap:0.16.<x>`), let it start and migrate, take a new restore point, then
+update to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.
 
 (scrap-backup-restore)=
 ## Backup and restore
@@ -769,7 +779,7 @@ gives the new one; `install.sh` keeps drop-ins as it does the timers'. The defau
 
 | Service | Default `ExecStart` | Options to add |
 | --- | --- | --- |
-| `scrap-gc.service` | `%h/.local/lib/scrap/scrap-gc` | passed on to `scrap gc` after its own `--delete --grace-hours 24` (the last wins): `--grace-hours N`, `--run-days N` (default 30), `--dry-run` (only count) |
+| `scrap-gc.service` | `%h/.local/lib/scrap/scrap-gc` | passed on to `scrap gc` after its own `--delete --grace-hours 24` (the last wins): `--grace-hours N`, `--run-days N` (default 30), `--job-days N` (default 30), `--trash-days N` (from `SCRAP_TRASH_DAYS`; one given here wins), `--dry-run` (only count) |
 | `scrap-enrich-related.service` | `/usr/bin/podman exec scrap scrap enrich --related` | `--all` (every page), `--limit N` (at most N pages) |
 | `scrap-enrich-topics.service` | `/usr/bin/podman exec scrap scrap enrich --topics` | `--all` (every topic's synthesis), `--limit N` (at most N syntheses queued) |
 
@@ -785,13 +795,13 @@ The backup's options are settings in `~/.config/scrap/env` instead (`SCRAP_BACKU
 `SCRAP_BACKUPS`). [](../reference/scheduled-jobs.md) maps each of the Helm chart's values to
 these.
 
-The two are linked: `scrap-gc` deletes only if a run directory in `SCRAP_BACKUPS` is under 26
-hours old, and otherwise counts, then fails (and it always keeps files younger than 24 hours,
-`--grace-hours 24`). While a backup runs daily, the newest is never much more than a day old, so
-gc may run at any time of day. A backup less often than daily makes gc a dry run that fails on
-the days between, as does a run of failed backups. Either keep the backup at least daily, or turn
-gc off with `systemctl --user disable --now scrap-gc.timer` (unused files then build up, and you
-can run `scrap gc` by hand, as below).
+The two are linked: `scrap-gc` deletes only if a completed run (one holding a `COMPLETE` file) in
+`SCRAP_BACKUPS` is under 26 hours old, and otherwise counts, then fails (and it always keeps files
+younger than 24 hours, `--grace-hours 24`). While a backup runs daily, the newest is never much more
+than a day old, so gc may run at any time of day. A backup less often than daily makes gc a dry run
+that fails on the days between, as does a run of failed backups. Either keep the backup at least
+daily, or turn gc off with `systemctl --user disable --now scrap-gc.timer` (unused files then build
+up, and you can run `scrap gc` by hand, as below).
 
 (scrap-restore)=
 ### Restore
@@ -822,8 +832,11 @@ a copy and never writes to the backup, so the backups mount can be read-only (`:
 
 The same pattern runs any other `scrap` command (for example `scrap export`) against the data.
 
-**Rebuilding on a new server.** Create the `scrap` user and get the image as above, copy your
-backups and `ingest.env` over, and run `./deploy/install.sh`. That starts scrap, which creates an
+**Rebuilding on a new server.** Create the `scrap` user, get the image and clone the release as
+above, and copy your backups into `SCRAP_BACKUPS` and `ingest.env` into `~/.config/scrap/`. Run
+`./deploy/install.sh`: its first run writes `~/.config/scrap/env` with
+`SCRAP_IMAGE=localhost/scrap:dev` and exits without starting scrap, so set `SCRAP_IMAGE` as in
+{ref}`scrap-install-script` and run it again. That starts scrap, which creates an
 empty database, so stop it and restore with `--force` as shown (nothing is lost: the database
 is new). Start it, and publish it with `tailscale serve` again. Make sure the new Serve address
 is what `SCRAP_PUBLIC_URL` says.
@@ -936,8 +949,12 @@ make one straight away.
 
 A run prints one line, for example `scrap gc: would delete (dry run: --delete deletes) 3 unused
 files and 1 leftover uploads, 12.4 MB; 3 unused file records; kept 2 unused files younger than
-the grace period; 2 model runs and 5 enrich runs older than the retention`. With `--delete` it
-says `deleted` instead (for the files; the run records are deleted too). The parts:
+the grace period; 2 model runs and 5 enrich runs older than the retention; would gather 1
+orphaned files onto Orphaned assets 2026-10; would purge 4 pages in the trash more than 30 days;
+6 ingest jobs and 2 enrich jobs finished more than 30 days ago`. With `--delete` it says
+`deleted`, `gathered` and `purged` instead (the run and job records are deleted too). With
+`--trash-days off` the purge part reads `the trash is never purged (--trash-days off)`. The
+parts:
 
 | Part | Meaning |
 | --- | --- |
@@ -945,6 +962,7 @@ says `deleted` instead (for the files; the run records are deleted too). The par
 | `M leftover uploads` | `files/.up-*` temporaries from uploads cut off by a crash, also deleted once older than the grace period. |
 | `R unused file records` | Database rows for files nothing uses. The row is deleted with its file, or on its own if the file is already gone, so this can be more than the files. |
 | `A model runs and B enrich runs older than the retention` | Records of Claude calls past `--run-days` that nothing refers to and that are not the latest for their page or photo. With `--delete` they were deleted. |
+| `would gather G orphaned files onto Orphaned assets YYYY-MM` | Files of captures that no page shows any more: with `--delete`, `gathered` onto the month's review page (see above), not deleted. |
 | `would purge P pages in the trash more than T days` | Pages trashed more than `--trash-days` ago, topics aside: with `--delete`, `purged`, and their files counted in the unused files above. `(and F orphaned files)`: the files purged *Orphaned assets* pages showed that no page shows, let go with them. |
 | `J ingest jobs and E enrich jobs finished more than D days ago` | Done or dead job records past `--job-days`, each photo's and page's latest aside. With `--delete` they were deleted. |
 | `kept Y unused files younger than the grace period` | Unused, but too new to delete: a later run takes them. |
@@ -991,7 +1009,7 @@ backups and the settings in `~/.config/scrap/` stay until you delete them;
 (scrap-docker)=
 ## Using Docker instead
 
-`install.sh` exits at "podman is not installed" without podman on `PATH`, and it calls
+`install.sh` exits at `/usr/bin/podman not found` without podman there, and it calls
 `podman` for its image and timer checks, so on a Docker-only host you do its work yourself:
 create `~/.config/scrap/env` and `ingest.env` (the templates are in the script), copy the
 units from `deploy/` to `~/.config/systemd/user/` and the scripts to `~/.local/lib/scrap/`,
@@ -1043,8 +1061,9 @@ nothing listens on (left by a scrap that stopped) is replaced on its own.
 
 **The service fails with "is open to other users", "belongs to another user" or "is longer than
 107 bytes".** These come from the socket setup (`scrap serve --uds`). Its folder must belong to
-the scrap user and be mode 700, which the unit's runtime folder is; the path (including
-`$XDG_RUNTIME_DIR`) must be at most 107 bytes.
+the scrap user and be mode 700, which the unit's runtime folder is. The 107-byte limit is on the
+`--uds` path inside the container, `/run/scrap/scrap.sock` in the units, so it only arises when
+you run `scrap serve --uds` yourself with a longer path.
 
 **systemd shows scrap as active, but it does not answer.** The unit uses `--sdnotify=conmon`,
 so systemd is told scrap is ready when the container *starts*, not when scrap listens, and
@@ -1065,8 +1084,9 @@ does the `reset-failed` for you.
 `~/.config/scrap/ingest.env` to podman unconditionally. `install.sh` only warns about a
 dangling symlink; restore the file (an empty one will do) and start scrap.
 
-**`smoke.sh` fails with a 503, `"ingest worker stopped"`.** `/healthz` reports 503 when the
-ingest worker has stopped, and `smoke.sh` fails on any error status. Look in
+**`smoke.sh` fails with `returned error: 503`.** `/healthz` answers 503 (`"ingest worker
+stopped"`) when the ingest worker has stopped. `smoke.sh` calls it with `curl -fsS`, so it fails
+on any error status and shows only curl's message, not the body. Look in
 `journalctl --user -u scrap` for why, then `systemctl --user restart scrap`.
 
 **Tailscale Serve answers 502 with `SCRAP_LISTEN=socket`.** scrap is not running (the socket's

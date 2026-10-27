@@ -65,13 +65,14 @@ the wrong day around midnight. To stop it, `podman stop scrap`; to run it again 
 settings, `podman rm -f scrap` and re-run the command (the `scrap-data` volume keeps your
 pages). Docker takes the same arguments.
 
-`SCRAP_PUBLIC_URL` matters to any hostname you use, and to Claude. `/mcp`, the web page and the API
-answer only loopback, IP addresses (always accepted) and the addresses listed there, and reply
+`SCRAP_PUBLIC_URL` matters to any hostname you use, and to Claude. The web page and the API answer
+only loopback, IP addresses (always accepted) and the addresses listed there, and reply
 `421 Invalid Host header` to any other *name*, so list a MagicDNS or LAN hostname if you open the
-app at it. Page links in
-Claude's replies start with the first address, and the app opens a link to any listed address in
-place, so Back returns to the page you were on. Claude Code on this machine needs none of it; on
-another machine, use `claude mcp add` from the README with the LAN address, for example
+app at it. `/mcp` answers only loopback and the listed addresses, so list every address Claude
+Code will use, an IP address included. Page links in Claude's replies start with the first
+address, and the app opens a link to any listed address in place, so Back returns to the page you
+were on. Claude Code on this machine needs none of it; on another machine, use `claude mcp add`
+from the README with the LAN address, for example
 `http://192.168.1.10:8000/mcp`.
 
 `--network=host` publishes the port on **every** network interface, which is why the warning

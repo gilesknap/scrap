@@ -4,7 +4,7 @@
 # always runs exactly ONE replica with the Recreate strategy (the old pod stops
 # before the new one starts). There is no replicas value on purpose.
 #
-# v0 of scrap has NO login: anyone who can reach the Service can read and change
+# scrap has NO login of its own: anyone who can reach the Service can read and change
 # everything. Expose it only on a private network (e.g. the Tailscale operator) or
 # behind an authenticating proxy, never directly to the internet.
 

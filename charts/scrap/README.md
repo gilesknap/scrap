@@ -8,8 +8,8 @@ PersistentVolumeClaim (`backup.enabled`), and a nightly `scrap gc` CronJob (`gc.
 ingest on, a nightly related-pages CronJob (`enrichRelated.enabled`) and a weekly topics CronJob
 (`enrichTopics.enabled`) too. An Ingress and a NetworkPolicy are optional.
 
-scrap v0 has **no login**: expose it only on a private network such as your tailnet, or behind an
-authenticating proxy.
+scrap has **no login** of its own: expose it only on a private network such as your tailnet, or
+behind an authenticating proxy.
 
 ## Requirements
 
@@ -22,11 +22,20 @@ authenticating proxy.
 
 ## Install
 
-There is no published chart (no Helm repository or OCI chart): install from a checkout of this
-repository, or from Argo CD with a Git source.
+Releases publish the chart to `oci://ghcr.io/gilesknap/charts/scrap`, with the release tag as its
+version (a pre-release such as `0.2.0rc1` as `0.2.0-rc.1`):
 
 ```
-helm install scrap ./charts/scrap --namespace scrap --create-namespace -f my-values.yaml
+helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version <release> \
+  --namespace scrap --create-namespace -f my-values.yaml
+```
+
+From a checkout of this repository, or from Argo CD with a Git source, set `image.tag` to a release
+too (a checkout's `appVersion` is the placeholder `0.0.0`, which has no image):
+
+```
+helm install scrap ./charts/scrap --namespace scrap --create-namespace -f my-values.yaml \
+  --set image.tag=<release>
 ```
 
 A minimal `my-values.yaml` that exposes scrap on your tailnet with the Tailscale operator:
@@ -41,8 +50,9 @@ ingress:
 ```
 
 The files in [ci/](ci/) (`*-values.yaml`) are further example value sets. Values are described in
-[values.yaml](values.yaml), and `values.schema.json` rejects unknown keys, so a typo fails the
-install instead of being ignored.
+[values.yaml](values.yaml). `values.schema.json` rejects unknown top-level keys and unknown keys in
+most groups, so a typo there fails the install instead of being ignored; `service`,
+`networkPolicy`, `serviceAccount`, `resources` and the security contexts are not checked.
 
 ## Image
 
