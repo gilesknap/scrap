@@ -274,22 +274,13 @@
   color: var(--ink-2);
   font-size: var(--t-xs);
 }
-/* Claude's links (a source's Topics, a topic's Sources, Related) as a row's title is drawn:
-   ink, semibold, no underline; amber links are the owner's own text's */
-.enrich :is(.topicsline, .sources, .related) a {
+/* Claude's links (a source's Topics, a topic's Sources, Related): the app's links (base.css),
+   regular, each a 48 px target */
+.enrich :is(.sources, .related) a {
   padding-block: 15px; /* inline: its target 48 px high, the line's box unchanged */
   color: var(--ink);
   font-weight: 600;
   text-decoration: none;
-}
-/* Related is a list under its heading, not more headings: its titles in the regular weight */
-.enrich .related a {
-  font-weight: 400;
-}
-/* Only a source's topics to say: the line alone, no card */
-.enrich.topicsonly {
-  padding: 0;
-  background: none;
 }
 /* A section's heading that goes to its search (a Type: later:watch) reads as the heading
    still: no colour or underline, only the press */

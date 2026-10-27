@@ -34,15 +34,18 @@ export function ordered(sources: Source[]): Source[] {
   return [...sources.filter((s) => !s.excluded), ...sources.filter((s) => s.excluded)];
 }
 
-/** "Topics: ibek · RTEMS IOCs", each a link to its topic: on a page that is a source of any. */
-export function topicsLine(p: Page): HTMLElement | null {
+/** The topics a page is a source of, a line each (the topic's icon, its title a link), for its
+ * card's Topics fold, drawn as Related is; null on a page in none. */
+export function topicsList(p: Page): HTMLElement | null {
   const topics = p.topics ?? [];
   if (!topics.length) return null;
-  const links = topics.flatMap((t, i) => [
-    i ? " · " : "",
-    h("a", { href: href(t.slug), dir: "auto" }, t.title),
-  ]);
-  return h("p", { className: "topicsline" }, h("span", {}, "Topics: "), ...links);
+  return h(
+    "ul",
+    {},
+    ...topics.map((t) =>
+      h("li", {}, h("a", { href: href(t.slug), dir: "auto" }, icon("topic"), t.title)),
+    ),
+  );
 }
 
 /** Take a source out (the ✕) or put it back: the topic page as it is then, shown; taken out,
