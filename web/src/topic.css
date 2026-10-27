@@ -5,9 +5,6 @@
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
-.enrich .topicsline a {
-  font-weight: 600;
-}
 .enrich .sources ul {
   margin: 0 0 var(--s-2);
   padding: 0;

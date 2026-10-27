@@ -136,6 +136,12 @@
   font-size: var(--t-sm);
   white-space: nowrap;
 }
+/* Close: a ✕ icon, one 48 px target at the bar's start, as the photo viewer's */
+.drawing-bar > .close {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+}
 /* Edit with a kept draft: a dot, not words (no room); the words are in the notes below */
 .drawing-bar .dot::after {
   top: 5px;
@@ -143,6 +149,12 @@
   right: 5px;
   border-color: var(--accent);
   background: var(--on-accent);
+}
+/* Every action but Edit (or Save) is a ghost text button, as the editor's Cancel and Preview:
+   one fill in the bar, no row of boxes */
+.drawing-bar > :not(.primary) {
+  border-color: transparent;
+  background: transparent;
 }
 .drawing-bar [aria-pressed="true"] {
   background: var(--accent-soft);
@@ -159,9 +171,9 @@
   justify-content: center;
   min-height: var(--tap);
   padding: 0 var(--s-2);
-  border: 1px solid var(--line);
+  border: 1px solid transparent; /* a ghost, as the bar's other actions */
   border-radius: var(--r-md);
-  background: var(--surface);
+  background: transparent;
   font-weight: 500;
   list-style: none;
   cursor: pointer;

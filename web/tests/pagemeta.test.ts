@@ -19,7 +19,7 @@ it("says a Later's kind, medium and what it is for, and a status only when not o
   const later = page("consume", { fields: { media_type: "tv", subtype: "watch", status: "open" } });
   expect(metaParts(later, "Later", now)).toEqual(["Later", "TV", "to watch"]);
   const done = page("consume", { fields: { media_type: "book", subtype: "read", status: "done" } });
-  expect(metaParts(done, "Later", now)).toEqual(["Later", "Book", "to read", "done"]);
+  expect(metaParts(done, "Later", now)).toEqual(["Later", "Book", "read"]); // not "to read · done"
   expect(metaParts(page("note"), "Note", now)).toEqual(["Note"]);
   expect(metaParts(page("topic"), undefined, now)).toEqual([]);
 });

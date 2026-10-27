@@ -44,13 +44,14 @@ export const outdatedLine = (w: Writeup) =>
     ? OUTDATED
     : null;
 
-/** Who wrote a version and when: "claude-opus-5-5 · Oct 25, 10:04 · version 2". */
+/** Who wrote a version and when: "Claude · 25 Oct, 10:04 · v2" (the model by name in the
+ * line's tooltip). */
 export const byline = (v: WriteupVersion) =>
   [
-    v.producer,
+    /^claude/i.test(v.producer) ? "Claude" : v.producer,
     whenShort(v.created_at),
-    `version ${v.version}`,
-    v.restored_from && `restored from version ${v.restored_from}`,
+    `v${v.version}`,
+    v.restored_from && `restored from v${v.restored_from}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -119,7 +120,7 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
       h(
         "div",
         { className: "card" },
-        h("p", { className: "by" }, byline(up)),
+        h("p", { className: "by", title: up.producer }, byline(up)),
         pageLinksOnly(bodyView(up.text, false), up.links ?? []),
         guidanceFold(p, w, show),
         w.versions > 1 ? versionsFold(p, up, show) : "",

@@ -60,6 +60,14 @@ for (const [, body] of style.matchAll(/[^{}]+\{([^{}]*)\}/g)) {
   if (fg && bg && light[fg] && light[bg]) DRAWN.push([fg, bg, 4.5]);
 }
 
+// Pairs only the dark theme holds so far: light ink-3 on sunk is 4.21:1 (a known gap, the
+// owner's to decide), so it is not asserted for light.
+const DARK_ONLY: [string, string, number][] = [["ink-3", "sunk", 4.5]];
+
+test.each(DARK_ONLY)("dark: %s on %s is at least %d:1", (fg, bg, min) => {
+  expect(contrast(dark[fg], dark[bg])).toBeGreaterThanOrEqual(min);
+});
+
 describe.each([
   ["light", light],
   ["dark", dark],

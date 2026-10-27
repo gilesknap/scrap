@@ -60,15 +60,16 @@
   font-size: var(--t-sm);
 }
 .meta {
-  line-height: 1.7; /* room for the Written by Claude pill on a wrapped line */
+  line-height: 1.7;
 }
 .dates {
   margin-bottom: var(--s-1);
 }
-/* The line clips the dots in the row's gutter (below); its padding, taken back by margin, leaves
-   room for a link's 2px focus ring and its 2px offset (Written by, Topic by) */
+/* The line clips the dots in the row's gutter (below), sideways only: "by Claude"'s 48 px target
+   and focus ring reach above and below the line. Its padding, taken back by margin, leaves room
+   for a link's 2px focus ring and its 2px offset */
 :is(.meta, .dates) {
-  overflow: hidden;
+  overflow-x: clip;
   padding: 4px;
   margin: -4px;
 }
@@ -103,10 +104,12 @@
   margin-inline-end: var(--s-1);
   vertical-align: -0.2em; /* on the text's middle */
 }
+/* "by Claude": a quiet link in the line, its target 48 px high (the line's 25 px and its
+   padding) */
 .meta .written {
-  padding: 1px var(--s-2);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-pill);
+  display: inline-block;
+  padding-block: 12px;
+  margin-block: -12px;
   color: var(--ink-2);
   text-decoration: none;
 }
@@ -161,7 +164,7 @@
 .md blockquote {
   margin: var(--s-3) 0;
   padding-inline-start: var(--s-3);
-  border-inline-start: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--line-strong);
   color: var(--ink-2);
 }
 .md :is(ul, ol) {
@@ -411,7 +414,13 @@ div.orig .save {
   border-radius: var(--r-md);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: var(--t-sm);
+}
+/* While a form is open in the page (its tags, its due date), its Save is the screen's one
+   fill: Mark done is a plain tool meanwhile */
+.page:has(> .tagform, > .todoedit) > .tools > .primary {
+  flex: 1 1 auto;
+  background: transparent;
+  color: var(--ink);
 }
 /* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
    page Download (a link drawn as its rows are) */
@@ -449,4 +458,12 @@ div.orig .save {
   border: 2px solid var(--bg);
   border-radius: 50%;
   background: var(--accent);
+}
+
+/* The header's end: a hairline across the text column under the chips (16 px above, counting
+   the chip row's own margin, and 20 px below), so the body reads as starting afresh */
+.page > hr.headend {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--s-1) 0 20px;
 }

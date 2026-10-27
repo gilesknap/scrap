@@ -100,7 +100,9 @@ export async function todos(row: typeof pageRow): Promise<Node> {
   document.addEventListener("queuechange", again, { signal });
   if (missed) void again();
   const body = h("div", { className: "groups" });
-  const count = h("p", { className: "count" });
+  // The results header, as the search screen's: the count, then its actions at the end
+  const count = h("span", { className: "count" });
+  const acts = h("span", { className: "acts" });
   const radios = MODES.map(([m, label, glyph]) => {
     const radio = h("input", {
       type: "radio",
@@ -133,36 +135,42 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     const n = shown.length;
     const asleep = list.filter((t) => isOpen(t) && !toDo(t, day)).length;
     count.replaceChildren(
-      [
-        `${n} open ${n === 1 ? "todo" : "todos"}`,
-        `${n} due in the next 7 days`,
-        `${n} ${n === 1 ? "todo" : "todos"}`,
-      ][MODES.findIndex(([k]) => k === m)],
+      // none: no count, the empty state says so
+      !n
+        ? ""
+        : [
+            `${n} open ${n === 1 ? "todo" : "todos"}`,
+            `${n} due in the next 7 days`,
+            `${n} ${n === 1 ? "todo" : "todos"}`,
+          ][MODES.findIndex(([k]) => k === m)],
     );
-    // Now's snoozed ones, a link to a search of them (the server's is:snoozed finds open ones
-    // only, as here); soonest due first (there is no sort by waking day)
-    if (m === "now" && asleep)
-      count.append(
-        " · ",
-        h(
-          "a",
-          {
-            href: `/search?q=${encodeURIComponent(SNOOZED)}`,
-            "aria-label": `${asleep} snoozed: show them`,
-          },
-          `${asleep} snoozed`,
-        ),
-      );
-    // The view in Search, its query filled in, to narrow or regroup it there
-    count.append(
-      " · ",
+    // At the line's end, as the search screen's results header has its actions: Now's snoozed
+    // ones, a quiet text button to a search of them (the server's is:snoozed finds open ones
+    // only, as here; soonest due first), then Refine, the view in Search with its query filled
+    // in, a 48 px ghost icon button
+    acts.replaceChildren(
+      ...(m === "now" && asleep
+        ? [
+            h(
+              "a",
+              {
+                className: "button ghost snoozed",
+                href: `/search?q=${encodeURIComponent(SNOOZED)}`,
+                "aria-label": `${asleep} snoozed: show them`,
+              },
+              `${asleep} snoozed`,
+            ),
+          ]
+        : []),
       h(
         "a",
         {
+          className: "button ghost act",
           href: `/search?q=${encodeURIComponent(AS_SEARCH[m])}`,
           "aria-label": `Refine in Search: ${AS_SEARCH[m]}`,
+          title: "Refine in Search",
         },
-        "Refine",
+        icon("filter"),
       ),
     );
     const none = [
@@ -178,7 +186,7 @@ export async function todos(row: typeof pageRow): Promise<Node> {
     "section",
     { className: "todos" },
     h("div", { className: "chips kindrow", role: "radiogroup", "aria-label": "Show" }, ...radios),
-    count,
+    h("div", { className: "rhead" }, count, acts),
     body,
   );
   return root;

@@ -133,6 +133,14 @@ export function enrichPanel(
   const pill =
     (e?.state !== "paused" && wp?.said && [wp.said, wp.state]) || (said && [said, state]);
   const summary = wp?.lead || e?.summary;
+  const action = resume || ask || (!e?.on && wp?.action) || "";
+  // Only a source's topics to say, and nothing to do: the line alone, not a card for one line
+  if (topics && !wp && !summary && !related.length && !sources && !pill && !action)
+    return h(
+      "section",
+      { className: "enrich topicsonly", "aria-label": "About this page" },
+      topics,
+    );
   return h(
     "section",
     { className: "enrich claude", "aria-label": "About this page" },
@@ -142,18 +150,19 @@ export function enrichPanel(
       h("h3", { className: "ctitle" }, "About this page"),
       pill && h("span", { className: `state ${pill[1]}`, role: "status" }, pill[0]),
       // (the write-up's own when the page's reading is off; never beside a busy Ask)
-      resume || ask || (!e?.on && wp?.action) || "",
+      action,
     ),
-    // The topics it is a source of, first, as a line: "Topics: ibek · RTEMS IOCs"
-    topics,
-    // Never read (or, a board, never written): what asking would do. Then its parts as folds:
-    // Summary, In detail (a board's write-up or a topic's synthesis, or its guidance before
-    // there is one), a topic's Sources and Related
+    // Never read (or, a board, never written): what asking would do (not once it failed: the
+    // state line says why, Retry beside it)
     wp
       ? (wp.unwritten ?? wp.stale ?? "")
-      : !busy && e?.on && !read
+      : !busy && e?.on && !read && !failed
         ? h("p", { className: "did" }, ASK)
         : "",
+    // The topics it is a source of, as a line: "Topics: ibek · RTEMS IOCs". Then its parts as
+    // folds: Summary, In detail (a board's write-up or a topic's synthesis, or its guidance
+    // before there is one), a topic's Sources and Related
+    topics,
     !wp && read && !summary && !related.length && !topics
       ? h("p", { className: "did" }, "Claude found nothing to add.")
       : "",

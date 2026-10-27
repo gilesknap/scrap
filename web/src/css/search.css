@@ -75,7 +75,8 @@
   padding: 0;
   color: var(--ink-2);
 }
-/* A Recent row's pin, beside its ✕: once pinned, filled (no amber: that is for selection) */
+/* A Recent row's pin, beside its ✕: both ghost icons in --ink-2; once pinned, filled in ink
+   (no amber: that is for selection) */
 .list.recents .pin {
   margin-inline-end: calc(-1 * var(--s-3)); /* pin and ✕ read as a pair */
 }
@@ -228,7 +229,9 @@
   margin: 0 0 0 var(--s-3);
 }
 /* The results header, over the list: the count, then Pin and Copy link, two 48 px ghost
-   icon buttons at its end; it takes some of the space around it, so it reads as one quiet line */
+   icon buttons at its end; it takes some of the space around it, so it reads as one quiet line.
+   The Todos and Topics screens draw their count line with it too: there, the actions are
+   Refine (the filter icon) and on Now a quiet "1 snoozed" text button */
 .rhead {
   display: flex;
   align-items: center;
@@ -250,6 +253,11 @@
   width: var(--tap);
   padding: 0;
   color: var(--ink-2);
+}
+.rhead .snoozed {
+  padding: 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
 }
 /* Pinned: the pin filled, on a 36 px amber-soft disc drawn inside the 48 px target */
 .rhead .act.on {
@@ -318,6 +326,15 @@
   flex-wrap: wrap;
   column-gap: 6px;
   margin: 0 0 var(--s-3);
+}
+/* A todo's tags beside its due chip: one box, so when they do not all fit beside it they go
+   together to the next line (the chip alone on its own), never a lone one */
+.tags .tagset {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 .tags .last {
   display: flex;

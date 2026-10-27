@@ -15,6 +15,14 @@ interface Meta {
   tasks?: { done: number; total: number };
 }
 
+/** What a Later is for, once done: "read", "watched". */
+const DONE: Record<string, string> = {
+  read: "read",
+  watch: "watched",
+  listen: "listened to",
+  play: "played",
+};
+
 /** A Later's medium as a word: "Book", "TV". */
 const medium = (m: string) => (m === "tv" ? "TV" : m.charAt(0).toUpperCase() + m.slice(1));
 
@@ -27,6 +35,8 @@ export function metaParts(p: Meta, label: string | undefined, now = today()): st
     const m = String(p.fields?.media_type ?? "");
     const sub = String(p.fields?.subtype ?? "");
     if (m) parts.push(medium(m));
+    // Done, it says what was done ("read"), not "to read · done"
+    if (sub && statusOf(p.kind, p.fields) === "done" && DONE[sub]) return [...parts, DONE[sub]];
     if (sub) parts.push(`to ${sub}`);
   }
   const s = statusOf(p.kind, p.fields);

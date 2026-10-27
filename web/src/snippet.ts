@@ -19,11 +19,12 @@ export function snippetParts(html: string): { text: string; mark: boolean }[] {
   return parts;
 }
 
-// For comparing words alone: "Review PR #125: page cap" is "review pr 125 page cap"
+// For comparing words alone: "Review PR #125: page cap" is "review pr 125 page cap", and
+// "sqlite-vec" or "sqlite_vec" is "sqlite vec" (punctuation, hyphens and underscores part words)
 const plain = (s: string) =>
   s
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/[^\p{L}\p{N}\s]|_/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 

@@ -98,6 +98,10 @@
   .page > .todoedit {
     order: 0;
   }
+  /* None on a computer: the action row under the header has its own hairline */
+  .page > hr.headend {
+    display: none;
+  }
   .page > .tools {
     order: 1;
     top: calc(var(--bar-h) + env(safe-area-inset-top));
@@ -126,6 +130,10 @@
   .page > .tools > .primary:hover {
     background: var(--accent);
     filter: brightness(1.05);
+  }
+  .page:has(> .tagform, > .todoedit) > .tools > .primary:hover {
+    background: var(--sunk);
+    filter: none;
   }
   .page > .tools > :last-child {
     margin-inline-start: auto; /* Delete, apart at the end */
@@ -163,7 +171,7 @@
     filter: brightness(0.96);
   }
   button.link:hover,
-  .count a:hover {
+  .rhead a:hover {
     color: var(--ink);
   }
 }

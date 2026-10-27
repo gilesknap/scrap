@@ -102,8 +102,14 @@
   content: "·";
   margin-inline-end: var(--s-2);
 }
+/* A todo's row: its due line takes the edit date's place, so a row has one line under its
+   title (as on the Todos screen); a todo with none keeps the date */
+.sub:has(> .due) > small:not([class]) {
+  display: none;
+}
 .sub small.due {
-  flex-basis: 100%;
+  order: -1;
+  white-space: normal; /* its parts never break (status.ts), the line between them */
 }
 .list small {
   min-width: 0;
@@ -152,9 +158,9 @@
   background: var(--danger-soft);
   color: var(--danger);
 }
-.list li.armed.to-edit > .row-under {
-  background: var(--accent);
-  color: var(--on-accent);
+/* Armed: the icon grows (below) and turns amber; the fill stays amber-soft */
+.list li.armed.to-edit > .row-under .i {
+  color: var(--accent-ink);
 }
 .row-under .i {
   transition: scale var(--d-1) var(--ease);
@@ -214,34 +220,27 @@
   background: currentColor;
   translate: -50% -50%;
 }
-.list em {
-  flex: none;
-  padding: 0 var(--s-2);
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--ink);
-  font-size: var(--t-xs);
-  font-style: normal;
-  font-weight: 600;
-  line-height: 1.6;
-}
-/* A search hit that is a topic page (#261): "Topic", a hairline pill as the Written by Claude
-   badge, after its date */
+/* A row's status, only one that ends it ("done", "cancelled"), and a search hit that is a
+   topic page (#261, "Topic"): said in words on its meta line, "· done", as a page's meta line
+   says it (no pill: amber-soft means selected) */
+.list em,
 .list .sub .topic {
   flex: none;
-  padding: 0 var(--s-2);
-  border: 1px solid currentColor;
-  border-radius: var(--r-pill);
   color: var(--ink-2);
-  font-size: var(--t-xs);
-  line-height: 1.6;
+  font-size: var(--t-sm);
+  font-style: normal;
+}
+.list em::before,
+.list .sub .topic::before {
+  content: "·";
+  margin-inline-end: var(--s-2);
 }
 .pending {
   border-style: dashed;
   border-color: var(--line-strong);
 }
 .pending small {
-  color: var(--accent-ink);
+  color: var(--ink-2); /* waiting: said in words, as a date is; the badge's dot is the amber */
 }
 .pending .failed small {
   color: var(--danger);
@@ -267,6 +266,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  overflow-wrap: anywhere; /* a long word or address breaks rather than being cut mid-word */
   color: var(--ink-2);
   font-size: var(--t-sm);
   white-space: normal;

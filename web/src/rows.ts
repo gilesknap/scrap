@@ -6,6 +6,7 @@ import { setStatus } from "./api";
 import { go, rerender } from "./app";
 import { swipeStep } from "./gesture";
 import { icon } from "./icons";
+import { tidy } from "./snipclean";
 import { echoes } from "./snippet";
 import { chipOf, dueOf, partly, statusOf } from "./status";
 import { deletePage, EDGE, type RowPage, trailOf, trails, why } from "./swipe";
@@ -16,7 +17,10 @@ import { h, toast } from "./ui";
 export function swipeRow(li: HTMLLIElement, p: RowPage) {
   const { slug, id: key } = p;
   const row = li.querySelector(":scope > a") as HTMLAnchorElement;
-  const snip = li.querySelector(".snip"); // a search hit's: gone if it only says the title again
+  // A search hit's snippet: tidied (no task boxes, no title leading it), and gone if it only
+  // says the title again
+  const snip = li.querySelector(".snip");
+  if (snip) tidy(snip, p.title);
   if (snip && echoes(p.title, snip.textContent ?? "")) snip.remove();
   const tick = tickBox(li, p);
   const under = h(

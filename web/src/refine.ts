@@ -179,7 +179,8 @@ export async function refine(
     h(
       "div",
       { className: "rhead" },
-      h("span", { className: "count" }, shown(q, f.total)),
+      // none found: no count, the empty state under it says so
+      h("span", { className: "count" }, f.total > 0 && shown(q, f.total)),
       f.total > 0 && actions(q),
     );
   // The filters on, as chips on a row of their own under the kinds, wrapping (none: no row):

@@ -83,12 +83,20 @@ export function dueOf(p: Todo, now = today()): [string, string] | null {
   if (p.kind !== "todo" || !(p.due || p.priority || until || part)) return null;
   const [day, late] = dueDay(p, now);
   const said = [
-    p.priority,
+    p.priority && (day ? p.priority : `${p.priority} priority`), // "low priority" alone
     day && `${late ? "overdue" : "due"} ${day}`,
     until && snoozeText(until, now),
     part,
   ];
-  return [said.filter(Boolean).join(" · "), late ? "due late" : closed(p) ? "due closed" : "due"];
+  // Each part kept whole ("snoozed till 29 Oct" never breaks), the line breaking only before a
+  // "·", which leads the part after it
+  return [
+    said
+      .filter(Boolean)
+      .map((s) => `${s}`.replace(/ /g, "\u00a0"))
+      .join(" ·\u00a0"),
+    late ? "due late" : closed(p) ? "due closed" : "due",
+  ];
 }
 
 /** What a todo's due chip on its page says: its day and priority ("30 Oct · high", "today"),

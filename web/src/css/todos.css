@@ -1,9 +1,4 @@
 /* ---- Todos: Now / Upcoming / All, a ranked list in groups ---- */
-.todos .count {
-  margin: 0 0 var(--s-2);
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
 /* A list in sections (sections.ts): the Todos screen's Now, and the search screen's groups */
 .groups section + section,
 .groups section + .donefold {
@@ -111,17 +106,16 @@
   font-weight: 500;
   overflow-wrap: anywhere;
 }
-.state.done {
-  background: var(--accent-soft);
-  color: var(--ink);
-}
 .state.failed {
-  background: var(--danger-soft);
   color: var(--danger);
 }
-.state.paused {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+/* In a Claude card, where Claude is up to is a line of its own under the title (its action
+   at the title line's end): words, no pill ("Couldn't read it: …" in --danger) */
+:is(.claude, .enrich) .ingest > .state {
+  order: 1;
+  flex-basis: 100%;
+  padding: 0;
+  background: none;
 }
 /* A question asked in place, with its answers (a photo's Reprocess, a snooze past the due
    date) */
@@ -248,17 +242,35 @@
 }
 .enrich .summary {
   margin: 0;
-  font-size: var(--t-md);
 }
 .enrich .related ul {
   margin: 0 0 var(--s-2);
-  padding-inline-start: var(--s-4);
+  padding: 0;
+  list-style: none;
 }
 .enrich .related li {
-  padding: 6px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--s-1);
+  min-height: var(--tap);
 }
 .enrich small {
   color: var(--ink-2);
+  font-size: var(--t-xs);
+}
+/* Claude's links (a source's Topics, a topic's Sources, Related) as a row's title is drawn:
+   ink, semibold, no underline; amber links are the owner's own text's */
+.enrich :is(.topicsline, .sources, .related) a {
+  padding-block: 15px; /* inline: its target 48 px high, the line's box unchanged */
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+/* Only a source's topics to say: the line alone, no card */
+.enrich.topicsonly {
+  padding: 0;
+  background: none;
 }
 /* A section's heading that goes to its search (a Type: later:watch) reads as the heading
    still: no colour or underline, only the press */
@@ -269,4 +281,12 @@
   margin-block: calc((var(--tap) - 1lh) / -2);
   color: inherit;
   text-decoration: none;
+}
+/* With no thumbnail beside it, a todo's title wraps to a second line rather than being cut */
+.todos .list strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

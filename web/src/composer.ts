@@ -20,6 +20,7 @@ import { DRAFT, FRESH, promote, recover } from "./fresh";
 import { icon } from "./icons";
 import { embedBytes, tooLong } from "./pagecap";
 import { type Capture, split } from "./queue";
+import { refused } from "./refused";
 import { tagProblem } from "./tagedit";
 import { blobImg, clearToasts, h, toast } from "./ui";
 
@@ -34,7 +35,12 @@ export interface Draft {
 }
 
 /** What the text box asks for, by kind. */
-const ASK: Record<string, string> = { todo: "What needs doing?", consume: "Link or title" };
+const ASK: Record<string, string> = {
+  todo: "What needs doing?",
+  consume: "Link or title",
+  whiteboard: "What the board is about",
+  document: "What the document is",
+};
 
 /** as: a kind chosen before it opens (the Todos screen's New todo, or a search's New for its
  * kind). resume: open the kept draft (Capture's draft row); otherwise a fresh capture (the
@@ -192,8 +198,9 @@ export async function compose(picked: File[], as?: string, resume = false, given
       return toast(`${over} Remove some, or`, "Save separately", () => void store(true), 15000);
     }
     save.disabled = true;
+    let ids: string[];
     try {
-      await queue.addAll(separately ? split(capture) : [capture]);
+      ids = (await queue.addAll(separately ? split(capture) : [capture])).map((i) => i.id);
     } catch (err) {
       save.disabled = false; // keep everything in the composer to try again
       return toast(
@@ -205,8 +212,10 @@ export async function compose(picked: File[], as?: string, resume = false, given
     }
     await close();
     // Offline, Capture's waiting row says it; elsewhere (Todos) only this does
-    if (navigator.onLine) toast("Saved");
-    else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
+    if (navigator.onLine) {
+      toast("Saved");
+      refused(ids);
+    } else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
   };
   if (!files.length) text.focus();
 }
