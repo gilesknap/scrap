@@ -163,7 +163,7 @@
     filter: brightness(0.96);
   }
   button.link:hover,
-  .count a:hover {
+  .rhead a:hover {
     color: var(--ink);
   }
 }

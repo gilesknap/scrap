@@ -100,16 +100,18 @@ export async function topics(): Promise<Node> {
     enterKeyHint: "search",
   });
   const list = h("div", {});
-  const said = h("span", { role: "status" }); // how many, said as the filter narrows them
-  const count = h("p", { className: "count" });
-  // The topics in Search, grouped by area there too, to narrow or regroup them (as Todos' Refine)
+  const said = h("span", { className: "count", role: "status" }); // how many, as it narrows
+  // The topics in Search, grouped by area there too, to narrow or regroup them (as Todos'
+  // Refine): a 48 px ghost icon button at the results header's end
   const refine = h(
     "a",
     {
+      className: "button ghost act",
       href: `/search?q=${encodeURIComponent("is:topic")}`,
       "aria-label": "Refine in Search: is:topic",
+      title: "Refine in Search",
     },
-    "Refine",
+    icon("filter"),
   );
   const draw = () => {
     const typed = input.value.trim();
@@ -117,7 +119,6 @@ export async function topics(): Promise<Node> {
     said.textContent = typed
       ? `${shown.length} of ${rows.length} topics`
       : `${rows.length} ${rows.length === 1 ? "topic" : "topics"}`;
-    count.replaceChildren(said, " · ", refine);
     if (!shown.length) return list.replaceChildren(empty("search", "No topics match."));
     // Drawn as the search screen's sections are (sections.ts): one trail for the whole
     // screen, so a topic opened from it pages on through the others, in the order shown
@@ -138,7 +139,7 @@ export async function topics(): Promise<Node> {
     "section",
     { className: "topics" },
     h("div", { className: "field-search" }, icon("search"), input),
-    count,
+    h("div", { className: "rhead" }, said, h("span", { className: "acts" }, refine)),
     list,
   );
 }

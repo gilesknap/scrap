@@ -59,7 +59,23 @@ function row(t: Trashed, list: HTMLUListElement, gone: () => void): HTMLLIElemen
     h(
       "div",
       {},
-      h("span", {}, h("strong", { dir: "auto" }, t.title), h("small", {}, fate(t))),
+      h(
+        "span",
+        {},
+        h("strong", { dir: "auto" }, t.title),
+        // A line per part, its date never parted from the words before it ("after 24 Nov");
+        // the " · " between them kept in the text, for a screen reader, but not drawn
+        h(
+          "small",
+          {},
+          ...fate(t)
+            .split(" · ")
+            .flatMap((part, i) => [
+              i ? h("span", { className: "sep" }, " · ") : "",
+              h("span", {}, part.replace(/ (?=\S+ \S+$)| (?=\S+$)/g, "\u00a0")),
+            ]),
+        ),
+      ),
       restore,
     ),
   );

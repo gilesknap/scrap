@@ -210,12 +210,14 @@ export async function search(): Promise<Node> {
         keep({ limit });
         void run(true);
       };
-      return pageList(
+      const shown = pageList(
         Math.min(limit, 500),
         filter,
         kind ? kind[0] : "Latest",
         limit < 500 ? more : undefined,
       );
+      // An empty box: the newest pages, under a heading as on Capture (a kind alone: its row says)
+      return kind ? shown : h("div", {}, h("h2", { className: "label" }, "Latest"), await shown);
     }
     const ul = h("ul", { className: "list hits" });
     try {
@@ -237,7 +239,7 @@ export async function search(): Promise<Node> {
             ...snippetParts(hit.snippet).map((p) => (p.mark ? h("mark", {}, p.text) : p.text)),
           ),
         );
-        // A topic page (#261), Claude's: its icon, and a small Topic label after its date
+        // A topic page (#261), Claude's: its icon, and "· Topic" after its date
         if (hit.topic) {
           li.querySelector(".noimg")?.replaceChildren(icon("topic"));
           li.querySelector(".sub > small")?.after(h("span", { className: "topic" }, "Topic"));
