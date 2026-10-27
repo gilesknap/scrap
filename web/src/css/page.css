@@ -104,14 +104,13 @@
   margin-inline-end: var(--s-1);
   vertical-align: -0.2em; /* on the text's middle */
 }
-/* "by Claude": a quiet link in the line, its target 48 px high (the line's 25 px and its
-   padding) */
+/* "by Claude": a quiet link in the line (base.css: underlined), its target 48 px high (the
+   line's 25 px and its padding) */
 .meta .written {
   display: inline-block;
   padding-block: 12px;
   margin-block: -12px;
   color: var(--ink-2);
-  text-decoration: none;
 }
 /* A topic's notes (#261), still empty: where they go, said quietly */
 .page > .notes {

@@ -26,8 +26,25 @@ body {
   flex-direction: column;
   -webkit-tap-highlight-color: transparent; /* every control draws its own press */
 }
-a {
+/* Links (design-system.md, Links): every text link is underlined, and its colour says whose
+   it is. The app's and Claude's: ink (a quieter control keeps its --ink-2) over a thin
+   underline in --link-line, --line-strong (--ink-2 on a card that --line-strong fails 3:1 on:
+   the Claude card's --sunk, the restored-draft line's --accent-soft). The owner's own text
+   (.body: a page's text and a topic's notes, and Preview, but not a write-up, Claude's):
+   amber. Rows, chips, pills, buttons, the nav and linked headings set text-decoration: none */
+a,
+.link,
+.rhead .snoozed {
+  color: var(--ink);
+  text-decoration-line: underline;
+  text-decoration-color: var(--link-line, var(--line-strong));
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+:where(.body:not(.writeup .body)) a {
   color: var(--accent-ink);
+  text-decoration-color: currentColor;
+  text-decoration-thickness: auto;
   text-underline-offset: 0.15em;
 }
 :focus-visible {

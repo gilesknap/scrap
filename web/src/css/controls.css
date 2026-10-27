@@ -86,8 +86,6 @@ button.link {
   background: none;
   color: var(--ink-2);
   font-size: var(--t-sm);
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
 }
 
 /* ---- Fields ---- */
