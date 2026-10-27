@@ -212,7 +212,7 @@ These five are the only kinds. A topic page is a `document`, identified by the `
   pages. Dangling links are allowed. Markdown is parsed by a library on both sides
   ([ADR 14](../decisions/0014-markdown-parsed-by-a-library-on-both-sides.md)).
 - **Tags** are flat, lower-case, `/` allowed as a path; empty path segments are normalised
-  (migration 10). Claude's tags are marked in `model_tag` and shown dashed; a tag the user removes
+  (migration 10). Claude's tags are marked in `model_tag` and shown with a ✦; a tag the user removes
   is never added back and Claude never removes one.
 - **Related** pages come from enrich, kept apart from the text and shown both ways, merged with
   backlinks and a board's write-up links.

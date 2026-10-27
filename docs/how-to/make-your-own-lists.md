@@ -35,7 +35,7 @@ Any of these works, and you can mix them:
 - **Tag by hand.** On any page, tap **Tags** (or **Add tags**) under the title and add
   `person/family`. In the composer, open the **Tags** line above the text.
 - **Let Claude suggest it.** Once the tag is in use on a few pages, Claude's reading of a new
-  note (**About this page**) can suggest it. A tag Claude added is drawn dashed; keep it, or take
+  note (**About this page**) can suggest it. A tag Claude added is marked ✦; keep it, or take
   it off with **Tags**.
 - **A business card.** Tap **Camera** on Capture and photograph the card. Claude reads the text
   on it (**What's in the photo**, then **Text in the photo**), so the name, number and email are

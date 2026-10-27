@@ -344,7 +344,7 @@ their own ([](../reference/scheduled-jobs.md)).
 ## Tags
 
 - **On a page.** Tags are in a row of chips under the title and its meta lines, wrapping if there
-  are many. Tap one to search for it; a tag Claude added is marked. The **+** after the last tag
+  are many. A chip shows the last part of the tag (`#project-management` for `kind/project-management`, with more of the path when two tags on the page end the same); tap it to search for the whole tag. A tag Claude added has a ✦ before its name. Past two rows the rest wait behind a **+N** chip (**Show N more tags**) that shows them in place. The **+** after the last tag
   (**Change tags**; **+ Tag** when the page has none) edits them in place: tap a tag's ✕ to remove it; type one and press Enter or a comma to add it, or tap one
   of the tags offered under the box (the six most used, or those in use that match what you type);
   then **Save**. Text still in the box when you save counts too. Needs the server.
@@ -610,7 +610,7 @@ text. Without ingest the card is hidden unless the page already has a summary or
   synthesis cites the page (*· in a topic*).
 - **Topics**: on a page that is a source of topic pages, a line names them (*Topics: ibek ·
   RTEMS IOCs*), each a link.
-- Summary and Related are open until closed. Tags Claude added have a dashed outline.
+- Summary and Related are open until closed. Tags Claude added have a ✦ before their name.
 
 Reading needs the server; the page rechecks while Claude has it queued or is reading it.
 

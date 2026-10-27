@@ -350,7 +350,7 @@
   min-width: 0;
   max-width: 100%;
   min-height: var(--tap);
-  padding: 0 var(--s-3);
+  padding: 0 0.6em; /* with the text: a larger text size doesn't bloat the pill */
   border: 8px solid transparent;
   border-inline-width: 0;
   border-radius: var(--r-pill);
@@ -376,7 +376,31 @@
 .tags .add.first {
   width: auto;
   gap: var(--s-1);
-  padding: 0 var(--s-3) 0 10px;
+  padding: 0 0.6em 0 0.5em;
+}
+/* Folded to two rows (chipfold.ts): the tags that don't fit, until +N shows them; +N, a short
+   word, takes a little less room, so it and + fit beside a long tag at a large text size */
+.tags [hidden] {
+  display: none;
+}
+.tags .morechips {
+  padding-inline: 0.45em;
+}
+/* Not even one tag fits beside +N and +: the first stays, cut with … to the room there is */
+.tags.cut,
+.tagset.cut {
+  flex-wrap: nowrap;
+}
+.cut > .last {
+  flex: none;
+}
+.tags a.cut {
+  flex: 0 1 auto;
+}
+.tags a.cut > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tags .add::before {
   content: "";

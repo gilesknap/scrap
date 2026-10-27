@@ -1,0 +1,73 @@
+// A page's chip row folded to two rows (pagehead.ts): when its chips need more, the tags that
+// don't fit are hidden and a "+N" chip shows how many, a tap showing them all in place. The
+// due chip always shows, and + (change tags) stays right after +N, in one box with it.
+// Measured, not guessed: again whenever the row's width changes (a turned phone, a larger text size).
+import { h } from "./ui";
+
+const ROWS = 2;
+let opened = ""; // the page whose chips were shown in full, kept while it is redrawn
+
+/** The rows the row's chips take now: the distinct tops of the chips that show (the due chip,
+ * tags, +N and +; some sit inside the .tagset and .last boxes). */
+const rows = (row: HTMLElement) =>
+  new Set(
+    [...row.querySelectorAll<HTMLElement>("a, button")]
+      .filter((c) => !c.hidden)
+      .map((c) => Math.round(c.getBoundingClientRect().top)),
+  ).size;
+
+/** Fold row (its tag links, tags; the box holding the last tag and +, end) to two rows. */
+export function foldChips(row: HTMLElement, tags: HTMLElement[], end: Element, id: string) {
+  const more = h("button", { type: "button", className: "morechips" });
+  const fold = () => {
+    // Hiding the focused chip (or taking +N out to measure) would drop focus to the page: +N
+    // takes it if its tag is folded away
+    const had = document.activeElement;
+    const keep = () => {
+      if (had === more || (tags.includes(had as HTMLElement) && (had as HTMLElement).hidden))
+        more.focus();
+    };
+    for (const t of tags) t.hidden = false;
+    for (const e of [tags[0], tags[0].parentElement]) e?.classList.remove("cut");
+    more.remove();
+    if (opened === id || rows(row) <= ROWS) return keep();
+    // (end is the box of the last tag and +: +N goes in it, before +)
+    (end.lastElementChild ?? end).before(more); // +N and + together: + never alone on a line
+    // Hide from the end until the shown tags, +N and + fit in two rows (all of them, if even
+    // one long tag beside the due chip, +N and + would take three)
+    for (let n = 1; n <= tags.length; n++) {
+      tags[tags.length - n].hidden = true;
+      more.textContent = `+${n}`;
+      more.ariaLabel = `Show ${n} more ${n === 1 ? "tag" : "tags"}`;
+      if (rows(row) <= ROWS) break;
+    }
+    // Not even one tag fits beside +N and +: show the first, cut with … to the room there is,
+    // rather than none until +N is tapped
+    if (tags[0].hidden && tags.length > 1) {
+      tags[0].hidden = false;
+      more.textContent = `+${tags.length - 1}`;
+      more.ariaLabel = `Show ${tags.length - 1} more ${tags.length === 2 ? "tag" : "tags"}`;
+      tags[0].classList.add("cut");
+      tags[0].parentElement?.classList.add("cut"); // its box does not wrap +N and + away from it
+    }
+    keep();
+  };
+  more.onclick = () => {
+    opened = id;
+    const first = tags.find((t) => t.hidden);
+    fold();
+    first?.focus();
+  };
+  // Again when the row's width changes, or its first tag's size (the text size changed): never
+  // on the row's height, which folding itself changes
+  let size = "";
+  const watch = new ResizeObserver(() => {
+    const first = tags[0].getBoundingClientRect();
+    const now = `${row.clientWidth} ${first.width} ${first.height}`;
+    if (!row.isConnected || now === size) return;
+    size = now;
+    fold();
+  });
+  watch.observe(row);
+  watch.observe(tags[0]);
+}

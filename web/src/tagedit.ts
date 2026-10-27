@@ -28,7 +28,13 @@ export function tagProblem(tags: string[]): string | undefined {
 const TOP = 6; // tags offered at a time
 const DOUBLE = 400; // ms: a second tap on the chips sooner than this is a double tap, ignored
 
-export function tagField(initial: string[], onchange: () => void = () => {}) {
+/** The tag editor: initial's chips (Claude's, in claude, marked ✦ as on the page), a box and
+ * suggestions. */
+export function tagField(
+  initial: string[],
+  onchange: () => void = () => {},
+  claude: string[] = [],
+) {
   let tags = [...initial];
   let used: string[] = []; // the tags pages were given, most used first
   let every: string[] = []; // every tag in use (parents too), most pages first
@@ -109,8 +115,8 @@ export function tagField(initial: string[], onchange: () => void = () => {}) {
           "button",
           {
             type: "button",
-            className: "facet on",
-            "aria-label": `Remove #${t}`,
+            className: claude.includes(t) ? "facet on ai" : "facet on",
+            "aria-label": `Remove #${t}${claude.includes(t) ? ", added by Claude" : ""}`,
             onclick: (e: Event) => {
               // The button is replaced: if it had focus, the next chip (else the last) or the box
               const at = tags.indexOf(t);
