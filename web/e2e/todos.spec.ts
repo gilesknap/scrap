@@ -500,6 +500,76 @@ test("Snooze is folded to its own line, with Tomorrow and Next week", async ({ p
   expect([saved.due, saved.snoozed_until]).toEqual([day(7), day(7)]);
 });
 
+// (Share is not a button where the browser cannot share, as in this one)
+const ROW = ["Mark done", "Edit", "Delete"];
+
+test("with the due form open at 390 px and 130% text, Save is in the action row and in view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const t = await todo(page, "Bilby row", { due: day(3) });
+  await page.goto(`/p/${t.slug}`);
+  await page.addStyleTag({ content: ":root { font-size: 22.1px; }" }); // 130% text
+  const tools = page.locator(".page > .tools");
+  const buttons = tools.getByRole("button");
+  await expect(buttons).toHaveText(ROW);
+  await page.locator(".page .tags .duechip").click();
+  await expect(buttons).toHaveText(["Cancel", "Save"]);
+  const save = tools.getByRole("button", { name: "Save" });
+  await expect(save).toBeInViewport({ ratio: 1 });
+  await expect(
+    page.locator(".todoedit").getByRole("button", { name: /^(Save|Cancel)$/ }),
+  ).toHaveCount(0);
+  // Saved, the row is the page's again
+  await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await save.click();
+  await expect(buttons).toHaveText(ROW);
+  expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(day(1));
+  // Cancelled too, by the button and by Escape
+  await page.locator(".page .tags .duechip").click();
+  await expect(buttons).toHaveText(["Cancel", "Save"]);
+  await tools.getByRole("button", { name: "Cancel" }).click();
+  await expect(buttons).toHaveText(ROW);
+  await expect(page.locator(".page .tags .duechip")).toBeFocused();
+  await page.locator(".page .tags .duechip").click();
+  await page.keyboard.press("Escape");
+  await expect(buttons).toHaveText(ROW);
+});
+
+test("Pick a date… says the chosen day and is the selected chip", async ({ page }) => {
+  const t = await todo(page, "Bilby pick", { due: day(0) });
+  await page.goto(`/p/${t.slug}`);
+  await page.locator(".page .tags .duechip").click();
+  const due = page.getByRole("group", { name: "Due soon" });
+  const pick = due.locator(".pick > button");
+  await expect(pick).toHaveText("Pick a date…");
+  await expect(pick).toHaveAttribute("aria-pressed", "false");
+  await expect(due.getByRole("button", { name: "Today" })).toHaveAttribute("aria-pressed", "true");
+  const chosen = day(20);
+  await page.getByLabel("Due", { exact: true }).fill(chosen);
+  const said = await pick.evaluate((_, d) => {
+    const t = new Date(`${d}T12:00`);
+    const year = t.getFullYear() !== new Date().getFullYear() && { year: "numeric" as const };
+    return t.toLocaleDateString(undefined, { day: "numeric", month: "short", ...year });
+  }, chosen); // in the browser's own locale
+  await expect(pick).toHaveText(said);
+  await expect(pick).toHaveAttribute("aria-pressed", "true");
+  await expect(due.getByRole("button", { name: "Today" })).toHaveAttribute("aria-pressed", "false");
+  await page.locator(".page > .tools").getByRole("button", { name: "Save" }).click();
+  expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(chosen);
+});
+
+test("a snoozed todo's folded Snooze line says till when", async ({ page }) => {
+  const t = await todo(page, "Bilby asleep", { due: day(9) });
+  await page.request.patch(`/api/pages/${t.page_id}`, { data: { snoozed_until: day(4) } });
+  await page.goto(`/p/${t.slug}`);
+  await page.locator(".page .tags .duechip").click();
+  const fold = page.locator(".todoedit .snooze > summary");
+  await expect(fold).toContainText("till");
+  await expect(fold).not.toContainText("none");
+  await expect(page.getByRole("group", { name: "Snooze for" })).toBeHidden(); // still folded
+});
+
 test("a snooze on or before the due date saves without asking", async ({ page }) => {
   const t = await todo(page, "Bilby no ask", { due: day(9) });
   await page.goto(`/p/${t.slug}`);
