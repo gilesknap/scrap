@@ -9,7 +9,8 @@ text restored (revert with to_rev), each as a new text revision, unless
 SCRAP_MCP_CONTENT_EDIT is off. Any page's kind and tags (and a todo's status) can be
 changed (edit_meta, rename_tag), each change a revision that revert undoes. No tool
 deletes a page for good, and nothing does until it has been in the trash for
-SCRAP_TRASH_DAYS (nightly gc purges it then, #276); trash_pages moves pages the user asked about to the trash (#332),
+SCRAP_TRASH_DAYS (nightly gc purges it then, #276); trash_pages moves pages the user
+asked about to the trash (#332),
 and one there can be listed (trash, with when it is purged), read (read, revisions: read
 only) and brought back, alone or as the batch trash_pages moved (undelete); both unless
 SCRAP_MCP_CONTENT_EDIT is off. Every other tool treats the trash as absent."""
