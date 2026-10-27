@@ -129,7 +129,7 @@ extraEnv:
 Then upgrade with the new values:
 
 ```
-helm upgrade scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ release_tag }} \
+helm upgrade scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_version }} \
     -n scrap -f my-values.yaml
 ```
 

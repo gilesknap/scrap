@@ -58,11 +58,12 @@ Throughout, `scrap.example.com` is your own hostname. Replace it.
 
 ## 1. Choose a release
 
-The chart is published as an OCI artifact, `oci://ghcr.io/gilesknap/charts/scrap`, and its
-version is the release tag. This page installs `--version {{ release_tag }}`; use a newer release if there
-is one (see the [releases](https://github.com/gilesknap/scrap/releases)). The chart's
-`appVersion` is the same tag, so it runs `ghcr.io/gilesknap/scrap:{{ release_tag }}` (amd64 and arm64).
-There is nothing to build and nothing to clone.
+The chart is published as an OCI artifact, `oci://ghcr.io/gilesknap/charts/scrap`, and its version
+is the release tag (a pre-release such as `1.0.0rc1` is chart `1.0.0-rc.1`). This page installs
+`--version {{ chart_version }}`; use a newer release if there is one (see the
+[releases](https://github.com/gilesknap/scrap/releases)). The chart's `appVersion` is the same tag,
+so it runs `ghcr.io/gilesknap/scrap:{{ release_tag }}` (amd64 and arm64). There is nothing to build
+and nothing to clone.
 
 ## 2. Create the secrets
 
@@ -135,7 +136,7 @@ What each part does:
 Install it:
 
 ```
-helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ release_tag }} \
+helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_version }} \
     --namespace scrap -f my-values.yaml
 kubectl -n scrap rollout status deploy/scrap
 ```

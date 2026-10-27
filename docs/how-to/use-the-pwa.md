@@ -662,8 +662,8 @@ citing its sources. They are Claude's, kept apart from your pages.
   It stays listed, struck through and marked *taken out*, with **Put back** (the toast's **Undo**
   does the same). Either way the synthesis is written again. Needs the server. The topic's Related
   leaves out its sources.
-- **Search** puts a matching topic page first, with a *Topic* label and an open-book icon;
-  `is:topic` lists them all.
+- **Search** puts a matching topic page first within its tier (every word in the title; or in title,
+  tags or summary), with a *Topic* label and an open-book icon; `is:topic` lists them all.
 - To get rid of a topic, delete it: it goes to the trash and the weekly pass does not re-make it.
   It stays in the trash (never purged) as the record that you did not want it; restore it from
   the Trash to have it back ({ref}`the-trash`).

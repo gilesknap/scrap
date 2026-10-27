@@ -468,9 +468,10 @@ connection to `127.0.0.1` gets full access too.
 (scrap-update)=
 ## Update
 
-Take a restore point first ({ref}`scrap-upgrade-db`). Then update the clone, pull the new
-release (see [scrap's releases](https://github.com/gilesknap/scrap/releases)), point
-`SCRAP_IMAGE` at it, and re-run the install script:
+Take a restore point first ({ref}`scrap-upgrade-db`). Coming from before 0.16? See
+{ref}`scrap-upgrade-1-0` first. Then update the clone, pull the new release (see [scrap's
+releases](https://github.com/gilesknap/scrap/releases)), point `SCRAP_IMAGE` at it, and re-run the
+install script:
 
 ```
 git -C ~/scrap fetch --depth 1 origin tag <version>
@@ -779,7 +780,7 @@ gives the new one; `install.sh` keeps drop-ins as it does the timers'. The defau
 
 | Service | Default `ExecStart` | Options to add |
 | --- | --- | --- |
-| `scrap-gc.service` | `%h/.local/lib/scrap/scrap-gc` | passed on to `scrap gc` after its own `--delete --grace-hours 24` (the last wins): `--grace-hours N`, `--run-days N` (default 30), `--job-days N` (default 30), `--trash-days N` (from `SCRAP_TRASH_DAYS`; one given here wins), `--dry-run` (only count) |
+| `scrap-gc.service` | `%h/.local/lib/scrap/scrap-gc` | passed on to `scrap gc` after its own `--delete --grace-hours 24` (the last wins): `--grace-hours N`, `--run-days N` (default 30), `--job-days N` (default 30), `--trash-days N` (from the `SCRAP_TRASH_DAYS` line in `ingest.env`; one given here wins), `--dry-run` (only count) |
 | `scrap-enrich-related.service` | `/usr/bin/podman exec scrap scrap enrich --related` | `--all` (every page), `--limit N` (at most N pages) |
 | `scrap-enrich-topics.service` | `/usr/bin/podman exec scrap scrap enrich --topics` | `--all` (every topic's synthesis), `--limit N` (at most N syntheses queued) |
 
@@ -833,13 +834,14 @@ a copy and never writes to the backup, so the backups mount can be read-only (`:
 The same pattern runs any other `scrap` command (for example `scrap export`) against the data.
 
 **Rebuilding on a new server.** Create the `scrap` user, get the image and clone the release as
-above, and copy your backups into `SCRAP_BACKUPS` and `ingest.env` into `~/.config/scrap/`. Run
-`./deploy/install.sh`: its first run writes `~/.config/scrap/env` with
+above. Then `mkdir -p ~/.config/scrap ~/.local/share/scrap/backups` and copy your backups into
+`~/.local/share/scrap/backups` (the default `SCRAP_BACKUPS`) and `ingest.env` into
+`~/.config/scrap/`. Run `./deploy/install.sh`: its first run writes `~/.config/scrap/env` with
 `SCRAP_IMAGE=localhost/scrap:dev` and exits without starting scrap, so set `SCRAP_IMAGE` as in
-{ref}`scrap-install-script` and run it again. That starts scrap, which creates an
-empty database, so stop it and restore with `--force` as shown (nothing is lost: the database
-is new). Start it, and publish it with `tailscale serve` again. Make sure the new Serve address
-is what `SCRAP_PUBLIC_URL` says.
+{ref}`scrap-install-script` and run it again. That starts scrap, which creates an empty database, so
+stop it and restore with `--force` as shown (nothing is lost: the database is new). Start it, and
+publish it with `tailscale serve` again. Make sure the new Serve address is what `SCRAP_PUBLIC_URL`
+says.
 
 (scrap-gc)=
 ## Deleting unused files (scrap gc)

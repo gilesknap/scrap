@@ -402,7 +402,8 @@ For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is e
 
 ## Upgrades
 
-Back up first, then upgrade to the newer chart version (its image follows):
+Back up first, then upgrade to the newer chart version (its image follows, unless your values set
+`image.tag`: change that too). Coming from before 0.16? See {ref}`k8s-upgrade-1-0` first.
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-pre-upgrade
@@ -423,7 +424,10 @@ So `helm rollback` alone does not go back: roll back to the old image *and* rest
 pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
 the database; its files stay.
 
-**Upgrading to 1.0 from before 0.16.** scrap 1.0 starts from schema 18 and refuses a database or
+(k8s-upgrade-1-0)=
+### Upgrading to 1.0 from before 0.16
+
+scrap 1.0 starts from schema 18 and refuses a database or
 a backup below it: `<db> has schema N, older than the baseline this scrap starts from (18):
 upgrade with scrap 0.16.x first (it migrates to schema 18), then use 1.0`. Upgrade to the latest
 0.16.x chart first (`--version 0.16.<x>`), let it start and migrate, back up again, then upgrade
@@ -554,10 +558,10 @@ restore into it without `--force`, and point `persistence.existingClaim` at it.
 
 A backup you have never opened is a hope, not a backup. This checks one on any machine, with nothing
 touching the cluster's data: restore it into a throwaway folder, start scrap on another port and
-compare what it shows with the live store. It was tested on 2026-10-27, with a 0.16-era scrap before
-the 1.0 baseline (schema 18): a backup of the live store (schema 16, 285 pages, 98 of them in the
-trash, 244 files, 290 MB) restored by a newer scrap (schema 17, a clone of `main` set up with `uv
-sync`). The steps are the same with 1.0.
+compare what it shows with the live store. It was tested on 2026-10-27, before the 1.0 baseline: a
+backup of the live store (schema 16, 285 pages, 98 of them in the trash, 244 files, 290 MB) restored
+by a development build at schema 17 (a clone of `main` set up with `uv sync`). The steps are the
+same with 1.0.
 
 1. Get a run onto the machine. A run directory holds `scrap.db`, `files/` and a `COMPLETE` file;
    copy one off the backup claim into a folder (`/tmp/rt/backup/<run>` below), for example with
@@ -609,9 +613,9 @@ sync`). The steps are the same with 1.0.
 What to expect:
 
 - A backup from an older scrap is migrated by `restore`, on the copy, before it is swapped into
-  place (scrap 1.0 refuses one below schema 18; restore it with 0.16.x first). On the 0.16-era
-  test it took about a second on a 60 MB database: schema 16 became 17 (the empty `page_trash_rev`
-  table), `PRAGMA integrity_check` said `ok`, and every other table kept its row count.
+  place (scrap 1.0 refuses one below schema 18; restore it with 0.16.x first). On that test it took
+  about a second on a 60 MB database: schema 16 became 17 (the empty `page_trash_rev` table),
+  `PRAGMA integrity_check` said `ok`, and every other table kept its row count.
 - The backup holds the database and every file in `files/`. It does not hold `cache/`, the page
   previews, which scrap makes again the first time a photo is shown.
 - `enrich.on` and `writeup.on` read `false` on the scratch instance only because Claude is off
@@ -635,7 +639,7 @@ nightly related-pages pass and the weekly topics pass. [](../reference/scheduled
 each one's CronJob, schedule, what it does, whether it spends from the Claude budget and the
 values that set it. Like the backup job they run beside the scrap pod (pod affinity: the data
 claim is `ReadWriteOnce`, and SQLite's write-ahead log must be shared on one node), never overlap
-themselves (`concurrencyPolicy: Forbid`), run the same image as the same uid with the same
+themselves (`concurrencyPolicy: Forbid`), and run the same image as the same uid with the same
 `securityContext`. The related-pages and topics jobs get the Deployment's environment (the Claude
 key, the budget, `extraEnv` and `extraEnvFrom`), so a Secret change needs no restart of them; gc
 gets only `SCRAP_DATA_DIR`, `SCRAP_BACKUPS` and, with ingest on and `ingest.notifyUrlKey` set,

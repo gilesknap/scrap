@@ -47,8 +47,8 @@ uv run tox -e docs-autobuild   # rebuild the docs on change
 
 The docs build fails on any warning and needs
 [graphviz](https://graphviz.org/) installed. pytest also runs the doctests in
-`src/` docstrings (the docs are Markdown, which it does not collect), and treats
-warnings as errors.
+the docstrings under `src/` (the docs are Markdown, which it does not collect),
+and treats warnings as errors.
 
 ### Writing the docs
 

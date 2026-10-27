@@ -832,12 +832,12 @@ sequenceDiagram
   returns a one-line `summary` and Markdown `text`: Overview, Key facts (each citing its sources),
   How the sources relate, Contradictions and open questions. Its citations `[[n]]` are made
   `[[slug]]` links to the sources and nothing else links, exactly as for a write-up.
-- **Where it shows.** Its summary is the topic page's model summary, its text is indexed for
-  search, and a matching topic page comes first in search (`is:topic` lists them). Its citations
-  show in Related both ways (`via: topic`). A source page lists its topics (`topics` in the page
-  object), and the topic page its sources (`topic.sources`). `GET /api/topics` and the MCP
-  `topics` tool give the index, grouped by area (the top-level tag most common among a topic's
-  sources), with no model call.
+- **Where it shows.** Its summary is the topic page's model summary, its text is indexed for search,
+  and a matching topic page comes first within its tier in search (every word in the title; or in
+  title, tags or summary; `is:topic` lists them). Its citations show in Related both ways
+  (`via: topic`). A source page lists its topics (`topics` in the page object), and the topic page its
+  sources (`topic.sources`). `GET /api/topics` and the MCP `topics` tool give the index, grouped by
+  area (the top-level tag most common among a topic's sources), with no model call.
 - **Cost.** Discovery is about 40 tokens a page in, roughly $0.30 a week for 1,000 pages at Opus
   prices; a synthesis roughly $0.10 to $0.30.
 
