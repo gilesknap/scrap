@@ -29,17 +29,22 @@ page's: see the end. "Nightly" is the related-pages job and "weekly" the topics 
 | Photo capture of a whiteboard or diagram (filed as a whiteboard) | Per image: kind, description, text (OCR), drawing. From the capture's first image only: title, tags, a to-do list | Skipped (Ask only) | Once all its photos are read, and again when a board image is read later (Reprocess, a new photo); Regenerate (its card says when it is outdated: the page's text, title or tags, or the prompt, changed since); Ask; `scrap enrich --writeups` (`--outdated`: the outdated ones, as after a prompt change). Sees the board photos (at most 4), their text and descriptions, title, tags, text and the owner's guidance; links related candidates. Not for a to-do sticky (a list of actions) | Once after its write-up; nightly if changed, a photo is read or the write-up is newer; Ask. Sees the images' text and the write-up |
 | Photo capture of a document, handwriting, screenshot or photo | The same, with no drawing | Skipped (Ask only) | — | Once when all of its first photo capture is read; nightly if changed or a photo is read; Ask. Sees the images' text |
 | Photos added to a page (the editor's Add photo; a PDF added with it is read locally only: {ref}`ingest-files`) | Per image: description, text (OCR), drawing. Never the page's kind, title, tags or task boxes: its first capture decides what the page is ({ref}`ingest-first-capture`) | As the page was before: a typed page keeps enrich on save; a photo page, Ask only | As above, once a board image is read | Queued at once when this is the page's first capture with a photo's job (its first photos), once they are read; otherwise nightly, as a photo is read; Ask. Sees the new images' text |
-| File capture (PDF and the like) | — (a PDF's or text file's text is read locally for search, no model: {ref}`ingest-files`; summaries are asked of Claude over MCP) | Skipped (Ask only) | — | Nightly if changed; Ask. Sees title, tags and text only, not the file's text |
+| File capture (PDF and the like) | — (a PDF's or text file's text is read locally for search, no model: {ref}`ingest-files`) | Ask only: sees the files' text, so it gets tags and a summary, and a page made from a file alone (no text sent with it, its title still the time it came) a title from it | — | Nightly if changed; Ask. Only Ask's related call sees the start of the files' text; the nightly one sees title, tags, summary and text |
 | Whiteboard or document page typed, not photographed | — | Skipped (Ask only) | — | Nightly if changed; Ask |
 | Topic page (Claude's, a Doc; its text is the owner's notes) | — | Never: its text is not read, Ask makes its synthesis instead | Its synthesis: queued by the weekly `scrap enrich --topics` when due (none yet, a source added, taken out or changed, its notes changed, a new prompt), at once when the owner takes a source out; Regenerate; Ask. Sees its sources (at most 40) and the owner's notes and guidance; cites only its sources | Nightly if changed or the synthesis is newer; Ask |
 
 What each call sees. Enrich gets the page's kind, tags, title and text as plain words (at most
-12,000 characters), what was read from its images (at most 8,000) and, for a link, the fetched text.
-Related gets the page in brief (title, tags, summary, the first 2,000 characters of its text, 3,000
-of its images' text and 2,000 of its write-up) and an index of up to 150 candidates. The candidates
-are the pages sharing the most tags, then a full-text search for 24 of the page's words: title, tags
-and summary first, then its images' text, their descriptions, and last its own text. Data is quoted
-in `<page>`, `<images>` and `<fetched>` blocks, and any such tag inside the data has its `<` sent as
+12,000 characters), what was read from its images (at most 8,000), on Ask what was read from its
+files (a PDF's or text file's text, at most 8,000) and, for a link, the fetched text. A file's text
+goes to Claude only on Ask, the owner's explicit act ([](decisions/0035-files-are-read-locally-for-search.md)):
+never on a save, a capture or the nightly pass. The summary is asked for when the text and the
+files' text together reach 200 characters. Related gets the page in brief (title, tags, summary,
+the first 2,000 characters of its text, 3,000 of its images' text, on Ask 3,000 of its files' text,
+and 2,000 of its write-up) and an index of up to 150 candidates. The candidates are the pages
+sharing the most tags, then a full-text search (local) for 24 of the page's words: title, tags and
+summary first, then its images' text, their descriptions, its own text, and last its files' text.
+Data is quoted in `<page>`, `<images>`, `<files>` and `<fetched>` blocks, and any such tag inside
+the data has its `<` sent as
 `&lt;`, so the data cannot end its block. A photo page usually has no enrich summary (Ask can add
 one); a board's write-up gives it one. The write-up gets the board photos themselves (at most 4),
 what was read from them (at most 12,000 characters), the page's title, tags and text (at most
@@ -88,7 +93,7 @@ change the kind, title and tags by hand.
 | Write-up | board | A current photo reading says whiteboard or diagram, not a list of actions (`HAS_BOARD`, `has_board`, `writeup_type`) | A write-up when its photos are read, and on Regenerate |
 | Write-up | topic | A topic page (`IS_TOPIC`, `writeup_type`) | Its synthesis is its write-up |
 | Write-up | none | Neither (`SHOWN` is false) | No write-up; old versions are kept unseen |
-| May retitle | while untouched | Its title is still revision 1's and there is no later text revision (`TITLE_UNTOUCHED`) | Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link's title as captured |
+| May retitle | while untouched | Its title is still revision 1's and there is no later text revision (`TITLE_UNTOUCHED`) | Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link's title as captured; on Ask, a page whose first capture is a file's with no text, from the files' text (`FILE_UNTITLED`) |
 | May re-kind | an unfiled note | Its kind nobody chose (`kind_fixed` 0) and a note (`UNFILED`, `may_rekind`) | Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo |
 | May re-kind | an unfiled note or whiteboard | `may_rekind(..., ("note", "whiteboard"))` | Task boxes from a photo's list of actions file it a todo |
 | May re-kind | an unfiled todo | `may_rekind(..., ("todo",))` | Claude's own boxes taken off by Claude's revert file it back as it was (a note, or ingest's kind) |

@@ -11,12 +11,15 @@ from ..query import CONTROL
 from ..store import unlink
 from .constants import (
     DELIMITER,
+    FILES,
     IMAGES,
     MAX_BOARDS,
     MAX_BODY,
+    MAX_FILES,
     MAX_IMAGES,
     MAX_VOCAB,
     RELATED_BODY,
+    RELATED_FILES,
     RELATED_IMAGES,
     RELATED_SCHEMA,
     RELATED_WRITEUP,
@@ -28,6 +31,7 @@ from .constants import (
 )
 
 Image = dict[str, str | None]  # what photo ingest read from one: description, text
+File = dict[str, str | None]  # what file ingest read from one: its name, its text
 
 
 def quoted(text: str) -> str:
@@ -56,6 +60,33 @@ def image_lines(images: Sequence[Image], most: int) -> list[str]:
     read = "\n".join(items)
     read = read if len(read) <= most else read[: most - 1] + "…"
     return ["Read from its images:", "<images>", quoted(read), "</images>"]
+
+
+def page_files(conn: sqlite3.Connection, page_id: str) -> list[File]:
+    """A page's readable files (a PDF, a text file) in order, each with its name and
+    the text file ingest read from it (None if none yet)."""
+    return [dict(r) for r in conn.execute(FILES, (page_id,))]
+
+
+def file_text(files: Sequence[File]) -> str:
+    """All the text read from a page's files, for how much there is to summarise."""
+    return "\n".join(t for f in files if (t := (f.get("text") or "").strip()))
+
+
+def file_lines(files: Sequence[File], most: int) -> list[str]:
+    """The user turn's lines for what was read from a page's files, each labelled
+    with its number and name, cut to most characters in all; none if nothing was
+    read."""
+    items = []
+    for n, file in enumerate(files, start=1):
+        if text := (file.get("text") or "").strip():
+            name = one_line(file.get("name") or "", 100)
+            items.append(f"File {n}{f' ({name})' if name else ''}, its text:\n{text}")
+    if not items:
+        return []
+    read = "\n".join(items)
+    read = read if len(read) <= most else read[: most - 1] + "…"
+    return ["Read from its files:", "<files>", quoted(read), "</files>"]
 
 
 def vocabulary(conn: sqlite3.Connection) -> list[tuple[str, int]]:
@@ -108,9 +139,10 @@ def related_message(
     summary: str,
     images: Sequence[Image] = (),
     writeup: str = "",
+    files: Sequence[File] = (),
 ) -> list[dict]:
     """The related call's user turn: the page in brief, with the start of what was
-    read from its images and of its write-up, if it has one."""
+    read from its images and files and of its write-up, if it has one."""
     up = writeup.strip()
     up = up if len(up) <= RELATED_WRITEUP else up[: RELATED_WRITEUP - 1] + "…"
     text = "\n".join([
@@ -123,6 +155,7 @@ def related_message(
         quoted(plain(page["body"]).strip()[:RELATED_BODY]) or "(empty)",
         "</page>",
         *image_lines(images, RELATED_IMAGES),
+        *file_lines(files, RELATED_FILES),
         *(["Start of Claude's write-up of it:", "<writeup>", quoted(up), "</writeup>"]
           if up else []),
     ])  # fmt: skip
@@ -138,10 +171,15 @@ def page_message(
     want_summary: bool,
     keep_text: bool = True,
     images: Sequence[Image] = (),
+    files: Sequence[File] = (),
+    want_title: bool = False,
 ) -> list[dict[str, Any]]:
     """The user turn: the page (title, kind, tags, its text, what was read from its
-    images) and for a link what was fetched. keep_text False puts a placeholder for
-    the fetched text (as stored: a read keeps its link and summary only)."""
+    images and files) and for a link what was fetched. keep_text False puts a
+    placeholder for the fetched text (as stored: a read keeps its link and summary
+    only); what was read from its images and files is stored in full, as its own
+    text is. want_title: a page made from a file, with no title of its own, asks for
+    one (FILE_UNTITLED)."""
     body = quoted(plain(page["body"]).strip()[:MAX_BODY])
     parts = [
         f"Kind: {page['kind']}",
@@ -152,6 +190,7 @@ def page_message(
         body or "(empty)",
         "</page>",
         *image_lines(images, MAX_IMAGES),
+        *file_lines(files, MAX_FILES),
     ]
     if link:
         parts += ["", f"This page is a saved link: {quoted(link)}"]
@@ -177,6 +216,8 @@ def page_message(
             else:
                 parts.append(f"It could not be fetched: {quoted(failed or '')}")
     parts += ["", "Write a summary." if want_summary else "No summary is wanted."]
+    if want_title:
+        parts.append("Write a title.")
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
 
 

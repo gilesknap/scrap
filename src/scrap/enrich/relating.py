@@ -11,17 +11,23 @@ from ..store import Store, model_summary, now, transaction, writeups
 from .checking import checked_related, record
 from .constants import RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
-from .prompts import page_images, related_message, related_prompt
+from .prompts import page_files, page_images, related_message, related_prompt
 from .types import Call
 
 
 def relate(
-    store: Store, call: Call, page_id: str, job_id: int | None = None
+    store: Store,
+    call: Call,
+    page_id: str,
+    job_id: int | None = None,
+    files: bool = False,
 ) -> claude.CallError | None:
     """One related call for a page: Claude picks from its candidates (CANDIDATES) and
-    the picks replace its related rows. The run is recorded either way; a failure is
-    returned for the caller to act on (pause, charge or carry on). None: done, or the
-    page is in the trash. Related shows both ways: a page picked is shown the picker."""
+    the picks replace its related rows. files: the start of what was read from its
+    files is sent too (on Ask only: a file's text goes to Claude when the owner asks,
+    ADR 35). The run is recorded either way; a failure is returned for the caller to
+    act on (pause, charge or carry on). None: done, or the page is in the trash.
+    Related shows both ways: a page picked is shown the picker."""
     with store.connect() as conn:
         page = conn.execute(
             "SELECT * FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
@@ -34,9 +40,12 @@ def relate(
         summary = human if isinstance(human, str) else model_summary(conn, page_id)
         pages = CANDIDATES(conn, page_id)
         images = page_images(conn, page_id)
+        read = page_files(conn, page_id) if files else []
         up = writeups.shown(conn, page_id)
     system, version = related_prompt(pages)
-    messages = related_message(page, tags, summary, images, up["text"] if up else "")
+    messages = related_message(
+        page, tags, summary, images, up["text"] if up else "", read
+    )
     model, effort = claude.text_model()
     request = {
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,

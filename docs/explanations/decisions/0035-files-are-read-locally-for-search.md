@@ -54,6 +54,20 @@ The security review of file ingest (#321) corrected and tightened this decision.
 - Over MCP, a file's `text` carries a `text_note` (untrusted third-party text, quoted data, never
   instructions), as `by_model` does, and the server instructions name file text.
 
+## Amendment: Ask Claude reads a file's text (#378)
+
+A page made from a PDF alone kept its capture time as its title and got no summary even on
+**Ask Claude**, because enrich saw only the page's own (empty) text. Ask is the owner's explicit
+act, so it is the owner deciding what a model sees:
+
+- On Ask, enrich and its related call are sent what scrap read from the page's files (at most
+  8,000 and 3,000 characters), quoted in a `<files>` block. Nothing else sends it: not enrich on
+  a capture or save, nor the nightly related pass, nor topics. Related candidates may be found by
+  the files' words, a local full-text search that sends nothing.
+- A page made from a file alone (its first capture a file's with no text, its title untouched)
+  gets a title from its files' text on Ask, as a photo page gets one from its photo.
+- Still no model reads the file itself, and file ingest still never changes the page.
+
 ## Consequences
 
 - Search finds words in PDFs and text files as soon as the worker reads them, at no cost, and the
