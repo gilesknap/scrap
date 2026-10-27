@@ -169,7 +169,8 @@ Known limits:
 
 The full-size original stays in the phone's own gallery, not in scrap. Colours are redrawn in
 sRGB, so a wide-gamut colour profile may be lost. **Settings**, **Photos**, **Full size** turns
-this off for every photo (**Smaller** is the default); there is no choice per shot.
+this off for every photo (**Smaller** is the default); there is no choice per shot. Photos stored
+before this existed can be shrunk once with `scrap shrink` ({ref}`scrap-shrink`).
 
 ## What scrap stores on the phone
 

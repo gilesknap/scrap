@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture, files and import &#8212; scrap 0.14.1.dev19+g941911033 documentation</title>
+    <title>Capture, files and import &#8212; scrap 0.14.1.dev20+g106aa2fe7 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=73cc8232"></script>
+    <script src="../../_static/documentation_options.js?v=54753f93"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1049,6 +1049,13 @@ the text (a revert) shows the file again (#303).</p></li>
 inside code.</p></li>
 </ul>
 </section>
+<section id="shrinking-stored-photos">
+<h2>Shrinking stored photos<a class="headerlink" href="#shrinking-stored-photos" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">shrink</span></code> (<code class="docutils literal notranslate"><span class="pre">shrink.py</span></code>, <a class="reference internal" href="../../how-to/deploy-single-server.html#scrap-shrink"><span class="std std-ref">Shrink photos already stored</span></a>) is the one command that changes a stored original.
+A shrunk photo is a new file, so in one transaction per photo it moves <code class="docutils literal notranslate"><span class="pre">capture_blob</span></code>, <code class="docutils literal notranslate"><span class="pre">derived</span></code>,
+<code class="docutils literal notranslate"><span class="pre">job</span></code> and <code class="docutils literal notranslate"><span class="pre">model_run</span></code> rows and the address in page text (a revision each) to the new SHA-256, then
+removes the old file as gc would. It decodes with <code class="docutils literal notranslate"><span class="pre">preview.py</span></code>’s decoder, so rotation is applied.</p>
+</section>
 <section id="unused-files">
 <h2>Unused files<a class="headerlink" href="#unused-files" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is a dry run unless given <code class="docutils literal notranslate"><span class="pre">--delete</span></code>. A file is in use while anything refers to it, and
@@ -1228,6 +1235,7 @@ capture screen.</p></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#images-in-the-text">Images in the text</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shrinking-stored-photos">Shrinking stored photos</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unused-files">Unused files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#import-backup-and-export">Import, backup and export</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#invariants">Invariants</a></li>
