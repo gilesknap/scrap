@@ -63,7 +63,7 @@ flowchart LR
   off). Capture, search and everything else work without it.
 - The API and the worker both write, so every connection sets `PRAGMA foreign_keys = ON` and
   `PRAGMA busy_timeout = 5000` on open; the database is in WAL mode.
-- The CLI (`scrap backup`, `restore`, `export`, `import`, `gc`, `enrich`, `ingest-once`) opens the
+- The CLI (`scrap backup`, `restore`, `export`, `import`, `gc`, `shrink`, `enrich`, `ingest-once`) opens the
   same data folder directly; `scrap serve` migrates, then serves.
 - No login code. Tailscale Serve is the way in; on Kubernetes a proxy fronts it, with an optional
   bearer token on `/mcp` ([](decisions/0007-tailscale-serve-for-access-and-identity.md),

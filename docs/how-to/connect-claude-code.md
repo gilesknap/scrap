@@ -85,8 +85,9 @@ The server has fifteen tools (eleven with `SCRAP_MCP_CONTENT_EDIT=0`, which drop
 pages and the todos), `mcp__scrap__read`, `mcp__scrap__drawing`, `mcp__scrap__tags`,
 `mcp__scrap__topics`,
 `mcp__scrap__write`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
-`mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__edit_page`, `mcp__scrap__trash`,
-`mcp__scrap__trash_pages` and `mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
+`mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__edit_page`,
+`mcp__scrap__edit_drawing`, `mcp__scrap__trash`, `mcp__scrap__trash_pages` and
+`mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
 returns.
 
 Try it: ask "get my recent photos". Search results say which pages hold images (`image_count`,
@@ -216,7 +217,8 @@ appends to an earlier page only if that page was written by Claude (`written_by_
 `read`); otherwise it links to your page.
 
 Pages written this way carry a *Written by Claude* badge and the origin the session gave;
-`is:claude` lists them. Claude never deletes a page. It can change any page's kind and tags
+`is:claude` lists them. Claude never deletes a page for good: it can move pages you name to the trash
+(`trash_pages`, undone with `undelete`), and the nightly gc purges them after `SCRAP_TRASH_DAYS` days. It can change any page's kind and tags
 ("make these 15 notes whiteboards", with `edit_meta`); each such change is a revision you can
 ask it to list (`revisions`) and undo (`revert`). It can also edit the text of a page you name
 ("fix the typo in my trip notes", with `edit_page`): it replaces one passage it quotes exactly,
@@ -253,7 +255,7 @@ might allow the read tools (`mcp__scrap__search`, `read`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
 
 To keep Claude off the text of your pages, set `SCRAP_MCP_CONTENT_EDIT=0` on the server
-(`edit_page` is then not offered, and `revert` refuses `to_rev`), or deny `edit_page` in one
+(`edit_page`, `edit_drawing`, `trash_pages` and `undelete` are then not offered, and `revert` refuses `to_rev`), or deny `edit_page` in one
 client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page"]}`. A client
 setting cannot deny only the text mode of `revert`, which also undoes kinds and tags.
 

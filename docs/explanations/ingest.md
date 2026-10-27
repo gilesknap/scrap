@@ -218,6 +218,10 @@ Claude seat, {ref}`below <on-a-claude-seat>`) and
 ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
 photo is sent as 2048×1536 and a square one as 1932×1932.
 
+The PWA itself shrinks a photo over 2560 px on the long edge (JPEG, quality 85) before it queues it, so
+the original that is stored is already that size; `scrap shrink` does the same for photos stored
+before ({ref}`scrap-shrink`).
+
 The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
 rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
 (`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA scales the drawing

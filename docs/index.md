@@ -17,11 +17,12 @@ html_theme.sidebar_secondary.remove: true
   Excalidraw redrawing, and tags, summarises and links text pages. It is off by default, it costs
   money, and a daily budget (`SCRAP_BUDGET_DAY_USD`, default 3) pauses the queue when it is spent.
   See [](explanations/ingest.md) and the [settings](reference/api.md).
-- **Claude over MCP.** A Claude Code session can search, read, write and retag pages, and undo
-  metadata changes: see [](how-to/connect-claude-code.md) and [](reference/mcp.md).
+- **Claude over MCP.** A Claude Code session can search, read, write, edit, retag and trash pages
+  and redraw a drawing, and undo each change: see [](how-to/connect-claude-code.md) and [](reference/mcp.md).
 - **Your data stays yours.** The store is one SQLite database and a folder of files. `scrap backup`
   and `scrap restore` copy it, `scrap export` writes Markdown, `scrap import` brings in a Thoth
-  vault and `scrap gc` finds files nothing uses.
+  vault, `scrap gc` finds files nothing uses and purges the trash (after 30 days by default), and `scrap shrink`
+  makes old photos smaller.
 
 Search is full-text only (SQLite FTS5); semantic search was deferred, see
 [](explanations/decisions/0008-search-fts5-only-for-now.md). scrap has no login code of its own:
