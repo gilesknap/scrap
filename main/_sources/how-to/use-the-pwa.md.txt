@@ -396,7 +396,7 @@ their own ([](../reference/scheduled-jobs.md)).
 
   | View | Shows |
   | --- | --- |
-  | **Now** (clock, default) | Todos not done or cancelled, in groups: **Overdue** (oldest due first), **Today**, **High priority** (no due date), **Open** (the rest by priority, due date, last edited). Done and cancelled are folded at the end (**Done**; those among the 500 last edited) |
+  | **Now** (clock, default) | Todos not done or cancelled, in groups: **Overdue** (oldest due first), **Today** (by priority), **High priority** (every other high-priority todo, dated or not: soonest due first, those with no date last), **Open** (the rest by priority, due date, last edited). A date is a promise, so a dated todo never ranks below an undated one of the same priority. Done and cancelled are folded at the end (**Done**; those among the 500 last edited) |
   | **Upcoming** (calendar) | Due from tomorrow to a week away, soonest first |
   | **All** | Every open todo and the done ones, last edited first |
 
