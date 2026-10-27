@@ -9,6 +9,7 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from .store import CLAUDE, Store
+from .store.helpers import file_kind
 
 IDENTITY_HEADER = "Tailscale-User-Login"
 
@@ -29,12 +30,21 @@ def too_large(limit: int) -> str:
 
 
 def mimes(uploads: list[UploadFile]) -> list[str]:
-    """Each upload's type: as sent, else from its filename, else octet-stream."""
+    """Each upload's type: as sent, else from its filename, else octet-stream. A type
+    that is neither an image nor one ingest reads (text/x-markdown, a phone's) is
+    replaced by its filename's when that is one ingest reads (FILE_TYPES)."""
     found = []
     for upload in uploads:
         mime = upload.content_type
+        named = mimetypes.guess_type(upload.filename or "")[0]
         if mime in (None, "", "application/octet-stream"):
-            mime = mimetypes.guess_type(upload.filename or "")[0]
+            mime = named
+        elif (
+            named
+            and file_kind(named)
+            and not (mime.startswith("image/") or file_kind(mime))
+        ):
+            mime = named
         found.append(mime or "application/octet-stream")
     return found
 

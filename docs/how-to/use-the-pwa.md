@@ -37,7 +37,8 @@ over your tailnet or behind a proxy that authenticates (see [](../reference/api.
 | Button | Does |
 | --- | --- |
 | **Camera** | Opens the camera |
-| **Gallery** | Picks one or more images |
+| **Gallery** | Picks one or more images (photos only, so the phone opens its photo picker) |
+| **File** | Picks one or more PDFs, text (`.txt`) or Markdown (`.md`) files |
 | **Note** | A text box; a pasted link alone becomes a link capture |
 
 **Save** returns at once: the capture is stored on the phone first and uploaded in the background.
@@ -45,7 +46,7 @@ The four newest pages are listed above the buttons.
 
 ```mermaid
 flowchart LR
-    A["Camera / Gallery / Note"] --> B["Composer"]
+    A["Camera / Gallery / File / Note"] --> B["Composer"]
     S["Android Share"] --> Q
     B -->|Save| Q["Queue on phone<br/>(IndexedDB)"]
     Q -->|"online"| U["POST /api/captures"]
@@ -71,11 +72,13 @@ flowchart LR
   **Tomorrow**, **Next week** or a date) and **Priority**, and asks *What needs doing?*.
 - **Folded lines.** Due and Tags are each one line above the text (**Due** *24 Oct · high*,
   **Tags** *2 · #home #garden*); tap to open, tap again to fold.
-- **Photos.** **Camera** and **Gallery** add more photos (to a note too); the cross on a thumbnail
-  removes one. All photos and the text become one capture and one page.
-- **Upload limit.** Photos together over the server's limit (50 MB, `SCRAP_MAX_UPLOAD_MB`; the app
-  learns it from `/healthz`, so this works offline) make Save say so: remove some, or **Save
-  separately** (one capture per photo, text on the first). A proxy may have a lower limit.
+- **Photos and files.** **Camera** and **Gallery** add more photos (to a note too), and **File**
+  PDFs, text and Markdown files, each shown as its name; the cross on a thumbnail removes one. All
+  of them and the text become one capture and one page. A file's text is read for search.
+- **Upload limit.** Photos and files together over the server's limit (50 MB,
+  `SCRAP_MAX_UPLOAD_MB`; the app learns it from `/healthz`, so this works offline) make Save say
+  so: remove some, or **Save separately** (one capture per photo or file, text on the first). A
+  proxy may have a lower limit.
 - **Tags.** The **Tags** line opens a tags box as on a page ([Tags](#tags)). The page is made with
   its tags, so search finds it at once, also when saved offline. Your tags on a photo are kept and
   Claude's join them on its first read (a later Regenerate adds tags only to a page with none).
@@ -217,7 +220,7 @@ The app opens without a connection. Anything that reads from or writes to the se
   the page is still loading, that is Capture. A screen returns scrolled where you left it.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
   wide screen the app is one centred column about 720 px wide. With a mouse the tabs move to the
-  top bar, Camera, Gallery and Note sit over the list, a page's buttons (Mark done, Edit, Share,
+  top bar, Camera, Gallery, File and Note sit over the list, a page's buttons (Mark done, Edit, Share,
   Delete) are a row under its title, and messages appear at the bottom of the window. Touch
   devices keep the bars at the bottom.
 - **Links.** Rows, tags, `[[links]]` and the pager's arrows are ordinary links: long-press (phone)
@@ -486,13 +489,14 @@ scrap and try again*.
 
 - **Edit** is a full-screen editor like the composer: **Cancel**, **Preview** and **Save** stay at
   the top, clear of the keyboard. Tags and a todo's due date are folded into one line each.
-- **Camera** and **Gallery** under the text (the Add photo buttons) add photos to the end of the page as a capture
+- **Camera**, **Gallery** and **File** under the text (the Add photo buttons) add photos to the end of the page as a capture
   of their own: Claude reads them and search finds what it read, but they never change the page's
   kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
   their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
-  conflict). Offline they wait on the phone (listed as *Photo for* the page). Photos too big to
-  send together go one by one; one over the limit alone is refused. **Gallery** takes PDFs too:
-  they are listed below the text, not put in it, and read for search.
+  conflict). Offline they wait on the phone (listed as *Photo for* the page, or *File for* it).
+  Photos too big to send together go one by one; one over the limit alone is refused. **File**
+  takes PDFs, text and Markdown files: they are listed below the text, not put in it, and read for
+  search.
 - **Lists.** Enter on a bullet (`- `), numbered (`1. `) or task (`- [ ] `) line starts the next
   item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
   selection: **Task**, **Bullet**, **Number** (each a plain line again if all are already),

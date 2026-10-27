@@ -80,13 +80,17 @@ export const pageRow = (
 /** Captures still on the phone, oldest first. */
 export async function pendingList(): Promise<Node> {
   const items = await queue.items();
+  // The Retry and Discard buttons of a failed row: a chunk of its own, loaded when one shows
+  const bar = items.some((i) => i.failed)
+    ? (await import("./rowbar").catch(() => null))?.rowbar
+    : undefined;
   return h(
     "ul",
     { className: "list pending" },
     ...items.map((i) => {
       const image = i.files.find((f) => f.blob.type.startsWith("image/"));
-      const title =
-        (i.page && `Photo for ${i.to || "a page"}`) ||
+      const title = // files alone (a PDF, a .md, #380): not called a photo
+        (i.page && `${image ? "Photo" : "File"} for ${i.to || "a page"}`) ||
         i.text?.split("\n")[0] ||
         i.url ||
         i.files[0]?.name ||
@@ -94,39 +98,9 @@ export async function pendingList(): Promise<Node> {
       const lost = i.error === "connection lost" && !navigator.onLine; // as now, not as it failed
       const why = lost ? "offline" : (i.error ?? (navigator.onLine ? "uploading" : "offline"));
       const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;
-      // Each waits for an upload in progress (maybe in another tab), so say so.
-      const act = (label: string, run: () => Promise<void>, sure = "") =>
-        h(
-          "button",
-          {
-            type: "button",
-            className: label === "Discard" ? "danger" : "",
-            onclick: (e: Event) => {
-              if (sure && !confirm(sure)) return;
-              const b = e.currentTarget as HTMLButtonElement;
-              b.disabled = true;
-              b.textContent = "Waiting for upload…";
-              void run();
-            },
-          },
-          label,
-        );
-      const tooBig = i.files.length > 1 && i.error?.startsWith("too large");
-      const actions =
-        i.failed &&
-        h(
-          "span",
-          { className: "rowbar" },
-          tooBig
-            ? act("Split and retry", () => queue.splitRetry(i.id))
-            : act("Retry", () => queue.retry(i.id)),
-          act(
-            "Discard",
-            () => queue.discard(i.id),
-            "Discard this capture? It never reached the server, so it will be gone.",
-          ),
-        );
-      const r = row(image?.blob ?? null, title, state, actions || "", undefined, i.kind ?? i.hint);
+      const actions = i.failed && bar?.(i);
+      const kind = i.kind ?? (!image && i.files[0] ? "file" : i.hint); // a file's icon
+      const r = row(image?.blob ?? null, title, state, actions || "", undefined, kind);
       if (i.failed) r.className = "failed";
       return r;
     }),

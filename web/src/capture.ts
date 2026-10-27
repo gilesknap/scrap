@@ -1,4 +1,4 @@
-// Home screen: the capture actions (Camera, Gallery, Note: how, not what kind; the kind is
+// Home screen: the capture actions (Camera, Gallery, File, Note: how, not what kind; the kind is
 // chosen in the composer), a kept draft over them, and what is still waiting to upload.
 import { view } from "./app";
 import type { Draft } from "./composer";
@@ -15,8 +15,12 @@ const compose = (files: File[], resume?: boolean) =>
     () => toast("Can't open the composer: reload scrap and try again"),
   );
 
-/** A Camera or Gallery button. accept is the file input's: photos, unless the caller takes
- * more (the editor's Add photo takes PDFs too). */
+/** What File takes (#380): PDFs, text and Markdown, by name too (a phone's .md often has no
+ * type). Gallery takes photos only, so phones open their photo picker for it. */
+export const FILES = "application/pdf,text/plain,text/markdown,.md,.txt";
+
+/** A Camera, Gallery or File button (shown: its icon). accept is the file input's: photos,
+ * unless the caller takes files (FILES). */
 export function picker(
   label: string,
   camera: boolean,
@@ -31,7 +35,7 @@ export function picker(
     if (input.files?.length) onPick([...input.files]);
     input.value = ""; // so the same shot again still fires change
   };
-  const glyph = icon(camera ? "camera" : "image");
+  const glyph = icon(camera ? "camera" : accept === FILES ? "file" : "image");
   return h("button", { type: "button", className, onclick: () => input.click() }, glyph, label);
 }
 
@@ -60,6 +64,7 @@ export async function capture(): Promise<Node> {
     { className: "actions" },
     picker("Camera", true, (f) => void compose(f)),
     picker("Gallery", false, (f) => void compose(f)),
+    picker("File", false, (f) => void compose(f), "tile", FILES),
     h(
       "button",
       { type: "button", className: "tile", onclick: () => void compose([]) },

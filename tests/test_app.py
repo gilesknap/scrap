@@ -141,7 +141,7 @@ def test_a_capture_embeds_each_image_in_its_text_in_order(client):
     data = {"id": new_ulid(), "text": "notes"}
     ref = client.post("/api/captures", data=data, files=files).json()
     page = client.get(f"/api/pages/{ref['page_id']}").json()
-    one, _, two, _ = (b["sha256"] for b in page["captures"][0]["blobs"])
+    one, two, _, _ = (b["sha256"] for b in page["captures"][0]["blobs"])  # images first
     embed = "![](/api/blobs/{}/preview?size=2048)".format
     assert page["body"] == f"notes\n\n{embed(one)}\n\n{embed(two)}"
     assert page["title"] == "notes"

@@ -79,7 +79,9 @@ class CaptureMixin(Core):
         if not url and text and BARE_URL.fullmatch(text.strip()):
             url, text = text.strip(), None  # a link shared as text
         if mimes:
-            images = all(mime.startswith("image/") for mime in mimes)
+            # A photo capture if any is an image, as Add photo's (store.photos): its
+            # images go to Claude; a PDF or text file among them is still read (ENQUEUE)
+            images = any(mime.startswith("image/") for mime in mimes)
             what = "photo" if images else "file"
         else:
             what = "url" if url else "note"
@@ -112,8 +114,11 @@ class CaptureMixin(Core):
     ) -> tuple[dict[str, str], bool]:
         """Save a prepared capture as a new page, with these tags (else the
         capture's own, if any). Returns its reference and whether it is new. blobs
-        are (sha256, mime, size, filename), already in files/.
+        are (sha256, mime, size, filename), already in files/: stored images first,
+        each group in the order sent, so the first file (which ingest reads the
+        page's title, tags and kind from) is an image whenever there is one (#380).
         """
+        blobs = sorted(blobs, key=lambda b: not b[1].startswith("image/"))
         cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
         tags = c.get("tags") if tags is None else tags
         body = check_page("\n\n".join(x for x in (body, *embeds(blobs, body)) if x))
