@@ -1,4 +1,4 @@
-"""edit_meta sets a todo's due, priority and snoozed_until (page_todo) on any page, the
+"""edit_meta sets a todo's due and priority (page_todo) on any page, the
 user's own too, as a metadata revision that revert undoes (#385)."""
 
 import json
@@ -26,7 +26,7 @@ def todo(store, title="Buy milk", **extra):
 
 def values(store, key):
     page = store.page(key)
-    return page["due"], page["priority"], page["snoozed_until"]
+    return page["due"], page["priority"]
 
 
 def age(store):
@@ -35,38 +35,30 @@ def age(store):
         conn.execute("UPDATE page_meta_rev SET created_at = '2020-01-01T00:00:00.000Z'")
 
 
-def snoozed(store):
-    return [p["slug"] for p in store.search("is:snoozed", 10)]
-
-
 def test_edit_meta_sets_and_clears_each_value_on_a_users_todo(store):
     key = todo(store)
-    out = ok(store, "edit_meta", pages=[key], fields={
-        "due": SOON, "priority": "high", "snoozed_until": LATER,
-    })  # fmt: skip
+    out = ok(store, "edit_meta", pages=[key], fields={"due": SOON, "priority": "high"})
     row = out["pages"][0]
     assert row["changed"] and row["revision"]
-    assert row["fields_added"] == {
-        "due": SOON,
-        "priority": "high",
-        "snoozed_until": LATER,
-    }
+    assert row["fields_added"] == {"due": SOON, "priority": "high"}
     assert row["fields_was"] == {}
-    assert values(store, key) == (SOON, "high", LATER)
+    assert values(store, key) == (SOON, "high")
     page = store.page(key)
-    assert not {"due", "priority", "snoozed_until"} & page["fields"].keys()
-    assert snoozed(store) == [key]
+    assert not {"due", "priority"} & page["fields"].keys()
     age(store)
     cleared = ok(store, "edit_meta", pages=[key], fields={
-        "due": None, "priority": None, "snoozed_until": None,
+        "due": None, "priority": None,
     })["pages"][0]  # fmt: skip
-    assert cleared["fields_was"] == {
-        "due": SOON,
-        "priority": "high",
-        "snoozed_until": LATER,
-    }
-    assert values(store, key) == (None, None, None)
-    assert snoozed(store) == []
+    assert cleared["fields_was"] == {"due": SOON, "priority": "high"}
+    assert values(store, key) == (None, None)
+
+
+def test_snoozed_until_is_no_field_now(store):
+    # Snooze was retired (28 Oct 2026): edit_meta refuses it as any other name
+    key = todo(store)
+    error = refused(store, "edit_meta", pages=[key], fields={"snoozed_until": LATER})
+    assert "'snoozed_until' cannot be set here" in error
+    assert "snoozed_until" not in store.page(key)
 
 
 def test_one_value_changes_and_the_others_stay(store):
@@ -74,20 +66,20 @@ def test_one_value_changes_and_the_others_stay(store):
     row = ok(store, "edit_meta", pages=[key], fields={"priority": "medium"})["pages"][0]
     assert row["fields_added"] == {"priority": "medium"}
     assert row["fields_was"] == {"priority": "low"}
-    assert values(store, key) == (SOON, "medium", None)
+    assert values(store, key) == (SOON, "medium")
 
 
 def test_bad_values_are_refused_and_save_nothing(store):
     key = todo(store, due=SOON)
     for fields, error in (
         ({"due": "next week"}, "due must be a date"),
-        ({"snoozed_until": "2099-02-30"}, "snoozed_until must be a date"),
-        ({"snoozed_until": 5}, "snoozed_until must be a date"),
+        ({"due": "2099-02-30"}, "due must be a date"),
+        ({"due": 5}, "due must be a date"),
         ({"priority": "urgent"}, "priority must be one of"),
         ({"priority": "high", "due": "x"}, "due must be a date"),
     ):
         assert error in refused(store, "edit_meta", pages=[key], fields=fields)
-    assert values(store, key) == (SOON, None, None)
+    assert values(store, key) == (SOON, None)
 
 
 def test_refused_on_a_page_that_is_not_a_todo_already(store):
@@ -96,23 +88,23 @@ def test_refused_on_a_page_that_is_not_a_todo_already(store):
         store, "edit_meta", pages=[note], fields={"due": SOON}
     )
     assert "earlier call" in refused(  # as status: not in the same call as the kind
-        store, "edit_meta", pages=[note], kind="todo", fields={"snoozed_until": LATER}
+        store, "edit_meta", pages=[note], kind="todo", fields={"priority": "low"}
     )
     assert store.page(note)["kind"] == "note"
     key = todo(store)  # all or nothing: the todo beside it is not changed either
     refused(store, "edit_meta", pages=[key, note], fields={"priority": "high"})
-    assert values(store, key) == (None, None, None)
+    assert values(store, key) == (None, None)
 
 
 def test_a_dry_run_saves_nothing(store):
     key = todo(store, due=SOON)
     dry = ok(store, "edit_meta", pages=[key], fields={
-        "due": LATER, "snoozed_until": LATER,
+        "due": LATER, "priority": "high",
     }, dry_run=True)["pages"][0]  # fmt: skip
     assert dry["revision"] is None and dry["changed"]
-    assert dry["fields_added"] == {"due": LATER, "snoozed_until": LATER}
+    assert dry["fields_added"] == {"due": LATER, "priority": "high"}
     assert dry["fields_was"] == {"due": SOON}
-    assert values(store, key) == (SOON, None, None)
+    assert values(store, key) == (SOON, None)
     assert ok(store, "revisions", page=key)["meta"] == []
 
 
@@ -125,23 +117,21 @@ def test_setting_what_it_has_already_is_no_revision(store):
 def test_revert_undoes_a_change(store):
     key = todo(store, due=SOON)
     row = ok(store, "edit_meta", pages=[key], fields={
-        "due": LATER, "priority": "high", "snoozed_until": LATER,
+        "due": LATER, "priority": "high",
     })["pages"][0]  # fmt: skip
-    assert snoozed(store) == [key]
     back = ok(store, "revert", revision=row["revision"])
     assert back["revision"]
-    assert values(store, key) == (SOON, None, None)
-    assert snoozed(store) == []
+    assert values(store, key) == (SOON, None)
     ok(store, "revert", revision=back["revision"])  # the revert is undone in turn
-    assert values(store, key) == (LATER, "high", LATER)
+    assert values(store, key) == (LATER, "high")
 
 
 def test_revert_gives_back_a_cleared_value(store):
     key = todo(store, due=SOON, priority="low")
     row = ok(store, "edit_meta", pages=[key], fields={"due": None})["pages"][0]
-    assert values(store, key) == (None, "low", None)
+    assert values(store, key) == (None, "low")
     ok(store, "revert", revision=row["revision"])
-    assert values(store, key) == (SOON, "low", None)
+    assert values(store, key) == (SOON, "low")
 
 
 def test_revert_leaves_a_value_changed_since(store):
@@ -153,21 +143,19 @@ def test_revert_leaves_a_value_changed_since(store):
     assert values(store, key)[0] == LATER
 
 
-def test_a_query_batch_snoozes_and_revert_batch_undoes_it(store):
+def test_a_query_batch_puts_off_and_revert_batch_undoes_it(store):
     keys = [todo(store, f"Overdue {n}", tags=["late"]) for n in range(3)]
     dry = ok(
-        store, "edit_meta", query="tag:late", fields={"snoozed_until": LATER},
-        dry_run=True,
+        store, "edit_meta", query="tag:late", fields={"due": LATER}, dry_run=True,
     )  # fmt: skip
-    assert dry["changed"] == 3 and snoozed(store) == []
-    out = ok(store, "edit_meta", query="tag:late", fields={"snoozed_until": LATER})
+    assert dry["changed"] == 3
+    assert all(values(store, k)[0] is None for k in keys)
+    out = ok(store, "edit_meta", query="tag:late", fields={"due": LATER})
     assert out["batch"] and out["changed"] == 3
-    assert sorted(snoozed(store)) == sorted(keys)
-    assert all(values(store, k)[2] == LATER for k in keys)
+    assert all(values(store, k)[0] == LATER for k in keys)
     undone = ok(store, "revert", batch=out["batch"])
     assert undone["batch"] and not undone["conflicts"]
-    assert snoozed(store) == []
-    assert all(values(store, k) == (None, None, None) for k in keys)
+    assert all(values(store, k) == (None, None) for k in keys)
 
 
 def test_quick_changes_fold_into_one_revision(store):
@@ -184,11 +172,11 @@ def test_quick_changes_fold_into_one_revision(store):
 
 def test_a_burst_that_sets_and_clears_a_value_leaves_no_revision(store):
     key = todo(store)
-    ok(store, "edit_meta", pages=[key], fields={"snoozed_until": LATER})
-    out = ok(store, "edit_meta", pages=[key], fields={"snoozed_until": None})
+    ok(store, "edit_meta", pages=[key], fields={"due": LATER})
+    out = ok(store, "edit_meta", pages=[key], fields={"due": None})
     assert out["pages"][0]["revision"] is None
     assert ok(store, "revisions", page=key)["meta"] == []
-    assert values(store, key) == (None, None, None)
+    assert values(store, key) == (None, None)
 
 
 def test_a_burst_that_changes_then_clears_a_value_gives_it_back_on_revert(store):
@@ -284,7 +272,7 @@ def test_a_revert_giving_back_a_value_page_todo_refuses_keeps_it_a_field(store):
     rid = old_json_revision(store, key, {}, {"priority": "urgent"}, {})
     ok(store, "revert", revision=rid)
     assert store.page(key)["fields"]["priority"] == "urgent"
-    assert values(store, key) == (None, None, None)
+    assert values(store, key) == (None, None)
 
 
 def test_a_media_type_burst_that_ends_cleared_gives_the_first_back_on_revert(store):
@@ -349,9 +337,9 @@ def test_none_acts_on_page_todo_only_leaving_a_stale_field(store):
 
 def test_revert_batch_undoes_a_page_with_a_stale_field_too(store):
     a, b = todo(store, "a"), todo(store, "b")
-    stale(store, b, snoozed_until="whenever")
-    out = ok(store, "edit_meta", pages=[a, b], fields={"snoozed_until": LATER})
+    stale(store, b, due="whenever")
+    out = ok(store, "edit_meta", pages=[a, b], fields={"due": LATER})
     ok(store, "revert", batch=out["batch"])
-    assert values(store, a)[2] is None
-    assert values(store, b)[2] is None
-    assert store.page(b)["fields"]["snoozed_until"] == "whenever"
+    assert values(store, a)[0] is None
+    assert values(store, b)[0] is None
+    assert store.page(b)["fields"]["due"] == "whenever"

@@ -181,11 +181,11 @@ def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:
 
 
 def check_todo(name: str, value: Any) -> str | None:
-    """A due date or a day snoozed until (YYYY-MM-DD) or a priority (high, medium,
-    low) as given, checked; None clears it."""
+    """A due date (YYYY-MM-DD) or a priority (high, medium, low) as given, checked;
+    None clears it."""
     if value is None:
         return None
-    if name in ("due", "snoozed_until"):
+    if name == "due":
         if not isinstance(value, str) or day(value) is None:
             raise InvalidError(f"{name} must be a date, YYYY-MM-DD")
         return value
@@ -203,9 +203,8 @@ def todo_columns(
     if kind != "todo":
         return out, fields
     rest = dict(fields)
-    for name in ("due", "snoozed_until"):  # an export's front matter has them too
-        if isinstance(when := rest.get(name), str) and day(when):
-            out[name] = rest.pop(name)
+    if isinstance(when := rest.get("due"), str) and day(when):
+        out["due"] = rest.pop("due")
     rank = rest.get("priority")
     rank = PRIORITY_NAMES.get(rank, rank) if isinstance(rank, str) else None
     if rank in PRIORITIES:

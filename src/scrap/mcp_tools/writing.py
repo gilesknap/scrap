@@ -63,13 +63,6 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
             str | None,
             Field(description="A todo's priority: high, medium, low (none: clear)"),
         ] = None,
-        snoozed_until: Annotated[
-            str | None,
-            Field(
-                description="Hide a todo from what to do now until this day, "
-                "YYYY-MM-DD (none: clear it)"
-            ),
-        ] = None,
         append_to: Annotated[
             str | None,
             Field(
@@ -85,8 +78,8 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
         ] = None,
     ) -> dict[str, Any]:
         """Save a new page (Markdown body; [[slug|label]] links to other pages), marked
-        as written by Claude with its origin; a todo may have a due date, priority and
-        a day it is snoozed until.
+        as written by Claude with its origin; a todo may have a due date and
+        priority.
         With append_to, add body as a new section at the end of a page written over
         MCP instead (the user's own pages cannot be changed), and set its due date or
         priority if given (a todo's; body may then be empty). Returns the page's id,
@@ -100,7 +93,7 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
         key = text(key, "key") if key else None
         cid = key_id(key) if key else new_ulid()
         # a todo's due date and priority, those given ("none" clears one on append)
-        given = (("due", due), ("priority", priority), ("snoozed_until", snoozed_until))
+        given = (("due", due), ("priority", priority))
         todo = {k: None if v == "none" else v for k, v in given if v}
         if append_to:
             append_to = text(page_key(append_to), "append_to")

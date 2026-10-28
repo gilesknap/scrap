@@ -6,7 +6,7 @@ argument-hint: <todo>
 Close a todo named by the arguments (a title fragment, slug or page URL, plus optionally which
 task box). It is a special case of `/sc-edit`: scrap's `edit_page` ticks a todo's task boxes, and
 a todo whose boxes are all ticked becomes `done` by itself. If the arguments are empty, run the
-`/sc-todos` search (`kind:todo -is:done -is:cancelled -is:snoozed sort:due`, `limit` 10) and ask which.
+`/sc-todos` search (`kind:todo -is:done -is:cancelled sort:due`, `limit` 10) and ask which.
 
 Use ONLY `mcp__scrap__search`, `read` and `edit_page`. If they are missing, say so and give:
 `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`. If `edit_page` is refused

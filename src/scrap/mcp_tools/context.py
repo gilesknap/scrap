@@ -71,7 +71,6 @@ class Ctx:
             "status": hit["fields"].get("status"),
             "due": hit.get("due"),  # a todo's (YYYY-MM-DD), else None
             "priority": hit.get("priority"),  # a todo's: high, medium, low; else None
-            "snoozed_until": hit.get("snoozed_until"),  # a todo's, hidden till then
             "tasks": hit.get("tasks"),  # its task boxes: {done, total}
             "updated_at": hit["updated_at"],
             "tags": tags,

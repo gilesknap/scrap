@@ -320,17 +320,14 @@ def test_stale_is_an_open_todo_unedited_for_sixty_days(store):
     old = note(store, "Fix the gate", kind="todo")
     fresh = note(store, "Fix the fence", kind="todo")
     done = note(store, "Fix the shed", kind="todo")
-    snoozed = note(store, "Fix the roof", kind="todo")
     tagged = note(store, "Fix the path", kind="todo")
     a_note = note(store, "An old note")
     gc_page = note(store, "Orphaned assets: January 2026", kind="todo")
     review(store, gc_page)  # gc's review todo: its due date brings it up
-    for p in (old, done, snoozed, tagged, a_note, gc_page):  # last edited in January
+    for p in (old, done, tagged, a_note, gc_page):  # last edited in January
         sql(store, "UPDATE page SET updated_at = '2026-01-01T00:00:00.000Z',"
             " fields = json_set(fields, '$.status', ?) WHERE id = ?",
             "done" if p == done else "open", p)  # fmt: skip
-    later = (date.today() + timedelta(days=3)).isoformat()
-    set_todo(store, snoozed, snoozed_until=later)
     store.edit_meta([tagged], "me", "web", add=["garden"])  # a change of tags
     assert found(store, "is:stale") == {old}
     assert fresh not in found(store, "is:stale")
@@ -339,8 +336,6 @@ def test_stale_is_an_open_todo_unedited_for_sixty_days(store):
     assert found(store, "is:stale") == set()  # its due date brings it up
     set_todo(store, old, due="2026-01-15")  # overdue
     assert found(store, "is:stale") == {old}
-    set_todo(store, snoozed, snoozed_until="2026-01-02")
-    assert found(store, "is:stale") == {old, snoozed}  # its snooze is over
 
 
 def test_duplicate_shares_a_file_with_another_live_page(store):

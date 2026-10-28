@@ -63,14 +63,13 @@ UNTAGGED = (
     "NOT EXISTS (SELECT 1 FROM tag g WHERE g.page_id = {p}.id)"
     f" AND NOT {IS_TOPIC} AND NOT {REVIEW}"
 )
-# An open todo (not done or cancelled), not snoozed now and not due today or later
-# (args: today, today: its due date brings it up), whose text, title, kind and tags
-# were last changed before the cut-off (args: that day). A status, due date or snooze
-# change leaves no date to go by. Not a gc review page (a todo its due date brings up).
+# An open todo (not done or cancelled), not due today or later (args: today: its due
+# date brings it up), whose text, title, kind and tags were last changed before the
+# cut-off (args: that day). A status or due date change leaves no date to go by.
+# Not a gc review page (a todo its due date brings up).
 STALE = f"""({{p}}.kind = 'todo' AND NOT {REVIEW}
   AND coalesce(json_extract({{p}}.fields, '$.status'), 'open')
     NOT IN ('done', 'cancelled')
-  AND NOT coalesce({col("snoozed_until", "{p}")} > ?, 0)
   AND NOT coalesce({col("due", "{p}")} >= ?, 0)
   AND max({{p}}.updated_at, coalesce((SELECT max(m.updated_at) FROM page_meta_rev m
     WHERE m.page_id = {{p}}.id), '')) < ?)"""
@@ -174,7 +173,7 @@ def condition(
         case "is", "stale":
             cut = day - timedelta(days=STALE_DAYS)
             today_ = day.isoformat()
-            return STALE.format(p="p"), [today_, today_, cut.isoformat()]
+            return STALE.format(p="p"), [today_, cut.isoformat()]
         case "is", "duplicate":
             return DUPLICATE.format(p="p"), []
         case "has", "dangling":

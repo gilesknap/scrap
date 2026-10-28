@@ -162,7 +162,7 @@ class MetaMixin(Core):
         kind's defaults it lacks) and edit: its put set (None takes one off), and, for
         a revert, its drop and was undone: what the change it undoes set is taken off
         or changed back to what it was, unless changed since. A todo's own values
-        (page_todo's due, priority, snoozed_until) are fields here, under their names.
+        (page_todo's due and priority) are fields here, under their names.
         Returns the fields, those todo values (None: none), the fields added (set, or
         given back), those dropped (taken off or changed back: their values now) and
         the values the fields changed had before (was)."""
@@ -172,7 +172,7 @@ class MetaMixin(Core):
         added = {}
         if after.kind != before.kind:
             added = self._defaults(conn, page_id, after.kind, stored)
-        # due, priority and snoozed_until are page_todo's; a stale page.fields key of
+        # due and priority are page_todo's; a stale page.fields key of
         # one's name (an import's, or an edit_meta's before #385) stays aside. Puts
         # act on page_todo only. A revert acts on page.fields instead to undo a value
         # page_todo does not hold (page_todo wins a tie), or to give one back to a
@@ -309,7 +309,7 @@ class MetaMixin(Core):
     def _field_puts(fields: dict[str, Value | None] | None) -> dict[str, Any]:
         """The fields edit_meta is to set, checked: only EDIT_FIELDS (a subtype
         follows media_type), a media_type one of the known media, a status one of
-        STATUSES, and a todo's due and snoozed_until dates, its priority one of
+        STATUSES, and a todo's due date, its priority one of
         PRIORITIES."""
         put = dict(fields or {})
         for name, value in put.items():
@@ -360,11 +360,11 @@ class MetaMixin(Core):
         revision (fields_added, and their values before: fields_was), only these
         (EDIT_FIELDS; any other name is refused): a Later's media_type, which also
         sets its subtype, never set on its own; status (open, in_progress, done or
-        cancelled), a todo's or a Later's, as the PWA's tick; due, priority and
-        snoozed_until, a todo's (checked as check_todo; kept in page_todo, not
-        fields). Never the title or the text."""
+        cancelled), a todo's or a Later's, as the PWA's tick; due and priority, a
+        todo's (checked as check_todo; kept in page_todo, not fields). Never the title
+        or the text."""
         put = self._field_puts(fields)
-        # a todo's own values (due, priority, snoozed_until): page_todo's, not fields
+        # a todo's own values (due, priority): page_todo's, not fields
         todo_put = set(put) & set(TODO)
         kind = KIND_NAMES.get(kind, kind) if kind is not None else None
         if kind not in (None, *KINDS):

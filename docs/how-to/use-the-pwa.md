@@ -303,7 +303,6 @@ first; the full grammar is in [](../reference/api.md).
 | `kind:todo` (`later`, `read`, `board`, `doc`...) | Pages of a kind |
 | `tag:tech` | A tag (`tag:epics` also finds `tech/epics`) |
 | `is:open`, `is:in_progress`, `is:done`, `is:cancelled` | A todo's or Later page's status |
-| `is:snoozed` | Open todos snoozed till later |
 | `is:claude`, `is:claude-edited` | Pages Claude wrote over MCP; pages whose text Claude changed over MCP |
 | `is:personal`, `is:work` | The page's `personal` flag, set by an import ([](import-a-vault.md)); the app cannot set it |
 | `is:topic` | Claude's topic pages |
@@ -339,7 +338,7 @@ there: a check that keeps finding a page you are happy with is the check to chan
 | --- | --- |
 | `is:orphan` | No page link either way (`[[slug]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
 | `is:untagged` | No tags (topic pages and gc's Orphaned assets pages aside) |
-| `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not snoozed and not due today or later |
+| `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not due today or later |
 | `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
 | `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`) |
 | `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt, or linking a page in the trash or gone (restore the page and it clears); never a restored version. Lists only board write-ups, which wait for you |

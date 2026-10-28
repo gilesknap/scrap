@@ -18,7 +18,7 @@ def store(tmp_path):
 def test_col_and_cols_name_the_values():
     assert todo.col("due") == "(SELECT due FROM page_todo WHERE page_id = p.id)"
     assert "page_id = x.id" in todo.col("priority", "x")
-    assert todo.cols("q").endswith(" AS snoozed_until")
+    assert todo.cols("q").endswith(" AS priority")
     with pytest.raises(ValueError):
         todo.col("title")
 
@@ -31,10 +31,8 @@ def test_write_merges_over_what_the_page_has(store):
         )
         assert todo.read(conn, "A") == dict.fromkeys(todo.NAMES)
         todo.write(conn, "A", {"due": "2026-11-01", "priority": "low"})
-        todo.write(conn, "A", {"priority": None, "snoozed_until": "2026-12-01"})
-        assert todo.read(conn, "A") == {
-            "due": "2026-11-01", "priority": None, "snoozed_until": "2026-12-01",
-        }  # fmt: skip
+        todo.write(conn, "A", {"priority": None})
+        assert todo.read(conn, "A") == {"due": "2026-11-01", "priority": None}
         with pytest.raises(sqlite3.IntegrityError, match="CHECK"):
             todo.write(conn, "A", {"due": "2026-02-30"})
         with pytest.raises(ValueError):

@@ -77,7 +77,7 @@ erDiagram
 | Table | Holds |
 | --- | --- |
 | `page` | Title, Markdown body, `kind`, `kind_fixed`, flat `fields`, `deleted_at`, plus the task counts `task_done`, `task_total` |
-| `page_todo` | A todo's typed `due`, `priority` and `snoozed_until`: one row per page that has at least one set, deleted when the last is cleared; removed with its page |
+| `page_todo` | A todo's typed `due` and `priority` (and `snoozed_until`, unused since Snooze was retired): one row per page that has at least one set, deleted when the last is cleared; removed with its page |
 | `blob` | Bytes of every original and binary derived artifact at `files/<sha[0:2]>/<sha>`, keyed by SHA-256 so a photo shared twice is stored once |
 | `capture`, `capture_blob` | What arrived, with a client-minted ULID as the retry key; ordered blobs per capture |
 | `derived` | Versioned Claude (or human) results: `ocr`, `description`, `excalidraw` are written (a PDF's or text file's `ocr` is scrap's own reading, `run_id` NULL: {ref}`ingest-files`); `summary` and `fetched` are allowed by the `CHECK` but reserved |
@@ -188,13 +188,13 @@ These five are the only kinds. A topic page is a `document`, identified by the `
 - **`fields`** is a flat JSON object: no nulls or nested values, at most 32 keys, numbers within
   +/-2^53. In use: `status` (`open`, `in_progress`, `done`, `cancelled`), `subtype` and `source` on
   Later, `summary` (an import's or the user's, which wins over Claude's in the index) and `origin`.
-- **Typed todo values** `due` (day, `YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and
-  `snoozed_until` (day) are typed, checked columns of the side table `page_todo`, so `due:`,
-  `priority:`, `is:snoozed` and `sort:` are plain SQL
+- **Typed todo values** `due` (day, `YYYY-MM-DD`) and `priority` (`high`, `medium`, `low`)
+  are typed, checked columns of the side table `page_todo`, so `due:`, `priority:` and `sort:`
+  are plain SQL
   ([ADR 12](../decisions/0012-kinds-flat-fields-and-typed-todo-columns.md), moved off `page` by
   [ADR 36](../decisions/0036-todo-values-in-a-side-table.md)). A row has at least one value; a
-  page with none has no row, and the SQL reads that as NULL. A snoozed todo is left out of Now and
-  the Todos count until its day. They belong to todos (`page.kind = 'todo'`): another kind ignores
+  page with none has no row, and the SQL reads that as NULL. (Its `snoozed_until` column is
+  unused since Snooze was retired on 28 Oct 2026, and is to be dropped.) They belong to todos (`page.kind = 'todo'`): another kind ignores
   them but keeps its row. Setting them is not a revision. Only `store/todo.py` names the table.
 - **Task boxes** (`- [ ]`, `- [x]`) are counted per page into `task_done` and `task_total`. An
   unfixed note with boxes is filed as a todo; on a todo, ticking the last box marks it done and
@@ -253,7 +253,7 @@ sequenceDiagram
   after, with a `batch_id` shared by a bulk change. MCP `revisions` lists both histories and
   `revert` undoes one
   ([ADR 19](../decisions/0019-kinds-and-tags-editable-with-revisions.md)).
-- **Not revisions:** `fields` (status), due, priority, snooze, task counts, and a provisional title
+- **Not revisions:** `fields` (status), due, priority, task counts, and a provisional title
   replaced by ingest or enrich.
 
 ## Trash

@@ -1,4 +1,4 @@
-"""edit_meta's fields are only media_type, status, due, priority and snoozed_until: any
+"""edit_meta's fields are only media_type, status, due and priority: any
 other name is refused, saving nothing, never stored as a meaningless field (#386)."""
 
 import pytest
@@ -7,7 +7,7 @@ from scrap.store import Store
 from test_edit_meta_todo import old_json_revision, todo, values
 from test_mcp import human, ok, refused
 
-ALLOWED = "only media_type, status, due, priority, snoozed_until"
+ALLOWED = "only media_type, status, due, priority"
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def unchanged(store, key):
     page = store.page(key)
     assert page["fields"].get("status") == "open"
     assert "snoozd_until" not in page["fields"]
-    assert values(store, key) == (None, None, None)
+    assert values(store, key) == (None, None)
     assert ok(store, "revisions", page=key)["meta"] == []
 
 

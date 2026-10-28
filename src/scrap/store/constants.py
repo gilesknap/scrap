@@ -79,7 +79,7 @@ SORT_SQL = {
     "priority": f"CASE WHEN p.kind = 'todo' THEN CASE {col('priority')}"
     " WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 END END",
 }
-TODO = ("due", "priority", "snoozed_until")  # a todo's own values (page_todo)
+TODO = ("due", "priority")  # a todo's own values (page_todo)
 TODO_SQL = "p.kind = 'todo' AND "  # a filter on them: only a todo's count
 RANK = f"coalesce({col('priority')}, 'none')"  # priority:none finds a todo with none
 # Priorities as an imported todo may have them (Thoth's Urgent: the highest there is)

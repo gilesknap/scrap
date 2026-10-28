@@ -1,5 +1,5 @@
-"""page_todo (migration 18, ADR 36): the table a todo's due, priority and snoozed_until
-are in, its constraints, and how each way of writing them keeps it."""
+"""page_todo (migration 18, ADR 36): the table a todo's due and priority are in, its
+constraints, and how each way of writing them keeps it."""
 
 import sqlite3
 from contextlib import closing
@@ -23,8 +23,8 @@ def store(tmp_path):
 def rows(store):
     with closing(connect(store.db)) as conn:
         return {
-            r["page_id"]: (r["due"], r["priority"], r["snoozed_until"])
-            for r in conn.execute("SELECT * FROM page_todo")
+            r["page_id"]: (r["due"], r["priority"])
+            for r in conn.execute("SELECT page_id, due, priority FROM page_todo")
         }
 
 
@@ -42,7 +42,6 @@ def test_the_table_refuses_a_bad_date_priority_or_empty_row(store):
         for bad in [
             "(page_id, due) VALUES ('A', '2026-02-30')",
             "(page_id, due) VALUES ('A', 'tomorrow')",
-            "(page_id, snoozed_until) VALUES ('A', '2026-11-01T10:00')",
             "(page_id, priority) VALUES ('A', 'urgent')",
             "(page_id) VALUES ('A')",
             "(page_id, due) VALUES ('NOPE', '2026-11-01')",  # no such page
@@ -64,18 +63,16 @@ def test_write_checks_a_value_and_keeps_the_others(store):
         todo.write(conn, "A", {"due": "2026-11-01", "priority": "low"})
         with pytest.raises(sqlite3.IntegrityError, match="CHECK"):
             todo.write(conn, "A", {"priority": "urgent"})
-        assert todo.read(conn, "A") == {
-            "due": "2026-11-01", "priority": "low", "snoozed_until": None,
-        }  # fmt: skip
+        assert todo.read(conn, "A") == {"due": "2026-11-01", "priority": "low"}
 
 
 def test_clearing_the_last_value_deletes_the_row(store):
     with closing(connect(store.db)) as conn:
         add_page(conn)
-        todo.write(conn, "A", {"due": "2026-11-01", "snoozed_until": LATER})
+        todo.write(conn, "A", {"due": "2026-11-01", "priority": "low"})
         todo.write(conn, "A", {"due": None})
         assert conn.execute("SELECT count(*) FROM page_todo").fetchone()[0] == 1
-        todo.write(conn, "A", {"snoozed_until": None})
+        todo.write(conn, "A", {"priority": None})
         assert conn.execute("SELECT count(*) FROM page_todo").fetchone()[0] == 0
         todo.write(conn, "A", {"due": None})  # nothing to clear: still no row
         todo.write(conn, "A", {})
@@ -98,7 +95,7 @@ def test_the_retention_purge_takes_the_row_with_the_page(store):
 def test_a_todo_turned_note_keeps_its_row_and_hides_it(store):
     page = write(store, title="Fix", kind="todo", due=LATER, priority="high")
     store.edit_meta([page["id"]], "me", "web", kind="note")
-    assert rows(store)[page["id"]] == (LATER, "high", None)
+    assert rows(store)[page["id"]] == (LATER, "high")
     shown = store.page(page["id"])
     assert (shown["due"], shown["priority"]) == (None, None)  # hidden for a note
     assert store.search("priority:high", 10) == []
@@ -114,12 +111,12 @@ def test_each_way_to_set_and_clear_a_value_keeps_the_table_right(store):
         {"id": new_ulid(), "text": "Capture me", "kind": "todo", "due": LATER}, []
     )
     ref = store.capture(c, [], "me")[0]
-    assert rows(store) == {ref["page_id"]: (LATER, None, None)}
+    assert rows(store) == {ref["page_id"]: (LATER, None)}
     # edit (the PWA's patch): set, then clear
     page = store.page(ref["page_id"])
     store.update_page(page["id"], page["rev"], None, None, "me",
-                      todo={"priority": "medium", "snoozed_until": LATER})  # fmt: skip
-    assert rows(store)[page["id"]] == (LATER, "medium", LATER)
+                      todo={"priority": "medium"})  # fmt: skip
+    assert rows(store)[page["id"]] == (LATER, "medium")
     clear = dict.fromkeys(todo.NAMES)
     store.update_page(page["id"], page["rev"], None, None, "me", todo=clear)
     assert rows(store) == {}
@@ -128,7 +125,7 @@ def test_each_way_to_set_and_clear_a_value_keeps_the_table_right(store):
     assert rows(store) == {}
     store.append(mine["id"], new_ulid(), "more", "claude", [], 10_000,
                  todo={"priority": "high"})  # fmt: skip
-    assert rows(store) == {mine["id"]: (None, "high", None)}
+    assert rows(store) == {mine["id"]: (None, "high")}
     store.append(mine["id"], new_ulid(), "again", "claude", [], 10_000,
                  todo={"priority": None})  # fmt: skip
     assert rows(store) == {}
@@ -141,7 +138,7 @@ def test_each_way_to_set_and_clear_a_value_keeps_the_table_right(store):
     }  # fmt: skip
     store.import_page(p, [(new_ulid(), "note", "", [])], "me")
     (value,) = rows(store).values()
-    assert value == (LATER, "high", None)
+    assert value == (LATER, "high")
     # a todo with nothing set has no row
     write(store, title="Plain", kind="todo")
     assert len(rows(store)) == 1
