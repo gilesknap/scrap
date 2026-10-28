@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Connect a Claude Code session &#8212; scrap 0.18.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=ba2e7b09"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/connect-claude-code';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '0.18.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Connect Claude Code in claude-sandbox" href="connect-claude-sandbox.html" />
+    <link rel="prev" title="Post a summary to scrap when Claude Code compacts" href="auto-summary-on-compact.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.18.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Connect a Claude Code session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../how-to.html" class="nav-link">How-to Guides</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Connect a Claude Code session</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="connect-a-claude-code-session">
+<h1>Connect a Claude Code session<a class="headerlink" href="#connect-a-claude-code-session" title="Link to this heading">#</a></h1>
+<p>Claude Code sessions can search, read and write scrap through its MCP server (see
+<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>). Nothing is installed on the session’s machine: it talks to <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
+<p>How the session reaches <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> depends on where scrap runs:</p>
+<pre  class="mermaid">
+        flowchart LR
+    CC[&quot;Claude Code&quot;] --&gt;|&quot;http://localhost:8000&quot;| L[&quot;scrap, same machine&quot;]
+    CC --&gt;|&quot;HTTPS, tailnet&quot;| T[&quot;Tailscale Serve / operator&quot;]
+    CC --&gt;|&quot;HTTP, home network&quot;| N[&quot;scrap on LAN&quot;]
+    CC --&gt;|&quot;bearer + service token&quot;| CF[&quot;Cloudflare Access&quot;]
+    L --&gt; M[&quot;/mcp&quot;]
+    T --&gt; M
+    N --&gt; M
+    CF --&gt; M
+    classDef claude fill:#fff3e0,stroke:#e08a00
+    classDef store fill:#e8f1ff,stroke:#4a7bd0
+    class CC claude
+    class L,T,N,CF,M store
+    </pre><ul class="simple">
+<li><p>Tailnet: HTTPS (<a class="reference internal" href="../tutorials/install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>). Home network: plain HTTP
+(<a class="reference internal" href="../tutorials/install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a>). Kubernetes: Cloudflare Access with a bearer token (see “If
+<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token” below, <a class="reference internal" href="../tutorials/install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a> and
+<a class="reference internal" href="../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>).</p></li>
+<li><p>Claude Code in claude-sandbox: follow <a class="reference internal" href="connect-claude-sandbox.html"><span class="std std-doc">Connect Claude Code in claude-sandbox</span></a> instead; it reaches scrap on
+a port of the host.</p></li>
+<li><p>On your own machine, run scrap as in “Try it” in the README and add
+<code class="docutils literal notranslate"><span class="pre">http://localhost:8000/mcp</span></code> in step 2; step 1 is not needed on loopback.</p></li>
+</ul>
+<p>Before you start you need:</p>
+<ul class="simple">
+<li><p>scrap running and reachable from the machine running Claude Code: on the same machine or LAN
+(<a class="reference internal" href="../tutorials/install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a>), published on your tailnet
+(see <a class="reference internal" href="../tutorials/install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>, <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>, “Publish on your
+tailnet”, or <a class="reference internal" href="deploy-kubernetes.html#k8s-tailscale"><span class="std std-ref">Tailscale Kubernetes operator (recommended)</span></a>), or on Kubernetes behind Cloudflare Access
+(<a class="reference internal" href="../tutorials/install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a>);</p></li>
+<li><p>the Claude Code CLI on that machine;</p></li>
+<li><p>optionally, ingest on (<code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>) if you want Claude to describe photos (see step 2).</p></li>
+</ul>
+<section id="tell-scrap-its-address">
+<h2>1. Tell scrap its address<a class="headerlink" href="#tell-scrap-its-address" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">/mcp</span></code> answers only requests addressed to loopback or to <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. Put the address
+that Tailscale Serve gives scrap (the <code class="docutils literal notranslate"><span class="pre">--https</span></code> port you chose when you published it; <code class="docutils literal notranslate"><span class="pre">8446</span></code> is
+only an example) in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code>, scrap’s own settings file (keep it mode 600;
+<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> creates it so), for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">myhost</span><span class="o">.</span><span class="n">my</span><span class="o">-</span><span class="n">tailnet</span><span class="o">.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
+</pre></div>
+</div>
+<p>then <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>. Run both as the dedicated <code class="docutils literal notranslate"><span class="pre">scrap</span></code> user, in a real login
+session (<code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">scrap&#64;&lt;host&gt;</span></code>, or <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">machinectl</span> <span class="pre">shell</span> <span class="pre">scrap&#64;</span></code>; see <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>).</p>
+<p>The address must be a full URL with the scheme, and must match what clients use, port included:
+a request whose <code class="docutils literal notranslate"><span class="pre">Host</span></code> differs gets <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>. You can give several addresses,
+comma separated; the first makes the page links the tools return. Without it, those links are
+bare <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code> paths that cannot be clicked.</p>
+<p>On Kubernetes the chart has no setting of its own for it: pass it with <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, using the
+Tailscale operator’s address (no port, since it serves on 443):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">extraEnv</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_PUBLIC_URL</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://scrap.&lt;tailnet&gt;.ts.net</span>
+</pre></div>
+</div>
+</section>
+<section id="add-the-server-to-claude-code">
+<h2>2. Add the server to Claude Code<a class="headerlink" href="#add-the-server-to-claude-code" title="Link to this heading">#</a></h2>
+<p>On a machine on the tailnet:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">myhost</span><span class="o">.</span><span class="n">my</span><span class="o">-</span><span class="n">tailnet</span><span class="o">.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span><span class="o">/</span><span class="n">mcp</span>
+</pre></div>
+</div>
+<p>The default scope is <code class="docutils literal notranslate"><span class="pre">local</span></code> (this project, only you); <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">user</span></code> makes it available in all
+your projects. Avoid <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">project</span></code>: it writes the tailnet hostname into a <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code> that
+you would commit. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">scrap</span></code>
+takes it out again.</p>
+<p>The server has fifteen tools (eleven with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
+pages and the todos), <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__tags</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__topics</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__write</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__rename_tag</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revert</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_page</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash_pages</span></code> and
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
+returns.</p>
+<p>Try it: ask “get my recent photos”. Search results say which pages hold images (<code class="docutils literal notranslate"><span class="pre">image_count</span></code>,
+and the first image’s kind, description and thumbnail URL), and <code class="docutils literal notranslate"><span class="pre">has:image</span></code> or <code class="docutils literal notranslate"><span class="pre">image:photo</span></code>
+lists them newest first; see <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>. The kind and description are there only
+once ingest has read the photo (<code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>), and the image URLs can be fetched only from
+the tailnet (see “Images” in the reference).</p>
+<p>Check it from a shell without Claude:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">si</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">myhost</span><span class="o">.</span><span class="n">my</span><span class="o">-</span><span class="n">tailnet</span><span class="o">.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span><span class="o">/</span><span class="n">mcp</span> \
+  <span class="o">-</span><span class="n">H</span> <span class="s1">'Accept: application/json, text/event-stream'</span> <span class="o">-</span><span class="n">H</span> <span class="s1">'Content-Type: application/json'</span> \
+  <span class="o">-</span><span class="n">d</span> <span class="s1">'{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</span>
+</pre></div>
+</div>
+<p>It should print an HTTP <code class="docutils literal notranslate"><span class="pre">200</span></code> status and JSON with fifteen tools in <code class="docutils literal notranslate"><span class="pre">result.tools</span></code>.</p>
+<p>Off the tailnet, or for a quick test, use the SSH tunnel fallback (<a class="reference internal" href="deploy-single-server.html#scrap-ssh-tunnel"><span class="std std-ref">Fallback: an SSH tunnel</span></a>) and
+add <code class="docutils literal notranslate"><span class="pre">http://127.0.0.1:8790/mcp</span></code> instead; loopback needs no <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. A session that
+cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
+unless scrap is published through Cloudflare Access with a service token and a bearer token (below).</p>
+<section id="if-mcp-needs-a-token">
+<h3>If <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token<a class="headerlink" href="#if-mcp-needs-a-token" title="Link to this heading">#</a></h3>
+<p>If scrap has <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN_FILE</span></code> set (see <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>), send
+the token as a header. With <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">myhost</span><span class="o">.</span><span class="n">my</span><span class="o">-</span><span class="n">tailnet</span><span class="o">.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span><span class="o">/</span><span class="n">mcp</span> \
+  <span class="o">--</span><span class="n">header</span> <span class="s1">'Authorization: Bearer $</span><span class="si">{SCRAP_MCP_TOKEN}</span><span class="s1">'</span>
+</pre></div>
+</div>
+<p>or in <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code>, where Claude Code expands <code class="docutils literal notranslate"><span class="pre">${VAR}</span></code> in header values, so the token can stay in
+the environment (or an env file you do not commit):</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"scrap"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"http"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://scrap.example.com/mcp"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"headers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"Authorization"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bearer ${SCRAP_MCP_TOKEN}"</span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Behind Cloudflare Access, add its service-token headers too, so the request carries
+<code class="docutils literal notranslate"><span class="pre">CF-Access-Client-Id:</span> <span class="pre">${CF_ACCESS_CLIENT_ID}</span></code>, <code class="docutils literal notranslate"><span class="pre">CF-Access-Client-Secret:</span> <span class="pre">${CF_ACCESS_CLIENT_SECRET}</span></code>
+and the <code class="docutils literal notranslate"><span class="pre">Authorization</span></code> header. Keep all of these in an env file and do not commit it.</p>
+</section>
+<section id="if-it-does-not-connect">
+<h3>If it does not connect<a class="headerlink" href="#if-it-does-not-connect" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">401</span></code>: scrap wants a bearer token and the client sent none, or a wrong one. Check the header
+above; a <code class="docutils literal notranslate"><span class="pre">curl</span></code> check needs <code class="docutils literal notranslate"><span class="pre">-H</span> <span class="pre">&quot;Authorization:</span> <span class="pre">Bearer</span> <span class="pre">$TOKEN&quot;</span></code> too.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>: the <code class="docutils literal notranslate"><span class="pre">Host</span></code> the client used is not loopback or in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>
+(unset, wrong, or a different port). Fix step 1 and restart scrap.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">403</span></code>: the request carried an <code class="docutils literal notranslate"><span class="pre">Origin</span></code> that is not one of those addresses.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as failed: the machine is off the tailnet, nothing is
+published at that address, or the tailnet ACL blocks the port. Check the address itself with
+<code class="docutils literal notranslate"><span class="pre">./deploy/smoke.sh</span> <span class="pre">&lt;url&gt;</span></code>; see <a class="reference internal" href="deploy-single-server.html#scrap-troubleshooting"><span class="std std-ref">Troubleshooting</span></a> and the Tailnet ACL section of
+<a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>.</p></li>
+<li><p>It worked and stopped after the address changed (a new <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, another Tailscale
+Serve port, or a move to the Kubernetes ingress): scrap reads <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> only at
+startup, so restart it (<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">restart</span> <span class="pre">scrap</span></code>; on Kubernetes, <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> rolls
+the pod) for the new address to be accepted. Claude Code keeps the URL you registered and does
+not rewrite it, so register the new one: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">scrap</span></code>, then the <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code>
+of step 2 with the new <code class="docutils literal notranslate"><span class="pre">&lt;url&gt;/mcp</span></code> (and the same <code class="docutils literal notranslate"><span class="pre">--scope</span></code>). A restart of scrap alone needs
+nothing in the session: <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> keeps no session state, so the next call just works.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">413</span></code>: a request over 2 MiB.</p></li>
+<li><p>A tool error such as “only a page written over MCP can be appended to”, or a title over 200
+characters, a body over 200 kB or more than 20 tags: the call is refused and nothing is saved.</p></li>
+</ul>
+</section>
+</section>
+<section id="install-the-sc-commands-and-the-scrap-links-skill">
+<h2>3. Install the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands and the <code class="docutils literal notranslate"><span class="pre">scrap-links</span></code> skill<a class="headerlink" href="#install-the-sc-commands-and-the-scrap-links-skill" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">commands/</span></code> in this repository holds Claude Code slash commands that give you short scrap
+commands. Each is one Markdown file with a one-line description, and each is its own command, so
+typing <code class="docutils literal notranslate"><span class="pre">/sc</span></code> in Claude Code autocompletes the whole set with that description. They use the server added in step 2 (the <code class="docutils literal notranslate"><span class="pre">mcp__scrap__*</span></code> tools) and
+do nothing useful without it; if the tools are missing they say so and print the <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code>
+line.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Command</p></th>
+<th class="head"><p>What it does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-post</span> <span class="pre">[title]</span></code></p></td>
+<td><p>Posts Claude’s previous response to scrap verbatim, as one page. “post this to scrap” works too.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-summarise</span> <span class="pre">[all]</span> <span class="pre">[title]</span></code></p></td>
+<td><p>Summarises the current topic (the latest activity) into one page and posts it (below). With <code class="docutils literal notranslate"><span class="pre">all</span></code>, the whole conversation: overview, timeline, findings, decisions, changes made and open questions.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-find</span> <span class="pre">&lt;words&gt;</span></code></p></td>
+<td><p>Searches scrap and shows the top results as short lines.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-todos</span></code></p></td>
+<td><p>What to do now, overdue first.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-tidy</span> <span class="pre">&lt;what&gt;</span></code></p></td>
+<td><p>Bulk kind and tag changes with <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>: a <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first, a before and after for you to approve, then the change and its batch id.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-undo</span></code></p></td>
+<td><p>Lists recent <code class="docutils literal notranslate"><span class="pre">revisions</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code>s the one you name.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-write</span> <span class="pre">&lt;what&gt;</span></code></p></td>
+<td><p>Writes one new page from your instructions, picking out only what you ask for from the conversation (“the URLs we discussed and why”). Uses only the conversation, lists anything uncertain under <em>Unsure</em>, and reuses existing tags. Always creates a page.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-answer</span> <span class="pre">&lt;question&gt;</span></code></p></td>
+<td><p>Answers from scrap alone: searches, reads the pages, and cites them as links; says “not in scrap” rather than using general knowledge. Read-only.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-edit</span> <span class="pre">&lt;page&gt;</span> <span class="pre">&lt;change&gt;</span></code></p></td>
+<td><p>Changes the text of an existing page with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>: a <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> diff first, then the edit once you agree. <code class="docutils literal notranslate"><span class="pre">/sc-undo</span></code> reverts it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-done</span> <span class="pre">&lt;todo&gt;</span></code></p></td>
+<td><p>Ticks off a todo’s task boxes with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> (the todo becomes <code class="docutils literal notranslate"><span class="pre">done</span></code> when all are ticked). A todo with no task boxes cannot be closed over MCP: mark it in the app.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/sc-recent</span> <span class="pre">[period]</span></code></p></td>
+<td><p>What changed lately (default <code class="docutils literal notranslate"><span class="pre">1d</span></code>), by you and by Claude, from the <code class="docutils literal notranslate"><span class="pre">revisions</span></code> feed and <code class="docutils literal notranslate"><span class="pre">search</span></code>. Read-only.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/sc</span> <span class="pre">&lt;words&gt;</span></code></p></td>
+<td><p>An index: searches like <code class="docutils literal notranslate"><span class="pre">/sc-find</span></code>, or lists the commands above.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Install them for all your projects with one command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">commands</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">sh</span>
+</pre></div>
+</div>
+<p>It copies the files into <code class="docutils literal notranslate"><span class="pre">~/.claude/commands</span></code> (set <code class="docutils literal notranslate"><span class="pre">CLAUDE_COMMANDS_DIR</span></code> to put them elsewhere, such
+as <code class="docutils literal notranslate"><span class="pre">.claude/commands</span></code> for one project). From a clone of this repository you can instead copy
+<code class="docutils literal notranslate"><span class="pre">commands/*.md</span></code> yourself, or symlink them to keep up to date with the repository:
+<code class="docutils literal notranslate"><span class="pre">ln</span> <span class="pre">-sfn</span> <span class="pre">&quot;$PWD&quot;/commands/*.md</span> <span class="pre">~/.claude/commands/</span></code>. Start a new Claude Code session afterwards,
+and type <code class="docutils literal notranslate"><span class="pre">/sc</span></code> to check that the commands are listed. Copy the files unchanged.</p>
+<p>The same command installs the <code class="docutils literal notranslate"><span class="pre">scrap-links</span></code> skill (<code class="docutils literal notranslate"><span class="pre">skills/scrap-links</span></code> in this repository).
+It makes every scrap item an answer surfaces a clickable link, in any question you ask about
+scrap, not only in the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands: a todo, note or search result is shown as
+<code class="docutils literal notranslate"><span class="pre">[Title](url)</span></code>, never as a bare slug or plain title. It goes into
+<code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-links</span></code> (set <code class="docutils literal notranslate"><span class="pre">CLAUDE_SKILLS_DIR</span></code> to put it elsewhere, such as
+<code class="docutils literal notranslate"><span class="pre">.claude/skills</span></code> for one project). From a clone you can copy the folder yourself, or symlink it:
+<code class="docutils literal notranslate"><span class="pre">ln</span> <span class="pre">-sfn</span> <span class="pre">&quot;$PWD&quot;/skills/scrap-links</span> <span class="pre">~/.claude/skills/</span></code>. To check it is loaded, start a new Claude
+Code session: <code class="docutils literal notranslate"><span class="pre">scrap-links</span></code> is listed when you ask “what skills do you have”,
+and asking “what todos are for today” lists every todo as a link.</p>
+<p>These commands replace the earlier single <code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">&lt;verb&gt;</span></code> skill (<code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code>, <code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">tidy</span></code>, and so on), the
+<code class="docutils literal notranslate"><span class="pre">s-</span></code> and <code class="docutils literal notranslate"><span class="pre">sc-</span></code> skill sets that briefly preceded them, and the older <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill. Delete
+<code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s</span></code>, <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s-*</span></code>, <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/sc</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/sc-*</span></code>
+(a skill and a command of the same name clash) and <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-post</span></code> after installing
+these. Only the scrap tools are used. <code class="docutils literal notranslate"><span class="pre">&lt;SCRAP_URL&gt;</span></code> in the
+commands is a placeholder (the hint they give when the tools are missing, and the shape of the
+page URL they report); the real URL comes from the <code class="docutils literal notranslate"><span class="pre">write</span></code> tool, built from <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">/sc-summarise</span></code> makes Claude summarise the useful findings of the current topic into one page (<code class="docutils literal notranslate"><span class="pre">/sc-summarise</span> <span class="pre">all</span></code> for the whole
+conversation), reusing existing tags and linking related pages, and show you the title and tags before it
+writes; say “just post” to skip the question.</p>
+<p>The summary has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
+questions. It is a <code class="docutils literal notranslate"><span class="pre">note</span></code> unless it is a task (<code class="docutils literal notranslate"><span class="pre">todo</span></code>) or a longer reference (<code class="docutils literal notranslate"><span class="pre">doc</span></code>), carries
+the repository and date as its origin, and is sent with a random <code class="docutils literal notranslate"><span class="pre">key</span></code> so that a retry does not
+post twice. The command tells Claude to leave out secrets, credentials and private data. It
+appends to an earlier page only if that page was written by Claude (<code class="docutils literal notranslate"><span class="pre">written_by_claude</span></code> in
+<code class="docutils literal notranslate"><span class="pre">read</span></code>); otherwise it links to your page.</p>
+<p>Pages written this way carry a <em>Written by Claude</em> badge and the origin the session gave;
+<code class="docutils literal notranslate"><span class="pre">is:claude</span></code> lists them. Claude never deletes a page for good: it can move pages you name to the trash
+(<code class="docutils literal notranslate"><span class="pre">trash_pages</span></code>, undone with <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), and the nightly gc purges them after <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code> days. It can change any page’s kind and tags
+(“make these 15 notes whiteboards”, with <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>); each such change is a revision you can
+ask it to list (<code class="docutils literal notranslate"><span class="pre">revisions</span></code>) and undo (<code class="docutils literal notranslate"><span class="pre">revert</span></code>). It can also edit the text of a page you name
+(“fix the typo in my trip notes”, with <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>): it replaces one passage it quotes exactly,
+shows you a diff first if you ask, and refuses if the page changed since it read it. It can save a refined drawing too (<code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, a new version in the drawing’s history). Each text
+edit is a revision too, which <code class="docutils literal notranslate"><span class="pre">revert</span></code> (with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>) undoes, and <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds the pages whose
+text it changed. A bulk change
+given as a search is refused if it finds more than 50 pages unless <code class="docutils literal notranslate"><span class="pre">limit</span></code> is raised (up to
+200; naming the pages takes up to 200 as well), and Claude is told to try <code class="docutils literal notranslate"><span class="pre">dry_run</span></code> first. See “Kinds and tags” in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>.</p>
+</section>
+<section id="work-on-a-phone-page-from-claude-code">
+<h2>Work on a phone page from Claude Code<a class="headerlink" href="#work-on-a-phone-page-from-claude-code" title="Link to this heading">#</a></h2>
+<p>The Claude Android app cannot use scrap’s MCP server, so a page you are looking at on your phone
+reaches Claude Code through the clipboard:</p>
+<ol class="arabic simple">
+<li><p>On the phone, copy the page’s URL (or share it to a note or message you can reach from your
+computer).</p></li>
+<li><p>In a Claude Code session with the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands, paste it: <code class="docutils literal notranslate"><span class="pre">/sc</span> <span class="pre">&lt;url&gt;</span></code>. Claude finds the page
+from the slug in the URL and reads it, with the image’s description and transcribed text.</p></li>
+<li><p>Ask about the drawing, or ask for a change. Claude gets the drawing with <code class="docutils literal notranslate"><span class="pre">drawing</span></code> and can
+answer questions, redraw it elsewhere (Mermaid, say) or save a refined version with
+<code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>.</p></li>
+</ol>
+<p>A drawing saved this way is a new version, “drawn by claude”, in the drawing’s History in the PWA;
+nothing is overwritten, and if you edited the drawing in the meantime Claude’s save is refused.
+You can restore any earlier version there.</p>
+<p>To have a session summary posted automatically before each compaction, install the <code class="docutils literal notranslate"><span class="pre">PreCompact</span></code>
+hook described in <a class="reference internal" href="auto-summary-on-compact.html"><span class="std std-doc">Post a summary to scrap when Claude Code compacts</span></a>.</p>
+</section>
+<section id="permissions-and-security">
+<h2>Permissions and security<a class="headerlink" href="#permissions-and-security" title="Link to this heading">#</a></h2>
+<p>Claude Code asks before using an MCP tool unless you allow it, and the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands allow none. You
+might allow the read tools (<code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>) and let
+<code class="docutils literal notranslate"><span class="pre">write</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and the rest keep asking.</p>
+<p>To keep Claude off the text of your pages, set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code> on the server
+(<code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code> are then not offered, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> refuses <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>), or deny <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> in one
+client’s settings: <code class="docutils literal notranslate"><span class="pre">&quot;permissions&quot;:</span> <span class="pre">{&quot;deny&quot;:</span> <span class="pre">[&quot;mcp__scrap__edit_page&quot;]}</span></code>. A client
+setting cannot deny only the text mode of <code class="docutils literal notranslate"><span class="pre">revert</span></code>, which also undoes kinds and tags.</p>
+<p>scrap has no login: any device on the tailnet that can reach the port can use <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, so
+restrict that with the tailnet ACL (see <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>). Off the tailnet, <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
+can require a bearer token (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, ADR 0023), behind Cloudflare Access on
+Kubernetes.</p>
+<p>Mount scrap only in sessions where reading untrusted text is acceptable: pages may hold
+injected instructions, and a session that runs with bypassed permissions could be steered by
+them.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="auto-summary-on-compact.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Post a summary to scrap when Claude Code compacts</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="connect-claude-sandbox.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Connect Claude Code in claude-sandbox</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tell-scrap-its-address">1. Tell scrap its address</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#add-the-server-to-claude-code">2. Add the server to Claude Code</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-mcp-needs-a-token">If <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-it-does-not-connect">If it does not connect</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-the-sc-commands-and-the-scrap-links-skill">3. Install the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands and the <code class="docutils literal notranslate"><span class="pre">scrap-links</span></code> skill</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#work-on-a-phone-page-from-claude-code">Work on a phone page from Claude Code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#permissions-and-security">Permissions and security</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/0.18.0/docs/how-to/connect-claude-code.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/how-to/connect-claude-code.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
