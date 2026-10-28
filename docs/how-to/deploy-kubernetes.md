@@ -574,7 +574,7 @@ numbered migrations after it, so:
 | The backup is | `scrap restore` |
 | --- | --- |
 | below schema 18 (any release before 0.17.0) | **Refuses**, and the data folder is untouched: `bad backup: <backup path> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x first (it migrates to schema 18), then use 0.17.0 or later`. Restore it with scrap 0.16.x (which migrates the copy up to 18), take a fresh backup, then use 0.17.0 or later. See {ref}`k8s-upgrade-1-0`; the `0.16.<x>` image stays published, so `restore.yaml` can name it. |
-| at 18 or above, and lower than the release's schema | **Migrates**: restore runs the numbered scripts after the backup's version on its copy before the swap, so the data folder only ever receives a current database. A failed migration leaves the data folder as it was. |
+| at 18 or above, and lower than the release's schema | **Migrates**: restore runs the numbered scripts after the backup's version on its copy before the swap, so the data folder only ever receives a current database. A failed migration leaves the database as it was (files already copied stay, and are harmless). |
 | the same schema as the release | Copied as it is. |
 | above the release's schema (a newer scrap made it) | **Refuses**: `bad backup: <db> has schema N; this scrap knows M`. Use the release that wrote the backup, or a newer one. |
 
@@ -644,7 +644,7 @@ checked; the rest are the checks to do, with no result recorded.
      volumes:
        - name: backups
          persistentVolumeClaim:
-           claimName: scrap-backups
+           claimName: scrap-backups   # <fullname>-backups, or backup.persistence.existingClaim
            readOnly: true
    ```
 
@@ -721,7 +721,7 @@ checked; the rest are the checks to do, with no result recorded.
    | Health | `GET /healthz`, `GET /api/health` | fine |
 
    Only the rows with a result were run in the test; the others, and the full loop over every
-   page, are the checks to do. This script loops over every page, compares the two ports and
+   page, are the checks to do. The script has been run against a restored copy of a small store and reported no differences, but not on a full-size one. It loops over every page, compares the two ports and
    prints each slug whose text, tags, kind or fields differ (`captures` are left out, because
    their files are checked by count and size above):
 
@@ -761,8 +761,8 @@ What to expect:
 
 - A backup from an older scrap at schema 18 or above is migrated by `restore`, on the copy,
   before it is swapped into place (below 18 it is refused: see {ref}`k8s-restore-schema`).
-  `PRAGMA integrity_check` should say `ok`. A restored copy's version is in `GET /healthz`:
-  compare it against live; a newer scrap may count more.
+  `PRAGMA integrity_check` should say `ok`. `GET /healthz` shows the scrap version of the
+  scratch instance, which may be newer than the live one; that is expected.
 - The backup holds the database and every file in `files/`. It does not hold `cache/`, the page
   previews, which scrap makes again the first time a photo is shown.
 - `enrich.on` and `writeup.on` read `false` on the scratch instance only because Claude is off
