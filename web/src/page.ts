@@ -1,7 +1,7 @@
 // One page: its text (its images as figures) and other files, edit (pageedit.ts, with conflict handling)
 // and delete with undo.
 import { ADDED, api, blobUrl, type Page, type Queue, setStatus } from "./api";
-import { go } from "./app";
+import { go, plain } from "./app";
 import { remember } from "./crumbs";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
@@ -32,6 +32,10 @@ const links = (p: Page) =>
       return h("a", { href, target: "_blank", className: "file" }, icon("file"), name);
     }),
   );
+
+/** In Android's home-screen app (as installed from Chrome), not a browser tab. */
+const android = () =>
+  /Android/.test(navigator.userAgent) && matchMedia("(display-mode: standalone)").matches;
 
 const busy = (p: Page) =>
   p.captures.some((c) =>
@@ -66,6 +70,20 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   ]);
   signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
   const root = h("article", { className: "page" });
+  // A file opens in a new window, but in Android's home-screen app that window has no Back to
+  // this page: the back gesture closed the app (#443). There it opens in this window, one step
+  // Back returns from. Elsewhere (a tab, a computer, an iPhone) the new window is right.
+  root.addEventListener(
+    "click",
+    (e) => {
+      const a = (e.target as Element).closest<HTMLAnchorElement>('a[target][href^="/api/blobs/"]');
+      if (a && plain(e) && !a.hasAttribute("download") && android()) {
+        e.preventDefault();
+        location.assign(a.href);
+      }
+    },
+    { signal },
+  );
   // Opened from a list: its pager, swipes and keys (a chunk of its own; none offline)
   const pager = state?.trail
     ? (await import("./pager").catch(() => null))?.pager(state, p.slug, root, signal)
