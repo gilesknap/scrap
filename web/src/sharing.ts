@@ -3,6 +3,7 @@
 // buttons; the service worker keeps it for offline (vite.config.ts OFFLINE).
 import type { Icon } from "./icons";
 import { icon } from "./icons";
+import { makeHtml } from "./pagehtml";
 import { h, toast } from "./ui";
 
 const mb = (n: number) =>
@@ -116,6 +117,14 @@ export async function sharePageFile(href: string, title: string, saved: (f: File
   await shareFiles(title, [file], "Page ready");
 }
 
+/** Share the page as it is shown, as one HTML file (pagehtml.ts): where this phone can't share
+ * a file, `saved` gets it instead. */
+export async function sharePageHtml(article: HTMLElement, title: string, saved: (f: File) => void) {
+  if (!canShareFile("page.html", "text/html")) return saved(await makeHtml(article, title));
+  const file = await makeHtml(article, title);
+  await shareFiles(title, [file], "Page ready");
+}
+
 export interface Sharing {
   what: () => { title: string; text?: string; file?: string[] };
   link?: string; // the page's address: Share then asks Link or the content
@@ -161,10 +170,17 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
   );
   // The page's Download (an <a download>) is among `more`: Share can send what it saves
   const saved = s.more?.find((r) => r instanceof HTMLAnchorElement && r.hasAttribute("download"));
+  const article = b.closest<HTMLElement>("article.page");
+  const done = (f: File) => saveBlob(f, f.name);
+  if (article && saved instanceof HTMLAnchorElement && "canShare" in navigator)
+    menu.append(
+      pick("note", "HTML", () => {
+        void busy(b, "Share", () => sharePageHtml(article, s.what().title, done));
+      }),
+    );
   if (saved instanceof HTMLAnchorElement && "canShare" in navigator)
     menu.append(
-      pick("file", "File", () => {
-        const done = (f: File) => saveBlob(f, f.name);
+      pick("file", "Zip", () => {
         void busy(b, "Share", () => sharePageFile(saved.href, s.what().title, done));
       }),
     );
