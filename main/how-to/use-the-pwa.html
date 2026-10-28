@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc3.dev1+g8e46e5fc0 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc3.dev2+ge1e00ccc7 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=cb1bbc9d"></script>
+    <script src="../_static/documentation_options.js?v=5fe81830"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1473,7 +1473,7 @@ here and is not counted.</p></li>
 </section>
 <section id="sharing-a-page">
 <h3>Sharing a page<a class="headerlink" href="#sharing-a-page" title="Link to this heading">#</a></h3>
-<p><strong>Share</strong> asks <strong>Link</strong>, <strong>Text</strong>, <strong>HTML</strong> and <strong>Zip</strong> (both saved like Download where the browser cannot share files) or <strong>Download</strong>. Tap <strong>Share</strong> again or elsewhere to close.</p>
+<p><strong>Share</strong> asks <strong>Link</strong>, <strong>Text</strong>, <strong>HTML</strong> and <strong>Zip</strong> (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or <strong>Download</strong>. Tap <strong>Share</strong> again or elsewhere to close.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Choice</p></th>
@@ -1491,7 +1491,7 @@ here and is not counted.</p></li>
 <td><p>The page as you see it, as one <code class="docutils literal notranslate"><span class="pre">.html</span></code> file that opens anywhere with no scrap: your text, Claude’s card with the labels the page gives it (nothing added), and the file names; task boxes show as <code class="docutils literal notranslate"><span class="pre">[x]</span></code> or <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">]</span></code>, and Ask, Download and the other buttons, and the notes that say what Claude is waiting for, are left out. Photos are inlined as 480 pixel previews (no location or camera details), up to about 4 MB in all; past that, the rest are named in brackets. PDFs and other files are named, not included; links to other pages of scrap lose their link. No script, and nothing in it is fetched. It is built from the page on screen, so it shows what the page shows now. If the browser cannot share files it is saved</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Zip</strong></p></td>
-<td><p>The same Markdown, or zip, as Download, handed to the share sheet, but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share files it is saved like Download, with the original photos (which keep their location and camera details)</p></td>
+<td><p>The same Markdown, or zip, as Download, handed to the share sheet (where it can’t take a zip, as on Chrome for Android, it is saved instead and says so), but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share files, or refuses the zip, it is saved like Download, with the original photos (which keep their location and camera details)</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>Download</strong></p></td>
 <td><p>Markdown, or a zip of the Markdown and its files (the originals) when it has any</p></td>
