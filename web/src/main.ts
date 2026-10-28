@@ -318,10 +318,17 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 watchScroll();
 // ?debug=1 or ?debug=0 in the address turns the panel on or off: the build line's five taps
 // need a build line, which a phone without the service worker's cache doesn't show
-const asked = new URLSearchParams(location.search).get("debug");
+const query = new URLSearchParams(location.search);
+const asked = query.get("debug");
 if (asked === "1" || asked === "0") {
   kept(KEY, asked);
-  history.replaceState(history.state, "", location.pathname + location.hash);
+  query.delete("debug"); // the other parameters, a saved search's q, stay
+  const rest = query.toString();
+  history.replaceState(
+    history.state,
+    "",
+    location.pathname + (rest ? `?${rest}` : "") + location.hash,
+  );
 }
 if (kept(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
