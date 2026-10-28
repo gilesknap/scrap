@@ -1,5 +1,5 @@
-"""The HTTP routes for a board page's write-up (#256): Regenerate, the owner's
-and the owner's guidance. Registered by app.create_app (add_routes)."""
+"""The HTTP routes for a board page's write-up (#256): Regenerate and the owner's
+guidance. Registered by app.create_app (add_routes)."""
 
 from collections.abc import Callable
 from typing import Annotated, Any

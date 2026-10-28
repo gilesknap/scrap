@@ -45,7 +45,7 @@ WHERE id = :page AND deleted_at IS NULL
 INSERT_DERIVED = """
 INSERT INTO derived (capture_id, source_sha256, kind, version, producer, run_id, author,
                      text, data, superseded_at, created_at)
-VALUES (:capture, :photo, :kind, (SELECT max(coalesce(max(version), 0), :floor) + 1
+VALUES (:capture, :photo, :kind, (SELECT coalesce(max(version), 0) + 1
                                   FROM derived
                                   WHERE capture_id = :capture AND source_sha256 = :photo
                                     AND kind = :kind),

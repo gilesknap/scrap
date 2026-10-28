@@ -174,28 +174,14 @@ def put_derived(
     """Insert a version. A drawing (excalidraw) keeps its history: a current one
     supersedes the last (a trigger), one that is not current is kept in the history
     only. Any other kind (a model's reading) keeps only its current one (ADR 39): the
-    last is deleted first, with its chunk (cascade) and search entry (trigger), but
-    its version number goes on counting (version 1 is the first reading)."""
-    floor = 0
-    if kind != "excalidraw":
-        key = (capture_id, photo, kind)
-        floor = conn.execute(
-            "SELECT coalesce(max(version), 0) FROM derived WHERE capture_id = ?"
-            " AND source_sha256 = ? AND kind = ?",
-            key,
-        ).fetchone()[0]
-        conn.execute(
-            "DELETE FROM derived WHERE capture_id = ? AND source_sha256 = ?"
-            " AND kind = ?",
-            key,
-        )
-    return conn.execute(
+    insert supersedes the last (which drops its chunk), then the superseded rows are
+    deleted, so versions still count (version 1 is the first reading)."""
+    row = conn.execute(
         INSERT_DERIVED,
         {
             "capture": capture_id,
             "photo": photo,
             "kind": kind,
-            "floor": floor,
             "producer": producer,
             "run": run_id,
             "author": author,
@@ -207,6 +193,13 @@ def put_derived(
             "now": stamp,
         },
     ).fetchone()
+    if kind != "excalidraw":
+        conn.execute(
+            "DELETE FROM derived WHERE capture_id = ? AND source_sha256 = ?"
+            " AND kind = ? AND superseded_at IS NOT NULL AND id != ?",
+            (capture_id, photo, kind, row["id"]),
+        )
+    return row
 
 
 def notify(reason: str) -> None:
