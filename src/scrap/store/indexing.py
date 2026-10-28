@@ -195,9 +195,3 @@ def queue_after_read(conn: sqlite3.Connection, capture_id: str) -> None:
     if row is not None and current_writeup(conn, row[0]) is not None:
         index_page(conn, row[0])  # no longer a board: its write-up leaves the index
     queue_related_on_read(conn, capture_id)
-
-
-def index_all(conn: sqlite3.Connection) -> None:
-    """Every page's own chunk again (the trash's too: undo brings a page back)."""
-    for (page_id,) in conn.execute("SELECT id FROM page").fetchall():
-        index_page(conn, page_id)

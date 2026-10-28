@@ -11,12 +11,12 @@ topic_run (it is of no one page), counted in the daily budget.
 """
 
 import json
-import os
 import sqlite3
 from typing import Any
 
 from .. import claude
 from ..ingest import resume
+from ..ingest.constants import budget_day_micros
 from ..store import Store, now, queue_topic, roles, topics, transaction
 from .checking import checked_topics, record
 from .constants import DISCOVERY_SCHEMA, TOPIC_DUE, TOPIC_INDEX
@@ -168,7 +168,7 @@ def topics_pass(
     (and records it) but writes nothing and queues nothing. Returns the counts and
     what was found."""
     call = call or claude.complete
-    budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
+    budget = budget_day_micros()
     found: dict[str, Any] = {"new": [], "add": []}
 
     def one(_: str) -> claude.CallError | None:

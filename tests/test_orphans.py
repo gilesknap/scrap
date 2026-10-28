@@ -3,6 +3,7 @@
 import hashlib
 import os
 import time
+import urllib.request
 from datetime import UTC, datetime
 from io import BytesIO
 
@@ -326,7 +327,7 @@ def test_a_new_page_is_announced_once(client, store, monkeypatch):
         sent.append((url, data))
         return Done()
 
-    monkeypatch.setattr(orphans.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
     monkeypatch.setenv("SCRAP_NOTIFY_URL", "https://ntfy.example/scrap")
     unembed(client, store, "First", b"first")
     gc.collect(store, delete=True)
@@ -343,7 +344,7 @@ def test_a_new_page_is_announced_once(client, store, monkeypatch):
     def fails(url, data, timeout):
         raise OSError("down")
 
-    monkeypatch.setattr(orphans.urllib.request, "urlopen", fails)
+    monkeypatch.setattr(urllib.request, "urlopen", fails)
     monkeypatch.setattr(orphans, "clock", lambda: NOV)
     unembed(client, store, "Third", b"third")
     assert gc.collect(store, delete=True).orphans == 1  # a lost notice is not an error

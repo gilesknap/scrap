@@ -1,18 +1,15 @@
 """Queue state: claiming, charging, pausing and recording derived versions."""
 
 import json
-import logging
 import os
 import sqlite3
-import urllib.request
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from ..notify import notify as post
 from ..store import MAX_PAGE, queue_after_read, transaction
 from ..store.constants import IMAGE_JOB
 from .constants import CLAIM, FAR, INSERT_DERIVED, MAX_FAILURES, RETRY
-
-log = logging.getLogger(__name__)
 
 
 def enabled() -> bool:
@@ -204,11 +201,4 @@ def put_derived(
 
 def notify(reason: str) -> None:
     """Announce a pause once, with fixed text naming only its reason."""
-    url = os.environ.get("SCRAP_NOTIFY_URL")
-    if not url:
-        return
-    message = f"scrap: Claude ingest paused ({reason}). Open scrap to resume."
-    try:
-        urllib.request.urlopen(url, message.encode(), timeout=10).close()
-    except Exception:  # noqa: BLE001  a lost notice must not stop the worker
-        log.warning("pause notification failed")
+    post(f"scrap: Claude ingest paused ({reason}). Open scrap to resume.")

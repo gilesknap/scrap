@@ -62,7 +62,6 @@ def first_capture(conn: sqlite3.Connection, cid: str) -> tuple[str, bool]:
 
 # Who made a page: page.made_by , set once when the page is made (by
 # made_by_source, or topic for a topic page) and never changed: a trigger refuses it.
-MADE_BY_VALUES: tuple[MadeBy, ...] = ("human", "claude", "topic", "gc")
 MADE_BY = "{p}.made_by"
 # A topic page p: a row in topic (#261), as made_by 'topic' says too (topics.create
 # writes both, in one transaction, and neither changes). The table stays the test: it

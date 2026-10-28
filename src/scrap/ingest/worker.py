@@ -3,7 +3,6 @@ file's job is read locally instead: files.py)."""
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 from collections.abc import Callable
@@ -24,7 +23,7 @@ from ..store import (
 from ..store.helpers import file_kind
 from ..store.roles import IS_FIRST, UNFILED, first_capture
 from . import files
-from .constants import PAUSES, POLL, REV, TITLE_CAS
+from .constants import PAUSES, POLL, REV, TITLE_CAS, budget_day_micros
 from .jobs import (
     charge,
     claim,
@@ -55,7 +54,7 @@ class Worker:
 
         self.store = store
         self.call = call or claude.complete
-        self.budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
+        self.budget = budget_day_micros()
         self.current: int | None = None  # the job in flight
         # Text pages (enrich/), when there is no photo to read
         self.enricher = Enricher(store, self.call, self.budget, fetcher)
