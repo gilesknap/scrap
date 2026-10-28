@@ -77,3 +77,8 @@ go to Claude whole on capture. Prompt injection from a stranger's PDF was alread
   takes over a queued file page reading (or keeps its place against one), so that page gets no
   automatic summary; **Ask Claude** gives one. It needs a photo read as a board added to a file
   page while its files are being read.
+- Known limitation: if a capture's dead file is **Reprocess**ed while another file from that
+  capture is still being read, the page gets no automatic reading when that other file finishes
+  (it fails safe: nothing is sent); **Ask Claude** gives one.
+- If the job is held by a pause or the budget and another file is added to the page meanwhile,
+  that file's text is sent too, still within the 4,000 and 1,500 character limits and quoted.
