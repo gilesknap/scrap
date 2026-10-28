@@ -105,9 +105,9 @@ flowchart TD
 - **Photo text.** What ingest read (description, OCR) is its own chunk, made by a trigger when the
   `derived` row is inserted and removed when that row goes (a reading is deleted when a newer one replaces it; a drawing version when it is superseded). It fills only the text column. A
   PDF's or text file's text, which scrap reads itself ({ref}`ingest-files`), is such a chunk too.
-- **Disposable.** There is no `reindex` command. `index_all` rebuilds every page's own chunk,
-  trash included (undo brings a page back); a migration that changes what is indexed calls it, as
-  the migrations before the 1.0 baseline did (they are folded into `baseline.sql`, [ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)).
+- **Disposable.** There is no `reindex` command. `index_page` rebuilds one page's own chunk,
+  and a migration that changes what is indexed rebuilds every page's (the trash's too: undo brings
+  a page back), as the migrations before the 1.0 baseline did (they are folded into `baseline.sql`, [ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)).
 
 ## Store health as search
 

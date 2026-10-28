@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Search &#8212; scrap 0.17.1.dev8+g6898a9822 documentation</title>
+    <title>Search &#8212; scrap 0.17.1.dev9+g6560eddc0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=4c327fd6"></script>
+    <script src="../../_static/documentation_options.js?v=cbafb28d"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1056,9 +1056,9 @@ characters become spaces, since snippets mark hits with <code class="docutils li
 <li><p><strong>Photo text.</strong> What ingest read (description, OCR) is its own chunk, made by a trigger when the
 <code class="docutils literal notranslate"><span class="pre">derived</span></code> row is inserted and removed when that row goes (a reading is deleted when a newer one replaces it; a drawing version when it is superseded). It fills only the text column. A
 PDF’s or text file’s text, which scrap reads itself (<a class="reference internal" href="../ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>), is such a chunk too.</p></li>
-<li><p><strong>Disposable.</strong> There is no <code class="docutils literal notranslate"><span class="pre">reindex</span></code> command. <code class="docutils literal notranslate"><span class="pre">index_all</span></code> rebuilds every page’s own chunk,
-trash included (undo brings a page back); a migration that changes what is indexed calls it, as
-the migrations before the 1.0 baseline did (they are folded into <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code>, <a class="reference internal" href="../decisions/0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>).</p></li>
+<li><p><strong>Disposable.</strong> There is no <code class="docutils literal notranslate"><span class="pre">reindex</span></code> command. <code class="docutils literal notranslate"><span class="pre">index_page</span></code> rebuilds one page’s own chunk,
+and a migration that changes what is indexed rebuilds every page’s (the trash’s too: undo brings
+a page back), as the migrations before the 1.0 baseline did (they are folded into <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code>, <a class="reference internal" href="../decisions/0037-one-baseline-schema-for-1-0.html"><span class="std std-doc">ADR 37</span></a>).</p></li>
 </ul>
 </section>
 <section id="store-health-as-search">

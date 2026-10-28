@@ -159,7 +159,7 @@ flowchart LR
   by trigger, and a restore inserts a copy. A model's reading (`ocr`, `description`) keeps only its
   current row: the new one replaces it. Never `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE
   deletes without firing the FTS triggers.
-- **The cache** (blue) is rebuilt by `index_all`. A page has one own chunk (title, tags, summary,
+- **The cache** (blue) is rebuilt by `index_page`. A page has one own chunk (title, tags, summary,
   plain-text body), rebuilt in the same transaction as any capture, save, tag change or enrich
   result, so there is no index job. The current write-up (a board's write-up or a topic's synthesis)
   is a second chunk, and each current derived text a further one. Chunks are deleted and inserted,
