@@ -1,12 +1,12 @@
 """Enrich: related pages, one call for a page and the nightly pass."""
 
 import json
-import os
 from collections.abc import Callable
 from typing import Any
 
 from .. import claude
 from ..ingest import PAUSES, notify, pause, resume, spent_today
+from ..ingest.constants import budget_day_micros
 from ..store import Store, model_summary, now, transaction, writeups
 from .checking import checked_related, record
 from .constants import RELATED_FILES, RELATED_SCHEMA, STALE
@@ -109,7 +109,7 @@ def related_pass(
     pause (or makes one: outage, credit, auth, the day's budget), as the worker does;
     other failures are counted and the next page tried. Returns the counts."""
     call = call or claude.complete
-    budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
+    budget = budget_day_micros()
     with store.connect() as conn:
         most = -1 if limit is None else limit
         ids = [r[0] for r in conn.execute(STALE, {"all": every, "limit": most})]

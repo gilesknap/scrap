@@ -6,6 +6,7 @@ import json
 import sqlite3
 import threading
 import time
+import urllib.request
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
@@ -305,7 +306,7 @@ def test_a_pause_is_announced_once_per_episode(store, conn, monkeypatch):
     sent = []
     monkeypatch.setenv("SCRAP_NOTIFY_URL", "http://notify.invalid/topic")
     monkeypatch.setattr(
-        ingest.jobs.urllib.request,
+        urllib.request,
         "urlopen",
         lambda *a, **k: sent.append(a[1]) or io.BytesIO(),
     )

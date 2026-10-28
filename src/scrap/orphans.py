@@ -28,13 +28,12 @@ files, so Claude's enrichment leaves it alone (``store.roles.NOT_BY_INGEST``).
 """
 
 import logging
-import os
 import re
 import sqlite3
-import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from .notify import notify
 from .store import MAX_PAGE, Store, body_refs, new_ulid
 from .store.roles import GC, REVIEW  # a review page: one gc made (its capture's source)
 from .store.trash import TRASH_DAYS
@@ -261,14 +260,3 @@ def gather(
     if result.created:
         notify(f"scrap gc gathered orphaned files onto {title}. Review it in scrap.")
     return result
-
-
-def notify(message: str) -> None:
-    """POST one fixed line to SCRAP_NOTIFY_URL, if set (as ingest's pause alerts)."""
-    url = os.environ.get("SCRAP_NOTIFY_URL")
-    if not url:
-        return
-    try:
-        urllib.request.urlopen(url, message.encode(), timeout=10).close()
-    except Exception:  # noqa: BLE001  a lost notice must not fail gc
-        log.warning("orphan page notification failed")

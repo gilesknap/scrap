@@ -1,5 +1,7 @@
 """The ingest queue's limits and SQL."""
 
+import os
+
 from ..store.constants import IS_FILE
 from ..store.roles import FIRST_CAPTURE, TITLE_UNTOUCHED
 
@@ -8,6 +10,12 @@ MAX_FAILURES = 3
 RETRY = 600  # seconds after a charged failure (invalid output: at once)
 POLL = 30  # seconds the idle worker sleeps unless woken
 PAUSES = ("credit", "auth", "outage", "budget")
+
+
+def budget_day_micros() -> int:
+    """SCRAP_BUDGET_DAY_USD (default 3) in micro-dollars."""
+    return int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
+
 
 REV = "(SELECT max(rev) FROM page_rev WHERE page_id = p.id)"  # a page's text rev
 # The oldest ready job, a photo's before any file's (a file may take a minute to

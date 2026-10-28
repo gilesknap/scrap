@@ -11,10 +11,10 @@ as a new version (store.writeups), never in the body.
 
 import io
 import json
-import os
 from typing import Any
 
 from .. import claude, preview
+from ..ingest.constants import budget_day_micros
 from ..store import NotFoundError, Store, now, transaction, writeups
 from .checking import checked_writeup, record
 from .constants import BOARDS, MAX_BOARDS, WRITEUP_SCHEMA
@@ -142,7 +142,7 @@ def writeup_pass(
     pause (or makes one: outage, credit, auth, the day's budget), as the related pass
     does; other failures are counted and the next page tried. Returns the counts."""
     call = call or claude.complete
-    budget = int(float(os.environ.get("SCRAP_BUDGET_DAY_USD", "3")) * 1e6)
+    budget = budget_day_micros()
     with store.connect() as conn:
         most = -1 if limit is None else limit
         ids = [r[0] for r in conn.execute(BOARDS, {
