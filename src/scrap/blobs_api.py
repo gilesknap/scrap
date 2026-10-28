@@ -4,6 +4,7 @@ how many pages use it. Registered by app.create_app (add_routes)."""
 import re
 import tempfile
 from collections.abc import Iterator
+from typing import Literal
 from urllib.parse import quote
 
 import anyio
@@ -30,11 +31,23 @@ def attachment(name: str) -> str:
 
 def add_routes(app: FastAPI, store: Store) -> None:
     @app.get("/api/pages/{key}/download")
-    def page_download(key: str) -> StreamingResponse:
-        """A page as <slug>.md, or with its files a <slug>.zip."""
+    def page_download(
+        key: str,
+        notes: bool = True,
+        photos: Literal["original", "preview"] = "original",
+    ) -> Response:
+        """A page as <slug>.md, or with its files a <slug>.zip. notes=0 leaves out
+        Claude's notes; photos=preview has each photo as its 2048 pixel JPEG preview,
+        which carries no EXIF or GPS (what Share sends).
+        503 while the decoder is busy."""
         out = tempfile.SpooledTemporaryFile(max_size=8 * 2**20)
         try:
-            name, mime = backup.download(store, key, out)
+            name, mime = backup.download(store, key, out, notes, photos == "preview")
+        except preview.BusyError:
+            out.close()
+            return JSONResponse(
+                {"detail": preview.BusyError.__doc__}, 503, {"Retry-After": "5"}
+            )
         except BaseException:
             out.close()
             raise

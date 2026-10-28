@@ -14,7 +14,16 @@ from typing import IO
 from urllib.parse import quote, unquote
 
 from .drawing import excalidraw_file
-from .store import NoSuchPage, Store, connect, migrate, schema_version
+from .page_notes import Extras, file_text, gather
+from .preview import preview
+from .store import (
+    InvalidError,
+    NoSuchPage,
+    Store,
+    connect,
+    migrate,
+    schema_version,
+)
 from .store.todo import read as read_todo
 
 __all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
@@ -194,7 +203,10 @@ def _fenced(text: str) -> list[str]:
 
 
 def page_markdown(
-    conn: sqlite3.Connection, page: sqlite3.Row, name: Namer = _sha_name
+    conn: sqlite3.Connection,
+    page: sqlite3.Row,
+    name: Namer = _sha_name,
+    extras: Extras | None = None,
 ) -> tuple[str, list[tuple[str, str | bytes]]]:
     """A page as Markdown: front matter, its body, then a link per file under files/,
     each photo followed by what Claude made of it (its description, the text it read
@@ -202,6 +214,10 @@ def page_markdown(
 
     name picks each file's name (given the names taken so far). Returns the text and,
     for each file, its name and either its sha256 (a stored file) or its bytes.
+
+    extras (a single page's download, not `scrap export`) adds the page's tags, status
+    and topics to the front matter, the text read from its PDFs and text files, then
+    Claude's notes and what links here, and writes `[[slug]]` links as full addresses.
     """
     front = {
         key: page[key] for key in ("title", "id", "kind", "created_at", "updated_at")
@@ -210,6 +226,7 @@ def page_markdown(
         front |= {k: v for k, v in read_todo(conn, page["id"]).items() if v}
     if page["task_total"]:  # its task boxes, as counted
         front["tasks"] = {"done": page["task_done"], "total": page["task_total"]}
+    front |= extras.front if extras else {}
     front["fields"] = json.loads(page["fields"])
     lines = ["---", *(f"{k}: {json.dumps(v)}" for k, v in front.items())]
     files: list[tuple[str, str | bytes]] = []
@@ -259,6 +276,8 @@ def page_markdown(
         return f"{m[1]}[{text}]({address})"
 
     body = _outside_code(page["body"], lambda t: OWN_BLOB.sub(here, t))
+    if extras:
+        body = extras.links(body)
     lines += ["---", "", body, ""]
     listed: set[str] = set()
     for blob in blobs:
@@ -273,6 +292,9 @@ def page_markdown(
         elif got:
             lines.append(f"[{label}](files/{quote(file)})")
         listed.add(sha)
+        if extras and not image and (text := file_text(conn, blob["capture_id"], sha)):
+            cut = "\n[text cut here]" if text[1] else ""
+            lines += ["", *_fenced(text[0] + cut), ""]
         if not image:
             continue
         if "description" in got and got["description"]["text"]:
@@ -292,6 +314,11 @@ def page_markdown(
             lines += ["", f"[Drawing of {label}](files/{quote(drawing)})"]
         if len(got):
             lines.append("")
+    if extras:
+        linked = ["## Linked from", "", *extras.linked_from]
+        for section in (extras.notes, extras.linked_from and linked):
+            if section:
+                lines += ["", *section] if lines[-1] else section
     return "\n".join(lines) + "\n", files
 
 
@@ -335,8 +362,10 @@ def file_name(name: str | None, sha: str, mime: str) -> str:
     return name if stem else sha[:12] + (mimetypes.guess_extension(mime) or "")
 
 
-def _friendly_name(blob: sqlite3.Row, taken: set[str]) -> str:
+def _friendly_name(blob: sqlite3.Row, taken: set[str], jpeg: bool = False) -> str:
     name = file_name(blob["filename"], blob["sha256"], blob["mime"])
+    if jpeg and blob["mime"].startswith("image/"):  # its preview is a JPEG
+        name = f"{name.rpartition('.')[0] or name}.jpg"
     stem, dot, ext = name.rpartition(".")
     if not stem:
         stem, dot, ext = ext, "", ""
@@ -348,9 +377,28 @@ def _friendly_name(blob: sqlite3.Row, taken: set[str]) -> str:
     return name
 
 
-def download(store: Store, key: str, out: IO[bytes]) -> tuple[str, str]:
+def _preview_name(blob: sqlite3.Row, taken: set[str]) -> str:
+    return _friendly_name(blob, taken, jpeg=True)
+
+
+PREVIEW_SIZE = 2048  # the longest side of a photo in a download with previews
+
+
+def download(
+    store: Store,
+    key: str,
+    out: IO[bytes],
+    notes: bool = True,
+    previews: bool = False,
+) -> tuple[str, str]:
     """Write one page to out: <slug>.md, or with files a <slug>.zip of the Markdown and
-    files/ (relative links, so it reads offline). Returns the file name and type."""
+    files/ (relative links, so it reads offline). Returns the file name and type.
+
+    The Markdown has the page's tags, status and topics, the text read from its PDFs
+    and text files, what links here and, unless notes is false, Claude's notes
+    (page_notes). With previews each photo is its 2048 pixel JPEG preview (no EXIF or
+    GPS, smaller), not the original; one that cannot be previewed is left out. Raises
+    BusyError (preview) if the photo decoder stays busy."""
     with store.connect() as conn:
         page = conn.execute(
             "SELECT * FROM page WHERE (id = ? OR slug = ?) AND deleted_at IS NULL",
@@ -358,16 +406,30 @@ def download(store: Store, key: str, out: IO[bytes]) -> tuple[str, str]:
         ).fetchone()
         if page is None:
             raise NoSuchPage(key)
-        text, files = page_markdown(conn, page, _friendly_name)
+        extras = gather(store, conn, page["id"], notes)
+        namer = _preview_name if previews else _friendly_name
+        text, files = page_markdown(conn, page, namer, extras)
     slug = page["slug"]
     if not files:
         out.write(text.encode())
         return f"{slug}.md", "text/markdown; charset=utf-8"
+    paths: dict[
+        str, Path
+    ] = {}  # each stored file's place: its original, or its preview
+    for name, content in files:
+        if isinstance(content, str):
+            paths[name] = store.blob_path(content)
+            if previews and store.blob(content)[1].startswith("image/"):
+                try:
+                    paths[name] = preview(store, content, PREVIEW_SIZE)
+                except InvalidError:  # one it cannot decode is not sent as the original
+                    del paths[name]
+                    text = text.replace(f"(files/{quote(name)})", " (not in this copy)")
     with zipfile.ZipFile(out, "w") as zf:
         zf.writestr(f"{slug}.md", text, zipfile.ZIP_DEFLATED)
         for name, content in files:  # photos are compressed already: stored as is
             if isinstance(content, bytes):
                 zf.writestr(f"files/{name}", content, zipfile.ZIP_DEFLATED)
-            else:
-                zf.write(store.blob_path(content), f"files/{name}", zipfile.ZIP_STORED)
+            elif name in paths:
+                zf.write(paths[name], f"files/{name}", zipfile.ZIP_STORED)
     return f"{slug}.zip", "application/zip"
