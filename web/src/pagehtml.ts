@@ -225,9 +225,9 @@ export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch
     const md = await import("./render").catch(() => null);
     if (!md) throw new Error("the page can't be made offline until scrap is reloaded");
     for (const n of texts) {
-      const box = document.createElement("div");
-      box.innerHTML = md.markdown(textOf(n));
-      swaps.set(n, box);
+      // Parsed apart from the page (an <img> in it would be fetched by a live document)
+      const doc = new DOMParser().parseFromString(md.markdown(textOf(n)), "text/html");
+      swaps.set(n, doc.body);
     }
   }
   return new File([pageHtml(root, title, shown, swaps)], htmlName(title), { type: "text/html" });

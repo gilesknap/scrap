@@ -21,7 +21,8 @@ test("Share > HTML renders Markdown in the body and the summary, offline", async
   await page.route(`**/api/pages/${n.slug}`, async (rt) => {
     if (rt.request().method() !== "GET") return rt.continue();
     const json = await (await rt.fetch()).json();
-    const summary = "A **bold** summary\n\n- item one\n- item two";
+    const summary =
+      "A **bold** summary and [a site](https://example.com/s)\n\n- item one\n- item two";
     await rt.fulfill({
       json: { ...json, enrich: { on: true, error: null, state: "done", summary } },
     });
@@ -44,6 +45,7 @@ test("Share > HTML renders Markdown in the body and the summary, offline", async
   await expect(file.locator("strong")).toHaveCount(2); // body and summary
   await expect(file.locator("pre code")).toContainText("code here");
   await expect(file.locator(".summary li")).toHaveText(["item one", "item two"]);
+  await expect(file.locator(".summary a")).toHaveAttribute("href", "https://example.com/s");
   const text = await file.locator("body").innerText();
   expect(text).not.toMatch(/\*\*|##|```/);
   await ctx.close();
