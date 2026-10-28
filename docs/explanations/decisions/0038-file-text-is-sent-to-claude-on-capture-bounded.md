@@ -64,7 +64,7 @@ go to Claude whole on capture. Prompt injection from a stranger's PDF was alread
 
 The "looks sensitive" skip stays rejected, but sending is now refined by masking at the outbound
 seam: `claude.complete()` replaces secret-shaped text (provider keys, `Bearer` tokens, labelled
-`password`/`token`/`secret` assignments, PEM private-key blocks) with `[REDACTED]` in `system` and
+`password`, `token`, `secret` and `api_key` assignments (also `.env` and JSON forms), PEM private-key blocks) with `[REDACTED]` in `system` and
 `messages`, for both backends. The page is still sent; only the secret is not. Stored text is
 verbatim and photo pixels are untouched. Hex and base64 run rules are left out (they mangle SHAs,
 digests, URLs and slugs). A bare password in prose still leaks; `SCRAP_FILE_ENRICH=ask` remains

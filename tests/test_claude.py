@@ -316,6 +316,11 @@ SECRETS = [
     "AKIAABCDEFGHIJKLMNOP",
     "Bearer abcdef.ghijkl-mnop",
     "password = hunter2hunter2",
+    "OPENAI_API_KEY=abcdef123456",
+    "AWS_SECRET_ACCESS_KEY=abcdef123456",
+    '{"password": "hunter22"}',
+    "bearer abcdefghijkl",
+    "-----BEGIN PRIVATE KEY-----\nMIIEow\nabc",  # cut before its END line
     "-----BEGIN RSA PRIVATE KEY-----\nMIIEow\nabc\n-----END RSA PRIVATE KEY-----",
 ]
 SAFE = [
@@ -324,12 +329,14 @@ SAFE = [
     "https://example.com/a/very/long/path/with-many-words-and-ids/1234567890abcdef",
     "a-long-slug-about-the-quarterly-planning-meeting-notes-2026",
     "the token budget is large",
+    "my-task-list: sk-short and AKIAshort",
 ]
 
 
 @pytest.mark.parametrize("secret", SECRETS)
 def test_secrets_are_masked(secret):
-    assert mask.redact_secrets(f"before {secret} after") == "before [REDACTED] after"
+    out = mask.redact_secrets(f"before {secret} after")
+    assert "[REDACTED]" in out and secret[-7:] not in out  # a name may stay
 
 
 @pytest.mark.parametrize("text", SAFE)
@@ -350,3 +357,16 @@ def test_the_api_payload_is_masked_and_the_stored_messages_are_not(fake):
     assert "[REDACTED]" in payload and SAFE[0] in payload
     assert SECRETS[0] not in payload and SECRETS[1] not in payload
     assert messages[0]["content"][0]["text"] == stored
+
+
+def test_blob_blocks_and_string_content_survive_masking():
+    blob = {"type": "image", "source": {"type": "blob", "sha256": "f" * 64}}
+    text = {"type": "text", "text": "token: abcdefgh"}
+    out = mask.mask_messages(
+        [
+            {"role": "user", "content": [blob, text]},
+            {"role": "user", "content": "token: abcdefgh"},
+        ]
+    )
+    assert out[0]["content"] == [blob, {"type": "text", "text": "[REDACTED]"}]
+    assert out[1]["content"] == "[REDACTED]"
