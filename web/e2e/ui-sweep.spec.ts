@@ -82,22 +82,22 @@ test("Topics: the count line is the results header, and Refine goes to Search", 
 });
 
 /** The elements drawn with the accent as their fill: what a screen's amber fills are. */
-const amberFills = (page: Page) =>
-  page.evaluate(() => {
+const amberFills = (page: Page, scope = "body") =>
+  page.evaluate((scope) => {
     const probe = document.createElement("i");
     probe.style.background = "var(--accent)";
     document.body.append(probe);
     const accent = getComputedStyle(probe).backgroundColor;
     probe.remove();
-    return [...document.body.querySelectorAll<HTMLElement>("*")]
+    return [...(document.querySelector(scope) ?? document.body).querySelectorAll<HTMLElement>("*")]
       .filter((e) => {
         const r = e.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && getComputedStyle(e).backgroundColor === accent;
       })
       .map((e) => e.textContent?.trim() || e.className || e.tagName);
-  });
+  }, scope);
 
-test("a todo's page has one amber fill: Save while its due form (or tags) is open", async ({
+test("a todo's page has one amber fill; its due chip opens the editor, whose one is Save", async ({
   page,
 }) => {
   const t = await make(page, `Sweep amber ${word()}`, "todo", { due: day(3), tags: ["car"] });
@@ -106,12 +106,8 @@ test("a todo's page has one amber fill: Save while its due form (or tags) is ope
   // At rest: Mark done is the one fill
   expect(await amberFills(page)).toEqual(["Mark done"]);
   await page.locator(".page .tags .duechip").click();
-  await expect(page.locator(".todoedit")).toBeVisible();
-  await expect.poll(() => amberFills(page)).toEqual(["Save"]);
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await page.locator(".page .tags .add").click();
-  await expect(page.locator(".tagform")).toBeVisible();
-  await expect.poll(() => amberFills(page)).toEqual(["Save"]);
+  await expect(page.locator(".editor .todoedit").first()).toBeVisible(); // Due opens first
+  await expect.poll(() => amberFills(page, ".editor")).toEqual(["Save"]);
 });
 
 test("Add photo scrolls clear of the keys, in the page editor", async ({ page }) => {
@@ -170,7 +166,6 @@ test("no line of a todo's due text ends in a dot, at 320 px", async ({ page }) =
       due: day(-3),
       priority: "medium",
       fields: { status: "in_progress" },
-      snoozed_until: day(6),
     },
   );
   await page.setViewportSize({ width: 320, height: 700 });

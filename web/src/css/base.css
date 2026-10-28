@@ -33,8 +33,7 @@ body {
    (.body: a page's text and a topic's notes, and Preview, but not a write-up, Claude's):
    amber. Rows, chips, pills, buttons, the nav and linked headings set text-decoration: none */
 a,
-.link,
-.rhead .snoozed {
+.link {
   color: var(--ink);
   text-decoration-line: underline;
   text-decoration-color: var(--link-line, var(--line-strong));

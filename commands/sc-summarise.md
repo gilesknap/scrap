@@ -64,7 +64,7 @@ data the user marked private, personal data of others, or raw tool output dumps.
 leave it out and say so.
 
 `kind` is `note` by default (`doc` if it is long enough to be a reference; `todo`, `read`, `board`
-if it fits for a topic page; `due`, `priority`, `snoozed_until` only on a todo). `origin`: the repo
+if it fits for a topic page; `due`, `priority` only on a todo). `origin`: the repo
 or working directory and today's date. `key`: a random value made once per post, reused only to
 retry that same call; never derive it from the title or date. Limits: title 200 characters, body
 200 kB, origin 200, up to 20 tags.

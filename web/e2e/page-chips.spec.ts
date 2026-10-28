@@ -1,6 +1,6 @@
-// A page's tag chips (#345 follow-up): the last part of each tag, "+N" past two rows, ✦ for
-// Claude's tags. The full tag stays what a chip searches for, what its accessible name says,
-// and what the tag editor and the search chips show.
+// A page's tag chips (#345 follow-up): each tag's full path, "+N" past two rows (− folds them
+// again), ✦ for Claude's tags. Read only: the tags change in the editor (Edit), whose Tags fold
+// says the full path too, as do the search chips.
 import { execFileSync } from "node:child_process";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
@@ -58,28 +58,28 @@ const rowsOf = (line: Locator) =>
 /** Text at 130% (the app's 17 px root, as an Android user's larger setting makes it). */
 const large = (page: Page) => page.addStyleTag({ content: ":root { font-size: 22.1px; }" });
 
-test("a chip says the last part of its tag, more of the path only to tell two apart", async ({
-  page,
-}) => {
+test("a chip says its tag's full path, and searches for it", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 900 }); // wide: no chip folds away to +N
   const [a, b] = [word(), word()];
   const p = await make(page, [`kind${a}/project-management`, `epics${a}/thoth`, `other${b}/thoth`]);
   await page.goto(`/p/${p.slug}`);
-  await expect(tag(page, `kind${a}/project-management`)).toHaveText("#…/project-management"); // "…/": shortened
-  // Two end the same: each says the part before as well
-  await expect(tag(page, `epics${a}/thoth`)).toHaveText(`#epics${a}/thoth`); // the whole tag: no "…/"
+  await expect(tag(page, `kind${a}/project-management`)).toHaveText(`#kind${a}/project-management`);
+  await expect(tag(page, `epics${a}/thoth`)).toHaveText(`#epics${a}/thoth`);
   await expect(tag(page, `other${b}/thoth`)).toHaveText(`#other${b}/thoth`);
-  // The full tag stays in the tooltip, and the chip still searches for it, children too
+  await expect(row(page)).not.toContainText("…/"); // no shortened path, anywhere
+  // The full tag is the tooltip too, and the chip searches for it, children too
   await expect(tag(page, `kind${a}/project-management`)).toHaveAttribute(
     "title",
     `Tag kind${a}/project-management`,
   );
+  // Read only: no + to change them (Edit does)
+  await expect(row(page).getByRole("button", { name: /Change tags|Add tags/ })).toHaveCount(0);
   await tag(page, `kind${a}/project-management`).click();
   await expect(page).toHaveURL(`/search?q=tag%3Akind${a}%2Fproject-management`);
   await expect(page.locator(".list li a strong")).toHaveText([/^Chips /]);
 });
 
-test("a short name does not hide a deeper tag's parent search", async ({ page }) => {
+test("a chip's search finds a deeper tag's pages too", async ({ page }) => {
   const a = word();
   const p = await make(page, [`par${a}/child`]);
   await make(page, [`par${a}/child/leaf`]);
@@ -95,7 +95,7 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   claudes(p.page_id, `ai${a}/robot`);
   await page.goto(`/p/${p.slug}`);
   const ai = row(page).getByRole("link", { name: `Tag ai${a}/robot, added by Claude` });
-  await expect(ai).toHaveText("#…/robot");
+  await expect(ai).toHaveText(`#ai${a}/robot`);
   await expect(ai).toHaveClass(/\bai\b/);
   const mark = await ai.evaluate((el) => {
     const s = getComputedStyle(el, "::before");
@@ -106,34 +106,32 @@ test("Claude's tag has ✦ in its pill and says so, with no dashed ring", async 
   const mine = tag(page, `mine${a}`);
   await expect(mine).toHaveAccessibleName(`Tag mine${a}`);
   expect(await mine.evaluate((el) => getComputedStyle(el, "::before").content)).toBe("none");
-  // The tag editor marks it the same way, by the same short name (the full tag its tooltip)
-  await row(page).getByRole("button", { name: "Change tags" }).click();
+  // The editor's Tags fold marks it the same way, by its full path
+  await page.locator(".page > .tools").getByRole("button", { name: "Edit" }).click();
+  await page.locator(".editor .fold summary", { hasText: "Tags" }).click();
   const chip = page.getByRole("button", { name: `Remove #ai${a}/robot, added by Claude` });
-  await expect(chip).toHaveText("#…/robot");
+  await expect(chip).toHaveText(`#ai${a}/robot`);
   await expect(chip).toHaveAttribute("title", `#ai${a}/robot, added by Claude`);
   expect(await chip.evaluate((el) => getComputedStyle(el, "::before").content)).toBe('"✦"');
   await expect(page.getByRole("button", { name: `Remove #mine${a}`, exact: true })).toBeVisible();
 });
 
-test("the tag editor says the short name (the full path its tooltip), a filter on its full path", async ({
-  page,
-}) => {
+test("the editor's Tags fold and a filter on say the full path", async ({ page }) => {
   const a = word();
   const full = `deep${a}/er/leaf${a}`;
   const p = await make(page, [full]);
   await page.goto(`/p/${p.slug}`);
-  await expect(tag(page, full)).toHaveText(`#…/leaf${a}`);
-  await row(page).getByRole("button", { name: "Change tags" }).click();
+  await expect(tag(page, full)).toHaveText(`#${full}`);
+  await page.locator(".page > .tools").getByRole("button", { name: "Edit" }).click();
+  await page.locator(".editor .fold summary", { hasText: "Tags" }).click();
   const chip = page.getByRole("button", { name: `Remove #${full}` });
-  await expect(chip).toHaveText(`#…/leaf${a}`);
-  await expect(chip).toHaveAttribute("title", `#${full}`);
-  await page.keyboard.press("Escape");
+  await expect(chip).toHaveText(`#${full}`);
   await page.goto(`/search?q=tag%3A${encodeURIComponent(full)}`);
   const on = page.getByRole("group", { name: "Filters on" });
-  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`); // in full: the focus of the search
+  await expect(on.getByRole("button", { name: `Remove #${full}` })).toHaveText(`#${full}`);
 });
 
-test("at 390 px and 130% text, tags fold to two rows, then +N shows the rest in place", async ({
+test("at 390 px and 130% text, tags fold to two rows, +N shows the rest in place, − folds them", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -150,25 +148,19 @@ test("at 390 px and 130% text, tags fold to two rows, then +N shows the rest in 
   const shown = await line.getByRole("link").count();
   expect(shown).toBeLessThan(tags.length);
   expect(shown).toBeGreaterThan(0);
-  await expect(more).toHaveText(`+${tags.length - shown}`);
-  // + stays right after +N, in one box
-  const plus = line.getByRole("button", { name: "Change tags" });
-  expect(
-    await more.evaluate((el, t) => el.nextElementSibling === t, await plus.elementHandle()),
-  ).toBe(true);
-  expect(await more.evaluate((el) => el.parentElement?.className)).toBe("last");
-  // Tapping it shows them all, in place (no navigation), focus on the first one that was hidden
+  await expect(more).toHaveText(`+${tags.length - shown}`); // how many more, not an add
+  // Tapping it shows them all, in place (no navigation), then − at the end folds them again
   const url = page.url();
   await more.click();
-  await expect(more).toHaveCount(0);
   await expect(line.getByRole("link")).toHaveCount(tags.length);
   expect(page.url()).toBe(url);
-  await expect(line.getByRole("link").nth(shown)).toBeFocused();
-  // The + is still reachable, and a redraw (the tag editor closed) keeps them shown
-  await plus.click();
-  await page.keyboard.press("Escape");
-  await expect(line.getByRole("link")).toHaveCount(tags.length);
-  await expect(line.getByRole("button", { name: "Change tags" })).toBeFocused();
+  const fewer = line.getByRole("button", { name: "Show fewer tags" });
+  await expect(fewer).toHaveText("−");
+  await expect(fewer).toBeFocused();
+  expect(await fewer.evaluate((el) => !el.nextElementSibling)).toBe(true);
+  await fewer.click();
+  await expect(more).toBeVisible();
+  await expect.poll(() => rowsOf(line)).toBeLessThanOrEqual(2);
 });
 
 test("a focused tag that folds away on a narrower screen hands focus to +N", async ({ page }) => {
@@ -214,13 +206,13 @@ test("a todo's due chip is always shown, and tags fold beside it to two rows", a
   await expect(line.getByRole("link")).toHaveCount(tags.length);
 });
 
-test("on a 360 px phone at 130% a todo's long first tag is cut with …, not hidden", async ({
+test("on a 360 px phone at 130% a todo's long first tag wraps inside its chip, never hidden", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   const a = word();
   const tags = [
-    `a${a}/quite-a-long-name-for-alpha`,
+    `a${a}/quite-a-long-name-for-alpha/and-more`,
     `b${a}/quite-a-long-name-for-bravo`,
     `c${a}/quite-a-long-name-for-delta`,
   ];
@@ -230,12 +222,9 @@ test("on a 360 px phone at 130% a todo's long first tag is cut with …, not hid
   const line = row(page);
   const more = line.getByRole("button", { name: /^Show \d+ more tags?$/ });
   await expect(more).toBeVisible();
-  // A tag shows beside +N (before the fix none did, until +N was tapped)
   const links = line.getByRole("link");
-  await expect(links).toHaveCount(1);
   await expect(links.first()).toBeVisible();
-  await expect.poll(() => rowsOf(line)).toBeLessThanOrEqual(2);
-  // Cut with …: it overflows its own box, and everything stays inside the line
+  // Everything stays inside the line: a long path wraps after a "/", not sideways
   const fits = await line.evaluate((el) => {
     const r = el.getBoundingClientRect();
     return [...el.querySelectorAll<HTMLElement>("a, button")]
@@ -243,10 +232,6 @@ test("on a 360 px phone at 130% a todo's long first tag is cut with …, not hid
       .every((c) => c.getBoundingClientRect().right <= r.right + 0.5);
   });
   expect(fits).toBe(true);
-  const text = links.first().locator("span.tl");
-  await expect(text).toHaveCSS("text-overflow", "ellipsis");
-  // Really cut: the name is wider than the room it has
-  expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   // And +N still shows the rest
   await more.click();
   await expect(links).toHaveCount(tags.length);

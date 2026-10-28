@@ -6,7 +6,7 @@
 export const CHECKS: [term: string, name: string, about: string][] = [
   ["is:orphan", "Orphans", "No links either way, related pages or topic"],
   ["is:untagged", "Untagged", "No tags"],
-  ["is:stale", "Stale todos", "Open, not edited for 60 days, not snoozed or due yet"],
+  ["is:stale", "Stale todos", "Open, not edited for 60 days, not due yet"],
   ["is:duplicate", "Duplicates", "A photo or file shared with another page"],
   ["has:dangling", "Dangling links", "A link to a page that isn't there"],
   [

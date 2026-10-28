@@ -62,13 +62,12 @@ class PageEdit(BaseModel):
     # A todo's (null clears one): sent or not tells apart, see todo()
     due: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
     priority: Annotated[Text, Field(max_length=10)] | None = None  # high, medium, low
-    snoozed_until: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
 
     def todo(self) -> dict[str, str | None]:
         """The due date and priority sent, null too (it clears one)."""
         return {
             k: getattr(self, k)
-            for k in ("due", "priority", "snoozed_until")
+            for k in ("due", "priority")
             if k in self.model_fields_set
         }
 

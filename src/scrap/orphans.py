@@ -214,7 +214,7 @@ def _create(store: Store, title: str, body: str, when: datetime) -> str:
         "source": SOURCE, "created_at": stamp, "page_kind": "todo",
         "fields": {"status": "open"}, "title": title, "body": body, "tags": [],
         "due": (when + timedelta(days=DUE_DAYS)).date().isoformat(),
-        "priority": None, "snoozed_until": None,
+        "priority": None,
     }  # fmt: skip
     ref, _ = store.capture(c, [], AUTHOR)
     return ref["slug"]

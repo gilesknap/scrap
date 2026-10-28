@@ -52,3 +52,12 @@ pages and 40 todos on the live store).
   comparing every value, search, list, export and MCP read before and after. The squash (ADR 37)
   deleted that test with the migration; `tests/test_todo_values.py` now covers the same reads,
   writes and an export/import round trip on a store made from the baseline.
+
+## Update: Snooze retired (28 Oct 2026)
+
+Snooze was removed from the app, the API, search (`is:snoozed`) and MCP on 28 Oct 2026: it
+added marginal value for its complexity (a fold in the due form, a question when it passed the
+due date, a hidden section in Now, a count that left some todos out). A todo is put off by
+moving its due date. It may come back with experience. `page_todo.snoozed_until` is left in
+the schema, unused (no code reads or writes it), and a later migration drops it with its
+index `page_todo_by_snooze` and its share of the row CHECK.

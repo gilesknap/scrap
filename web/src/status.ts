@@ -34,7 +34,6 @@ interface Todo {
   fields?: Fields;
   due?: string | null;
   priority?: string | null;
-  snoozed_until?: string | null;
   tasks?: { done: number; total: number };
 }
 
@@ -53,10 +52,6 @@ export const short = (d: string, now = today()) =>
     ...(d.slice(0, 4) !== now.slice(0, 4) && { year: "numeric" }),
   });
 
-/** Snoozed: out of Now and the Todos tab's count until its day (not once done). */
-export const snoozed = (p: Todo, now = today()) =>
-  !!p.snoozed_until && p.snoozed_until > now && !closed(p);
-
 /** Done or cancelled: a todo that is closed. */
 export const closed = (p: Todo) => ["done", "cancelled"].includes(`${statusOf(p.kind, p.fields)}`);
 
@@ -70,25 +65,20 @@ const dueDay = (p: Todo, now: string): [string | null | undefined, boolean] => {
   ];
 };
 
-/** A snooze as said: "snoozed till 3 Nov". */
-export const snoozeText = (until: string, now = today()) => `snoozed till ${short(until, now)}`;
-
-/** What a todo's row and page say of its due date, priority and snooze ("high · due 3 Nov ·
- * snoozed till 1 Nov"), and its line's class: "due late" when overdue (due before today, not
+/** What a todo's row and page say of its due date and priority ("high · due 3 Nov · 1 of 4"),
+ * and its line's class: "due late" when overdue (due before today, not
  * done or cancelled), "due closed" once done or cancelled (greyed, its due date said as a date:
  * never today or overdue), else "due"; null if none. */
 export function dueOf(p: Todo, now = today()): [string, string] | null {
-  const until = snoozed(p, now) && p.snoozed_until;
   const part = !closed(p) && partly(p);
-  if (p.kind !== "todo" || !(p.due || p.priority || until || part)) return null;
+  if (p.kind !== "todo" || !(p.due || p.priority || part)) return null;
   const [day, late] = dueDay(p, now);
   const said = [
     p.priority && (day ? p.priority : `${p.priority} priority`), // "low priority" alone
     day && `${late ? "overdue" : "due"} ${day}`,
-    until && snoozeText(until, now),
     part,
   ];
-  // Each part kept whole ("snoozed till 29 Oct" never breaks), the line breaking only before a
+  // Each part kept whole ("due 29 Oct" never breaks), the line breaking only before a
   // "·", which leads the part after it
   return [
     said

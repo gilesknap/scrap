@@ -1,6 +1,6 @@
 // A page's header under its title: what it is and when (one line, or two when there is more
-// to say than its kind), and one row of chips (its tags, each a search; + to change them; a
-// todo's due chip, which opens the due editor).
+// to say than its kind), and one row of chips, read only (a todo's due chip, which opens the
+// editor at its Due fold; its tags, each a search).
 import type { Page } from "./api";
 import { foldChips } from "./chipfold";
 import { icon, kindIcon } from "./icons";
@@ -8,7 +8,6 @@ import { KINDS } from "./kinds";
 import { edited, metaParts } from "./pagemeta";
 import { closed, dueChip } from "./status";
 import { tagLabel } from "./taglabel";
-import { tagNames } from "./tagname";
 import { token } from "./terms";
 import { h, whenShort } from "./ui";
 
@@ -67,26 +66,18 @@ export function headLines(p: Page): HTMLElement[] {
     : [h("p", { className: "meta dates" }, ...joined([...meta, ...dates]))];
 }
 
-interface Edits {
-  tags: (e: Event) => void;
-  due: (e: Event) => void;
-  /** The due editor is open (under the row), so the row has no due chip meanwhile. */
-  dueOpen: boolean;
-}
-
-/** One row of chips, all one size, at most two rows (chipfold.ts: "+N" for the rest): a
- * todo's due chip, then its tags (each by its last part, searching for the whole tag with its
- * children: tag:a finds a/b), the + that changes them kept on the last tag's line. With no
- * tags, "+ Tag". Beside the due chip the tags are one group (.tagset): they stay together on
- * the line after it when they do not all fit beside it, never one alone. A closed todo with no
- * due date or priority has no due chip (Reopen it first). */
-export function chipRow(p: Page, on: Edits): HTMLElement {
-  const due = p.kind === "todo" && !on.dueOpen ? dueChip(p) : null;
-  const offer = p.kind === "todo" && !on.dueOpen && !due && !closed(p);
-  // Each tag by its last part (enough of its path to tell it from the others), its full
-  // name in its accessible name and tooltip; Claude's marked ✦ (CSS), so the user's own stand
-  // apart
-  const names = tagNames(p.tags);
+/** One row of chips, all one size, at most two rows (chipfold.ts: "+N" for the rest, "−" to
+ * fold them again): a todo's due chip, then its tags (each by its full path, searching for the
+ * whole tag with its children: tag:a finds a/b). Beside the due chip the tags are one group
+ * (.tagset): they stay together on the line after it when they do not all fit beside it, never
+ * one alone. Read only: the due chip opens the editor at its Due fold (due), the tags are
+ * changed in the editor. A closed todo with no due date or priority has no due chip (Reopen it
+ * first); none at all, and no tags: no row. */
+export function chipRow(p: Page, due: () => void): HTMLElement | null {
+  const said = p.kind === "todo" ? dueChip(p) : null;
+  const offer = p.kind === "todo" && !said && !closed(p);
+  // Each tag by its full path, also its accessible name and tooltip; Claude's marked ✦ (CSS),
+  // so the user's own stand apart
   const tag = (t: string) => {
     const ai = p.model_tags?.includes(t);
     const name = `Tag ${t}${ai ? ", added by Claude" : ""}`;
@@ -98,43 +89,32 @@ export function chipRow(p: Page, on: Edits): HTMLElement {
         title: name,
         ...(ai && { className: "ai" }),
       },
-      tagLabel(t, names.get(t)),
+      tagLabel(t),
     );
   };
-  // Not "Edit tags": the toolbar's Edit stays the only button named Edit
-  const add = h(
-    "button",
-    {
-      type: "button",
-      className: p.tags.length ? "add" : "add first",
-      "aria-label": p.tags.length ? "Change tags" : "Add tags",
-      title: p.tags.length ? "Change tags" : "Add tags",
-      onclick: on.tags,
-    },
-    icon("add"),
-    p.tags.length ? "" : "Tag",
-  );
-  const all = p.tags.map(tag);
-  const tags = [...all];
-  const last = tags.pop();
-  const end = last ? h("span", { className: "last" }, last, add) : add;
+  const tags = p.tags.map(tag);
+  if (!said && !offer && !tags.length) return null;
   const row = h(
     "p",
     { className: "tags" },
     // A todo's due chip first: what it is for
-    due || offer
+    said || offer
       ? h(
           "button",
-          { type: "button", className: "duechip", title: "Due date and priority", onclick: on.due },
+          {
+            type: "button",
+            className: "duechip",
+            title: "Change the due date and priority",
+            onclick: due,
+          },
           icon("due"),
-          ...(due?.[1] ? [h("span", { className: "late" }, "overdue"), " "] : []),
-          due ? due[0] : "Add due date",
+          ...(said?.[1] ? [h("span", { className: "late" }, "overdue"), " "] : []),
+          said ? said[0] : "Add due date",
         )
       : "",
-    // The last tag and + together, so + never sits alone on a line
-    ...(due || offer ? [h("span", { className: "tagset" }, ...tags, end)] : [...tags, end]),
+    ...(said || offer ? [h("span", { className: "tagset" }, ...tags)] : tags),
   );
   // At most two rows: the rest behind a +N chip that shows them in place
-  if (all.length > 1) foldChips(row, all, end, p.id);
+  if (tags.length > 1) foldChips(row, tags, p.id);
   return row;
 }

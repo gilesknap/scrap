@@ -20,7 +20,7 @@ Use ONLY `mcp__scrap__tags`, `search`, `read` and `write`. If they are missing, 
 3. **Page**: a specific title under ~80 characters; first line a one-sentence summary (do not
    repeat the title as a heading); then just the requested content, as short bullets, a table or a
    list as fits. `kind` `note` unless the user asked otherwise (`doc` for a long reference,
-   `todo` with `- [ ]` boxes, `read`, `board`; `due`, `priority`, `snoozed_until` only on a todo).
+   `todo` with `- [ ]` boxes, `read`, `board`; `due`, `priority` only on a todo).
    `origin`: the repo or working directory and today's date. `key`: a random value made once
    per page, reused only to retry that same call, never derived from the title or date. Limits:
    title 200 characters, body 200 kB, origin 200, up to 20 tags.

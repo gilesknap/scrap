@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { chipOf, dueOf, partly, short, snoozed, statusOf, ticks, today } from "../src/status";
+import { chipOf, dueOf, partly, short, statusOf, ticks, today } from "../src/status";
 
 it("gives todos and Laters a status, open if they have none, and nothing else one", () => {
   expect(statusOf("todo", { status: "in_progress" })).toBe("in_progress");
@@ -50,7 +50,7 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
   expect(due({ ...todo("2026-10-01"), kind: "note" }, now)).toBeNull();
   expect(due(todo(null, "high"), now)).toEqual(["high priority", "due"]); // alone: said in full
   // Each part kept whole: the line breaks only before a "·"
-  const whole = dueOf({ ...todo("2026-10-30", "low"), snoozed_until: "2026-10-25" }, now)?.[0];
+  const whole = dueOf({ ...todo("2026-10-30", "low"), tasks: { done: 1, total: 4 } }, now)?.[0];
   expect(whole?.split(" ·\u00a0")).toHaveLength(3);
   expect(whole?.replace(/ ·/g, "")).not.toMatch(/ /);
   expect(due(todo("2026-10-21", "low"), now)).toEqual(["low · due today", "due"]);
@@ -65,12 +65,6 @@ it("says a todo's priority and due date, overdue only while it is not done", () 
     "due closed",
   ]);
   expect(due(todo("2027-01-02"), now)?.[0]).toMatch(/2027/); // another year: said
-  // Snoozed: said after the rest, until its day (and not once done)
-  const nap = { ...todo("2026-10-30", "low"), snoozed_until: "2026-10-25" };
-  expect(due(nap, now)?.[0]).toMatch(/^low · due \S+.* · snoozed till \S/);
-  expect(due({ ...todo(null), snoozed_until: "2026-10-25" }, now)?.[0]).toMatch(/^snoozed till /);
-  expect(due({ ...nap, snoozed_until: now }, now)?.[0]).not.toMatch(/snoozed/);
-  expect(snoozed({ ...nap, fields: { status: "done" } }, now)).toBe(false);
   // Task boxes: "2 of 5" while some (not all) are ticked; not once it is done
   const boxes = (done: number, total: number, status = "open") => ({
     ...todo(null, null, status),

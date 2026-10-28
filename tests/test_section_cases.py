@@ -23,10 +23,10 @@ def key(group: str, page: dict, today: str) -> str:
         case "due":
             return grouping.due_key(kind, fields, due, today)
         case _:
+            stamp = "2026-10-01T00:00:00Z"
             return grouping.now_key(
-                kind, fields, due, page.get("priority"), page.get("snoozed_until"),
-                "2026-10-01T00:00:00Z", today, 0,
-            )  # fmt: skip
+                kind, fields, due, page.get("priority"), stamp, today, 0
+            )
 
 
 @pytest.mark.parametrize("case", DATA["cases"], ids=lambda c: c["group"])

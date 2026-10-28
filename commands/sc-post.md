@@ -25,7 +25,7 @@ so and give the connect line: `claude mcp add --transport http --scope user scra
    then call `mcp__scrap__write` once they agree (apply any change they ask for to title, tags
    or kind).
 5. **Write**: `kind` `note` unless the user asked otherwise (`doc` for a long reference
-   write-up, `todo`, `read`, `board`; `due`, `priority` and `snoozed_until` only on a todo,
+   write-up, `todo`, `read`, `board`; `due` and `priority` only on a todo,
    `status` only on a todo or read). `origin`: the repo or working directory and today's date,
    e.g. `myproject (~/code/myproject) 2026-10-20`. `key`: a random value made once per post
    (e.g. 16 hex characters), reused only to retry that same call; never derive it from the title

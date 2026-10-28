@@ -4,7 +4,6 @@ import html
 import json
 import sqlite3
 from collections import Counter
-from datetime import date
 from typing import Any
 
 from ..markdown import plain
@@ -328,14 +327,6 @@ class SearchMixin(Core):
                 sql.append(f"{no}{CLAUDE_EDITED.format(p='p')}")
             elif f.key == "is" and f.value == "topic":  # Claude's topic pages (#261)
                 sql.append(f"{no}{IS_TOPIC.format(p='p')}")
-            elif f.key == "is" and f.value == "snoozed":  # a todo hidden until later
-                # An open one: a done or cancelled one's snooze hides nothing (#131)
-                sql.append(
-                    f"{no}coalesce({TODO_SQL}{col('snoozed_until')} > ?"
-                    " AND coalesce(json_extract(p.fields, '$.status'), 'open')"
-                    " NOT IN ('done', 'cancelled'), 0)"
-                )
-                args.append(date.today().isoformat())  # the server's day, as due:'s
             elif f.key == "is" and f.value in ("personal", "work"):
                 want = "IS 1" if f.value == "personal" else "IS NOT 1"
                 sql.append(f"{no}(json_extract(p.fields, '$.personal') {want})")

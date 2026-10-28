@@ -58,7 +58,7 @@ def refused(store, tool: str, **args: Any) -> str:
     return out
 
 
-TO_DO = "kind:todo -is:done -is:cancelled -is:snoozed"  # what todos used to list
+TO_DO = "kind:todo -is:done -is:cancelled"  # what todos used to list
 
 
 def write(store, **args: Any) -> dict[str, Any]:

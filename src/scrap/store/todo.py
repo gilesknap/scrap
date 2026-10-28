@@ -1,14 +1,15 @@
-"""Where a todo's own values (due, priority, snoozed_until) live: only here.
+"""Where a todo's own values (due, priority) live: only here.
 
 They are rows of the side table page_todo (ADR 36), one per page with at least one
 set. Every SQL reader builds its fragments from col() or cols(), and everything else
 reads and writes through read() and write(); tests/test_todo_gate.py fails on any other
-mention of them in SQL.
+mention of them in SQL. (page_todo's snoozed_until column is unused since Snooze was
+retired, 28 Oct 2026: nothing reads or writes it; a later migration drops it.)
 """
 
 import sqlite3
 
-NAMES = ("due", "priority", "snoozed_until")
+NAMES = ("due", "priority")
 
 
 def col(name: str, p: str = "p") -> str:
@@ -19,14 +20,14 @@ def col(name: str, p: str = "p") -> str:
 
 
 def cols(p: str = "p") -> str:
-    """The three values for a SELECT list, each named as its own (due, priority...)."""
+    """The values for a SELECT list, each named as its own (due, priority)."""
     return ", ".join(f"{col(n, p)} AS {n}" for n in NAMES)
 
 
 def read(conn: sqlite3.Connection, page_id: str) -> dict[str, str | None]:
-    """A page's three values, None for each it has not."""
+    """A page's values, None for each it has not."""
     row = conn.execute(
-        "SELECT due, priority, snoozed_until FROM page_todo WHERE page_id = ?",
+        "SELECT due, priority FROM page_todo WHERE page_id = ?",
         (page_id,),
     ).fetchone()
     return {n: (row[n] if row else None) for n in NAMES}
@@ -48,9 +49,8 @@ def write(
         conn.execute("DELETE FROM page_todo WHERE page_id = ?", (page_id,))
         return
     conn.execute(
-        "INSERT INTO page_todo (page_id, due, priority, snoozed_until)"
-        " VALUES (?, ?, ?, ?) ON CONFLICT (page_id) DO UPDATE SET"
-        " due = excluded.due, priority = excluded.priority,"
-        " snoozed_until = excluded.snoozed_until",
+        "INSERT INTO page_todo (page_id, due, priority)"
+        " VALUES (?, ?, ?) ON CONFLICT (page_id) DO UPDATE SET"
+        " due = excluded.due, priority = excluded.priority",
         (page_id, *(merged[n] for n in NAMES)),
     )

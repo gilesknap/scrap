@@ -115,7 +115,7 @@ const SORTS: Record<string, string> = {
   priority: "by priority",
 };
 const RANGES: Record<string, string> = { "1w": "past week", "1m": "past month", "1y": "past year" };
-const IS: Record<string, string> = { claude: "by Claude", snoozed: "snoozed", topic: "topics" };
+const IS: Record<string, string> = { claude: "by Claude", topic: "topics" };
 
 /** One word of a query, said as the Filters on row says it. */
 function say(word: string, key: string): string {

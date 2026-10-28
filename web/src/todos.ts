@@ -8,13 +8,11 @@ import { address, view } from "./app";
 import type { Section } from "./groups";
 import { icon } from "./icons";
 import type { pageRow } from "./lists";
-import { isOpen, now, toDo, UPCOMING, upcoming } from "./now";
+import { isOpen, now, UPCOMING, upcoming } from "./now";
 import { drawSections } from "./sections";
 import { today } from "./status";
 import { empty, h, problem } from "./ui";
 
-// The snoozed todos, as the search screen has them (the count of them links there)
-const SNOOZED = "kind:todo is:snoozed sort:due";
 // Each view as a search, for Refine at the count line's end (Now is Todos' own grouping there)
 const AS_SEARCH: Record<string, string> = {
   now: "kind:todo",
@@ -133,7 +131,6 @@ export async function todos(row: typeof pageRow): Promise<Node> {
         : [];
     const lists = drawSections([...groups, ...fold], row, `Todos · ${name}`, "todos");
     const n = shown.length;
-    const asleep = list.filter((t) => isOpen(t) && !toDo(t, day)).length;
     count.replaceChildren(
       // none: no count, the empty state says so
       !n
@@ -144,24 +141,9 @@ export async function todos(row: typeof pageRow): Promise<Node> {
             `${n} ${n === 1 ? "todo" : "todos"}`,
           ][MODES.findIndex(([k]) => k === m)],
     );
-    // At the line's end, as the search screen's results header has its actions: Now's snoozed
-    // ones, a quiet text button to a search of them (the server's is:snoozed finds open ones
-    // only, as here; soonest due first), then Refine, the view in Search with its query filled
-    // in, a 48 px ghost icon button
+    // At the line's end, as the search screen's results header has its actions: Refine, the
+    // view in Search with its query filled in, a 48 px ghost icon button
     acts.replaceChildren(
-      ...(m === "now" && asleep
-        ? [
-            h(
-              "a",
-              {
-                className: "button ghost snoozed",
-                href: `/search?q=${encodeURIComponent(SNOOZED)}`,
-                "aria-label": `${asleep} snoozed: show them`,
-              },
-              `${asleep} snoozed`,
-            ),
-          ]
-        : []),
       h(
         "a",
         {

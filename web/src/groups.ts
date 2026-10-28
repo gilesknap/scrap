@@ -15,10 +15,10 @@ export interface Section<T> {
   trail?: string; // a pager trail of its own (the Todos screen's Done), else the list's
 }
 
-type Item = Pick<
-  Summary,
-  "title" | "kind" | "fields" | "due" | "priority" | "updated_at" | "snoozed_until"
-> & { tags?: string[]; area?: string | null };
+type Item = Pick<Summary, "title" | "kind" | "fields" | "due" | "priority" | "updated_at"> & {
+  tags?: string[];
+  area?: string | null;
+};
 
 /** The section of topics whose sources have no tags. */
 export const NO_AREA = "Other";
@@ -127,13 +127,10 @@ export function sections<T extends Item>(
     const order = ["Overdue", "Today", "Tomorrow", "This week", "Later", "No date"];
     return [...bucket(soonest, when, order), ...fold];
   }
-  // Now: the Todos screen's sections (now.ts), then the snoozed ones (out of Now till their
-  // day, but still found), then Done
+  // Now: the Todos screen's sections (now.ts), then Done
   const first = new Map(items.map((t, i) => [t, i]));
   const asFound = (ts: T[]) =>
     ranked ? ts : ts.sort((a, b) => (first.get(a) ?? 0) - (first.get(b) ?? 0));
   const groups = now(open, today).map(([label, ts]) => ({ label, items: asFound(ts) }));
-  const shown = new Set(groups.flatMap((g) => g.items));
-  const asleep = open.filter((t) => !shown.has(t));
-  return [...groups, ...(asleep.length ? [{ label: "Snoozed", items: asleep }] : []), ...fold];
+  return [...groups, ...fold];
 }

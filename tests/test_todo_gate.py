@@ -1,4 +1,5 @@
-"""Only store/todo.py knows where a todo's due, priority and snoozed_until live.
+"""Only store/todo.py knows where a todo's due and priority live (and nothing reads or
+writes page_todo's snoozed_until, unused since Snooze was retired, kept for reuse).
 
 A raw SQL mention anywhere else breaks when they move to a table of their own, so
 this fails on one. API and pydantic field names are Python, not SQL, and are not
