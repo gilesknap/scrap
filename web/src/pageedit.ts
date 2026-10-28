@@ -174,7 +174,20 @@ export async function edit(
       await load(saved); // its first image: the figures
       show(saved);
     } catch (err) {
-      if (!(err instanceof ApiError && err.status === 409)) return toast(String(err));
+      if (!(err instanceof ApiError && err.status === 409)) {
+        // Still editing, the text kept: say so plainly (no raw "TypeError: Failed to fetch")
+        const kept = "your changes are still in the editor, try Save again";
+        return toast(
+          err instanceof ApiError
+            ? err.message
+            : navigator.onLine
+              ? `Can't reach the server: ${kept} in a moment.`
+              : `You're offline: ${kept} when you're back online.`,
+          "",
+          undefined,
+          8000,
+        );
+      }
       const theirs = await api<Page>(`pages/${p.id}`).catch(() => null);
       if (!theirs) return toast("Changed elsewhere, and the server can't be reached to show it");
       base = theirs.rev; // saving again now overwrites their version with yours
