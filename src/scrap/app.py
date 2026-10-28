@@ -102,7 +102,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
         def handler(request: Request, error: Exception, status: int = status):
             detail: dict[str, Any] = {"detail": str(error) or type(error).__doc__}
-            if isinstance(error, (drawing.StaleError, enrich.StaleWriteupError)):
+            if isinstance(error, drawing.StaleError):
                 detail = {"detail": type(error).__doc__, "version": error.args[0]}
             elif isinstance(error, ConflictError):
                 detail = {"detail": type(error).__doc__, "rev": error.args[0]}

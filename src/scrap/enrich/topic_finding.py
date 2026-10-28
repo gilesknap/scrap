@@ -35,7 +35,7 @@ def page_index(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         " coalesce(nullif(w.summary, ''), e.summary, '') AS summary,"
         " (SELECT group_concat(tag, '\x1f') FROM tag WHERE page_id = p.id) AS tags"
         " FROM page p LEFT JOIN enrichment e ON e.page_id = p.id"
-        " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
+        " LEFT JOIN writeup w ON w.page_id = p.id"
         f" AND {roles.HAS_BOARD.format(p='p')}"
         f" WHERE p.deleted_at IS NULL AND NOT {roles.IS_TOPIC.format(p='p')}"
         " ORDER BY p.updated_at DESC, p.id LIMIT ?) ORDER BY created_at, id",

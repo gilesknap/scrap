@@ -6,7 +6,9 @@ Date: 2026-10-25 (#256, migration 12)
 
 Accepted. Builds on [](0020-text-enrichment.md) (the enrich queue, related pages) and
 [](0004-originals-kept-everything-else-derived.md) (everything a model makes is derived). Part
-of scrap as an LLM wiki with a strict human/LLM split (#263).
+of scrap as an LLM wiki with a strict human/LLM split (#263). Partly superseded by
+[](0039-generated-content-keeps-only-its-current-version.md): a write-up keeps only its current
+version, so there is no Versions list or Restore.
 
 ## Context
 

@@ -42,8 +42,7 @@ to catch up without a prompt change making every page due at once.
 - **One definition of outdated per kind of derived data**, in `store/health.py`, shared with
   what refreshes it: a board write-up (`writeups.OUTDATED`, beside the worker's `DUE`: a board
   image read, or the page's text, title, kind or tags changed, after it, or another prompt
-  version, or its text links a page in the trash or gone (#310); never a version the owner
-  restored), a topic synthesis (the weekly pass's
+  version, or its text links a page in the trash or gone (#310)), a topic synthesis (the weekly pass's
   `TOPIC_DUE`) and related pages (the nightly pass's `STALE`).
 - **`is:outdated` lists only outdated write-ups** (#291): what the owner acts on, with
   Regenerate or `scrap enrich --writeups --outdated`. The current write-up prompt version is

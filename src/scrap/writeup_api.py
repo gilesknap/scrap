@@ -1,5 +1,5 @@
-"""The HTTP routes for a board page's write-up (#256): Regenerate, the owner's
-guidance, its versions and Restore. Registered by app.create_app (add_routes)."""
+"""The HTTP routes for a board page's write-up (#256): Regenerate and the owner's
+guidance. Registered by app.create_app (add_routes)."""
 
 from collections.abc import Callable
 from typing import Annotated, Any
@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 
 from . import enrich
-from .api_models import EnrichOffError, Restore, Text
+from .api_models import EnrichOffError, Text
 from .store import Store, enrich_on
 from .uploads import author
 
@@ -35,15 +35,3 @@ def add_routes(app: FastAPI, store: Store, wake: Callable[[], None]) -> None:
         """Keep the owner's guidance for a page's next write-up (empty or null: none),
         stored apart from its text; the page. It queues nothing: Regenerate does."""
         return enrich.set_guidance(store, key, ask.guidance, author(request))
-
-    @app.get("/api/pages/{key}/writeup/versions")
-    def writeup_versions(key: str) -> list[dict[str, Any]]:
-        """Every write-up of a page, newest first, with its text and whether it is
-        current."""
-        return enrich.versions(store, key)
-
-    @app.post("/api/pages/{key}/writeup/restore")
-    def writeup_restore(key: str, ask: Restore) -> dict[str, Any]:
-        """Make an old write-up current again, as a new copy; the page. 409 if
-        base_version is no longer current, 404 if there is no such version."""
-        return enrich.restore(store, key, ask.version, ask.base_version)

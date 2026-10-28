@@ -90,8 +90,8 @@ def furnish(store, page_id, cid, sha, other):
             (page_id, erun, t),
         )
         conn.execute(
-            "INSERT INTO writeup (page_id, version, producer, run_id, prompt_version,"
-            " text, created_at) VALUES (?, 1, 'm', ?, 'v', 'w', ?)",
+            "INSERT INTO writeup (page_id, producer, run_id, prompt_version,"
+            " text, created_at) VALUES (?, 'm', ?, 'v', 'w', ?)",
             (page_id, erun, t),
         )
         conn.execute(

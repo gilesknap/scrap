@@ -58,11 +58,13 @@ def test_a_fresh_database_is_made_from_the_baseline(tmp_path):
     assert version(path) == latest()
 
 
-def test_a_database_at_the_baseline_is_opened_unchanged(tmp_path):
+def test_a_database_at_the_baseline_is_opened_unchanged(tmp_path, monkeypatch):
     path = baseline_store(tmp_path)
     before = schema(path)
+    monkeypatch.setattr(db, "migrations", lambda: [])
     migrate(path)
     assert (schema(path), version(path)) == (before, BASELINE)
+    monkeypatch.undo()
     Store(tmp_path).migrate()  # the store's own entry point, a fresh data dir
     assert version(tmp_path / "scrap.db") == latest()
 

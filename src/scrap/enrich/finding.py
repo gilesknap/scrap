@@ -107,7 +107,7 @@ def candidates(
             " coalesce(nullif(w.summary, ''), e.summary, '') AS summary,"
             " (SELECT group_concat(tag, '\x1f') FROM tag WHERE page_id = p.id) AS tags"
             " FROM page p LEFT JOIN enrichment e ON e.page_id = p.id"
-            " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
+            " LEFT JOIN writeup w ON w.page_id = p.id"
             f" AND {roles.SHOWN.format(p='p')}"
             " WHERE p.id IN (SELECT value FROM json_each(?))",
             (json.dumps(order),),

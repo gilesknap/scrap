@@ -1,8 +1,7 @@
 """Enrich: what the owner does with topics (#261): the index of them, a topic's
 sources, and taking one out (the ✕) or putting it back, which queue its synthesis
 again. Nobody edits a
-synthesis: Regenerate, guidance, versions and Restore are the write-up's
-(writeup_ops)."""
+synthesis: Regenerate and the owner's guidance are the write-up's (writeup_ops)."""
 
 from typing import Any
 

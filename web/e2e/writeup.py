@@ -1,8 +1,8 @@
-"""E2E fixture: a board page with Claude's write-up (two versions), by a fake Claude.
+"""E2E fixture: a board page with Claude's write-up (one write-up), by a fake Claude.
 
 Run as `uv run python web/e2e/writeup.py DATA_DIR` while scrap serves DATA_DIR. It
 adds a page the write-up links to, saves a capture of a drawn whiteboard, runs its
-ingest job and two write-ups with canned answers instead of calling Claude, and
+ingest job and a write-up with a canned answer instead of calling Claude, and
 prints {"slug", "target"} as JSON. Nothing in it is real or private.
 """
 
@@ -18,12 +18,11 @@ from draw import BOARD, photo  # noqa: E402
 from scrap import claude, enrich, ingest  # noqa: E402
 from scrap.store import Store, new_ulid, transaction  # noqa: E402
 
-LEAD = ("A capture pipeline from phone to model, by way of a queue.",
-        "The pipeline again, retries first.")  # fmt: skip
+LEAD = "A capture pipeline from phone to model, by way of a queue."
 
 
-def answer(n: int):
-    """The fake Claude: the photo's reading, then write-up n (it links the target)."""
+def answer():
+    """The fake Claude: the photo's reading, then the write-up (it links the target)."""
 
     def fake(model, system, messages, schema, blob, **kw):
         if schema is claude.SCHEMA:
@@ -34,10 +33,10 @@ def answer(n: int):
                 int(x.split(".")[0]) for x in index.splitlines() if "Retry policy" in x
             )
             out = {
-                "summary": LEAD[n],
+                "summary": LEAD,
                 "text": f"## Overview\n\nThe phone sends to the Queue, which feeds"
                 f" the Model; see [[{cite}|the retry policy]].\n\n## Open questions"
-                f"\n\n- keep originals (?)\n- version {n + 1}",
+                f"\n\n- keep originals (?)",
             }
         content = [{"type": "text", "text": json.dumps(out)}]
         usage = {"input_tokens": 1, "output_tokens": 1}
@@ -64,9 +63,8 @@ def main(data_dir: str) -> None:
             " RETURNING id, capture_id, source_sha256, failures, options",
             (ref["capture_id"],),
         ).fetchone()
-    ingest.Worker(store, answer(0)).process(job)
-    for n in (0, 1):
-        assert enrich.write_up(store, answer(n), ref["page_id"]) is None
+    ingest.Worker(store, answer()).process(job)
+    assert enrich.write_up(store, answer(), ref["page_id"]) is None
     print(json.dumps({"slug": ref["slug"], "target": slug}))
 
 

@@ -11,7 +11,8 @@ size does not matter. What it adds is kept apart from the text (enrichment,
 model_tag, related) and the user wins: a tag the user took off never comes back,
 their tags are never removed, a title is replaced only while it is still the link as
 captured, the kind only while it is an unfixed note. A board page (a whiteboard or
-diagram photo) gets Claude's write-up instead (write_up, #256): a versioned explanation
+diagram photo) gets Claude's write-up instead (write_up, #256): an explanation (only the
+current one kept)
 kept apart from the text, steered by the owner's guidance (writeup_ops). Topic pages
 (#261): a weekly discovery call over the whole library makes topics and adds their
 sources (topic_finding, scrap enrich --topics), and each topic's synthesis of its
@@ -143,11 +144,8 @@ from .versions import (
     prompt_versions,
 )
 from .writeup_ops import (
-    StaleWriteupError,
     regenerate,
-    restore,
     set_guidance,
-    versions,
 )
 from .writing import (
     write_up,
@@ -187,10 +185,7 @@ __all__ = [
     "write_up",
     "writeup_pass",
     "regenerate",
-    "restore",
     "set_guidance",
-    "versions",
-    "StaleWriteupError",
     "WRITEUP_SCHEMA",
     "WRITEUP_BODY",
     "WRITEUP_IMAGES",

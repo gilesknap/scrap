@@ -35,28 +35,3 @@
   justify-content: flex-end;
   padding: var(--s-2) 0;
 }
-.writeup .versions {
-  margin: 0 0 var(--s-2);
-  padding-inline-start: 0;
-  list-style: none;
-  font-size: var(--t-sm);
-}
-.writeup .versions li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 var(--s-2);
-  padding: var(--s-1) 0;
-}
-.writeup .versions li > span {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.writeup .versions em {
-  color: var(--ink-2);
-}
-.writeup .versions small {
-  flex-basis: 100%;
-  color: var(--ink-2);
-}

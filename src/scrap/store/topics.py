@@ -189,7 +189,7 @@ def index(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         "  WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)"
         " AS tags"
         " FROM topic t JOIN page p ON p.id = t.page_id"
-        " LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL"
+        " LEFT JOIN writeup w ON w.page_id = p.id"
         " WHERE p.deleted_at IS NULL",
     )
     for r in rows:

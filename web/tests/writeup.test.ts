@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { Page, Writeup, WriteupVersion } from "../src/api";
+import type { CurrentWriteup, Page, Writeup } from "../src/api";
 import { byline, OUTDATED, outdatedLine, stateText, writing } from "../src/writeup";
 
 const w = (over: Partial<Writeup>): Writeup => ({
@@ -8,7 +8,6 @@ const w = (over: Partial<Writeup>): Writeup => ({
   guidance: null,
   state: null,
   error: null,
-  versions: 0,
   current: null,
   ...over,
 });
@@ -31,23 +30,21 @@ it("looks again only while one is on its way", () => {
   expect(writing(page(null))).toBe(false);
 });
 
-it("says who wrote a version, when, and what it was restored from", () => {
-  const v: WriteupVersion = {
-    version: 3,
+it("says who wrote a write-up and when", () => {
+  const v: CurrentWriteup = {
     producer: "claude-opus-5-5",
     created_at: "2026-10-25T10:04:00.000Z",
     prompt_version: "writeup@abc",
     summary: "s",
     text: "t",
     guidance: null,
-    restored_from: 1,
   };
-  expect(byline(v)).toMatch(/^Claude · .+ · v3 · restored from v1$/);
-  expect(byline({ ...v, restored_from: null })).toMatch(/ · v3$/);
+  expect(byline(v)).toMatch(/^Claude · [^·]+$/);
+  expect(byline({ ...v, producer: "local-model" })).toMatch(/^local-model · /);
 });
 
 it("says a current write-up is outdated, only when it is and nothing is under way", () => {
-  const up = { version: 1 } as WriteupVersion;
+  const up = { summary: "s" } as CurrentWriteup;
   expect(outdatedLine(w({ outdated: true, current: up }))).toBe(OUTDATED);
   expect(outdatedLine(w({ outdated: false, current: up }))).toBeNull();
   expect(outdatedLine(w({ outdated: true, current: null }))).toBeNull();
