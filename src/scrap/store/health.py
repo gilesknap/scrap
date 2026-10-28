@@ -39,11 +39,11 @@ UNION SELECT t.id FROM page s, json_each(wiki_links(s.body)) l
 WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL AND t.id <> s.id
 UNION SELECT s.id FROM writeup w JOIN page s ON s.id = w.page_id,
   json_each(wiki_links(w.text)) l JOIN page t ON t.slug = l.value
-WHERE w.superseded_at IS NULL AND s.deleted_at IS NULL AND t.deleted_at IS NULL
+WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL
   AND t.id <> s.id
 UNION SELECT t.id FROM writeup w JOIN page s ON s.id = w.page_id,
   json_each(wiki_links(w.text)) l JOIN page t ON t.slug = l.value
-WHERE w.superseded_at IS NULL AND s.deleted_at IS NULL AND t.deleted_at IS NULL
+WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL
   AND t.id <> s.id
 UNION SELECT r.page_id FROM related r JOIN page s ON s.id = r.page_id
   JOIN page t ON t.id = r.other_id WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL
@@ -110,7 +110,7 @@ READ_AT = """coalesce((SELECT max(d.created_at) FROM derived d
     WHERE c.page_id = {p}.id
     AND d.kind IN ('description', 'ocr') AND d.superseded_at IS NULL), '')"""
 # A topic with a source in whose synthesis (its current write-up) is of another prompt
-# version (unless the owner restored it), or older than the latest change to its
+# version, or older than the latest change to its
 # inputs: the topic page itself (its title or the owner's notes), a source added,
 # excluded or back from the trash, or a source's text, trash, summary, write-up or
 # what photo ingest read from it. One with none yet is not outdated, only due.
@@ -118,14 +118,12 @@ OUTDATED_TOPIC = f"""({IS_TOPIC}
   AND EXISTS (SELECT 1 FROM topic_source s JOIN page q ON q.id = s.page_id
               WHERE s.topic_id = {{p}}.id AND s.excluded = 0 AND q.deleted_at IS NULL)
   AND EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = {{p}}.id
-    AND w.superseded_at IS NULL
-    AND (coalesce(w.prompt_version <> {{version}} AND w.restored_from IS NULL, 0)
+    AND (coalesce(w.prompt_version <> {{version}}, 0)
     OR w.created_at < max({{p}}.updated_at, coalesce((
       SELECT max(CASE WHEN s.excluded THEN s.changed_at ELSE max(
         s.changed_at, q.updated_at, coalesce(q.deleted_at, ''),
         coalesce((SELECT e.updated_at FROM enrichment e WHERE e.page_id = q.id), ''),
-        coalesce((SELECT x.created_at FROM writeup x WHERE x.page_id = q.id
-                  AND x.superseded_at IS NULL), ''),
+        coalesce((SELECT x.created_at FROM writeup x WHERE x.page_id = q.id), ''),
         {READ_AT.format(p="q")}) END)
       FROM topic_source s JOIN page q ON q.id = s.page_id
       WHERE s.topic_id = {{p}}.id), '')))))"""
@@ -135,8 +133,7 @@ PICKED = """(SELECT max(r.started_at) FROM enrich_run r WHERE r.page_id = {p}.id
 # The latest change to what a related call reads: the page's last edit, a reading of its
 # images, its current write-up
 RELATED_INPUTS = f"""max({{p}}.updated_at, {READ_AT}, coalesce((
-    SELECT w.created_at FROM writeup w WHERE w.page_id = {{p}}.id
-      AND w.superseded_at IS NULL), ''))"""
+    SELECT w.created_at FROM writeup w WHERE w.page_id = {{p}}.id), ''))"""
 # Related pages picked before the latest change to their inputs (never picked: not
 # outdated, only due)
 OUTDATED_RELATED = f"{PICKED} < {RELATED_INPUTS}"

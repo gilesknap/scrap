@@ -1,9 +1,9 @@
-"""Claude's write-up of a board page (#256), as stored: its versions, the owner's
+"""Claude's write-up of a board page (#256), as stored: the current one, the owner's
 guidance, the board images it is made from, and the pages it links to. A topic page's
 synthesis (#261, store.topics) is its write-up too, kept and shown the same way.
 
-A write-up is derived data, never the page's text: one current version per page
-(writeup_current), older ones kept, a regeneration or a restore inserting a new one.
+A write-up is derived data, never the page's text: one row per page (its primary
+key), overwritten by a regeneration (ADR 39).
 These run on an open connection; the callers own the transaction.
 """
 
@@ -71,12 +71,9 @@ SELECT 1 FROM page p WHERE p.id = :page AND p.deleted_at IS NULL
 # read photo regenerates one on its own, DUE): a board image read since it, or the
 # page's text, title, kind or tags changed since, or made with another prompt version
 # than {version} (a placeholder: ? or :version; NULL checks none), or whose text links a
-# slug with no live page (in the trash or purged; undelete clears it, #310). Never
-# one the owner restored: their Restore stands until they Regenerate (or a photo is
-# read: DUE).
+# slug with no live page (in the trash or purged; undelete clears it, #310).
 OUTDATED = f"""({HAS_BOARD} AND NOT {IS_TOPIC}
   AND EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = {{p}}.id
-    AND w.superseded_at IS NULL AND w.restored_from IS NULL
     AND (coalesce(w.prompt_version <> {{version}}, 0)
       OR w.created_at < max({{p}}.updated_at, coalesce((SELECT max(m.updated_at)
         FROM page_meta_rev m WHERE m.page_id = {{p}}.id), ''))
@@ -84,17 +81,15 @@ OUTDATED = f"""({HAS_BOARD} AND NOT {IS_TOPIC}
       OR EXISTS (SELECT 1 FROM json_each(wiki_links(w.text)) l
         WHERE NOT EXISTS (SELECT 1 FROM page t
           WHERE t.slug = l.value AND t.deleted_at IS NULL)))))"""
-COLUMNS = (
-    "id, version, producer, run_id, prompt_version, summary, text, guidance,"
-    " restored_from, superseded_at, created_at"
-)
-INSERT = """
-INSERT INTO writeup (page_id, version, producer, run_id, prompt_version, summary, text,
-                     guidance, restored_from, created_at)
-VALUES (:page,
-        (SELECT coalesce(max(version), 0) + 1 FROM writeup WHERE page_id = :page),
-        :producer, :run, :prompt, :summary, :text, :guidance, :restored, :now)
-RETURNING version
+COLUMNS = "producer, run_id, prompt_version, summary, text, guidance, created_at"
+UPSERT = """
+INSERT INTO writeup (page_id, producer, run_id, prompt_version, summary, text,
+                     guidance, created_at)
+VALUES (:page, :producer, :run, :prompt, :summary, :text, :guidance, :now)
+ON CONFLICT (page_id) DO UPDATE SET producer = excluded.producer,
+    run_id = excluded.run_id, prompt_version = excluded.prompt_version,
+    summary = excluded.summary, text = excluded.text, guidance = excluded.guidance,
+    created_at = excluded.created_at
 """
 
 
@@ -112,7 +107,7 @@ def due(conn: sqlite3.Connection, page_id: str) -> bool:
 def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
     """A page's current write-up, or None."""
     row = conn.execute(
-        f"SELECT {COLUMNS} FROM writeup WHERE page_id = ? AND superseded_at IS NULL",
+        f"SELECT {COLUMNS} FROM writeup WHERE page_id = ?",
         (page_id,),
     ).fetchone()
     return dict(row) if row else None
@@ -121,22 +116,12 @@ def current(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
 def shown(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
     """A page's current write-up while it is still a board page or a topic (its
     synthesis: roles.writeup_type), else None: one reprocessed into another kind keeps
-    its versions as history, but they are no longer its summary, its search text, its
+    its write-up, but it is no longer its summary, its search text, its
     links or on show."""
     up = current(conn, page_id)
     if up is None or writeup_type(conn, page_id) is None:
         return None
     return up
-
-
-def versions(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
-    """Every write-up of a page, newest first, each with current: whether it is."""
-    rows = _rows(
-        conn,
-        f"SELECT {COLUMNS} FROM writeup WHERE page_id = ? ORDER BY version DESC",
-        page_id,
-    )
-    return [{**r, "current": r["superseded_at"] is None} for r in rows]
 
 
 def put(
@@ -150,16 +135,15 @@ def put(
     summary: str,
     text: str,
     guidance: str | None,
-    restored_from: int | None = None,
-) -> int:
-    """Insert a page's new current write-up (the last one is superseded by a
-    trigger); its version. The caller indexes the page again (index_page)."""
-    return conn.execute(
-        INSERT,
+) -> None:
+    """Keep a page's write-up, replacing the last. The caller indexes the page again
+    (index_page)."""
+    conn.execute(
+        UPSERT,
         {"page": page_id, "producer": producer, "run": run_id,
          "prompt": prompt_version, "summary": summary, "text": text,
-         "guidance": guidance, "restored": restored_from, "now": stamp},
-    ).fetchone()[0]  # fmt: skip
+         "guidance": guidance, "now": stamp},
+    )  # fmt: skip
 
 
 def guidance(conn: sqlite3.Connection, page_id: str) -> str | None:
@@ -212,8 +196,8 @@ def backlinks(conn: sqlite3.Connection, slug: str) -> list[dict[str, str]]:
     return _rows(
         conn,
         "SELECT p.id, p.slug, p.title, p.kind FROM writeup w"
-        " JOIN page p ON p.id = w.page_id WHERE w.superseded_at IS NULL"
-        f" AND p.deleted_at IS NULL AND {SHOWN.format(p='p')} AND p.slug <> ?"
+        " JOIN page p ON p.id = w.page_id"
+        f" WHERE p.deleted_at IS NULL AND {SHOWN.format(p='p')} AND p.slug <> ?"
         " AND instr(w.text, ?) > 0 AND EXISTS (SELECT 1 FROM"
         " json_each(wiki_links(w.text)) l WHERE l.value = ?)"
         " ORDER BY w.created_at DESC",
@@ -237,11 +221,11 @@ def view(
     version: str | None = None,
 ) -> dict[str, Any] | None:
     """A page's write-up as the page shows it, None unless it is a board page or a
-    topic (a page that is no longer a board keeps its versions, unseen): board and
+    topic (a page that is no longer a board keeps its write-up, unseen): board and
     topic (which it is), enrich on, the owner's guidance, the state of a write-up
-    queued or being made (its latest write-up, topic or Ask job's), how many
-    versions, outdated (a board's current write-up is: OUTDATED, version the current
-    prompt's; a topic's synthesis is never said to be, the weekly pass remakes it),
+    queued or being made (its latest write-up, topic or Ask job's), outdated (a
+    board's current write-up is: OUTDATED, version the current prompt's; a
+    topic's synthesis is never said to be, the weekly pass remakes it),
     and the current one, with links: the slugs of the pages (not in the trash) it
     links to."""
     kind = writeup_type(conn, page_id)
@@ -263,11 +247,7 @@ def view(
         )
         if state == "queued" and job["paused"] and on:
             state = "paused"
-    count = conn.execute(
-        "SELECT count(*) FROM writeup WHERE page_id = ?", (page_id,)
-    ).fetchone()[0]
-    shown = ("version", "producer", "created_at", "prompt_version", "summary", "text",
-             "guidance", "restored_from")  # fmt: skip
+    shown = ("producer", "created_at", "prompt_version", "summary", "text", "guidance")
     return {
         "board": board,
         "topic": topic,
@@ -275,7 +255,6 @@ def view(
         "guidance": guidance(conn, page_id),
         "state": state,
         "error": job["last_error"] if job is not None and state == "failed" else None,
-        "versions": count,
         "outdated": board and outdated(conn, page_id, version),
         # with the pages it links that exist: the PWA links no other
         "current": up

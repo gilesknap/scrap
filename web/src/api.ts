@@ -61,18 +61,15 @@ export interface Summary {
   priority?: string | null; // a todo's: high, medium or low
   tasks?: { done: number; total: number }; // its task boxes: ticked, and in all
 }
-/** One version of a board page's write-up (writeup.ts). */
-export interface WriteupVersion {
-  version: number;
+/** A board page's current write-up (writeup.ts). */
+export interface CurrentWriteup {
   producer: string; // the model that wrote it
   created_at: string;
   prompt_version: string;
   summary: string;
   text: string; // Markdown, its links [[slug]]
   guidance: string | null; // the owner's guidance it was written with
-  restored_from: number | null; // a copy of this version, made by Restore
-  current?: boolean; // in the versions list
-  links?: string[]; // the current one's: the slugs of the pages it links that exist
+  links?: string[]; // the slugs of the pages it links that exist
 }
 /** A board page's write-up: Claude's explanation, apart from the text (#256). */
 export interface Writeup {
@@ -82,9 +79,8 @@ export interface Writeup {
   guidance: string | null; // the owner's, for the next one
   state: "queued" | "processing" | "done" | "failed" | "paused" | null;
   error: string | null;
-  versions: number;
   outdated?: boolean; // the current one is older than the page or the prompt (#262)
-  current: WriteupVersion | null;
+  current: CurrentWriteup | null;
 }
 export interface Page extends Summary {
   kind_fixed: number; // 1: the user chose the kind

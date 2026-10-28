@@ -759,7 +759,11 @@ def test_versions_search_and_purge(store, conn):
     assert search("queues nothere") == []
     assert len(store.search("a", 10)) == 1  # many chunks hit: the page once
     put("ocr", text="kafka consumer lag\nretry stream")
-    assert [r["version"] for r in current("ocr")] == [2]
+    assert [r["version"] for r in current("ocr")] == [2]  # numbered on; no old one kept
+    assert (
+        conn.execute("SELECT count(*) FROM derived WHERE kind = 'ocr'").fetchone()[0]
+        == 1
+    )
     assert search("topic") == [] and search("stream") == [pid]
     put("excalidraw", producer="human", author="me", text="lag (edited)",
         data={"format": "scene", "elements": []})  # fmt: skip

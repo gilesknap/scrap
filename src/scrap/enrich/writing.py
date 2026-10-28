@@ -137,7 +137,7 @@ def writeup_pass(
 ) -> dict[str, Any]:
     """Write-ups here and now (scrap enrich --writeups): one for each board page with
     none; with outdated, each with an outdated write-up instead (writeups.OUTDATED, as
-    is:outdated: never one the owner restored; how a new prompt is rolled out); with
+    is:outdated; how a new prompt is rolled out); with
     every, every board page. Oldest first, at most limit. It stops at a queue
     pause (or makes one: outage, credit, auth, the day's budget), as the related pass
     does; other failures are counted and the next page tried. Returns the counts."""

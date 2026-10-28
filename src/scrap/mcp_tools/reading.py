@@ -110,7 +110,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         about the page: its summary, which of the page's tags it added, the pages
         it found related (with any picked the other way, and those its write-up
         links), and for a whiteboard or diagram its write-up (writeup: summary,
-        Markdown text with [[slug]] links, version, producer, created_at; null if
+        Markdown text with [[slug]] links, producer, created_at; null if
         none). A topic page (a page Claude made for a recurring thing; its body is
         the user's notes) has its synthesis as writeup, and by_model.topic: its key
         and sources; on any other page by_model.topics lists the topics it is a
@@ -178,7 +178,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
                 ],
                 "writeup": up and {
                     k: up[k]
-                    for k in ("summary", "text", "version", "producer", "created_at")
+                    for k in ("summary", "text", "producer", "created_at")
                 },
                 "topics": [
                     {"slug": t["slug"], "title": t["title"], "url": link(t["slug"])}

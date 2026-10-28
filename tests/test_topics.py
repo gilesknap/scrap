@@ -144,6 +144,14 @@ def made(store, fake=None):
 # ---- storage
 
 
+def written(store, page_id):
+    """How many syntheses (write-up rows) the page has."""
+    with closing(connect(store.db)) as conn:
+        return conn.execute(
+            "SELECT count(*) FROM writeup WHERE page_id = ?", (page_id,)
+        ).fetchone()[0]
+
+
 def test_keys_and_areas():
     assert topics.topic_key("RTEMS IOCs") == "rtems-iocs"
     assert topics.topic_key("  ibek / runtime_x ") == "ibek-runtime-x"
@@ -363,7 +371,7 @@ def test_freshness_requeues_on_changes_and_exclusions(store):
     assert page["writeup"]["state"] == "queued"  # the ✕ queues it again
     run_all(store, Fake())
     page = store.page(topic)
-    assert page["writeup"]["versions"] == 3
+    assert written(store, topic) == 1  # made again in place
     assert [s["excluded"] for s in page["topic"]["sources"]] == [0, 1, 0]
     with pytest.raises(Exception, match="not a source"):
         enrich.exclude(store, topic, ids["ibek schema"])  # excluded already
@@ -376,23 +384,6 @@ def test_a_new_prompt_version_makes_every_topic_due(store, monkeypatch):
     monkeypatch.setattr(
         enrich.topic_finding, "topic_prompt", lambda: ("p", "topic@another")
     )
-    with closing(connect(store.db)) as conn:
-        assert enrich.topic_finding.due(conn) == [topic]
-
-
-def test_a_restored_synthesis_is_kept_for_a_new_prompt_version(store, monkeypatch):
-    ids, topic = made(store)
-    enrich.regenerate(store, topic)
-    run_all(store, Fake())
-    enrich.restore(store, topic, 1, base=2)
-    monkeypatch.setattr(
-        enrich.topic_finding, "topic_prompt", lambda: ("p", "topic@another")
-    )
-    with closing(connect(store.db)) as conn:
-        assert enrich.topic_finding.due(conn) == []  # the owner's Restore stands
-    time.sleep(0.002)  # a change to an input still makes it due
-    p = store.page(ids["ibek yaml"])
-    store.update_page(ids["ibek yaml"], p["rev"], "ibek yaml", "ibek v3", "me")
     with closing(connect(store.db)) as conn:
         assert enrich.topic_finding.due(conn) == [topic]
 
@@ -431,7 +422,7 @@ def test_ask_on_a_topic_makes_its_synthesis_and_no_enrich_call(store):
     run_all(store, fake)
     assert fake.kinds() == ["topic", "related"]
     page = store.page(topic)
-    assert page["writeup"]["versions"] == 2 and page["body"] == ""
+    assert written(store, topic) == 1 and page["body"] == ""
     assert page["model_tags"] == [] and page["tags"] == []
     assert jobs(store)[-1] == ("ask", "done")
 

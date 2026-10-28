@@ -99,7 +99,7 @@ erDiagram
     page ||--o| enrichment : summary
     page ||--o{ model_tag : "tags Claude added"
     page ||--o{ related : "related pages"
-    page ||--o{ writeup : "versions"
+    page ||--o| writeup : "current write-up"
     page ||--o| topic : "is a topic"
     topic ||--o{ topic_source : sources
     job ||--o{ model_run : "photo calls"
@@ -114,7 +114,7 @@ erDiagram
 | `model_run`, `enrich_run`, `topic_run` | Every call: request, response, usage, `cost_microusd`, error class. `topic_run` covers discovery calls of no one page |
 | `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (its `CHECK` lists them) |
 | `enrichment`, `model_tag`, `related` | Summary and fetched link title; tags Claude added (`on`) or the user removed (`off`, never re-added); related pages in order |
-| `writeup`, `writeup_guidance` | Versions of a board's write-up or a topic's synthesis (one current, never changed) and the owner's guidance for the next |
+| `writeup`, `writeup_guidance` | A board's write-up or a topic's synthesis (one row a page, replaced by the next, [ADR 39](../decisions/0039-generated-content-keeps-only-its-current-version.md)) and the owner's guidance for the next |
 | `topic`, `topic_source` | Which pages are topics (with a key never made again) and their sources, with the owner's exclusions |
 
 ## Originals, derived, cache
@@ -155,8 +155,9 @@ flowchart LR
   in the trash for N days ([ADR 30](../decisions/0030-trash-purged-after-n-days.md)). See
   [ADR 4](../decisions/0004-originals-kept-everything-else-derived.md) and
   [ADR 3](../decisions/0003-one-process-sqlite-and-a-folder.md).
-- **Derived** (orange) rows are immutable versions. A new current version supersedes the old by
-  trigger; a restore inserts a copy. Never `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE
+- **Derived** (orange) drawing rows are immutable versions: a new current version supersedes the old
+  by trigger, and a restore inserts a copy. A model's reading (`ocr`, `description`) keeps only its
+  current row: the new one replaces it. Never `INSERT OR REPLACE` into `derived` or `chunk`: REPLACE
   deletes without firing the FTS triggers.
 - **The cache** (blue) is rebuilt by `index_all`. A page has one own chunk (title, tags, summary,
   plain-text body), rebuilt in the same transaction as any capture, save, tag change or enrich

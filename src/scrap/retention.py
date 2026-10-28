@@ -182,7 +182,7 @@ def prune_runs(
     ``related`` enrich_run of a page (``enrich --related`` reads it as "up to date",
     see ``enrich.STALE``); or something
     refers to it: ``enrichment.run_id``, ``writeup.run_id`` and ``derived.run_id`` (a
-    superseded version too), or a kept ``model_run`` that continues it
+    superseded drawing version too), or a kept ``model_run`` that continues it
     (``parent_id``). Returns the
     counts (model_run, enrich_run). Call inside the write transaction when deleting.
     """

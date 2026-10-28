@@ -212,8 +212,8 @@ SELECT p.id FROM page p WHERE p.deleted_at IS NULL AND {roles.NOT_PINNED.format(
 ORDER BY p.created_at LIMIT :limit
 """
 # Board pages (roles.HAS_BOARD) with no write-up; with :outdated, those with an
-# outdated one instead (writeups.OUTDATED, :version the write-up prompt's: never one the
-# owner restored); with :all, every one. Oldest first.
+# outdated one instead (writeups.OUTDATED, :version the write-up prompt's); with :all,
+# every one. Oldest first.
 BOARDS = f"""
 SELECT p.id FROM page p WHERE p.deleted_at IS NULL
   AND {roles.HAS_BOARD.format(p="p")}
@@ -224,20 +224,20 @@ ORDER BY p.created_at LIMIT :limit
 """
 # Topic pages (not in the trash, with a source in) whose synthesis is due, none
 # queued or running: every one with :all, else one with none, or outdated
-# (health.OUTDATED_TOPIC: of another prompt version, :version, unless the owner
-# restored it: Restore is kept; or older than the latest change to its inputs: the
+# (health.OUTDATED_TOPIC: of another prompt version, :version; or older than the
+# latest change to its inputs: the
 # topic page itself, a source added, excluded or back from the trash, or a source's
 # text, trash, summary, write-up or what photo ingest read from it). Those with none
 # first.
 TOPIC_DUE = f"""
 SELECT p.id FROM topic t JOIN page p ON p.id = t.page_id
-LEFT JOIN writeup w ON w.page_id = p.id AND w.superseded_at IS NULL
+LEFT JOIN writeup w ON w.page_id = p.id
 WHERE p.deleted_at IS NULL
   AND EXISTS (SELECT 1 FROM topic_source s JOIN page q ON q.id = s.page_id
               WHERE s.topic_id = p.id AND s.excluded = 0 AND q.deleted_at IS NULL)
   AND NOT EXISTS (SELECT 1 FROM enrich_job j WHERE j.page_id = p.id
                   AND j.state IN ('queued', 'running'))
-  AND (:all OR w.id IS NULL
+  AND (:all OR w.page_id IS NULL
     OR {health.OUTDATED_TOPIC.format(p="p", version=":version")})
 ORDER BY w.created_at IS NOT NULL, w.created_at, p.created_at LIMIT :limit
 """

@@ -428,7 +428,7 @@ def board(store, colour="red"):
     return page_id
 
 
-def test_outdated_write_up_by_its_inputs_or_prompt_but_never_a_restore(store):
+def test_outdated_write_up_by_its_inputs_or_prompt(store):
     page_id = board(store)
     assert found(store, "is:outdated") == set()
     tick()
@@ -445,11 +445,6 @@ def test_outdated_write_up_by_its_inputs_or_prompt_but_never_a_restore(store):
     run_all(store, Fake())
     store.prompts = {**store.prompts, "writeup": "writeup@another"}  # a new prompt
     assert found(store, "is:outdated") == {page_id}
-    enrich.restore(store, page_id, 1, base=3)  # the owner's choice stands
-    assert found(store, "is:outdated") == set()
-    tick()
-    edit(store, page_id, "the board, with another note")  # even for a change
-    assert found(store, "is:outdated") == set()
     store.prompts = {}  # no version known: none checked
     enrich.regenerate(store, page_id)
     run_all(store, Fake())
@@ -459,15 +454,15 @@ def test_outdated_write_up_by_its_inputs_or_prompt_but_never_a_restore(store):
 # ---- a write-up linking a page with no live page is outdated (#310)
 
 
-def link_writeup(store, page_id, text, restored_from=None):
+def link_writeup(store, page_id, text):
     """A board's new current write-up with this text (as its cited numbers become)."""
     tick()
-    (version,) = sql(store, "SELECT prompt_version FROM writeup WHERE page_id = ?"
-                     " AND superseded_at IS NULL", page_id)[0]  # fmt: skip
+    (version,) = sql(store, "SELECT prompt_version FROM writeup WHERE page_id = ?",
+                     page_id)[0]  # fmt: skip
     with closing(connect(store.db)) as conn:
         writeups.put(conn, page_id, now(), producer="claude", run_id=None,
-                     prompt_version=version, summary="s", text=text, guidance=None,
-                     restored_from=restored_from)  # fmt: skip
+                     prompt_version=version, summary="s", text=text,
+                     guidance=None)  # fmt: skip
 
 
 def test_a_write_up_linking_a_trashed_page_is_outdated_until_it_is_back(store):
@@ -491,7 +486,7 @@ def test_a_write_up_linking_a_trashed_page_is_outdated_until_it_is_back(store):
     assert found(store, "is:outdated") == {page_id}
 
 
-def test_a_restored_write_up_or_an_embed_or_a_plain_one_is_exempt(store):
+def test_an_embed_or_a_plain_write_up_is_exempt(store):
     page_id = board(store)
     target = note(store, "Target page")
     slug = store.page(target)["slug"]
@@ -502,8 +497,6 @@ def test_a_restored_write_up_or_an_embed_or_a_plain_one_is_exempt(store):
     assert found(store, "is:outdated") == set()  # an embed is no link
     link_writeup(store, page_id, f"[[{slug}]]")
     assert found(store, "is:outdated") == {page_id}
-    link_writeup(store, page_id, f"[[{slug}]]", restored_from=1)
-    assert found(store, "is:outdated") == set()  # the owner's Restore stands
 
 
 def test_a_topic_synthesis_linking_a_trashed_page_is_not_is_outdated(store):
@@ -595,6 +588,11 @@ def test_counts_take_one_query_each_and_no_model(store):
 # ---- outdated write-ups: the owner's to make again (enrich --writeups --outdated)
 
 
+def written(store, page_id):
+    """When the page's write-up was made."""
+    return sql(store, "SELECT created_at FROM writeup WHERE page_id = ?", page_id)[0][0]
+
+
 def stale_board(store, colour):
     """A board page whose write-up is older than its last edit."""
     page_id = board(store, colour)
@@ -606,7 +604,7 @@ def stale_board(store, colour):
 
 def test_an_edit_makes_a_write_up_outdated_not_written_again(store):
     page_id = stale_board(store, "red")
-    assert store.page(page_id)["writeup"]["versions"] == 1  # only a photo read does
+    assert sql(store, "SELECT count(*) FROM writeup")[0][0] == 1
     assert store.page(page_id)["writeup"]["outdated"] is True
     fake = Fake()
     assert enrich.related_pass(store, fake)["done"] >= 1  # the nightly pass: related
@@ -617,12 +615,15 @@ def test_writeups_outdated_makes_only_the_outdated_ones(store):
     a = stale_board(store, "red")
     fresh = board(store, "blue")
     photo(store, "green")  # not read yet: no write-up, and not outdated
+    made = {p: written(store, p) for p in (a, fresh)}
     fake = Fake()
+    time.sleep(0.002)
     c = enrich.writeup_pass(store, fake, outdated=True)
     assert c == {"pages": 1, "done": 1, "failed": 0, "stopped": None}
     assert fake.calls == ["writeup"]
-    assert store.page(a)["writeup"]["versions"] == 2
-    assert store.page(fresh)["writeup"]["versions"] == 1
+    assert written(store, a) > made[a]  # made again, in place
+    assert written(store, fresh) == made[fresh]
+    assert sql(store, "SELECT count(*) FROM writeup")[0][0] == 2
     assert store.page(a)["writeup"]["outdated"] is False
     assert enrich.writeup_pass(store, Fake(), outdated=True)["pages"] == 0
 
@@ -649,20 +650,15 @@ def test_writeups_outdated_keeps_to_limit_dry_run_budget_and_pause(store, monkey
     assert len(boards) == 3
 
 
-def test_a_new_prompt_outdates_every_write_up_but_a_restored_one(store, monkeypatch):
+def test_a_new_prompt_outdates_every_write_up(store, monkeypatch):
     page_id = board(store)
-    enrich.regenerate(store, page_id)
-    run_all(store, Fake(writeup={"summary": "Second.", "text": "## Two"}))
-    enrich.restore(store, page_id, 1, base=2)
-    run_all(store, Fake())
-    tick()
-    edit(store, page_id, "the board, edited after the restore")
     other = board(store, "blue")
+    assert enrich.writeup_pass(store, Fake(), outdated=True, dry_run=True)["pages"] == 0
     monkeypatch.setattr(enrich.writing, "writeup_prompt", lambda pages: ("p", "w@new"))
     c = enrich.writeup_pass(store, Fake(), outdated=True)
-    assert c["pages"] == 1  # the other board, for the new prompt
-    assert store.page(page_id)["writeup"]["current"]["restored_from"] == 1
-    assert store.page(other)["writeup"]["versions"] == 2
+    assert c["pages"] == 2
+    assert {page_id, other} == found(store, "is:outdated")
+    assert sql(store, "SELECT count(*) FROM writeup")[0][0] == 2
 
 
 def test_the_page_says_its_write_up_is_outdated(tmp_path):

@@ -327,9 +327,11 @@ it, and Claude's own additions (summary, tags, related pages, a board's write-up
 
 The baseline's `derived` table, which holds results as versions:
 
-- One current row (`superseded_at IS NULL`, a partial unique index) per `(capture, photo, kind)`;
-  inserting one supersedes the old (a trigger). Rows never change otherwise (more triggers);
-  **Restore** inserts a copy.
+- One current row (`superseded_at IS NULL`, a partial unique index) per `(capture, photo, kind)`.
+  A drawing (`excalidraw`) keeps its versions: inserting one supersedes the old (a trigger), rows
+  never change otherwise (more triggers), and **Restore** inserts a copy. A reading (`ocr`,
+  `description`) keeps only the current one ([ADR 39](decisions/0039-generated-content-keeps-only-its-current-version.md)):
+  `put_derived` deletes the old row, and its chunk and search entry, before it inserts the new.
 - **Kinds.** `ocr`, `description` (its `data` keeps the image kind) and `excalidraw` (`data` is
   `{"format": "skeleton" | "scene", "width", "height", "elements"}`). The table also allows
   `summary` and `fetched`; enrichment keeps those in `enrichment` instead.
@@ -337,7 +339,7 @@ The baseline's `derived` table, which holds results as versions:
   human drawing stores its drawing already superseded unless the user confirmed. The
   confirmation is kept on a job already queued or running (the worker reads it as it finishes),
   so it is never lost.
-- **Restore** copies the version's producer, run, author and text; its `data` adds
+- **Restore** (of a drawing) copies the version's producer, run, author and text; its `data` adds
   `restored_from` and `restored_by`, so the history can say so.
 
 **Page fields** come from the first photo of the page's first capture (photos added later set
@@ -744,7 +746,7 @@ sequenceDiagram
     W->>CL: board photos (at most 4), text, page, guidance, candidate index
     CL-->>W: summary, text with [[n]] citations
     W->>W: [[n]] to [[slug]], strip every other link
-    W->>DB: new writeup version, current
+    W->>DB: write-up replaces the last
     W->>DB: queue related (sees the write-up)
 ```
 
@@ -791,10 +793,9 @@ sequenceDiagram
   words unless it goes to a page the server lists as one the write-up links (`links`).
 - **Output, checked.** `summary`: one line, at most 600 characters; `text`: Markdown without
   control characters, at most 20,000 characters, not empty (else the run is invalid and retried).
-- **Stored apart from the text** (migration 12): each write-up is a new version in `writeup`
-  (`producer`, `run_id`, `prompt_version`, `summary`, `text`, the `guidance` used), one current,
-  older ones kept and never changed. Restore (`POST /api/pages/{id}/writeup/restore`) makes an
-  old one current again as a copy, as drawings do. It is not in page revisions, and nobody edits
+- **Stored apart from the text** (migration 12): (migration 12; one row a page since migration 19) each write-up replaces the last in `writeup`
+  (`producer`, `run_id`, `prompt_version`, `summary`, `text`, the `guidance` used): no
+  older ones are kept ([ADR 39](decisions/0039-generated-content-keeps-only-its-current-version.md)). It is not in page revisions, and nobody edits
   it.
 - **Guidance.** The owner may leave a note for the next write-up (`PUT
   /api/pages/{id}/writeup/guidance`, at most 2,000 characters, kept in `writeup_guidance`), such
@@ -815,7 +816,7 @@ sequenceDiagram
 what several pages say about one recurring thing (a tool, a project, a concept). It is a real
 page, a Doc, marked as a topic in the `topic` table; its body is the owner's notes
 on the topic (empty at first) and Claude never writes there. Claude's synthesis of its sources is
-its write-up ({ref}`ingest-writeup`): versions, guidance, Regenerate and Restore work the same.
+its write-up ({ref}`ingest-writeup`): guidance and Regenerate work the same.
 
 ```mermaid
 sequenceDiagram
@@ -831,7 +832,7 @@ sequenceDiagram
     T->>DB: queue a synthesis for each topic due
     W->>CL: synthesis: sources (at most 40), notes, guidance
     CL-->>W: summary, text with [[n]] citations
-    W->>DB: new writeup version on the topic page
+    W->>DB: synthesis replaces the last on the topic page
 ```
 
 - **Discovery** (`scrap enrich --topics`, weekly, beside the related pass). One call,
@@ -856,8 +857,7 @@ sequenceDiagram
   trash, summary, write-up or photo reading. Taking a source out queues one at once; so does
   Regenerate (`POST /api/pages/{id}/writeup`) and Ask Claude on the topic page (which
   makes no enrich call: a topic page's text is never read as text, so Claude never touches it).
-  A synthesis restored by the owner is not regenerated for a new prompt version, and a source
-  brought back from the trash makes its topics due. A pass stopped at a pause or the budget
+  A source brought back from the trash makes its topics due. A pass stopped at a pause or the budget
   queues none. One Opus call
   (as the write-up's) sees each source in a `<source>` block, numbered (at most 40, first added
   first): its title, kind and tags, then its summary, Claude's write-up of it, what was read from

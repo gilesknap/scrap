@@ -1,9 +1,9 @@
 // Claude's write-up of a board page (#256), or a topic's synthesis (#261): its parts for the page's one Claude card, About
 // this page (enrich.ts): where Claude is up to, the lead (the card's Summary) and the write-up
 // itself as a fold, In detail, with who wrote it and when, its Markdown (its [[slug]] links as
-// page links), the owner's guidance for the next one and its versions with Restore. Nobody
+// page links) and the owner's guidance for the next one. Only the current one is kept (ADR 39). Nobody
 // edits it. A chunk of its own: the page view loads it for a page with a write-up or a board.
-import { ApiError, api, kept, type Page, type Writeup, type WriteupVersion } from "./api";
+import { ApiError, api, type CurrentWriteup, kept, type Page, type Writeup } from "./api";
 import { bodyView, h, toast, whenShort } from "./ui";
 import "./writeup.css";
 
@@ -44,17 +44,10 @@ export const outdatedLine = (w: Writeup) =>
     ? OUTDATED
     : null;
 
-/** Who wrote a version and when: "Claude · 25 Oct, 10:04 · v2" (the model by name in the
- * line's tooltip). */
-export const byline = (v: WriteupVersion) =>
-  [
-    /^claude/i.test(v.producer) ? "Claude" : v.producer,
-    whenShort(v.created_at),
-    `v${v.version}`,
-    v.restored_from && `restored from v${v.restored_from}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+/** Who wrote a write-up and when: "Claude · 25 Oct, 10:04" (the model by name in the line's
+ * tooltip). */
+export const byline = (v: CurrentWriteup) =>
+  [/^claude/i.test(v.producer) ? "Claude" : v.producer, whenShort(v.created_at)].join(" · ");
 
 /** A write-up's text with no link but to the pages the server says it links (that exist):
  * the server keeps only its [[slug]] links, and anything else that renders as one (linkify,
@@ -123,7 +116,6 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
         h("p", { className: "by", title: up.producer }, byline(up)),
         pageLinksOnly(bodyView(up.text, false), up.links ?? []),
         guidanceFold(p, w, show),
-        w.versions > 1 ? versionsFold(p, up, show) : "",
       ),
     );
   // Remembered as it is tapped, not on toggle (which comes a task later): the page may be
@@ -196,50 +188,4 @@ function guidanceFold(p: Page, w: Writeup, show: (p: Page) => void) {
     box,
     h("div", { className: "row" }, save),
   );
-}
-
-/** Every version, newest first, loaded when opened; an old one can be made current again. */
-function versionsFold(p: Page, up: WriteupVersion, show: (p: Page) => void) {
-  const list = h("ol", { className: "versions" });
-  const fold = h("details", { className: "claude-text sub" }, h("summary", {}, "Versions"), list);
-  fold.ontoggle = async () => {
-    if (!fold.open || list.childElementCount) return;
-    try {
-      const all = await api<WriteupVersion[]>(`pages/${p.id}/writeup/versions`);
-      list.replaceChildren(
-        ...all.map((v) =>
-          h(
-            "li",
-            {},
-            h("span", {}, byline(v)),
-            v.current
-              ? h("em", {}, "current")
-              : act(
-                  "Restore",
-                  async () => {
-                    try {
-                      show(
-                        await api<Page>(`pages/${p.id}/writeup/restore`, {
-                          method: "POST",
-                          headers: JSON_TYPE,
-                          body: JSON.stringify({ version: v.version, base_version: up.version }),
-                        }),
-                      );
-                      toast(`Version ${v.version} restored`);
-                    } catch (err) {
-                      toast(`Not restored: ${why(err)}`);
-                    }
-                  },
-                  "link",
-                ),
-            v.summary && h("small", { dir: "auto" }, v.summary),
-          ),
-        ),
-      );
-    } catch (err) {
-      toast(`Can't list them: ${why(err)}`);
-      fold.open = false;
-    }
-  };
-  return fold;
 }

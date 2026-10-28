@@ -561,26 +561,8 @@
   "writeup_by_run": [
    [
     0,
-    4,
+    2,
     "run_id",
-    0,
-    "BINARY",
-    1
-   ],
-   [
-    1,
-    -1,
-    null,
-    0,
-    "BINARY",
-    0
-   ]
-  ],
-  "writeup_current": [
-   [
-    0,
-    1,
-    "page_id",
     0,
     "BINARY",
     1
@@ -894,37 +876,17 @@
   "writeup": [
    "table",
    "writeup",
-   "CREATE TABLE writeup ( id INTEGER PRIMARY KEY, page_id TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE, version INTEGER NOT NULL CHECK (version >= 1), producer TEXT NOT NULL, run_id INTEGER REFERENCES enrich_run(id), prompt_version TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', text TEXT NOT NULL, guidance TEXT, restored_from INTEGER, superseded_at TEXT, created_at TEXT NOT NULL, UNIQUE (page_id, version) )"
+   "CREATE TABLE writeup ( page_id TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE, producer TEXT NOT NULL, run_id INTEGER REFERENCES enrich_run(id), prompt_version TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', text TEXT NOT NULL, guidance TEXT, created_at TEXT NOT NULL )"
   ],
   "writeup_by_run": [
    "index",
    "writeup",
    "CREATE INDEX writeup_by_run ON writeup(run_id)"
   ],
-  "writeup_current": [
-   "index",
-   "writeup",
-   "CREATE UNIQUE INDEX writeup_current ON writeup(page_id) WHERE superseded_at IS NULL"
-  ],
   "writeup_guidance": [
    "table",
    "writeup_guidance",
    "CREATE TABLE writeup_guidance ( page_id TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE, text TEXT NOT NULL, author TEXT NOT NULL, updated_at TEXT NOT NULL )"
-  ],
-  "writeup_immutable": [
-   "trigger",
-   "writeup",
-   "CREATE TRIGGER writeup_immutable BEFORE UPDATE OF page_id, version, producer, run_id, prompt_version, summary, text, guidance, restored_from, created_at ON writeup BEGIN SELECT RAISE(ABORT, 'write-up versions are immutable: insert a new version'); END"
-  ],
-  "writeup_once": [
-   "trigger",
-   "writeup",
-   "CREATE TRIGGER writeup_once BEFORE UPDATE OF superseded_at ON writeup WHEN old.superseded_at IS NOT NULL BEGIN SELECT RAISE(ABORT, 'a superseded version stays superseded: insert a copy'); END"
-  ],
-  "writeup_supersede": [
-   "trigger",
-   "writeup",
-   "CREATE TRIGGER writeup_supersede BEFORE INSERT ON writeup WHEN new.superseded_at IS NULL BEGIN UPDATE writeup SET superseded_at = new.created_at WHERE page_id = new.page_id AND superseded_at IS NULL; END"
   ]
  },
  "rows": {
@@ -3136,33 +3098,15 @@
    "columns": [
     [
      0,
-     "id",
-     "INTEGER",
-     0,
-     null,
-     1,
-     0
-    ],
-    [
-     1,
      "page_id",
      "TEXT",
-     1,
-     null,
      0,
+     null,
+     1,
      0
     ],
     [
-     2,
-     "version",
-     "INTEGER",
      1,
-     null,
-     0,
-     0
-    ],
-    [
-     3,
      "producer",
      "TEXT",
      1,
@@ -3171,7 +3115,7 @@
      0
     ],
     [
-     4,
+     2,
      "run_id",
      "INTEGER",
      0,
@@ -3180,7 +3124,7 @@
      0
     ],
     [
-     5,
+     3,
      "prompt_version",
      "TEXT",
      1,
@@ -3189,7 +3133,7 @@
      0
     ],
     [
-     6,
+     4,
      "summary",
      "TEXT",
      1,
@@ -3198,7 +3142,7 @@
      0
     ],
     [
-     7,
+     5,
      "text",
      "TEXT",
      1,
@@ -3207,7 +3151,7 @@
      0
     ],
     [
-     8,
+     6,
      "guidance",
      "TEXT",
      0,
@@ -3216,25 +3160,7 @@
      0
     ],
     [
-     9,
-     "restored_from",
-     "INTEGER",
-     0,
-     null,
-     0,
-     0
-    ],
-    [
-     10,
-     "superseded_at",
-     "TEXT",
-     0,
-     null,
-     0,
-     0
-    ],
-    [
-     11,
+     7,
      "created_at",
      "TEXT",
      1,
@@ -3319,5 +3245,5 @@
    ]
   }
  },
- "user_version": 18
+ "user_version": 19
 }

@@ -375,11 +375,11 @@ class Worker:
             changed = 0
         first_read = (
             conn.execute(
-                "SELECT count(*) FROM derived WHERE capture_id = ?"
+                "SELECT version FROM derived WHERE capture_id = ?"
                 " AND source_sha256 = ? AND kind = 'description'",
                 (cid, photo),
             ).fetchone()[0]
-            == 1  # the version just put
+            == 1  # the version just put (the only one kept)
         )
         have = {
             r[0]

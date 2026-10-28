@@ -5,7 +5,9 @@ Date: 2026-10-19 (derived versions: 2026-10-19/20, migration 0002)
 ## Status
 
 Accepted. Partly superseded by [](0019-kinds-and-tags-editable-with-revisions.md): changes to a
-page's kind and tags are now revisioned too (see the decision below).
+page's kind and tags are now revisioned too (see the decision below). Partly superseded by
+[](0039-generated-content-keeps-only-its-current-version.md): a model's readings and write-ups keep
+only their current version (a drawing's versions stay).
 
 ## Context
 

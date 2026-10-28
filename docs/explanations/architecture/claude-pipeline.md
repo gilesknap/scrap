@@ -59,8 +59,8 @@ flowchart LR
 | Photo ingest | `job`, kind `ingest` | A photo capture, Reprocess, *Ask Claude* on one image | Vision model, one per distinct image | `derived` `ocr`, `description`, `excalidraw`; page title, tags and kind |
 | Enrich | `enrich_job` `capture`, `save`, `ask`, `backfill` | A text page save or link capture, a file page's files read (`SCRAP_FILE_ENRICH=auto`: the start of their text is sent), *Ask Claude*, `scrap enrich --backfill` | Text model | `enrichment` summary, `model_tag` tags, a link's or file page's title |
 | Related | `enrich_job` `related` | A page's first read, *Ask Claude* (the nightly pass calls Claude in its own process) | Text model, candidates from tags and search | `related` rows (at most five per page) |
-| Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude* (`scrap enrich --writeups` calls Claude in its own process) | Vision model with the board photos | `writeup` version |
-| Topic | `enrich_job` `topic` | The weekly topics pass | Vision model | `writeup` version of a topic page |
+| Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude* (`scrap enrich --writeups` calls Claude in its own process) | Vision model with the board photos | `writeup` row of the page |
+| Topic | `enrich_job` `topic` | The weekly topics pass | Vision model | `writeup` row of a topic page |
 
 The nightly related pass and the weekly topics pass are Helm CronJobs (`enrichRelated`, default
 `41 3 * * *`; `enrichTopics`, default `11 4 * * 0`) that run `scrap enrich --related` and
@@ -156,11 +156,11 @@ flowchart LR
 Derived rows sit beside the page and the owner's text is not written by Claude; the page body stays
 the human's.
 
-- **`derived`** (per capture, photo and kind): immutable rows with `version`, `producer` (the model
-  id, or `human`) and `superseded_at`. A new current version supersedes the last by trigger. Kinds
+- **`derived`** (per capture, photo and kind): rows with `version`, `producer` (the model
+  id, or `human`) and `superseded_at`. A drawing (`excalidraw`) keeps every version: a new current one supersedes the last by trigger. A reading (`ocr`, `description`) keeps only its current row: the next one deletes it first ([ADR 39](../decisions/0039-generated-content-keeps-only-its-current-version.md)). Kinds
   are `ocr`, `description`, `summary`, `fetched` and `excalidraw`. A PDF's or text file's text is also an `ocr` version, read by scrap itself with no model run ([](../decisions/0035-files-are-read-locally-for-search.md)).
-- **`writeup`** (per page, for boards and topics): versions with `prompt_version`, the owner's
-  `guidance` and `restored_from`. *Regenerate* inserts a new version; *Restore* copies an old one.
+- **`writeup`** (per page, for boards and topics): one row with `prompt_version` and the owner's
+  `guidance` it was written with. *Regenerate* replaces it; there is no history to restore.
   Nobody edits a write-up.
 - **`enrichment`, `model_tag`, `related`**: one summary per page, Claude's tags marked apart from the
   owner's (the owner can turn one off), and ranked related pages. These are replaced by the next
@@ -186,7 +186,7 @@ For a board or diagram the photo call also returns Excalidraw skeleton elements 
   `claude.complete()` never retries.
 - A pause never costs a job a failure; a charged failure dies on the third.
 - Photo, text and topic spend share one daily budget.
-- Claude's output is stored apart from the owner's text and can be regenerated or restored.
+- Claude's output is stored apart from the owner's text and can be regenerated.
 - A page in the trash is not claimed.
 
 ## Settings and decisions

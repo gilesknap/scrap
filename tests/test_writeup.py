@@ -5,7 +5,6 @@ the API and MCP."""
 
 import io
 import json
-import sqlite3
 import time
 from contextlib import closing
 from typing import Any
@@ -139,45 +138,41 @@ def board_page(store, fake=None, *colours):
     return ref
 
 
-# ---- storage and versions
+# ---- storage: the current write-up only
 
 
-def test_versions_one_current_old_kept_and_never_changed(store):
+def count(store, page_id):
+    with closing(connect(store.db)) as conn:
+        return conn.execute(
+            "SELECT count(*) FROM writeup WHERE page_id = ?", (page_id,)
+        ).fetchone()[0]
+
+
+def test_put_keeps_one_row_per_page_and_overwrites_it(store):
     page_id = note(store, "x")["page_id"]
     with closing(connect(store.db)) as conn:
         for n in (1, 2):
-            v = writeups.put(
+            writeups.put(
                 conn, page_id, now(), producer="m", run_id=None,
                 prompt_version="writeup@1", summary=f"s{n}", text=f"t{n}",
                 guidance="g" if n == 2 else None,
             )  # fmt: skip
-            assert v == n
-        rows = writeups.versions(conn, page_id)
-        assert [(r["version"], r["current"]) for r in rows] == [(2, True), (1, False)]
-        assert rows[0]["guidance"] == "g" and rows[1]["guidance"] is None
-        assert writeups.current(conn, page_id)["text"] == "t2"
-        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
-            conn.execute("UPDATE writeup SET text = 'edited' WHERE version = 1")
-        with pytest.raises(sqlite3.IntegrityError, match="stays superseded"):
-            conn.execute("UPDATE writeup SET superseded_at = NULL WHERE version = 1")
+        assert conn.execute("SELECT count(*) FROM writeup").fetchone()[0] == 1
+        up = writeups.current(conn, page_id)
+        assert (up["summary"], up["text"], up["guidance"]) == ("s2", "t2", "g")
 
 
-def test_restore_makes_an_old_version_current_as_a_copy(store):
+def test_regenerate_overwrites_the_write_up_in_place(store):
     ref = board_page(store)
+    assert count(store, ref["page_id"]) == 1
     fake = Fake(writeup={"summary": "Second.", "text": "## Overview\n\nnewer words"})
     enrich.regenerate(store, ref["page_id"])
     run_all(store, fake)
-    assert store.page(ref["page_id"])["writeup"]["current"]["version"] == 2
-    with pytest.raises(enrich.StaleWriteupError):
-        enrich.restore(store, ref["page_id"], 1, base=1)  # 2 is current
-    with pytest.raises(Exception, match="no version 9"):
-        enrich.restore(store, ref["page_id"], 9, base=2)
-    page = enrich.restore(store, ref["page_id"], 1, base=2)
-    up = page["writeup"]["current"]
-    assert (up["version"], up["restored_from"]) == (3, 1)
-    assert up["summary"] == WRITEUP["summary"] and page["writeup"]["versions"] == 3
-    assert store.search("newer", 10) == []  # only the current one is searched
-    assert [h["id"] for h in store.search("feeds", 10)] == [ref["page_id"]]
+    assert count(store, ref["page_id"]) == 1
+    up = store.page(ref["page_id"])["writeup"]["current"]
+    assert up["summary"] == "Second." and "newer words" in up["text"]
+    assert [h["id"] for h in store.search("newer", 10)] == [ref["page_id"]]
+    assert store.search("feeds", 10) == []  # the old words are no longer searched
 
 
 # ---- when it is queued
@@ -209,7 +204,7 @@ def test_a_board_is_written_up_then_its_first_related_call_sees_it(store):
     assert call["blob"](images[0]["source"]["sha256"])[1] == "image/jpeg"
     page = store.page(ref["page_id"])
     up = page["writeup"]["current"]
-    assert up["producer"] == claude.model_name() and up["version"] == 1
+    assert up["producer"] == claude.model_name()
     assert up["prompt_version"].startswith("writeup@")
     assert page["writeup"]["board"] is True and page["writeup"]["state"] == "done"
     assert page["body"] == "\n\n".join(
@@ -246,7 +241,8 @@ def test_reprocess_of_a_board_image_writes_it_up_again(store):
     fake = Fake(writeup={"summary": "Again.", "text": "## Overview\n\nagain"})
     run_all(store, fake)
     assert fake.kinds() == ["photo", "writeup"]  # its first related call is had
-    assert store.page(ref["page_id"])["writeup"]["current"]["version"] == 2
+    assert count(store, ref["page_id"]) == 1
+    assert store.page(ref["page_id"])["writeup"]["current"]["summary"] == "Again."
     # the nightly pass picks related pages again: the write-up is newer than them
     assert enrich.related_pass(store, fake, dry_run=True)["pages"] == 1
 
@@ -266,7 +262,7 @@ def test_ask_on_a_board_page_writes_it_up_before_related(store):
     fake = Fake()
     run_all(store, fake)
     assert fake.kinds() == ["enrich", "writeup", "related"]
-    assert store.page(ref["page_id"])["writeup"]["current"]["version"] == 2
+    assert count(store, ref["page_id"]) == 1
     # on a page with no board, Ask is as it was
     plain = note(store, "a note")
     run_all(store, Fake())
@@ -499,7 +495,7 @@ def test_the_write_up_pass_stops_at_a_pause_and_the_budget(store, monkeypatch):
     assert counts["stopped"] == "budget" and counts["done"] == 0
 
 
-def test_the_api_regenerates_steers_lists_and_restores(tmp_path, monkeypatch):
+def test_the_api_regenerates_and_steers(tmp_path, monkeypatch):
     client = TestClient(create_app(tmp_path / "data"))
     store = Store(tmp_path / "data")
     ref = board_page(store)
@@ -517,19 +513,9 @@ def test_the_api_regenerates_steers_lists_and_restores(tmp_path, monkeypatch):
     page = client.post(f"/api/pages/{key}/writeup").json()
     assert page["writeup"]["state"] == "queued"
     run_all(store, Fake())
-    versions = client.get(f"/api/pages/{key}/writeup/versions").json()
-    assert [(v["version"], v["current"]) for v in versions] == [(2, True), (1, False)]
-    assert versions[0]["guidance"] == "'Enc' means encoder"
-    assert versions[1]["guidance"] is None
-    stale = client.post(f"/api/pages/{key}/writeup/restore",
-                        json={"version": 1, "base_version": 1})  # fmt: skip
-    assert stale.status_code == 409 and stale.json()["version"] == 2
-    missing = client.post(f"/api/pages/{key}/writeup/restore",
-                          json={"version": 7, "base_version": 2})  # fmt: skip
-    assert missing.status_code == 404
-    page = client.post(f"/api/pages/{key}/writeup/restore",
-                       json={"version": 1, "base_version": 2}).json()  # fmt: skip
-    assert page["writeup"]["current"]["restored_from"] == 1
+    up = client.get(f"/api/pages/{key}").json()["writeup"]["current"]
+    assert up["guidance"] == "'Enc' means encoder"
+    assert client.get(f"/api/pages/{key}/writeup/versions").status_code in (404, 405)
     cleared = client.put(f"/api/pages/{key}/writeup/guidance", json={"guidance": ""})
     assert cleared.json()["writeup"]["guidance"] is None
     monkeypatch.setenv("SCRAP_ENRICH", "off")
@@ -547,7 +533,7 @@ def test_mcp_read_returns_the_write_up_under_by_model(store):
     by = anyio.run(main).structured_content["by_model"]
     up = by["writeup"]
     assert up["summary"] == WRITEUP["summary"] and up["text"].startswith("## Overview")
-    assert up["version"] == 1 and up["producer"] == claude.model_name()
+    assert up["producer"] == claude.model_name()
     assert up["created_at"] and by["summary"] == WRITEUP["summary"]
 
 
@@ -588,7 +574,7 @@ def test_a_page_no_longer_a_board_keeps_its_write_up_unseen(store):
     assert store.search("zanzibar", 10) == []
     with closing(connect(store.db)) as conn:
         assert model_summary(conn, ref["page_id"]) == ""
-        assert len(writeups.versions(conn, ref["page_id"])) == 1  # kept, as history
+        assert writeups.current(conn, ref["page_id"]) is not None  # kept, unseen
     with pytest.raises(Exception, match="whiteboard or diagram"):
         enrich.regenerate(store, ref["page_id"])
 
@@ -609,7 +595,7 @@ def test_an_ask_retried_after_its_related_call_does_not_write_up_again(store):
     run_all(store, call)
     assert fake.kinds() == ["enrich", "writeup", "related", "enrich", "related"]
     assert jobs(store)[-1] == ("ask", "done")
-    assert store.page(ref["page_id"])["writeup"]["current"]["version"] == 2
+    assert count(store, ref["page_id"]) == 1
 
 
 @pytest.mark.parametrize(

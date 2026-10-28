@@ -143,11 +143,8 @@ from .versions import (
     prompt_versions,
 )
 from .writeup_ops import (
-    StaleWriteupError,
     regenerate,
-    restore,
     set_guidance,
-    versions,
 )
 from .writing import (
     write_up,
@@ -187,10 +184,7 @@ __all__ = [
     "write_up",
     "writeup_pass",
     "regenerate",
-    "restore",
     "set_guidance",
-    "versions",
-    "StaleWriteupError",
     "WRITEUP_SCHEMA",
     "WRITEUP_BODY",
     "WRITEUP_IMAGES",

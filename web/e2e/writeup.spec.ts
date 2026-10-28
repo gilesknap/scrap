@@ -1,8 +1,7 @@
 // Claude's write-up of a board page (#256): In detail, a fold of the page's one Claude card
 // (About this page) under the text, plainly
-// Claude's, with who wrote it and when, its links as page links, the owner's guidance, its
-// versions with Restore, and Regenerate. The board is synthetic: e2e/writeup.py stores it and
-// two write-ups with a fake Claude. The e2e server runs with Claude off, so Regenerate is
+// Claude's, with who wrote it and when, its links as page links, the owner's guidance, and
+// Regenerate. The board is synthetic: e2e/writeup.py stores it and a write-up with a fake Claude. The e2e server runs with Claude off, so Regenerate is
 // checked against the page answered as if Claude were on.
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
@@ -25,9 +24,7 @@ const section = (page: Page) => page.getByRole("region", { name: "About this pag
 const opened = (page: Page) =>
   page.addInitScript(() => localStorage.setItem("scrap.fold.writeup", "open"));
 
-test("a board's write-up shows apart from its text, with guidance and versions", async ({
-  page,
-}) => {
+test("a board's write-up shows apart from its text, with guidance", async ({ page }) => {
   const b = board();
   await page.goto(`/p/${b.slug}`);
   const s = section(page);
@@ -45,10 +42,12 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   await expect(card).toBeHidden();
   await fold.locator("> summary").click();
   await expect(card).toBeVisible();
-  // "Claude · 27 Oct, 6:59 AM · v2", the model as its tooltip
-  await expect(s.locator(".by").first()).toHaveText(/^Claude\s·\s.+\s·\sv2$/);
+  // "Claude · 27 Oct, 6:59 AM", the model as its tooltip
+  await expect(s.locator(".by").first()).toHaveText(/^Claude\s·\s[^·]+$/);
   await expect(s.locator(".by").first()).toHaveAttribute("title", "claude-opus-5-5");
-  await expect(s.getByText("The pipeline again, retries first.")).toBeVisible();
+  await expect(
+    s.getByText("A capture pipeline from phone to model, by way of a queue."),
+  ).toBeVisible();
   await expect(s.getByRole("heading", { name: "Open questions" })).toBeVisible();
   // Its [[n]] citation is a link to the page, made by the server
   const link = s.getByRole("link", { name: "the retry policy" });
@@ -73,16 +72,6 @@ test("a board's write-up shows apart from its text, with guidance and versions",
   expect(saved.writeup.guidance).toBe("Focus on the data flow; 'Enc' means encoder");
   expect(saved.body).not.toContain("Enc");
 
-  // Versions: the older one made current again, as a copy
-  await s.getByText("Versions").click();
-  const rows = s.locator(".versions li");
-  await expect(rows).toHaveCount(2);
-  await expect(rows.first()).toContainText("current");
-  await rows.nth(1).getByRole("button", { name: "Restore" }).click();
-  await expect(page.getByText("Version 1 restored")).toBeVisible();
-  await expect(s.locator(".by").first()).toHaveText(/\sv3\s·\srestored\sfrom\sv1$/);
-  await expect(s.getByText("A capture pipeline from phone to model")).toBeVisible();
-
   // Opened, it stays open when the page is opened again; folded again, it stays folded
   await page.reload();
   await expect(section(page).locator(".card")).toBeVisible();
@@ -100,8 +89,6 @@ test("the write-up meets AA contrast, in both themes", async ({ page }) => {
     await page.emulateMedia({ colorScheme });
     await page.goto(`/p/${b.slug}`);
     await expect(section(page).getByRole("link", { name: "the retry policy" })).toBeVisible();
-    await section(page).getByText("Versions").click();
-    await expect(section(page).locator(".versions li")).toHaveCount(2);
     // The section's own text (the page's other parts are checked by their own specs)
     const theirs = ".page > :not(section), .page > section:not([aria-label])";
     expect(await page.evaluate(lowContrast, theirs), colorScheme).toEqual([]);
@@ -168,7 +155,7 @@ test("a board not written up yet says what Claude would do; Generate asks", asyn
       json: {
         ...json,
         enrich: { on: true, state: null, error: null, summary: null },
-        writeup: { ...json.writeup, on: true, state: null, versions: 0, current: null },
+        writeup: { ...json.writeup, on: true, state: null, current: null },
       },
     });
   });
@@ -226,8 +213,7 @@ test("an edit since the write-up says so quietly, and nothing regenerates", asyn
   await expect(line).toHaveText(
     "The page, a page it links to, or Claude's prompt has changed since this write-up.",
   );
-  await expect(s.locator(".by").first()).toHaveText(/\sv2$/); // not made again
-  expect((await (await page.request.get(`/api/pages/${b.slug}`)).json()).writeup.versions).toBe(2);
+  await expect(s.locator(".by").first()).toHaveText(/^Claude\s·\s[^·]+$/); // not made again
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
     expect(await page.evaluate(lowContrast, ""), colorScheme).toEqual([]);
