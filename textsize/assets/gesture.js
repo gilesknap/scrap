@@ -1,0 +1,1 @@
+function e(e,t,n,r){let i=Math.abs(e);return i<2*Math.abs(t)||!(i>=72&&n<=500||i>r/3)?0:e<0?1:-1}function t(e,t){let n=e?.slugs.indexOf(t)??-1;return!e||n<0?null:{i:n,n:e.slugs.length,prev:e.slugs[n-1],next:e.slugs[n+1]}}export{e as n,t};

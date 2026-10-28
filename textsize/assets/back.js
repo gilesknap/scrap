@@ -1,0 +1,1 @@
+function e(e,t=__sim.loc.pathname){let n=document.querySelector(`#view .page[data-kind]`)?.dataset.kind,r=(n&&{todo:`/todos`,topic:`/topics`}[n])??`/`;__sim.loc.pathname===t&&e(r,!0)}export{e as up};

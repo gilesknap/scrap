@@ -1,0 +1,1 @@
+import{n as e,o as t,p as n,r}from"./main.js";function i(e,t){let n=r(e,t);return n<0?e:`${e.slice(0,n).trimEnd()} ${e.slice(n+t.length).trimStart()}`.trim()}function a(r,i){let a=n(r);return i===(t(a)??`none`)?a:e(a,`group:${i}`)}var o={book:`books`,article:`articles`,film:`films`,tv:`TV`,video:`videos`,podcast:`podcasts`,music:`music`,game:`games`};export{i as n,a as r,o as t};

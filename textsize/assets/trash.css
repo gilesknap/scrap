@@ -1,0 +1,1 @@
+.trash .hint{margin:0 0 var(--s-3);color:var(--ink-2);font-size:var(--t-sm)}.trash .list li>div{min-height:var(--tap)}.trash .list small{line-height:var(--lh-tight);white-space:normal}.trash .list small>span{display:block}.trash .list small>.sep{display:none}.trash .list button{min-height:var(--tap);padding:0 var(--s-3);font-size:var(--t-sm);flex:none}
