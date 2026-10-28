@@ -155,14 +155,11 @@ The rows of `GET /api/pages` and of a search are the page without `body`, `captu
 | `scrap serve [--host 127.0.0.1] [--port 8000]` or `scrap serve --uds PATH` | Run the service, migrating the database first. `--uds` listens only on a Unix socket (mode 600, in a folder of its own closed to others) and cannot be combined with `--host`/`--port` |
 | `scrap backup DIR` | Consistent snapshot of the database (SQLite online backup) plus `files/`; safe while serving. `DIR` is created if missing, and a second run into it replaces the database and adds only new files: see {ref}`api-cli-folders` |
 | `scrap restore DIR [--force]` | Restore a backup into an empty data folder, after checking its integrity and that its schema is not newer than this scrap; an older schema is upgraded after the copy. `DIR` may be read-only: only a copy of its database, made in the data folder, is opened. `--force` replaces the whole database (pages added since the backup are lost; files are kept); stop scrap first, or a running server goes on writing to the replaced database and those writes are lost |
-| `scrap ingest-once IMAGE [--save FILE]` | Send one image file to Claude as ingest would, without a database, and print the outcome in numbers only (tokens, cost, seconds, counts of lines, elements and warnings: see {ref}`api-cli-ingest-once`); `--save FILE` also writes the full result, including all the text Claude read from the image, to a new file with mode 600 (an existing file is refused), created before the paid call. Needs `ANTHROPIC_API_KEY`, or `CLAUDE_CODE_OAUTH_TOKEN` with `SCRAP_LLM_BACKEND=cli` |
-| `scrap import DIR [--dry-run] [--ingest]` | Import a Thoth vault: each content page with its kind, fields, tags, dates, links (as `[[slug\|label]]`) and images; see [](../how-to/import-a-vault.md). `--dry-run` writes nothing and prints counts (by kind and folder) and every problem (broken links, unreferenced images, unmapped fields...); without it the same summary shows only how many problems of each sort there were. A second run imports only pages not imported before. `--ingest` also queues the images for Claude |
 | `scrap export DIR` | One Markdown file per page (the trash is left out), front matter (with a todo's `due` and `priority`, and the `tasks` count of a page with task boxes) and links to its originals copied into `DIR/files/`, with each photo's description, text and `.excalidraw` drawing as in the page download. Export only: never read back. Files are named by content, not as uploaded, and a second run into the same `DIR` deletes nothing: see {ref}`api-cli-folders` |
 | `scrap gc [--delete] [--dry-run] [--grace-hours H] [--run-days D] [--trash-days T] [--job-days J] [--report]` | Find the stored files nothing uses any more: no page's text (the trash's too), capture, Claude result or ingest job, or model run refers to them. It only counts them (and their size) unless `--delete`; `--dry-run` overrides `--delete`. Files younger than `H` hours (default 24) are kept, used or not, since an upload may be on its way. With `--delete` it also gathers each file of a capture that no page shows any more (its last embed or link was deleted more than `H` hours ago) onto the month's review page, a todo titled `Orphaned assets YYYY-MM`, due 7 days after it is made; it does not delete one then, only once the review page that shows it is purged from the trash (see {ref}`scrap-gc`). It also prunes `model_run` and `enrich_run` records older than `D` days (default 30, 1 to 36500) unless something refers to them (`enrichment`, `writeup`, `derived`, a later turn) or they are the latest for their page or photo, or still running; it counts them the same way. `topic_run` records are not pruned. It purges each page in the trash for more than `T` days (default 30, 1 to 36500; `off`: never), but a topic page (never purged: its key stops Claude making the topic again), with its revisions, captures, Claude's results, runs and jobs, tags, search index and write-ups; its files then go as unused ones do, in the same run. A purged *Orphaned assets* page lets go of the files it showed that no page shows: they are taken off their captures (with the photo's results) and deleted. It deletes `job` and `enrich_job` records done or dead and last changed more than `J` days ago (default 30, 1 to 36500), but each photo's latest and each page's latest of a reason. The purge and the pruning are committed in a transaction of their own before any file is looked at, so no file is deleted while they could still roll back. A dry run counts all of this, and the files a purge would free, and changes nothing. `--report` only prints the store's sizes (the database by table with `dbstat`, else estimated; the stored files in use, shown only on *Orphaned assets* pages in the trash (a purge lets them go), used only by pages in the trash, and unused; the trash by age and how many pages `T` would purge; the Claude call records by month; the job records by state and how many `J` would prune): it reads, and deletes nothing. Nothing is deleted if the references cannot be read. Only one `--delete` run at a time (a second stops, see below). Safe while scrap serves; see {ref}`scrap-gc` |
-| `scrap shrink [--apply] [--grace-hours H]` | Make the stored photos over 2560 px on the long edge smaller (JPEG, quality 85, upright), as the PWA now does before it queues one, and point every page, capture and Claude result at the new file. A dry run (it lists what would change and the bytes saved) unless `--apply`; the old file goes once nothing else uses it, unless touched within `H` hours (default 24). Back up first: see {ref}`scrap-shrink` |
 | `scrap enrich (--backfill \| --related \| --writeups \| --topics) [--all] [--outdated] [--limit N] [--dry-run]` | Say exactly one of `--backfill`, `--related`, `--writeups` and `--topics`. `--topics` is the weekly topics pass ({ref}`ingest-topics`): one discovery call now, in this process, over every page (new topics are made at once, at most 5, and sources added to existing ones; it prints what it made), then a synthesis queued for each topic due, those with none first, for the service's worker (`--all`: every topic; `--limit N`: at most `N` syntheses queued). With `--dry-run` the discovery call is still made (and paid for) and its proposals printed, but nothing is written or queued. It has `--related`'s conditions, stops and exit rules, and exits non-zero if the discovery call fails. `--writeups` writes Claude's write-up now, in this process, for every board page (a whiteboard or diagram image, not a list of actions) with none, oldest first (`--all`: every board page; `--outdated`: instead, each board page whose write-up is outdated, `is:outdated`'s test: a board image read, or its text, title, kind or tags changed, since it was made, or made with another prompt version: how a new write-up prompt is rolled out), under the same conditions and stops as `--related`; run `--related` after it, so related pages see the write-ups. `--outdated` goes only with `--writeups`. `--backfill` queues every page with no tags that Claude has not read yet, oldest first; the service's worker runs them within the daily budget. `--related` picks related pages now, in this process, for every page changed, or with a photo read, since its last picks (the nightly pass); `--all` takes every page instead. `--related` (and `--writeups`) needs `SCRAP_INGEST` on, `SCRAP_ENRICH` not off and `ANTHROPIC_API_KEY` (or, with `SCRAP_LLM_BACKEND=cli`, `CLAUDE_CODE_OAUTH_TOKEN`) set in its environment; without them it says so, does nothing and exits `0` (`--backfill` only queues, and needs none of them). It stops, exiting non-zero, at a queue pause or when the day's budget is spent. `--limit N` takes at most `N` pages; `--dry-run` only counts them. See [](../explanations/ingest.md) |
 
-Every command except `ingest-once` (which uses no database) takes `--data-dir` (default
+Every command takes `--data-dir` (default
 `$SCRAP_DATA_DIR`, else `./data`), which holds `scrap.db` and `files/` (originals by SHA-256).
 
 (api-cli-status)=
@@ -174,16 +171,16 @@ Arguments it cannot use (`scrap enrich` with none or more than one of `--backfil
 usage and exit `2`. `scrap` alone prints the help and exits `0`.
 
 `scrap serve`, `restore` and `enrich` (every mode) create the data folder and bring `scrap.db` up to
-date, and so does `import` unless it is a `--dry-run`, which writes nothing. `backup`, `export`,
-`gc` and `shrink` never create or upgrade anything: with no `scrap.db` they stop at once. That makes
+date. `backup`, `export`
+and `gc` never create or upgrade anything: with no `scrap.db` they stop at once. That makes
 a wrong `--data-dir` easy to miss. With no `--data-dir` and no `SCRAP_DATA_DIR` the data folder is
-`./data` under the current directory, so run from the wrong place, `serve`, `import` and `enrich`
-quietly start a new empty one, while `backup`, `export`, `gc` and `shrink` say `no database at
+`./data` under the current directory, so run from the wrong place, `serve` and `enrich`
+quietly start a new empty one, while `backup`, `export` and `gc` say `no database at
 data/scrap.db`.
 
 | Message | Cause |
 | --- | --- |
-| `no database at <data folder>/scrap.db` (`scrap gc: no database at ...` for `gc`, `scrap shrink: no database at ...` for `shrink`) | `backup`, `export`, `gc` or `shrink` was pointed at a folder with no database: the wrong `--data-dir`, or the working directory is not the one you expected |
+| `no database at <data folder>/scrap.db` (`scrap gc: no database at ...` for `gc`) | `backup`, `export` or `gc` was pointed at a folder with no database: the wrong `--data-dir`, or the working directory is not the one you expected |
 | `scrap gc: no files folder at <data folder>/files` | The database is there but the data folder has no `files/` |
 | `scrap gc: the grace period must not be negative` | A negative `--grace-hours` |
 | `scrap gc: the run retention must be at least 1 day` | A `--run-days` below 1 |
@@ -193,7 +190,6 @@ data/scrap.db`.
 | `scrap gc: cannot read what is in use, so nothing was deleted: ...` | The database could not be read, or it is newer than this scrap |
 | `scrap gc: cannot put back a file left aside by an earlier run, so nothing was deleted: ...` | A file an earlier run set aside could not be restored (permissions or disk) |
 | `scrap gc: another scrap gc is deleting (it holds <data folder>/gc.lock); ...` | Another `--delete` run is in progress, such as the nightly one; try again when it ends. Counting runs take no lock |
-| `no folder <path>` | `scrap import`'s `DIR` is not a folder |
 | `no backup at <DIR>` | `scrap restore`'s `DIR` has no `scrap.db` |
 | `bad backup: ...` | The backup's database is not a database, fails its integrity check, or has a schema newer than this scrap. The data folder is left as it was |
 | `<data folder> is not empty; stop scrap and use --force` | `scrap restore` into a data folder that has a database or any file; see `--force` above |
@@ -225,31 +221,6 @@ Run it again into the same `DIR` and every `.md` and drawing is written afresh, 
 already there is left alone. Nothing is deleted: a page put in the trash since, and its `.md`, stay in
 `DIR`. Export into a new folder for a clean copy.
 
-(api-cli-ingest-once)=
-### Reading `ingest-once` output
-
-`scrap ingest-once` prints indented JSON, and none of the text of the image except in `error`:
-
-- `model` (`SCRAP_VISION_MODEL`, else the default), `prompt_version` and `sent`: `[width, height,
-  bytes]` of the JPEG Claude received.
-- `outcome`: `ok`, or the failure class of the table in {ref}`ingest-spend` (`credit`, `auth`,
-  `outage`, `timeout`, `invalid`, `content`, `image` or `internal`). `error` is then its message,
-  with any API key replaced by `[key]`. `seconds` is the time the call took.
-- Once a reply arrived, even one that failed the checks: `served_model`, `stop_reason`, `blocks`
-  (the types of its content blocks), `usage` and `cost_usd`, worked out from the price table. A
-  model not in the table is priced at the dearest rate, so the cost errs high.
-- With `outcome` `ok` only: `kind` (what Claude took the image for), `text_lines`, `uncertain`
-  (the readings marked `(?)`), `tags` (a count), `elements_given` and `elements_kept` (drawing
-  elements before and after the checks) and `warnings` (how many the checks raised: elements
-  dropped, arrows left unbound).
-- `save_error`, if `--save` could not write the file (a full disk); the summary is still printed.
-
-The exit status is `0` even when the call failed, so a script must read `outcome`. With no
-`ANTHROPIC_API_KEY` the call does not go out: `outcome` is `internal` and `error` is the SDK's
-authentication message. An answer that fails the checks was paid for, so it is reported with its
-cost, and `--save` writes it. An image that cannot be decoded (`cannot preview this file`) or a
-`--save` file that exists already stops with a Python error and exit `1`, before any call.
-
 (api-settings)=
 ## Settings
 
@@ -269,7 +240,7 @@ chart's values in [](../how-to/deploy-kubernetes.md).
 | `SCRAP_IDENTITY_HEADER` | `Tailscale-User-Login` | The request header recorded as the author of a change, else `tagged`. Only this header is read; set it to what your authenticating proxy sends (e.g. `X-Auth-Request-User`). Blank counts as unset, and so does a value of `claude` (any case), MCP's author |
 | `SCRAP_REVISION_WINDOW` | `300` | Seconds within which one author's changes to a page's kind and tags fold into one metadata revision, and one author's text edits from one source (Claude's over MCP) into one text revision; `0`: each change is one. A value that is not a number of at least 0 stops scrap at start |
 | `SCRAP_MCP_CONTENT_EDIT` | `1` | `0` (or `false`, `no`, `off`): MCP does not offer `edit_page`, `edit_drawing`, `trash_pages` or `undelete`, and refuses `revert` with `to_rev`, so no MCP session can change the text of a page it did not write (see [](mcp.md)). Unset is on; any other value, empty too, stops scrap starting |
-| `SCRAP_MAX_UPLOAD_MB` | `50` | Largest request body (a capture's files together), enforced as it arrives: `413`; also the largest file `scrap import` takes. May be fractional; a value that is not a number stops scrap at start. `/mcp` has its own fixed cap of 2 MB |
+| `SCRAP_MAX_UPLOAD_MB` | `50` | Largest request body (a capture's files together), enforced as it arrives: `413`. May be fractional; a value that is not a number stops scrap at start. `/mcp` has its own fixed cap of 2 MB |
 | `SCRAP_TRASH_DAYS` | `30` | How long a page stays in the trash (1 to 36500 days, or `off`) before the nightly `scrap gc` purges it, as the server shows it (`GET /api/trash`, the PWA's Trash, the MCP `trash` tool and instructions). Set it to the `--trash-days` the gc runs with (the chart does, from `gc.trashDays`); `off` when no gc purges the trash, so no date is shown. A number below 1, or anything else, stops scrap at start. It does not purge anything itself |
 | `SCRAP_INGEST` | `off` | `on` starts the worker that sends photos to Claude and reads PDFs' and text files' text for search, locally (both are queued either way: with it off, files wait unread, as photos do) |
 | `ANTHROPIC_API_KEY` | | The key for the Claude API; keep it in the service user's mode-600 env file |

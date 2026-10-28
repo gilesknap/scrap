@@ -117,7 +117,7 @@ def body_refs(text: str) -> set[str]:
     return set(BLOB_ADDRESS.findall(text))
 
 
-# A .md file sent untyped is typed by its name (uploads.mimes, the importer): Python's
+# A .md file sent untyped is typed by its name (uploads.mimes): Python's
 # own table has no .md before 3.13, and a slim image has no /etc/mime.types to add it
 mimetypes.add_type("text/markdown", ".md")
 

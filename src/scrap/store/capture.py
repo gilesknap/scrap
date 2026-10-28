@@ -198,7 +198,7 @@ class CaptureMixin(Core):
         author: str,
         enqueue: bool = False,
     ) -> tuple[str, bool]:
-        """Save a page made elsewhere (scrap import) with its own slug, kind, fields,
+        """Save a page made elsewhere (import_page) with its own slug, kind, fields,
         tags and dates. captures are (id, kind, text, blobs), blobs already in files/;
         the first id is the retry key, as for a capture. Its text, the original, also
         keeps ingest from retitling the page. Returns the slug and whether it is new.

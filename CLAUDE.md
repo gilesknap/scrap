@@ -6,7 +6,7 @@ Notes for Claude Code working in this repo. See `.github/CONTRIBUTING.md` for se
 
 - Aim for modules of a few hundred lines. Past about 500, split by responsibility before adding more.
 - Put new code in a focused module, not in the nearest large file.
-- A split is a package with a thin `__init__.py` that only re-exports (`store/`, `ingest/`, `enrich/` and `importer/` are examples). Callers keep `from scrap.x import Name`.
+- A split is a package with a thin `__init__.py` that only re-exports (`store/`, `ingest/` and `enrich/` are examples). Callers keep `from scrap.x import Name`.
 - Layer modules strictly downward (errors and constants first), so there are no import cycles.
 - A pure refactor moves code verbatim: no logic edits, no renames. Keep it in its own PR, and check it with an `ast` comparison of the old and new definitions.
 - Patch a name where it is looked up (the submodule that reads it), not on the package re-export.

@@ -3,7 +3,7 @@ tags, status and topics in the front matter, Claude's notes under one marked hea
 the pages that link here, the text read from a PDF or text file, and `[[slug]]` links
 as full addresses when $SCRAP_PUBLIC_URL is set.
 
-Claude's notes are kept out of `scrap export`: the importer reads everything after the
+Claude's notes are kept out of `scrap export`: an import would read everything after the
 front matter as the owner's text, so model text there would come back as theirs
 (ADR 0020, 0027). A download is a copy to read or share, not a backup format.
 """

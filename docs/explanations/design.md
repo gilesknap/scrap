@@ -63,7 +63,7 @@ flowchart LR
   off). Capture, search and everything else work without it.
 - The API and the worker both write, so every connection sets `PRAGMA foreign_keys = ON` and
   `PRAGMA busy_timeout = 5000` on open; the database is in WAL mode.
-- The CLI (`scrap backup`, `restore`, `export`, `import`, `gc`, `shrink`, `enrich`, `ingest-once`) opens the
+- The CLI (`scrap backup`, `restore`, `export`, `gc`, `enrich`) opens the
   same data folder directly; `scrap serve` migrates, then serves.
 - No login code. Tailscale Serve is the way in; on Kubernetes a proxy fronts it, with an optional
   bearer token on `/mcp` ([](decisions/0007-tailscale-serve-for-access-and-identity.md),
@@ -78,7 +78,6 @@ flowchart TD
     subgraph entry["Entry points"]
         app["app.py, *_api.py, api_models.py, middleware.py, uploads.py, pwa.py, public.py"]
         mcpt["mcp_server.py, mcp_tools/"]
-        imp["importer/"]
     end
     subgraph bg["Background work"]
         ing["ingest/"]
@@ -94,7 +93,6 @@ flowchart TD
 
     app --> st
     mcpt --> st
-    imp --> st
     ing --> st
     enr --> st
     ing --> cl
@@ -116,7 +114,6 @@ flowchart TD
 | `enrich/` | Claude's reading of text pages: summary, tags, related pages, board write-ups, topic pages. |
 | `claude.py`, `claude_cli.py` | The Messages API client and the Claude seat (`claude -p`) backend. |
 | `mcp_tools/` | The tools served at `/mcp`. |
-| `importer/` | Reads a Thoth vault and writes it through `Store`. |
 
 ## One capture becomes one page
 

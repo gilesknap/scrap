@@ -52,23 +52,6 @@ def main(args: Sequence[str] | None = None) -> None:
                 " lost; files are kept). Stop scrap first: a running server would"
                 " go on writing to the old, replaced database and lose those writes",
             )
-    imp = subparsers.add_parser(
-        "import",
-        parents=[common],
-        help="Import a Thoth vault (Markdown pages with YAML front matter) from DIR",
-    )
-    imp.add_argument("dir", type=Path)
-    imp.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Write nothing; list what would be imported and every problem found",
-    )
-    imp.add_argument(
-        "--ingest",
-        action="store_true",
-        help="Also queue the imported images for Claude (off: their pages describe"
-        " them already)",
-    )
     gc = subparsers.add_parser(
         "gc",
         parents=[common],
@@ -126,39 +109,6 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Only print what the store holds, by size: the database by table, the"
         " stored files by use, the trash by age, the Claude call records by month and"
         " the job records; reads only, deletes nothing",
-    )
-    shr = subparsers.add_parser(
-        "shrink",
-        parents=[common],
-        help="Make the stored photos over 2560 px smaller, as the PWA now does before"
-        " it queues one (JPEG, quality 85, upright), and point every page, capture and"
-        " Claude result at the new file; a dry run unless --apply. Back up first",
-    )
-    shr.add_argument(
-        "--apply",
-        action="store_true",
-        help="Shrink them and remove the old files nothing else uses (default: only"
-        " list what would change and the bytes saved)",
-    )
-    shr.add_argument(
-        "--grace-hours",
-        type=float,
-        default=24.0,
-        help="Keep an old file touched more recently than this many hours, as gc"
-        " does (default 24)",
-    )
-    once = subparsers.add_parser(
-        "ingest-once",
-        help="Send one image to Claude as ingest would (no database) and print the"
-        " outcome in numbers; needs ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN"
-        " with SCRAP_LLM_BACKEND=cli",
-    )
-    once.add_argument("image", type=Path)
-    once.add_argument(
-        "--save",
-        type=Path,
-        help="Also write the full result, with all the text Claude read from the"
-        " image, to this new file (mode 600; an existing file is refused)",
     )
     enr = subparsers.add_parser(
         "enrich",
@@ -218,14 +168,6 @@ def main(args: Sequence[str] | None = None) -> None:
     )
     parsed = parser.parse_args(args)
 
-    if parsed.command == "ingest-once":
-        import json
-
-        from .ingest import once as ingest_once
-
-        print(json.dumps(ingest_once(parsed.image, parsed.save), indent=1))
-        return
-
     if parsed.command == "serve":
         import uvicorn
 
@@ -259,23 +201,6 @@ def main(args: Sequence[str] | None = None) -> None:
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
         if parsed.command == "gc":
             gc_command(store, parsed)
-        elif parsed.command == "shrink":
-            from .shrink import ShrinkError, run
-
-            try:
-                print(run(store, parsed.apply, parsed.grace_hours).text())
-            except ShrinkError as error:
-                raise SystemExit(f"scrap shrink: {error}") from None
-        elif parsed.command == "import":
-            from . import importer
-
-            if not parsed.dir.is_dir():
-                raise SystemExit(f"no folder {parsed.dir}")
-            plan = importer.plan(parsed.dir, store)
-            print(importer.report(plan, details=parsed.dry_run))
-            if not parsed.dry_run:
-                n = importer.run(store, plan, ingest=parsed.ingest)
-                print(f"imported {n} pages into {store.dir} (--dry-run lists problems)")
         elif parsed.command == "enrich":
             from . import claude_cli
             from .enrich import backfill, related_pass, writeup_pass

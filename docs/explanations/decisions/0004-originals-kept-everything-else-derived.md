@@ -48,7 +48,7 @@ that follows jobs or links must check it.
 full-size one stays on the phone, in its gallery. Only JPEG, HEIC, HEIF and WebP are touched, and not photos shared into the app (the service
 worker queues those as they came). Photos that are small already, that the browser
 cannot decode, or that would not get smaller, are kept as they came, and Settings can turn the
-downscale off. Other routes (the API, the importer, a share to the server) keep what they are given. See
+downscale off. Other routes (the API, a share to the server) keep what they are given. See
 [](../../how-to/use-the-pwa.md).
 
 ## Consequences

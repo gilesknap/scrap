@@ -118,13 +118,6 @@ flowchart LR
 - **Download and `scrap export`** rewrite embeds and links to the files beside the Markdown, never
   inside code.
 
-## Shrinking stored photos
-
-`scrap shrink` (`shrink.py`, {ref}`scrap-shrink`) is the one command that changes a stored original.
-A shrunk photo is a new file, so in one transaction per photo it moves `capture_blob`, `derived`,
-`job` and `model_run` rows and the address in page text (a revision each) to the new SHA-256, then
-removes the old file as gc would. It decodes with `preview.py`'s decoder, so rotation is applied.
-
 ## Unused files
 
 `scrap gc` is a dry run unless given `--delete`. A file is in use while anything refers to it, and
@@ -190,19 +183,6 @@ flowchart LR
     classDef user fill:#e9f7ef,stroke:#2e9d5b
 ```
 
-**Import** (`scrap import`, `importer/`; [how-to](../../how-to/import-a-vault.md)):
-
-- `pipeline.plan` reads the vault and works out slugs and rewritten bodies without writing;
-  `run` imports the pages not already there. Symlinks and anything outside the vault are skipped,
-  and a file that changed since planning aborts the run.
-- Each page keeps the vault's dates, kind (fixed), fields and tags, with revision 1. Its capture
-  has source `import`, the vault file as text (which keeps ingest from retitling it) and the
-  images; PDFs go in a second `file` capture.
-- The capture id is derived from the page's path, so a rerun skips pages already imported and
-  never updates them.
-- The linker rewrites links to `[[slug|label]]` and images to the standard embed, using the
-  Markdown parse so code is never touched ([](../decisions/0014-markdown-parsed-by-a-library-on-both-sides.md)).
-
 **Backup, restore, export** (`backup.py`; [](deployment.md)):
 
 - `backup` takes an online SQLite snapshot, then copies `files/`, safe while serving. Blobs are
@@ -217,7 +197,7 @@ flowchart LR
 
 - A capture is saved with no LLM call and no network beyond the upload itself.
 - A capture id is a client-minted ULID: sending twice stores once.
-- Originals (blobs and captures) are never changed (but by `scrap shrink`, on request), and are purged only with their page after N
+- Originals (blobs and captures) are never changed and are purged only with their page after N
   days in the trash (or, for an orphan, with the review page that showed it); everything else is
   derived.
 - A blob is deleted only when no page text, capture, derived row, job or model run refers to it,

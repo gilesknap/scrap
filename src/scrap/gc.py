@@ -249,11 +249,6 @@ def _delete(store: Store, sha: str, path: Path, cutoff: float) -> bool:
     return False
 
 
-# For scrap shrink, which removes a replaced file as gc removes an unused one
-delete_file = _delete
-restore_aside = _restore
-
-
 def collect(
     store: Store,
     delete: bool = False,

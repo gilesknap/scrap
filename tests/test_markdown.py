@@ -1,4 +1,4 @@
-"""markdown.py: page text parsed as Markdown, for the search index and the importer."""
+"""markdown.py: page text parsed as Markdown, for search and link rewriting."""
 
 import time
 

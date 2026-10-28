@@ -29,7 +29,7 @@ SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
 
 
 FIELD_NAME = Annotated[Text, Field(min_length=1, max_length=40)]
-# A field's value: flat, as the importer stores them too (None in a PATCH drops it)
+# A field's value: flat (None in a PATCH drops it)
 # Numbers a browser holds exactly: whole within +-2**53, others finite (1e400 is not)
 FIELD_INT = Annotated[StrictInt, Field(ge=-(2**53), le=2**53)]
 

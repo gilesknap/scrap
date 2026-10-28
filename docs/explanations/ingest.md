@@ -92,9 +92,7 @@ not check the key at start, so a wrong key shows up as failed or paused photos.
   `extraEnv`.
 
 `SCRAP_ENRICH` (default on) controls the text-page job and needs ingest on; `off` keeps ingest to
-photos. `scrap ingest-once IMAGE` tries the Claude call on one image without a database and prints
-tokens, cost and counts only (`--save FILE` also writes the full result): the quickest check of a
-key and a model.
+photos.
 
 ## Worker
 
@@ -236,8 +234,7 @@ Claude seat, {ref}`below <on-a-claude-seat>`) and
 photo is sent as 2048×1536 and a square one as 1932×1932.
 
 The PWA itself shrinks a photo over 2560 px on the long edge (JPEG, quality 85) before it queues it, so
-the original that is stored is already that size; `scrap shrink` does the same for photos stored
-before ({ref}`scrap-shrink`).
+the original that is stored is already that size.
 
 The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
 rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
@@ -623,9 +620,8 @@ flowchart TD
     new one is read after the debounce like a user's note: Claude's own pages get model tags and
     a summary, and cost budget. `append_to` adds a section without a reading, as do tag and kind
     edits.
-  - An import ([](../how-to/import-a-vault.md)); use `--backfill`.
 - **Order.** The worker takes the oldest ready photo job first and runs a text page only when no
-  photo job is ready. After `scrap import --ingest` or a burst of photos, notes and links wait
+  photo job is ready. After a burst of photos, notes and links wait
   until the photo queue is empty, so "Waiting for Claude" on a note can last as long as the
   photos take, and several days if the daily budget spreads them out. A photo waiting out a
   retry delay does not hold text back, but a pause stops both kinds, and they share the one daily
@@ -1012,16 +1008,12 @@ holds what you sent to Claude, and your backups do too.
 
 | Command | Use |
 | --- | --- |
-| `scrap ingest-once IMAGE [--save FILE]` | Try one image against Claude with no database; numbers only unless `--save` |
 | `scrap enrich --backfill` | Queue the notes, todos and reads with no tags that Claude has not read; the service's worker runs them |
 | `scrap enrich --related [--all]` | Pick related pages now, in the command's process (the nightly pass) |
 | `scrap enrich --writeups [--all \| --outdated]` | Write Claude's write-up now, in the command's process, for each board page with none (`--all`: every board page; `--outdated`: each outdated one instead) |
 | `scrap enrich --topics [--all]` | Find topics now, in the command's process (the weekly pass), then queue each topic's synthesis that is due (`--all`: every topic's) for the service's worker |
-| `scrap import DIR --ingest` | Import a vault and also queue its images for Claude; see [](../how-to/import-a-vault.md) |
 
-The full option lists are in [](../reference/api.md). A large import with `--ingest` queues one
-job per image, so the daily budget decides how many days it takes; the queue works through them
-and pauses at the budget each day.
+The full option lists are in [](../reference/api.md).
 
 (ingest-troubleshooting)=
 ## Troubleshooting

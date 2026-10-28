@@ -31,7 +31,7 @@ from .jobs import (
     resume,
     spent_today,
 )
-from .ops import once, reprocess, resume_queue, status
+from .ops import reprocess, resume_queue, status
 from .worker import Call, Worker
 
 __all__ = [
@@ -53,7 +53,6 @@ __all__ = [
     "midnight_after",
     "notify",
     "now",
-    "once",
     "pause",
     "put_derived",
     "recover",

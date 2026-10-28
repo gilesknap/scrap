@@ -255,7 +255,7 @@ def test_a_kind_change_keeps_every_field(client, note):
         "personal": True, "summary": "s" * 200,
     }  # fmt: skip
     first = client.patch(url, json={"kind": "todo", "fields": imported}).json()
-    assert first["fields"] == imported  # values of any flat type, as the importer's
+    assert first["fields"] == imported  # values of any flat type
     there_and_back = [
         client.patch(url, json={"kind": kind}).json()["fields"]
         for kind in ("note", "consume", "todo")
