@@ -104,19 +104,32 @@ test("the first result shows under the open Filters panel at 390 px, 130%", asyn
   await seed(page, w, 4);
   await page.goto(`/search?q=${w}`);
   await large(page);
-  await filters(page, false); // Arrange folded, as it opens
+  const panel = await filters(page, false); // Arrange folded, as it opens
+  // The offers are fitted to two rows by a ResizeObserver once the panel shows (tagpick.ts),
+  // a frame after it opens or is drawn again: until then every chip is in it, and the results
+  // sit far lower (#415). Measured only once fitted
+  const offers = panel.getByRole("group", { name: "Tags in these results" });
+  const fitted = () =>
+    expect.poll(() => rowsOf(offers, page.locator("input"))).toBeLessThanOrEqual(2);
+  await fitted();
   const nav = page.locator("nav");
   await expect(nav).toBeVisible();
   const navTop = (await nav.boundingBox())?.y as number;
   await expect(results(page).first()).toContainText(w);
   const top = async () => ((await results(page).first().boundingBox()) as { y: number }).y;
-  // (polled: the chips are fitted to two rows once the fonts are in)
+  const under = async () => {
+    const box = (await panel.boundingBox()) as { y: number; height: number };
+    expect(await top()).toBeGreaterThanOrEqual(box.y + box.height); // under the panel
+  };
   await expect.poll(top).toBeLessThanOrEqual(navTop - 160); // well into view, not just its edge
+  await under();
   // With one (long) tag chosen the row's start still shows, at least a line above the nav (a long tag adds a wrapped chip row)
   await page.getByRole("button", { name: /^Filter by #topic0/ }).click();
   await expect(filtersButton(page)).toHaveAccessibleName("Filters, 1 on");
   await expect(results(page)).toHaveCount(1); // narrowed: drawn again
+  await fitted(); // (the panel is drawn again too)
   await expect.poll(top).toBeLessThanOrEqual(navTop - 100);
+  await under();
 });
 
 test("every chip says its tag's full path, never shortened", async ({ page }) => {
