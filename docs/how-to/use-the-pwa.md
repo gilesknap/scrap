@@ -158,6 +158,20 @@ stateDiagram-v2
   shows a page saying it was not saved if there is no connection either.
 - **Tabs.** Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.
 
+(text-size)=
+### Text size
+
+Settings → **Text size** sets how big scrap's text is on this device. **Phone**, the default,
+follows the phone's font size (Android's, or an iPhone's Text Size), never smaller than scrap's
+usual 17 px. **80%**, **90%**, **100%**, **115%** or **130%** set scrap's own size instead, 17 px
+times it, whatever the phone's font size is: smaller than the phone's if scrap looks too big.
+Everything sized from the text follows it (buttons, chips, the editor). The choice is kept on
+this device and applies at once.
+
+If scrap looks much bigger in the installed app than in a Chrome tab or another app, check
+Chrome's own zoom: Chrome, Settings, Accessibility, **Page zoom** (and Site settings, **Zoom**,
+for scrap's address). It applies on top of the font size.
+
 (smaller-photos)=
 ### Smaller photos
 

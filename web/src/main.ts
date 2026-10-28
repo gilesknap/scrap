@@ -275,11 +275,13 @@ addEventListener("scrap:wrote", dueSoon);
 
 // iPhone's text size, or Android's font size (text-scale), sets the root (css/base.css), but
 // never under scrap's 17 px: measured again when the app comes back, the setting may have
-// changed meanwhile
-const root = document.documentElement.style;
+// changed meanwhile. Not while Settings' text size sets it (data-text: theme-init.js)
+const html = document.documentElement;
+const root = html.style;
 const floor = () => {
+  if (html.dataset.text) return;
   root.fontSize = "";
-  if (parseFloat(getComputedStyle(document.documentElement).fontSize) < 17) root.fontSize = "17px";
+  if (parseFloat(getComputedStyle(html).fontSize) < 17) root.fontSize = "17px";
 };
 floor();
 
