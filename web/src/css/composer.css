@@ -285,12 +285,30 @@ button.more {
   color: var(--accent-ink);
 }
 
-/* Add photo's Camera and Gallery, in the page editor and the composer: each label on one line.
-   They share the row while both fit, else the row wraps and each takes a line of its own,
-   rather than a word a line inside a button twice as tall (large text sizes) */
+/* Camera, Gallery and File, in the page editor and the composer (adders.ts): one line of
+   three equal quiet buttons, an icon beside each word. Where three won't fit so (a narrow
+   phone at a large text size) each has its icon over its word, as the editor's keys do, and
+   the row stays one line, never wraps. The bar is the container its width is asked of. */
+.fields > .bar:has(> .add) {
+  flex-wrap: nowrap;
+  container-type: inline-size;
+}
 .bar .add {
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  gap: var(--s-1);
+  padding-inline: var(--s-1);
   white-space: nowrap;
+}
+/* Three equal buttons side by side need 3 x (a 20 px icon, 4 px between it and the word,
+   2 x 4 px of padding and 2 px of borders) and 2 x 8 px between them, 118 px, plus three
+   times the longest word ("Camera" at --t-sm is about 3.25rem; 3.5rem leaves room for
+   another font): at 100% text that is under 297 px, at 130% under 350 px */
+@container (width < calc(10.5rem + 118px)) {
+  .bar .add {
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.2;
+  }
 }
 /* The editor's and the composer's embeds (editor.ts embedded()): a chip each for the token that stands for
    it in the text, on one line under the fields that scrolls sideways, never taller. Its own

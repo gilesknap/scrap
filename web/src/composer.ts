@@ -1,9 +1,9 @@
 // The composer: a new capture's text, photos, kind and tags, in the editor. A chunk of its own with
 // the editor (loaded when it opens; the service worker keeps it for offline use). Its photos and
 // files are tokens in the text with a chip each, as the page editor's embeds are (pending.ts).
+import { adders, restore } from "./adders";
 import { overLimit, uploadLimit } from "./api";
 import { queue } from "./app";
-import { FILES, picker } from "./capture";
 import { drafts } from "./db";
 import {
   editor,
@@ -20,7 +20,7 @@ import {
 } from "./editor";
 import { DRAFT, FRESH, promote, recover } from "./fresh";
 import { embedBytes, tooLong } from "./pagecap";
-import { offTokens, pend, placeAt, placed, wire } from "./pending";
+import { placed, wire } from "./pending";
 import type { Capture } from "./queue";
 import { refused } from "./refused";
 import { split } from "./split";
@@ -91,33 +91,11 @@ export async function compose(picked: File[], as?: string, resume = false, given
   const todoNow = () => (todoLine.el.hidden ? null : todo.value());
   const dated = () => !!todoNow()?.due || !!todoNow()?.priority;
   // One capture, many photos (or files): from the camera (one at a time), the gallery or File,
-  // each a token where the caret is, a paragraph of its own
-  const add = (more: File[], at = text.selectionStart, to = text.selectionEnd) => {
-    const tokens = more.map((f) => {
-      const e = pend(f, em.list(), text.value);
-      em.add(e);
-      return e.token;
-    });
-    const c = placeAt(text.value, ...offTokens(text.value, at, to), tokens);
-    text.setRangeText(c.insert, c.from, c.to);
-    text.setSelectionRange(c.start, c.end);
-    text.dispatchEvent(new Event("input", { bubbles: true })); // its chips, and the draft kept
-  };
-  const adders = h(
-    "div",
-    { className: "bar" },
-    picker("Camera", true, add, "add"),
-    picker("Gallery", false, add, "add"),
-    picker("File", false, add, "add", FILES),
-  );
+  // each a token where the caret is, a paragraph of its own (adders.ts)
+  const { bar, add } = adders(text, em);
   // A draft's: each file with its token; one with none in the text (an older build's draft,
   // a caption and photos) gets one at the end, as the server would have put it
-  const lost: File[] = [];
-  kept?.files.forEach((f, i) => {
-    const token = kept.tokens?.[i];
-    if (token && text.value.includes(token)) em.add(pend(f, [], "", token));
-    else lost.push(f);
-  });
+  const lost = restore(em, text.value, kept?.files, kept?.tokens);
   const end = text.value.length;
   if (lost.length || picked.length) add([...lost, ...picked], end, end);
   em.show();
@@ -127,7 +105,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     // the text; Camera, Gallery and File under it, and the photos' and files' chips in sight
     read: em.value,
     before: [kind.el, todoLine.el, tagLine.el],
-    after: [adders],
+    after: [bar],
     foot: em.chips,
     key: hold ? FRESH : DRAFT,
     draft: (): Draft => ({

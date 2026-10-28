@@ -5,7 +5,7 @@ import sqlite3
 from typing import Any
 
 from ..markdown import tasks
-from .constants import KINDS, MAX_FIELDS, MAX_TAGS, REV_INSERT, TODO, Value
+from .constants import KINDS, MAX_FIELDS, MAX_TAGS, REV_INSERT, TODO, BlobRef, Value
 from .core import Core
 from .db import transaction
 from .errors import ConflictError, InvalidError
@@ -17,10 +17,13 @@ from .helpers import (
     clean_tags,
     fields_for,
     lines,
+    new_ulid,
     now,
+    placed,
 )
 from .indexing import debounce, enrich_on, queue_enrich
-from .roles import may_rekind, should_enrich
+from .photos import attach
+from .roles import may_rekind, should_enrich, takes_photos
 from .todo import write as write_todo
 
 
@@ -38,6 +41,8 @@ class EditsMixin(Core):
         todo: dict[str, str | None] | None = None,
         source: str = "web",
         tags_shown: list[str] | None = None,
+        uploads: list[BlobRef] | None = None,
+        cid: str | None = None,
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
         and/or its kind (the user's choice, which ingest then keeps), fields and tags
@@ -45,7 +50,15 @@ class EditsMixin(Core):
         (those given; None clears one). A change of kind or tags is a metadata
         revision (page_meta_rev) by author from source. tags_shown, if given, are the
         tags the editor started from: a tag Claude added since (not among them) is
-        kept, not retired."""
+        kept, not retired.
+
+        uploads are files sent with the edit (BlobRef, already in files/, in the order
+        sent): recorded on the page as a new capture (cid, else a new id) in the same
+        transaction as the text, and each token for one of them in body
+        (UPLOAD_TOKEN, helpers.placed) is its embed or link, so a conflict (409)
+        records none of them. They need a body."""
+        if uploads and (body is None or base_rev is None):
+            raise InvalidError("files are sent with the page's text and base_rev")
         if kind not in (None, *KINDS):
             raise InvalidError(f"kind must be one of {KINDS}")
         tags = None if tags is None else clean_tags(tags)
@@ -98,6 +111,13 @@ class EditsMixin(Core):
             ):
                 title = None  # unchanged since base_rev: keep a newer (model) title
             new_title = page["title"] if title is None else " ".join(title.split())
+            if uploads:  # the files' tokens in body become their embeds and links
+                if not takes_photos(conn, page["id"]):  # a topic (roles.takes_photos)
+                    raise InvalidError("Files can't be added to a topic page")
+                body = placed(lines(body or ""), uploads)
+                sent = now()
+                attach(conn, page["id"], cid or new_ulid(), uploads, author, "pwa",
+                       sent, sent)  # fmt: skip
             new_body: str = (
                 page["body"] if body is None else check_page(lines(body), page["body"])
             )

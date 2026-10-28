@@ -273,8 +273,9 @@ function dueSoon() {
 }
 addEventListener("scrap:wrote", dueSoon);
 
-// iPhone's text size sets the root (css/base.css), but never under scrap's 17 px: measured again
-// when the app comes back, the setting may have changed meanwhile
+// iPhone's text size, or Android's font size (text-scale), sets the root (css/base.css), but
+// never under scrap's 17 px: measured again when the app comes back, the setting may have
+// changed meanwhile
 const root = document.documentElement.style;
 const floor = () => {
   root.fontSize = "";
@@ -315,6 +316,20 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 watchScroll();
+// ?debug=1 or ?debug=0 in the address turns the panel on or off: the build line's five taps
+// need a build line, which a phone without the service worker's cache doesn't show
+const query = new URLSearchParams(location.search);
+const asked = query.get("debug");
+if (asked === "1" || asked === "0") {
+  kept(KEY, asked);
+  query.delete("debug"); // the other parameters, a saved search's q, stay
+  const rest = query.toString();
+  history.replaceState(
+    history.state,
+    "",
+    location.pathname + (rest ? `?${rest}` : "") + location.hash,
+  );
+}
 if (kept(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();

@@ -3,7 +3,8 @@
 // a page made before photos were embedded; not one whose embed was deleted). A figure opens the
 // photo viewer (every image of the page, in order), and its caption has the file's name,
 // Download and Ask Claude; once Claude has (or will have) seen it, its panel instead (ingest.ts).
-// Any other file is a plain row (filerow.ts).
+// Any other file is a plain row (filerow.ts), with its card under it if scrap reads it
+// (filecard.ts: a PDF, a text or Markdown file).
 import {
   ApiError,
   api,
@@ -16,13 +17,18 @@ import {
   shareable,
 } from "./api";
 import { plain } from "./app";
+import { fileCard } from "./filecard";
 import { fileRow } from "./filerow";
 import { PHOTO, photoPanel } from "./ingest";
-import { download, h, pageLink, settle, toast } from "./ui";
+import { h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
 type Placed = FileRef & { cid: string };
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
+// A file scrap reads for search (the server's FILE_TYPES), or one it has a reading of
+const READS = ["application/pdf", "text/plain", "text/markdown"];
+const readable = (f: FileRef) =>
+  !!(f.ingest && "kind" in f.ingest) || READS.includes(f.mime.split(";")[0].trim().toLowerCase());
 const SHA = /^[0-9a-f]{64}$/;
 
 /** Upgrade the images in body (rendered by render.ts) to figures; returns what goes below it. */
@@ -86,7 +92,6 @@ export function figures(
       share: f ? shareable(f) : [previewUrl(sha, 2048), `${sha.slice(0, 12)}.jpg`, "image/jpeg"],
     });
     const href = blobUrl(sha);
-    const save = download(`${href}?download=1`, "save");
     const img = settle(h("img", { src: photos[at - 1].src, alt: name, loading: "lazy" }));
     const open = (e: MouseEvent) => {
       if (!plain(e)) return; // Ctrl-click, middle click: the file in a new tab
@@ -95,7 +100,7 @@ export function figures(
     };
     // No caption: its name and Download are the viewer's, a tap away
     const fig = h("figure", { className: "orig" }, h("a", { href, onclick: open }, img));
-    img.onerror = () => fig.replaceWith(fileRow(href, name || "file", save)); // no preview
+    img.onerror = () => fig.replaceWith(fileRow(href, name || "file")); // no preview
     // Another page's file (Claude's results are that page's), or not an image (a PDF's sha in an
     // image embed): no panel and no Ask Claude
     if (!f || !isImage(f)) return fig;
@@ -140,7 +145,11 @@ export function figures(
   }
   const row = (f: Placed) => {
     const href = blobUrl(f.sha256);
-    return fileRow(href, f.filename || f.mime, download(`${href}?download=1`, "save"), f.ingest);
+    if (!readable(f)) return fileRow(href, f.filename || f.mime, f.ingest);
+    // A file scrap reads (a PDF, a text file): its card under it, as a photo's (filecard.ts),
+    // which says its pages and whether search finds it
+    const r = fileRow(href, f.filename || f.mime);
+    return fileCard({ cid: f.cid, blob: f, row: r, refresh });
   };
   for (const [para, f] of inPlace) para.replaceWith(row(f));
   return rest.map((f) => (isImage(f) ? figure(f.sha256, f.filename || "", f) : row(f)));

@@ -2,7 +2,8 @@
    from tokens.css, like src/css/*.css; buttons (css/controls.css), banners (.conflict, .restored;
    css/banners-toast.css) and links (button.link) are theirs. */
 
-.photo-panel {
+.photo-panel,
+.file-panel {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);

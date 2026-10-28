@@ -20,6 +20,40 @@ def addable(mime: str) -> bool:
     return mime.startswith("image/") or file_kind(mime) is not None
 
 
+def attach(
+    conn: sqlite3.Connection,
+    page_id: str,
+    cid: str,
+    blobs: list[Blob],
+    author: str,
+    source: str,
+    created_at: str,
+    stamp: str,
+) -> None:
+    """Record files (already in files/) on a page as a new capture cid, in conn's
+    transaction: their blob rows, a photo capture if any is an image (so its images go
+    to Claude, as Add photo's always have), else a file capture, its files in the order
+    sent, and their ingest jobs (a PDF or text file is read for search, #234). The
+    page's text is the caller's: gc, orphans and backup count the capture's files from
+    capture_blob, and the page lists below its text those the text does not show."""
+    images = any(mime.startswith("image/") for _, mime, *_ in blobs)
+    conn.executemany(
+        "INSERT INTO blob VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        [(sha, mime, size, stamp) for sha, mime, size, _ in blobs],
+    )
+    conn.execute(  # received now: after the page's other captures
+        "INSERT INTO capture VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?)",
+        (cid, "photo" if images else "file", source, author, created_at, stamp,
+         page_id),
+    )  # fmt: skip
+    conn.executemany(
+        "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
+        [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
+    )
+    conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
+                           "now": stamp})  # fmt: skip
+
+
 class PhotosMixin(Core):
     def add_photos(
         self,
@@ -63,25 +97,13 @@ class PhotosMixin(Core):
             body = "\n\n".join(x for x in (page["body"].rstrip(), *new) if x)
             if new:
                 body = check_page(body)  # before anything is written
-            conn.executemany(
-                "INSERT INTO blob VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
-                [(sha, mime, size, stamp) for sha, mime, size, _ in blobs],
-            )
-            conn.execute(  # received now: after the page's other captures
-                "INSERT INTO capture VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?)",
-                (cid, "photo" if images else "file", source, author,
-                 created_at or stamp, stamp, page["id"]),
-            )  # fmt: skip
-            conn.executemany(
-                "INSERT INTO capture_blob VALUES (?, ?, ?, ?)",
-                [(cid, i, sha, name) for i, (sha, _, _, name) in enumerate(blobs)],
+            attach(
+                conn, page["id"], cid, blobs, author, source, created_at or stamp, stamp
             )
             if new:  # a revision, as _put_text's, but no enrich: the photos' reading
                 self._append_text(
                     conn, page, body, author, stamp
                 )  # brings what follows
-            conn.execute(ENQUEUE, {"capture": cid, "photo": None, "options": "{}",
-                                   "now": stamp})  # fmt: skip
             added = self.page_in(conn, page["id"])
             return {**added, "appended_on": page["rev"] if images else None}, True
 
