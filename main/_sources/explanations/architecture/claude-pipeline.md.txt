@@ -57,7 +57,7 @@ flowchart LR
 | Job | Table and reason | Queued by | Calls | Result |
 |---|---|---|---|---|
 | Photo ingest | `job`, kind `ingest` | A photo capture, Reprocess, *Ask Claude* on one image | Vision model, one per distinct image | `derived` `ocr`, `description`, `excalidraw`; page title, tags and kind |
-| Enrich | `enrich_job` `capture`, `save`, `ask`, `backfill` | A text page save or link capture, *Ask Claude*, `scrap enrich --backfill` | Text model | `enrichment` summary, `model_tag` tags, a link's title |
+| Enrich | `enrich_job` `capture`, `save`, `ask`, `backfill` | A text page save or link capture, a file page's files read (`SCRAP_FILE_ENRICH=auto`: the start of their text is sent), *Ask Claude*, `scrap enrich --backfill` | Text model | `enrichment` summary, `model_tag` tags, a link's or file page's title |
 | Related | `enrich_job` `related` | A page's first read, *Ask Claude* (the nightly pass calls Claude in its own process) | Text model, candidates from tags and search | `related` rows (at most five per page) |
 | Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude* (`scrap enrich --writeups` calls Claude in its own process) | Vision model with the board photos | `writeup` version |
 | Topic | `enrich_job` `topic` | The weekly topics pass | Vision model | `writeup` version of a topic page |
@@ -192,8 +192,8 @@ For a board or diagram the photo call also returns Excalidraw skeleton elements 
 ## Settings and decisions
 
 Settings are in the [configuration table](../../reference/api.md): `SCRAP_INGEST`, `SCRAP_ENRICH`,
-`SCRAP_ENRICH_DEBOUNCE`, `SCRAP_BUDGET_DAY_USD`, `SCRAP_VISION_MODEL`, `SCRAP_TEXT_MODEL`,
-`SCRAP_TEXT_EFFORT`, `SCRAP_LLM_BACKEND`, `SCRAP_NOTIFY_URL`. Queue state is `GET /api/ingest` and
+`SCRAP_FILE_ENRICH`, `SCRAP_ENRICH_DEBOUNCE`, `SCRAP_BUDGET_DAY_USD`, `SCRAP_VISION_MODEL`,
+`SCRAP_TEXT_MODEL`, `SCRAP_TEXT_EFFORT`, `SCRAP_LLM_BACKEND`, `SCRAP_NOTIFY_URL`. Queue state is `GET /api/ingest` and
 `POST /api/ingest/resume`.
 
 | ADR | Decision |
@@ -206,6 +206,7 @@ Settings are in the [configuration table](../../reference/api.md): `SCRAP_INGEST
 | [0026](../decisions/0026-claude-appends-task-boxes-to-a-list-of-actions.md) | Claude appends task boxes to a list of actions |
 | [0027](../decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md) | Board write-ups apart from the text |
 | [0028](../decisions/0028-claude-maintained-topic-pages.md) | Claude-maintained topic pages |
+| [0038](../decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.md) | File text is sent to Claude on capture, bounded |
 
 More detail: {ref}`ingest-enrich` (text enrichment), {ref}`ingest-enrich-related`,
 {ref}`ingest-writeup`, {ref}`ingest-topics`, {ref}`ingest-spend` and {ref}`ingest-troubleshooting`

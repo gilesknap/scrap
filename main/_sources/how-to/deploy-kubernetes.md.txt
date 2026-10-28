@@ -232,6 +232,17 @@ extraEnv:
     value: "off"
 ```
 
+With enrich on, a page made from a PDF or text file also has the start of its text (at most
+4,000 characters, never the file) sent to Claude once it is read, for a title, tags and a summary
+([ADR 38](../explanations/decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.md)). To
+keep file text on the host unless you press **Ask Claude**, set `SCRAP_FILE_ENRICH` to `ask`:
+
+```yaml
+extraEnv:
+  - name: SCRAP_FILE_ENRICH
+    value: "ask"
+```
+
 With GitOps, create the Secret with whatever your cluster uses for secrets (Sealed Secrets,
 External Secrets, SOPS) under the same name; never commit the key. A changed Secret is not picked
 up by a running pod: `kubectl -n scrap rollout restart deploy/scrap`.

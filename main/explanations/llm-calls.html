@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>What Claude is asked, per page &#8212; scrap 0.16.1.dev19+g14a0163ea documentation</title>
+    <title>What Claude is asked, per page &#8212; scrap 0.17.1.dev1+g45b8adccf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7dd0ed6"></script>
+    <script src="../_static/documentation_options.js?v=f2aed266"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -819,6 +819,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html">38. File text is sent to Claude on capture, bounded</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -956,9 +957,9 @@ page’s: see the end. “Nightly” is the related-pages job and “weekly” t
 </tr>
 <tr class="row-odd"><td><p>File capture (PDF and the like)</p></td>
 <td><p>— (a PDF’s or text file’s text is read locally for search, no model: <a class="reference internal" href="ingest.html#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>)</p></td>
-<td><p>Ask only: sees the files’ text, so it gets tags, a summary when its text and the files’ text reach 200 characters, and, made from a file alone (no text sent with it, its title still the time it came), a title from it. An Ask that sends files’ text applies no list of actions at all, the owner’s own typed one included (a later save of a typed page still files it). A later save’s re-reading (a typed page with a PDF added), which does not see the files, keeps a summary an Ask made</p></td>
+<td><p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=auto</span></code> (the default), once, when the last file of its first capture is read, if at least 200 characters were read and it has no enrichment yet (not an import): sees the first 4,000 characters of its files’ text. On Ask: sees 8,000. Either way it gets tags, a summary when its text and the files’ text reach 200 characters, and, made from a file alone (no text sent with it, its title still the time it came), a title from it. A call that sends files’ text applies no list of actions at all, the owner’s own typed one included (a later save of a typed page still files it). With <code class="docutils literal notranslate"><span class="pre">ask</span></code>, Ask only. A file added to a page later never queues it; a later save’s re-reading (a typed page with a PDF added), which does not see the files, keeps a summary an Ask made</p></td>
 <td><p>—</p></td>
-<td><p>Nightly if changed; Ask. Only Ask’s related call sees the start of the files’ text; the nightly one sees title, tags, summary and text</p></td>
+<td><p>In the same job as that first enrich (sees 1,500 characters of the files’ text); nightly if changed; Ask (3,000). The nightly one sees title, tags, summary and text, never the files’</p></td>
 </tr>
 <tr class="row-even"><td><p>Whiteboard or document page typed, not photographed</p></td>
 <td><p>—</p></td>
@@ -976,13 +977,16 @@ page’s: see the end. “Nightly” is the related-pages job and “weekly” t
 </table>
 </div>
 <p>What each call sees. Enrich gets the page’s kind, tags, title and text as plain words (at most
-12,000 characters), what was read from its images (at most 8,000), on Ask what was read from its
-files (a PDF’s or text file’s text, at most 8,000) and, for a link, the fetched text. A file’s text
-goes to Claude only on Ask, the owner’s explicit act (<a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>):
-never on a save, a capture or the nightly pass. The summary is asked for when the text and the
-files’ text together reach 200 characters. Related gets the page in brief (title, tags, summary,
-the first 2,000 characters of its text, 3,000 of its images’ text, on Ask 3,000 of its files’ text,
-and 2,000 of its write-up) and an index of up to 150 candidates. The candidates are the pages
+12,000 characters), what was read from its images (at most 8,000), what was read from its files (a
+PDF’s or text file’s text: at most 8,000 on Ask, 4,000 on a file page’s own first reading) and, for
+a link, the fetched text. A file’s text goes to Claude on Ask, the owner’s explicit act, and, with
+<code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=auto</span></code> (the default), once, bounded, when a page made from files has them read
+(<a class="reference internal" href="decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html"><span class="std std-doc">38. File text is sent to Claude on capture, bounded</span></a>): never on a save, a file
+added to a page later, the nightly pass, a write-up or a topic. With <code class="docutils literal notranslate"><span class="pre">ask</span></code> only Ask sends it
+(<a class="reference internal" href="decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>). The summary is asked for when the text
+and the files’ text together reach 200 characters. Related gets the page in brief (title, tags,
+summary, the first 2,000 characters of its text, 3,000 of its images’ text, 3,000 of its files’
+text on Ask and 1,500 on that first reading, and 2,000 of its write-up) and an index of up to 150 candidates. The candidates are the pages
 sharing the most tags, then a full-text search (local) for 24 of the page’s words: title, tags and
 summary first, then its images’ text, their descriptions, its own text, and last its files’ text.
 Data is quoted in <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;files&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fetched&gt;</span></code> blocks, and any such tag inside
@@ -1057,59 +1061,64 @@ change the kind, title and tags by hand.</p>
 <tr class="row-even"><td><p>Maintainer</p></td>
 <td><p>ingest</p></td>
 <td><p>Its first capture is a photo or file (<code class="docutils literal notranslate"><span class="pre">INGEST_CAPTURES</span></code>)</p></td>
-<td><p>Photo ingest reads its images; enrich on Ask only</p></td>
+<td><p>Photo ingest reads its images; enrich on Ask only, but see the next row</p></td>
 </tr>
-<tr class="row-odd"><td><p>Pinned</p></td>
+<tr class="row-odd"><td><p>Maintainer</p></td>
+<td><p>ingest, a file page</p></td>
+<td><p>Its first capture is a file capture: a PDF or text file sent with no photo (<code class="docutils literal notranslate"><span class="pre">FILE_FIRST</span></code>, <code class="docutils literal notranslate"><span class="pre">file_first</span></code>)</p></td>
+<td><p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=auto</span></code>, one enrich, sent the start of its files’ text, once its first capture’s files are read (<a class="reference internal" href="decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html"><span class="std std-doc">ADR 38</span></a>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Pinned</p></td>
 <td><p>the Pinned page</p></td>
 <td><p>Its slug is <code class="docutils literal notranslate"><span class="pre">pinned</span></code> (<code class="docutils literal notranslate"><span class="pre">NOT_PINNED</span></code>): an owner’s page, made on the first pin</p></td>
 <td><p>Never read by enrich (on a save or backfill) or the related pass</p></td>
 </tr>
-<tr class="row-even"><td><p>Maintainer</p></td>
+<tr class="row-odd"><td><p>Maintainer</p></td>
 <td><p>enrich</p></td>
 <td><p>Its first capture is not a photo or file (<code class="docutils literal notranslate"><span class="pre">NOT_BY_INGEST</span></code>; <code class="docutils literal notranslate"><span class="pre">by_ingest</span></code> for a capture not yet stored), its kind is a note, todo or read, and it is not the Pinned page (<code class="docutils literal notranslate"><span class="pre">ENRICHED</span></code>, <code class="docutils literal notranslate"><span class="pre">should_enrich</span></code>)</p></td>
 <td><p>Enrich on capture, each save and backfill</p></td>
 </tr>
-<tr class="row-odd"><td><p>Write-up</p></td>
+<tr class="row-even"><td><p>Write-up</p></td>
 <td><p>board</p></td>
 <td><p>A current photo reading says whiteboard or diagram, not a list of actions (<code class="docutils literal notranslate"><span class="pre">HAS_BOARD</span></code>, <code class="docutils literal notranslate"><span class="pre">has_board</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup_type</span></code>)</p></td>
 <td><p>A write-up when its photos are read, and on Regenerate</p></td>
 </tr>
-<tr class="row-even"><td><p>Write-up</p></td>
+<tr class="row-odd"><td><p>Write-up</p></td>
 <td><p>topic</p></td>
 <td><p>A topic page (<code class="docutils literal notranslate"><span class="pre">IS_TOPIC</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup_type</span></code>)</p></td>
 <td><p>Its synthesis is its write-up</p></td>
 </tr>
-<tr class="row-odd"><td><p>Write-up</p></td>
+<tr class="row-even"><td><p>Write-up</p></td>
 <td><p>none</p></td>
 <td><p>Neither (<code class="docutils literal notranslate"><span class="pre">SHOWN</span></code> is false)</p></td>
 <td><p>No write-up; old versions are kept unseen</p></td>
 </tr>
-<tr class="row-even"><td><p>May retitle</p></td>
+<tr class="row-odd"><td><p>May retitle</p></td>
 <td><p>while untouched</p></td>
 <td><p>Its title is still revision 1’s and there is no later text revision (<code class="docutils literal notranslate"><span class="pre">TITLE_UNTOUCHED</span></code>)</p></td>
-<td><p>Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link’s title as captured; on Ask, a page whose first capture is a file’s with no text, from the files’ text (<code class="docutils literal notranslate"><span class="pre">FILE_UNTITLED</span></code>)</p></td>
+<td><p>Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link’s title as captured; on Ask or a file page’s first reading, a page whose first capture is a file’s with no text, from the files’ text (<code class="docutils literal notranslate"><span class="pre">FILE_UNTITLED</span></code>)</p></td>
 </tr>
-<tr class="row-odd"><td><p>May re-kind</p></td>
+<tr class="row-even"><td><p>May re-kind</p></td>
 <td><p>an unfiled note</p></td>
 <td><p>Its kind nobody chose (<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> 0) and a note (<code class="docutils literal notranslate"><span class="pre">UNFILED</span></code>, <code class="docutils literal notranslate"><span class="pre">may_rekind</span></code>)</p></td>
 <td><p>Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo</p></td>
 </tr>
-<tr class="row-even"><td><p>May re-kind</p></td>
+<tr class="row-odd"><td><p>May re-kind</p></td>
 <td><p>an unfiled note or whiteboard</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">may_rekind(...,</span> <span class="pre">(&quot;note&quot;,</span> <span class="pre">&quot;whiteboard&quot;))</span></code></p></td>
 <td><p>Task boxes from a photo’s list of actions file it a todo</p></td>
 </tr>
-<tr class="row-odd"><td><p>May re-kind</p></td>
+<tr class="row-even"><td><p>May re-kind</p></td>
 <td><p>an unfiled todo</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">may_rekind(...,</span> <span class="pre">(&quot;todo&quot;,))</span></code></p></td>
 <td><p>Claude’s own boxes taken off by Claude’s revert file it back as it was (a note, or ingest’s kind)</p></td>
 </tr>
-<tr class="row-even"><td><p>May re-tag</p></td>
+<tr class="row-odd"><td><p>May re-tag</p></td>
 <td><p>first capture</p></td>
 <td><p>Photo ingest: only the page’s first capture counts (<code class="docutils literal notranslate"><span class="pre">IS_FIRST</span></code>, <code class="docutils literal notranslate"><span class="pre">first_capture</span></code>)</p></td>
 <td><p>Photo ingest adds tags from the first capture’s first photo; enrich adds tags, never from a save. A tag the owner took off stays off</p></td>
 </tr>
-<tr class="row-odd"><td><p>Takes photos</p></td>
+<tr class="row-even"><td><p>Takes photos</p></td>
 <td><p>not a topic</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">takes_photos</span></code></p></td>
 <td><p>Add photo is refused on a topic page</p></td>

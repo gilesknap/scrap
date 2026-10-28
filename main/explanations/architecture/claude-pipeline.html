@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Job queue and Claude features &#8212; scrap 0.16.1.dev19+g14a0163ea documentation</title>
+    <title>Job queue and Claude features &#8212; scrap 0.17.1.dev1+g45b8adccf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=b7dd0ed6"></script>
+    <script src="../../_static/documentation_options.js?v=f2aed266"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -819,6 +819,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html">38. File text is sent to Claude on capture, bounded</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -967,9 +968,9 @@ result lands in a derived table.</p>
 </tr>
 <tr class="row-odd"><td><p>Enrich</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> <code class="docutils literal notranslate"><span class="pre">capture</span></code>, <code class="docutils literal notranslate"><span class="pre">save</span></code>, <code class="docutils literal notranslate"><span class="pre">ask</span></code>, <code class="docutils literal notranslate"><span class="pre">backfill</span></code></p></td>
-<td><p>A text page save or link capture, <em>Ask Claude</em>, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code></p></td>
+<td><p>A text page save or link capture, a file page’s files read (<code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=auto</span></code>: the start of their text is sent), <em>Ask Claude</em>, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code></p></td>
 <td><p>Text model</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">enrichment</span></code> summary, <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> tags, a link’s title</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">enrichment</span></code> summary, <code class="docutils literal notranslate"><span class="pre">model_tag</span></code> tags, a link’s or file page’s title</p></td>
 </tr>
 <tr class="row-even"><td><p>Related</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> <code class="docutils literal notranslate"><span class="pre">related</span></code></p></td>
@@ -1142,8 +1143,8 @@ Claude from their own process, one page at a time, under the same pause and budg
 <section id="settings-and-decisions">
 <h2>Settings and decisions<a class="headerlink" href="#settings-and-decisions" title="Link to this heading">#</a></h2>
 <p>Settings are in the <a class="reference internal" href="../../reference/api.html"><span class="std std-doc">configuration table</span></a>: <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>,
-<code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code>,
-<code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>. Queue state is <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code> and
+<code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH_DEBOUNCE</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_MODEL</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_TEXT_EFFORT</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>. Queue state is <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/ingest</span></code> and
 <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/ingest/resume</span></code>.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -1175,6 +1176,9 @@ Claude from their own process, one page at a time, under the same pause and budg
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../decisions/0028-claude-maintained-topic-pages.html"><span class="std std-doc">0028</span></a></p></td>
 <td><p>Claude-maintained topic pages</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html"><span class="std std-doc">0038</span></a></p></td>
+<td><p>File text is sent to Claude on capture, bounded</p></td>
 </tr>
 </tbody>
 </table>

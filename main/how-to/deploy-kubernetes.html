@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 0.16.1.dev19+g14a0163ea documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 0.17.1.dev1+g45b8adccf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7dd0ed6"></script>
+    <script src="../_static/documentation_options.js?v=f2aed266"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1150,6 +1150,15 @@ $3 per UTC day by default), and the pod then makes outbound HTTP and HTTPS reque
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">extraEnv</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_ENRICH</span>
 <span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">"off"</span>
+</pre></div>
+</div>
+<p>With enrich on, a page made from a PDF or text file also has the start of its text (at most
+4,000 characters, never the file) sent to Claude once it is read, for a title, tags and a summary
+(<a class="reference internal" href="../explanations/decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html"><span class="std std-doc">ADR 38</span></a>). To
+keep file text on the host unless you press <strong>Ask Claude</strong>, set <code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH</span></code> to <code class="docutils literal notranslate"><span class="pre">ask</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">extraEnv</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_FILE_ENRICH</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">"ask"</span>
 </pre></div>
 </div>
 <p>With GitOps, create the Secret with whatever your cluster uses for secrets (Sealed Secrets,

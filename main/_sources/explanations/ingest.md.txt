@@ -56,7 +56,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `ingest` | A photo in a capture | Text, description, kind, title, tags, drawing, task boxes | {ref}`ingest-call` |
 | `ingest` (a file) | A PDF or text file in any capture | Its text, for search, read locally: no model | {ref}`ingest-files` |
-| `enrich` (reason `enrich`) | A text capture or save, a link, Ask Claude | Tags, summary, link title, task boxes | {ref}`ingest-enrich` |
+| `enrich` (reason `enrich`) | A text capture or save, a link, Ask Claude; a file page's files read (`SCRAP_FILE_ENRICH=auto`) | Tags, summary, link title, task boxes (never from a file's text); a file page's title | {ref}`ingest-enrich` |
 | `enrich` (`related`) | First reading; nightly pass; Ask | Up to 5 related pages | {ref}`ingest-enrich-related` |
 | `enrich` (`writeup`) | A board photo read; Regenerate; Ask | A board's write-up | {ref}`ingest-writeup` |
 | `enrich` (`topic`) | Weekly pass; Regenerate; Ask | A topic page's synthesis | {ref}`ingest-topics` |
@@ -148,11 +148,14 @@ the resume.
 
 A PDF or a text file (`text/plain`, `text/markdown`; a `.md` or `.txt` sent with no type is typed
 by its name, scrap registering `.md` itself) in any capture (a capture, an import with ingest, a file added to a page, **Reprocess**) gets
-an ordinary `ingest` job, keyed by capture and SHA-256 as a photo's is. No model reads it: scrap
-extracts its text itself, so search finds words in it, and nothing is sent anywhere
-([](decisions/0035-files-are-read-locally-for-search.md)). To have a file summarised, press
-**Ask Claude** on its page (enrich then reads its text: {ref}`ingest-enrich`), or ask Claude over
-MCP: `read` gives its text.
+an ordinary `ingest` job, keyed by capture and SHA-256 as a photo's is. No model reads the file:
+scrap extracts its text itself, so search finds words in it
+([](decisions/0035-files-are-read-locally-for-search.md)). A page made from files (its first
+capture a file capture) is then summarised with no further step: with `SCRAP_FILE_ENRICH=auto`,
+the default, reading the last of that capture's files queues the page's enrich, sent the start of
+the text ({ref}`ingest-enrich`, [](decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.md)).
+With `ask`, or for a file added to a page later, press **Ask Claude** on its page, or ask Claude
+over MCP: `read` gives its text.
 
 - **PDF.** `pypdf` reads the text layer in a child process (`ingest/pdftext.py`, run by
   `ingest/files.py`) with a 60 s wall-clock timeout, a 512 MiB address-space cap and a CPU-time
@@ -188,12 +191,23 @@ MCP: `read` gives its text.
   checked against the budget, and `CLAIM` takes a file's job while the queue is paused (photos
   wait). Its success does not end a pause. `GET /api/ingest` counts its jobs with the photos'.
 - **Not a photo.** It has no part in a page's first reading or its write-up: reading it queues
-  no related call or write-up (`FIRST_READ`, the write-up's `DUE` and `charge` look at images'
+  no related job or write-up (`FIRST_READ`, the write-up's `DUE` and `charge` look at images'
   jobs only), and a page made from a PDF with a photo added later still gets its first related
   call when the photo is read. An image in a `file` capture is still not sent to Claude unless
-  asked. Only **Ask Claude** sends a file's text to Claude (enrich and its related call:
-  {ref}`ingest-enrich`); enrich on a capture or save, the nightly related pass and topics do not
-  read it.
+  asked. A file's text goes to Claude on **Ask Claude** and, with `SCRAP_FILE_ENRICH=auto`, in a
+  file page's first enrich (enrich and its related call: {ref}`ingest-enrich`); enrich on a save,
+  the nightly related pass, write-ups and topics do not read it.
+- **A file page's enrich** (`store.queue_after_file`, ADR 38). When a file's job is done or dead, the
+  page's enrich job (reason `capture`) is queued if `SCRAP_INGEST` and `SCRAP_ENRICH` are on,
+  `SCRAP_FILE_ENRICH` is `auto`, the file is in the page's first capture and that is a file
+  capture (no photo) not made by an import, none of its files waits or is being read, at least
+  200 characters were read from them and the page has no enrichment yet. That job, not the
+  file's, waits out a pause and the budget. A file that cannot be read (dead) sends nothing of
+  its own, though the capture's other files' text still goes; a scan or a short text is not
+  sent. Only the capture's own file jobs count (`job.created_at` is its `received_at`): a
+  **Reprocess** or **Retry** reads a file again but never sends it, so a file read before this,
+  with `ask`, or after a failure, is sent only by **Ask Claude** (no backfill). The job makes no
+  call if another job (an Ask) enriched the page meanwhile, or the setting has become `ask`.
 
 (ingest-call)=
 ## The Claude call
@@ -542,9 +556,9 @@ per-call contents are in [](llm-calls.md); in brief:
 | Call | Sent |
 | --- | --- |
 | Photo | The JPEG described above (a resized, re-encoded copy; only its colour profile is kept) and the fixed prompt. Nothing else about the page |
-| File (PDF, text) | Nothing: its text is read locally ({ref}`ingest-files`) |
-| Enrich | Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), on Ask what was read from its files (at most 8,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored) |
-| Related | The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up, on Ask the start of its files' text |
+| File (PDF, text) | Nothing: its text is read locally ({ref}`ingest-files`); the file itself is never sent |
+| Enrich | Kind, tags, title, text (at most 12,000 characters), what was read from its images (at most 8,000), what was read from its files (on Ask at most 8,000; on a file page's first reading, with `SCRAP_FILE_ENRICH=auto`, at most 4,000), the tags in use with counts (at most 600), and for a link its fetched text (at most 20,000, sent and not stored) |
+| Related | The page in brief and an index of up to 150 candidates (title, 6 tags, summary cut to 150 characters); for a board also the start of its write-up; the start of its files' text on Ask (3,000) and on a file page's first reading (1,500) |
 | Write-up | Up to 4 board JPEGs, what was read from them, the page's text (at most 6,000), the owner's guidance, and the related index |
 | Topic discovery | An index of up to 2,000 pages (title, 6 tags, summary) and the topics with their sources' numbers |
 | Topic synthesis | Up to 40 sources (title, kind, tags, summary, write-up, image text, text: 6,000 characters each, 60,000 in all), the owner's notes and guidance |
@@ -562,7 +576,7 @@ second job kind, `enrich` (`src/scrap/enrich/`), on the same worker thread, queu
 daily budget ([](decisions/0020-text-enrichment.md)). One tool-less call per page, structured output, schema-checked: Claude adds tags
 and a summary, and for a link a title. Related pages are a call of their own. Nothing edits the
 page's text, except that a confident list of actions gets task boxes appended
-({ref}`ingest-actions`), never on an Ask that sends a file's text. The schema is in
+({ref}`ingest-actions`), never on a call that sends a file's text. The schema is in
 [`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql).
 
 What queues an enrich job, and what follows it:
@@ -599,7 +613,9 @@ flowchart TD
   - A page whose first capture is a photo or file, even with a typed note (`should_enrich` in
     `store/roles.py`, #155): photo ingest reads the photo, and the page's first text reading
     comes with a later save of its title or text (or Ask Claude). Photos added to a text page
-    later leave it enrich's ({ref}`ingest-first-capture`).
+    later leave it enrich's ({ref}`ingest-first-capture`). The exception is a page made from
+    files: with `SCRAP_FILE_ENRICH=auto` its files' read queue its first reading
+    ({ref}`ingest-files`).
   - A whiteboard or document page: it is not read as text (#155).
   - Pages Claude Code adds with the MCP `write` tool count as notes, whatever their kind, so a
     new one is read after the debounce like a user's note: Claude's own pages get model tags and
@@ -617,18 +633,20 @@ flowchart TD
   text as plain words (at most 12,000 characters), each image's description and text as photo
   ingest read them (labelled by image, at most 8,000 characters in all, in an `<images>` block
   of their own), on Ask each file's text as file ingest read it (a PDF's or text file's,
-  labelled by file number and name, at most 8,000 characters in all, in a `<files>` block; only
-  Ask sends it, [](decisions/0035-files-are-read-locally-for-search.md)) and, for a link, what
-  was fetched. Everything there is data; the prompt says to follow nothing in it. A page with a
-  photo or file capture first reaches this call only by Ask Claude.
+  labelled by file number and name, at most 8,000 characters in all, in a `<files>` block) and
+  on a file page's first reading the same, at most 4,000 characters
+  ([](decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.md); no other call sends it),
+  and, for a link, what was fetched. Everything there is data; the prompt says to follow nothing
+  in it. A page with a photo or file capture first reaches this call only by Ask Claude, or, made
+  from files, by that first reading.
 - **Output, checked.** `tags`: cleaned like the user's, each at most 40 characters, at most 2 not
   already in use (invented ones are the sprawl risk), at most 5 added; `summary`: one paragraph,
   at most 600 characters, dropped for a note under 200 characters, its files' text counted
   (tagged, not summarised); `title`: 200 characters, for a link, and for a page made from a file
   alone (its first capture a file's with no text, its title still as made, `FILE_UNTITLED`)
   when its files' text was sent: the request then says "Write a title.", and the title replaces
-  the time it came while the title is untouched. On an Ask that sends files' text no list of
-  actions is applied at all, the owner's own typed one included (the files' text is a
+  the time it came while the title is untouched. On a call that sends files' text (Ask, or a
+  file page's first reading) no list of actions is applied at all, the owner's own typed one included (the files' text is a
   stranger's, maybe invisible in a PDF: no task boxes, no todo); a later save of a typed page
   still files its own list.
 - **The user wins.** Tags are added on the first reading, on Ask, on a capture and on backfill (a
@@ -659,7 +677,7 @@ flowchart TD
 
 `enrich.relate`, prompt `prompts/related.md`. One call per page: the page in
 brief (title, tags, summary, the start of its text, of what was read from its images, on Ask
-of its files' text, and of its write-up, if it has one) and a
+and a file page's first reading of its files' text, and of its write-up, if it has one) and a
 numbered index of candidate pages (title, up to 6 tags, summary cut to 150 characters); Claude
 answers with up to 5 index numbers, so it cannot name a page that is not there.
 
@@ -672,7 +690,8 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   usually fills the 24 before its text; a photo page, which usually has no summary (Ask can add one), is searched by what is written in the photo. A word
   search the index refuses is logged and skipped: the tag and recent candidates still go.
 - **When.** On Ask Claude, at once. Once when a page is first read: its first enrich (the run that
-  makes its `enrichment` row, unless that was an Ask), or photo ingest finishing the last photo
+  makes its `enrichment` row, unless that was an Ask or a file page's first reading, which pick
+  related pages in the same job, sent 1,500 characters of the files' text), or photo ingest finishing the last photo
   of its first photo capture (read, or dead after its third failure), queues an enrich job of
   reason `related` (with enrich on). A board page's comes after its write-up instead (when the
   write-up job is done, or dead), so it sees the write-up. It runs on the worker like any enrich job (pause, budget, retries). It never takes
@@ -1019,6 +1038,7 @@ and pauses at the budget each day.
 | `/healthz` returns 503 | The ingest thread has died | Read the logs and restart |
 | A note or link is never tagged | `SCRAP_ENRICH=off`, ingest off, the page is still inside the debounce, or photo jobs are queued ahead of it (text runs only when no photo job is ready) | Check the settings and `GET /api/ingest`; **Ask Claude** queues it now, but still behind ready photos |
 | A saved link has no summary or a poor title | The page could not be fetched or the site blocked scrap, so Claude had only the address and the user's text; the PWA does not show this | Read the reason ({ref}`ingest-inspect`, and the table in {ref}`ingest-fetch`); **Ask Claude** fetches the link again |
+| A PDF or text file page never gets a summary | `SCRAP_FILE_ENRICH=ask`; ingest or enrich off; under 200 characters read; a scan (no text layer) or a file that could not be read; the file was added to a page that existed (not its first capture); an import; the page was made before this was added, or its file read with `ask` on; or the file was read only by a **Reprocess** or **Retry** | **Ask Claude** on the page |
 | `scrap enrich --related` prints a note and does nothing | Ingest or enrich is off, or `ANTHROPIC_API_KEY` is not in the command's environment | Run it in the container (`podman exec scrap ...`) |
 
 ## Risks

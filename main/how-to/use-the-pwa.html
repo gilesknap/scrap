@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.16.1.dev19+g14a0163ea documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.17.1.dev1+g45b8adccf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b7dd0ed6"></script>
+    <script src="../_static/documentation_options.js?v=f2aed266"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1494,9 +1494,11 @@ changes the text.</p></li>
 <li><p>The page shows each photo where its line is, as a server-made preview (HEIC works), with no
 caption. Tap for the viewer. Files it does not show (PDFs) are rows below the text: the name
 (tap to open the file), a PDF’s page count once read, and <strong>Download</strong>. scrap reads a PDF’s
-text itself (no model), so search finds it. A scan, a password-protected or unreadable PDF, or
-one over 30 MB is kept and listed but not searchable: its row says <em>Text couldn’t be read; not
-searchable</em>.</p></li>
+text itself (no model), so search finds it. A page made from a PDF or text file then gets a
+title, tags and a summary from Claude, which is sent the start of that text (not with
+<code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=ask</span></code>: then press <strong>Ask Claude</strong>). A scan, a password-protected or
+unreadable PDF, or one over 30 MB is kept and listed but not searchable: its row says <em>Text
+couldn’t be read; not searchable</em>.</p></li>
 <li><p><strong>Viewer.</strong> Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
 drag to pan, swipe (or arrows) for other photos. <strong>Fit</strong>, <strong>100%</strong>, <strong>Download</strong> and <strong>Share</strong>
 are along the bottom; the cross at top right, or Back, closes. <strong>Share</strong> asks <strong>Link</strong> (the

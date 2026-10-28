@@ -4,7 +4,12 @@ Date: 2026-10-27
 
 ## Status
 
-Accepted
+Accepted. Its rule that a file's text goes to Claude only on **Ask Claude** (the Decision's "No
+model is called for a file, nothing about it is sent anywhere" and the #378 amendment's "Nothing
+else sends it", for enrich on a capture) is superseded by
+[](0038-file-text-is-sent-to-claude-on-capture-bounded.md): with `SCRAP_FILE_ENRICH=auto`, the
+default, a file page's first enrich is sent the start of its files' text. The rest of this
+decision remains.
 
 ## Context
 
