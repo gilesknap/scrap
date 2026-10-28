@@ -155,7 +155,7 @@ test("a capture the phone cannot store stays in the composer", async ({
   await pick(page, 3, "my caption");
   await expect(page.getByText(/Not saved: the phone refused to store it/)).toBeVisible();
   await expect(page.locator(".editor textarea")).toHaveValue("my caption\n\n⟦image 1⟧\n\n");
-  await expect(page.locator(".editor .embeds img")).toHaveCount(1);
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(1);
 });
 
 test("a share the phone cannot store goes to the server, or says so", async ({
@@ -221,7 +221,7 @@ test("several photos make one capture", async ({ page }) => {
   ]);
   expect(camera.isMultiple()).toBe(false);
   await camera.setFiles(png("d.png", 4));
-  await expect(page.locator(".editor .embeds img")).toHaveCount(3);
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(3);
   // The composer's camera is a real camera input, separate from the gallery picker.
   const cam = camera.element();
   const gal = gallery.element();
@@ -236,7 +236,7 @@ test("several photos make one capture", async ({ page }) => {
     page.locator(".editor").getByRole("button", { name: "Camera" }).click(),
   ]);
   await again.setFiles(png("d.png", 4)); // a second shot, after the first
-  await expect(page.locator(".editor .embeds img")).toHaveCount(4);
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(4);
   await caption(page, "three photos");
   await page.getByRole("button", { name: "Save" }).click();
   const search = async () => (await page.request.get("/api/search?q=three+photos")).json();
@@ -274,7 +274,7 @@ test("photos over the upload limit are saved separately, or split after a 413", 
   await caption(page, "limit test");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("1.4 MB of files is over the server's 1.0 MB limit")).toBeVisible();
-  await expect(page.locator(".editor .embeds img")).toHaveCount(2); // nothing lost
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(2); // nothing lost
   await page.getByRole("button", { name: "Save separately" }).click();
   await expect.poll(async () => (await pages()).length).toBe(1); // the text goes with the first
   await expect

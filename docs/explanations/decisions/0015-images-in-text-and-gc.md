@@ -20,7 +20,8 @@ and shared, so deleting one safely is harder than deleting a row.
   figures (viewer, Download, Ask Claude); images elsewhere stay inline. Files not embedded (PDFs,
   older pages) are listed under the text. Export points text at the exported files.
 - Amended (#403): a capture's text may place its own uploads with tokens, `⟦image N⟧` or
-  `⟦file N⟧` (N the upload's place in the request). The server puts that upload's embed there, or
+  `⟦file N⟧` (N the upload's place in the request), when the request asks (`place=1`, the
+  composer's; other clients' text is never read for tokens). The server puts that upload's embed there, or
   for a PDF or text file a `[name](/api/blobs/<sha>)` link (its row is then drawn in place, not
   listed under the text). Uploads with no token are added as before. The phone cannot write the
   address itself: a photo's bytes, and so its SHA-256, are final only once it is queued.

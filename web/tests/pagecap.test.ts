@@ -19,10 +19,12 @@ describe("the page size check", () => {
     expect(tooLong("x".repeat(MAX + 10), 0, true)).toBeNull();
   });
 
-  it("counts the embeds the server adds for photos", () => {
+  it("counts the embeds the server adds for photos, and the links for files (#403)", () => {
     const image = { type: "image/jpeg" };
-    expect(embedBytes([image, image, { type: "application/pdf" }])).toBe(200);
+    const pdf = { type: "application/pdf", name: "minutes.pdf" }; // [minutes.pdf](/api/blobs/<64>)
+    expect(embedBytes([image, image, pdf])).toBe(200 + 90);
     expect(embedBytes([{ type: "" }])).toBe(100);
+    expect(embedBytes([{ type: "text/plain", name: "é".repeat(30) }])).toBe(79 + 60);
     const text = "x".repeat(MAX - 150);
     expect(tooLong(text)).toBeNull();
     expect(tooLong(text, embedBytes([image, image]))).toContain("bytes");

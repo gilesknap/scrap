@@ -97,7 +97,7 @@ flowchart LR
 
 - **Embed form.** `![](/api/blobs/<sha>/preview?size=2048)`. A photo capture writes one per image,
   after its text, in order. Its text may instead place an upload with a token, `⟦image N⟧` or
-  `⟦file N⟧` (the composer's, #403): that upload's embed, or a PDF's or text file's
+  `⟦file N⟧`, when the request says so (`place=1`, the composer's, #403): that upload's embed, or a PDF's or text file's
   `[name](/api/blobs/<sha>)` link, goes there (`placed` in `store/helpers.py`). From then on the text is the
   user's: ingest never edits it, and reprocessing only adds derived versions.
 - **Previews** (`preview.py`) are JPEGs made on first request into `cache/previews`, decoded

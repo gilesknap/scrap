@@ -21,6 +21,12 @@ it("says the first line of words, without tokens or list marks, then the count",
   );
   expect(says("⟦image 1⟧\n⟦image 2⟧", [f("image/jpeg"), f("image/jpeg")])).toBe("2 photos");
   expect(says(undefined, [f("application/pdf")])).toBe("1 file");
+  // no words: its first file's name, as the draft (Files) or the queue ({name, blob}) has it
+  expect(says("", [new File(["x"], "minutes.pdf", { type: "application/pdf" })])).toBe(
+    "minutes.pdf · 1 file",
+  );
+  const queued = { name: "IMG_1.jpg", blob: new Blob(["x"], { type: "image/jpeg" }) };
+  expect(says("⟦image 1⟧", [queued, queued])).toBe("IMG_1.jpg · 2 photos");
   expect(says("", [])).toBe("");
   expect(says("https://example.com", [])).toBe("https://example.com");
 });

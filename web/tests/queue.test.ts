@@ -150,8 +150,8 @@ describe("queue", () => {
     const parts = await q.items();
     expect(parts.map((i) => [i.text, i.kind, i.files.map((f) => f.name), i.failed])).toEqual([
       ["board", "todo", ["a.jpg"], undefined],
-      [undefined, "todo", ["b.jpg"], undefined], // every part keeps the kind
-      [undefined, "todo", ["c.jpg"], undefined],
+      [undefined, undefined, ["b.jpg"], undefined], // one todo, not three (#403)
+      [undefined, undefined, ["c.jpg"], undefined],
     ]);
     expect(new Set(parts.map((i) => i.id)).size).toBe(3);
     expect(parts.map((i) => i.id)).not.toContain(big.id);
@@ -159,7 +159,7 @@ describe("queue", () => {
     expect(split({ source: "pwa", files: [] })).toEqual([]);
   });
 
-  it("gives every part of a split capture its kind and tags", () => {
+  it("gives every part of a split capture its tags; the kind only the first, with the text", () => {
     const photos = ["a", "b"].map((n) => ({ name: `${n}.jpg`, blob: new Blob([n]) }));
     const parts = split({ text: "t", tags: ["diy", "garden"], source: "pwa", files: photos });
     expect(parts.map((p) => p.tags)).toEqual([
@@ -170,15 +170,22 @@ describe("queue", () => {
     const kinds = split({ text: "t", kind: "todo", hint: "todo", source: "pwa", files: photos });
     expect(kinds.map((p) => [p.text, p.kind, p.hint])).toEqual([
       ["t", "todo", "todo"],
-      [undefined, "todo", "todo"],
+      [undefined, undefined, undefined],
     ]);
     expect(split({ source: "pwa", files: photos }).every((p) => !("kind" in p))).toBe(true);
     // a todo's due date and priority too
     const due = { due: "2026-11-01", priority: "high" };
-    const dated = split({ text: "t", kind: "todo", ...due, source: "pwa", files: photos });
-    expect(dated.map((p) => [p.due, p.priority])).toEqual([
-      ["2026-11-01", "high"],
-      ["2026-11-01", "high"],
+    const dated = split({
+      text: "t",
+      kind: "todo",
+      ...due,
+      place: "1",
+      source: "pwa",
+      files: photos,
+    });
+    expect(dated.map((p) => [p.due, p.priority, p.place])).toEqual([
+      ["2026-11-01", "high", "1"],
+      [undefined, undefined, undefined],
     ]);
     expect(split({ source: "pwa", files: photos }).every((p) => !("due" in p))).toBe(true);
   });

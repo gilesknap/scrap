@@ -76,13 +76,13 @@ flowchart LR
   PDFs, text and Markdown files. Each goes in the text where the cursor is, as a token
   (`⟦image 1⟧`, `⟦file 1: minutes.pdf⟧`) on a line of its own, with a chip under the text box, as
   in **Edit**: tap a chip to select its token (cut and paste it to move the photo), or **✕** to
-  remove it. Deleting a token removes its photo or file too. All of them and the text become one
+  remove it. Deleting a token removes its photo or file too (also from the draft: one cut to
+  move it is kept once pasted back). All of them and the text become one
   capture and one page, each photo or file where its token was. A file's text is read for search.
 - **Upload limit.** Photos and files together over the server's limit (50 MB,
   `SCRAP_MAX_UPLOAD_MB`; the app learns it from `/healthz`, so this works offline) make Save say
-  so: remove some, or **Save separately** (one capture per photo or file, text on the first, with
-  only that one's token). A
-  proxy may have a lower limit.
+  so: remove some, or **Save separately** (one capture per photo or file, the text, the kind and
+  a todo's due date on the first, with only that one's token). A proxy may have a lower limit.
 - **Tags.** The **Tags** line opens a tags box as on a page ([Tags](#tags)). The page is made with
   its tags, so search finds it at once, also when saved offline. Your tags on a photo are kept and
   Claude's join them on its first read (a later Regenerate adds tags only to a page with none).

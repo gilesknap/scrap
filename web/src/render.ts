@@ -176,6 +176,7 @@ function inline(children: Token[], state: StateCore): Token[] {
       } else if (FILE.test(href)) {
         // opened as a file row's is; the page's figures make one on a line of its own a row
         t.attrSet("target", "_blank");
+        t.attrSet("rel", "noopener");
         t.attrSet("data-sha", href.slice(11, 75));
       } else if (EXTERNAL.test(href)) {
         t.attrSet("target", "_blank");

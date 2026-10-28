@@ -186,6 +186,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
       priority: todoNow()?.priority ?? undefined,
       source: "pwa",
       files: files.map((f) => ({ name: f.name, blob: f })),
+      ...(files.length && { place: "1" as const }), // its tokens are its files' places (#403)
     };
     // Check the server's limit now: a capture it refuses could only be split or discarded.
     const size = files.reduce((n, f) => n + f.size, 0);

@@ -97,14 +97,17 @@ class CaptureMixin(Core):
             raise InvalidError("tags must be a list of strings")
         tags = clean_tags(tags)  # as an edit's
         # Its first line without a heading's #s ("# Trip notes" is titled Trip notes),
-        # and without the tokens that place its files (helpers.placed): text of tokens
-        # alone is no text, so ingest titles the page as for photos with none
-        words = untokened(text, len(mimes)) if text else ""
+        # and without the tokens that place its files (helpers.placed), if it asks for
+        # them (place: the composer's): text of tokens alone is no text, so ingest
+        # titles the page as for photos with none
+        place = data.get("place") in ("1", True) and bool(mimes)
+        words = untokened(text, len(mimes) if place else 0) if text else ""
         words = re.sub(r"\A(?:[ \t]*\n)+", "", words).rstrip()  # as _text keeps it
         first = words.splitlines()[0] if words else ""
         title = (HEADING.sub("", first).strip() or first)[:200] if words else url
         return {
             "id": cid, "kind": what, "text": text if words else None, "url": url,
+            "place": place,
             "source": source,
             "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),
             **todo,
@@ -123,13 +126,15 @@ class CaptureMixin(Core):
         """Save a prepared capture as a new page, with these tags (else the
         capture's own, if any). Returns its reference and whether it is new. blobs
         are (sha256, mime, size, filename), already in files/, in the order sent:
-        each token in the text for one of them is its embed (helpers.placed). They
+        if the capture asks (place), each token in its text for one of them is its
+        embed (helpers.placed). They
         are stored images first, each group in the order sent, so the first file
         (which ingest reads the page's title, tags and kind from) is an image whenever
         there is one (#380).
         """
-        body = placed(c["body"], blobs)
-        text = c["text"] and placed(c["text"], blobs)
+        uploads = blobs if c.get("place") else []
+        body = placed(c["body"], uploads)
+        text = c["text"] and placed(c["text"], uploads)
         blobs = sorted(blobs, key=lambda b: not b[1].startswith("image/"))
         cid, title, kind = c["id"], c["title"], c["page_kind"]
         tags = c.get("tags") if tags is None else tags

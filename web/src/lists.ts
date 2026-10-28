@@ -80,12 +80,11 @@ export async function pendingList(): Promise<Node> {
     "ul",
     { className: "list pending" },
     ...items.map((i) => {
-      const blobs = i.files.map((f) => f.blob);
-      const image = blobs.find((b) => b.type.startsWith("image/"));
+      const image = i.files.find((f) => f.blob.type.startsWith("image/"))?.blob;
       // Said as Capture's draft row says it (says.ts): "Trip · 2 photos, 1 file"
       const title =
-        (i.page && `${holds(blobs)} for ${i.to || "a page"}`) ||
-        says(i.text || i.url, blobs) ||
+        (i.page && `${holds(i.files)} for ${i.to || "a page"}`) ||
+        says(i.text || i.url, i.files) ||
         "capture";
       const lost = i.error === "connection lost" && !navigator.onLine; // as now, not as it failed
       const why = lost ? "offline" : (i.error ?? (navigator.onLine ? "uploading" : "offline"));

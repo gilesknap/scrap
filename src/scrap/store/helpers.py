@@ -162,7 +162,8 @@ def placed(text: str, blobs: list[BlobRef]) -> str:
         sha, mime, _, name = blobs[n - 1]
         if mime.startswith("image/"):
             return f"![](/api/blobs/{sha}/preview?size=2048)"
-        label = " ".join(CONTROL.sub(" ", re.sub(r"[\[\]]", "", name or "")).split())
+        name = re.sub(r"[\[\]\\]", "", name or "")  # no bracket, nor one escaped
+        label = " ".join(CONTROL.sub(" ", name).split())
         return f"[{label or 'file'}](/api/blobs/{sha})"
 
     return UPLOAD_TOKEN.sub(embed, text)

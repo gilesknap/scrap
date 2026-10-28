@@ -10,7 +10,9 @@ import type { Change } from "./listedit";
  * those in text or taken, images and files counted apart, as the editor counts them). */
 export function pend(file: File, taken: Embed[], text: string, token?: string): Embed {
   const image = file.type.startsWith("image/");
-  const name = short(file.name.replace(/[⟦⟧]/g, "")); // a bracket would end the token
+  // A bracket would end the token, a line break or control character split it
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: taken out of a name, on purpose
+  const name = short(file.name.replace(/[⟦⟧]/g, "").replace(/[\x00-\x1f]/g, " "));
   let n = Number(token?.match(/\d+/)?.[0]);
   if (!token) {
     n = 0;
@@ -52,14 +54,21 @@ export function placed(text: string, pending: Embed[]): Embed[] {
   return [...out];
 }
 
+// What the server reads as a token placing a file (store UPLOAD_TOKEN)
+const SERVER = /^⟦(?:image|file) [1-9]\d{0,3}(?::[^⟦⟧\n]*)?⟧$/;
+
 /** What Save sends: the files placed in text, in the order of their first token, and text with
  * each of their tokens as the server reads it, ⟦image N⟧ or ⟦file N⟧, N the file's place among
- * those sent (from 1). A file whose token was deleted is not sent; other text stays as it is. */
+ * those sent (from 1). A file whose token was deleted is not sent. With files sent, text that
+ * would read as such a token but is none of them (one pasted from another page's Edit) has
+ * plain brackets instead, [image 1], so the server cannot put a file there; other text stays as
+ * it is. */
 export function wire(text: string, pending: Embed[]): { text: string; files: File[] } {
   const sent = placed(text, pending);
   const out = text.replace(TOKEN, (t) => {
     const i = sent.findIndex((e) => e.token === t);
-    return i < 0 ? t : `⟦${sent[i].image ? "image" : "file"} ${i + 1}⟧`;
+    if (i >= 0) return `⟦${sent[i].image ? "image" : "file"} ${i + 1}⟧`;
+    return sent.length && SERVER.test(t) ? `[${t.slice(1, -1)}]` : t;
   });
   return { text: out, files: sent.map((e) => e.blob as File) };
 }

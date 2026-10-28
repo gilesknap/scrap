@@ -57,16 +57,17 @@ export function figures(
   const shown = new Set(
     runs.flatMap((el) => [...el.children].filter(own).map((i) => i.dataset.sha)),
   );
-  // A file of the page (a PDF, a .md) the text links to where it goes (the composer puts them
-  // there, #403): a link, or its row in place on a line of its own; not listed below as well
+  // A file of the page (a PDF, a .md) the text links to on a line of its own (the composer puts
+  // them there, #403): its row in place, not listed below as well. One linked mid-sentence is a
+  // link there and still has its row below (its Download, and a hint if it can't be searched).
   const inPlace: [HTMLElement, Placed][] = [];
   for (const a of body.querySelectorAll<HTMLAnchorElement>("a[data-sha]")) {
     const f = files.get(a.dataset.sha ?? "");
-    if (!f || isImage(f)) continue;
-    shown.add(f.sha256);
     const para = a.parentElement;
-    if (para?.tagName === "P" && para.textContent?.trim() === a.textContent?.trim())
-      inPlace.push([para, f]);
+    if (!f || isImage(f) || para?.tagName !== "P") continue;
+    if (para.textContent?.trim() !== a.textContent?.trim()) continue;
+    shown.add(f.sha256);
+    inPlace.push([para, f]);
   }
   // Not an image whose embed was deleted from the text: it went with its line
   const removed = new Set(p.removed);

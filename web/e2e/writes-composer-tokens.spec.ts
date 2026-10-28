@@ -60,6 +60,10 @@ async function pick(
   await (await chooser).setFiles(files);
 }
 const BAR = ".editor .fields > .bar";
+const id = () => {
+  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
+};
 const box = (page: Page) => page.locator(".editor textarea");
 const chips = (page: Page) => page.locator(".editor .embeds .embed");
 
@@ -231,4 +235,67 @@ test("an older build's draft (photos, no tokens) gets its tokens at the end of i
   expect(saved.body).toBe(
     `Old caption\n\n![](/api/blobs/${sha["old.png"]}/preview?size=2048)\n\n[old.pdf](/api/blobs/${sha["old.pdf"]})`,
   );
+});
+
+test("a token pasted from another page's Edit is plain text, not a place for a photo", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("Pasted ⟦image 1⟧ here");
+  await pick(page, BAR, "Gallery", [photo("p.png")]);
+  await expect(box(page)).toHaveValue("Pasted ⟦image 1⟧ here\n\n⟦image 2⟧\n\n");
+  await expect(chips(page)).toHaveText(["Image 2"]);
+  const saved = await read(page, await save(page));
+  const sha = saved.captures[0].blobs[0].sha256;
+  expect(saved.body).toBe(`Pasted [image 1] here\n\n![](/api/blobs/${sha}/preview?size=2048)`);
+});
+
+test("a file linked mid-sentence keeps its row below the text; one alone on its line is its row there", async ({
+  page,
+}) => {
+  const made = await page.request.post("/api/captures", {
+    multipart: {
+      id: id(),
+      text: "See ⟦file 1⟧ for the terms.\n\n⟦file 2⟧",
+      place: "1",
+      file: pdf("terms.pdf", "terms"),
+    },
+  });
+  // (one file part per request with this API: the second file is added to the page)
+  expect(made.status()).toBe(201);
+  const ref = (await made.json()) as { page_id: string; slug: string };
+  const saved = await read(page, ref.page_id);
+  const sha = saved.captures[0].blobs[0].sha256;
+  expect(saved.body).toBe(`See [terms.pdf](/api/blobs/${sha}) for the terms.\n\n⟦file 2⟧`);
+  await page.goto(`/p/${ref.slug}`);
+  await expect(page.locator(`a[data-sha="${sha}"]`)).toHaveText("terms.pdf");
+  await expect(page.locator(".originals .filerow")).toHaveCount(1); // its Download, its hint
+  // Alone on its line: its row there instead, not below
+  const body = `${saved.body.split("\n\n")[0]}\n\n[terms.pdf](/api/blobs/${sha})`;
+  await page.request.patch(`/api/pages/${ref.page_id}`, { data: { base_rev: 1, body } });
+  await page.reload();
+  await expect(page.locator(".filerow")).toHaveCount(1);
+  await expect(page.locator(".originals .filerow")).toHaveCount(0);
+});
+
+test("a chip whose preview fails keeps the file icon as the text changes", async ({ page }) => {
+  const made = await page.request.post("/api/captures", {
+    multipart: { id: id(), text: "Scan", file: pdf("scan.pdf", "x") },
+  });
+  const ref = (await made.json()) as { page_id: string; slug: string };
+  const sha = (await read(page, ref.page_id)).captures[0].blobs[0].sha256;
+  // An image embed of a PDF: the server draws no preview for it
+  const body = `Scan\n\n![](/api/blobs/${sha}/preview?size=2048)`;
+  await page.request.patch(`/api/pages/${ref.page_id}`, { data: { base_rev: 1, body } });
+  await page.goto(`/p/${ref.slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(chips(page)).toHaveText(["Image 1"]);
+  await expect(chips(page).locator("img")).toHaveCount(0); // the file icon
+  await page.getByLabel("Body").press("End");
+  await page.keyboard.type(" more");
+  await expect(chips(page).locator("img")).toHaveCount(0); // still, not the broken image again
+  await expect(chips(page).locator("svg")).toHaveCount(2); // its icon and its ✕
+  page.once("dialog", (d) => d.accept()); // discard the change
+  await page.getByRole("button", { name: "Cancel" }).click();
 });

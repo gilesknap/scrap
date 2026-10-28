@@ -38,6 +38,8 @@ describe("pend", () => {
     const e = pend(pdf(), [], "", "⟦file 4: minutes.pdf⟧");
     expect([e.token, e.n]).toEqual(["⟦file 4: minutes.pdf⟧", 4]);
     expect(pend(pdf("a⟦b⟧.pdf"), [], "").token).toBe("⟦file 1: ab.pdf⟧");
+    // a line break or control character would split it: a space instead
+    expect(pend(pdf("a\nb\r\tc.pdf"), [], "").token).toBe("⟦file 1: a b  c.pdf⟧");
   });
 });
 
@@ -74,14 +76,23 @@ describe("wire", () => {
     const text = `Trip\n\n${b.token}\n\n${c.token}\n\nthen ${a.token} and ${c.token} ⟦image 9⟧`;
     const out = wire(text, [a, b, c, unused]);
     expect(out.files.map((f) => f.name)).toEqual(["minutes.pdf", "c.jpg", "a.jpg"]);
-    // the unused (its token deleted) is not sent; a token for no file stays as typed
+    // the unused (its token deleted) is not sent; one for no file is plain brackets
     expect(out.text).toBe(
-      "Trip\n\n⟦file 1⟧\n\n⟦image 2⟧\n\nthen ⟦image 3⟧ and ⟦image 2⟧ ⟦image 9⟧",
+      "Trip\n\n⟦file 1⟧\n\n⟦image 2⟧\n\nthen ⟦image 3⟧ and ⟦image 2⟧ [image 9]",
     );
     expect(placed(text, [a, b, c, unused])).toEqual([b, c, a]);
   });
 
   it("leaves text with no files as it is", () => {
-    expect(wire("just words", [])).toEqual({ text: "just words", files: [] });
+    expect(wire("just words ⟦image 1⟧", [])).toEqual({ text: "just words ⟦image 1⟧", files: [] });
+  });
+
+  it("makes a token pasted from another page's Edit plain brackets, so no file goes there", () => {
+    const a = pend(photo("a.jpg"), [], "⟦image 1⟧");
+    expect(a.token).toBe("⟦image 2⟧");
+    const text = `⟦image 1⟧ and ⟦file 3: scan.pdf⟧ pasted, ${a.token} mine, ⟦not a token⟧`;
+    expect(wire(text, [a]).text).toBe(
+      "[image 1] and [file 3: scan.pdf] pasted, ⟦image 1⟧ mine, ⟦not a token⟧",
+    );
   });
 });

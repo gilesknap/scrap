@@ -1,8 +1,9 @@
 # pyright: reportOptionalSubscript=false
-"""A capture's text placing its own uploads with tokens (#403): ⟦image N⟧ and
-⟦file N⟧ (⟦file N: name⟧ too), N the upload's place among the request's files from 1,
-become that upload's embed or link where they stand; uploads with no token are added as
-before (an image's embed at the end, a file listed below the text)."""
+"""A capture's text placing its own uploads with tokens (#403): with place=1 (the
+composer's), ⟦image N⟧ and ⟦file N⟧ (⟦file N: name⟧ too), N the upload's place among
+the request's files from 1, become that upload's embed or link where they stand; uploads
+with no token are added as before (an image's embed at the end, a file listed below the
+text). Without place=1 a capture is exactly as before."""
 
 from contextlib import closing
 
@@ -26,8 +27,12 @@ def client(app):
     return TestClient(app)
 
 
-def post(client, text, *parts: tuple[str, bytes, str], **extra):
+def post(
+    client, text, *parts: tuple[str, bytes, str], place: str | None = "1", **extra
+):
     data = {"id": new_ulid(), **({"text": text} if text is not None else {}), **extra}
+    if place:
+        data["place"] = place
     files = [("file", part) for part in parts]
     r = client.post("/api/captures", data=data, files=files)
     assert r.status_code == 201, r.text
@@ -95,6 +100,26 @@ def test_uploads_with_no_token_are_added_as_before(client):
     assert "minutes.pdf" not in page["body"]
 
 
+def test_without_place_tokens_are_text_as_before(client):
+    """An older client, the share target or any other: text that looks like a token
+    stays as typed, and the uploads are added as ever."""
+    page = post(client, "⟦image 1⟧ Trip ⟦file 2⟧", PHOTO, PDF, place=None)
+    sha = shas(page)["a.jpg"]
+    assert page["body"] == f"⟦image 1⟧ Trip ⟦file 2⟧\n\n{image(sha)}"
+    assert page["title"] == "⟦image 1⟧ Trip ⟦file 2⟧"
+    assert page["captures"][0]["text"] == "⟦image 1⟧ Trip ⟦file 2⟧"
+    shared = client.post(
+        "/share",
+        data={"text": "Shared ⟦image 1⟧"},
+        files=[("files", PHOTO)],
+        follow_redirects=False,
+    )
+    assert shared.status_code == 303
+    [hit] = client.get("/api/search", params={"q": "Shared"}).json()
+    body = client.get(f"/api/pages/{hit['id']}").json()["body"]
+    assert body.startswith("Shared ⟦image 1⟧\n\n![](/api/blobs/")
+
+
 def test_an_old_client_without_tokens_is_unchanged(client):
     page = post(client, "Caption", PHOTO, PDF, PHOTO2)
     s = shas(page)
@@ -121,9 +146,11 @@ def test_a_token_twice_embeds_twice(client):
 
 
 def test_a_names_brackets_are_left_out_of_its_link(client):
-    page = post(client, "⟦file 1⟧", ("a [draft]  v2.pdf", pdf("x"), "application/pdf"))
+    page = post(
+        client, "⟦file 1⟧", ("a [draft]  v2\\.pdf\\", pdf("x"), "application/pdf")
+    )
     sha = next(iter(shas(page).values()))
-    assert page["body"] == f"[a draft v2.pdf](/api/blobs/{sha})"
+    assert page["body"] == f"[a draft v2.pdf](/api/blobs/{sha})"  # no ] escaped either
 
 
 def test_text_of_tokens_alone_is_titled_as_no_text(client):

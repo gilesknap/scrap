@@ -18,14 +18,15 @@ export const firstOnly = (text: string) =>
     })
     .join("\n");
 
-/** One capture per file, the text (with that file's token only) with the first. Each page gets
- * the tags and the kind (or an older build's hint), if any. */
+/** One capture per file, the text (with that file's token only) with the first, and with it
+ * the kind (or an older build's hint) and a todo's due date and priority: one todo, not one per
+ * photo. Each page gets the tags. */
 export const split = (c: Capture): Capture[] =>
   c.files.map((f, i) => {
     const text = !i && c.text ? firstOnly(c.text) : undefined;
     const part: Capture = { ...(!i && { text, url: c.url }), source: c.source, files: [f] };
-    // The text once; the kind, its due date and priority, and the tags on every part
-    for (const k of ["kind", "hint", "tags", "due", "priority", "page", "to"] as const)
-      if (c[k]) Object.assign(part, { [k]: c[k] });
+    const keys = ["tags", "page", "to"] as const;
+    const first = ["kind", "hint", "due", "priority", "place"] as const;
+    for (const k of i ? keys : [...keys, ...first]) if (c[k]) Object.assign(part, { [k]: c[k] });
     return part;
   });

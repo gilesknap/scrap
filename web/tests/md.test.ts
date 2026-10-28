@@ -349,7 +349,7 @@ describe("a page here by its full address (#288)", () => {
     expect(one("[x](/api/blobs/x)")).toBe("<p>x</p>");
     // one of this server's files, by its full address: a link, opened as a file (#403)
     expect(one(`[a.pdf](/api/blobs/${SHA})`)).toBe(
-      `<p><a href="/api/blobs/${SHA}" target="_blank" data-sha="${SHA}">a.pdf</a></p>`,
+      `<p><a href="/api/blobs/${SHA}" target="_blank" rel="noopener" data-sha="${SHA}">a.pdf</a></p>`,
     );
     expect(one(`[x](/api/blobs/${SHA}/../x)`)).toBe("<p>x</p>");
   });

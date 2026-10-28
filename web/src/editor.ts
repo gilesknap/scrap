@@ -111,13 +111,19 @@ export function embedded(text: HTMLTextAreaElement) {
   // preview that won't come (not a photo the server can draw, offline): the file icon
   const thumbs = new Map<Embed, Element>();
   const thumb = (e: Embed) => {
-    let img = thumbs.get(e);
-    if (!img) {
-      img = e.blob ? blobImg(e.blob) : h("img", { src: previewUrl(e.sha, 480), alt: "" });
-      (img as HTMLImageElement).onerror = () => img?.replaceWith(icon("file"));
-      thumbs.set(e, img);
+    let el = thumbs.get(e);
+    if (!el) {
+      const img = e.blob ? blobImg(e.blob) : h("img", { src: previewUrl(e.sha, 480), alt: "" });
+      img.onerror = () => {
+        if (e.blob) URL.revokeObjectURL(img.src); // as blobImg's own, which this replaces
+        const file = icon("file");
+        thumbs.set(e, file); // the icon from now on, not the broken image again
+        img.replaceWith(file);
+      };
+      el = img;
+      thumbs.set(e, el);
     }
-    return img;
+    return el;
   };
   let embeds: Embed[] = [];
   // A tap keeps the keyboard as it is, as the editor's keys do
