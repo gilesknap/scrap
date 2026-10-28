@@ -17,6 +17,11 @@ MD_LINK = re.compile(
 WIKI_LINK = re.compile(r"\[\[([^\[\]|\n]+)(?:\|([^\[\]\n]+))?\]\]")
 # A file's address in a page's text (see body_refs). Linear: no backtracking.
 BLOB_ADDRESS = re.compile(r"/api/blobs/([0-9a-f]{64})")
+# A capture's token for one of its own uploads in its text (helpers.placed):
+# ⟦image N⟧ or ⟦file N⟧ (⟦file N: name⟧ too), N the upload's place among the
+# request's files from 1. The word is a hint for the reader; the stored type decides
+# the embed. Linear.
+UPLOAD_TOKEN = re.compile(r"⟦(?:image|file) ([1-9][0-9]{0,3})(?::[^⟦⟧\n]*)?⟧")
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 # The kinds a page can have (the schema allows only these), and the fields a page gets
 # when it becomes that kind
