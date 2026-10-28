@@ -32,6 +32,8 @@ from .checking import (
     record,
 )
 from .constants import (
+    AUTO_FILES,
+    AUTO_RELATED_FILES,
     BOARDS,
     BY_TAGS,
     BY_WORDS,
@@ -201,6 +203,8 @@ __all__ = [
     "cited",
     "writeup_message",
     "writeup_prompt",
+    "AUTO_FILES",
+    "AUTO_RELATED_FILES",
     "BY_TAGS",
     "BY_WORDS",
     "CANDIDATES",

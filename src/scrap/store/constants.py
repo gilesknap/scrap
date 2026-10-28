@@ -115,6 +115,9 @@ META_REV = (
 # The files ingest reads locally for search (#234): a PDF's text layer, a text file's
 # text. No model reads them. A blob's type as stored, without parameters (charset=).
 FILE_TYPES = ("application/pdf", "text/plain", "text/markdown")
+# Characters: a shorter note gets tags but no summary from enrich, and a file page
+# whose files' text is shorter is not sent to Claude unasked (ADR 38)
+SHORT = 200
 IS_FILE = (
     "lower(trim(substr({b}.mime, 1, instr({b}.mime || ';', ';') - 1))) IN ("
     + ", ".join(f"'{t}'" for t in FILE_TYPES)

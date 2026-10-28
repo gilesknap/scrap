@@ -13,9 +13,10 @@ from .constants import (
     ENRICH_ENQUEUE,
     FIRST_READ,
     RELATED_ENQUEUE,
+    SHORT,
 )
 from .helpers import now, unlink
-from .roles import has_board
+from .roles import IS_FIRST, has_board
 from .writeups import current as current_writeup
 from .writeups import due as writeup_due
 from .writeups import shown as shown_writeup
@@ -73,6 +74,20 @@ def enrich_on() -> bool:
     return ingest and os.environ.get("SCRAP_ENRICH", "on").lower() in on
 
 
+FILE_ENRICH = ("auto", "ask")
+
+
+def file_enrich() -> str:
+    """Whether a file page's text goes to Claude unasked, from SCRAP_FILE_ENRICH: auto
+    (the default: once, bounded, when its first capture's files are read) or ask (only
+    on Ask Claude). Empty counts as unset; anything else stops scrap at start (ADR 38).
+    """
+    value = os.environ.get("SCRAP_FILE_ENRICH", "").strip().lower() or "auto"
+    if value not in FILE_ENRICH:
+        raise SystemExit(f"SCRAP_FILE_ENRICH must be auto or ask, not {value[:20]!r}")
+    return value
+
+
 def debounce() -> float:
     """Seconds an enrich job waits after a save, so a burst of edits makes one call."""
     try:
@@ -114,6 +129,41 @@ def queue_related_on_read(conn: sqlite3.Connection, capture_id: str) -> None:
     row = conn.execute(FIRST_READ, {"capture": capture_id}).fetchone()
     if row is not None:
         queue_related(conn, row[0])
+
+
+# A file page's first capture :capture, once none of its files waits or is being read,
+# with at least :short characters read from them, made by a capture, not an import, and
+# no enrichment yet: its page, else nothing. A file added to another page is not one.
+# The file job :job must be one the capture made (in its transaction, at its
+# received_at), not one a Reprocess or Retry queued later: those are Ask only (no
+# backfill, ADR 38). A charged failure retried is the same job, so it still counts.
+FILE_READ = f"""
+SELECT c.page_id FROM capture c JOIN page p ON p.id = c.page_id
+WHERE c.id = :capture AND c.kind = 'file' AND c.source <> 'import'
+  AND p.deleted_at IS NULL AND {IS_FIRST.format(c="c")}
+  AND EXISTS (SELECT 1 FROM job t WHERE t.id = :job AND t.capture_id = c.id
+              AND t.created_at = c.received_at)
+  AND NOT EXISTS (SELECT 1 FROM job j WHERE j.capture_id = c.id
+                  AND j.state IN ('queued', 'running'))
+  AND NOT EXISTS (SELECT 1 FROM enrichment e WHERE e.page_id = c.page_id)
+  AND (SELECT coalesce(sum(length(trim(d.text))), 0) FROM derived d
+       WHERE d.capture_id = c.id AND d.kind = 'ocr'
+         AND d.superseded_at IS NULL) >= :short
+"""
+
+
+def queue_after_file(conn: sqlite3.Connection, capture_id: str, job_id: int) -> None:
+    """After file ingest read (or gave up on) one of a capture's files, by its job
+    job_id: with enrich on and SCRAP_FILE_ENRICH auto, the page's enrich job (reason
+    capture: it is sent the files' text, bounded) if that was the last of a file
+    page's first capture to read, by the capture's own job (FILE_READ, ADR 38). Its
+    first related call follows in the same job."""
+    if not enrich_on() or file_enrich() != "auto":
+        return
+    args = {"capture": capture_id, "job": job_id, "short": SHORT}
+    row = conn.execute(FILE_READ, args).fetchone()
+    if row is not None:
+        queue_enrich(conn, row[0], "capture")
 
 
 def queue_writeup(conn: sqlite3.Connection, page_id: str) -> None:

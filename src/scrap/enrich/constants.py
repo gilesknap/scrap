@@ -7,6 +7,7 @@ from .. import claude
 from ..query import MEDIA
 from ..store import health, roles, writeups
 from ..store.constants import IS_FILE
+from ..store.constants import SHORT as SHORT  # characters: see there
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -83,13 +84,14 @@ DELIMITERS = (
 DELIMITER = re.compile(
     r"<(?=\s*/?\s*(?:" + "|".join(DELIMITERS) + r")\b)", re.IGNORECASE
 )
-SHORT = 200  # characters: a shorter note gets tags but no summary
 MAX_BODY = 12_000  # characters of the page's text sent
 MAX_IMAGES = 8_000  # characters of what was read from its images (descriptions, text)
-MAX_FILES = 8_000  # and from its files (a PDF's or text file's text, #378)
+MAX_FILES = 8_000  # and from its files (a PDF's or text file's text, #378), on Ask
+AUTO_FILES = 4_000  # and on a file page's own reading, unasked (ADR 38)
 RELATED_BODY = 2_000  # the related call's start of the page's text
 RELATED_IMAGES = 3_000  # and of what was read from its images
-RELATED_FILES = 3_000  # and from its files
+RELATED_FILES = 3_000  # and from its files, on Ask
+AUTO_RELATED_FILES = 1_500  # and on a file page's own reading, unasked (ADR 38)
 RELATED_WRITEUP = 2_000  # and of its write-up
 MAX_BOARDS = 4  # board images a write-up call is sent (the photos themselves)
 WRITEUP_BODY = 6_000  # characters of the page's own text a write-up call is sent

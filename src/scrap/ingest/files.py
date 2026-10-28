@@ -10,7 +10,9 @@ attached. A transient failure (the child not starting, a timeout under load) is 
 and retried, three times at most (jobs.charge). A file already read (same hash, same
 reader) is not parsed again: its text is copied. No budget, no pause and no model_run:
 a file's job is not held by a paused queue (CLAIM), and has no part in a page's first
-read or write-up.
+read or write-up. With SCRAP_FILE_ENRICH auto, reading the last file of a file page's
+first capture queues the page's enrich, which sends the start of its text (ADR 38):
+that job, not this one, is held by a pause and the budget.
 """
 
 import json
@@ -26,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from ..query import CONTROL
-from ..store import MAX_PAGE, SURROGATE, Store, now, transaction
+from ..store import MAX_PAGE, SURROGATE, Store, now, queue_after_file, transaction
 from ..store.helpers import file_kind
 from . import pdftext
 from .jobs import charge, kill, put_derived
@@ -172,6 +174,8 @@ def process(store: Store, job: sqlite3.Row, mime: str) -> None:
                 kill(conn, job["id"], now(), str(error))
             elif _running(conn, job["id"]):
                 charge(conn, job["id"], cls, now(), message)
+            # the capture's other files may have been read: its page's enrich
+            queue_after_file(conn, job["capture_id"], job["id"])
 
 
 def _running(conn: sqlite3.Connection, job_id: int) -> bool:
@@ -216,3 +220,4 @@ def _process(store: Store, job: sqlite3.Row, mime: str) -> None:
             " WHERE id = ?",
             (stamp, jid),
         )
+        queue_after_file(conn, cid, jid)  # a file page read: its enrich (ADR 38)

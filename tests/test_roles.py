@@ -148,6 +148,13 @@ def test_maintainer(store, pages):
     assert each(store, pages, lambda c, p: bool(sql(roles.ENRICHED)(c, p))) == (
         enriched
     )
+    # A file page (ADR 38): only gc's review page is one here, a file capture with no
+    # files, so file ingest never queues its enrich
+    file_first = {n: n == "review" for n in NAMES}
+    assert each(store, pages, roles.file_first) == file_first
+    assert each(store, pages, lambda c, p: bool(sql(roles.FILE_FIRST)(c, p))) == (
+        file_first
+    )
     # A capture not yet stored: the kinds prepare makes
     assert [roles.by_ingest(k) for k in ("note", "url", "photo", "file")] == [
         False, False, True, True,

@@ -297,6 +297,10 @@ editing:
 `systemctl --user restart scrap`.
 
 With ingest on, Claude also tags and summarises notes and links (`SCRAP_ENRICH`, on by default).
+A page made from a PDF or text file also has the start of its text (at most 4,000 characters,
+never the file) sent to Claude once it is read, for a title, tags and a summary: file text leaves
+the host by default. `SCRAP_FILE_ENRICH=ask` keeps it there unless you press **Ask Claude**
+([ADR 38](../explanations/decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.md)).
 Related pages come from a nightly timer, `scrap-enrich-related.timer`, and topic pages from a
 weekly one, `scrap-enrich-topics.timer`; both run in the scrap container, and `install.sh`
 enables them. [](../reference/scheduled-jobs.md) has their schedules, what they do and their

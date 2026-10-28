@@ -20,6 +20,7 @@ READ = "Larch cladding: a guide.\n\n" + "Treat the boards before fixing. " * 20
 def on(monkeypatch):
     monkeypatch.setenv("SCRAP_INGEST", "on")
     monkeypatch.setenv("SCRAP_ENRICH_DEBOUNCE", "0")
+    monkeypatch.setenv("SCRAP_FILE_ENRICH", "ask")  # Ask's rules (auto: its own tests)
 
 
 @pytest.fixture

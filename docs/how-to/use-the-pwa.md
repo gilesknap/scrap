@@ -477,9 +477,11 @@ scrap and try again*.
 - The page shows each photo where its line is, as a server-made preview (HEIC works), with no
   caption. Tap for the viewer. Files it does not show (PDFs) are rows below the text: the name
   (tap to open the file), a PDF's page count once read, and **Download**. scrap reads a PDF's
-  text itself (no model), so search finds it. A scan, a password-protected or unreadable PDF, or
-  one over 30 MB is kept and listed but not searchable: its row says *Text couldn't be read; not
-  searchable*.
+  text itself (no model), so search finds it. A page made from a PDF or text file then gets a
+  title, tags and a summary from Claude, which is sent the start of that text (not with
+  `SCRAP_FILE_ENRICH=ask`: then press **Ask Claude**). A scan, a password-protected or
+  unreadable PDF, or one over 30 MB is kept and listed but not searchable: its row says *Text
+  couldn't be read; not searchable*.
 - **Viewer.** Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
   drag to pan, swipe (or arrows) for other photos. **Fit**, **100%**, **Download** and **Share**
   are along the bottom; the cross at top right, or Back, closes. **Share** asks **Link** (the
