@@ -4,7 +4,7 @@
 import { kept } from "./api";
 import { go } from "./app";
 import { getShrink, setShrink } from "./downscale";
-import { setTextSize, textSize } from "./textsize";
+import { SIZES, setTextSize, textSize } from "./textsize";
 import {
   APP_KEY,
   type AppPref,
@@ -109,14 +109,7 @@ export function settings() {
         "text",
         "Text size",
         String(textSize() ?? "phone"),
-        [
-          ["phone", "Phone"],
-          ["0.8", "80%"],
-          ["0.9", "90%"],
-          ["1", "100%"],
-          ["1.15", "115%"],
-          ["1.3", "130%"],
-        ],
+        [["phone", "Phone"], ...SIZES],
         (v) => setTextSize(v === "phone" ? null : Number(v)),
       ),
       h(

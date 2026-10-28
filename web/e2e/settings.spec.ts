@@ -143,6 +143,18 @@ test.describe("Text size", () => {
     expect(await rootPx(page)).toBeCloseTo(13.6, 1);
   });
 
+  test("a kept value that is not one of the six is the phone's, on the first paint too", async ({
+    page,
+  }) => {
+    for (const junk of ["0x1", "1e0", "0.85"]) {
+      await page.evaluate(([k, v]) => localStorage.setItem(k, v), [SIZE, junk]);
+      await page.reload();
+      expect(await rootPx(page)).toBe(17);
+      expect(await page.evaluate(() => document.documentElement.dataset.text)).toBeUndefined();
+      await expect((await open(page)).getByLabel("Phone")).toBeChecked();
+    }
+  });
+
   test("theme-init.js is cached by the service worker", async ({ page }) => {
     // the worker installs after the first load; wait for the shell to be in its cache
     await expect
