@@ -32,7 +32,7 @@ comment, so the paste line stays the same.
 
 **The workstation session** is a Claude Code session on your multi-core machine (usually
 Remote Control). From the paste line it runs the cycle with subagents: implement, review
-with a fresh pair of eyes, fix (up to three rounds), then the full checks as CI runs them,
+with a fresh pair of eyes, fix (until review finds nothing significant), then the full checks as CI runs them,
 including the end-to-end tests split across six parallel runs. Then it opens the PR (the
 description lists what its own review found and fixed), deals with CI and CodeRabbit until
 everything is green, and merges.

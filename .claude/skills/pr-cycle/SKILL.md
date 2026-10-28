@@ -25,8 +25,13 @@ for people is `docs/how-to/work-with-claude.md`.
 - **Prefer fixing defaults over adding settings.** The UI is calm: one amber
   hero, small chips, less is more. The owner uses Android at about 130 % text
   on a screen 308 CSS px wide.
-- **Check pushes against GitHub**, not local warnings: `git ls-remote origin
-  <branch>` must show the commit you pushed. A checkout may lose its
+- **Git over HTTPS only**, never SSH: every fetch, push or clone against GitHub
+  is `GIT_CONFIG_GLOBAL=/dev/null git -c credential.helper='!gh auth
+  git-credential' <cmd> https://github.com/gilesknap/scrap.git ...` (a global
+  `insteadOf` may rewrite plain `origin` to SSH). Use `gh` for everything it
+  covers.
+- **Check pushes against GitHub**, not local warnings: `git ls-remote` (same
+  form, with the URL) must show the commit you pushed. A checkout may lose its
   remote-tracking refs (a stale `refs/remotes/origin/design` once blocked every
   `design/...` branch; `git update-ref -d` it), so "unpushed commits" hooks can
   be false alarms.
@@ -90,24 +95,29 @@ threads and the merge instruction. Paste line:
 
 0. Read the handoff issue and **all its comments** (later ones add to or
    supersede the body), check out the branch, merge `origin/main` in if it
-   moved, and read `CLAUDE.md` and `.github/CONTRIBUTING.md`. Ask the owner
+   moved (work in a worktree and keep the main clone clean, on main), and read `CLAUDE.md` and `.github/CONTRIBUTING.md`. Ask the owner
    only about real gaps.
 1. **Implement** (subagent): the handoff's goal, decisions, checklist,
    conventions and checks. It commits on the branch; it does not push.
 2. **Review** (a fresh subagent): it gets the handoff and the diff
    (`git diff origin/main...HEAD`), not the implementer's reasoning. It may run
    targeted specs and probes. Findings ranked by severity, each with file, line
-   and a concrete failure, marked confirmed or plausible.
+   and a concrete failure, marked confirmed or plausible. It runs the fast
+   checks and only the e2e specs the diff touches, never the full suite.
 3. **Fix** (subagent, continuing the implementer): keep a list, one line per
-   issue and its fix. Repeat review and fix until nothing significant is left,
-   three rounds at most, then tell the owner what remains. A fix that needs a
+   issue and its fix. A fix round reruns the fast checks and the affected specs
+   (`--repeat-each=3` on any e2e test it changed). Stop when a round's fixes were
+   trivial or review finds nothing significant; review again only after
+   non-trivial fixes. Six rounds at most, then tell the owner what remains. A fix that needs a
    design choice goes to the owner; a visual one, back to a design session.
 4. **Full local checks**, the same as CI, before any push:
    - Python: `uv run tox -p` (pre-commit, pyright, pytest, docs).
    - Web: `npm --prefix web run check`, `npm --prefix web test`,
      `npm --prefix web run build`, `npm --prefix web run size` (app shell
      within 16.5 kB gzipped).
-   - e2e, split as CI splits it, the shards in parallel, each on its own port
+   - e2e, run in full once, by the implementer, at the end (reviewers and fix
+     rounds run only affected specs; CI runs the suite again on the PR). Split
+     as CI splits it, the shards in parallel, each on its own port
      and data folder: `SCRAP_E2E_PORT=$((8790+i)) npm --prefix web run e2e --
      --shard=$i/6` for i in 1..6 at once (fewer at a time if the cores are
      short). A failure only under load: rerun it alone, then fix the race in the
@@ -115,10 +125,10 @@ threads and the merge instruction. Paste line:
    - Migrations, if any: `CLAUDE.md` (number, `--snapshot`).
    - A one-off data script from the handoff: run it on a copy of real data.
 5. **Open the PR** (subagent): push, PR against main. The body has what changed
-   and why with "Closes #<handoff issue>", how it was tested, "Found in local
+   and why with "Fixes #<handoff issue>", how it was tested, "Found in local
    review" (one line per issue and fix, from step 3), "Not in this PR", and the
    merge instruction.
-6. **CI and CodeRabbit**: watch both; fix real issues on the branch (rerun the
+6. **CI and CodeRabbit**: watch both; CodeRabbit is advisory, never a merge gate; fix real issues on the branch (rerun the
    affected specs locally first); answer comments that don't apply with a
    one-line reason and resolve them. If main moved and the PR conflicts, merge
    main in. Repeat until every check is green, the PR is mergeable and no
