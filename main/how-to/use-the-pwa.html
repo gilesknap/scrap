@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.19.1.dev1+ged176a0f6 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.19.1.dev2+ga863e808f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=bc31f33e"></script>
+    <script src="../_static/documentation_options.js?v=eda1c246"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1037,8 +1037,20 @@ cannot be stored goes straight to the server (<code class="docutils literal notr
 shows a page saying it was not saved if there is no connection either.</p></li>
 <li><p><strong>Tabs.</strong> Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.</p></li>
 </ul>
+<section id="text-size">
+<span id="id1"></span><h3>Text size<a class="headerlink" href="#text-size" title="Link to this heading">#</a></h3>
+<p>Settings → <strong>Text size</strong> sets how big scrap’s text is on this device. <strong>Phone</strong>, the default,
+follows the phone’s font size (Android’s, or an iPhone’s Text Size), never smaller than scrap’s
+usual 17 px. <strong>80%</strong>, <strong>90%</strong>, <strong>100%</strong>, <strong>115%</strong> or <strong>130%</strong> set scrap’s own size instead, 17 px
+times it, whatever the phone’s font size is: smaller than the phone’s if scrap looks too big.
+Everything sized from the text follows it (buttons, chips, the editor). The choice is kept on
+this device and applies at once.</p>
+<p>If scrap looks much bigger in the installed app than in a Chrome tab or another app, check
+Chrome’s own zoom: Chrome, Settings, Accessibility, <strong>Page zoom</strong> (and Site settings, <strong>Zoom</strong>,
+for scrap’s address). It applies on top of the font size.</p>
+</section>
 <section id="smaller-photos">
-<span id="id1"></span><h3>Smaller photos<a class="headerlink" href="#smaller-photos" title="Link to this heading">#</a></h3>
+<span id="id2"></span><h3>Smaller photos<a class="headerlink" href="#smaller-photos" title="Link to this heading">#</a></h3>
 <p>Before a photo goes into the queue, the phone makes it smaller: at most <strong>2560 px</strong> on its long
 edge, as a JPEG at quality 85, turned upright (the camera’s rotation is applied and the EXIF data
 is dropped). A big photo then holds the connection for less time, and the queue takes less room.
@@ -1579,7 +1591,7 @@ After Undo is gone, the page waits in the <strong>Trash</strong> (below) for 30 
 good.</p></li>
 </ul>
 <section id="the-trash">
-<span id="id2"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
+<span id="id3"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
 <p>A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
 (the server’s <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code>, set as the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is: see
 <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>). Then the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> purges it for good, with its
@@ -1856,6 +1868,7 @@ own projects (OFL: <a class="reference external" href="https://openfontlicense.o
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#share-into-scrap">Share into scrap</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-size">Text size</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#smaller-photos">Smaller photos</a></li>
 </ul>
 </li>
