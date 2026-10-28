@@ -108,10 +108,9 @@ describe("fileFacts: what a file's row says", () => {
 describe("fileRow", () => {
   beforeEach(() => vi.stubGlobal("document", { createElement: el }));
 
-  const row = (i?: FileIngest | null) =>
-    fileRow("/api/blobs/ab", "report.pdf", el("a") as never, i) as unknown as El;
+  const row = (i?: FileIngest | null) => fileRow("/api/blobs/ab", "report.pdf", i) as unknown as El;
 
-  it("is the file's name, opening it, with its pages, then Download", () => {
+  it("is the file's name, opening it, with its pages, and no Download (its viewer saves it)", () => {
     const r = row(pdf({}));
     const link = r.kids[0] as El;
     expect(link).toMatchObject({
@@ -122,7 +121,7 @@ describe("fileRow", () => {
     expect(text(link)).toContain("report.pdf");
     expect(text(link)).toContain("12 pages");
     expect(find(r, "hint")).toBeUndefined();
-    expect(r.kids).toHaveLength(2); // the link and Download
+    expect(r.kids).toHaveLength(1); // the link alone
   });
 
   it("has the hint on failure only", () => {

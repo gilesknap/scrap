@@ -491,8 +491,8 @@ scrap and try again*.
 - The page shows each photo where its line is, as a server-made preview (HEIC works), with no
   caption. Tap for the viewer. A file the text links to on a line of its own is a row where
   its line is (one linked mid-sentence is a link there, and a row below the text too); a file
-  the text does not show is a row below the text: the name (tap to open the file) and
-  **Download**. Under a PDF's or text file's row is its card, *What's in the file*, as a photo
+  the text does not show is a row below the text: the name: tap to open the file, and save it
+  from there, as a photo is saved from its viewer. Under a PDF's or text file's row is its card, *What's in the file*, as a photo
   has one: while it waits or is being read, where that is up to; once read, its page count and
   whether search finds it, and for a PDF the **Text read from it**, folded; **Retry** if reading
   failed, **Regenerate** to read it again. scrap reads the text itself (no model), so search

@@ -294,36 +294,9 @@
   border-radius: var(--r-lg);
   background: var(--sunk);
 }
-/* A file's Download (an <a>, not a .button): whole words beside a file name
-   of any length. The page text's overflow-wrap: anywhere let a long name squeeze "Download"
-   to one letter wide, broken over three lines; the icon is a button's 20, not 24 */
-.save {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  white-space: nowrap;
-  overflow-wrap: normal;
-  text-decoration: none;
-  font-weight: 500;
-  min-height: var(--tap);
-  margin-inline-end: calc(-1 * var(--s-3));
-  padding: 0 var(--s-3);
-  border: none;
-  background: none;
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
-.save .i {
-  width: 20px;
-  height: 20px;
-}
 div.orig {
   display: flex;
   flex-direction: column;
-}
-div.orig .save {
-  align-self: flex-end;
 }
 .file {
   display: flex;

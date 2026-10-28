@@ -270,7 +270,7 @@ test("a file linked mid-sentence keeps its row below the text; one alone on its 
   expect(saved.body).toBe(`See [terms.pdf](/api/blobs/${sha}) for the terms.\n\n⟦file 2⟧`);
   await page.goto(`/p/${ref.slug}`);
   await expect(page.locator(`a[data-sha="${sha}"]`)).toHaveText("terms.pdf");
-  await expect(page.locator(".originals .filerow")).toHaveCount(1); // its Download, its hint
+  await expect(page.locator(".originals .filerow")).toHaveCount(1); // its hint
   // Alone on its line: its row there instead, not below
   const body = `${saved.body.split("\n\n")[0]}\n\n[terms.pdf](/api/blobs/${sha})`;
   await page.request.patch(`/api/pages/${ref.page_id}`, { data: { base_rev: 1, body } });

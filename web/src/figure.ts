@@ -20,7 +20,7 @@ import { plain } from "./app";
 import { fileCard } from "./filecard";
 import { fileRow } from "./filerow";
 import { PHOTO, photoPanel } from "./ingest";
-import { download, h, pageLink, settle, toast } from "./ui";
+import { h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
 type Placed = FileRef & { cid: string };
@@ -92,7 +92,6 @@ export function figures(
       share: f ? shareable(f) : [previewUrl(sha, 2048), `${sha.slice(0, 12)}.jpg`, "image/jpeg"],
     });
     const href = blobUrl(sha);
-    const save = download(`${href}?download=1`, "save");
     const img = settle(h("img", { src: photos[at - 1].src, alt: name, loading: "lazy" }));
     const open = (e: MouseEvent) => {
       if (!plain(e)) return; // Ctrl-click, middle click: the file in a new tab
@@ -101,7 +100,7 @@ export function figures(
     };
     // No caption: its name and Download are the viewer's, a tap away
     const fig = h("figure", { className: "orig" }, h("a", { href, onclick: open }, img));
-    img.onerror = () => fig.replaceWith(fileRow(href, name || "file", save)); // no preview
+    img.onerror = () => fig.replaceWith(fileRow(href, name || "file")); // no preview
     // Another page's file (Claude's results are that page's), or not an image (a PDF's sha in an
     // image embed): no panel and no Ask Claude
     if (!f || !isImage(f)) return fig;
@@ -146,11 +145,10 @@ export function figures(
   }
   const row = (f: Placed) => {
     const href = blobUrl(f.sha256);
-    const save = download(`${href}?download=1`, "save");
-    if (!readable(f)) return fileRow(href, f.filename || f.mime, save, f.ingest);
+    if (!readable(f)) return fileRow(href, f.filename || f.mime, f.ingest);
     // A file scrap reads (a PDF, a text file): its card under it, as a photo's (filecard.ts),
     // which says its pages and whether search finds it
-    const r = fileRow(href, f.filename || f.mime, save);
+    const r = fileRow(href, f.filename || f.mime);
     return fileCard({ cid: f.cid, blob: f, row: r, refresh });
   };
   for (const [para, f] of inPlace) para.replaceWith(row(f));

@@ -63,7 +63,7 @@ function readText(cid: string, sha: string) {
   return el;
 }
 
-/** The row (filerow.ts: its name, link and Download) with the card under it. */
+/** The row (filerow.ts: its name and link) with the card under it. */
 export function fileCard(o: {
   cid: string;
   blob: FileRef;
