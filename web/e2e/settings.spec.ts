@@ -1,6 +1,6 @@
 // Settings from the top bar's cog: the app theme (System, Light, Dark) and the drawings'
 // theme (Light, Dark, Same as app), kept on this device and applied without a reload.
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const theme = (page: import("@playwright/test").Page) =>
   page.evaluate(() => document.documentElement.dataset.theme ?? "");
@@ -71,4 +71,94 @@ test("drawings are light by default, even with a dark OS", async ({ browser }) =
   await group.getByText("Light", { exact: true }).click();
   expect(await page.evaluate(() => localStorage.getItem("scrap.drawings_theme"))).toBeNull();
   await ctx.close();
+});
+
+const SIZE = "scrap.text_size";
+const rootPx = (page: Page) =>
+  page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+const sizes = (page: Page) => page.getByRole("radiogroup", { name: "Text size" });
+const open = async (page: Page) => {
+  await page.getByRole("button", { name: "Settings" }).click();
+  return sizes(page);
+};
+
+test.describe("Text size", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate((k) => localStorage.removeItem(k), SIZE);
+    await page.reload();
+  });
+  test.afterEach(async ({ page }) => {
+    await page.evaluate((k) => localStorage.removeItem(k), SIZE);
+  });
+
+  test("sets the root outright, survives reload and the floor, and Phone undoes it", async ({
+    page,
+  }) => {
+    expect(await rootPx(page)).toBe(17); // Phone: the default
+    const group = await open(page);
+    await expect(group.getByLabel("Phone")).toBeChecked();
+
+    await group.getByText("90%", { exact: true }).click();
+    await expect.poll(() => rootPx(page)).toBeCloseTo(15.3, 1); // under 17 px, which only Phone is held to
+    // coming back to the app, and going online again, re-measure the root (main.ts floor)
+    await page.evaluate(() => {
+      dispatchEvent(new Event("online"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await page.waitForTimeout(300);
+    expect(await rootPx(page)).toBeCloseTo(15.3, 1);
+
+    await page.reload();
+    expect(await rootPx(page)).toBeCloseTo(15.3, 1);
+    await expect((await open(page)).getByLabel("90%")).toBeChecked();
+
+    await sizes(page).getByText("130%", { exact: true }).click();
+    await expect.poll(() => rootPx(page)).toBeCloseTo(22.1, 1);
+
+    await sizes(page).getByText("Phone", { exact: true }).click();
+    await expect.poll(() => rootPx(page)).toBe(17);
+    expect(await page.evaluate(() => document.documentElement.dataset.text)).toBeUndefined();
+    expect(await page.evaluate((k) => localStorage.getItem(k), SIZE)).toBeNull();
+  });
+
+  test("a chosen size is in place before the app starts, with no flash", async ({ page }) => {
+    await page.evaluate((k) => localStorage.setItem(k, "0.8"), SIZE);
+    // Record the root's size at the first moments the page can be seen, before the app's
+    // module has run: theme-init.js runs from the head, so every sample is already 13.6px.
+    await page.addInitScript(() => {
+      const seen: string[] = [];
+      (window as unknown as { seen: string[] }).seen = seen;
+      const sample = () => seen.push(getComputedStyle(document.documentElement).fontSize);
+      document.addEventListener("readystatechange", sample);
+      document.addEventListener("DOMContentLoaded", sample);
+      new MutationObserver(sample).observe(document, { childList: true, subtree: true });
+    });
+    await page.reload();
+    const seen = await page.evaluate(() => (window as unknown as { seen: string[] }).seen);
+    // the init script is registered before theme-init.js, so it samples before and after it
+    const after = seen.slice(1); // the first sample may precede theme-init.js
+    expect(after.length).toBeGreaterThan(0);
+    for (const px of after) expect(px).toBe("13.6px");
+    expect(await rootPx(page)).toBeCloseTo(13.6, 1);
+  });
+
+  test("a kept value that is not one of the six is the phone's, on the first paint too", async ({
+    page,
+  }) => {
+    for (const junk of ["0x1", "1e0", "0.85"]) {
+      await page.evaluate(([k, v]) => localStorage.setItem(k, v), [SIZE, junk]);
+      await page.reload();
+      expect(await rootPx(page)).toBe(17);
+      expect(await page.evaluate(() => document.documentElement.dataset.text)).toBeUndefined();
+      await expect((await open(page)).getByLabel("Phone")).toBeChecked();
+    }
+  });
+
+  test("theme-init.js is cached by the service worker", async ({ page }) => {
+    // the worker installs after the first load; wait for the shell to be in its cache
+    await expect
+      .poll(() => page.evaluate(async () => !!(await caches.match("/theme-init.js")) || false))
+      .toBe(true);
+  });
 });

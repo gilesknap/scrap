@@ -4,6 +4,7 @@
 import { kept } from "./api";
 import { go } from "./app";
 import { getShrink, setShrink } from "./downscale";
+import { SIZES, setTextSize, textSize } from "./textsize";
 import {
   APP_KEY,
   type AppPref,
@@ -103,6 +104,19 @@ export function settings() {
     h(
       "div",
       { className: "fields" },
+      h("h3", { className: "label" }, "Text size"),
+      choice(
+        "text",
+        "Text size",
+        String(textSize() ?? "phone"),
+        [["phone", "Phone"], ...SIZES],
+        (v) => setTextSize(v === "phone" ? null : Number(v)),
+      ),
+      h(
+        "p",
+        { className: "hint" },
+        "Phone follows the phone's font size. A percentage sets scrap's own size instead, whatever the phone's is.",
+      ),
       h("h3", { className: "label" }, "App theme"),
       choice(
         "theme",

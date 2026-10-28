@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 const html = readFileSync("index.html", "utf8");
@@ -34,5 +34,12 @@ describe("Content-Security-Policy (issue 105)", () => {
     const inline = [...html.matchAll(/<script\b([^>]*)>/g)].filter((s) => !/\bsrc=/.test(s[1]));
     expect(inline).toEqual([]);
     expect(html).not.toMatch(/\son[a-z]+="/); // no inline event handlers
+  });
+});
+
+describe("theme-init.js (theme and text size before first paint)", () => {
+  test("is an external script of this origin, so script-src 'self' allows it", () => {
+    expect(html).toMatch(/<script src="\/theme-init\.js"><\/script>/);
+    expect(existsSync("public/theme-init.js")).toBe(true); // public/ files are in the service worker's shell list
   });
 });
