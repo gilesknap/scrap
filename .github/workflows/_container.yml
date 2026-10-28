@@ -57,6 +57,24 @@ jobs:
       - name: Test cli works in cached runtime image
         run: docker run --rm tag_for_testing --version
 
+      # A tracked file left out of the build context makes setuptools_scm see a
+      # dirty tree and version a release as the next dev build (#449)
+      - name: Test the image's version is clean, and is the tag on a tag build
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          version=$(docker run --rm --entrypoint python tag_for_testing -c \
+            "import scrap; print(scrap.__version__)")
+          echo "Image version: $version"
+          if [[ "$version" =~ [.+]d[0-9]{8}$ ]]; then
+              echo "Version has a dirty-tree date suffix: is a tracked file in .dockerignore?" >&2
+              exit 1
+          fi
+          if [ -n "$TAG" ] && [ "$version" != "$TAG" ]; then
+              echo "Version '$version' is not the tag '$TAG'" >&2
+              exit 1
+          fi
+
       - name: Test the image carries the built PWA
         run: >
           docker run --rm --entrypoint python tag_for_testing -c
