@@ -1,7 +1,6 @@
 """Queue state: claiming, charging, pausing and recording derived versions."""
 
 import json
-import logging
 import os
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -11,8 +10,6 @@ from ..notify import notify as post
 from ..store import MAX_PAGE, queue_after_read, transaction
 from ..store.constants import IMAGE_JOB
 from .constants import CLAIM, FAR, INSERT_DERIVED, MAX_FAILURES, RETRY
-
-log = logging.getLogger(__name__)
 
 
 def enabled() -> bool:

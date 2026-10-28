@@ -27,7 +27,6 @@ next orphans that month start a fresh one. Its capture is a ``file`` capture wit
 files, so Claude's enrichment leaves it alone (``store.roles.NOT_BY_INGEST``).
 """
 
-import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
@@ -40,7 +39,6 @@ from .store.trash import TRASH_DAYS
 
 __all__ = ["DUE_DAYS", "TITLE", "Gathered", "Orphan", "clock", "find", "gather"]
 
-log = logging.getLogger(__name__)
 
 DUE_DAYS = 7  # an orphan page's due date, after it is made
 TITLE = "Orphaned assets {month}"  # month: YYYY-MM
