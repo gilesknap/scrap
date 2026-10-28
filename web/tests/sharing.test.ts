@@ -80,6 +80,19 @@ describe("sharePageFile", () => {
     expect(toast).toHaveBeenCalledWith("This phone can't share a zip; saved it instead");
   });
 
+  it("still saves it when share() itself used up the tap", async () => {
+    const userActivation = { isActive: true };
+    const share = vi.fn(async () => {
+      userActivation.isActive = false;
+      throw denied;
+    });
+    vi.stubGlobal("navigator", { share, canShare: () => true, userActivation });
+    vi.stubGlobal("fetch", async () => reply("p.zip", "application/zip"));
+    const saved = vi.fn();
+    await sharePageFile("/api/pages/a/download", "A page", saved);
+    expect(saved).toHaveBeenCalledOnce();
+  });
+
   it("leaves an expired tap to its own Share offer, saving nothing", async () => {
     const share = vi.fn(async () => Promise.reject(denied));
     vi.stubGlobal("navigator", {
