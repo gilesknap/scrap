@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sharePageFile, sharePageHtml, tapExpired } from "../src/sharing";
+import { toast } from "../src/ui";
+
+vi.mock("../src/ui", async (orig) => ({ ...(await orig<object>()), toast: vi.fn() }));
 
 const denied = Object.assign(new Error("not allowed"), { name: "NotAllowedError" });
 
@@ -28,7 +31,10 @@ describe("tapExpired", () => {
 });
 
 describe("sharePageFile", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.mocked(toast).mockClear();
+  });
   const reply = (name: string, type: string) =>
     new Response("x", {
       headers: { "Content-Type": type, "Content-Disposition": `attachment; filename="${name}"` },
@@ -60,6 +66,46 @@ describe("sharePageFile", () => {
     expect(fetched).toHaveBeenCalledWith("/api/pages/a/download");
     expect(share).not.toHaveBeenCalled();
     expect(saved.mock.calls[0][0].name).toBe("p.zip");
+  });
+
+  it("saves the zip, and says so, where Chrome refuses it with a live tap", async () => {
+    const share = vi.fn(async () => Promise.reject(denied));
+    vi.stubGlobal("navigator", { share, canShare: () => true, userActivation: { isActive: true } });
+    const fetched = vi.fn(async () => reply("p.zip", "application/zip"));
+    vi.stubGlobal("fetch", fetched);
+    const saved = vi.fn();
+    await sharePageFile("/api/pages/a/download", "A page", saved);
+    expect(fetched).toHaveBeenLastCalledWith("/api/pages/a/download");
+    expect(saved.mock.calls[0][0].name).toBe("p.zip");
+    expect(toast).toHaveBeenCalledWith("This phone can't share a zip; saved it instead");
+  });
+
+  it("still saves it when share() itself used up the tap", async () => {
+    const userActivation = { isActive: true };
+    const share = vi.fn(async () => {
+      userActivation.isActive = false;
+      throw denied;
+    });
+    vi.stubGlobal("navigator", { share, canShare: () => true, userActivation });
+    vi.stubGlobal("fetch", async () => reply("p.zip", "application/zip"));
+    const saved = vi.fn();
+    await sharePageFile("/api/pages/a/download", "A page", saved);
+    expect(saved).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an expired tap to its own Share offer, saving nothing", async () => {
+    const share = vi.fn(async () => Promise.reject(denied));
+    vi.stubGlobal("navigator", {
+      share,
+      canShare: () => true,
+      userActivation: { isActive: false },
+    });
+    vi.stubGlobal("fetch", async () => reply("p.zip", "application/zip"));
+    const saved = vi.fn();
+    await sharePageFile("/api/pages/a/download", "A page", saved);
+    expect(saved).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith("Page ready", "Share", expect.any(Function), 30_000);
+    expect(toast).not.toHaveBeenCalledWith("This phone can't share a zip; saved it instead");
   });
 
   it("saves a Markdown page the phone can't share, as it is", async () => {

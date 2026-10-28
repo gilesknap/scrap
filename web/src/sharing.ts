@@ -68,8 +68,8 @@ export function menuSpot(button: DOMRect, width: number, screenW: number, screen
 
 /** Whether a share failed because the tap's permission ran out (a slow download outlasts
  * it), not for a reason a fresh tap would not fix (a blocked file type, a permissions policy). */
-export const tapExpired = (err: unknown) =>
-  (err as Error).name === "NotAllowedError" && navigator.userActivation?.isActive === false;
+export const tapExpired = (err: unknown, active = navigator.userActivation?.isActive) =>
+  (err as Error).name === "NotAllowedError" && active === false;
 
 /** Whether this phone can share a file like this, asked before downloading it. */
 function canShareFile(name: string, type: string) {
@@ -88,10 +88,11 @@ const send = (data: ShareData) =>
 /** Share files at once; if the tap's permission ran out meanwhile (a slow download or export,
  * Chrome allows ~5 s), offer them on a fresh one. */
 async function shareFiles(title: string, files: File[], ready: string) {
+  const active = navigator.userActivation?.isActive; // share() itself consumes the tap
   try {
     await navigator.share({ title, files });
   } catch (err) {
-    if (!tapExpired(err)) throw err;
+    if (!tapExpired(err, active)) throw err;
     toast(ready, "Share", () => void send({ title, files }), 30_000);
   }
 }
@@ -114,7 +115,14 @@ export async function sharePageFile(href: string, title: string, saved: (f: File
   if (!canShareFile("page.zip", "application/zip")) return saved(await fetchFile(href));
   const file = await fetchFile(`${href}?photos=preview`);
   if (!canShareFile(file.name, file.type)) return saved(file); // Markdown, as a plain download has it
-  await shareFiles(title, [file], "Page ready");
+  try {
+    await shareFiles(title, [file], "Page ready");
+  } catch (err) {
+    // Chrome refuses a zip with NotAllowedError although canShare said yes: save it instead
+    if ((err as Error).name !== "NotAllowedError" || file.type !== "application/zip") throw err;
+    saved(await fetchFile(href));
+    toast("This phone can't share a zip; saved it instead");
+  }
 }
 
 /** Share the page as it is shown, as one HTML file (pagehtml.ts): where this phone can't share
