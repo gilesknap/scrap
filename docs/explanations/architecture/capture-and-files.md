@@ -96,14 +96,17 @@ flowchart LR
 ```
 
 - **Embed form.** `![](/api/blobs/<sha>/preview?size=2048)`. A photo capture writes one per image,
-  after its text, in order. From then on the text is the user's: ingest never edits it, and
-  reprocessing only adds derived versions.
+  after its text, in order. Its text may instead place an upload with a token, `⟦image N⟧` or
+  `⟦file N⟧` (the composer's, #403): that upload's embed, or a PDF's or text file's
+  `[name](/api/blobs/<sha>)` link, goes there (`placed` in `store/helpers.py`). From then on the text is the
+  user's: ingest never edits it, and reprocessing only adds derived versions.
 - **Previews** (`preview.py`) are JPEGs made on first request into `cache/previews`, decoded
   shrunk to bound memory. The cache is never backed up and can be deleted at any time; originals
   are never changed.
 - **In the PWA.** An embed on a line of its own becomes a figure (tap for the viewer, caption with
   Download and *Ask Claude*); an embed inside a link, heading, list, quote or beside text stays a
-  plain image. Files a page does not embed (PDFs) are listed below the text. A PDF's or text
+  plain image. A file the text links on a line of its own is its row there; files a page does not
+  embed or link (PDFs) are listed below the text. A PDF's or text
   file's text is read by scrap itself, with no model, so search finds it ({ref}`ingest-files`).
 - **Deleted embeds.** Deleting a file's last embed from a page's text does not detach it: the
   capture keeps it, so `scrap gc` still finds and gathers it as an orphan. The page stops showing
