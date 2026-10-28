@@ -457,7 +457,7 @@ Page text is Markdown as GitHub writes it:
 | --- | --- |
 | **Link** | The page's address; opens the page for anyone who can reach your scrap |
 | **Text** | Title and text as typed, without lines that only show a photo; no link to scrap |
-| **File** | The same Markdown, or zip, as Download, handed to the share sheet, but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share it, it is saved like Download |
+| **File** | The same Markdown, or zip, as Download, handed to the share sheet, but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share files it is saved like Download, with the original photos (which keep their location and camera details) |
 | **Download** | Markdown, or a zip of the Markdown and its files (the originals) when it has any |
 
 The Markdown has what the page shows, not only your text. The front matter lists the page's

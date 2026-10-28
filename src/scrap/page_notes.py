@@ -60,6 +60,12 @@ def file_text(conn: sqlite3.Connection, cid: str, sha: str) -> tuple[str, bool] 
     return (row[0], bool(row[1])) if row and row[0] else None
 
 
+def _quoted(text: str) -> list[str]:
+    """Model text as a block quote, so a heading or rule in it cannot end the section
+    or pose as one of the download's own."""
+    return [f"> {line}".rstrip() for line in text.splitlines()]
+
+
 def _pages(rows: list[dict[str, Any]]) -> list[str]:
     return [f"- [[{r['slug']}]] {r['title']}".rstrip() for r in rows]
 
@@ -76,7 +82,8 @@ def gather(
         extras.front["tags"] = p["tags"]
     if p["topics"]:
         extras.front["topics"] = [t["slug"] for t in p["topics"]]
-    extras.linked_from = _pages(store.backlinks(p["slug"]))
+    linked = _pages(store.backlinks(p["slug"]))
+    extras.linked_from = extras.links("\n".join(linked)).split("\n") if linked else []
     if notes:
         extras.notes = _notes(p, extras)
     return extras
@@ -88,12 +95,12 @@ def _notes(p: dict[str, Any], extras: Extras) -> list[str]:
     summary = (up and up["summary"]) or enriched.get("summary")
     parts: list[list[str]] = []
     if summary:
-        parts.append(["**Summary**", "", summary])
+        parts.append(["**Summary**", "", *_quoted(summary)])
     if p["model_tags"]:
         parts.append([f"**Tags Claude added:** {', '.join(p['model_tags'])}"])
     if up and up["text"]:
         what = "Topic synthesis" if p.get("topic") else "Write-up"
-        parts.append([f"**{what}**", "", up["text"]])
+        parts.append([f"**{what}**", "", *_quoted(up["text"])])
     related = [r for r in p["related"] if r["via"] != "link"]  # links: Linked from
     if related:
         parts.append(["**Related pages**", "", *_pages(related)])

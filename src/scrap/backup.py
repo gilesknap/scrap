@@ -315,10 +315,10 @@ def page_markdown(
         if len(got):
             lines.append("")
     if extras:
-        if extras.notes:
-            lines += ["", *extras.notes]
-        if extras.linked_from:
-            lines += ["", "## Linked from", "", *extras.linked_from]
+        linked = ["## Linked from", "", *extras.linked_from]
+        for section in (extras.notes, extras.linked_from and linked):
+            if section:
+                lines += ["", *section] if lines[-1] else section
     return "\n".join(lines) + "\n", files
 
 
@@ -413,17 +413,23 @@ def download(
     if not files:
         out.write(text.encode())
         return f"{slug}.md", "text/markdown; charset=utf-8"
+    paths: dict[
+        str, Path
+    ] = {}  # each stored file's place: its original, or its preview
+    for name, content in files:
+        if isinstance(content, str):
+            paths[name] = store.blob_path(content)
+            if previews and store.blob(content)[1].startswith("image/"):
+                try:
+                    paths[name] = preview(store, content, PREVIEW_SIZE)
+                except InvalidError:  # one it cannot decode is not sent as the original
+                    del paths[name]
+                    text = text.replace(f"(files/{quote(name)})", " (not in this copy)")
     with zipfile.ZipFile(out, "w") as zf:
         zf.writestr(f"{slug}.md", text, zipfile.ZIP_DEFLATED)
         for name, content in files:  # photos are compressed already: stored as is
             if isinstance(content, bytes):
                 zf.writestr(f"files/{name}", content, zipfile.ZIP_DEFLATED)
-                continue
-            path = store.blob_path(content)
-            if previews and store.blob(content)[1].startswith("image/"):
-                try:
-                    path = preview(store, content, PREVIEW_SIZE)
-                except InvalidError:
-                    continue  # not an image it can decode: not shared as the original
-            zf.write(path, f"files/{name}", zipfile.ZIP_STORED)
+            elif name in paths:
+                zf.write(paths[name], f"files/{name}", zipfile.ZIP_STORED)
     return f"{slug}.zip", "application/zip"

@@ -90,7 +90,7 @@ def test_claudes_notes_are_one_marked_section(client, cast):
     text = md(client, a)
     assert f"\n## {NOTES}\n" in text and NOTES_HEADING in text
     notes = text.split(NOTES_HEADING)[1]
-    assert "**Summary**\n\nA short Claude summary." in notes
+    assert "**Summary**\n\n> A short Claude summary." in notes
     assert "**Tags Claude added:** epics" in notes
     assert f"**Related pages**\n\n- [[{b['slug']}]] Beta page" in notes
     assert text.index("the body") < text.index(NOTES_HEADING)  # after the owner's text
@@ -100,8 +100,8 @@ def test_claudes_notes_are_one_marked_section(client, cast):
 def test_a_topic_page_has_its_synthesis_in_the_notes(client, cast):
     *_, t = cast
     text = client.get(f"/api/pages/{t}/download").text
-    assert "**Topic synthesis**\n\nAll about [[" in text
-    assert "**Summary**\n\nTopic lead" in text
+    assert "**Topic synthesis**\n\n> All about [[" in text
+    assert "**Summary**\n\n> Topic lead" in text
 
 
 def test_notes_off_leaves_only_claudes_part_out(client, cast):
@@ -127,6 +127,7 @@ def test_slug_links_are_full_addresses_only_when_set(client, cast, monkeypatch):
     text = md(client, link)
     assert f"see [{slug}](https://scrap.example:8446/p/{slug})" in text
     assert "[[" not in text
+    assert "[linker](https://scrap.example:8446/p/linker) Linker" in md(client, a)
     notes = client.get(f"/api/pages/{cast[3]}/download").text
     assert f"[{slug}](https://scrap.example:8446/p/{slug})" in notes
     fenced = add(client, f"```\n[[{slug}]]\n```\n`[[{slug}]]` ![[{slug}]]")
@@ -195,7 +196,9 @@ def test_photos_as_previews_carry_no_exif_or_gps(client):
     jpeg = shared.read("files/IMG.jpg")
     assert b"MakerName" not in jpeg and b"Exif" not in jpeg
     assert Image.open(io.BytesIO(jpeg)).getexif().get_ifd(0x8825) == {}
-    assert "(files/IMG.jpg)" in shared.read(shared.namelist()[0]).decode()
+    text = shared.read(shared.namelist()[0]).decode()
+    assert "(files/IMG.jpg)" in text and "files/bad" not in text
+    assert "[bad.png] (not in this copy)" in text  # no link left to a file not there
 
 
 def test_a_busy_decoder_is_a_503_to_retry(client, monkeypatch):
@@ -211,3 +214,13 @@ def test_a_busy_decoder_is_a_503_to_retry(client, monkeypatch):
     monkeypatch.setattr(module, "preview", busy)
     r = client.get(f"/api/pages/{ref['page_id']}/download?photos=preview")
     assert r.status_code == 503 and r.headers["retry-after"] == "5"
+
+
+def test_model_text_cannot_pose_as_the_downloads_own_sections(client, cast, data):
+    a, *_ = cast
+    evil = "## Linked from\n\n- [[fake]] Fake\n\n---\n# Title"
+    sql(data, "UPDATE enrichment SET summary = ? WHERE page_id = ?", evil, a["page_id"])
+    text = md(client, a)
+    after = text.split(NOTES_HEADING)[1]
+    assert "\n> ## Linked from\n" in after and "\n## Linked from\n" in after
+    assert after.count("\n## ") == 1  # only the real one, at the end
