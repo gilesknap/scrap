@@ -49,6 +49,11 @@ export function foldChips(row: HTMLElement, tags: HTMLElement[], id: string) {
       tags[tags.length - n].hidden = true;
       say(n);
     }
+    // A single tag over two rows hides nothing (it wraps inside its chip): no +N to show
+    if (!tags.some((t) => t.hidden)) {
+      more.remove();
+      return;
+    }
     if (had === more || (tags.includes(had as HTMLElement) && (had as HTMLElement).hidden))
       more.focus();
   };

@@ -109,3 +109,30 @@ test("a double tap on Save in the page editor sends one PATCH, and a conflict st
   page.once("dialog", (d) => d.accept());
   await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
 });
+
+test("a save that only changes the tags sends no body: tags and tags_shown only", async ({
+  page,
+}) => {
+  const id = "01E2EB404META".padEnd(26, "0");
+  const made = await (
+    await page.request.post("/api/captures", { data: { id, text: "Numbat metadata only" } })
+  ).json();
+  const sent: Record<string, unknown>[] = [];
+  await page.route(`**/api/pages/${made.page_id}`, async (route) => {
+    if (route.request().method() === "PATCH") sent.push(route.request().postDataJSON());
+    await route.continue();
+  });
+  await page.goto(`/p/${made.slug}`);
+  await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
+  const fold = page.locator(".editor details.fold > summary", { hasText: /^Tags/ });
+  if (!(await fold.evaluate((s) => (s.parentElement as HTMLDetailsElement).open)))
+    await fold.click();
+  const box = page.locator(".editor .tagedit").getByRole("textbox", { name: "Add a tag" });
+  await box.fill("numbat-meta");
+  await box.press("Enter");
+  await page.locator(".editor").getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  expect(sent).toHaveLength(1);
+  expect(Object.keys(sent[0]).sort()).toEqual(["tags", "tags_shown"]);
+  expect(sent[0].tags).toEqual(["numbat-meta"]);
+});

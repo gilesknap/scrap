@@ -13,6 +13,7 @@ async function note(page: Page, text: string, tags: string[]) {
   const r = await page.request.post("/api/captures", { data: { id, text } });
   const { page_id } = await r.json();
   await page.request.patch(`/api/pages/${page_id}`, { data: { tags } });
+  return page_id as string;
 }
 
 test.beforeAll(async ({ request }) => {
@@ -118,12 +119,26 @@ test("Tags offers only tags that narrow the results; typed, those of the results
   await expect(hits(page)).toHaveText(["Potoroo two"]);
   await expect(panel.getByRole("textbox", { name: "Add a tag filter" })).toHaveValue("");
   await expect(panel.locator(".none")).toHaveText("No tag narrows these results");
-  // Before any search: the most used tags of all
-  await page.goto("/search");
-  await filters(page);
-  // (as many as fit two rows, full paths: which ones depends on what else the store holds)
-  await expect(offers(page).first()).toBeVisible();
-  await expect(offers(page).filter({ hasText: "…/" })).toHaveCount(0);
+  // Before any search: the most used tags of all, the one given to most pages first. Seeded
+  // here: a tag on 40 pages, and a parent given to one page whose subtree (51) is larger but
+  // whose two children (25 each) are not: ordered by the tag's own count the first is `top`;
+  // ordered by the subtree's, it would be the parent
+  const top = `topmost${Date.now().toString(36)}`;
+  const parent = `parent${Date.now().toString(36)}`;
+  const ids: string[] = [];
+  try {
+    for (let i = 0; i < 40; i++) ids.push(await note(page, `Topmost ${i}`, [top]));
+    ids.push(await note(page, "Parent itself", [parent]));
+    for (let i = 0; i < 25; i++) ids.push(await note(page, `Kid a ${i}`, [`${parent}/a`]));
+    for (let i = 0; i < 25; i++) ids.push(await note(page, `Kid b ${i}`, [`${parent}/b`]));
+    await page.goto("/search");
+    await filters(page);
+    await expect(offers(page).first()).toHaveText(`#${top}40`);
+    await expect(offers(page).filter({ hasText: "…/" })).toHaveCount(0);
+  } finally {
+    // (removed again: other specs count the store's pages)
+    for (const id of ids) await page.request.delete(`/api/pages/${id}`);
+  }
 });
 
 test("When, Order and Clear filters: each a tap, applied at once", async ({ page }) => {

@@ -30,8 +30,9 @@ async function make(page: Page, w: string, tags: string[]) {
 /** Pages holding w, all tagged with the two clashing tags and each with a long one of its own
  * (more than the picker can offer in two rows). Returns the clashing pair. */
 async function seed(page: Page, w: string, own = 12) {
-  // (short, so both fit the picker's two rows beside the box at 390 px, full paths being wide)
-  const pair = ["a/epics/ioc", "b/other/ioc"];
+  // (a short suffix of w keeps them this test's own, and still fits the picker's two rows at 390 px)
+  const k = w.slice(-3);
+  const pair = [`a${k}/epics/ioc`, `b${k}/other/ioc`];
   for (let i = 0; i < own; i++)
     await make(page, w, [...pair, `topic${i}${w}-quite-a-long-top-level-tag-name`]);
   return pair;
