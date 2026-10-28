@@ -1,0 +1,2 @@
+# The design sim (sim/README.md) is tooling for this repo, not part of the package
+prune sim
