@@ -510,14 +510,18 @@ scrap and try again*.
   the top, clear of the keyboard. Tags and a todo's due date are folded into one line each. It
   opens the text where you were reading the page (at its top if you had not scrolled past the
   title).
-- **Camera**, **Gallery** and **File** under the text (the Add photo buttons) add photos to the end of the page as a capture
-  of their own: Claude reads them and search finds what it read, but they never change the page's
-  kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
-  their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
-  conflict). Offline they wait on the phone (listed as *1 photo for* the page, or *2 files for* it).
-  Photos too big to send together go one by one; one over the limit alone is refused. **File**
-  takes PDFs, text and Markdown files: they are listed below the text, not put in it, and read for
-  search.
+- **Camera**, **Gallery** and **File** under the text work as the composer's: each photo or
+  file picked is a token where the cursor is (`⟦image 3⟧`, `⟦file 2: minutes.pdf⟧`), a paragraph
+  of its own, with a chip under the text box; type between them freely, and **✕** on a chip takes
+  its token out. Nothing is uploaded until **Save**, which sends the files with the edit (photos
+  made smaller first, as the composer's are): the server puts each one's embed or link where its
+  token is, all in one revision, and Claude reads the photos as any capture's. A file whose token
+  you deleted is not sent. Saving needs the network (offline, **Save** says so and keeps
+  everything, the draft too, to try again); if the page changed elsewhere meanwhile, **Save**
+  shows the conflict and nothing is uploaded. **File** takes PDFs, text and Markdown files. A
+  topic page has no Camera, Gallery or File. They never change the page's kind, title or tags.
+  The three stay on one line; on a narrow phone at a large text size each has its icon over its
+  word.
 - **Lists.** Enter on a bullet (`- `), numbered (`1. `) or task (`- [ ] `) line starts the next
   item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
   selection: **Task**, **Bullet**, **Number** (each a plain line again if all are already),

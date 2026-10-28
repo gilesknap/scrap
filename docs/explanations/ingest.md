@@ -374,25 +374,23 @@ every other test of what a page is (who made it, whether enrich or ingest mainta
 write-up, what automation may change, whether it takes photos) are in `store/roles.py`: see
 {ref}`page-roles` for the table of them.
 
-**Photos added to a page.** The page editor's **Add photo** (camera, gallery or file) adds photos
-to a page that exists (not a topic page: its synthesis is its write-up, which a board photo would
-replace), as a photo capture of its own (`POST /api/pages/{id}/captures`, images, PDFs and text
-or Markdown files, `Store.add_photos`; its **File** button offers PDFs, text and Markdown, which
-are listed below the text and are read for search only: {ref}`ingest-files`; files alone make a
-file capture, and a batch with an image stays a photo capture): its images are stored, each new one's embed goes to the end of the text as
-it is now, as one text revision (not a save: it queues no enrich, which would run before the
-photos are read), and they are queued and read as any capture's photos are. No
-revision is checked: appending loses nothing, so a photo that waited on the phone while the page
-changed goes onto the newer text. Following the rule above, their reading sets no title, tags
-or kind and writes no task boxes ({ref}`ingest-actions`), and a page made as text stays
-enrich's, so its saves still queue enrich ({ref}`ingest-enrich`). Once the photos are read, a
-board page gets a new write-up; a page whose first photos these are gets its related call
-then, and any other the nightly related pass. The page's images are in the order the server
-received their captures, so the added ones come after the page's own. The PWA queues the upload
-like a capture, so it waits on the phone while offline. The reply says which revision the
-embeds went onto (`appended_on`): an editor still open on that revision takes them into its own
-text and moves on to the new revision, so its **Save** is no conflict; otherwise **Save** shows
-the conflict, as for any change made elsewhere.
+**Photos added to a page.** The page editor's **Camera**, **Gallery** and **File** add photos
+and files to a page that exists (not a topic page: its synthesis is its write-up, which a board
+photo would replace) as the composer's do: each is a token in the text until **Save**, which
+sends them with the edit (`PATCH /api/pages/{id}` as multipart, images, PDFs and text or Markdown
+files). In the transaction that writes the revision they become a capture of their own
+(`store.photos.attach`): a photo capture if any is an image, else a file capture, and each token
+becomes its file's embed or link. The edit is a save like any other (it queues enrich as one
+does), and a stale `base_rev` records no file. The photos are queued and read as any capture's
+photos are, and a PDF or text file is read for search only ({ref}`ingest-files`). Following the
+rule above, their reading sets no title, tags or kind and writes no task boxes
+({ref}`ingest-actions`), and a page made as text stays enrich's, so its saves still queue enrich
+({ref}`ingest-enrich`). Once the photos are read, a board page gets a new write-up; a page whose
+first photos these are gets its related call then, and any other the nightly related pass. The
+page's images are in the order the server received their captures, so the added ones come
+after the page's own. `POST /api/pages/{id}/captures` (`Store.add_photos`), which appends each
+new image's embed to the end of the text with no revision checked and lists a file below it,
+still takes an older build's Add photo that waited on a phone, and any other client's.
 
 ## Excalidraw in the PWA
 

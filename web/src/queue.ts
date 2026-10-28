@@ -19,7 +19,7 @@ export interface Capture {
   source: "pwa" | "share";
   files: { name: string; blob: Blob }[];
   place?: "1"; // its text places its files with tokens (the composer's, #403; pending.ts)
-  page?: string; // added to this page (its id), not a new one: the editor's Add photo
+  page?: string; // added to this page (its id): an older build's Add photo, still sent
   to?: string; // that page's title, to say where it goes while it waits
 }
 

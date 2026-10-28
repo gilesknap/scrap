@@ -1,8 +1,8 @@
 // A page in the editor (page.ts's Edit, and its due chip): its text, title, kind, a todo's due
 // date and priority, and its tags, with the draft kept on the phone, and a conflict shown if it changed
 // elsewhere meanwhile. A chunk of its own with editor.ts, kept offline (vite.config.ts).
-import { adopt, photoAdder, takesPhotos } from "./addphoto";
-import { ADDED, ApiError, api, type Page } from "./api";
+import { adders, restore } from "./adders";
+import { ApiError, api, overLimit, type Page, uploadLimit } from "./api";
 import { drafts } from "./db";
 import {
   confirmRemoval,
@@ -21,7 +21,8 @@ import {
   toSend,
 } from "./editor";
 import { laterField, mediaFields, mediaNow, mediaSays } from "./lateredit";
-import { tooLong } from "./pagecap";
+import { embedBytes, tooLong } from "./pagecap";
+import { placed, wire } from "./pending";
 import { reading, toLine } from "./readat";
 import { textPart } from "./textpart";
 import { h, toast } from "./ui";
@@ -36,8 +37,28 @@ interface Draft {
   todo?: { due: string | null; priority: string | null }; // a todo's, if changed
   media?: string; // a Later page's type, if changed
   base: number; // the revision it was made on
+  files?: File[]; // photos and files picked, not yet saved: IndexedDB keeps them
+  tokens?: string[]; // each one's token in text
 }
 const JSON_TYPE = { "Content-Type": "application/json" };
+
+/** Whether the editor offers Camera, Gallery and File: not on a topic page, whose synthesis is
+ * its write-up (a board photo would queue one over it; the server refuses them too). */
+export const takesPhotos = (page: { topic?: unknown }) => !page.topic;
+
+/** Photos made smaller before they are sent, as the capture queue does (downscale.ts, a lazy
+ * chunk; the setting off, or the chunk not loading: as they are). */
+async function shrunk(files: File[]): Promise<File[]> {
+  try {
+    const d = await import("./downscale");
+    if (!d.getShrink()) return files;
+    const out: File[] = [];
+    for (const f of files) out.push(await d.shrink(f)); // one at a time: a bitmap is big
+    return out;
+  } catch {
+    return files;
+  }
+}
 
 export async function edit(
   p: Page,
@@ -60,13 +81,22 @@ export async function edit(
   const kind = kindPicker(kept?.picked ? (kept.kind ?? initial) : initial, !!kept?.picked);
   let base = kept?.base ?? p.rev;
   let over = p.body; // the text a save replaces: its deleted embeds are warned about
-  // The page's revision and text as opened: Add photo moves them on (adopted, below)
+  // The page's revision and text as opened: what Discard goes back to
   const at = { rev: p.rev, body: p.body };
   const title = h("input", { value: kept?.title ?? p.title, "aria-label": "Title", dir: "auto" });
   const text = h("textarea", { value: kept?.text ?? p.body, rows: 8, "aria-label": "Body" });
   // Its images and files as short tokens, with a chip each under it: body() is the Markdown
   const embeds = embedded(text);
   const body = embeds.value;
+  // Photos and files picked here: a token each where the caret was, with a chip, sent with
+  // Save (adders.ts, pending.ts), as the composer's are
+  const pending = () => embeds.list().filter((e) => e.blob);
+  const inText = () => placed(text.value, pending()); // those still in the text
+  const adder = takesPhotos(p) ? adders(text, embeds) : null;
+  // A draft's, each with its token; one whose token is gone from its text, at the end
+  const lost = restore(embeds, text.value, kept?.files, kept?.tokens);
+  if (lost.length && adder) adder.add(lost, text.value.length, text.value.length);
+  embeds.show();
   if (unfiled) text.addEventListener("input", () => kind.suggest(suggested(body())));
   // Tags: a draft's only if they were changed in it (not, say, tags Claude or another
   // device set since); and sent only if changed from those it started from
@@ -106,26 +136,39 @@ export async function edit(
   const conflict = h("div");
   let busy = false; // a save in flight (or its removal question open): no second one
   let closed = false; // saved: the editor is going, Save stays off
+  const mb = (n: number) => `${(n / 2 ** 20).toFixed(1)} MB`;
   const send = async () => {
-    const long = tooLong(body(), 0, body() === over);
+    // The files still in the text, in their tokens' order, each token as the server reads it
+    const { text: wired, files } = wire(body(), pending());
+    const long = tooLong(wired, embedBytes(files, wired), body() === over);
     if (long) return toast(long, "", undefined, 8000); // still editing, as it was
+    const size = files.reduce((n, f) => n + f.size, 0);
+    if (overLimit(size)) {
+      const why = `${mb(size)} of files is over the server's ${mb(uploadLimit())} limit.`;
+      return toast(`${why} Remove some to save.`, "", undefined, 10000);
+    }
     if (!(await confirmRemoval(p, over, body()))) return; // still editing, as it was
-    const textual = body() !== over || title.value !== p.title;
+    const textual = body() !== over || title.value !== p.title || files.length > 0;
+    // The title only if changed: ingest may rename a provisional title meanwhile
+    const edit = JSON.stringify({
+      ...textPart(textual, base, wired),
+      ...(title.value !== p.title && { title: title.value }),
+      kind: toSend(kind.value(), kind.picked(), p.kind),
+      // (with the tags it started from: one Claude adds meanwhile is kept, not taken off)
+      ...(retagged() && { tags: tags.value(), tags_shown: tagsFrom }),
+      ...(redated() && todoNow()),
+      ...(retyped() && { fields: mediaFields(later.value()) }),
+    });
+    let sent: RequestInit = { method: "PATCH", headers: JSON_TYPE, body: edit };
+    if (files.length) {
+      // With its files: one request, the server puts each where its token is (pages_api)
+      const form = new FormData();
+      form.append("edit", edit);
+      for (const f of await shrunk(files)) form.append("file", f, f.name);
+      sent = { method: "PATCH", body: form };
+    }
     try {
-      const saved = await api<Page>(`pages/${p.id}`, {
-        method: "PATCH",
-        headers: JSON_TYPE,
-        // The title only if changed: ingest may rename a provisional title meanwhile
-        body: JSON.stringify({
-          ...textPart(textual, base, body()),
-          ...(title.value !== p.title && { title: title.value }),
-          kind: toSend(kind.value(), kind.picked(), p.kind),
-          // (with the tags it started from: one Claude adds meanwhile is kept, not taken off)
-          ...(retagged() && { tags: tags.value(), tags_shown: tagsFrom }),
-          ...(redated() && todoNow()),
-          ...(retyped() && { fields: mediaFields(later.value()) }),
-        }),
-      });
+      const saved = await api<Page>(`pages/${p.id}`, sent);
       closed = true;
       await ed.done();
       await load(saved); // its first image: the figures
@@ -185,7 +228,7 @@ export async function edit(
     text,
     read: body,
     before: [kind.el, title, todoLine.el, tagLine.el, laterLine.el],
-    after: [...(takesPhotos(p) ? [photoAdder(p)] : []), conflict],
+    after: [...(adder ? [adder.bar] : []), conflict],
     foot: embeds.chips,
     key,
     draft: (): Draft => ({
@@ -198,6 +241,8 @@ export async function edit(
       ...(redated() && { todo: todo.value() }),
       ...(retyped() && { media: later.value() }),
       base,
+      files: inText().map((e) => e.blob as File),
+      tokens: inText().map((e) => e.token),
     }),
     dirty: () =>
       title.value !== p.title ||
@@ -224,26 +269,6 @@ export async function edit(
     },
     onsave: () => void save(),
   });
-  // Photos added (Add photo, uploaded now or later) onto the revision this editor holds: the
-  // embeds go to the end of its text too, and it moves on to the page's new revision, so Save
-  // doesn't show the photos as a conflict. Added onto another revision (the page changed
-  // meanwhile), Save shows the conflict, as for any change made elsewhere.
-  const adopted = (e: Event) => {
-    if (!ed.form.isConnected) return removeEventListener(ADDED, adopted);
-    const page = (e as CustomEvent<Page & { appended_on: number | null }>).detail;
-    if (page.id !== p.id || page.appended_on !== base) return;
-    const merged = adopt(body(), over, page.body);
-    if (merged === null) return;
-    const { selectionStart, selectionEnd } = text; // the text before them is as it was
-    embeds.set(merged);
-    text.setSelectionRange(selectionStart, selectionEnd);
-    base = page.rev;
-    over = page.body;
-    // Discard goes back to the page as it is now, photos and all: they are not the edit
-    Object.assign(at, { rev: page.rev, body: page.body });
-    ed.keep();
-  };
-  addEventListener(ADDED, adopted);
   // From the due chip: its Due fold open, focus on the due chip pressed (no keyboard)
   if (due && !todoLine.el.hidden) {
     todoLine.el.open = true;
