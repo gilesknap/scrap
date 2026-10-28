@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data model and storage &#8212; scrap 0.17.1.dev3+g17581c905 documentation</title>
+    <title>Data model and storage &#8212; scrap 0.17.1.dev4+gc31af1cca documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=cd1ea9b9"></script>
+    <script src="../../_static/documentation_options.js?v=d7e7e078"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1285,7 +1285,7 @@ then:</p>
 <td><p>applies <code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code> and sets version 18, in one transaction, then any later scripts</p></td>
 </tr>
 <tr class="row-odd"><td><p>below 18</p></td>
-<td><p>refuses: <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">1.0</span></code></p></td>
+<td><p>refuses: <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">0.17.0</span> <span class="pre">or</span> <span class="pre">later</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>18 up to the latest</p></td>
 <td><p>applies each missing script in its own transaction; none is missing at 18 now</p></td>
@@ -1299,7 +1299,7 @@ then:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> runs the same check on the copy of a backup before it swaps anything in, so a
 backup below schema 18 is refused with that message, naming the folder given. To use one, restore
-it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 1.0.</p></li>
+it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 0.17.0 or later.</p></li>
 <li><p>A migration after the baseline avoids rebuilding a table in Python unless a <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> must change;
 plain SQL is enough and easy to fold later.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">tests/data/schema_baseline.json</span></code> is the frozen structure of the baseline, and
