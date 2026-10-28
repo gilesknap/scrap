@@ -172,7 +172,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     // Each file's token as the server reads it, and the files in their tokens' order
     const { text: body, files } = wire(tidy(em.value()), pending());
     if (!body) return text.focus();
-    const long = tooLong(body, embedBytes(files));
+    const long = tooLong(body, embedBytes(files, body));
     if (long) return toast(long, "", undefined, 8000); // kept in the composer to shorten
     const tagged = tags.value();
     // The server's tag limits too: a capture it refuses would sit in the queue, unfixable.

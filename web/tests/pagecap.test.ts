@@ -25,6 +25,9 @@ describe("the page size check", () => {
     expect(embedBytes([image, image, pdf])).toBe(200 + 90);
     expect(embedBytes([{ type: "" }])).toBe(100);
     expect(embedBytes([{ type: "text/plain", name: "é".repeat(30) }])).toBe(79 + 60);
+    // once for each of its tokens in the text sent, else once (CodeRabbit on #412)
+    const sent = "⟦image 1⟧ a ⟦file 2⟧ b ⟦image 1⟧ c ⟦image 1⟧ ⟦image 12⟧";
+    expect(embedBytes([image, pdf, image], sent)).toBe(3 * 100 + 90 + 100);
     const text = "x".repeat(MAX - 150);
     expect(tooLong(text)).toBeNull();
     expect(tooLong(text, embedBytes([image, image]))).toContain("bytes");

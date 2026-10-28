@@ -199,7 +199,7 @@ describe("queue", () => {
       { name: "b.jpg", blob: new Blob(["b"], { type: "image/jpeg" }) },
     ];
     const text = "Trip\n\n⟦file 2⟧\n\nthe view ⟦image 3⟧ from the top\n\n⟦image 1⟧\n\nend";
-    const big = await q.add({ text, source: "pwa", files });
+    const big = await q.add({ text, source: "pwa", place: "1", files });
     await q.flush();
     replies = [0];
     await q.splitRetry(big.id, split);
@@ -212,6 +212,9 @@ describe("queue", () => {
     ]);
     expect(firstOnly("⟦file 2: m.pdf⟧\n⟦image 1⟧\n⟦image 12⟧")).toBe("⟦image 1⟧");
     expect(firstOnly("no tokens\n\nat all")).toBe("no tokens\n\nat all");
+    // without place (a share, an older build) the text is not read for tokens (CodeRabbit on #412)
+    const shared = split({ text: "a ⟦file 2⟧ b", source: "share", files });
+    expect(shared.map((p) => p.text)).toEqual(["a ⟦file 2⟧ b", undefined, undefined]);
   });
 
   it("splits in one transaction: all parts and no original, or nothing", async () => {

@@ -23,7 +23,8 @@ export const firstOnly = (text: string) =>
  * photo. Each page gets the tags. */
 export const split = (c: Capture): Capture[] =>
   c.files.map((f, i) => {
-    const text = !i && c.text ? firstOnly(c.text) : undefined;
+    // Its tokens are read only with place (the composer's): other text stays as it is
+    const text = !i && c.text && c.place ? firstOnly(c.text) : !i ? c.text : undefined;
     const part: Capture = { ...(!i && { text, url: c.url }), source: c.source, files: [f] };
     const keys = ["tags", "page", "to"] as const;
     const first = ["kind", "hint", "due", "priority", "place"] as const;
