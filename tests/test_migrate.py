@@ -78,7 +78,7 @@ def test_a_database_below_the_baseline_is_refused_untouched(tmp_path, old):
     message = str(raised.value)
     assert f"schema {old}" in message
     assert "upgrade with scrap 0.16.x first (it migrates to schema 18)" in message
-    assert "then use 1.0" in message
+    assert "then use 0.17.0 or later" in message
     with pytest.raises(RuntimeError, match="0.16.x"):
         store_mod.schema_version(path)
     assert (schema(path), version(path)) == (before, old)

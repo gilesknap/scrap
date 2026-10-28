@@ -538,9 +538,10 @@ Backups made after the update have the new schema, so the old image refuses to r
 (scrap-upgrade-1-0)=
 ### Upgrading to 1.0 from before 0.16
 
-scrap 1.0 starts from schema 18 and refuses a database or a backup below it:
+scrap 0.17.0 and later, 1.0 included, start from schema 18 and refuse a database or a backup
+below it:
 `<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x
-first (it migrates to schema 18), then use 1.0`. Update to the latest 0.16.x first (as above, with
+first (it migrates to schema 18), then use 0.17.0 or later`. Update to the latest 0.16.x first (as above, with
 `ghcr.io/gilesknap/scrap:0.16.<x>`), let it start and migrate, take a new restore point, then
 update to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.
 

@@ -26,7 +26,7 @@ the last moment its history can be dropped without cost.
 - **1.0 starts from 18 and nothing older.** Migrations 0001 to 0018, their Python steps and
   `store/fixes.py` are deleted, as are the fallbacks that read an older schema's tables
   (`roles`). A database or a backup below schema 18 is refused, before anything is changed, with
-  `upgrade with scrap 0.16.x first (it migrates to schema 18), then use 1.0`; `scrap restore`
+  `upgrade with scrap 0.16.x first (it migrates to schema 18), then use 0.17.0 or later`; `scrap restore`
   checks the copy before the swap. 0.16.0 is the last release that migrates older stores. There
   is no bridge.
 - **A fresh database is made from the baseline**, in one transaction, then any later scripts. A
@@ -52,6 +52,6 @@ the last moment its history can be dropped without cost.
 - The history of how the schema came to be is in the earlier ADRs and the 0.16 tag, not in the
   tree.
 - A backup older than schema 18 cannot be restored by 1.0 directly. Restore it with 0.16.x
-  first, take a new backup, then use 1.0.
+  first, take a new backup, then use 0.17.0 or later.
 - ADRs 12, 20, 27, 28, 31, 33 and 34 name migrations by number; those numbers now mean "part of the
   baseline".

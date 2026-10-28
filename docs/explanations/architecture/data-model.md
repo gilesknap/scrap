@@ -322,13 +322,13 @@ then:
 | The database is | `migrate()` |
 | --- | --- |
 | empty (`user_version` 0) | applies `baseline.sql` and sets version 18, in one transaction, then any later scripts |
-| below 18 | refuses: `<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x first (it migrates to schema 18), then use 1.0` |
+| below 18 | refuses: `<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x first (it migrates to schema 18), then use 0.17.0 or later` |
 | 18 up to the latest | applies each missing script in its own transaction; none is missing at 18 now |
 | newer than the code | refuses: `<db> has schema N; this scrap knows M` |
 
 - `scrap restore` runs the same check on the copy of a backup before it swaps anything in, so a
   backup below schema 18 is refused with that message, naming the folder given. To use one, restore
-  it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 1.0.
+  it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 0.17.0 or later.
 - A migration after the baseline avoids rebuilding a table in Python unless a `CHECK` must change;
   plain SQL is enough and easy to fold later.
 - `tests/data/schema_baseline.json` is the frozen structure of the baseline, and

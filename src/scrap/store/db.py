@@ -24,7 +24,7 @@ BASELINE_SQL = "baseline.sql"
 OLDER = (
     "{db} has schema {version}, older than the baseline this scrap starts from"
     " ({baseline}): upgrade with scrap 0.16.x first (it migrates to schema 18), then"
-    " use 1.0"
+    " use 0.17.0 or later"
 )
 
 
