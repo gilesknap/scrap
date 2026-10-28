@@ -9,7 +9,7 @@ import httpx2
 import pytest
 from PIL import Image
 
-from scrap import claude, preview
+from scrap import claude, mask, preview
 from scrap.store import Store
 
 REQUEST = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
@@ -307,3 +307,46 @@ def test_ingest_once_reports_a_paid_invalid_answer(tmp_path, monkeypatch, capsys
     got = json.loads(capsys.readouterr().out)
     assert got["usage"] == usage and "No space" in got["save_error"]
     assert not again.exists()
+
+
+SECRETS = [
+    "sk-ant-api03-abcdefghijklmnop1234",
+    "ghp_abcdefghijklmnopqrstuv",
+    "xoxb-1234567890-abcdef",
+    "AKIAABCDEFGHIJKLMNOP",
+    "Bearer abcdef.ghijkl-mnop",
+    "password = hunter2hunter2",
+    "-----BEGIN RSA PRIVATE KEY-----\nMIIEow\nabc\n-----END RSA PRIVATE KEY-----",
+]
+SAFE = [
+    "9fceb02d0ae598e95dc970b74767f19372d61af3",  # a git SHA
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",  # sha256
+    "https://example.com/a/very/long/path/with-many-words-and-ids/1234567890abcdef",
+    "a-long-slug-about-the-quarterly-planning-meeting-notes-2026",
+    "the token budget is large",
+]
+
+
+@pytest.mark.parametrize("secret", SECRETS)
+def test_secrets_are_masked(secret):
+    assert mask.redact_secrets(f"before {secret} after") == "before [REDACTED] after"
+
+
+@pytest.mark.parametrize("text", SAFE)
+def test_lookalikes_are_left_alone(text):
+    assert mask.redact_secrets(text) == text
+
+
+def leaky():
+    text = "key " + SECRETS[0] + " and " + SAFE[0]
+    return [{"role": "user", "content": [{"type": "text", "text": text}]}], text
+
+
+def test_the_api_payload_is_masked_and_the_stored_messages_are_not(fake):
+    messages, stored = leaky()
+    sent = fake(response('{"kind": "photo"}'))
+    claude.complete("m", "sys " + SECRETS[1], messages, claude.SCHEMA, None)
+    payload = repr(sent.sent)
+    assert "[REDACTED]" in payload and SAFE[0] in payload
+    assert SECRETS[0] not in payload and SECRETS[1] not in payload
+    assert messages[0]["content"][0]["text"] == stored
