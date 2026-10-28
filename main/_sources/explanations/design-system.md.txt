@@ -274,7 +274,8 @@ every few taps. So the filters open in place instead:
 
 - **Filters** is a slider icon at the end of the search field, where the thumb already is (no
   count on it: the chips under the kind row say what is on). A tap opens or folds the panel (`aria-expanded`,
-  `aria-controls`); it stays open or folded while the app is open, the next search too.
+  `aria-controls`); open, the icon sits in a 36 px `--accent-soft` disc with a 2 px `--accent-ink` ring
+  (6.5:1 on `--surface` light, 9.2:1 dark), a shape and a fill, not hue alone; it stays open or folded while the app is open, the next search too.
 - The panel opens under the search field, above the kind row and the list, so each tap in it
   shows its effect at once. A row per kind of choice (Tags, When, Arrange), each a small
   heading over chips that wrap (never scrolling sideways), keeps it short. The tags

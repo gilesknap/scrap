@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA’s design system &#8212; scrap 1.0.0rc3.dev4+g24c544481 documentation</title>
+    <title>The PWA’s design system &#8212; scrap 1.0.0rc3.dev5+g02a633ffb documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d9144ecc"></script>
+    <script src="../_static/documentation_options.js?v=9d44bca1"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1129,7 +1129,8 @@ every few taps. So the filters open in place instead:</p>
 <ul class="simple">
 <li><p><strong>Filters</strong> is a slider icon at the end of the search field, where the thumb already is (no
 count on it: the chips under the kind row say what is on). A tap opens or folds the panel (<code class="docutils literal notranslate"><span class="pre">aria-expanded</span></code>,
-<code class="docutils literal notranslate"><span class="pre">aria-controls</span></code>); it stays open or folded while the app is open, the next search too.</p></li>
+<code class="docutils literal notranslate"><span class="pre">aria-controls</span></code>); open, the icon sits in a 36 px <code class="docutils literal notranslate"><span class="pre">--accent-soft</span></code> disc with a 2 px <code class="docutils literal notranslate"><span class="pre">--accent-ink</span></code> ring
+(6.5:1 on <code class="docutils literal notranslate"><span class="pre">--surface</span></code> light, 9.2:1 dark), a shape and a fill, not hue alone; it stays open or folded while the app is open, the next search too.</p></li>
 <li><p>The panel opens under the search field, above the kind row and the list, so each tap in it
 shows its effect at once. A row per kind of choice (Tags, When, Arrange), each a small
 heading over chips that wrap (never scrolling sideways), keeps it short. The tags
