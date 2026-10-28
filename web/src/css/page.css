@@ -275,11 +275,13 @@
   margin: 0;
 }
 .md > .orig,
-.md > .photo-panel {
+.md > .photo-panel,
+.md > .file-panel {
   margin: var(--s-4) 0; /* a figure in the text: a paragraph's spacing */
 }
 .md > .orig:first-child,
-.md > .photo-panel:first-child {
+.md > .photo-panel:first-child,
+.md > .file-panel:first-child {
   margin-top: 0;
 }
 .originals img,
