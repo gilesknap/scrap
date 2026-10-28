@@ -121,7 +121,9 @@ test("Tags offers only tags that narrow the results; typed, those of the results
   // Before any search: the most used tags of all
   await page.goto("/search");
   await filters(page);
-  await expect(offers(page).filter({ hasText: "#marsupial" })).toBeVisible();
+  // (as many as fit two rows, full paths: which ones depends on what else the store holds)
+  await expect(offers(page).first()).toBeVisible();
+  await expect(offers(page).filter({ hasText: "…/" })).toHaveCount(0);
 });
 
 test("When, Order and Clear filters: each a tap, applied at once", async ({ page }) => {

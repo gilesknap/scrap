@@ -30,7 +30,8 @@ async function make(page: Page, w: string, tags: string[]) {
 /** Pages holding w, all tagged with the two clashing tags and each with a long one of its own
  * (more than the picker can offer in two rows). Returns the clashing pair. */
 async function seed(page: Page, w: string, own = 12) {
-  const pair = [`a${w}/epics/ioc`, `b${w}/other/ioc`];
+  // (short, so both fit the picker's two rows beside the box at 390 px, full paths being wide)
+  const pair = ["a/epics/ioc", "b/other/ioc"];
   for (let i = 0; i < own; i++)
     await make(page, w, [...pair, `topic${i}${w}-quite-a-long-top-level-tag-name`]);
   return pair;
@@ -107,14 +108,14 @@ test("the first result shows under the open Filters panel at 390 px, 130%", asyn
   await expect(nav).toBeVisible();
   const navTop = (await nav.boundingBox())?.y as number;
   await expect(results(page).first()).toContainText(w);
-  const first = (await results(page).first().boundingBox()) as { y: number };
-  expect(first.y).toBeLessThanOrEqual(navTop - 160); // well into view, not just its edge
+  const top = async () => ((await results(page).first().boundingBox()) as { y: number }).y;
+  // (polled: the chips are fitted to two rows once the fonts are in)
+  await expect.poll(top).toBeLessThanOrEqual(navTop - 160); // well into view, not just its edge
   // With one (long) tag chosen the row's start still shows, at least a line above the nav (a long tag adds a wrapped chip row)
   await page.getByRole("button", { name: /^Filter by #topic0/ }).click();
   await expect(filtersButton(page)).toHaveAccessibleName("Filters, 1 on");
   await expect(results(page)).toHaveCount(1); // narrowed: drawn again
-  const chosen = (await results(page).first().boundingBox()) as { y: number };
-  expect(chosen.y).toBeLessThanOrEqual(navTop - 100);
+  await expect.poll(top).toBeLessThanOrEqual(navTop - 100);
 });
 
 test("every chip says its tag's full path, never shortened", async ({ page }) => {

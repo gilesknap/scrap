@@ -194,7 +194,7 @@ These five are the only kinds. A topic page is a `document`, identified by the `
   ([ADR 12](../decisions/0012-kinds-flat-fields-and-typed-todo-columns.md), moved off `page` by
   [ADR 36](../decisions/0036-todo-values-in-a-side-table.md)). A row has at least one value; a
   page with none has no row, and the SQL reads that as NULL. (Its `snoozed_until` column is
-  unused since Snooze was retired on 28 Oct 2026, and is to be dropped.) They belong to todos (`page.kind = 'todo'`): another kind ignores
+  unused since Snooze was retired on 28 Oct 2026, and is kept for later reuse.) They belong to todos (`page.kind = 'todo'`): another kind ignores
   them but keeps its row. Setting them is not a revision. Only `store/todo.py` names the table.
 - **Task boxes** (`- [ ]`, `- [x]`) are counted per page into `task_done` and `task_total`. An
   unfixed note with boxes is filed as a todo; on a todo, ticking the last box marks it done and

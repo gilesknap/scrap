@@ -106,7 +106,7 @@ test("a todo's page has one amber fill; its due chip opens the editor, whose one
   // At rest: Mark done is the one fill
   expect(await amberFills(page)).toEqual(["Mark done"]);
   await page.locator(".page .tags .duechip").click();
-  await expect(page.locator(".editor .todoedit")).toBeVisible();
+  await expect(page.locator(".editor .todoedit").first()).toBeVisible(); // Due opens first
   await expect.poll(() => amberFills(page, ".editor")).toEqual(["Save"]);
 });
 
