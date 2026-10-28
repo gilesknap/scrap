@@ -105,6 +105,17 @@ export function shareMade(el: HTMLElement, title: string, name: string, make: ()
   });
 }
 
+/** Share a page's download (its Markdown, or a zip with its files) with the share sheet. The
+ * photos in it are previews, which carry no EXIF or GPS. Where this phone can't share the
+ * file, `saved` gets the plain download (the originals) instead. */
+export async function sharePageFile(href: string, title: string, saved: (f: File) => void) {
+  // Asked before the download, which is slow; the page's file is a zip, or Markdown if it has no files
+  if (!canShareFile("page.zip", "application/zip")) return saved(await fetchFile(href));
+  const file = await fetchFile(`${href}?photos=preview`);
+  if (!canShareFile(file.name, file.type)) return saved(file); // Markdown, as a plain download has it
+  await shareFiles(title, [file], "Page ready");
+}
+
 export interface Sharing {
   what: () => { title: string; text?: string; file?: string[] };
   link?: string; // the page's address: Share then asks Link or the content
@@ -148,6 +159,15 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     pick("link", "Link", () => void send({ title: s.what().title, url: link })),
     pick(...s.content, () => void shareContent()),
   );
+  // The page's Download (an <a download>) is among `more`: Share can send what it saves
+  const saved = s.more?.find((r) => r instanceof HTMLAnchorElement && r.hasAttribute("download"));
+  if (saved instanceof HTMLAnchorElement && "canShare" in navigator)
+    menu.append(
+      pick("file", "File", () => {
+        const done = (f: File) => saveBlob(f, f.name);
+        void busy(b, "Share", () => sharePageFile(saved.href, s.what().title, done));
+      }),
+    );
   for (const row of s.more ?? []) {
     row.addEventListener("click", () => menu.hidePopover());
     menu.append(row);

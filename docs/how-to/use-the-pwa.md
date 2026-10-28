@@ -451,13 +451,22 @@ Page text is Markdown as GitHub writes it:
 
 ### Sharing a page
 
-**Share** asks **Link**, **Text** or **Download**. Tap **Share** again or elsewhere to close.
+**Share** asks **Link**, **Text**, **File** (where the browser can share files) or **Download**. Tap **Share** again or elsewhere to close.
 
 | Choice | Sends |
 | --- | --- |
 | **Link** | The page's address; opens the page for anyone who can reach your scrap |
 | **Text** | Title and text as typed, without lines that only show a photo; no link to scrap |
-| **Download** | Markdown, or a zip of the Markdown and its files when it has any |
+| **File** | The same Markdown, or zip, as Download, handed to the share sheet, but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share it, it is saved like Download |
+| **Download** | Markdown, or a zip of the Markdown and its files (the originals) when it has any |
+
+The Markdown has what the page shows, not only your text. The front matter lists the page's
+tags, status and topics. After your text and the files comes one section headed *Claude's notes
+(written by a model, may be wrong)*: Claude's summary, the tags it added, a board's write-up or a
+topic's synthesis, and related pages. Then *Linked from* lists the pages that link here. The text
+read from a PDF or text file follows the file's link, in a block cut at 20,000 characters. If
+`SCRAP_PUBLIC_URL` is set, `[[slug]]` links are written as full addresses so they work outside
+scrap. `scrap export` does not write any of this: it stays your text.
 
 Where the browser cannot share, there is no Share and **Download** is in the toolbar. While it
 fetches the button says *Preparing…*; a finished Download says *Downloaded* with name and size; a

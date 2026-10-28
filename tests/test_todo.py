@@ -114,7 +114,7 @@ def test_markdown_carries_due_and_priority_as_front_matter(client, note, tmp_pat
     ref = note("Fix the fence", kind="todo", due="2026-11-01", priority="high")
     text = client.get(f"/api/pages/{ref['page_id']}/download").text
     assert '\nkind: "todo"\n' in text
-    assert '\ndue: "2026-11-01"\npriority: "high"\nfields: {"status": "open"}\n' in text
+    assert '\ndue: "2026-11-01"\npriority: "high"\nstatus: "open"\n' in text
     bare = note("Someday", kind="todo")
     text = client.get(f"/api/pages/{bare['page_id']}/download").text
     assert "\ndue:" not in text and "\npriority:" not in text
