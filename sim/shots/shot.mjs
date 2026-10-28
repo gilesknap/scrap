@@ -17,6 +17,7 @@
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(new URL("../../web/package.json", import.meta.url));
 const { chromium } = require("@playwright/test");
@@ -25,7 +26,7 @@ const opt = {
   width: "390",
   text: "100",
   scheme: "light",
-  out: new URL("../out-shots", import.meta.url).pathname,
+  out: fileURLToPath(new URL("../out-shots", import.meta.url)),
   wait: "1500",
   base: "http://127.0.0.1:9100/art/x1/index.html",
 };
