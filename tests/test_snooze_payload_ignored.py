@@ -1,4 +1,4 @@
-"""Snooze was retired (28 Oct 2026): an old client's `snoozed_until` is ignored, never a 500."""
+"""Snooze was retired (28 Oct 2026): an old client's `snoozed_until` is ignored."""
 
 from scrap.store import new_ulid
 
