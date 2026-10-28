@@ -9,6 +9,7 @@ from contextlib import closing
 
 import pytest
 
+from pagehelp import import_page
 from scrap import enrich, ingest
 from scrap.ingest import FAR, files
 from scrap.store import Store, connect, new_ulid, queue_enrich, transaction
@@ -295,7 +296,7 @@ def test_an_imported_file_is_not_sent(store):
             "fields": {}, "tags": [], "created_at": "2024-01-01T00:00:00.000Z",
             "updated_at": "2024-01-01T00:00:00.000Z"}  # fmt: skip
     blobs = [(sha, "text/plain", size, "guide.txt")]
-    store.import_page(page, [(new_ulid(), "file", None, blobs)], "me", enqueue=True)
+    import_page(store, page, [(new_ulid(), "file", None, blobs)], "me", enqueue=True)
     fake = Fake(GUIDE)
     run_all(worker(store, fake))
     assert file_jobs(store) == [("done", None)]

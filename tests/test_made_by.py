@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
+from pagehelp import import_page
 from scrap import mcp_server, orphans
 from scrap.app import create_app
 from scrap.store import CLAUDE, MCP, Store, new_ulid, now, topics
@@ -88,7 +89,7 @@ def test_each_way_a_page_is_made_sets_made_by(client, store):
     assert topic and made_by(store, topic) == "topic"
     p = {"slug": "imported", "title": "Imported", "body": "notes", "kind": "note",
          "fields": {}, "tags": [], "created_at": T1, "updated_at": T1}  # fmt: skip
-    store.import_page(p, [(new_ulid(), "note", "notes", [])], "me")
+    import_page(store, p, [(new_ulid(), "note", "notes", [])], "me")
     assert made_by(store, "imported") == "human"  # its captures' source is import
     assert store.ensure_pinned("me")["made_by"] == "human"
 
