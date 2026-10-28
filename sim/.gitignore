@@ -1,0 +1,4 @@
+# build.sh's output, serve.sh's host folder and shots/shot.mjs's default output
+out/
+.host/
+out-shots/
