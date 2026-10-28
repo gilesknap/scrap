@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.19.1.dev2+ga863e808f documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc2.dev1+g61915e982 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=eda1c246"></script>
+    <script src="../_static/documentation_options.js?v=19f89c7c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -894,8 +894,9 @@ or the Tailscale operator or an ingress in <a class="reference internal" href="d
 <li><p>Open scrap from its icon. It opens on the capture screen, in its own window.</p></li>
 </ol>
 <p>Installing is what puts scrap in the Android <strong>share sheet</strong>.</p>
-<p>The app’s text follows the phone’s <strong>Font size</strong> (Settings, Display), in the installed app as in
-a Chrome tab (Chrome 146 or later), never going below its usual 17 px.</p>
+<p>The app’s text is sized like a web page’s, so Chrome’s zoom enlarges it. To follow the phone’s
+<strong>Font size</strong> instead, or to make scrap smaller or bigger than other sites, see
+<a class="reference internal" href="#text-size">Text size</a>.</p>
 <p>scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
 over your tailnet or behind a proxy that authenticates (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
 </section>
@@ -1039,12 +1040,12 @@ shows a page saying it was not saved if there is no connection either.</p></li>
 </ul>
 <section id="text-size">
 <span id="id1"></span><h3>Text size<a class="headerlink" href="#text-size" title="Link to this heading">#</a></h3>
-<p>Settings → <strong>Text size</strong> sets how big scrap’s text is on this device. <strong>Phone</strong>, the default,
-follows the phone’s font size (Android’s, or an iPhone’s Text Size), never smaller than scrap’s
-usual 17 px. <strong>80%</strong>, <strong>90%</strong>, <strong>100%</strong>, <strong>115%</strong> or <strong>130%</strong> set scrap’s own size instead, 17 px
-times it, whatever the phone’s font size is: smaller than the phone’s if scrap looks too big.
-Everything sized from the text follows it (buttons, chips, the editor). The choice is kept on
-this device and applies at once.</p>
+<p>Settings → <strong>Text size</strong> sets how big scrap’s text is on this device. <strong>100%</strong>, the default, is
+scrap’s usual 17 px, sized as a web page is, so Chrome’s zoom enlarges it as it does every other
+site. <strong>80%</strong>, <strong>90%</strong>, <strong>115%</strong> and <strong>130%</strong> are 17 px times that. <strong>Phone</strong> follows the phone’s
+font size instead (Android’s Font size, or an iPhone’s Text Size and Larger Text), never smaller
+than 17 px. Everything sized from the text follows it (buttons, chips, the editor). The choice is
+kept on this device, applies at once, and is applied again whenever the app starts or comes back.</p>
 <p>If scrap looks much bigger in the installed app than in a Chrome tab or another app, check
 Chrome’s own zoom: Chrome, Settings, Accessibility, <strong>Page zoom</strong> (and Site settings, <strong>Zoom</strong>,
 for scrap’s address). It applies on top of the font size.</p>
@@ -1742,9 +1743,10 @@ these limits:</p>
 <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/captures</span></code> (<a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) can stand in.</p></li>
 <li><p><strong>Storage eviction.</strong> iOS may evict a home-screen app’s storage after weeks of non-use, dropping
 anything queued; open it once a connection is back.</p></li>
-<li><p><strong>Text size.</strong> The app follows the iPhone’s <strong>Text Size</strong> and <strong>Larger Text</strong>, keeping its own
-font and line spacing and never going below its usual 17 px. At the largest sizes kind rows wrap
-and the nav grows; a page’s toolbar may wrap <strong>Delete</strong> onto a second row.</p></li>
+<li><p><strong>Text size.</strong> With Settings → Text size → <strong>Phone</strong>, the app follows the iPhone’s <strong>Text Size</strong>
+and <strong>Larger Text</strong>, keeping its own font and line spacing and never going below its usual
+17 px. At the largest sizes kind rows wrap and the nav grows; a page’s toolbar may wrap
+<strong>Delete</strong> onto a second row.</p></li>
 </ul>
 </section>
 <section id="updates">

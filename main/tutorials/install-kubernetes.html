@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap on Kubernetes &#8212; scrap 0.19.1.dev2+ga863e808f documentation</title>
+    <title>Install scrap on Kubernetes &#8212; scrap 1.0.0rc2.dev1+g61915e982 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=eda1c246"></script>
+    <script src="../_static/documentation_options.js?v=19f89c7c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -900,9 +900,9 @@ for that reason, and the Deployment stops the old pod before it starts the new o
 <h2>1. Choose a release<a class="headerlink" href="#choose-a-release" title="Link to this heading">#</a></h2>
 <p>The chart is published as an OCI artifact, <code class="docutils literal notranslate"><span class="pre">oci://ghcr.io/gilesknap/charts/scrap</span></code>, and its version
 is the release tag (a pre-release such as <code class="docutils literal notranslate"><span class="pre">1.0.0rc1</span></code> is chart <code class="docutils literal notranslate"><span class="pre">1.0.0-rc.1</span></code>). This page installs
-<code class="docutils literal notranslate"><span class="pre">--version</span> <span class="pre">0.19.0</span></code>; use a newer release if there is one (see the
+<code class="docutils literal notranslate"><span class="pre">--version</span> <span class="pre">1.0.0-rc.1</span></code>; use a newer release if there is one (see the
 <a class="reference external" href="https://github.com/gilesknap/scrap/releases">releases</a>). The chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> is the same tag,
-so it runs <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.19.0</span></code> (amd64 and arm64). There is nothing to build
+so it runs <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:1.0.0rc1</span></code> (amd64 and arm64). There is nothing to build
 and nothing to clone.</p>
 </section>
 <section id="create-the-secrets">
@@ -968,7 +968,7 @@ Cloudflare. Cluster admins, node access and <code class="docutils literal notran
 plus a monthly one kept longer.</p></li>
 </ul>
 <p>Install it:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">0.19.0</span> \
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.0.0</span><span class="o">-</span><span class="n">rc</span><span class="mf">.1</span> \
     <span class="o">--</span><span class="n">namespace</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">rollout</span> <span class="n">status</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span>
 </pre></div>

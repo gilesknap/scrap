@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install on a server with Tailscale &#8212; scrap 0.19.1.dev2+ga863e808f documentation</title>
+    <title>Install on a server with Tailscale &#8212; scrap 1.0.0rc2.dev1+g61915e982 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=eda1c246"></script>
+    <script src="../_static/documentation_options.js?v=19f89c7c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -914,14 +914,14 @@ nothing, see <a class="reference internal" href="../how-to/deploy-single-server.
 <section id="get-the-image">
 <h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
 <p>As <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, pull the image. It is public, so no login is needed:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.19.0</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">0.19.0</span> <span class="o">--</span><span class="n">version</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.0.0</span><span class="n">rc1</span>
+<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.0.0</span><span class="n">rc1</span> <span class="o">--</span><span class="n">version</span>
 </pre></div>
 </div>
-<p>The last command prints <code class="docutils literal notranslate"><span class="pre">0.19.0</span></code>. The install script and its units come from the repo, so clone it
+<p>The last command prints <code class="docutils literal notranslate"><span class="pre">1.0.0rc1</span></code>. The install script and its units come from the repo, so clone it
 too:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
-<span class="n">git</span> <span class="n">clone</span> <span class="o">--</span><span class="n">branch</span> <span class="mf">0.19.0</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="o">--</span><span class="n">branch</span> <span class="mf">1.0.0</span><span class="n">rc1</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
 <span class="n">cd</span> <span class="n">scrap</span>
 </pre></div>
 </div>
@@ -934,7 +934,7 @@ too:</p>
 </div>
 <p>The first run writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> naming a local build, <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code>, and says
 the image is not here yet. Point it at the release you pulled and run the script again:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:0.19.0|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sed</span> <span class="o">-</span><span class="n">i</span> <span class="s1">'s|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:1.0.0rc1|'</span> <span class="o">~/.</span><span class="n">config</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">env</span>
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
