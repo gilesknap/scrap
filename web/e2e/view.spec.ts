@@ -61,13 +61,11 @@ test("a page and its photos download", async ({ page }) => {
     page.locator(".page > .bar").getByRole("link", { name: "Download" }).click(),
   ]);
   expect(zip.suggestedFilename()).toBe("with-a-photo.zip");
-  // The photo's own file (no preview of these bytes: a file row, with its Download)
-  const [orig] = await Promise.all([
-    page.waitForEvent("download"),
-    page.locator(".md .orig").getByRole("link", { name: "Download" }).click(),
-  ]);
-  expect(orig.suggestedFilename()).toBe("pic.png");
-  await expect(page.getByText(/^Downloaded pic\.png/)).toBeVisible();
+  // The photo's own file (no preview of these bytes): a file row with no Download of its own;
+  // its link opens the file, and the browser's viewer saves it, as the photo viewer does
+  const row = page.locator(".md .orig.filerow");
+  await expect(row.getByRole("link", { name: "Download" })).toHaveCount(0);
+  await expect(row.locator("a.file")).toHaveAttribute("href", /\/api\/blobs\/[0-9a-f]{64}$/);
 });
 
 /** A solid w x h PNG, so the viewer has real pixels to fit. */

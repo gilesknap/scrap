@@ -1,5 +1,6 @@
-// The page editor's Add photo (#260): the photo goes to the end of the page, through the
-// capture queue, so it waits on the phone while offline.
+// The page editor's Camera, Gallery and File (#260, as the composer's since #403): a picked photo
+// is a token where the caret is, with a chip, and goes to the server with Save, which puts its
+// embed where the token is. The row of three stays one line at large text sizes.
 import { expect, type Page, test } from "@playwright/test";
 
 const ulid = () => {
@@ -36,7 +37,9 @@ async function pick(page: Page) {
   await (await chooser).setFiles({ name: "board.png", mimeType: "image/png", buffer: PNG });
 }
 
-test("Add photo puts it at the end of the page and in the open editor's text", async ({ page }) => {
+test("Gallery puts the photo's token at the caret; Save sends it with the edit", async ({
+  page,
+}) => {
   const ref = await notePage(page, "Planning board\nfirst pass");
   await page.goto(`/p/${ref.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
@@ -44,97 +47,88 @@ test("Add photo puts it at the end of the page and in the open editor's text", a
   await body.press("Control+End");
   await body.pressSequentially("\nmore notes");
   await pick(page);
-  // Uploaded: the editor's text gains its token after what was typed, nothing lost
-  await expect(body).toHaveValue("Planning board\nfirst pass\nmore notes\n\n⟦image 1⟧");
-  const added = await read(page, ref.page_id);
-  expect(added.rev).toBe(2);
-  expect(added.captures.map((c) => c.kind)).toEqual(["note", "photo"]);
-  // Save is no conflict: the editor took the photo's revision
+  // A token after what was typed, and a chip; nothing is sent until Save
+  await expect(body).toHaveValue("Planning board\nfirst pass\nmore notes\n\n⟦image 1⟧\n\n");
+  await expect(page.locator(".editor .embeds .embed")).toHaveText(["Image 1"]);
+  expect((await read(page, ref.page_id)).rev).toBe(1);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".editor")).toBeHidden();
   const saved = await read(page, ref.page_id);
-  expect(saved.rev).toBe(3);
+  expect(saved.rev).toBe(2); // one revision: the text and the photo together
+  expect(saved.captures.map((c) => c.kind)).toEqual(["note", "photo"]);
   expect(saved.body).toMatch(
-    /^Planning board\nfirst pass\nmore notes\n\n!\[\]\(\/api\/blobs\/[0-9a-f]{64}\/preview\?size=2048\)$/,
+    /^Planning board\nfirst pass\nmore notes\n\n!\[\]\(\/api\/blobs\/[0-9a-f]{64}\/preview\?size=2048\)\s*$/,
   );
-});
-
-test("offline, the photo waits on the phone and is added once back online", async ({
-  page,
-  context,
-}) => {
-  const ref = await notePage(page, "Second board");
-  await page.goto(`/p/${ref.slug}`);
-  await page.getByRole("button", { name: "Edit" }).click();
-  await context.setOffline(true);
-  await pick(page);
-  await expect(page.getByText("kept on the phone")).toBeVisible();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.locator(".editor")).toBeHidden();
-  expect((await read(page, ref.page_id)).rev).toBe(1);
-  await context.setOffline(false);
-  await expect.poll(async () => (await read(page, ref.page_id)).rev).toBe(2);
-  await page.reload();
   // Shown as an image, and one that loaded (a failed preview would become a file link)
   const img = page.locator(".page img[src*='/api/blobs/']").first();
   await expect(img).toBeVisible();
   await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1);
 });
 
-/** The Camera and Gallery buttons inside `scope` (the page editor's group, or the composer's
- * bar), as rects read together in one pass so layout cannot move between the two. */
+test("offline, Save keeps the editor and its photo to try again", async ({ page, context }) => {
+  const ref = await notePage(page, "Second board");
+  await page.goto(`/p/${ref.slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await context.setOffline(true);
+  await pick(page);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".toast")).toBeVisible();
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(1); // still there
+  expect((await read(page, ref.page_id)).rev).toBe(1);
+  await context.setOffline(false);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".editor")).toBeHidden();
+  expect((await read(page, ref.page_id)).captures.map((c) => c.kind)).toEqual(["note", "photo"]);
+});
+
+/** Camera, Gallery and File inside `scope` (the page editor's group, or the composer's bar),
+ * read together in one pass so layout cannot move between them. */
 const addButtons = (page: Page, scope: string) =>
   page.evaluate((sel) => {
-    const rect = (name: string) => {
-      const b = [...document.querySelectorAll(`${sel} button`)].find(
-        (e) => e.textContent?.trim() === name,
-      );
-      const r = b?.getBoundingClientRect();
-      return r ? { y: r.y, w: r.width, h: r.height } : null;
-    };
+    const bs = [...document.querySelectorAll(`${sel} button`)];
     const root = document.documentElement;
     return {
-      camera: rect("Camera"),
-      gallery: rect("Gallery"),
+      n: bs.length,
+      rows: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().y))).size,
+      tall: bs.every((b) => Math.abs(b.getBoundingClientRect().height - 48) <= 1),
+      clipped: bs.some((b) => b.scrollWidth > b.clientWidth + 1),
       overflow: root.scrollWidth - root.clientWidth,
     };
   }, scope);
 
-/** Large text sizes (Android font scaling): each label stays on one line, so the buttons keep
- * their 48 px height. They share the row while they fit, else one a line; never a sideways
- * scroll. Waits for the layout to settle after the font change. */
-async function expectLargeText(page: Page, scope: string, font: number, rows: number) {
-  await page.addStyleTag({ content: `.bar .add { font-size: ${font}px !important; }` });
+/** Large text sizes (Android font scaling, as a root font size): the three stay one line of
+ * 48 px buttons, an icon over each word where they would not fit beside it; no label cut, no
+ * sideways scroll. Waits for the layout to settle after the font change. */
+async function expectOneLine(page: Page, scope: string, root: number) {
+  await page.addStyleTag({ content: `html { font-size: ${root}px !important; }` });
   await expect
-    .poll(async () => {
-      const { camera, gallery, overflow } = await addButtons(page, scope);
-      if (!camera || !gallery) return "missing";
-      const tall = [camera, gallery].every((b) => Math.abs(b.h - 48) <= 1);
-      return JSON.stringify({ tall, rows: new Set([camera.y, gallery.y]).size, overflow });
-    })
-    .toBe(JSON.stringify({ tall: true, rows, overflow: 0 }));
+    .poll(async () => JSON.stringify(await addButtons(page, scope)))
+    .toBe(JSON.stringify({ n: 3, rows: 1, tall: true, clipped: false, overflow: 0 }));
 }
 
 const sizes = [
-  { width: 390, font: 24, rows: 1 },
-  { width: 360, font: 30, rows: 2 },
-  { width: 280, font: 20, rows: 2 }, // under 300 px each button takes a line (photo-viewer.css)
+  { width: 390, root: 22.1 }, // 130% text
+  { width: 360, root: 22.1 },
+  { width: 320, root: 17 }, // 100%
+  { width: 320, root: 22.1 },
 ];
 
-for (const { width, font, rows } of sizes) {
-  test(`the editor's Camera and Gallery: ${font}px labels on ${width}px`, async ({ page }) => {
+for (const { width, root } of sizes) {
+  test(`the editor's Camera, Gallery and File: ${root}px text on ${width}px`, async ({ page }) => {
     const ref = await notePage(page, `Large text ${width}`);
     await page.setViewportSize({ width, height: 800 });
     await page.goto(`/p/${ref.slug}`);
     await page.getByRole("button", { name: "Edit" }).click();
-    await expectLargeText(page, '.editor [role="group"][aria-label="Add photo"]', font, rows);
+    await expectOneLine(page, '.editor [role="group"][aria-label="Add photo"]', root);
   });
 
-  test(`the composer's Camera and Gallery: ${font}px labels on ${width}px`, async ({ page }) => {
+  test(`the composer's Camera, Gallery and File: ${root}px text on ${width}px`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Note" }).click();
     await expect(page.locator(".editor")).toBeVisible();
-    await expectLargeText(page, ".editor .fields > .bar", font, rows);
+    await expectOneLine(page, ".editor .fields > .bar", root);
   });
 }

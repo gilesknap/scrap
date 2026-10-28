@@ -2,20 +2,31 @@
 recent list, a page, its edits, delete and undelete, and asking Claude to read it.
 Registered by app.create_app (add_routes)."""
 
+import json
 import re
 from typing import Annotated, Any
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, BeforeValidator, Field, StrictBool, StrictInt
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    Field,
+    StrictBool,
+    StrictInt,
+    ValidationError,
+)
 from starlette.datastructures import UploadFile
 
 from . import enrich
 from .api_models import EnrichOffError, Text
+from .photos_api import NotImageError
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
+    ConflictError,
     InvalidError,
     NotFoundError,
     Store,
@@ -23,6 +34,7 @@ from .store import (
     enrich_on,
     new_ulid,
 )
+from .store.photos import addable
 from .uploads import author, mimes, put_files, too_large
 
 SHARED_LINK = re.compile(r"(?:^|\s)(https?://\S+)$")
@@ -70,6 +82,50 @@ class PageEdit(BaseModel):
             for k in ("due", "priority")
             if k in self.model_fields_set
         }
+
+
+def page_edit(raw: bytes | str, where: str = "body") -> PageEdit:
+    """A PageEdit from JSON, refused (422) as FastAPI refuses a declared body: parsed
+    first, so a lone surrogate reaches Text's own check, its errors under where."""
+    try:
+        data = json.loads(raw)
+    except (ValueError, RecursionError) as e:
+        pos = getattr(e, "pos", 0)
+        raise RequestValidationError([{
+            "type": "json_invalid", "loc": (where, pos), "msg": "JSON decode error",
+            "input": {},
+        }]) from None  # fmt: skip
+    try:
+        return PageEdit.model_validate(data)
+    except ValidationError as e:
+        errors = e.errors(include_url=False)
+        raise RequestValidationError(
+            [{**err, "loc": (where, *err["loc"])} for err in errors]
+        ) from None
+
+
+# PATCH /api/pages/{key} reads its own body (JSON, or multipart with files): its schema
+EDIT_BODY: dict[str, Any] = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "application/json": {"schema": PageEdit.model_json_schema()},
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "required": ["edit"],
+                    "properties": {
+                        "edit": {"type": "string", "description": "PageEdit as JSON"},
+                        "file": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "binary"},
+                        },
+                    },
+                }
+            },
+        },
+    }
+}
 
 
 def add_routes(app: FastAPI, store: Store, limit: int) -> None:
@@ -158,17 +214,54 @@ def add_routes(app: FastAPI, store: Store, limit: int) -> None:
         page as GET /api/pages/pinned has it. Claude does not read it."""
         return store.ensure_pinned(author(request))
 
-    @app.patch("/api/pages/{key}")
-    def edit(key: str, edit: PageEdit, request: Request) -> dict[str, Any]:
-        """Change title and/or body (409 if base_rev is not the current revision),
-        and/or the kind, fields, tags, and a todo's due date and priority."""
+    def edited(
+        key: str, edit: PageEdit, who: str, uploads: list[UploadFile] | None = None
+    ) -> dict[str, Any]:
         if edit.base_rev is None and (edit.title, edit.body) != (None, None):
             raise InvalidError("base_rev is needed to change the title or body")
-        who = author(request)
-        return store.update_page(
+        blobs = None
+        if uploads:
+            types = mimes(uploads)
+            if not all(addable(t) for t in types):
+                raise NotImageError
+            if edit.body is None or edit.base_rev is None:
+                raise InvalidError("files are sent with the page's text and base_rev")
+            # A stale edit stores no file. (One that goes stale while they are written
+            # is refused in the transaction below: its files are recorded nowhere, and
+            # gc deletes them after its grace period, as any upload nothing refers to.)
+            if (rev := store.page(key)["rev"]) != edit.base_rev:
+                raise ConflictError(rev)
+            blobs = put_files(store, uploads, types)
+        page = store.update_page(
             key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
-            edit.tags, edit.todo(), tags_shown=edit.tags_shown,
+            edit.tags, edit.todo(), tags_shown=edit.tags_shown, uploads=blobs,
         )  # fmt: skip
+        if blobs and app.state.worker:
+            app.state.worker.wake()
+        return page
+
+    @app.patch("/api/pages/{key}", openapi_extra=EDIT_BODY)
+    async def edit(key: str, request: Request) -> dict[str, Any]:
+        """Change title and/or body (409 if base_rev is not the current revision),
+        and/or the kind, fields, tags, and a todo's due date and priority. JSON, or
+        multipart/form-data with the edit as JSON in an edit part and file parts
+        (images, PDFs, text and Markdown files): each ⟦image N⟧ or ⟦file N⟧ token in
+        body is the Nth file's embed or link, saved as one revision."""
+        if int(request.headers.get("content-length") or 0) > limit:
+            raise TooLargeError(too_large(limit))
+        who = author(request)
+        if not request.headers.get("content-type", "").startswith(
+            "multipart/form-data"
+        ):
+            ask = page_edit(await request.body())
+            return await run_in_threadpool(edited, key, ask, who)
+        async with request.form() as form:  # closes the spooled uploads
+            part = form.get("edit")
+            if not isinstance(part, str):
+                raise InvalidError("expected the edit as JSON in an edit part")
+            ask = page_edit(part, "edit")
+            files = [f for f in form.getlist("file") if isinstance(f, UploadFile)]
+            return await run_in_threadpool(edited, key, ask, who, files)
 
     @app.delete("/api/pages/{key}", status_code=204)
     def delete(key: str, request: Request) -> None:
