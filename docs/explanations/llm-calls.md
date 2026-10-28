@@ -46,6 +46,13 @@ summary, the first 2,000 characters of its text, 3,000 of its images' text, 3,00
 text on Ask and 1,500 on that first reading, and 2,000 of its write-up) and an index of up to 150 candidates. The candidates are the pages
 sharing the most tags, then a full-text search (local) for 24 of the page's words: title, tags and
 summary first, then its images' text, their descriptions, its own text, and last its files' text.
+Secrets are masked in everything sent as text, the system prompt included, on both backends
+(`mask.py`, called once in `claude.complete`): provider keys (`sk-`, `sk-ant-`, `ghp_`, `xoxb-`,
+`xapp-`, AWS `AKIA`), `Bearer` tokens, `password`, `token`, `secret` and `api_key` assignments and
+PEM private-key blocks become `[REDACTED]`. There is no hex or base64 rule, so git SHAs, digests,
+URLs and slugs go as they are. What is stored is unchanged and photos go as pixels, so a secret
+only in an image is not masked, and a plain-text password still leaks (`SCRAP_FILE_ENRICH=ask`
+keeps files' text back).
 Data is quoted in `<page>`, `<images>`, `<files>` and `<fetched>` blocks, and any such tag inside
 the data has its `<` sent as
 `&lt;`, so the data cannot end its block. A photo page usually has no enrich summary (Ask can add

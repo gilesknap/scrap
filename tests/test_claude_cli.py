@@ -534,3 +534,14 @@ def test_the_related_pass_command_runs_with_a_seat_token(
     monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN")
     main(["enrich", "--related", "--data-dir", str(tmp_path)])
     assert "enrichment is off" in capsys.readouterr().out
+
+
+def test_the_cli_stdin_and_system_are_masked(cli):
+    cli(SUCCESS)
+    secret, other = "ghp_abcdefghijklmnopqrstuv", "sk-ant-api03-abcdefghijklmnop1234"
+    messages = [{"role": "user", "content": [{"type": "text", "text": f"k {secret}"}]}]
+    claude.complete("m", f"sys {other}", messages, claude.SCHEMA, None)
+    seen = cli.seen()
+    sent = json.dumps(seen["argv"]) + seen["stdin"]
+    assert "[REDACTED]" in seen["stdin"] and "[REDACTED]" in json.dumps(seen["argv"])
+    assert secret not in sent and other not in sent

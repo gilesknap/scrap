@@ -18,6 +18,8 @@ from typing import Any
 
 import anthropic
 
+from .mask import mask_messages, redact_secrets
+
 __all__ = [
     "MODEL",
     "SCHEMA",
@@ -258,7 +260,9 @@ def complete(
     effort: str = EFFORT,
     max_tokens: int = MAX_TOKENS,
 ) -> Completion:
-    """Call Claude once and return its JSON output; raise CallError on any failure."""
+    """Call Claude once and return its JSON output; raise CallError on any failure.
+    Secrets in the text sent are masked first, for both backends (mask.py)."""
+    system, messages = redact_secrets(system), mask_messages(messages)
     if backend() != "api":  # claude -p on a seat token (ADR 0021)
         from . import claude_cli
 
