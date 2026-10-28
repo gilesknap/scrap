@@ -7,8 +7,12 @@ fixed. Nothing in it is real or private.
 
 import json
 import sys
+from pathlib import Path
 
 from scrap.store import Store
+
+sys.path.insert(0, str(Path(__file__).parents[2] / "tests"))
+from pagehelp import import_page  # noqa: E402
 
 PAGES = [  # title, kind, tags, personal
     ("Zephyr fence repair", "todo", ["zephyr/garden", "diy"], True),
@@ -27,5 +31,5 @@ for n, (title, kind, tags, personal) in enumerate(PAGES):
         "created_at": stamp, "updated_at": stamp,
     }  # fmt: skip
     capture = (f"01E2ETAGGED{n:015d}", "note", title, [])
-    slugs.append(store.import_page(page, [capture], "e2e")[0])
+    slugs.append(import_page(store, page, [capture], "e2e")[0])
 print(json.dumps(slugs))
